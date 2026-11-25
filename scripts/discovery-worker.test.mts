@@ -1359,6 +1359,43 @@ void test(
     assert.deepEqual(planned.loadLeadRecords("primary").records, authoritative.records);
     planned.finish(lease("6"), "complete", {});
 
+    // Expiry after hint hydration must refuse the lead read, even without a
+    // measured seed. The original owner cannot publish a stale continuation.
+    const expiring = postgresDiscoveryStore(environment, 1024);
+    const expiredLease = lease("10");
+    const expiringGrant = expiring.acquire(expiredLease, options);
+    runSql(environment, `UPDATE portcove_maintenance.discovery_collection_state
+      SET lease_expires_at = clock_timestamp() - interval '1 second'
+      WHERE scope = 'primary';`);
+    assert.throws(() => expiring.loadLeadRecords("primary"), DiscoveryStoreRefused);
+    assert.throws(
+      () => expiring.commit(expiredLease, expiringGrant.revision, input(state)),
+      DiscoveryStoreRefused,
+    );
+    expiring.finish(expiredLease, "failed", {});
+
+    // Activation generation may move after an otherwise valid measured grant.
+    const generationPlan = measureDiscoverySeed(environment, seedDb, "primary");
+    assert.ok(generationPlan);
+    const generationStore = postgresDiscoveryStore(environment, undefined, seedDb, generationPlan);
+    const generationLease = lease("11");
+    const generationGrant = generationStore.acquire(generationLease, options);
+    runSql(environment, `UPDATE portcove_maintenance_meta.discovery_intake_activation
+      SET collection_generation = collection_generation + 1;`);
+    assert.throws(() => generationStore.loadLeadRecords("primary"), DiscoveryStoreRefused);
+    assert.throws(
+      () => generationStore.commit(generationLease, generationGrant.revision, input(state)),
+      DiscoveryStoreRefused,
+    );
+    assert.throws(
+      () => generationStore.finish(generationLease, "failed", {}),
+      DiscoveryStoreRefused,
+    );
+    // A new owner closes the abandoned generation and retains all data.
+    const renewed = store.acquire(lease("12"), options);
+    assert.deepEqual(renewed.state, state);
+    store.finish(lease("12"), "complete", {});
+
     const stalePlan = measureDiscoverySeed(environment, seedDb, "primary");
     assert.ok(stalePlan);
     const writer = store.acquire(lease("7"), options);

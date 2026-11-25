@@ -334,6 +334,31 @@ function attachExternalHints(state: Record<string, unknown>, hints: Record<strin
     throw new MaintenanceStoreError("Discovery hints have no external continuation");
 }
 
+type DiscoveryHydrationFence = {
+  lease: DiscoveryLease;
+  revision: number;
+  generation: number;
+  plan?: DiscoverySeedPlan;
+};
+
+/** Revalidate ownership after independent paged or seeded reads. */
+function verifyHydrationFence(
+  environment: NodeJS.ProcessEnv,
+  fence: DiscoveryHydrationFence,
+) {
+  const { lease, revision, generation } = fence;
+  const output = runSql(environment, `SET TRANSACTION READ ONLY;
+    SELECT EXISTS (SELECT 1 FROM portcove_maintenance.discovery_collection_state s
+      CROSS JOIN portcove_maintenance_meta.discovery_intake_activation a
+      WHERE s.scope = ${sqlLiteral(lease.scope)} AND s.revision = ${revision}
+        AND s.lease_token = ${uuid(lease.token)} AND s.lease_generation = ${generation}
+        AND a.collection_active AND a.collection_generation = ${generation}
+        AND s.lease_expires_at > clock_timestamp())::text;`).trim();
+  if (output !== "true")
+    throw new DiscoveryStoreRefused("stale-writer", "Discovery lease or revision moved during hydration");
+  return Buffer.byteLength(output);
+}
+
 export function postgresDiscoveryStore(
   environment: NodeJS.ProcessEnv,
   /** Bytes per lead-record page; half of one client command's output by default. */
@@ -353,14 +378,14 @@ export function postgresDiscoveryStore(
   const active = new Map<string, { attempt: string; generation: number; token: string }>();
   if (plan && !seed) throw new MaintenanceStoreError("A measured discovery plan requires a seed");
   let pendingPlan = plan;
-  const plannedLoads = new Map<string, { plan: DiscoverySeedPlan; lease: DiscoveryLease }>();
+  const hydration = new Map<string, DiscoveryHydrationFence>();
   return {
     acquire(lease, options) {
       try {
         const { known } = options;
         const planned = pendingPlan?.scope === lease.scope ? pendingPlan : undefined;
         if (planned) pendingPlan = undefined;
-        plannedLoads.delete(lease.scope);
+        hydration.delete(lease.scope);
         const args = `${sqlLiteral(lease.scope)}, ${uuid(lease.attempt)}, ${uuid(lease.token)},
           ${options.leaseSeconds}, ${sqlLiteral(options.definition)},
           ${sqlLiteral(options.sourceRevision)}, ${sqlLiteral(options.runner)}`;
@@ -376,6 +401,11 @@ export function postgresDiscoveryStore(
             : `SELECT portcove_maintenance.discovery_acquire_seeded(${args})::text;`,
         ).trim();
         const grant = JSON.parse(output) as DiscoveryLeaseGrant;
+        const revision = Number(grant.revision);
+        const generation = Number(grant.generation);
+        const fence: DiscoveryHydrationFence = {
+          lease, revision, generation, ...(planned ? { plan: planned } : {}),
+        };
         let received = Buffer.byteLength(output);
         if (!grant.unchanged) {
           try {
@@ -390,16 +420,24 @@ export function postgresDiscoveryStore(
             const hints = incremental ?? loadExternalHints(environment, lease.scope, pageBytes);
             received += hints.bytes;
             attachExternalHints(grant.state, hints.rows);
+            received += verifyHydrationFence(environment, fence);
+            hydration.set(lease.scope, fence);
           } catch (error) {
-            // The compact acquire already took a lease; close it on hydration failure.
-            runSql(environment, `SELECT portcove_maintenance.discovery_finish(${sqlLiteral(lease.scope)}, ${uuid(lease.attempt)}, ${uuid(lease.token)}, 'failed', '{}'::jsonb);`);
+            // Only the current owner may close a lease; preserve the original
+            // hydration error if a newer writer already took ownership.
+            baselines.delete(lease.scope);
+            active.delete(lease.scope);
+            hydration.delete(lease.scope);
+            try {
+              runSql(environment, `SELECT portcove_maintenance.discovery_finish(${sqlLiteral(lease.scope)}, ${uuid(lease.attempt)}, ${uuid(lease.token)}, 'failed', '{}'::jsonb);`);
+            } catch (finishError) {
+              if (!/portcove-discovery-stale-writer/u.test(String(finishError)))
+                throw new MaintenanceStoreError(`Discovery hydration failed: ${String(error)}; cleanup failed: ${String(finishError)}`);
+            }
             throw error;
           }
         }
-        if (planned) plannedLoads.set(lease.scope, { plan: planned, lease });
         const previous = baselines.get(lease.scope);
-        const revision = Number(grant.revision);
-        const generation = Number(grant.generation);
         active.set(lease.scope, { attempt: lease.attempt, generation, token: lease.token });
         if (grant.unchanged) {
           if (previous && known && previous.revision === revision &&
@@ -444,6 +482,8 @@ export function postgresDiscoveryStore(
         const revision = Number(output.trim());
         if (revision !== expectedRevision + 1)
           throw new MaintenanceStoreError("Discovery commit returned an unexpected revision");
+        if (hydration.get(lease.scope)?.lease.token === lease.token)
+          hydration.delete(lease.scope);
         if (current && current.attempt === lease.attempt && current.token === lease.token)
           baselines.set(lease.scope, { revision, attempt: lease.attempt, generation: current.generation,
             definition: options.definition, hints: nextHints });
@@ -459,27 +499,29 @@ export function postgresDiscoveryStore(
       }
     },
     loadLeadRecords(scope) {
-      const measured = plannedLoads.get(scope);
-      plannedLoads.delete(scope);
+      const fence = hydration.get(scope);
+      hydration.delete(scope);
+      const measured = fence?.plan;
+      const verify = () => {
+        if (!fence) return 0;
+        try {
+          return verifyHydrationFence(environment, fence);
+        } catch (error) {
+          baselines.delete(scope);
+          active.delete(scope);
+          throw error;
+        }
+      };
       const incremental = seed && readSeededDiscoveryRows(environment, seed, scope, "leads",
-        measured?.plan.leadsBytes ?? pageBytes, measured?.plan.leads);
-      if (measured) {
-        if (!incremental)
-          throw new DiscoveryStoreRefused("stale-writer", "Measured lead delta no longer fits; replan before reading");
-        const { plan, lease } = measured;
-        const valid = runSql(environment, `SET TRANSACTION READ ONLY;
-          SELECT EXISTS (SELECT 1 FROM portcove_maintenance.discovery_collection_state s
-            CROSS JOIN portcove_maintenance_meta.discovery_intake_activation a
-            WHERE s.scope = ${sqlLiteral(scope)} AND s.revision = ${plan.revision}
-              AND s.lease_token = ${uuid(lease.token)} AND s.lease_generation = ${plan.generation}
-              AND a.collection_active AND a.collection_generation = ${plan.generation}
-              AND s.lease_expires_at > clock_timestamp())::text;`).trim();
-        if (valid !== "true")
-          throw new DiscoveryStoreRefused("stale-writer", "Discovery lease or revision moved during hydration");
+        measured?.leadsBytes ?? pageBytes, measured?.leads);
+      if (measured && !incremental) {
+        baselines.delete(scope);
+        active.delete(scope);
+        throw new DiscoveryStoreRefused("stale-writer", "Measured lead delta no longer fits; replan before reading");
       }
       if (incremental) return {
         records: Object.entries(incremental.rows).sort(([a], [b]) => Number(a) - Number(b)).map(([, row]) => row),
-        bytes: incremental.bytes,
+        bytes: incremental.bytes + verify(),
       };
       // Read in pages by key, so the stored lead set is bounded by the database
       // rather than by one client read.
@@ -503,7 +545,7 @@ export function postgresDiscoveryStore(
         const page: unknown = JSON.parse(output);
         if (!Array.isArray(page))
           throw new MaintenanceStoreError("Malformed discovery lead records");
-        if (page.length === 0) return { records, bytes };
+        if (page.length === 0) return { records, bytes: bytes + verify() };
         for (const record of page) records.push(record);
         const last: unknown = page.at(-1);
         const id = isRecord(last) ? Number(last.id) : Number.NaN;
@@ -513,6 +555,10 @@ export function postgresDiscoveryStore(
       }
     },
     finish(lease, outcome, summary) {
+      if (hydration.get(lease.scope)?.lease.token === lease.token)
+        hydration.delete(lease.scope);
+      if (active.get(lease.scope)?.token === lease.token)
+        active.delete(lease.scope);
       try {
         runSql(
           environment,
