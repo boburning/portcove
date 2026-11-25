@@ -327,7 +327,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   // Discovery collection is read-only toward GitHub, isolated on its own runner and
   // holds no Roadmap or intake credential.
   const discover = workflow.jobs.discover!;
-  assert.deepEqual(discover.permissions, { contents: "read" });
+  assert.deepEqual(discover.permissions, { contents: "read", actions: "read" });
   assert.match(discover.if!, /github.event_name == 'schedule' \|\| inputs.purpose == 'discover'/u);
   assert.ok(discover["timeout-minutes"]! > 0);
   assert.doesNotMatch(
