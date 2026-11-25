@@ -1041,6 +1041,16 @@ export const discoveryTransferForecastQuery = `SELECT json_build_object(
       SELECT runner FROM portcove_maintenance.discovery_collection_attempts
       GROUP BY runner ORDER BY max(acquisition) DESC LIMIT 7)), 0));`;
 
+/** Recent received bytes already include the cold acquire. Do not add a
+ * second cold acquire to that measurement; retain room for either complete
+ * read scenario plus acknowledgements and the existing protocol headroom. */
+export function discoveryPassReservation(acquireBytes: number, previousTransfer: number, commits: number) {
+  return Math.ceil(
+    Math.max(acquireBytes, previousTransfer) / 0.7 +
+      (commits * commitResponseAllowance) / 0.7 + 1024 * 1024,
+  );
+}
+
 /** Time to write the final state: a generous allowance proportional to its size. */
 export function finalizationMilliseconds(stateBytes: number) {
   return 60_000 + Math.ceil(stateBytes / (256 * 1024)) * 1000;
@@ -1271,9 +1281,7 @@ export async function discoveryWorkerMain(argv: string[]) {
         // covers growth, including a full read after another writer's commit.
         // The admission meters 70% of a reservation as payload.
         const commits = Math.ceil(admissionTimeout / (3600 * 500)) + 1;
-        const reservationBytes = Math.ceil(
-          (acquireBytes + commits * commitResponseAllowance + previousTransfer) / 0.7 + 1024 * 1024,
-        );
+        const reservationBytes = discoveryPassReservation(acquireBytes, previousTransfer, commits);
         try {
           const result = await withMaintenanceAdmission(
             environment,
