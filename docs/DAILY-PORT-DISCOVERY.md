@@ -1076,6 +1076,18 @@ collection and fails the job at the last committed page, so a store error is
 never recorded as a source outcome. `result.json` lists every pass with its
 outcome, `committed.state_bytes` and transfer.
 
+Before bulk community-list work, the unattended collector spends up to one
+quarter of its initially available request, byte and time budgets on retained
+release probes, using the existing admission and persistence paths. It then
+continues normal collection and later release checks for newly found leads.
+Never-checked and longest-unchecked leads go first. A path-specific inaccessible
+or malformed release response records a retry clock without replacing the last
+successful package observation. The same lead is not retried within that run
+unless collection discovers a changed repository revision. Provider-wide
+quota, authentication and transport failures still use the existing boundaries.
+This share is scheduling headroom, not a new provider quota or a promise of
+complete release coverage.
+
 A lead whose recent releases have no uploaded desktop asset gets a
 `no-native-package` watch (`waiting`). When a later run sees uploaded desktop
 assets for the same provider ID, the watch becomes `due` in a new episode. This
