@@ -18,7 +18,6 @@ import {
   sequenceStateQuery,
   sqlLiteral,
   storeTables,
-  storeDigest,
   storeSequences,
   withExportedSnapshot,
   type StoreDigest,
@@ -81,18 +80,18 @@ function exportCeiling(through: readonly string[], reused: ReadonlySet<string>) 
   const sources = [...storeTables.map(([table]) => table), activation]
     .filter((table) => !reused.has(table))
     .map((table) => {
-    const index = history.findIndex(([name]) => table === `${schema}.${name}`);
-    const where = index < 0 ? "" : ` WHERE ${history[index]![1]} > ${through[index]}`;
-    // Allow for text COPY escaping, row framing and query/transport overhead.
-    return `(SELECT coalesce(sum(octet_length(t::text)::bigint * 2 + 100), 0) FROM ${table} t${where})`;
-  });
+      const index = history.findIndex(([name]) => table === `${schema}.${name}`);
+      const where = index < 0 ? "" : ` WHERE ${history[index]![1]} > ${through[index]}`;
+      // Allow for text COPY escaping, row framing and query/transport overhead.
+      return `(SELECT coalesce(sum(octet_length(t::text)::bigint * 2 + 100), 0) FROM ${table} t${where})`;
+    });
   return `SELECT 2000000 + ${sources.join(" + ")};`;
 }
 
 /**
  * Use a verified ordinary dump as a prefix cache. Every output is itself an
- * ordinary complete backup. Production supplies all mutable rows and only the
- * suffixes whose prefixes matched in the same snapshot. Other tables with
+ * ordinary complete backup. Production supplies changed tables and the
+ * history suffixes whose prefixes matched in the same snapshot. Tables with
  * identical verified local and production digests are loaded locally instead.
  * A mismatch falls back to transferring that table, subject to the same cap.
  */
@@ -126,10 +125,9 @@ export async function backupReusingHistory(options: {
     throw new MaintenanceStoreError("Back up only a store migrated to this checkout's schema");
 
   const base = previous ? readBackupManifest(previous) : undefined;
-  if (previous) restore(prefixDatabase, previous);
   // The local restore may migrate old snapshots or reset deployment activation.
   // Compare the actual restored table contents, never just a manifest claim.
-  const localTables = previous ? storeDigest(prefixDatabase) : undefined;
+  const localTables = previous ? restore(prefixDatabase, previous).tables : undefined;
   const work = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-reuse-"));
   try {
     const dump = path.join(work, "store.dump");
