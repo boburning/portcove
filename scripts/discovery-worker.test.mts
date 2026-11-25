@@ -1374,6 +1374,41 @@ void test("a failed lead-record load finishes the attempt instead of holding the
   assert.deepEqual(memory.finished, ["failed"]);
 });
 
+void test("invalid retained state or lead records close the owned discovery attempt", async () => {
+  for (const invalid of ["state", "lead"]) {
+    const memory = memoryStore();
+    if (invalid === "state") memory.advance({ format: 999 });
+    else memory.leads.set(1, { id: 1 });
+    const before = structuredClone(memory.state());
+    const beforeLeads = structuredClone(memory.leads);
+    let providerCalls = 0;
+    const result = await runDiscoveryWorker({
+      store: memory.store,
+      runDir: os.tmpdir(),
+      sourceRevision: "fixture",
+      runner: "fixture",
+      covered: () => new Set(),
+      now: () => Date.parse("2026-11-01T05:00:00.000Z"),
+      connect: async () => {
+        providerCalls++;
+        throw new Error("not reached");
+      },
+    });
+    assert.equal(result.outcome, "failed");
+    assert.match(
+      result.reason ?? "",
+      invalid === "state"
+        ? /retained state could not be validated.*unsupported format/u
+        : /lead records could not be validated/u,
+    );
+    assert.deepEqual(memory.finished, ["failed"]);
+    assert.deepEqual(memory.state(), before);
+    assert.deepEqual(memory.leads, beforeLeads);
+    assert.equal(memory.commits.length, 0);
+    assert.equal(providerCalls, 0);
+  }
+});
+
 void test("discovery pass reservation does not charge the cold read twice", () => {
   const acquire = 17_000_000;
   const observed = 18_000_000;

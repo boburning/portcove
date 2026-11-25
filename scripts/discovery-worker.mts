@@ -340,19 +340,35 @@ export async function runDiscoveryWorker(
   // The store omits a revision this process committed and still holds in full.
   const reused = grant.unchanged === true && options.retained ? options.retained : undefined;
   options.retain?.(undefined);
-  const state = parseWorkerState(reused ? structuredClone(reused.state) : grant.state);
+  let state: DiscoveryWorkerState;
+  const recordDigests = new Map<string, string>();
   const grantDefinition = reused ? reused.definition : grant.definition_sha256;
   // Lead records live in rows; the state document carries everything else.
   // Records still embedded in an older document are kept and move into rows
   // with the first commit. Reused state already carries every stored record.
-  let loaded: { records: unknown[]; bytes: number };
+  let validationStage = "retained state could not be validated";
+  committed.received_bytes = grant.received_bytes ?? 0;
   try {
-    loaded = reused
+    state = parseWorkerState(reused ? structuredClone(reused.state) : grant.state);
+    validationStage = "lead records could not be loaded";
+    const loaded = reused
       ? { records: Object.values(state.leads.records), bytes: 0 }
       : options.store.loadLeadRecords(scope);
+    committed.received_bytes += loaded.bytes;
+    validationStage = "lead records could not be validated";
+    const storedRecords: Record<string, unknown> = {};
+    for (const raw of loaded.records)
+      if (isRecord(raw) && Number.isSafeInteger(raw.id)) {
+        storedRecords[String(raw.id)] = raw;
+        recordDigests.set(String(raw.id), sha256(raw));
+      }
+    state.leads = parseLeadState({
+      ...state.leads,
+      records: { ...storedRecords, ...state.leads.records },
+    });
   } catch (error) {
-    // Close the attempt and release the lease rather than leaving them held.
-    const reason = `lead records could not be loaded: ${errorMessage(error).slice(0, 400)}`;
+    // No malformed continuation may leave an owned attempt running or be reset.
+    const reason = `${validationStage}: ${errorMessage(error).slice(0, 400)}`;
     const failed = result(error instanceof DiscoveryStoreRefused ? "deferred" : "failed", {
       reason, attempt_id: lease.attempt,
     });
@@ -360,21 +376,13 @@ export async function runDiscoveryWorker(
       const { notes: _notes, ...summary } = failed;
       options.store.finish(lease, "failed", summary);
     } catch (finishError) {
-      if (!(finishError instanceof DiscoveryStoreRefused)) throw finishError;
+      if (!(finishError instanceof DiscoveryStoreRefused))
+        throw new Error(`${reason}; lease cleanup failed: ${errorMessage(finishError)}`, {
+          cause: finishError,
+        });
     }
     return failed;
   }
-  const recordDigests = new Map<string, string>();
-  const storedRecords: Record<string, unknown> = {};
-  for (const raw of loaded.records)
-    if (isRecord(raw) && Number.isSafeInteger(raw.id)) {
-      storedRecords[String(raw.id)] = raw;
-      recordDigests.set(String(raw.id), sha256(raw));
-    }
-  state.leads = parseLeadState({
-    ...state.leads,
-    records: { ...storedRecords, ...state.leads.records },
-  });
   const initialDigest = learnedDigest({ leads: state.leads, checkpoint: state.checkpoint });
   let revision = grant.revision;
   // Stored state and its observations commit together, so everything in the
@@ -396,7 +404,6 @@ export async function runDiscoveryWorker(
     }
     return { observations, watches, records };
   };
-  committed.received_bytes = (grant.received_bytes ?? 0) + loaded.bytes;
   // State written under other collector definitions (for example an earlier
   // parser version) is not assumed to have rows under this one; the first commit
   // resends them and the store keeps one row per identical content.

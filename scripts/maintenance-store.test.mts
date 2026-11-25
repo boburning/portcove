@@ -6,7 +6,12 @@ import path from "node:path";
 import test from "node:test";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import { postgresIntakeCheckpoints } from "./hosted-discovery-intake-checkpoint.mts";
-import { backupReusingHistory, createBackupRecovery, MaintenanceBackupDeferred } from "./maintenance-backup-reuse.mts";
+import {
+  backupFingerprintResponseLimit,
+  backupReusingHistory,
+  createBackupRecovery,
+  MaintenanceBackupDeferred,
+} from "./maintenance-backup-reuse.mts";
 import {
   acquireMaintenanceReservation,
   cutoverReading,
@@ -36,6 +41,14 @@ import {
   storeDigest,
   withExportedSnapshot,
 } from "./maintenance-store.mts";
+
+void test("backup fingerprint responses fit the actual local client envelope", () => {
+  const clientLimit = 64 * 1024 * 1024;
+  assert.equal(backupFingerprintResponseLimit(33_600_000), 33_600_000);
+  assert.equal(backupFingerprintResponseLimit(77_000_000), clientLimit - 1);
+  assert.equal(backupFingerprintResponseLimit(308_000_000), clientLimit - 1);
+  assert.equal(backupFingerprintResponseLimit(2_000, 1_024), 1_023);
+});
 
 void test("connection URLs become libpq environment without exposing secrets in arguments", () => {
   assert.deepEqual(

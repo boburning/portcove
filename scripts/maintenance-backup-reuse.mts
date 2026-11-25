@@ -8,6 +8,7 @@ import {
   dumpTimeoutMs,
   maintenanceSchemas,
   migrationStatus,
+  outputLimitBytes,
   portableRestoreSql,
   psqlBase,
   queryJson,
@@ -40,6 +41,11 @@ const discoveryDeltaTables = [
 ] as const;
 type DeltaTable = (typeof discoveryDeltaTables)[number];
 type RowDelta = { table: DeltaTable; keys: string[] };
+
+/** Reserve the trailing newline in the local psql stdout response. */
+export function backupFingerprintResponseLimit(maximum: number, clientLimit = outputLimitBytes) {
+  return Math.min(maximum, clientLimit - 1);
+}
 
 function fingerprintSql(table: DeltaTable, maximum: number) {
   return `WITH fingerprints AS (
@@ -270,7 +276,11 @@ async function backupPrepared(options: BackupReuseOptions, prepareSeed: () => {
         if (!localTables?.[table.table]?.rows || reusedTables.has(table.table)) continue;
         const remaining = Math.min(metadataAllowance - planBytes, reservedBytes - 2_000_000 - planBytes);
         if (remaining <= 0) break;
-        const local = queryJson(prefixDatabase, `${copySettings}\n${fingerprintSql(table, remaining)}`);
+        const localLimit = backupFingerprintResponseLimit(remaining);
+        const local = queryJson(
+          prefixDatabase,
+          `${copySettings}\n${fingerprintSql(table, localLimit)}`,
+        );
         if (local === null) continue;
         const encoded = JSON.stringify(local);
         const output = (await query(deltaSql(table, encoded, remaining))).trim();
