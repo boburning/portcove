@@ -1,4 +1,5 @@
 import { hostedAmendmentMarker } from "./hosted-discovery-amendment.mts";
+import { isRecord } from "./runtime-values.mts";
 import {
   compactHostedReceiptWire,
   expandHostedReceiptWire,
@@ -1390,7 +1391,9 @@ for (const count of [29, 48])
           JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!),
         );
         assert.ok(Array.isArray(changed.plan));
-        changed.plan[0].body_sha256 = "f".repeat(64);
+        const firstSlot: unknown = changed.plan[0];
+        assert.ok(isRecord(firstSlot));
+        firstSlot.body_sha256 = "f".repeat(64);
         f.comments.set(comment.id, {
           ...comment,
           body: comment.body.replace(
