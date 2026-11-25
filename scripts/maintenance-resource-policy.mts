@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { appendFileSync, writeFileSync } from "node:fs";
 import { isRecord } from "./runtime-values.mts";
+import { MaintenanceBackupDeferred } from "./maintenance-backup-reuse.mts";
 import {
   MaintenanceStoreError,
   maintenanceTransfer,
@@ -359,7 +360,7 @@ export function acquireMaintenanceReservation(
     `DO $$ BEGIN PERFORM pg_advisory_xact_lock(41290007); END $$;
     WITH balance AS (
       SELECT coalesce(sum(
-        CASE WHEN outcome = 'completed' AND estimate_bytes IS NOT NULL
+        CASE WHEN (outcome = 'completed' OR (outcome = 'deferred' AND operation LIKE 'recovery%')) AND estimate_bytes IS NOT NULL
           -- The cumulative project counter already includes a completed
           -- operation's transfer once the sample was taken well after it
           -- finished, whichever client caused it. Only recent completions are
@@ -369,7 +370,7 @@ export function acquireMaintenanceReservation(
           ELSE reserved_bytes END), 0) AS unresolved,
         -- Every charge in the period, settled or not, for attribution evidence.
         coalesce(sum(
-          CASE WHEN outcome = 'completed' AND estimate_bytes IS NOT NULL
+          CASE WHEN (outcome = 'completed' OR (outcome = 'deferred' AND operation LIKE 'recovery%')) AND estimate_bytes IS NOT NULL
             THEN greatest(estimate_bytes, least(reserved_bytes, 500000))
             ELSE reserved_bytes END), 0) AS charged,
         max(reported_bytes) FILTER (WHERE period_start = ${period}::timestamptz) AS high_water,
@@ -562,16 +563,16 @@ export async function withMaintenanceAdmission<T>(
   if (!admission.attempt_id) throw new MaintenanceResourceDeferred(admission.reason);
   let outcome = "failed";
   let estimate: number | undefined;
+  const measurement = {
+    host: environment.PGHOST!,
+    payloadBytes: 0,
+    byteLimit: Math.floor(admission.operation_reservation_bytes * 0.7),
+    deadline: Math.min(
+      Date.parse(admission.started_at!) + admissionTimeout,
+      Date.parse(meter.resetAt) - 60_000,
+    ),
+  };
   try {
-    const measurement = {
-      host: environment.PGHOST!,
-      payloadBytes: 0,
-      byteLimit: Math.floor(admission.operation_reservation_bytes * 0.7),
-      deadline: Math.min(
-        Date.parse(admission.started_at!) + admissionTimeout,
-        Date.parse(meter.resetAt) - 60_000,
-      ),
-    };
     const value = await maintenanceTransfer.run(measurement, () =>
       callback(admission.operation_reservation_bytes, measurement.deadline),
     );
@@ -581,7 +582,13 @@ export async function withMaintenanceAdmission<T>(
     outcome = options.completed?.(value) === false ? "failed" : "completed";
     return value;
   } catch (error) {
-    if (error instanceof Error && error.name === "MaintenanceBackupDeferred") outcome = "deferred";
+    if (operation.startsWith("recovery") && error instanceof MaintenanceBackupDeferred) {
+      // This exception is produced only before any file export. All prior
+      // production reads used measured SQL responses; unknown failures keep
+      // their entire reservation. Retain conservative command/protocol margin.
+      outcome = "deferred";
+      estimate = 2_000_000 + Math.ceil(measurement.payloadBytes * 1.3);
+    }
     throw error;
   } finally {
     runSql(
