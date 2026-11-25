@@ -513,8 +513,9 @@ function digestExpression(tables = storeTables.slice()) {
   return `json_build_object(${fields.join(",\n  ")})`;
 }
 
-export function digestQuery() {
-  return `${digestSettings}\nSELECT ${digestExpression()};`;
+export function digestQuery(schemaVersion = Number.POSITIVE_INFINITY) {
+  const tables = storeTables.filter(([table]) => (tableIntroducedIn[table] ?? 0) <= schemaVersion);
+  return `${digestSettings}\nSELECT ${digestExpression(tables)};`;
 }
 
 /** Raises inside the restore transaction when restored content differs from the manifest. */
@@ -651,7 +652,7 @@ export async function backup(
   // Written beside the destination and renamed only when complete: a failure leaves no partial backup.
   const staging = mkdtempSync(`${output}.partial-`);
   try {
-    const manifest = await writeBackup(environment, staging);
+    const manifest = await writeBackup(environment, staging, status.schema_version);
     renameSync(staging, output);
     return manifest;
   } catch (error) {
@@ -660,12 +661,12 @@ export async function backup(
   }
 }
 
-async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
+async function writeBackup(environment: NodeJS.ProcessEnv, output: string, schemaVersion: number) {
   const dumpPath = path.join(output, dumpFileName);
   const { tables, serverVersion, sequences } = await withExportedSnapshot(
     environment,
     async (snapshot, query) => {
-      const tables = JSON.parse((await query(digestQuery())).trim()) as StoreDigest;
+      const tables = JSON.parse((await query(digestQuery(schemaVersion))).trim()) as StoreDigest;
       const serverVersion = Number((await query("SHOW server_version_num;")).trim());
       const sequences = JSON.parse(await query(sequenceStateQuery)) as SequenceState;
       runTool(
@@ -691,7 +692,7 @@ async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
   );
   const migrations = readLedger(environment);
   const ledger = tables["portcove_maintenance_meta.schema_migrations"];
-  if (ledger?.rows !== migrations.length)
+  if (ledger?.rows !== migrations.length || migrations.at(-1)?.version !== schemaVersion)
     throw new MaintenanceStoreError("Migration ledger changed during backup");
   const manifest: BackupManifest = {
     format: backupFormat,

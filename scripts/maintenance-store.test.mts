@@ -27,6 +27,7 @@ import {
   clientEnvironment,
   connectionFromEnvironment,
   defaultMigrationDirectory,
+  digestQuery,
   libpqEnvironmentFromUrl,
   maintenanceTransfer,
   migrate,
@@ -1090,6 +1091,66 @@ void test(
       }).attempt_id,
       null,
       "a completion after the fixed cutover sample never settles",
+    );
+  },
+);
+
+void test(
+  "a pre-0011 portable backup restores and migrates normalized discovery hints",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const source = fixture.start("legacy").owner;
+    const target = fixture.start("upgraded").owner;
+    const directory = path.join(fixture.root, "legacy-migrations");
+    mkdirSync(directory);
+    for (const migration of readMigrations().filter(({ version }) => version <= 10)) {
+      const name = `${String(migration.version).padStart(4, "0")}_${migration.name}.sql`;
+      copyFileSync(path.join(defaultMigrationDirectory, name), path.join(directory, name));
+      runSql(source, migrationTransaction(migration));
+    }
+    assert.equal(migrationStatus(source, directory).schema_version, 10);
+    runSql(source, seed);
+    runSql(source, `INSERT INTO portcove_maintenance.discovery_collection_state
+      (scope, definition_sha256, revision, state, state_sha256, updated_at)
+      SELECT scope, '${hex("a")}', 4, state,
+        encode(sha256(convert_to(state::text, 'UTF8')), 'hex'), clock_timestamp()
+      FROM (VALUES
+        ('primary', '{"cursor":"next","leads":{"external":{"hints":{"one":{"repo":"a/b"},"two":{"repo":"c/d"}},"checked":2}}}'::jsonb),
+        ('empty', '{"leads":{"external":{"hints":{},"checked":0}}}'::jsonb),
+        ('plain', '{"cursor":"unchanged"}'::jsonb)
+      ) AS states(scope, state);`);
+    const logical = runSql(
+      source,
+      "SELECT jsonb_object_agg(scope, state) FROM portcove_maintenance.discovery_collection_state;",
+    );
+    const archive = path.join(fixture.root, "legacy-backup");
+    const manifest = await backup(source, archive, directory);
+    assert.equal(manifest.schema_version, 10);
+    assert.equal(manifest.tables["portcove_maintenance.discovery_external_hints"], undefined);
+    assert.deepEqual(manifest.tables, JSON.parse(runSql(source, digestQuery(10))));
+    const restored = restore(target, archive);
+    assert.equal(restored.verified, true);
+    assert.equal(restored.sequences_verified, true);
+    assert.deepEqual(restored.migrated, readMigrations().filter(({ version }) => version > 10).map(({ version }) => version));
+    assert.equal(restored.tables["portcove_maintenance.discovery_external_hints"]?.rows, 2);
+    assert.deepEqual(
+      JSON.parse(runSql(target, `SELECT jsonb_object_agg(scope,
+        portcove_maintenance.discovery_expanded_state(scope, state))
+        FROM portcove_maintenance.discovery_collection_state;`)),
+      JSON.parse(logical),
+    );
+    assert.equal(
+      runSql(target, "SELECT collection_active FROM portcove_maintenance_meta.discovery_intake_activation;").trim(),
+      "f",
+    );
+    assert.equal(
+      runSql(target, "SELECT collection_generation FROM portcove_maintenance_meta.discovery_intake_activation;").trim(),
+      "2",
+    );
+    assert.equal(
+      runSql(target, "SELECT has_function_privilege('portcove_maintenance_collector', 'portcove_maintenance.discovery_acquire_compact(text,uuid,uuid,integer,text,text,text)', 'EXECUTE');").trim(),
+      "f",
     );
   },
 );
