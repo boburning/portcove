@@ -36,6 +36,8 @@ import {
 import { portCatalogMarkers, portKeyMarkers } from "./roadmap-issue.mts";
 import { explicitBlockerFields } from "./roadmap-qualification.mts";
 import {
+  backlogLifecycleReview,
+  dependencyWake,
   issueReconsiderations,
   reconsiderationSql,
   targetReconsiderations,
@@ -2702,6 +2704,9 @@ export async function collect(options: {
     cli_sha256: cliSha256,
     subjects: subjects.length,
     issues: issueInventory?.issues.length ?? null,
+    backlog_lifecycle: issueInventory?.roadmap_project_id
+      ? backlogLifecycleReview(issueFacts(issueInventory), issueInventory.roadmap_project_id)
+      : null,
     /** Sources whose read failed alone; their runs record the gap and prior facts stay current. */
     failed_sources: [
       ...(issueRead && !issueRead.ok ? ["issues-project"] : []),
@@ -3097,6 +3102,8 @@ export interface ReconsiderationEntry {
    * recorded. Shown for its authority to reconsider; never applied automatically.
    */
   technical_changes?: { subject_key: string; state: string; changed_at: string }[];
+  /** Derived from a complete issue read; never changes the recorded condition or status. */
+  dependency_wake?: "waiting" | "review-ready" | "unknown";
 }
 
 /** Adds, to each pending deferral, the linked assessments that changed after it. */
@@ -3791,10 +3798,18 @@ export function buildReport(
     unassessed_gaps: data.unassessed_gaps,
     ...(hostedObserved ? { hosted_intake: data.hosted_intake } : {}),
     handoffs: openHandoffs(data.handoffs),
-    reconsiderations: deferralChanges(
-      data.reconsiderations,
-      data.subjects as Parameters<typeof deferralChanges>[1],
-    ),
+    reconsiderations: (() => {
+      const issues = new Map(Object.entries(data.universe_inputs.issues));
+      const complete = latestRun("issues-project")?.coverage === "complete";
+      return deferralChanges(
+        data.reconsiderations,
+        data.subjects as Parameters<typeof deferralChanges>[1],
+      ).map((entry) => {
+        if (entry.status !== "pending") return entry;
+        const wake = dependencyWake(entry.condition, issues.get(entry.subject_key), issues, complete);
+        return wake === null ? entry : { ...entry, dependency_wake: wake };
+      });
+    })(),
   };
 }
 
@@ -3894,13 +3909,16 @@ function reconsiderationSection(report: InventoryReport) {
           ? "No explicit resume condition recorded on the issue."
           : "";
     const hold = typeof value.acquisition_hold === "string" ? value.acquisition_hold : "";
-    return [hold, typeof value.blocker === "string" ? `Blocker: ${value.blocker}` : "", resume]
+    const dependency = Array.isArray(value.dependency_issues)
+      ? `Recorded dependency issues: ${value.dependency_issues.map((id) => `#${id}`).join(", ")}. ${entry.dependency_wake === "review-ready" ? "All observed closed; owner review is due." : entry.dependency_wake === "waiting" ? "Waiting for dependencies." : "Current readiness is unknown."}`
+      : "";
+    return [hold, typeof value.blocker === "string" ? `Blocker: ${value.blocker}` : "", resume, dependency]
       .filter(Boolean)
       .map(escapeHtml)
       .join("<br>");
   };
   return `<h2>Holds and deferrals</h2>
-<p>Recorded by their owners: Project Status Deferred or Blocked on an open issue, and reviewed catalog acquisition holds. Only the named authority reconsiders a deferral; a technical change is shown for that authority and never lifts it.</p>
+<p>Recorded by their owners: Project Status Deferred or Blocked on an open issue, and reviewed catalog acquisition holds. Only the named authority reconsiders a deferral; a technical change is shown for that authority and never lifts it. Closing recorded dependency issues is a review signal, not permission to resume work or change Project Status.</p>
 <table><thead><tr><th>Subject</th><th>Kind</th><th>Status</th><th>Condition</th><th>Revisit authority</th><th>Since</th><th>Technical changes since</th></tr></thead><tbody>
 ${entries
   .map(
