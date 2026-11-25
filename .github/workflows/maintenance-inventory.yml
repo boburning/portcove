@@ -497,6 +497,7 @@ jobs:
       (github.event_name == 'schedule' || inputs.purpose == 'discover')
     permissions:
       contents: read
+      actions: read
     runs-on: ubuntu-latest
     # GitHub-hosted jobs stop at 360 minutes. Collection itself is bounded by
     # provider quota, runner disk and admitted database transfer, not counts.
@@ -523,6 +524,40 @@ jobs:
         run: |
           command -v psql || sudo apt-get install -y --no-install-recommends postgresql-client
           mkdir -p work/discovery-worker
+      - name: Prepare optional discovery seed from the existing verified recovery
+        continue-on-error: true
+        timeout-minutes: 12
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # No production database credentials are supplied to this step.
+          # Select the same independently verified recovery artifacts used by collect.
+          rc=0
+          seed_root="$RUNNER_TEMP/discovery-seed"
+          node scripts/maintenance-recovery-artifact.mts "$seed_root" || rc=$?
+          if [[ "$rc" != 0 ]]; then
+            echo 'No verified discovery seed; the collector will use its normal cold read.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          client="/usr/lib/postgresql/18/bin"
+          if [[ ! -x "$client/initdb" ]]; then
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+            sudo apt-get install -y --no-install-recommends postgresql-18
+          fi
+          socket="$seed_root/socket"
+          mkdir -p "$socket"
+          "$client/initdb" --auth=trust --encoding=UTF8 --no-locale -D "$seed_root/data" > /dev/null
+          "$client/pg_ctl" -D "$seed_root/data" -l "$seed_root/postgres.log" -w \
+            -o "-c listen_addresses='' -k $socket" start
+          "$client/createdb" -h "$socket" discovery_seed
+          export PORTCOVE_POSTGRES_BIN="$client"
+          export PORTCOVE_DISCOVERY_SEED_URL="postgresql://$USER@localhost/discovery_seed?host=$socket"
+          node scripts/maintenance-store.mts restore --database-env PORTCOVE_DISCOVERY_SEED_URL \
+            --input "$seed_root/backup" > "$seed_root/restore.json"
+          {
+            echo "PORTCOVE_POSTGRES_BIN=$client"
+            echo "PORTCOVE_DISCOVERY_SEED_URL=$PORTCOVE_DISCOVERY_SEED_URL"
+          } >> "$GITHUB_ENV"
       - name: Collect discovery sources without a terminal or model
         id: discover
         # The worker stops collecting before this deadline to commit its final state.
