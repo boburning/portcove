@@ -22,7 +22,7 @@ const canonicalText = (value: string) => value.replaceAll("\r\n", "\n");
  * This stays a static literal for bundled release controllers; Renovate updates it
  * with the manifest and `quality-tools.mts --validate` rejects any difference.
  */
-export const reviewedCargoDenyVersion = "0.20.2";
+export const reviewedCargoDenyVersion = "0.22.0";
 function scanCommand(name: string, args: string[], cwd: string) {
   const result = execFileSync(name, args, {
     cwd,
