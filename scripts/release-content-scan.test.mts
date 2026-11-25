@@ -205,6 +205,52 @@ void test("a scan flags copied headers, records coverage and reuses its checkpoi
   assert.ok(!again.some((call) => call.startsWith("download")));
 });
 
+void test("transient failures rotate behind fresh assets and shared attempts stay unique", async (context) => {
+  const targets = scanTargets(listings);
+  const calls: string[] = [];
+  const original = fakes(calls);
+  const failing: ScanDependencies = {
+    ...original,
+    async download(asset, file, maximum, deadline) {
+      if (asset.name === "Code-1-windows-x64.zip") {
+        calls.push("transient failure");
+        throw new Error("temporary transfer interruption");
+      }
+      await original.download(asset, file, maximum, deadline);
+    },
+  };
+  const duplicate = { ...targets[0]!, id: "same-asset" };
+  const first = await scan([targets[0]!, duplicate, targets[1]!], new Map(), failing, {
+    maxAssets: 1,
+  });
+  assert.equal(first.report.scanned.length, 0);
+  assert.equal(first.deferredAttempts.size, 1);
+  assert.equal(calls.filter((call) => call === "transient failure").length, 1);
+  assert.equal(first.report.unscanned.filter(({ code }) => code === "scan-failed").length, 2);
+  const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-fair-"));
+  context.after(() => rm(dir, { recursive: true, force: true }));
+  const file = path.join(dir, "checkpoint.json");
+  const { RULES_VERSION } = await import("./release-content-signals.mts");
+  await writeFile(file, JSON.stringify({
+    format_version: 1,
+    deferred_attempts: [...first.deferredAttempts].map(([key, checked_at]) => ({
+      key, checked_at, rules: RULES_VERSION,
+    })),
+  }));
+  const retained = await readCheckpoint(file);
+  assert.deepEqual(retained.deferredAttempts, first.deferredAttempts);
+  const second = await scan(targets, first.checkpoint, failing, {
+    maxAssets: 1, deferredAttempts: retained.deferredAttempts,
+  });
+  assert.deepEqual(second.report.scanned.map(({ id }) => id), ["header"]);
+  assert.equal(calls.filter((call) => call === "transient failure").length, 1);
+  const third = await scan(targets, second.checkpoint, original, {
+    maxAssets: 1, deferredAttempts: second.deferredAttempts,
+  });
+  assert.deepEqual(third.report.scanned.map(({ id }) => id), ["code-only"]);
+  assert.equal(third.deferredAttempts.size, 0);
+});
+
 void test("budgets leave assets for a later run without guessing their contents", async () => {
   const limited = await scan(scanTargets(listings), new Map(), fakes([]), { maxAssets: 1 });
   assert.equal(limited.report.scanned.length, 1);
