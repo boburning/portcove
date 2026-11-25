@@ -74,6 +74,9 @@ const copySettings =
 
 export class MaintenanceBackupDeferred extends MaintenanceStoreError {
   override name = "MaintenanceBackupDeferred";
+  constructor(readonly requiredBytes: number, readonly reservedBytes: number) {
+    super(`Backup payload ceiling ${requiredBytes} exceeds its ${reservedBytes}-byte reservation`);
+  }
 }
 
 export interface BackupTransfer {
@@ -140,7 +143,7 @@ function exportCeiling(
  * identical verified local and production digests are loaded locally instead.
  * A mismatch falls back to transferring that table, subject to the same cap.
  */
-export async function backupReusingHistory(options: {
+interface BackupReuseOptions {
   source: NodeJS.ProcessEnv;
   prefixDatabase: NodeJS.ProcessEnv;
   target: NodeJS.ProcessEnv;
@@ -148,6 +151,30 @@ export async function backupReusingHistory(options: {
   output: string;
   reservedBytes: number;
   reuseRecent?: boolean;
+}
+
+/** A retry may reuse only a seed restored by this invocation into its own
+ * scratch database. No caller-provided manifest or remote cache is trusted. */
+export function createBackupRecovery(options: Omit<BackupReuseOptions, "reservedBytes">) {
+  let seed: { base: ReturnType<typeof readBackupManifest> | undefined; localTables: StoreDigest | undefined } | undefined;
+  return (reservedBytes: number) => backupPrepared({ ...options, reservedBytes }, () => {
+    if (!seed) {
+      const previous = options.previous;
+      const base = previous ? readBackupManifest(previous) : undefined;
+      const localTables = previous ? restore(options.prefixDatabase, previous).tables : undefined;
+      seed = { base, localTables };
+    }
+    return seed;
+  });
+}
+
+export function backupReusingHistory({ reservedBytes, ...options }: BackupReuseOptions) {
+  return createBackupRecovery(options)(reservedBytes);
+}
+
+async function backupPrepared(options: BackupReuseOptions, prepareSeed: () => {
+  base: ReturnType<typeof readBackupManifest> | undefined;
+  localTables: StoreDigest | undefined;
 }) {
   const { source, prefixDatabase, target, previous, output, reservedBytes } = options;
   if (existsSync(output)) throw new MaintenanceStoreError("Backup destination already exists");
@@ -169,10 +196,9 @@ export async function backupReusingHistory(options: {
   if (status.problems.length || status.pending.length || !status.schema_version)
     throw new MaintenanceStoreError("Back up only a store migrated to this checkout's schema");
 
-  const base = previous ? readBackupManifest(previous) : undefined;
-  // The local restore may migrate old snapshots or reset deployment activation.
-  // Compare the actual restored table contents, never just a manifest claim.
-  const localTables = previous ? restore(prefixDatabase, previous).tables : undefined;
+  // Reuse the actual local restore proof on a preflight retry; the current
+  // production snapshot is always compared again before copying any rows.
+  const { base, localTables } = prepareSeed();
   const work = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-reuse-"));
   try {
     const dump = path.join(work, "store.dump");
@@ -252,10 +278,10 @@ export async function backupReusingHistory(options: {
         deltas.push({ table, keys: keys as string[] });
       }
       const estimated = Number((await query(exportCeiling(through, reusedTables, deltas, planBytes))).trim());
-      if (!Number.isSafeInteger(estimated) || estimated > reservedBytes)
-        throw new MaintenanceBackupDeferred(
-          `Backup payload ceiling ${estimated} exceeds its ${reservedBytes}-byte reservation`,
-        );
+      if (!Number.isSafeInteger(estimated) || estimated < 0)
+        throw new MaintenanceStoreError("Invalid backup payload estimate");
+      if (estimated > reservedBytes)
+        throw new MaintenanceBackupDeferred(estimated, reservedBytes);
       runTool(
         "pg_dump",
         [
