@@ -1780,7 +1780,8 @@
             "stored collector state is not capped at a fixed size",
             "stored lead records round-trip through PostgreSQL and unchanged rows are not rewritten",
             "the status export reports an unmigrated store instead of failing",
-            "the store omits state only for the exact revision, generation and definition a caller holds"
+            "the store omits state only for the exact revision, generation and definition a caller holds",
+            "status reconciliation distinguishes retained repository evidence from research signals"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
