@@ -47,7 +47,15 @@ ALTER FUNCTION portcove_maintenance.discovery_commit(text, uuid, uuid, bigint, t
 -- the compact functions, including on a store upgraded in place.
 REVOKE ALL ON FUNCTION portcove_maintenance.discovery_acquire_compact(text, uuid, uuid, integer, text, text, text),
   portcove_maintenance.discovery_commit_compact(text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb)
-  FROM PUBLIC, portcove_maintenance_collector;
+  FROM PUBLIC;
+DO $
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'portcove_maintenance_collector') THEN
+    REVOKE ALL ON FUNCTION portcove_maintenance.discovery_acquire_compact(text, uuid, uuid, integer, text, text, text),
+      portcove_maintenance.discovery_commit_compact(text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb)
+      FROM portcove_maintenance_collector;
+  END IF;
+END $;
 
 CREATE FUNCTION portcove_maintenance.discovery_acquire(
   target_scope text, target_attempt uuid, token uuid, lease_seconds integer,
