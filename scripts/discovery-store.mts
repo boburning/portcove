@@ -178,27 +178,17 @@ export function postgresDiscoveryStore(
   return {
     acquire(lease, options) {
       try {
-        const acquire = `portcove_maintenance.discovery_acquire(${sqlLiteral(lease.scope)}, ${uuid(lease.attempt)},
-            ${uuid(lease.token)}, ${options.leaseSeconds}, ${sqlLiteral(options.definition)},
-            ${sqlLiteral(options.sourceRevision)}, ${sqlLiteral(options.runner)})`;
         const { known } = options;
-        // Only a revision this caller committed is omitted: the same revision,
-        // activation generation and definition, and the scope's latest committing
-        // attempt is the caller's own. Attempt ids are random, so a restored or
-        // branched store that reached the same revision through other commits
-        // does not match.
+        const args = `${sqlLiteral(lease.scope)}, ${uuid(lease.attempt)}, ${uuid(lease.token)},
+          ${options.leaseSeconds}, ${sqlLiteral(options.definition)},
+          ${sqlLiteral(options.sourceRevision)}, ${sqlLiteral(options.runner)}`;
         const output = runSql(
           environment,
           known
-            ? `SELECT (CASE WHEN (g->>'revision')::bigint = ${known.revision}
-                 AND (g->>'generation')::bigint = ${known.generation}
-                 AND g->>'definition_sha256' = ${sqlLiteral(known.definition)}
-                 AND (SELECT attempt_id FROM portcove_maintenance.discovery_collection_attempts
-                      WHERE scope = ${sqlLiteral(lease.scope)} AND committed_pages > 0
-                      ORDER BY acquisition DESC LIMIT 1) = ${uuid(known.attempt)}
-                 THEN (g - 'state') || '{"unchanged": true}'::jsonb ELSE g END)::text
-               FROM ${acquire} AS g;`
-            : `SELECT ${acquire}::text;`,
+            ? `SELECT portcove_maintenance.discovery_acquire_known(${args},
+                 ${known.revision}, ${known.generation}, ${sqlLiteral(known.definition)},
+                 ${uuid(known.attempt)})::text;`
+            : `SELECT portcove_maintenance.discovery_acquire(${args})::text;`,
         ).trim();
         const grant = JSON.parse(output) as DiscoveryLeaseGrant;
         const previous = baselines.get(lease.scope);
