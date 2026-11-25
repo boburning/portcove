@@ -284,14 +284,34 @@ export function isNeon(environment: NodeJS.ProcessEnv) {
   return /(?:^|\.)neon\.tech$/iu.test(environment.PGHOST ?? "");
 }
 
+/** The operation estimates are defaults, not measured lower bounds. Only the
+ * revision-fenced discovery reader currently proves a smaller response envelope.
+ * All other callers retain the default or a larger explicitly requested amount. */
+export function operationReservation(
+  operation: MaintenanceOperation,
+  reservationBytes?: number,
+  measuredDiscovery = false,
+) {
+  if (reservationBytes !== undefined &&
+    (!Number.isSafeInteger(reservationBytes) || reservationBytes <= 0))
+    throw new MaintenanceStoreError("Invalid maintenance reservation size");
+  if (measuredDiscovery) {
+    if (operation !== "discovery" || reservationBytes === undefined)
+      throw new MaintenanceStoreError("Measured discovery admission requires a discovery response bound");
+    return reservationBytes;
+  }
+  return Math.max(costs[operation], reservationBytes ?? 0);
+}
+
 export function policyLimits(
   meter: NeonMeter,
   operation: MaintenanceOperation,
   now: number,
-  /** A measured reservation for this request; never below the operation's own cost. */
+  /** A reservation estimate, or a proven revision-fenced discovery bound. */
   reservationBytes?: number,
+  measuredDiscovery = false,
 ) {
-  const reservation = Math.max(costs[operation], reservationBytes ?? 0);
+  const reservation = operationReservation(operation, reservationBytes, measuredDiscovery);
   const days = Math.max(0, Math.ceil((Date.parse(meter.resetAt) - now) / day) - 1);
   const recovery = operation.startsWith("recovery");
   const reserve =
@@ -310,6 +330,7 @@ export function policyLimits(
     reserve_bytes: reserve,
     future_daily_recovery_bytes: scheduled,
     operation_reservation_bytes: reservation,
+    reservation_basis: measuredDiscovery ? "revision-fenced-discovery" : "conservative-default-or-larger",
     ceiling_bytes: operatingCeiling - chargeableForecast - bootstrapAllowance,
     cutover_allowance_bytes: meter.sampleOrigin === "november-cutover" ? transitionAllowance : null,
     recurring_monthly_projection_bytes: 31 * (recoveryDailyForecast + costs.collect),
@@ -331,11 +352,12 @@ export function acquireMaintenanceReservation(
     now?: number;
     executor?: boolean;
     reservationBytes?: number | undefined;
+    measuredDiscovery?: boolean | undefined;
   },
 ) {
   const { meter, operation, request, revision, reason } = input;
   const now = input.now ?? Date.now();
-  const limits = policyLimits(meter, operation, now, input.reservationBytes);
+  const limits = policyLimits(meter, operation, now, input.reservationBytes, input.measuredDiscovery);
   const reserved = limits.operation_reservation_bytes;
   const age = now - Date.parse(meter.sampledAt);
   const useCutover = meter.sampleOrigin === "november-cutover";
@@ -464,13 +486,15 @@ export async function withMaintenanceAdmission<T>(
     completed?: (value: T) => boolean;
     bootstrap?: boolean;
     executor?: boolean;
-    /** Measured transfer this request expects; raises, never lowers, the reservation. */
+    /** Expected reservation; only an explicitly fenced discovery plan can lower the default. */
     reservationBytes?: number;
+    measuredDiscovery?: boolean;
   } = {},
 ): Promise<T> {
+  operationReservation(operation, options.reservationBytes, options.measuredDiscovery);
   if (!isNeon(environment))
     return await callback(
-      Math.max(costs[operation], options.reservationBytes ?? 0),
+      operationReservation(operation, options.reservationBytes, options.measuredDiscovery),
       Number.POSITIVE_INFINITY,
     );
   const revision = environment.GITHUB_SHA ?? environment.PORTCOVE_SOURCE_REVISION;
@@ -550,6 +574,7 @@ export async function withMaintenanceAdmission<T>(
     revision,
     reason,
     reservationBytes: options.reservationBytes,
+    measuredDiscovery: options.measuredDiscovery,
   });
   const coalesced =
     admission.reason === "equivalent-request" &&
