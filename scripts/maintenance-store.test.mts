@@ -1015,6 +1015,12 @@ void test(
     const proof = fixture.start("proof").owner;
     migrate(source);
     runSql(source, seed);
+    // A large unchanged discovery state would exceed the ordinary test
+    // reservation if sent again, even though its complete digest matches.
+    runSql(source, `INSERT INTO portcove_maintenance.discovery_collection_state
+      (scope, definition_sha256, revision, state, state_sha256, updated_at)
+      VALUES ('primary', '${hex("a")}', 0, jsonb_build_object('fixture', repeat('x', 3000000)),
+        '${hex("b")}', clock_timestamp());`);
     const previous = path.join(fixture.root, "previous");
     await backup(source, previous);
     runSql(source, executorSeed);
@@ -1056,6 +1062,9 @@ void test(
       reservedBytes: 5_000_000,
     });
     assert.ok(result.transfer.history_copy_bytes > 0 && result.transfer.history_copy_bytes < 250);
+    assert.ok(result.transfer.reused_tables.includes("portcove_maintenance.discovery_collection_state"));
+    assert.ok(!result.transfer.reused_tables.includes("portcove_maintenance.collection_runs"));
+    assert.ok(result.transfer.estimated_payload_ceiling < 5_000_000);
     assert.equal(result.manifest.sequences?.[0]?.last_value, "5001");
     const restored = restore(proof, output);
     assert.equal(restored.sequences_verified, true);
