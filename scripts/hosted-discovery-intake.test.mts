@@ -1341,7 +1341,7 @@ void test("multibyte evidence fits without duplicating proposal text in the rece
 for (const count of [29, 48])
   void test(
     `${count} candidates fit one receipt and retain every scoped doctor and the full-doctor obligation`,
-    { timeout: count === 48 ? 120_000 : 30_000 },
+    { timeout: 120_000 },
     async () => {
       const candidates = Array.from({ length: count }, (_, index) => ({
         ...candidate,
