@@ -275,7 +275,7 @@ export function readDiscoverySnapshot(
   const stateOutput = runSql(
     environment,
     `SET TRANSACTION READ ONLY;
-     SELECT json_build_object('revision', revision, 'state', state)::text
+     SELECT json_build_object('revision', revision, 'state', portcove_maintenance.discovery_expanded_state(scope, state))::text
      FROM portcove_maintenance.discovery_collection_state WHERE scope = ${sqlLiteral(scope)};`,
     { timeoutMs: 300_000 },
   ).trim();
