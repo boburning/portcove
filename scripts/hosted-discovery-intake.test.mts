@@ -1,6 +1,13 @@
 import { hostedAmendmentMarker } from "./hosted-discovery-amendment.mts";
+import { isRecord } from "./runtime-values.mts";
+import {
+  compactHostedReceiptWire,
+  expandHostedReceiptWire,
+} from "./hosted-discovery-receipt-wire.mts";
 import {
   resolveDiscoveryRepository,
+  createRelocationMetadataClient,
+  relocationMetadataReader,
   DiscoveryLocationUnavailable,
 } from "./upstream-relocation-candidates.mts";
 import assert from "node:assert/strict";
@@ -226,8 +233,8 @@ async function fixture(
     comments.set(id, c);
     if (target === "177")
       snapshots.push(
-        JSON.parse(
-          value.body.match(/```json\n([\s\S]+)\n```$/u)![1]!,
+        expandHostedReceiptWire(
+          JSON.parse(value.body.match(/```json\n([\s\S]+)\n```$/u)![1]!),
         ) as (typeof snapshots)[number],
       );
     return structuredClone(c);
@@ -1332,45 +1339,74 @@ void test("multibyte evidence fits without duplicating proposal text in the rece
   assert.equal(f.creations, 3);
 });
 
-void test("29 candidates fit one receipt and retain every scoped doctor and the full-doctor obligation", async () => {
-  const candidates = Array.from({ length: 29 }, (_, index) => ({
-    ...candidate,
-    title: `Capacity test game ${index}`,
-    game: `Capacity test game ${index}`,
-    upstream: `${candidate.upstream}-${index}`,
-    port_key: `discovery-receipt-capacity-test-game-implementation-${index}`,
-    repository_id: candidate.repository_id + index,
-  }));
-  const f = await fixture(candidates);
-  const inventory = f.bridge.inventory.bind(f.bridge);
-  f.bridge.inventory = (cache, full) => {
-    if (full) throw new Error(`Fixture full doctor input unavailable: ${"界".repeat(1500)}`);
-    return inventory(cache, full);
-  };
-  await assert.rejects(
-    f.bridge.process(f.request, f.all()),
-    /Fixture full doctor input unavailable/u,
+for (const count of [29, 48])
+  void test(
+    `${count} candidates fit one receipt and retain every scoped doctor and the full-doctor obligation`,
+    { timeout: 120_000 },
+    async () => {
+      const candidates = Array.from({ length: count }, (_, index) => ({
+        ...candidate,
+        title: `Capacity test game ${index}`,
+        game: `Capacity test game ${index}`,
+        upstream: `${candidate.upstream}-${index}`,
+        port_key: `discovery-receipt-capacity-test-game-implementation-${index}`,
+        repository_id: candidate.repository_id + index,
+      }));
+      const f = await fixture(candidates);
+      const inventory = f.bridge.inventory.bind(f.bridge);
+      f.bridge.inventory = (cache, full) => {
+        if (full) throw new Error(`Fixture full doctor input unavailable: ${"界".repeat(1500)}`);
+        return inventory(cache, full);
+      };
+      await assert.rejects(
+        f.bridge.process(f.request, f.all()),
+        /Fixture full doctor input unavailable/u,
+      );
+      assert.equal(f.creations, count);
+      const status = await f.bridge.status(f.request, f.all());
+      assert.equal(status.status, "blocked");
+      assert.equal(status.delivered, count);
+      assert.equal(status.pending, 0);
+      assert.equal(status.full_doctor_required, true);
+      assert.equal(status.doctor, null);
+      const diagnostic = status.last_error?.message;
+      assert(typeof diagnostic === "string");
+      assert.match(diagnostic, /^Fixture full doctor input unavailable: /u);
+      assert.match(diagnostic, /\[truncated\]$/u);
+      const comment = f.all().find((c) => c.id === status.receipt_comment)!;
+      assert.ok(Buffer.byteLength(comment.body) <= 60_000);
+      const receipt = expandHostedReceiptWire(
+        JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!),
+      ) as {
+        delivery: { status: string; doctor?: { status: string } }[];
+      };
+      assert.equal(receipt.delivery.length, count);
+      assert.ok(
+        receipt.delivery.every(
+          (row) => row.status === "delivered" && row.doctor?.status === "passed",
+        ),
+      );
+      if (count === 48) {
+        const changed = expandHostedReceiptWire(
+          JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!),
+        );
+        assert.ok(Array.isArray(changed.plan));
+        const firstSlot: unknown = changed.plan[0];
+        assert.ok(isRecord(firstSlot));
+        firstSlot.body_sha256 = "f".repeat(64);
+        f.comments.set(comment.id, {
+          ...comment,
+          body: comment.body.replace(
+            /```json\n([\s\S]+)\n```$/u,
+            "```json\n" + JSON.stringify(compactHostedReceiptWire(changed)) + "\n```",
+          ),
+        });
+        await assert.rejects(f.bridge.status(f.request, f.all()), /Retained plan body/u);
+        assert.equal(f.creations, count);
+        f.comments.set(comment.id, comment);
+      }
+    },
   );
-  assert.equal(f.creations, 29);
-  const status = await f.bridge.status(f.request, f.all());
-  assert.equal(status.status, "blocked");
-  assert.equal(status.delivered, 29);
-  assert.equal(status.pending, 0);
-  assert.equal(status.full_doctor_required, true);
-  assert.equal(status.doctor, null);
-  const diagnostic = status.last_error?.message;
-  assert(typeof diagnostic === "string");
-  assert.match(diagnostic, /^Fixture full doctor input unavailable: /u);
-  assert.match(diagnostic, /\[truncated\]$/u);
-  const comment = f.all().find((c) => c.id === status.receipt_comment)!;
-  const receipt = JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
-    delivery: { status: string; doctor?: { status: string } }[];
-  };
-  assert.equal(receipt.delivery.length, 29);
-  assert.ok(
-    receipt.delivery.every((row) => row.status === "delivered" && row.doctor?.status === "passed"),
-  );
-});
 
 void test("denied hosted Project write access prevents issue creation", async () => {
   const f = await fixture();
@@ -2667,6 +2703,64 @@ void test("stale amendments, completed slots and uncertain writes retain origina
     const creations = f.creations;
     await assert.rejects(f.bridge.process(f.request, f.all()), /amendment cannot revise/u);
     assert.equal(f.creations, creations);
+  }
+});
+
+void test("repository relocation admits fork metadata above 16 KiB without weakening bounds or identity", async () => {
+  for (const mode of ["renamed", "wrong-id", "oversized"] as const) {
+    const paths: string[] = [];
+    let charged = 0;
+    let settled = 0;
+    const metadata = {
+      id: mode === "wrong-id" ? 43 : 42,
+      full_name: "new/game",
+      parent: { description: "p".repeat(mode === "oversized" ? 1024 * 1024 : 9000) },
+      source: { description: "s".repeat(9000) },
+    };
+    assert.ok(Buffer.byteLength(JSON.stringify(metadata)) > 16384);
+    const sdk = await createRelocationMetadataClient({
+      credential: { kind: "anonymous" },
+      deadline: performance.now() + 5000,
+      allowRequest: (method, url) =>
+        method === "GET" &&
+        ["/repos/old/game", "/repositories/42", "/repos/new/game"].includes(url.pathname),
+      reserve: () => ({
+        consumeBytes: (bytes) => {
+          charged += bytes;
+        },
+        settle: () => {
+          settled++;
+        },
+      }),
+      fetch: async (input) => {
+        const endpoint = new URL(input instanceof Request ? input.url : String(input)).pathname;
+        paths.push(endpoint);
+        return endpoint === "/repos/old/game"
+          ? Response.json(
+              { message: "Moved Permanently", url: "https://api.github.com/repositories/42" },
+              { status: 301 },
+            )
+          : Response.json(metadata);
+      },
+    });
+    const result = resolveDiscoveryRepository("old/game", 42, relocationMetadataReader(sdk));
+    if (mode === "renamed") {
+      assert.equal(await result, "new/game");
+      assert.deepEqual(paths, ["/repos/old/game", "/repositories/42", "/repos/new/game"]);
+    } else {
+      await assert.rejects(result, (error: unknown) =>
+        mode === "oversized"
+          ? error instanceof GitHubApiError && error.code === "response_limit"
+          : error instanceof DiscoveryLocationUnavailable,
+      );
+      assert.deepEqual(paths, ["/repos/old/game", "/repositories/42"]);
+    }
+    assert.ok(charged > 16384);
+    assert.equal(settled, paths.length);
+    const chargedBeforeRefusal = charged;
+    await assert.rejects(sdk.request("POST /repos/old/game"), /scope/u);
+    assert.equal(charged, chargedBeforeRefusal);
+    assert.equal(settled, paths.length + 1);
   }
 });
 

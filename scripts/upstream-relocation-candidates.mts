@@ -10,7 +10,11 @@
 import { appendFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createGitHubClient, type GitHubRequestPolicy } from "./github-client.mts";
+import {
+  createGitHubClient,
+  type GitHubClientOptions,
+  type GitHubRequestPolicy,
+} from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -226,6 +230,17 @@ export class DiscoveryLocationUnavailable extends Error {
   }
 }
 
+/** Repository metadata can include complete parent/source objects for forks.
+ * Keep the same finite response allowance in hosted and standalone readers;
+ * callers retain their endpoint scope, deadline and operation-wide accounting. */
+export async function createRelocationMetadataClient(options: GitHubClientOptions) {
+  return await createGitHubClient({
+    ...options,
+    maxBytes: 1024 * 1024,
+    observeRedirects: true,
+  });
+}
+
 /** Use an SDK configured to observe redirect metadata and scoped to GET metadata.
  * Every read retains the caller's existing accounting and zero retry allowance. */
 export function relocationMetadataReader(
@@ -342,11 +357,9 @@ async function main(args: string[]) {
     return;
   }
   const deadline = performance.now() + 60_000;
-  const sdk = await createGitHubClient({
+  const sdk = await createRelocationMetadataClient({
     credential: localDeveloperCredential({ deadline }),
     deadline,
-    maxBytes: 1024 * 1024,
-    observeRedirects: true,
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     allowRequest: (method, url) =>
       method === "GET" &&

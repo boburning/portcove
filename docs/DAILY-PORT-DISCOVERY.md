@@ -92,6 +92,17 @@ A retained slot must match its exact recorded body hash against a supported
 rendering version. Keep the existing rendering versions when changing the
 default issue template. New slots use the current template, and completed
 receipts keep their original bytes.
+Large receipts use `wire_encoding: "tuple-v1"` when readable JSON cannot retain
+the existing diagnostic reserve. This lossless format packs plan, primary,
+delivery and scoped-doctor objects using fixed field positions and presence
+masks; explicit nulls, false values and historical object extensions survive.
+The maintained reader expands it before the same proposal, identity, evidence
+and doctor checks. Smaller receipts keep readable JSON. The 60,000-byte receipt
+limit, 4,096-byte reserve, complete slot coverage and full-audit obligation are
+unchanged. Checkpoint recovery republishes its exact saved body. The field orders
+are defined in [the receipt codec](../scripts/hosted-discovery-receipt-wire.mts);
+operators should use maintained status output rather than assume every wire
+record is an object.
 Before delivery, Actions sizes the encoded receipt against the bounded delivery
 and hold fields and reserves room for its final doctor and diagnostics. The
 logical batch stays together when it fits the existing comment limit.
@@ -201,7 +212,10 @@ For a historical schema 1 batch, an exact-receipt amendment authorizes importing
 that receipt and its candidate proofs into the existing PostgreSQL checkpoint
 store. The original proposal and stable creation markers stay authoritative.
 
-Unfinished candidates verify repository location with bounded metadata reads. A
+Unfinished candidates verify repository location with bounded metadata reads.
+Hosted and standalone relocation readers share a 1 MiB response allowance for
+repository metadata, including fork parent/source objects. Endpoint scope,
+immutable identity checks and operation-wide byte accounting still apply. A
 GitHub 301 must name the retained numeric repository ID. Numeric metadata and the
 current named endpoint must agree before research uses the new location. Receipts
 retain both locations. Name reuse, missing metadata and conflicting IDs hold the
