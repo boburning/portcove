@@ -76,6 +76,7 @@ export const storeTables = [
   ],
   ["portcove_maintenance.discovery_lead_records", 'scope COLLATE "C", lead_id'],
   ["portcove_maintenance.core_reuse_bindings", 'source COLLATE "C", subject_key COLLATE "C"'],
+  ["portcove_maintenance.discovery_external_hints", 'scope COLLATE "C", hint_key COLLATE "C"'],
 ] as const;
 
 /** The migration that introduced each table added after the original store. */
@@ -90,6 +91,7 @@ const tableIntroducedIn: Partial<Record<(typeof storeTables)[number][0], number>
   "portcove_maintenance.discovery_watch_transitions": 7,
   "portcove_maintenance.discovery_lead_records": 9,
   "portcove_maintenance.core_reuse_bindings": 10,
+  "portcove_maintenance.discovery_external_hints": 11,
 };
 
 const queryParameters = new Map([
