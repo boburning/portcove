@@ -717,6 +717,31 @@ void test(
   },
 );
 
+void test(
+  "revision-fenced discovery admission fits where its conservative default does not",
+  { skip: server.skip ?? false },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const { owner } = fixture.start("measured-discovery-admission");
+    migrate(owner);
+    const meter = testMeter(0);
+    meter.transferBytes = policyLimits(meter, "discovery", Date.now()).ceiling_bytes - 5_000_000;
+    const input = { meter, operation: "discovery" as const, reason: "test measured discovery" };
+    const ordinary = acquireMaintenanceReservation(owner, {
+      ...input, request: "ordinary-discovery", reservationBytes: 1_625_000,
+    });
+    assert.equal(ordinary.attempt_id, null);
+    assert.equal(ordinary.operation_reservation_bytes, 16_000_000);
+    const measured = acquireMaintenanceReservation(owner, {
+      ...input, request: "measured-discovery", reservationBytes: 1_625_000, measuredDiscovery: true,
+    });
+    assert.ok(measured.attempt_id);
+    assert.equal(measured.operation_reservation_bytes, 1_625_000);
+    assert.equal(measured.ceiling_bytes, ordinary.ceiling_bytes);
+    assert.equal(measured.reservation_basis, "revision-fenced-discovery");
+  },
+);
+
 void test("measured discovery can reserve below the bootstrap estimate without changing recovery reserves", () => {
   const meter = testMeter(1_000_000_000);
   const now = Date.now();
