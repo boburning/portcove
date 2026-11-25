@@ -969,7 +969,8 @@ async function runStoreCommand(
       {
         estimate: ({ transfer }) =>
           2_000_000 +
-          Math.ceil(1.25 * (transfer.history_copy_bytes + transfer.other_table_copy_bytes)),
+          Math.ceil(1.25 * (transfer.history_copy_bytes + transfer.other_table_copy_bytes +
+            transfer.row_delta_copy_bytes + transfer.row_delta_plan_bytes)),
       },
     );
   } else if (command === "backup") {
