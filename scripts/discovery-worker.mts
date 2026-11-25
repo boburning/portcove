@@ -850,6 +850,30 @@ export function renderDiscoveryStatus(status: Record<string, unknown>) {
     `Canonical ownership: unknown until Roadmap reconciliation. Due watches: ${due.length}.`,
     "",
   ];
+  const reconciliation = isRecord(status.lead_reconciliation) ? status.lead_reconciliation : {};
+  const cohorts = Array.isArray(reconciliation.cohorts)
+    ? reconciliation.cohorts.filter(isRecord)
+    : [];
+  if (reconciliation.coverage === "retained-only") {
+    const total = cohorts.reduce((sum, row) => sum + Number(row.leads ?? 0), 0);
+    const overlap = cohorts
+      .filter((row) => row.upstream_seen || row.verified_intake || row.prepared_intake)
+      .reduce((sum, row) => sum + Number(row.leads ?? 0), 0);
+    const signals = new Map<string, number>();
+    for (const row of cohorts) {
+      const signal = String(row.signal);
+      signals.set(signal, (signals.get(signal) ?? 0) + Number(row.leads ?? 0));
+    }
+    lines.push(
+      `Retained lead review: ${total} scope/repository records, ${overlap} with prior upstream or intake evidence. A repository match is not a game match; absence is not evidence of new intake.`,
+      "",
+      "| Description signal | Records |",
+      "| --- | ---: |",
+    );
+    for (const [signal, count] of [...signals].sort(([a], [b]) => a.localeCompare(b)))
+      lines.push(`| ${signal} | ${count} |`);
+    lines.push("", "Bounded research and overlap examples are in the status JSON; dispatch remains disabled.", "");
+  }
   if (sources.length) {
     lines.push("| Source | Status | Records |", "| --- | --- | --- |");
     for (const s of sources)
