@@ -28,6 +28,7 @@ import {
   resolveExternalHint,
   restartLeadSlice,
   retainLeadResults,
+  selectLeadReleaseChecks,
 } from "./discovery-leads.mts";
 import type { ExternalResolution, LeadState } from "./discovery-leads.mts";
 import type { ParsedExternalList } from "./discovery-external-lists.mts";
@@ -911,62 +912,104 @@ export async function searchLeadFamilies(host: DiscoveryCollectionHost) {
     idleTurns = 0;
     host.persist();
   }
-  // Unattended runs recheck every pending lead, never-checked and then
-  // longest-unchecked first, until a physical budget stops them.
-  const checkedAt = (r: { release_hint?: { observed_at: string } }) =>
-    r.release_hint?.observed_at ?? "";
-  for (const lead of host.unattended
-    ? pendingLeads(host.leads, host.knownLeadUrls())
-        // A lead checked earlier in this run (an earlier pass) waits for the next run.
-        .filter((r) => checkedAt(r) < host.journal.started_at)
-        .toSorted((a, b) => checkedAt(a).localeCompare(checkedAt(b)) || a.id - b.id)
-    : pendingLeads(host.leads, host.knownLeadUrls())
-        .filter(
-          (r) =>
-            !r.release_hint ||
-            Date.parse(host.journal.started_at) - Date.parse(r.release_hint.observed_at) >=
-              7 * 86400000,
-        )
-        .slice(0, 4)) {
+  await collectLeadReleaseHints(host);
+  host.persist();
+  return host.leadSummary();
+}
+
+/** Reserve an early share of the existing admitted budget for retained release
+ * checks, before an arbitrarily large community list can consume the pass.
+ * A later sweep still uses the ordinary remaining budget for newly found leads. */
+export async function collectLeadReleaseHints(host: DiscoveryCollectionHost, early = false) {
+  const initial = host.budget.remaining();
+  const requestShare = Math.max(1, Math.floor(initial.requests / 4));
+  const byteShare = initial.bytes / 4;
+  const timeShare = initial.milliseconds / 4;
+  const initialUsage = host.budget.usage.requests;
+  const initialBytes = host.budget.usage.bytes + host.budget.usage.accounting_bytes;
+  let attempted = 0;
+  let unavailable = 0;
+  let malformed = 0;
+  for (const lead of selectLeadReleaseChecks(
+    host.leads, host.knownLeadUrls(), host.journal.started_at, host.unattended === true,
+  )) {
     const reserve = researchReserve(host, 17);
-    if (
-      host.budget.remaining().requests < reserve.requests ||
-      host.budget.remaining().bytes < reserve.bytes
-    )
+    const left = host.budget.remaining();
+    if (left.requests < reserve.requests + 1 || left.bytes <= reserve.bytes || left.milliseconds <= 0)
       break;
-    const response = await host.source.sdk.request({
-      method: "GET",
-      url: new URL(
-        `repos/${lead.repository}/releases?per_page=${host.unattended ? 100 : 5}`,
-        "https://api.github.com/",
-      ).href,
-    });
-    if (!Array.isArray(response.data)) throw new Error("Malformed lead release hints");
+    if (early && (host.budget.usage.requests - initialUsage >= requestShare ||
+      host.budget.usage.bytes + host.budget.usage.accounting_bytes - initialBytes >= byteShare ||
+      initial.milliseconds - left.milliseconds >= timeShare))
+      break;
+    attempted++;
+    let data: unknown;
+    try {
+      const response = await host.source.sdk.request({
+        method: "GET",
+        url: new URL(
+          `repos/${lead.repository}/releases?per_page=${host.unattended ? 100 : 5}`,
+          "https://api.github.com/",
+        ).href,
+      });
+      data = response.data;
+    } catch (error) {
+      // Path-specific inaccessibility is not evidence of missing packages and
+      // must not starve all later leads. Global quota/auth/transport failures
+      // still propagate to the existing worker boundary.
+      if (!(error instanceof GitHubApiError) ||
+          (![404, 410, 451].includes(error.status ?? 0) && error.code !== "redirect_refused"))
+        throw error;
+      lead.release_probe = { attempted_at: host.journal.started_at, outcome: "unavailable" };
+      unavailable++;
+      host.persist();
+      continue;
+    }
     const name = `lead-release-hint-${lead.id}`;
-    host.save(name, response.data);
-    lead.release_hint = {
-      assets_observed: response.data.some((raw: unknown) => {
+    host.save(name, data);
+    let assetsObserved: boolean;
+    try {
+      if (!Array.isArray(data)) throw new Error("Malformed lead release hints");
+      // Validate the whole sampled response before accepting either result.
+      let found = false;
+      for (const raw of data as unknown[]) {
         const release = object(raw);
-        return (
-          release.draft === false &&
-          Array.isArray(release.assets) &&
-          release.assets.some((raw: unknown) => {
-            const asset = object(raw);
-            return (
-              asset.state === "uploaded" &&
-              typeof asset.name === "string" &&
-              /\.(?:zip|tar\.gz|AppImage|exe|msi|dmg)$/iu.test(asset.name)
-            );
-          })
-        );
-      }),
+        if (typeof release.draft !== "boolean" || !Array.isArray(release.assets))
+          throw new Error("Malformed release record");
+        for (const rawAsset of release.assets as unknown[]) {
+          const asset = object(rawAsset);
+          if (typeof asset.state !== "string" || typeof asset.name !== "string")
+            throw new Error("Malformed release asset");
+          if (!release.draft && asset.state === "uploaded" &&
+            /\.(?:zip|tar\.gz|AppImage|exe|msi|dmg)$/iu.test(asset.name))
+            found = true;
+        }
+      }
+      assetsObserved = found;
+    } catch {
+      lead.release_probe = { attempted_at: host.journal.started_at, outcome: "invalid-response" };
+      malformed++;
+      host.persist();
+      continue;
+    }
+    lead.release_hint = {
+      assets_observed: assetsObserved,
       observed_at: host.journal.started_at,
       evidence: path.join(host.runDir, `${name}.json`),
     };
+    delete lead.release_probe;
     host.persist();
   }
-  host.persist();
-  return host.leadSummary();
+  if (unavailable || malformed) {
+    host.journal.notes.push({
+      phase: "lead-release-hints",
+      status: "partial",
+      unavailable,
+      malformed,
+      resume: "Keep the last successful release observation; retry inaccessible or malformed paths in a later run.",
+    });
+    host.persist();
+  }
+  return { attempted, unavailable, malformed };
 }
 
 /**
@@ -1066,6 +1109,7 @@ async function backfillLeadFamilies(host: DiscoveryCollectionHost) {
 export async function collectDiscoveryRun(host: DiscoveryCollectionHost) {
   if (host.journal.collection_done)
     throw new Error("Source collection already completed in this run");
+  if (host.unattended) await collectLeadReleaseHints(host, true);
   try {
     await collectExternalLeadLists(host);
   } catch (error) {
