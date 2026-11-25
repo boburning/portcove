@@ -1198,8 +1198,9 @@ void test("the unattended lead envelope follows physical memory", () => {
 void test(
   "stored lead records round-trip through PostgreSQL and unchanged rows are not rewritten",
   { skip: server.skip ?? false, timeout: 120_000 },
-  (context) => {
-    const environment = postgresFixture(context, server.directory!).start("records").owner;
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const environment = fixture.start("records").owner;
     migrate(environment);
     const store = postgresDiscoveryStore(environment);
     const owner = lease("1");
@@ -1264,6 +1265,11 @@ void test(
     });
     const seeded = store.commit(owner, 3, input(state));
     assert.ok(seeded.bytes > 100_000);
+    // A previous verified portable recovery provides a real cross-run seed.
+    const seedPath = path.join(fixture.root, "discovery-seed");
+    await backup(environment, seedPath);
+    const seedDb = fixture.start("discovery-seed").owner;
+    restore(seedDb, seedPath);
     const before = queryJson(environment,
       "SELECT to_json(xmin::text) FROM portcove_maintenance.discovery_external_hints WHERE hint_key = 'keep';");
     state.leads.external.hints.change = { title: "new" };
@@ -1294,6 +1300,33 @@ void test(
     } });
     assert.notEqual(cold.unchanged, true, "a different commit attempt forces full read");
     assert.deepEqual(cold.state, state);
+    store.finish(lease("3"), "complete", {});
+
+    // Alter the seed's rows after verification to prove their actual contents,
+    // not its claimed revision, are compared against production.
+    runSql(seedDb, `UPDATE portcove_maintenance.discovery_external_hints
+      SET hint = '{"payload":"tampered"}' WHERE hint_key = 'change';`);
+    runSql(seedDb, `UPDATE portcove_maintenance.discovery_lead_records
+      SET record = '{"id":77,"repository":"wrong/game"}' WHERE lead_id = 77;`);
+    runSql(environment, `DELETE FROM portcove_maintenance.discovery_lead_records WHERE lead_id = 1000;`);
+    const incremental = postgresDiscoveryStore(environment, undefined, seedDb);
+    const crossRun = incremental.acquire(lease("4"), options);
+    assert.deepEqual(crossRun.state, state);
+    assert.ok((crossRun.received_bytes ?? Infinity) < 2_000,
+      "unchanged large hints stay local on a cold process read");
+    const loaded = incremental.loadLeadRecords("primary");
+    const authoritative = store.loadLeadRecords("primary");
+    assert.deepEqual(loaded.records, authoritative.records);
+    assert.ok(loaded.bytes < authoritative.bytes);
+    assert.ok(!loaded.records.some((row) => (row as { id: number }).id === 1000));
+    assert.deepEqual(loaded.records[0], record);
+    incremental.finish(lease("4"), "complete", {});
+
+    const bounded = postgresDiscoveryStore(environment, 1024, seedDb);
+    const fallback = bounded.acquire(lease("5"), options);
+    assert.deepEqual(fallback.state, state, "oversized seed uses complete production read");
+    assert.deepEqual(bounded.loadLeadRecords("primary").records, authoritative.records);
+    bounded.finish(lease("5"), "complete", {});
   },
 );
 
