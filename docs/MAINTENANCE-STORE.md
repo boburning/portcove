@@ -84,9 +84,9 @@ recent runs, so reads and commits stay inside an admitted, measured allowance.
 `definition_sha256` records the collector definitions (state format,
 parser version, search families and curated lists). A worker whose definitions
 differ resends its observations; cursor compatibility itself comes from each
-search slice's recorded query contract. Discovery tables are ordinary backup
-tables: each recovery export copies them in full, so their growth adds to the
-daily recovery transfer until they join the history-prefix reuse.
+search slice's recorded query contract. Discovery tables are ordinary backup tables. A complete table whose digest and
+row count match the verified local seed is reused without sending its rows over
+the network. Changed discovery tables still transfer in full.
 
 Collection has its own activation (`collection_active`) and
 `collection_generation` on the activation singleton. Portable restore clears
@@ -1568,9 +1568,14 @@ When a prefix matches, only newer rows cross the network. A mismatch requires
 that table's full payload to fit the admission. The schedule requests a larger
 envelope when the retained recovery point is more than 30 hours old. Beyond 54
 hours, a live meter can admit a full recovery envelope. Incomplete GitHub
-inventory never implies that the prior backup is missing. All smaller tables, including
-mutable state and the migration ledger, come from the same snapshot. The
-independent reconstruction loads current schema and data, preserves sequence
+inventory never implies that the prior backup is missing. The export compares
+all other protected tables with the actual restored local seed under the same
+production snapshot. Identical complete tables are copied locally; changed or
+unavailable tables are exported normally. The transfer ceiling excludes only
+the proven local copies, and the transfer receipt lists those tables. The
+activation singleton is always exported from production, and portable restore
+still deactivates writers. The independent reconstruction loads current schema
+and data, preserves sequence
 values and verifies all protected table hashes before writing a new standalone
 ordinary PostgreSQL dump. The new dump has no runtime dependency on its seed
 artifact. Portable restore still clears discovery intake activation.
