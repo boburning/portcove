@@ -1346,3 +1346,61 @@ void test("only the store's own missing schema or tables read as an unmigrated s
   ])
     assert.equal(unmigratedStore(new Error(message)), false, message);
 });
+
+void test(
+  "status reconciliation distinguishes retained repository evidence from research signals",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  (context) => {
+    const environment = postgresFixture(context, server.directory!).start("lead-review").owner;
+    migrate(environment);
+    const store = postgresDiscoveryStore(environment);
+    const owner = lease("1");
+    store.acquire(owner, options);
+    store.commit(owner, 0, {
+      definition: hex("d"),
+      leaseSeconds: 600,
+      state: {},
+      observations: [],
+      watches: [],
+      leadRecords: [
+        { id: 42, repository: "new-owner/renamed", status: "pending", description: "native recompilation" },
+        { id: 43, repository: "owner/mixed", status: "pending", description: "recompiled framework" },
+        { id: 44, repository: "owner/tool", status: "pending", description: "asset extractor" },
+        { id: 45, repository: "owner/empty", status: "pending", description: "" },
+        { id: 46, repository: "owner/other", status: "held", description: "project" },
+      ],
+    });
+    runSql(
+      environment,
+      `INSERT INTO portcove_maintenance.discovery_intake_batches
+        (request_comment, request_sha256, revision, receipt_body)
+        VALUES (1, '${hex("a")}', 1, 'fixture');
+      INSERT INTO portcove_maintenance.discovery_intake_candidates
+        (request_comment, candidate_index, checkpoint) VALUES
+        (1, 0, '{"primary":{"repository_id":42},"delivery":{"status":"delivered","doctor":{"status":"passed"}}}'),
+        (1, 1, '{"primary":{"repository_id":42},"delivery":{"status":"prepared"}}'),
+        (1, 2, '{"primary":{"repository_id":43},"delivery":{"status":"delivered"}}');`,
+    );
+    const status = queryJson(environment, discoveryStatusQuery({ attempts: 5 })) as {
+      lead_reconciliation: {
+        coverage: string;
+        cohorts: { signal: string; leads: number; verified_intake: boolean; prepared_intake: boolean }[];
+        retained_overlap_examples: { lead_id: number }[];
+        research_examples: { lead_id: number }[];
+      };
+    };
+    const review = status.lead_reconciliation;
+    assert.equal(review.coverage, "retained-only");
+    assert.equal(review.cohorts.reduce((sum, row) => sum + row.leads, 0), 5);
+    assert.deepEqual(review.cohorts.map((row) => row.signal).sort(), [
+      "missing-description", "mixed-terms", "other", "port-terms", "tooling-terms",
+    ]);
+    assert.deepEqual(review.retained_overlap_examples.map((row) => row.lead_id), [42]);
+    assert.deepEqual(review.research_examples.map((row) => row.lead_id).sort(), [43, 44, 45]);
+    const matched = review.cohorts.find((row) => row.signal === "port-terms");
+    assert.equal(matched?.verified_intake, true);
+    assert.equal(matched?.prepared_intake, true);
+    assert.match(renderDiscoveryStatus(status), /5 scope\/repository records, 1 with prior upstream or intake evidence/u);
+    assert.equal(count(environment, "discovery_lead_records"), 5);
+  },
+);
