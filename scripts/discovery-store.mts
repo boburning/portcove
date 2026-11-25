@@ -160,10 +160,103 @@ export function externalHintDelta(
   };
 }
 
+// Only these reviewed table/column pairs may participate in seed reads.
+const seedTables = {
+  hints: { table: "discovery_external_hints", key: "hint_key", value: "hint" },
+  leads: { table: "discovery_lead_records", key: "lead_id", value: "record" },
+} as const;
+type SeedRowKind = keyof typeof seedTables;
+
+/** Local PostgreSQL computes fingerprints from the actual seed values, using
+ * the same jsonb serialization as production. The seed is not authoritative:
+ * changed/new rows come from production and absent keys are removed. */
+export function readSeededDiscoveryRows(
+  environment: NodeJS.ProcessEnv,
+  seed: NodeJS.ProcessEnv,
+  scope: string,
+  kind: SeedRowKind,
+  pageBytes: number,
+): { rows: Record<string, unknown>; bytes: number } | null {
+  if (!seed.PGHOST?.startsWith("/") || seed.PGHOST === environment.PGHOST &&
+    seed.PGPORT === environment.PGPORT && seed.PGDATABASE === environment.PGDATABASE ||
+    seed.PGOPTIONS || seed.PGSERVICE)
+    throw new MaintenanceStoreError("Discovery seed must be an independent local database");
+  const { table, key, value } = seedTables[kind];
+  const relation = "portcove_maintenance." + table;
+  const local = runSql(seed, `SET TRANSACTION READ ONLY;
+    WITH rows AS (
+      SELECT coalesce(jsonb_object_agg(${key}::text, jsonb_build_object(
+        'value', ${value}, 'sha', encode(sha256(convert_to(${value}::text, 'UTF8')), 'hex')
+      )), '{}'::jsonb) AS data FROM ${relation} WHERE scope = ${sqlLiteral(scope)}
+    ) SELECT CASE WHEN octet_length(data::text) <= ${pageBytes} THEN data ELSE 'null'::jsonb END FROM rows;`).trim();
+  const cached: unknown = JSON.parse(local);
+  if (cached === null) return null;
+  if (!isRecord(cached)) throw new MaintenanceStoreError("Malformed local seed rows");
+  const hashes: Record<string, string> = Object.create(null);
+  const rows: Record<string, unknown> = Object.create(null);
+  for (const [id, row] of Object.entries(cached)) {
+    if (!isRecord(row) || !isRecord(row.value) || typeof row.sha !== "string" || !/^[a-f0-9]{64}$/u.test(row.sha))
+      throw new MaintenanceStoreError("Malformed local seed fingerprint");
+    hashes[id] = row.sha;
+    rows[id] = row.value;
+  }
+  // One bounded response. On a large delta, return only a sentinel and use
+  // the normal complete, paged reader. Never use an incomplete delta.
+  const output = runSql(environment, `SET TRANSACTION READ ONLY;
+    WITH local AS (SELECT key, value AS sha FROM jsonb_each_text(${sqlLiteral(JSON.stringify(hashes))}::jsonb)),
+    remote AS (
+      SELECT ${key}::text AS key, ${value} AS value,
+        encode(sha256(convert_to(${value}::text, 'UTF8')), 'hex') AS sha
+      FROM ${relation} WHERE scope = ${sqlLiteral(scope)}
+    ), delta AS (
+      SELECT jsonb_build_object(
+        'changed', coalesce(jsonb_object_agg(r.key, r.value) FILTER (WHERE r.key IS NOT NULL), '{}'::jsonb),
+        'removed', coalesce(jsonb_agg(l.key) FILTER (WHERE r.key IS NULL), '[]'::jsonb)
+      ) AS data FROM local l FULL JOIN remote r USING (key) WHERE l.sha IS DISTINCT FROM r.sha
+    ) SELECT CASE WHEN octet_length(data::text) <= ${pageBytes} THEN data ELSE 'null'::jsonb END FROM delta;`, { timeoutMs: 300_000 }).trim();
+  const delta: unknown = JSON.parse(output);
+  if (delta === null) return null;
+  if (!isRecord(delta) || !isRecord(delta.changed) || !Array.isArray(delta.removed) ||
+    delta.removed.some((id) => typeof id !== "string"))
+    throw new MaintenanceStoreError("Malformed production discovery delta");
+  for (const id of delta.removed as string[]) delete rows[id];
+  for (const [id, row] of Object.entries(delta.changed)) rows[id] = row;
+  return { rows, bytes: Buffer.byteLength(output) };
+}
+
+function loadExternalHints(environment: NodeJS.ProcessEnv, scope: string, pageBytes: number) {
+  const rows: Record<string, unknown> = Object.create(null);
+  let bytes = 0;
+  let after: string | undefined;
+  for (;;) {
+    const output = runSql(environment, `SET TRANSACTION READ ONLY;
+      WITH ordered AS (
+        SELECT hint_key, hint, sum(octet_length(hint::text) + octet_length(to_jsonb(hint_key)::text) + 16)
+          OVER (ORDER BY hint_key COLLATE "C") AS running
+        FROM portcove_maintenance.discovery_external_hints WHERE scope = ${sqlLiteral(scope)}
+          ${after === undefined ? "" : `AND hint_key COLLATE "C" > ${sqlLiteral(after)} COLLATE "C"`}
+      ) SELECT coalesce(json_agg(json_build_array(hint_key, hint) ORDER BY hint_key COLLATE "C"), '[]')::text
+      FROM ordered WHERE running <= ${pageBytes} OR hint_key = (SELECT min(hint_key COLLATE "C") FROM ordered);`,
+      { timeoutMs: 300_000 }).trim();
+    bytes += Buffer.byteLength(output);
+    const page: unknown = JSON.parse(output);
+    if (!Array.isArray(page)) throw new MaintenanceStoreError("Malformed discovery hints");
+    if (!page.length) return { rows, bytes };
+    for (const row of page) {
+      if (!Array.isArray(row) || typeof row[0] !== "string" || !isRecord(row[1]) ||
+        after !== undefined && Buffer.compare(Buffer.from(row[0]), Buffer.from(after)) <= 0)
+        throw new MaintenanceStoreError("Discovery hints are not ordered by key");
+      after = row[0];
+      rows[after] = row[1];
+    }
+  }
+}
+
 export function postgresDiscoveryStore(
   environment: NodeJS.ProcessEnv,
   /** Bytes per lead-record page; half of one client command's output by default. */
   pageBytes = Math.floor(outputLimitBytes / 2),
+  seed?: NodeJS.ProcessEnv,
 ): DiscoveryStore {
   // Per-adapter cache, never an independent authority. Only an exact confirmed
   // acquisition/commit can establish the baseline for the next delta.
@@ -188,9 +281,25 @@ export function postgresDiscoveryStore(
             ? `SELECT portcove_maintenance.discovery_acquire_known(${args},
                  ${known.revision}, ${known.generation}, ${sqlLiteral(known.definition)},
                  ${uuid(known.attempt)})::text;`
-            : `SELECT portcove_maintenance.discovery_acquire(${args})::text;`,
+            : `SELECT portcove_maintenance.${seed ? "discovery_acquire_seeded" : "discovery_acquire"}(${args})::text;`,
         ).trim();
         const grant = JSON.parse(output) as DiscoveryLeaseGrant;
+        let received = Buffer.byteLength(output);
+        if (seed && !known) {
+          try {
+            const hints = readSeededDiscoveryRows(environment, seed, lease.scope, "hints", pageBytes)
+              ?? loadExternalHints(environment, lease.scope, pageBytes);
+            received += hints.bytes;
+            if (isRecord(grant.state.leads) && isRecord(grant.state.leads.external))
+              grant.state.leads.external.hints = hints.rows;
+            else if (Object.keys(hints.rows).length)
+              throw new MaintenanceStoreError("Discovery hints have no external continuation");
+          } catch (error) {
+            // The compact acquire already took a lease; close it on hydration failure.
+            runSql(environment, `SELECT portcove_maintenance.discovery_finish(${sqlLiteral(lease.scope)}, ${uuid(lease.attempt)}, ${uuid(lease.token)}, 'failed', '{}'::jsonb);`);
+            throw error;
+          }
+        }
         const previous = baselines.get(lease.scope);
         const revision = Number(grant.revision);
         const generation = Number(grant.generation);
@@ -211,7 +320,7 @@ export function postgresDiscoveryStore(
           revision: Number(grant.revision),
           acquisition: Number(grant.acquisition),
           generation: Number(grant.generation),
-          received_bytes: Buffer.byteLength(output),
+          received_bytes: received,
         };
       } catch (error) {
         return classify(error);
@@ -253,6 +362,11 @@ export function postgresDiscoveryStore(
       }
     },
     loadLeadRecords(scope) {
+      const incremental = seed && readSeededDiscoveryRows(environment, seed, scope, "leads", pageBytes);
+      if (incremental) return {
+        records: Object.entries(incremental.rows).sort(([a], [b]) => Number(a) - Number(b)).map(([, row]) => row),
+        bytes: incremental.bytes,
+      };
       // Read in pages by key, so the stored lead set is bounded by the database
       // rather than by one client read.
       const records: unknown[] = [];
