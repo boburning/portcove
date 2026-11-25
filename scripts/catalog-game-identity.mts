@@ -75,24 +75,29 @@ export function catalogSemanticReview(records: readonly AuthoredPort[]) {
     const game = listing.original_game?.id;
     if (!game) continue;
     append(byGame, game, listing);
-    const repository = listing.project_url.match(
-      /^https:\/\/github\.com\/([a-z0-9_.-]+\/[a-z0-9_.-]+)\/?$/iu,
-    )?.[1]?.replace(/\.git$/iu, "").toLowerCase();
+    const repository = listing.project_url
+      .match(/^https:\/\/github\.com\/([a-z0-9_.-]+\/[a-z0-9_.-]+)\/?$/iu)?.[1]
+      ?.replace(/\.git$/iu, "")
+      .toLowerCase();
     if (repository) append(byRepositoryGame, JSON.stringify([game, repository]), listing);
     const art = artworkId(listing);
     if (art !== null) append(byArtwork, art, listing);
   }
   const gameTitles = [...byGame].flatMap(([game_id, members]) => {
-    const titles = sorted(members.flatMap(({ original_game_title }) =>
-      original_game_title ? [original_game_title] : [],
-    ));
+    const titles = sorted(
+      members.flatMap(({ original_game_title }) =>
+        original_game_title ? [original_game_title] : [],
+      ),
+    );
     return titles.length > 1 ? [{ game_id, titles, port_ids: portIds(members) }] : [];
   });
   const gameArtwork = [...byGame].flatMap(([game_id, members]) => {
-    const artwork_ids = sorted(members.flatMap((listing) => {
-      const art = artworkId(listing);
-      return art === null ? [] : [art];
-    }));
+    const artwork_ids = sorted(
+      members.flatMap((listing) => {
+        const art = artworkId(listing);
+        return art === null ? [] : [art];
+      }),
+    );
     return artwork_ids.length > 1 ? [{ game_id, artwork_ids, port_ids: portIds(members) }] : [];
   });
   const sharedArtwork = [...byArtwork].flatMap(([artwork_id, members]) => {
@@ -104,25 +109,35 @@ export function catalogSemanticReview(records: readonly AuthoredPort[]) {
     return members.length > 1 ? [{ game_id, repository, port_ids: portIds(members) }] : [];
   });
   return {
-    scope: "Authored-field review signals only; resolve editions, delivery routes and effective facts before any correction.",
+    scope:
+      "Authored-field review signals only; resolve editions, delivery routes and effective facts before any correction.",
     missing_authored_metadata: {
       original_game: portIds(listings.filter((listing) => !listing.original_game)),
-      source_editions: portIds(listings.filter((listing) =>
-        listing.original_game && !listing.original_game.source_editions.length,
-      )),
-      edition_system: portIds(listings.filter((listing) =>
-        listing.original_game?.source_editions.some((edition) => !edition.system),
-      )),
+      source_editions: portIds(
+        listings.filter(
+          (listing) => listing.original_game && !listing.original_game.source_editions.length,
+        ),
+      ),
+      edition_system: portIds(
+        listings.filter((listing) =>
+          listing.original_game?.source_editions.some((edition) => !edition.system),
+        ),
+      ),
       platforms: portIds(listings.filter((listing) => !listing.platforms?.length)),
       availability: portIds(listings.filter((listing) => listing.availability === undefined)),
-      artwork: portIds(listings.filter((listing) => listing.artwork == null && listing.collection_covers == null)),
+      artwork: portIds(
+        listings.filter((listing) => listing.artwork == null && listing.collection_covers == null),
+      ),
     },
     same_game_different_titles: gameTitles.sort((a, b) => a.game_id.localeCompare(b.game_id, "en")),
-    same_game_repository: repositoryGame.sort((a, b) =>
-      a.game_id.localeCompare(b.game_id, "en") || a.repository.localeCompare(b.repository, "en"),
+    same_game_repository: repositoryGame.sort(
+      (a, b) =>
+        a.game_id.localeCompare(b.game_id, "en") || a.repository.localeCompare(b.repository, "en"),
     ),
     same_game_different_artwork: gameArtwork.sort((a, b) => a.game_id.localeCompare(b.game_id, "en")),
-    shared_artwork_different_games: sharedArtwork.sort((a, b) => a.artwork_id.localeCompare(b.artwork_id, "en")),
+    shared_artwork_different_games: sharedArtwork.sort((a, b) =>
+      a.artwork_id.localeCompare(b.artwork_id, "en"),
+    ),
   };
 }
 
