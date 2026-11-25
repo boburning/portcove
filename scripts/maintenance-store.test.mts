@@ -717,6 +717,25 @@ void test(
   },
 );
 
+void test("measured discovery can reserve below the bootstrap estimate without changing recovery reserves", () => {
+  const meter = testMeter(1_000_000_000);
+  const now = Date.now();
+  const defaultLimits = policyLimits(meter, "discovery", now, 1_625_000);
+  const measuredLimits = policyLimits(meter, "discovery", now, 1_625_000, true);
+  assert.equal(defaultLimits.operation_reservation_bytes, 16_000_000);
+  assert.equal(measuredLimits.operation_reservation_bytes, 1_625_000);
+  assert.equal(measuredLimits.reservation_basis, "revision-fenced-discovery");
+  assert.equal(measuredLimits.ceiling_bytes, defaultLimits.ceiling_bytes);
+  assert.equal(measuredLimits.reserve_bytes, defaultLimits.reserve_bytes);
+  assert.equal(measuredLimits.future_daily_recovery_bytes, defaultLimits.future_daily_recovery_bytes);
+  assert.equal(policyLimits(meter, "discovery", now, 24_000_000).operation_reservation_bytes, 24_000_000);
+  assert.equal(policyLimits(meter, "recovery", now, 1_625_000).operation_reservation_bytes, 48_000_000);
+  for (const bad of [0, -1, Infinity, NaN, 1.5])
+    assert.throws(() => policyLimits(meter, "discovery", now, bad, true), /Invalid maintenance reservation/u);
+  assert.throws(() => policyLimits(meter, "recovery", now, 1_625_000, true), /requires a discovery response bound/u);
+  assert.throws(() => policyLimits(meter, "discovery", now, undefined, true), /requires a discovery response bound/u);
+});
+
 void test("Neon Free readings preserve missing dimensions and require an active period", () => {
   const sampledAt = "2026-11-20T20:43:15.000Z";
   const project = {
