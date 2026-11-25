@@ -48,14 +48,14 @@ ALTER FUNCTION portcove_maintenance.discovery_commit(text, uuid, uuid, bigint, t
 REVOKE ALL ON FUNCTION portcove_maintenance.discovery_acquire_compact(text, uuid, uuid, integer, text, text, text),
   portcove_maintenance.discovery_commit_compact(text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb)
   FROM PUBLIC;
-DO $
+DO $hint_roles$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'portcove_maintenance_collector') THEN
     REVOKE ALL ON FUNCTION portcove_maintenance.discovery_acquire_compact(text, uuid, uuid, integer, text, text, text),
       portcove_maintenance.discovery_commit_compact(text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb)
       FROM portcove_maintenance_collector;
   END IF;
-END $;
+END $hint_roles$;
 
 CREATE FUNCTION portcove_maintenance.discovery_acquire(
   target_scope text, target_attempt uuid, token uuid, lease_seconds integer,
@@ -103,3 +103,47 @@ END $$;
 REVOKE ALL ON FUNCTION portcove_maintenance.discovery_acquire(text, uuid, uuid, integer, text, text, text),
   portcove_maintenance.discovery_commit(text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb)
   FROM PUBLIC;
+
+-- The delta writer uses exactly the same authority and transaction as the
+-- complete-state writer. No caller may directly mutate the normalized rows.
+CREATE FUNCTION portcove_maintenance.discovery_commit_hint_delta(
+  target_scope text, target_attempt uuid, token uuid, expected_revision bigint,
+  definition text, compact_state jsonb, lease_seconds integer,
+  new_observations jsonb, watch_changes jsonb, lead_records jsonb,
+  changed_hints jsonb, removed_hints jsonb
+) RETURNS bigint LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $hint_delta$
+DECLARE
+  next_revision bigint;
+BEGIN
+  IF jsonb_typeof(compact_state) IS DISTINCT FROM 'object'
+    OR compact_state #> '{leads,external,hints}' IS NOT NULL
+    OR jsonb_typeof(changed_hints) IS DISTINCT FROM 'object'
+    OR jsonb_typeof(removed_hints) IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'Discovery hint delta requires compact state and explicit row changes';
+  END IF;
+  IF EXISTS (SELECT 1 FROM jsonb_each(changed_hints) h WHERE jsonb_typeof(h.value) <> 'object')
+    OR EXISTS (SELECT 1 FROM jsonb_array_elements(removed_hints) h WHERE jsonb_typeof(h.value) <> 'string')
+    OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(removed_hints) h(key) WHERE changed_hints ? h.key) THEN
+    RAISE EXCEPTION 'Malformed or overlapping discovery hint changes';
+  END IF;
+
+  next_revision := portcove_maintenance.discovery_commit_compact(
+    target_scope, target_attempt, token, expected_revision, definition,
+    compact_state, lease_seconds, new_observations, watch_changes, lead_records);
+
+  INSERT INTO portcove_maintenance.discovery_external_hints AS h (scope, hint_key, hint)
+  SELECT target_scope, key, value FROM jsonb_each(changed_hints)
+  ON CONFLICT (scope, hint_key) DO UPDATE SET hint = EXCLUDED.hint
+    WHERE h.hint IS DISTINCT FROM EXCLUDED.hint;
+
+  DELETE FROM portcove_maintenance.discovery_external_hints h
+    WHERE h.scope = target_scope AND h.hint_key IN (SELECT jsonb_array_elements_text(removed_hints));
+
+  IF jsonb_typeof(compact_state #> '{leads,external}') IS DISTINCT FROM 'object'
+    AND EXISTS (SELECT 1 FROM portcove_maintenance.discovery_external_hints WHERE scope = target_scope) THEN
+    RAISE EXCEPTION 'Discovery hint delta would orphan retained hints';
+  END IF;
+  RETURN next_revision;
+END $hint_delta$;
+REVOKE ALL ON FUNCTION portcove_maintenance.discovery_commit_hint_delta(
+  text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb, jsonb, jsonb) FROM PUBLIC;
