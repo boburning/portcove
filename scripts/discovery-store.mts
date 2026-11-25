@@ -296,7 +296,7 @@ export function readSeededDiscoveryRows(
     throw new MaintenanceStoreError("Malformed production discovery delta");
   for (const id of delta.removed as string[]) delete rows[id];
   for (const [id, row] of Object.entries(delta.changed)) rows[id] = row;
-  return { rows, bytes: Buffer.byteLength(output) };
+  return { rows: Object.fromEntries(Object.entries(rows)), bytes: Buffer.byteLength(output) };
 }
 
 function loadExternalHints(environment: NodeJS.ProcessEnv, scope: string, pageBytes: number) {
@@ -316,7 +316,7 @@ function loadExternalHints(environment: NodeJS.ProcessEnv, scope: string, pageBy
     bytes += Buffer.byteLength(output);
     const page: unknown = JSON.parse(output);
     if (!Array.isArray(page)) throw new MaintenanceStoreError("Malformed discovery hints");
-    if (!page.length) return { rows, bytes };
+    if (!page.length) return { rows: Object.fromEntries(Object.entries(rows)), bytes };
     for (const row of page) {
       if (!Array.isArray(row) || typeof row[0] !== "string" || !isRecord(row[1]) ||
         after !== undefined && Buffer.compare(Buffer.from(row[0]), Buffer.from(after)) <= 0)
