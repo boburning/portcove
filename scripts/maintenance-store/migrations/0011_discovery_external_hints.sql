@@ -174,3 +174,15 @@ BEGIN
 END $hint_acquire$;
 REVOKE ALL ON FUNCTION portcove_maintenance.discovery_acquire_known(
   text, uuid, uuid, integer, text, text, text, bigint, bigint, text, uuid) FROM PUBLIC;
+
+-- A seeded reader explicitly hydrates both normalized row sets after acquire.
+-- No arbitrary reader may bypass the existing acquisition fence.
+CREATE FUNCTION portcove_maintenance.discovery_acquire_seeded(
+  target_scope text, target_attempt uuid, token uuid, lease_seconds integer,
+  definition text, revision_source text, runner_name text
+) RETURNS jsonb LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $hint_seed$
+  SELECT portcove_maintenance.discovery_acquire_compact(
+    target_scope, target_attempt, token, lease_seconds, definition, revision_source, runner_name);
+$hint_seed$;
+REVOKE ALL ON FUNCTION portcove_maintenance.discovery_acquire_seeded(
+  text, uuid, uuid, integer, text, text, text) FROM PUBLIC;
