@@ -88,8 +88,16 @@ search slice's recorded query contract. Discovery tables are ordinary backup tab
 row count match the verified local seed is reused without sending its rows over
 the network. Changed lead and discovery observation tables compare full-row
 fingerprints by their existing primary keys; only changed or new rows cross the
-network, while removed rows are omitted from local reconstruction. The collector
-state document still transfers in full when changed.
+network, while removed rows are omitted from local reconstruction. Migration `0011` separates curated-list external hints into keyed rows under
+the existing collector revision. The migration preserves all hint values and
+recomputes the compact continuation digest. Complete logical acquire and
+commit wrappers retain the existing caller contract, while the old compact
+functions are private to the wrappers. A complete read reassembles the hints;
+older direct state readers must upgrade. The new hint table participates in
+whole-table and row-delta recovery. A cold collector read still needs the
+complete logical hint corpus, and commits still submit complete logical state;
+this change reduces stored continuation size, repeated row writes and recovery
+payload rather than eliminating those client transfers.
 
 Collection has its own activation (`collection_active`) and
 `collection_generation` on the activation singleton. Portable restore clears
@@ -1575,7 +1583,7 @@ inventory never implies that the prior backup is missing. The export compares
 all other protected tables with the actual restored local seed under the same
 production snapshot. Identical complete tables are copied locally; changed or
 unavailable tables are exported normally. The transfer ceiling excludes only
-the proven local copies. For the two row-delta discovery tables, the source
+the proven local copies. For the row-delta discovery tables, the source
 returns only changed or removed keys under the same exported snapshot; the
 export transfers current rows for those keys and loads matching rows from the
 local seed. If the key plan cannot fit admission or is not cheaper than the
