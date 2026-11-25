@@ -147,3 +147,30 @@ BEGIN
 END $hint_delta$;
 REVOKE ALL ON FUNCTION portcove_maintenance.discovery_commit_hint_delta(
   text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb, jsonb, jsonb) FROM PUBLIC;
+
+-- Reacquisition with a confirmed in-memory revision avoids materializing the
+-- full hint corpus in PostgreSQL, not merely suppressing it on the wire.
+CREATE FUNCTION portcove_maintenance.discovery_acquire_known(
+  target_scope text, target_attempt uuid, token uuid, lease_seconds integer,
+  definition text, revision_source text, runner_name text,
+  known_revision bigint, known_generation bigint, known_definition text, known_attempt uuid
+) RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $hint_acquire$
+DECLARE
+  grant_value jsonb;
+  expanded jsonb;
+BEGIN
+  grant_value := portcove_maintenance.discovery_acquire_compact(
+    target_scope, target_attempt, token, lease_seconds, definition, revision_source, runner_name);
+  IF (grant_value->>'revision')::bigint = known_revision
+    AND (grant_value->>'generation')::bigint = known_generation
+    AND grant_value->>'definition_sha256' = known_definition
+    AND (SELECT attempt_id FROM portcove_maintenance.discovery_collection_attempts
+        WHERE scope = target_scope AND committed_pages > 0 ORDER BY acquisition DESC LIMIT 1) = known_attempt THEN
+    RETURN (grant_value - 'state') || '{"unchanged":true}'::jsonb;
+  END IF;
+  expanded := portcove_maintenance.discovery_expanded_state(target_scope, grant_value->'state');
+  RETURN grant_value || jsonb_build_object('state', expanded,
+    'state_sha256', encode(sha256(convert_to(expanded::text, 'UTF8')), 'hex'));
+END $hint_acquire$;
+REVOKE ALL ON FUNCTION portcove_maintenance.discovery_acquire_known(
+  text, uuid, uuid, integer, text, text, text, bigint, bigint, text, uuid) FROM PUBLIC;
