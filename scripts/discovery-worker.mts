@@ -1304,7 +1304,8 @@ export async function discoveryWorkerMain(argv: string[]) {
         // The admission meters 70% of a reservation as payload.
         // A measured initial delta cannot fall back to an unadmitted full read.
         // Subsequent passes retain conservative complete-read admission.
-        const reservationBytes = pass === 1 && selectedPlan
+        const measuredDiscovery = pass === 1 && selectedPlan !== undefined;
+        const reservationBytes = measuredDiscovery && selectedPlan
           ? discoverySeedReservation(selectedPlan, commits)
           : discoveryPassReservation(acquireBytes, previousTransfer, commits);
         try {
@@ -1315,6 +1316,7 @@ export async function discoveryWorkerMain(argv: string[]) {
             {
               request: requestKey(`pass-${pass}`),
               reservationBytes,
+              measuredDiscovery,
               // The responses this pass received, with a protocol margin.
               estimate: (value) => 200_000 + Math.ceil(value.committed.received_bytes * 1.3),
               completed: (value) => value.outcome !== "failed" && value.outcome !== "deferred",
