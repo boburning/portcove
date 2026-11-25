@@ -101,6 +101,9 @@ GRANT SELECT, INSERT ON portcove_maintenance_meta.resource_admissions
 GRANT UPDATE (outcome, finished_at, estimate_bytes) ON portcove_maintenance_meta.resource_admissions
   TO portcove_maintenance_executor;
 
+GRANT EXECUTE ON FUNCTION portcove_maintenance.discovery_expanded_state(text, jsonb)
+  TO portcove_maintenance_collector, portcove_maintenance_report, portcove_maintenance_executor;
+
 -- Unattended discovery collection writes only through its fenced functions,
 -- which check the lease, activation generation and expected revision.
 GRANT EXECUTE ON FUNCTION
