@@ -8,6 +8,7 @@ import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.
 import { validArtworkCollection, validArtworkMapping } from "./catalog-cover-mapping.mts";
 import {
   createCoreImageValidator,
+  hashCoreImageValidatorFile,
   createIgdbInspector,
   isConfirmedIgdbImageGone,
 } from "./inspect-igdb-artwork.mts";
@@ -285,7 +286,7 @@ async function main(args: string[]) {
   }).trim();
   const producer = artworkHealthProducer(process.env, revision);
   const { sha256, inventory } = committedInventory(revision);
-  const cliSha256 = digest(await readControllerToolFile(path.resolve(cli)));
+  const cliSha256 = hashCoreImageValidatorFile(path.resolve(cli));
   const startedAt = Date.now();
   const scratch = mkdtempSync(path.join(tmpdir(), "portcove-artwork-health-"));
   try {
