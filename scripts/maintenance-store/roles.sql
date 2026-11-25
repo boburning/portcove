@@ -108,6 +108,7 @@ GRANT EXECUTE ON FUNCTION portcove_maintenance.discovery_expanded_state(text, js
 -- which check the lease, activation generation and expected revision.
 GRANT EXECUTE ON FUNCTION
   portcove_maintenance.discovery_acquire(text, uuid, uuid, integer, text, text, text),
+  portcove_maintenance.discovery_acquire_known(text, uuid, uuid, integer, text, text, text, bigint, bigint, text, uuid),
   portcove_maintenance.discovery_commit(text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb),
   portcove_maintenance.discovery_commit_hint_delta(text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb, jsonb, jsonb),
   portcove_maintenance.discovery_finish(text, uuid, uuid, text, jsonb)
