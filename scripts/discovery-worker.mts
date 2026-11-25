@@ -35,10 +35,12 @@ import {
   DiscoveryStoreRefused,
   discoveryStatusQuery,
   postgresDiscoveryStore,
+  measureDiscoverySeed,
   readDiscoverySnapshot,
 } from "./discovery-store.mts";
 import type {
   DiscoveryKnownRevision,
+  DiscoverySeedPlan,
   DiscoveryLease,
   DiscoveryProviderObservation,
   DiscoveryStore,
@@ -1051,6 +1053,11 @@ export function discoveryPassReservation(acquireBytes: number, previousTransfer:
   );
 }
 
+/** Reserve the measured row deltas, compact grant envelope and ordinary acknowledgements. */
+export function discoverySeedReservation(plan: Pick<DiscoverySeedPlan, "compactBytes" | "hintsBytes" | "leadsBytes">, commits: number) {
+  return discoveryPassReservation(plan.compactBytes + plan.hintsBytes + plan.leadsBytes + commitResponseAllowance, 0, commits);
+}
+
 /** Time to write the final state: a generous allowance proportional to its size. */
 export function finalizationMilliseconds(stateBytes: number) {
   return 60_000 + Math.ceil(stateBytes / (256 * 1024)) * 1000;
@@ -1222,12 +1229,20 @@ export async function discoveryWorkerMain(argv: string[]) {
   };
   try {
     // Size every pass from measured state and transfer rather than fixed limits.
+    const seed = process.env.PORTCOVE_DISCOVERY_SEED_URL
+      ? connectionFromEnvironment("PORTCOVE_DISCOVERY_SEED_URL") : undefined;
+    delete process.env.PORTCOVE_DISCOVERY_SEED_URL;
+    let plan: DiscoverySeedPlan | null = null;
     let forecast: { state_bytes: number; record_bytes: number; previous_transfer_bytes: number };
     try {
       forecast = (await withMaintenanceAdmission(
         environment,
         "inspect",
-        () => queryJson(environment, discoveryTransferForecastQuery),
+        () => {
+          const forecast = queryJson(environment, discoveryTransferForecastQuery);
+          if (seed) plan = measureDiscoverySeed(environment, seed, discoveryWorkerScope);
+          return forecast;
+        },
         { request: requestKey("forecast") },
       )) as typeof forecast;
     } catch (error) {
@@ -1241,13 +1256,12 @@ export async function discoveryWorkerMain(argv: string[]) {
     const finalizationMs = finalizationMilliseconds(forecast.state_bytes + forecast.record_bytes);
     // A pass reads the whole state and its lead records once.
     let acquireBytes = forecast.state_bytes + forecast.record_bytes;
-    // The optional seed is a verified recovery restored into an independent
-    // local database by the hosted job. Production remains the authority.
-    const seed = process.env.PORTCOVE_DISCOVERY_SEED_URL
-      ? connectionFromEnvironment("PORTCOVE_DISCOVERY_SEED_URL")
-      : undefined;
-    delete process.env.PORTCOVE_DISCOVERY_SEED_URL;
-    const store = postgresDiscoveryStore(environment, undefined, seed);
+    const commits = Math.ceil(admissionTimeout / (3600 * 500)) + 1;
+    const measuredPlan = plan as DiscoverySeedPlan | null;
+    const selectedPlan = measuredPlan && discoverySeedReservation(measuredPlan, commits) <
+      discoveryPassReservation(acquireBytes, forecast.previous_transfer_bytes, commits)
+      ? measuredPlan : undefined;
+    const store = postgresDiscoveryStore(environment, undefined, seed, selectedPlan);
     const covered = (() => {
       let cache: Set<string> | undefined;
       return () => (cache ??= catalogCoveredHints());
@@ -1286,8 +1300,11 @@ export async function discoveryWorkerMain(argv: string[]) {
         // The largest response any pass of this run or a recent run received
         // covers growth, including a full read after another writer's commit.
         // The admission meters 70% of a reservation as payload.
-        const commits = Math.ceil(admissionTimeout / (3600 * 500)) + 1;
-        const reservationBytes = discoveryPassReservation(acquireBytes, previousTransfer, commits);
+        // A measured initial delta cannot fall back to an unadmitted full read.
+        // Subsequent passes retain conservative complete-read admission.
+        const reservationBytes = pass === 1 && selectedPlan
+          ? discoverySeedReservation(selectedPlan, commits)
+          : discoveryPassReservation(acquireBytes, previousTransfer, commits);
         try {
           const result = await withMaintenanceAdmission(
             environment,
@@ -1298,7 +1315,7 @@ export async function discoveryWorkerMain(argv: string[]) {
               reservationBytes,
               // The responses this pass received, with a protocol margin.
               estimate: (value) => 200_000 + Math.ceil(value.committed.received_bytes * 1.3),
-              completed: (value) => value.outcome !== "failed",
+              completed: (value) => value.outcome !== "failed" && value.outcome !== "deferred",
             },
           );
           previousTransfer = Math.max(previousTransfer, result.committed.received_bytes);
