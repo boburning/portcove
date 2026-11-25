@@ -1241,7 +1241,13 @@ export async function discoveryWorkerMain(argv: string[]) {
     const finalizationMs = finalizationMilliseconds(forecast.state_bytes + forecast.record_bytes);
     // A pass reads the whole state and its lead records once.
     let acquireBytes = forecast.state_bytes + forecast.record_bytes;
-    const store = postgresDiscoveryStore(environment);
+    // The optional seed is a verified recovery restored into an independent
+    // local database by the hosted job. Production remains the authority.
+    const seed = process.env.PORTCOVE_DISCOVERY_SEED_URL
+      ? connectionFromEnvironment("PORTCOVE_DISCOVERY_SEED_URL")
+      : undefined;
+    delete process.env.PORTCOVE_DISCOVERY_SEED_URL;
+    const store = postgresDiscoveryStore(environment, undefined, seed);
     const covered = (() => {
       let cache: Set<string> | undefined;
       return () => (cache ??= catalogCoveredHints());
