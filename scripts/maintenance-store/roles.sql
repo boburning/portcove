@@ -109,6 +109,7 @@ GRANT EXECUTE ON FUNCTION portcove_maintenance.discovery_expanded_state(text, js
 GRANT EXECUTE ON FUNCTION
   portcove_maintenance.discovery_acquire(text, uuid, uuid, integer, text, text, text),
   portcove_maintenance.discovery_acquire_seeded(text, uuid, uuid, integer, text, text, text),
+  portcove_maintenance.discovery_acquire_planned(text, uuid, uuid, integer, text, text, text, bigint, bigint, text, bigint),
   portcove_maintenance.discovery_acquire_known(text, uuid, uuid, integer, text, text, text, bigint, bigint, text, uuid),
   portcove_maintenance.discovery_commit(text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb),
   portcove_maintenance.discovery_commit_hint_delta(text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb, jsonb, jsonb),
