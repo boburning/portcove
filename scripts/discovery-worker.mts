@@ -353,7 +353,9 @@ export async function runDiscoveryWorker(
   } catch (error) {
     // Close the attempt and release the lease rather than leaving them held.
     const reason = `lead records could not be loaded: ${errorMessage(error).slice(0, 400)}`;
-    const failed = result("failed", { reason, attempt_id: lease.attempt });
+    const failed = result(error instanceof DiscoveryStoreRefused ? "deferred" : "failed", {
+      reason, attempt_id: lease.attempt,
+    });
     try {
       const { notes: _notes, ...summary } = failed;
       options.store.finish(lease, "failed", summary);
