@@ -86,7 +86,10 @@ parser version, search families and curated lists). A worker whose definitions
 differ resends its observations; cursor compatibility itself comes from each
 search slice's recorded query contract. Discovery tables are ordinary backup tables. A complete table whose digest and
 row count match the verified local seed is reused without sending its rows over
-the network. Changed discovery tables still transfer in full.
+the network. Changed lead and discovery observation tables compare full-row
+fingerprints by their existing primary keys; only changed or new rows cross the
+network, while removed rows are omitted from local reconstruction. The collector
+state document still transfers in full when changed.
 
 Collection has its own activation (`collection_active`) and
 `collection_generation` on the activation singleton. Portable restore clears
@@ -1572,7 +1575,14 @@ inventory never implies that the prior backup is missing. The export compares
 all other protected tables with the actual restored local seed under the same
 production snapshot. Identical complete tables are copied locally; changed or
 unavailable tables are exported normally. The transfer ceiling excludes only
-the proven local copies, and the transfer receipt lists those tables. The
+the proven local copies. For the two row-delta discovery tables, the source
+returns only changed or removed keys under the same exported snapshot; the
+export transfers current rows for those keys and loads matching rows from the
+local seed. If the key plan cannot fit admission or is not cheaper than the
+full export, the original table path applies. The receipt accounts for both
+key-plan and delta-row transfer and lists the reused tables. Full-table digest
+verification still covers every reconstructed row before a standalone backup
+is written. The
 activation singleton is always exported from production, and portable restore
 still deactivates writers. The independent reconstruction loads current schema
 and data, preserves sequence
