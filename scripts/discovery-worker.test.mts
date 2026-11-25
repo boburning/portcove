@@ -41,7 +41,7 @@ import {
 import { overlayLocalResearch } from "./discovery-leads.mts";
 import type { DiscoveryLead } from "./discovery-leads.mts";
 import { selectExternalResolutions } from "./discovery-external-lists.mts";
-import { backup, migrate, queryJson, restore, runSql } from "./maintenance-store.mts";
+import { backup, migrate, migrationTransaction, queryJson, readMigrations, restore, runSql } from "./maintenance-store.mts";
 
 const server = postgresServer();
 const hex = (digit: string) => digit.repeat(64);
@@ -622,7 +622,22 @@ void test(
   "a local runner reads the shared store's leads without a lease and keeps its research",
   { skip: server.skip ?? false, timeout: 120_000 },
   async (context) => {
-    const environment = postgresFixture(context, server.directory!).start("snapshot").owner;
+    const fixture = postgresFixture(context, server.directory!);
+    const legacy = fixture.start("legacy-hints").owner;
+    // Exercise the actual upgrade from the prior schema, not just a fresh install.
+    const migrations = readMigrations();
+    const split = migrations.find(({ name }) => name === "discovery_external_hints");
+    assert.ok(split);
+    for (const migration of migrations.filter(({ version }) => version < split.version))
+      runSql(legacy, migrationTransaction(migration));
+    const old = { leads: { external: { lists: {}, hints: { "legacy-key": { title: "legacy" } } } } };
+    runSql(legacy, `INSERT INTO portcove_maintenance.discovery_collection_state
+      (scope, definition_sha256, revision, state, state_sha256, updated_at)
+      VALUES ('primary', '${hex("d")}', 0, '${JSON.stringify(old)}'::jsonb, '${hex("a")}', clock_timestamp());`);
+    migrate(legacy);
+    assert.deepEqual(queryJson(legacy, "SELECT portcove_maintenance.discovery_expanded_state(scope, state) FROM portcove_maintenance.discovery_collection_state;"), old);
+    assert.equal(count(legacy, "discovery_external_hints"), 1);
+    const environment = fixture.start("snapshot").owner;
     migrate(environment);
     assert.equal((await readStoredLeads(environment)).outcome, "empty");
     const store = postgresDiscoveryStore(environment);
