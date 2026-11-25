@@ -74,8 +74,12 @@ const copySettings =
 
 export class MaintenanceBackupDeferred extends MaintenanceStoreError {
   override name = "MaintenanceBackupDeferred";
-  constructor(readonly requiredBytes: number, readonly reservedBytes: number) {
+  readonly requiredBytes: number;
+  readonly reservedBytes: number;
+  constructor(requiredBytes: number, reservedBytes: number) {
     super(`Backup payload ceiling ${requiredBytes} exceeds its ${reservedBytes}-byte reservation`);
+    this.requiredBytes = requiredBytes;
+    this.reservedBytes = reservedBytes;
   }
 }
 
