@@ -32,6 +32,7 @@ import {
   learnedDigest,
   physicalLeadEnvelope,
   discoveryTransferForecastQuery,
+  discoveryPassReservation,
   runDiscoveryPasses,
   renderDiscoveryStatus,
   readStoredLeads,
@@ -1251,6 +1252,48 @@ void test(
         .record_bytes > 0,
       true,
     );
+
+    const state = { leads: { external: { lists: {}, hints: {
+      keep: { payload: "x".repeat(100_000) },
+      change: { title: "old" },
+      remove: { title: "old" },
+    } as Record<string, unknown> } } };
+    const input = (nextState: Record<string, unknown>) => ({
+      definition: options.definition, leaseSeconds: 600,
+      state: nextState, observations: [], watches: [], leadRecords: [],
+    });
+    const seeded = store.commit(owner, 3, input(state));
+    assert.ok(seeded.bytes > 100_000);
+    const before = queryJson(environment,
+      "SELECT to_json(xmin::text) FROM portcove_maintenance.discovery_external_hints WHERE hint_key = 'keep';");
+    state.leads.external.hints.change = { title: "new" };
+    delete state.leads.external.hints.remove;
+    state.leads.external.hints.add = { title: "added" };
+    const changed = store.commit(owner, seeded.revision, input(state));
+    assert.ok(changed.bytes < 2_000, "unchanged large hint is not sent again");
+    assert.equal(count(environment, "discovery_external_hints"), 3);
+    assert.deepEqual(queryJson(environment,
+      "SELECT to_json(xmin::text) FROM portcove_maintenance.discovery_external_hints WHERE hint_key = 'keep';"), before);
+    assert.deepEqual(queryJson(environment,
+      "SELECT portcove_maintenance.discovery_expanded_state(scope, state) FROM portcove_maintenance.discovery_collection_state;"), state);
+
+    const oldAttempt = owner.attempt;
+    store.finish(owner, "complete", {});
+    const next = lease("2");
+    const warm = store.acquire(next, { ...options, known: {
+      revision: changed.revision, generation: 1, definition: options.definition, attempt: oldAttempt,
+    } });
+    assert.equal(warm.unchanged, true);
+    assert.ok((warm.received_bytes ?? Infinity) < 2_000);
+    const quiet = store.commit(next, warm.revision, input(state));
+    assert.ok(quiet.bytes < 2_000, "confirmed warm baseline also sends only changes");
+    assert.throws(() => store.commit(owner, changed.revision, input({})), DiscoveryStoreRefused);
+    store.finish(next, "complete", {});
+    const cold = postgresDiscoveryStore(environment).acquire(lease("3"), { ...options, known: {
+      revision: quiet.revision, generation: 1, definition: options.definition, attempt: oldAttempt,
+    } });
+    assert.notEqual(cold.unchanged, true, "a different commit attempt forces full read");
+    assert.deepEqual(cold.state, state);
   },
 );
 
@@ -1274,6 +1317,16 @@ void test("a failed lead-record load finishes the attempt instead of holding the
   assert.equal(result.outcome, "failed");
   assert.match(result.reason ?? "", /lead records could not be loaded/u);
   assert.deepEqual(memory.finished, ["failed"]);
+});
+
+void test("discovery pass reservation does not charge the cold read twice", () => {
+  const acquire = 17_000_000;
+  const observed = 18_000_000;
+  const commits = 5;
+  const reservation = discoveryPassReservation(acquire, observed, commits);
+  assert.ok(Math.floor(reservation * 0.7) >= observed);
+  assert.ok(reservation < (acquire + observed) / 0.7);
+  assert.ok(Math.floor(discoveryPassReservation(observed, acquire, commits) * 0.7) >= observed);
 });
 
 void test("a stored-lead read reserves enough metered payload for the whole state", () => {
