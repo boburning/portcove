@@ -94,10 +94,16 @@ recomputes the compact continuation digest. Complete logical acquire and
 commit wrappers retain the existing caller contract, while the old compact
 functions are private to the wrappers. A complete read reassembles the hints;
 older direct state readers must upgrade. The new hint table participates in
-whole-table and row-delta recovery. A cold collector read still needs the
-complete logical hint corpus, and commits still submit complete logical state;
-this change reduces stored continuation size, repeated row writes and recovery
-payload rather than eliminating those client transfers.
+whole-table and row-delta recovery. The maintained collector submits changed
+hint rows and explicitly removed keys against its confirmed lease and revision,
+using a compact continuation and the existing atomic commit fence. When no
+confirmed client baseline is available, it submits the complete logical state
+instead. An exact retained revision reacquire omits the state without rebuilding
+the hint document on the server. A cold collector read still needs the complete
+logical corpus; persistent cross-run caching is not introduced. Discovery pass
+admission uses the larger of the measured previous receive payload and the
+current cold-read estimate, plus acknowledgement and protocol headroom, rather
+than counting the same acquire twice. The provider ceiling is unchanged.
 
 Collection has its own activation (`collection_active`) and
 `collection_generation` on the activation singleton. Portable restore clears
