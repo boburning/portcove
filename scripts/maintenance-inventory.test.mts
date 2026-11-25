@@ -3820,19 +3820,24 @@ void test("dependency wake requires matching complete owner facts and never chan
   const project = (Status: string, fields: Record<string, string> = {}) => [
     { project_id: "P1", archived: false, fields: { Status, ...fields } },
   ];
+  const ref = {
+    number: 2,
+    node_id: "I2",
+    url: "https://github.com/boburning/portcove/issues/2",
+  };
   const issue = (state: string, edgeState: string) => new Map<string, unknown>([
     ["issue:1", {
       number: 1, state: "OPEN", project: project("Blocked"),
-      blocked_by: [{ number: 2, state: edgeState }],
+      blocked_by: [{ ...ref, state: edgeState }],
     }],
-    ["issue:2", { number: 2, state, project: project("Done") }],
+    ["issue:2", { number: 2, node_id: "I2", state, project: project("Done") }],
     ["issue:3", {
       number: 3, state: "OPEN", project: project("Deferred"),
-      blocked_by: [{ number: 2, state: edgeState }],
+      blocked_by: [{ ...ref, state: edgeState }],
     }],
     ["issue:4", {
       number: 4, state: "OPEN", project: project("Blocked"),
-      blocked_by: [{ number: 2, state: edgeState }],
+      blocked_by: [{ ...ref, state: edgeState }],
       reconsideration: { blocker: "Upstream", resume_condition: "New release" },
     }],
   ]);
@@ -3842,6 +3847,7 @@ void test("dependency wake requires matching complete owner facts and never chan
   const deferred = conditions.find(({ subject_key }) => subject_key === "issue:3")!;
   const explicit = conditions.find(({ subject_key }) => subject_key === "issue:4")!;
   assert.deepEqual(blocked.condition.dependency_issues, [2]);
+  assert.deepEqual(blocked.condition.dependency_refs, [ref]);
   assert.equal(deferred.condition.dependency_issues, undefined);
   assert.equal(explicit.condition.dependency_issues, undefined);
   assert.equal(dependencyWake(blocked.condition, open.get("issue:1"), open, true), "waiting");
@@ -3851,6 +3857,23 @@ void test("dependency wake requires matching complete owner facts and never chan
   assert.equal(dependencyWake(blocked.condition, closed.get("issue:1"), closed, false), "unknown");
   const inconsistent = issue("OPEN", "CLOSED");
   assert.equal(dependencyWake(blocked.condition, inconsistent.get("issue:1"), inconsistent, true), "unknown");
+  const foreign = structuredClone(closed);
+  foreign.set("issue:1", {
+    number: 1,
+    state: "OPEN",
+    project: project("Blocked"),
+    blocked_by: [{
+      ...ref,
+      node_id: "foreign",
+      url: "https://github.com/other/project/issues/2",
+      state: "CLOSED",
+    }],
+  });
+  const foreignCondition = issueReconsiderations(foreign, "P1").conditions[0]!.condition;
+  assert.equal(dependencyWake(foreignCondition, foreign.get("issue:1"), foreign, true), "unknown");
+  const legacyCondition = { ...blocked.condition };
+  delete legacyCondition.dependency_refs;
+  assert.equal(dependencyWake(legacyCondition, closed.get("issue:1"), closed, true), "unknown");
   closed.delete("issue:2");
   assert.equal(dependencyWake(blocked.condition, closed.get("issue:1"), closed, true), "unknown");
   assert.equal(dependencyWake(deferred.condition, closed.get("issue:3"), closed, true), null);

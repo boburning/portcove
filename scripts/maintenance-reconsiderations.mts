@@ -55,18 +55,44 @@ function desired(
 
 interface IssueReconsiderationFact {
   number?: number;
+  node_id?: string;
   state?: string;
   project?: { project_id?: string; archived?: boolean; fields?: Record<string, string> }[];
   reconsideration?: { blocker: string | null; resume_condition: string } | null;
-  blocked_by?: { number?: number; state?: string }[];
+  blocked_by?: { number?: number; node_id?: string; url?: string; state?: string }[];
 }
 
 function dependencyIssues(fact: IssueReconsiderationFact): number[] {
   return [...new Set(
     (fact.blocked_by ?? [])
-      .filter(({ number }) => typeof number === "number" && Number.isSafeInteger(number) && number > 0 && number !== fact.number)
+      .filter(({ number }) => typeof number === "number" && Number.isSafeInteger(number) && number > 0)
       .map(({ number }) => number!),
   )].sort((a, b) => a - b);
+}
+
+type DependencyRef = { number: number; node_id: string; url: string };
+
+function dependencyRefs(fact: IssueReconsiderationFact): DependencyRef[] | undefined {
+  const edges = fact.blocked_by ?? [];
+  const refs: DependencyRef[] = [];
+  for (const edge of edges) {
+    if (
+      typeof edge.number !== "number" ||
+      !Number.isSafeInteger(edge.number) ||
+      edge.number <= 0 ||
+      typeof edge.node_id !== "string" ||
+      !edge.node_id ||
+      edge.node_id === fact.node_id ||
+      typeof edge.url !== "string" ||
+      !/^https:\/\/github\.com\/[a-z0-9_.-]+\/[a-z0-9_.-]+\/issues\/[0-9]+$/iu.test(edge.url) ||
+      refs.some((ref) => ref.node_id === edge.node_id)
+    )
+      return undefined;
+    refs.push({ number: edge.number, node_id: edge.node_id, url: edge.url });
+  }
+  return refs.sort(
+    (a, b) => a.number - b.number || a.node_id.localeCompare(b.node_id, "en"),
+  );
 }
 
 /** A complete owner read may identify a review opportunity, never lift a hold.
@@ -85,10 +111,29 @@ export function dependencyWake(
   if (fact.state !== "OPEN") return "unknown";
   const ids = dependencyIssues(fact);
   if (JSON.stringify(ids) !== JSON.stringify(condition.dependency_issues)) return "unknown";
-  const states = ids.map((id) => {
-    const linked = issues.get(`issue:${id}`) as IssueReconsiderationFact | undefined;
-    const edge = fact.blocked_by?.filter(({ number }) => number === id) ?? [];
-    if (linked?.number !== id || edge.length !== 1 || edge[0]?.state !== linked.state) return "unknown";
+  const refs = dependencyRefs(fact);
+  if (!refs?.length || !Array.isArray(condition.dependency_refs) ||
+      condition.dependency_refs.length !== refs.length)
+    return "unknown";
+  // JSONB may reorder object keys; compare individual identity fields.
+  for (const [index, ref] of refs.entries()) {
+    const prior = condition.dependency_refs[index];
+    if (
+      !prior ||
+      prior.number !== ref.number ||
+      prior.node_id !== ref.node_id ||
+      prior.url !== ref.url
+    ) return "unknown";
+  }
+  const states = refs.map((ref) => {
+    const linked = issues.get(`issue:${ref.number}`) as IssueReconsiderationFact | undefined;
+    const edge = fact.blocked_by?.find(({ node_id }) => node_id === ref.node_id);
+    if (
+      linked?.number !== ref.number ||
+      linked.node_id !== ref.node_id ||
+      !edge ||
+      edge.state !== linked.state
+    ) return "unknown";
     return linked.state === "OPEN" || linked.state === "CLOSED" ? linked.state : "unknown";
   });
   return states.includes("unknown") ? "unknown" : states.includes("OPEN") ? "waiting" : "review-ready";
@@ -189,6 +234,7 @@ export function issueReconsiderations(
           { source: "issues-project", project_status: "Deferred", ...recorded },
         ),
       );
+    const refs = dependencyRefs(fact);
     if (statuses.has("Blocked"))
       result.push(
         desired("technical_hold", key, `Project owner of issue #${fact.number} (Status: Blocked)`, {
@@ -196,7 +242,10 @@ export function issueReconsiderations(
           project_status: "Blocked",
           ...recorded,
           ...(!recorded.resume_condition?.trim() && dependencyIssues(fact).length
-            ? { dependency_issues: dependencyIssues(fact) }
+            ? {
+                dependency_issues: dependencyIssues(fact),
+                ...(refs ? { dependency_refs: refs } : {}),
+              }
             : {}),
         }),
       );
