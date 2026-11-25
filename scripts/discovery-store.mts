@@ -131,11 +131,50 @@ function classify(error: unknown): never {
 
 const uuid = (value: string) => `${sqlLiteral(value)}::uuid`;
 
+/** Snapshot the serialized hints so in-place mutations by the collector cannot
+ * alter the comparison baseline. Missing external state represents no hints. */
+function hintBaseline(state: Record<string, unknown>) {
+  const leads = isRecord(state.leads) ? state.leads : undefined;
+  const external = isRecord(leads?.external) ? leads.external : undefined;
+  if (external && !isRecord(external.hints))
+    throw new MaintenanceStoreError("Missing complete external hints");
+  return new Map(Object.entries(external?.hints ?? {}).map(([key, hint]) => [key, JSON.stringify(hint)]));
+}
+
+export function externalHintDelta(
+  before: ReadonlyMap<string, string>,
+  state: Record<string, unknown>,
+) {
+  const after = hintBaseline(state);
+  const compact = { ...state };
+  if (isRecord(state.leads) && isRecord(state.leads.external)) {
+    const { hints: _hints, ...external } = state.leads.external;
+    compact.leads = { ...state.leads, external };
+  }
+  return {
+    compact,
+    after,
+    changed: Object.fromEntries([...after].filter(([key, hint]) => before.get(key) !== hint)
+      .map(([key, hint]) => [key, JSON.parse(hint) as unknown])),
+    removed: [...before.keys()].filter((key) => !after.has(key)),
+  };
+}
+
 export function postgresDiscoveryStore(
   environment: NodeJS.ProcessEnv,
   /** Bytes per lead-record page; half of one client command's output by default. */
   pageBytes = Math.floor(outputLimitBytes / 2),
 ): DiscoveryStore {
+  // Per-adapter cache, never an independent authority. Only an exact confirmed
+  // acquisition/commit can establish the baseline for the next delta.
+  const baselines = new Map<string, {
+    revision: number;
+    attempt: string;
+    generation: number;
+    definition: string;
+    hints: Map<string, string>;
+  }>();
+  const active = new Map<string, { attempt: string; generation: number; token: string }>();
   return {
     acquire(lease, options) {
       try {
@@ -162,6 +201,20 @@ export function postgresDiscoveryStore(
             : `SELECT ${acquire}::text;`,
         ).trim();
         const grant = JSON.parse(output) as DiscoveryLeaseGrant;
+        const previous = baselines.get(lease.scope);
+        const revision = Number(grant.revision);
+        const generation = Number(grant.generation);
+        active.set(lease.scope, { attempt: lease.attempt, generation, token: lease.token });
+        if (grant.unchanged) {
+          if (previous && known && previous.revision === revision &&
+            previous.generation === generation && previous.attempt === known.attempt &&
+            previous.definition === known.definition)
+            baselines.set(lease.scope, { ...previous, attempt: lease.attempt });
+          else baselines.delete(lease.scope);
+        } else {
+          baselines.set(lease.scope, { revision, generation, attempt: lease.attempt,
+            definition: grant.definition_sha256, hints: hintBaseline(grant.state ?? {}) });
+        }
         return {
           ...grant,
           state: grant.state ?? {},
@@ -175,23 +228,37 @@ export function postgresDiscoveryStore(
       }
     },
     commit(lease, expectedRevision, options) {
-      const sql = `SELECT portcove_maintenance.discovery_commit(${sqlLiteral(lease.scope)},
+      const previous = baselines.get(lease.scope);
+      const current = active.get(lease.scope);
+      const eligible = previous && current && previous.attempt === lease.attempt &&
+        current.attempt === lease.attempt && current.token === lease.token &&
+        previous.generation === current.generation && previous.revision === expectedRevision;
+      const delta = eligible ? externalHintDelta(previous.hints, options.state) : undefined;
+      const nextHints = delta?.after ?? hintBaseline(options.state);
+      const functionName = delta ? "discovery_commit_hint_delta" : "discovery_commit";
+      const sql = `SELECT portcove_maintenance.${functionName}(${sqlLiteral(lease.scope)},
         ${uuid(lease.attempt)}, ${uuid(lease.token)}, ${expectedRevision},
-        ${sqlLiteral(options.definition)}, ${sqlLiteral(JSON.stringify(options.state))}::jsonb,
+        ${sqlLiteral(options.definition)}, ${sqlLiteral(JSON.stringify(delta?.compact ?? options.state))}::jsonb,
         ${options.leaseSeconds}, ${sqlLiteral(JSON.stringify(options.observations))}::jsonb,
         ${sqlLiteral(JSON.stringify(options.watches))}::jsonb,
-        ${sqlLiteral(JSON.stringify(options.leadRecords))}::jsonb);`;
+        ${sqlLiteral(JSON.stringify(options.leadRecords))}::jsonb${delta ? `,
+        ${sqlLiteral(JSON.stringify(delta.changed))}::jsonb, ${sqlLiteral(JSON.stringify(delta.removed))}::jsonb` : ""});`;
       try {
         const output = runSql(environment, sql, { timeoutMs: 300_000 });
         const revision = Number(output.trim());
         if (revision !== expectedRevision + 1)
           throw new MaintenanceStoreError("Discovery commit returned an unexpected revision");
+        if (current && current.attempt === lease.attempt && current.token === lease.token)
+          baselines.set(lease.scope, { revision, attempt: lease.attempt, generation: current.generation,
+            definition: options.definition, hints: nextHints });
+        else baselines.delete(lease.scope);
         return {
           revision,
           bytes: Buffer.byteLength(sql),
           received_bytes: Buffer.byteLength(output),
         };
       } catch (error) {
+        baselines.delete(lease.scope);
         return classify(error);
       }
     },
