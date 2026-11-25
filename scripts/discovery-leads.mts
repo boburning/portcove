@@ -370,6 +370,10 @@ export function retainLeadResults(
             ...(old?.search_families ? { search_families: old.search_families } : {}),
             ...(old?.external_lists ? { external_lists: old.external_lists } : {}),
             ...(old?.external_change ? { external_change: old.external_change } : {}),
+            // Release observations are dated evidence for the immutable repository,
+            // not a qualification of its current source revision or location.
+            ...(old?.release_hint ? { release_hint: old.release_hint } : {}),
+            ...(old?.release_probe ? { release_probe: old.release_probe } : {}),
           };
     if (family)
       next.records[String(id)]!.search_families = [

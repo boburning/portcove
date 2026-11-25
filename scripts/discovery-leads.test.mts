@@ -587,13 +587,43 @@ void test("early release probes share the existing budget and preserve failed ob
   assert.equal(state.records["1"]?.release_probe?.outcome, "unavailable");
   assert.equal(state.records["2"]?.release_hint?.assets_observed, true);
   assert.equal(state.records["2"]?.release_probe?.outcome, "invalid-response");
-  assert.deepEqual(selectLeadReleaseChecks(state, new Set(), later, true).map(({ id }) => id), [3, 4]);
-  assert.deepEqual(await collectLeadReleaseHints(host), { attempted: 2, unavailable: 0, malformed: 0 });
+  // The intervening repository search may replace the records after a push,
+  // relocation or weekly review. Their dated release evidence must survive.
+  state.records["2"]!.checked_at = now;
+  state.records["2"]!.status = "held";
+  const refreshed = retainLeadResults(
+    state,
+    [{ ...item(1, "renamed/game-1"), pushed_at: later }, item(2)],
+    later,
+    "refreshed",
+  );
+  host.leads = refreshed;
+  assert.equal(refreshed.records["1"]?.repository, "renamed/game-1");
+  assert.equal(refreshed.records["2"]?.status, "pending");
+  for (const id of ["1", "2"]) {
+    assert.deepEqual(refreshed.records[id]?.release_hint, state.records[id]?.release_hint);
+    assert.deepEqual(refreshed.records[id]?.release_probe, state.records[id]?.release_probe);
+  }
+  assert.deepEqual(
+    selectLeadReleaseChecks(refreshed, new Set(), later, true).map(({ id }) => id),
+    [3, 4],
+  );
+  assert.deepEqual(await collectLeadReleaseHints(host), {
+    attempted: 2,
+    unavailable: 0,
+    malformed: 0,
+  });
   assert.equal(calls.length, 4, "a failed path cannot starve later leads or retry in the same run");
-  assert.equal(state.records["3"]?.release_hint?.observed_at, later);
-  assert.deepEqual(parseLeadState(state).records["1"]?.release_probe, state.records["1"]?.release_probe);
+  assert.equal(refreshed.records["3"]?.release_hint?.observed_at, later);
+  assert.deepEqual(
+    parseLeadState(refreshed).records["1"]?.release_probe,
+    refreshed.records["1"]?.release_probe,
+  );
   const next = "2026-11-02T12:56:46.011Z";
-  assert.deepEqual(selectLeadReleaseChecks(state, new Set(), next, true).map(({ id }) => id), [1, 2, 3, 4]);
+  assert.deepEqual(
+    selectLeadReleaseChecks(refreshed, new Set(), next, true).map(({ id }) => id),
+    [1, 2, 3, 4],
+  );
 });
 
 void test("weekly held-lead refresh catches release-only changes without a source push", () => {
