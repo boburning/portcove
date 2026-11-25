@@ -18,6 +18,7 @@ import {
   sequenceStateQuery,
   sqlLiteral,
   storeTables,
+  storeDigest,
   storeSequences,
   withExportedSnapshot,
   type StoreDigest,
@@ -44,6 +45,8 @@ export interface BackupTransfer {
   history_copy_bytes: number;
   /** Measured uncompressed local COPY data, suitable as an estimate for the small-table dump. */
   other_table_copy_bytes: number;
+  /** Tables restored locally after matching the production snapshot digest. */
+  reused_tables: string[];
   method: "logical-copy-payload-plus-unmeasured-postgresql-and-tls-overhead";
 }
 
@@ -74,8 +77,10 @@ function copyTo(
 }
 
 /** Bound transfer before fetching data, from the same snapshot that supplies it. */
-function exportCeiling(through: readonly string[]) {
-  const sources = [...storeTables.map(([table]) => table), activation].map((table) => {
+function exportCeiling(through: readonly string[], reused: ReadonlySet<string>) {
+  const sources = [...storeTables.map(([table]) => table), activation]
+    .filter((table) => !reused.has(table))
+    .map((table) => {
     const index = history.findIndex(([name]) => table === `${schema}.${name}`);
     const where = index < 0 ? "" : ` WHERE ${history[index]![1]} > ${through[index]}`;
     // Allow for text COPY escaping, row framing and query/transport overhead.
@@ -87,8 +92,9 @@ function exportCeiling(through: readonly string[]) {
 /**
  * Use a verified ordinary dump as a prefix cache. Every output is itself an
  * ordinary complete backup. Production supplies all mutable rows and only the
- * suffixes whose prefixes matched in the same snapshot. A prefix mismatch
- * falls back to transferring that table only, subject to the same cap.
+ * suffixes whose prefixes matched in the same snapshot. Other tables with
+ * identical verified local and production digests are loaded locally instead.
+ * A mismatch falls back to transferring that table, subject to the same cap.
  */
 export async function backupReusingHistory(options: {
   source: NodeJS.ProcessEnv;
@@ -121,6 +127,9 @@ export async function backupReusingHistory(options: {
 
   const base = previous ? readBackupManifest(previous) : undefined;
   if (previous) restore(prefixDatabase, previous);
+  // The local restore may migrate old snapshots or reset deployment activation.
+  // Compare the actual restored table contents, never just a manifest claim.
+  const localTables = previous ? storeDigest(prefixDatabase) : undefined;
   const work = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-reuse-"));
   try {
     const dump = path.join(work, "store.dump");
@@ -154,29 +163,35 @@ export async function backupReusingHistory(options: {
         const observed: unknown = JSON.parse(await query(historyPrefix(index, prefix.through)));
         through.push(JSON.stringify(observed) === JSON.stringify(prefix) ? prefix.through : "0");
       }
+      const tables = JSON.parse(await query(digestQuery())) as StoreDigest;
+      const reusedTables = new Set<string>();
+      for (const [table] of storeTables) {
+        if (history.some(([name]) => table === `${schema}.${name}`)) continue;
+        const local = localTables?.[table], remote = tables[table];
+        if (local && remote && local.rows === remote.rows && local.sha256 === remote.sha256)
+          reusedTables.add(table);
+      }
       if (
         options.reuseRecent &&
         base?.sequences &&
         Date.now() >= Date.parse(base.created_at) &&
         Date.now() - Date.parse(base.created_at) < 20 * 60 * 60 * 1000
       ) {
-        const current = JSON.parse(await query(digestQuery())) as StoreDigest;
         const matches = storeTables.every(
           ([table]) =>
             table.endsWith(".resource_admissions") ||
-            (current[table]?.rows === base.tables[table]?.rows &&
-              current[table]?.sha256 === base.tables[table]?.sha256),
+            (tables[table]?.rows === base.tables[table]?.rows &&
+              tables[table]?.sha256 === base.tables[table]?.sha256),
         );
         const state = JSON.parse(await query(sequenceStateQuery)) as SequenceState;
         if (matches && JSON.stringify(state) === JSON.stringify(base.sequences))
           return { reused: true as const };
       }
-      const estimated = Number((await query(exportCeiling(through))).trim());
+      const estimated = Number((await query(exportCeiling(through, reusedTables))).trim());
       if (!Number.isSafeInteger(estimated) || estimated > reservedBytes)
         throw new MaintenanceBackupDeferred(
           `Backup payload ceiling ${estimated} exceeds its ${reservedBytes}-byte reservation`,
         );
-      const tables = JSON.parse(await query(digestQuery())) as StoreDigest;
       runTool(
         "pg_dump",
         [
@@ -186,6 +201,7 @@ export async function backupReusingHistory(options: {
           `--snapshot=${snapshot}`,
           ...maintenanceSchemas.map((name) => `--schema=${name}`),
           ...history.map(([name]) => `--exclude-table-data=${schema}.${name}`),
+          ...[...reusedTables].map((table) => `--exclude-table-data=${table}`),
           `--file=${dump}`,
         ],
         source,
@@ -201,7 +217,7 @@ export async function backupReusingHistory(options: {
       // Sequences are not MVCC. Sample after COPY so values are at least as new
       // as all included rows, even if another collector took tickets meanwhile.
       const state = JSON.parse(await query(sequenceStateQuery)) as SequenceState;
-      return { reused: false as const, tables, through, estimated, state };
+      return { reused: false as const, tables, through, estimated, state, reusedTables };
     });
     if (captured.reused)
       return {
@@ -212,6 +228,7 @@ export async function backupReusingHistory(options: {
           estimated_payload_ceiling: 2_000_000,
           history_copy_bytes: 0,
           other_table_copy_bytes: 0,
+          reused_tables: [],
           method: "logical-copy-payload-plus-unmeasured-postgresql-and-tls-overhead",
         } satisfies BackupTransfer,
       };
@@ -247,6 +264,14 @@ export async function backupReusingHistory(options: {
       }
       return files.flatMap((file) => ["-c", `\\copy ${schema}.${name} FROM ${sqlLiteral(file)}`]);
     });
+    // Load matching complete tables from the verified local prefix. The target
+    // restore still checks the full production digest before committing.
+    for (const [table, order] of storeTables) {
+      if (!captured.reusedTables.has(table)) continue;
+      const file = path.join(work, `${table}-local.tsv`);
+      copyTo(prefixDatabase, `SELECT * FROM ${table} ORDER BY ${order}`, file);
+      load.push("-c", `\\copy ${table} FROM ${sqlLiteral(file)}`);
+    }
     const setSequences = captured.state
       .map(({ last_value, is_called }, index) => {
         if (!/^[1-9][0-9]*$/u.test(last_value) || typeof is_called !== "boolean")
@@ -281,6 +306,7 @@ export async function backupReusingHistory(options: {
       history_copy_bytes: suffixes.reduce((bytes, file) => bytes + statSync(file).size, 0),
       // SQL rendering includes sequence statements and headers. It approximates COPY bytes.
       other_table_copy_bytes: statSync(scripts[1]!).size,
+      reused_tables: [...captured.reusedTables].sort(),
       method: "logical-copy-payload-plus-unmeasured-postgresql-and-tls-overhead",
     };
     return { manifest, transfer, reused: false };
