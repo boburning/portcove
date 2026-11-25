@@ -666,11 +666,28 @@ void test(
       /t/u,
     );
 
+    // Schema SQL succeeds, but the final role contract cannot grant a renamed
+    // function. The ledger and the function rename must roll back together.
+    writeFileSync(
+      path.join(migrations, interrupted),
+      "ALTER FUNCTION portcove_maintenance.latest_run(text) RENAME TO interrupted_latest_run;\n",
+    );
+    assert.throws(() => migrate(store.owner, migrations), /latest_run.*does not exist/u);
+    assert.equal(migrationStatus(store.owner, migrations).schema_version, real.length);
+    assert.match(
+      runSql(store.owner, "SELECT to_regprocedure('portcove_maintenance.latest_run(text)') IS NOT NULL;"),
+      /t/u,
+    );
+
     writeFileSync(
       path.join(migrations, interrupted),
       "CREATE TABLE portcove_maintenance.partial (id integer);\n",
     );
     assert.deepEqual(migrate(store.owner, migrations).newly_applied, [real.length + 1]);
+    assert.match(
+      runSql(store.owner, "SELECT has_function_privilege('portcove_maintenance_collector', 'portcove_maintenance.latest_run(text)', 'EXECUTE');"),
+      /t/u,
+    );
     writeFileSync(
       path.join(migrations, interrupted),
       "CREATE TABLE portcove_maintenance.changed (id integer);\n",

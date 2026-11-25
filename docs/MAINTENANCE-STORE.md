@@ -92,8 +92,13 @@ network, while removed rows are omitted from local reconstruction. Migration `00
 the existing collector revision. The migration preserves all hint values and
 recomputes the compact continuation digest. Complete logical acquire and
 commit wrappers retain the existing caller contract, while the old compact
-functions are private to the wrappers. A complete read reassembles the hints;
-older direct state readers must upgrade. The new hint table participates in
+functions are private to the wrappers. Current collector and read-only consumers
+hydrate the normalized hints separately in bounded pages, including cold reads
+without a seed and invalidated warm reads. The complete legacy wrapper still
+reassembles hints on the server; older direct state readers must upgrade.
+The final pending migration and role contract commit together. A failed role
+contract cannot leave the latest migration ledger entry committed without its
+callable permissions. The new hint table participates in
 whole-table and row-delta recovery. The maintained collector submits changed
 hint rows and explicitly removed keys against its confirmed lease and revision,
 using a compact continuation and the existing atomic commit fence. When no

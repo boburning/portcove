@@ -432,17 +432,20 @@ export function migrationStatus(
   };
 }
 
-/** Apply pending migrations one transaction at a time, then the role contract. */
+/** Apply pending migrations in order, committing the final schema with its role contract. */
 export function migrate(environment: NodeJS.ProcessEnv, directory = defaultMigrationDirectory) {
   const plan = planMigrations(readMigrations(directory), readLedger(environment));
   if (plan.problems.length)
     throw new MaintenanceStoreError(`Refusing to migrate: ${plan.problems.join("; ")}`);
   const applied: number[] = [];
   for (const migration of plan.pending) {
-    runSql(environment, migrationTransaction(migration));
+    // The last schema revision and its callable permissions must become visible
+    // together. A role-contract error rolls back the final migration and ledger.
+    const roles = migration === plan.pending.at(-1) ? roleContract() : "";
+    runSql(environment, migrationTransaction(migration) + roles);
     applied.push(migration.version);
   }
-  if (plan.applied.length || plan.pending.length) runSql(environment, roleContract());
+  if (!plan.pending.length && plan.applied.length) runSql(environment, roleContract());
   return { ...migrationStatus(environment, directory), newly_applied: applied };
 }
 

@@ -39,7 +39,7 @@ export interface DiscoveryWatchChange {
 export interface DiscoveryLeaseGrant {
   revision: number;
   state: Record<string, unknown>;
-  /** Stored continuation digest; compact for a seeded acquire, expanded for a complete acquire. */
+  /** Digest of the stored compact continuation, before normalized hint hydration. */
   state_sha256: string;
   definition_sha256: string;
   acquisition: number;
@@ -327,6 +327,13 @@ function loadExternalHints(environment: NodeJS.ProcessEnv, scope: string, pageBy
   }
 }
 
+function attachExternalHints(state: Record<string, unknown>, hints: Record<string, unknown>) {
+  if (isRecord(state.leads) && isRecord(state.leads.external))
+    state.leads.external.hints = hints;
+  else if (Object.keys(hints).length)
+    throw new MaintenanceStoreError("Discovery hints have no external continuation");
+}
+
 export function postgresDiscoveryStore(
   environment: NodeJS.ProcessEnv,
   /** Bytes per lead-record page; half of one client command's output by default. */
@@ -366,22 +373,23 @@ export function postgresDiscoveryStore(
             ? `SELECT portcove_maintenance.discovery_acquire_known(${args},
                  ${known.revision}, ${known.generation}, ${sqlLiteral(known.definition)},
                  ${uuid(known.attempt)})::text;`
-            : `SELECT portcove_maintenance.${seed ? "discovery_acquire_seeded" : "discovery_acquire"}(${args})::text;`,
+            : `SELECT portcove_maintenance.discovery_acquire_seeded(${args})::text;`,
         ).trim();
         const grant = JSON.parse(output) as DiscoveryLeaseGrant;
         let received = Buffer.byteLength(output);
-        if (seed && (planned || !known)) {
+        if (!grant.unchanged) {
           try {
-            const incremental = readSeededDiscoveryRows(environment, seed, lease.scope, "hints",
-              planned?.hintsBytes ?? pageBytes, planned?.hints);
+            const incremental = seed
+              ? readSeededDiscoveryRows(
+                  environment, seed, lease.scope, "hints",
+                  planned?.hintsBytes ?? pageBytes, planned?.hints,
+                )
+              : null;
             if (planned && !incremental)
               throw new DiscoveryStoreRefused("stale-writer", "Measured hint delta no longer fits; replan before reading");
             const hints = incremental ?? loadExternalHints(environment, lease.scope, pageBytes);
             received += hints.bytes;
-            if (isRecord(grant.state.leads) && isRecord(grant.state.leads.external))
-              grant.state.leads.external.hints = hints.rows;
-            else if (Object.keys(hints.rows).length)
-              throw new MaintenanceStoreError("Discovery hints have no external continuation");
+            attachExternalHints(grant.state, hints.rows);
           } catch (error) {
             // The compact acquire already took a lease; close it on hydration failure.
             runSql(environment, `SELECT portcove_maintenance.discovery_finish(${sqlLiteral(lease.scope)}, ${uuid(lease.attempt)}, ${uuid(lease.token)}, 'failed', '{}'::jsonb);`);
@@ -542,28 +550,43 @@ export function readDiscoverySnapshot(
     const output = runSql(
       environment,
       `SET TRANSACTION READ ONLY;
-       SELECT coalesce((SELECT revision FROM portcove_maintenance.discovery_collection_state
-         WHERE scope = ${sqlLiteral(scope)}), 0)::text;`,
+       SELECT json_build_object(
+         'revision', coalesce((SELECT revision FROM portcove_maintenance.discovery_collection_state
+           WHERE scope = ${sqlLiteral(scope)}), 0),
+         'generation', (SELECT collection_generation
+           FROM portcove_maintenance_meta.discovery_intake_activation))::text;`,
     ).trim();
-    return { revision: Number(output), bytes: Buffer.byteLength(output) };
+    const fence: unknown = JSON.parse(output);
+    if (!isRecord(fence) || !Number.isSafeInteger(fence.revision) ||
+        !Number.isSafeInteger(fence.generation))
+      throw new MaintenanceStoreError("Malformed discovery snapshot fence");
+    return {
+      revision: Number(fence.revision),
+      generation: Number(fence.generation),
+      bytes: Buffer.byteLength(output),
+    };
   };
   const before = revisionOf();
   if (before.revision === 0) return { outcome: "empty", bytes: before.bytes };
   const stateOutput = runSql(
     environment,
     `SET TRANSACTION READ ONLY;
-     SELECT json_build_object('revision', revision, 'state', portcove_maintenance.discovery_expanded_state(scope, state))::text
+     SELECT json_build_object('revision', revision, 'state', state)::text
      FROM portcove_maintenance.discovery_collection_state WHERE scope = ${sqlLiteral(scope)};`,
     { timeoutMs: 300_000 },
   ).trim();
+  const hints = loadExternalHints(environment, scope, pageBytes);
   const loaded = postgresDiscoveryStore(environment, pageBytes).loadLeadRecords(scope);
   const after = revisionOf();
-  const bytes = before.bytes + Buffer.byteLength(stateOutput) + loaded.bytes + after.bytes;
+  const bytes = before.bytes + Buffer.byteLength(stateOutput) + hints.bytes + loaded.bytes + after.bytes;
   const row: unknown = JSON.parse(stateOutput);
+  if (after.revision !== before.revision || after.generation !== before.generation)
+    return { outcome: "moved", bytes };
   if (!isRecord(row) || !isRecord(row.state))
     throw new MaintenanceStoreError("Malformed stored discovery state");
-  if (Number(row.revision) !== before.revision || after.revision !== before.revision)
+  if (Number(row.revision) !== before.revision)
     return { outcome: "moved", bytes };
+  attachExternalHints(row.state, hints.rows);
   return {
     outcome: "read",
     revision: before.revision,

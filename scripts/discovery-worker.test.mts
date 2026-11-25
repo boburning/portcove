@@ -11,6 +11,7 @@ import { emptyCheckpoint } from "./discovery-checkpoint.mts";
 import {
   DiscoveryStoreRefused,
   discoveryStatusQuery,
+  readDiscoverySnapshot,
   postgresDiscoveryStore,
   measureDiscoverySeed,
 } from "./discovery-store.mts";
@@ -1297,12 +1298,30 @@ void test(
     assert.ok(quiet.bytes < 2_000, "confirmed warm baseline also sends only changes");
     assert.throws(() => store.commit(owner, changed.revision, input({})), DiscoveryStoreRefused);
     store.finish(next, "complete", {});
-    const cold = postgresDiscoveryStore(environment).acquire(lease("3"), { ...options, known: {
+    const coldStore = postgresDiscoveryStore(environment, 1024);
+    const cold = coldStore.acquire(lease("3"), { ...options, known: {
       revision: quiet.revision, generation: 1, definition: options.definition, attempt: oldAttempt,
     } });
     assert.notEqual(cold.unchanged, true, "a different commit attempt forces full read");
     assert.deepEqual(cold.state, state);
-    store.finish(lease("3"), "complete", {});
+    assert.equal(
+      cold.state_sha256,
+      queryJson(environment, "SELECT to_json(state_sha256) FROM portcove_maintenance.discovery_collection_state;"),
+      "invalidated warm acquisition returns the compact digest, with hints hydrated separately",
+    );
+    coldStore.finish(lease("3"), "complete", {});
+    const unseeded = postgresDiscoveryStore(environment, 1024);
+    const unseededLease = lease("9");
+    const full = unseeded.acquire(unseededLease, options);
+    assert.deepEqual(full.state, state);
+    assert.equal(full.state_sha256, cold.state_sha256);
+    const snapshot = readDiscoverySnapshot(environment, "primary", 1024);
+    assert.equal(snapshot.outcome, "read");
+    if (snapshot.outcome === "read") {
+      assert.deepEqual(snapshot.state, state);
+      assert.equal(snapshot.revision, full.revision);
+    }
+    unseeded.finish(unseededLease, "complete", {});
 
     // Alter the seed's rows after verification to prove their actual contents,
     // not its claimed revision, are compared against production.

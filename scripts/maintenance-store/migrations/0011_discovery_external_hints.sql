@@ -157,7 +157,6 @@ CREATE FUNCTION portcove_maintenance.discovery_acquire_known(
 ) RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $hint_acquire$
 DECLARE
   grant_value jsonb;
-  expanded jsonb;
 BEGIN
   grant_value := portcove_maintenance.discovery_acquire_compact(
     target_scope, target_attempt, token, lease_seconds, definition, revision_source, runner_name);
@@ -168,14 +167,14 @@ BEGIN
         WHERE scope = target_scope AND committed_pages > 0 ORDER BY acquisition DESC LIMIT 1) = known_attempt THEN
     RETURN (grant_value - 'state') || '{"unchanged":true}'::jsonb;
   END IF;
-  expanded := portcove_maintenance.discovery_expanded_state(target_scope, grant_value->'state');
-  RETURN grant_value || jsonb_build_object('state', expanded,
-    'state_sha256', encode(sha256(convert_to(expanded::text, 'UTF8')), 'hex'));
+  -- The current reader hydrates normalized rows in bounded pages or from a seed.
+  RETURN grant_value;
 END $hint_acquire$;
 REVOKE ALL ON FUNCTION portcove_maintenance.discovery_acquire_known(
   text, uuid, uuid, integer, text, text, text, bigint, bigint, text, uuid) FROM PUBLIC;
 
--- A seeded reader explicitly hydrates both normalized row sets after acquire.
+-- A current reader explicitly hydrates both normalized row sets after acquire.
+-- A verified local seed is optional; the compact grant is the same.
 -- No arbitrary reader may bypass the existing acquisition fence.
 CREATE FUNCTION portcove_maintenance.discovery_acquire_seeded(
   target_scope text, target_attempt uuid, token uuid, lease_seconds integer,
