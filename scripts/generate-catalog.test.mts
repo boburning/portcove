@@ -83,6 +83,29 @@ void test("full proposal preparation cannot combine with ordinary catalog writes
   }
 });
 
+void test("Core image validator hashing accepts an executable beyond the controller payload bound", async (context) => {
+  const { hashCoreImageValidatorFile } = await import("./inspect-igdb-artwork.mts");
+  const { truncateSync, rmSync, symlinkSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-validator-digest-"));
+  context.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const file = join(scratch, "validator");
+  writeFileSync(file, "");
+  assert.throws(() => hashCoreImageValidatorFile(file), /nonempty regular file/u);
+  assert.throws(() => hashCoreImageValidatorFile(scratch), /regular file|EISDIR/u);
+  const chunk = Buffer.alloc(1024 * 1024);
+  truncateSync(file, 128 * chunk.length + 1);
+  const expected = createHash("sha256");
+  for (let index = 0; index < 128; index++) expected.update(chunk);
+  expected.update(Buffer.from([0]));
+  assert.equal(hashCoreImageValidatorFile(file), expected.digest("hex"));
+  if (process.platform !== "win32") {
+    const alias = join(scratch, "alias");
+    symlinkSync(file, alias);
+    assert.throws(() => hashCoreImageValidatorFile(alias), /ELOOP/u);
+  }
+});
+
 void test("captured proposal bytes remain exact after the caller path changes", async () => {
   const { readArtworkInput } = await import("./inspect-igdb-artwork.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-proposal-bytes-"));
