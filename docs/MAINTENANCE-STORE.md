@@ -99,8 +99,15 @@ hint rows and explicitly removed keys against its confirmed lease and revision,
 using a compact continuation and the existing atomic commit fence. When no
 confirmed client baseline is available, it submits the complete logical state
 instead. An exact retained revision reacquire omits the state without rebuilding
-the hint document on the server. A cold collector read still needs the complete
-logical corpus; persistent cross-run caching is not introduced. Discovery pass
+the hint document on the server. For cold hosted reads, the discovery job can reuse the existing independently
+verified recovery artifact. It restores the seed in a separate local PostgreSQL
+instance without production credentials and computes fingerprints from the
+actual restored hint and lead payloads. After fenced compact acquisition, the
+production database compares those fingerprints and returns changed/new rows
+and removed keys. The current continuation always comes from production.
+An unavailable seed or oversized seed/delta falls back to the complete read;
+no additional public cache or artifact is published. Initial admission still
+reserves for the complete-read fallback, not an optimistic delta estimate. Discovery pass
 admission uses the larger of the measured previous receive payload and the
 current cold-read estimate, plus acknowledgement and protocol headroom, rather
 than counting the same acquire twice. The provider ceiling is unchanged.
