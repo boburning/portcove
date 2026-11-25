@@ -585,7 +585,19 @@ export async function withMaintenanceAdmission<T>(
     outcome: admission.attempt_id ? "admitted" : coalesced ? "coalesced" : "deferred",
   });
   if (coalesced) throw new MaintenanceRequestCoalesced(admission.reason);
+  return runAdmittedMaintenance(environment, admission, callback, { ...options, executor });
+}
+
+/** Execute and settle an already acquired ledger reservation. */
+export async function runAdmittedMaintenance<T>(
+  environment: NodeJS.ProcessEnv,
+  admission: ReturnType<typeof acquireMaintenanceReservation>,
+  callback: (bytes: number, deadline: number) => Promise<T> | T,
+  options: { estimate?: (value: T) => number; completed?: (value: T) => boolean; executor?: boolean } = {},
+): Promise<T> {
   if (!admission.attempt_id) throw new MaintenanceResourceDeferred(admission.reason);
+  const { operation, request, revision, meter, trigger: reason } = admission;
+  const executor = operation === "intake" || options.executor === true;
   let outcome = "failed";
   let estimate: number | undefined;
   const measurement = {
@@ -601,9 +613,10 @@ export async function withMaintenanceAdmission<T>(
     const value = await maintenanceTransfer.run(measurement, () =>
       callback(admission.operation_reservation_bytes, measurement.deadline),
     );
-    estimate = options.estimate?.(value) ?? 200_000 + Math.ceil(measurement.payloadBytes * 1.3);
-    if (estimate !== undefined && (!Number.isSafeInteger(estimate) || estimate < 0))
+    const supplied = options.estimate?.(value);
+    if (supplied !== undefined && (!Number.isSafeInteger(supplied) || supplied < 0))
       throw new MaintenanceStoreError("Invalid maintenance transfer estimate");
+    estimate = Math.max(supplied ?? 0, 200_000 + Math.ceil(measurement.payloadBytes * 1.3));
     outcome = options.completed?.(value) === false ? "failed" : "completed";
     return value;
   } catch (error) {

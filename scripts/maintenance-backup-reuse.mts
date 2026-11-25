@@ -178,6 +178,16 @@ export function createBackupRecovery(options: Omit<BackupReuseOptions, "reserved
   });
 }
 
+/** Retry only a measured pre-export deferral, using a fresh ledger admission. */
+export async function retryBackupAdmission<T>(admit: (reservationBytes?: number) => Promise<T>) {
+  try {
+    return await admit();
+  } catch (error) {
+    if (!(error instanceof MaintenanceBackupDeferred)) throw error;
+    return await admit(error.requiredBytes);
+  }
+}
+
 export function backupReusingHistory({ reservedBytes, ...options }: BackupReuseOptions) {
   return createBackupRecovery(options)(reservedBytes);
 }

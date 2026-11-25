@@ -958,7 +958,7 @@ async function runStoreCommand(
     );
   else if (command === "backup-reusing-history") {
     if (!output) throw new MaintenanceStoreError("backup-reusing-history requires --output DIR");
-    const { createBackupRecovery, MaintenanceBackupDeferred } = await import("./maintenance-backup-reuse.mts");
+    const { createBackupRecovery, retryBackupAdmission } = await import("./maintenance-backup-reuse.mts");
     const prefixDatabase = connectionFromEnvironment("PORTCOVE_MAINTENANCE_PREFIX_URL");
     const target = connectionFromEnvironment("PORTCOVE_MAINTENANCE_SCRATCH_URL");
     delete process.env.PORTCOVE_MAINTENANCE_PREFIX_URL;
@@ -982,14 +982,7 @@ async function runStoreCommand(
           Math.ceil(1.25 * (transfer.history_copy_bytes + transfer.other_table_copy_bytes +
             transfer.row_delta_copy_bytes + transfer.row_delta_plan_bytes)),
       });
-    try {
-      result = await admit();
-    } catch (error) {
-      // Only a known pre-export deferral can retry. Replan against a new
-      // snapshot after fresh admission; never retry a possibly partial export.
-      if (!(error instanceof MaintenanceBackupDeferred)) throw error;
-      result = await admit(error.requiredBytes);
-    }
+    result = await retryBackupAdmission(admit);
   } else if (command === "backup") {
     if (!output) throw new MaintenanceStoreError("backup requires --output DIR");
     if (policy.isNeon(environment))

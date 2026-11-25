@@ -11,6 +11,7 @@ import {
   backupReusingHistory,
   createBackupRecovery,
   MaintenanceBackupDeferred,
+  retryBackupAdmission,
 } from "./maintenance-backup-reuse.mts";
 import {
   acquireMaintenanceReservation,
@@ -19,6 +20,8 @@ import {
   normalizeNeonMeter,
   sampleNeon,
   policyLimits,
+  runAdmittedMaintenance,
+  MaintenanceResourceDeferred,
   type NeonMeter,
 } from "./maintenance-resource-policy.mts";
 import {
@@ -33,6 +36,7 @@ import {
   migrate,
   migrationStatus,
   migrationTransaction,
+  queryJson,
   planMigrations,
   portableRestoreSql,
   readMigrations,
@@ -1092,6 +1096,76 @@ void test(
       null,
       "a completion after the fixed cutover sample never settles",
     );
+  },
+);
+
+void test(
+  "recovery retries reserve and settle real ledger attempts without retrying uncertain transfers",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const source = fixture.start("admitted-source").owner;
+    // Distinct socket paths keep scratch SQL outside the measured source envelope.
+    const scratch = postgresFixture(context, server.directory!);
+    const prefixDatabase = scratch.start("prefix").owner;
+    const target = scratch.start("target").owner;
+    migrate(source);
+    runSql(source, `INSERT INTO portcove_maintenance.discovery_collection_state
+      (scope, definition_sha256, revision, state, state_sha256, updated_at)
+      VALUES ('primary', '${hex("a")}', 0,
+        jsonb_build_object('payload', repeat('x', 25000000)), '${hex("b")}', clock_timestamp());`);
+    const output = path.join(fixture.root, "admitted-backup");
+    const recover = createBackupRecovery({ source, prefixDatabase, target, output });
+    const meter = testMeter(0);
+    const reserve = (request: string, reservationBytes?: number, reading = meter) =>
+      acquireMaintenanceReservation(source, {
+        meter: reading, request, operation: "recovery", reason: "test",
+        ...(reservationBytes === undefined ? {} : { reservationBytes }),
+      });
+    const ledger = (request: string) => queryJson(source, `SELECT json_agg(
+      json_build_object('outcome', outcome, 'reserved', reserved_bytes, 'estimate', estimate_bytes)
+      ORDER BY started_at, attempt_id) FROM portcove_maintenance_meta.resource_admissions
+      WHERE request_key = '${request}';`) as { outcome: string; reserved: number; estimate: number | null }[];
+    const result = await retryBackupAdmission((bytes) =>
+      runAdmittedMaintenance(source, reserve("real-recovery", bytes), recover, {
+        estimate: ({ transfer }) => 2_000_000 + Math.ceil(1.25 *
+          (transfer.history_copy_bytes + transfer.other_table_copy_bytes +
+           transfer.row_delta_copy_bytes + transfer.row_delta_plan_bytes)),
+      }),
+    );
+    assert.equal(result.reused, false);
+    const rows = ledger("real-recovery");
+    assert.deepEqual(rows.map(({ outcome }) => outcome), ["deferred", "completed"]);
+    assert.ok(rows[0]!.estimate! < rows[0]!.reserved);
+    assert.ok(rows[1]!.reserved > rows[0]!.reserved);
+    assert.equal(result.transfer.reserved_bytes, rows[1]!.reserved);
+    assert.ok(rows[1]!.estimate! > 0);
+
+    let calls = 0;
+    await assert.rejects(retryBackupAdmission((bytes) =>
+      runAdmittedMaintenance(source, reserve("uncertain", bytes), () => {
+        calls++;
+        throw new Error("uncertain export");
+      }),
+    ), /uncertain export/u);
+    assert.equal(calls, 1);
+    assert.deepEqual(ledger("uncertain").map(({ outcome, estimate }) => ({ outcome, estimate })),
+      [{ outcome: "failed", estimate: null }]);
+
+    // Leave enough for an ordinary reservation, but not for its measured larger retry.
+    const ceiling = policyLimits(meter, "recovery", Date.now()).ceiling_bytes;
+    const charged = rows[0]!.estimate! + rows[1]!.estimate! + ledger("uncertain")[0]!.reserved;
+    const constrained = { ...meter, transferBytes: ceiling - charged - 49_000_000 };
+    let exports = 0;
+    await assert.rejects(retryBackupAdmission((bytes) =>
+      runAdmittedMaintenance(source, reserve("denied-retry", bytes, constrained), () => {
+        exports++;
+        throw new MaintenanceBackupDeferred(60_000_000, 48_000_000);
+      }),
+    ), MaintenanceResourceDeferred);
+    assert.equal(exports, 1);
+    assert.deepEqual(ledger("denied-retry").map(({ outcome, reserved }) => ({ outcome, reserved })),
+      [{ outcome: "deferred", reserved: 48_000_000 }, { outcome: "deferred", reserved: 0 }]);
   },
 );
 
