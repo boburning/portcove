@@ -357,6 +357,7 @@ export async function scan(
     clock = Date.now,
     failures: knownFailures = new Map<string, ScanFailure>(),
     retries: knownRetries = new Map<string, number>(),
+    deferredAttempts: knownDeferredAttempts = new Map<string, number>(),
     maxRetryAssets = 4,
     maxRetryBytes = 2_000_000_000,
     accounting = [],
@@ -373,6 +374,8 @@ export async function scan(
      * checked each; re-checked in rotation under their own allowance.
      */
     retries?: ReadonlyMap<string, number>;
+    /** Ordinary transient attempts, oldest first on the next scan. */
+    deferredAttempts?: ReadonlyMap<string, number>;
     maxRetryAssets?: number | undefined;
     maxRetryBytes?: number | undefined;
     /** Reviewed dismissals ({@link readAccounting}). */
@@ -383,10 +386,13 @@ export async function scan(
   checkpoint: Map<string, ScanRecord>;
   failures: Map<string, ScanFailure>;
   retries: Map<string, number>;
+  deferredAttempts: Map<string, number>;
 }> {
   const next = new Map(checkpoint);
   const failures = new Map(knownFailures);
   const retries = new Map(knownRetries);
+  const deferredAttempts = new Map(knownDeferredAttempts);
+  const deferredRun = [...deferredAttempts.values()].reduce((max, value) => Math.max(max, value), 0) + 1;
   const matched = new Set<AccountingEntry>();
   // Accounting comes only from the reviewed file: any `accounted` on the input is dropped.
   const finding = (input: ScanRecord): ScanFinding => {
@@ -492,9 +498,15 @@ export async function scan(
     reserved -= size;
     rechecks.add(plan.key);
   }
-  // Phase 2: scan in target order.
+  // Phase 2: give fresh and longest-waiting ordinary assets first access to the
+  // same budgets. Reused, persistent and retry-cohort outcomes keep their behavior.
+  const attemptAge = (plan: Plan) =>
+    "key" in plan && !next.has(plan.key) && !failures.has(plan.key) && !retries.has(plan.key)
+      ? deferredAttempts.get(plan.key) ?? 0
+      : 0;
+  const ordered = [...plans].sort((a, b) => attemptAge(a) - attemptAge(b));
   const recheckOutcomes = new Map<string, { code: UnscannedCode; reason: string }>();
-  for (const plan of plans) {
+  for (const plan of ordered) {
     const { target } = plan;
     const skip = (code: UnscannedCode, reason: string) =>
       report.unscanned.push({
@@ -590,7 +602,10 @@ export async function scan(
       continue;
     }
     if (retry) retries.set(key, retryRun);
-    else attempts++;
+    else {
+      attempts++;
+      deferredAttempts.set(key, deferredRun);
+    }
     const limit = Math.max(1, Math.min(maxAssetBytes, retry ? retryBudget : budget));
     const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-"));
     const file = path.join(dir, "package");
@@ -623,11 +638,14 @@ export async function scan(
       };
       if (record.heads_unread && !record.signals.length && clock() >= deadline) {
         // A read cut by the clock says nothing about the package: retry it later.
-        skip("time-cut", `asset ${asset.name} was cut by the time budget; scanned in a later run`);
+        const reason = `asset ${asset.name} was cut by the time budget; scanned in a later run`;
+        recheckOutcomes.set(key, { code: "time-cut", reason });
+        skip("time-cut", reason);
         continue;
       }
       next.set(key, record);
       retries.delete(key);
+      deferredAttempts.delete(key);
       report.scanned.push(record);
       if (record.signals.length) report.findings.push(finding(record));
     } catch (error) {
@@ -639,9 +657,14 @@ export async function scan(
       if (RECORDED_FAILURES.includes(code)) {
         failures.set(key, { key, code, max_asset_bytes: maxAssetBytes });
         retries.delete(key);
-      } else if (code === "unlistable") retries.set(key, retryRun);
+        deferredAttempts.delete(key);
+      } else if (code === "unlistable") {
+        retries.set(key, retryRun);
+        deferredAttempts.delete(key);
+      }
       const reason = `asset ${asset.name} could not be scanned: ${(error as Error).message}`;
-      if (retry || code === "unlistable") recheckOutcomes.set(key, { code, reason });
+      // One asset identity has one attempt per pass, even when its failure is transient.
+      recheckOutcomes.set(key, { code, reason });
       skip(code, reason);
     } finally {
       // Failed transfers spend their budget too, so a bad asset cannot repeat unbounded.
@@ -657,7 +680,7 @@ export async function scan(
   report.accounting_unmatched = accounting
     .filter((entry) => !matched.has(entry))
     .map(({ port_id, platform, sha256, rules }) => ({ port_id, platform, sha256, rules }));
-  return { report, checkpoint: next, failures, retries };
+  return { report, checkpoint: next, failures, retries, deferredAttempts };
 }
 
 // ---- Hosted implementations -------------------------------------------------
@@ -993,12 +1016,14 @@ export async function readCheckpoint(file: string | undefined) {
   const records = new Map<string, ScanRecord>();
   const failures = new Map<string, ScanFailure>();
   const retries = new Map<string, number>();
-  if (!file || file === "-") return { records, failures, retries };
+  const deferredAttempts = new Map<string, number>();
+  if (!file || file === "-") return { records, failures, retries, deferredAttempts };
   try {
     const stored = JSON.parse(await readFile(file, "utf8")) as {
       records?: ScanRecord[];
       failures?: ScanFailure[];
       retries?: { key?: unknown; rules?: unknown; checked_at?: unknown }[];
+      deferred_attempts?: { key?: unknown; rules?: unknown; checked_at?: unknown }[];
     };
     for (const retry of stored.retries ?? [])
       if (
@@ -1013,6 +1038,14 @@ export async function readCheckpoint(file: string | undefined) {
             ? (retry.checked_at as number)
             : 0,
         );
+    for (const attempt of stored.deferred_attempts ?? [])
+      if (
+        typeof attempt.key === "string" &&
+        attempt.key.startsWith(`r${RULES_VERSION}|`) &&
+        attempt.rules === RULES_VERSION &&
+        typeof attempt.checked_at === "number" &&
+        Number.isSafeInteger(attempt.checked_at) && attempt.checked_at >= 0
+      ) deferredAttempts.set(attempt.key, attempt.checked_at);
     for (const record of stored.records ?? [])
       if (record.rules === RULES_VERSION) {
         // Only the reviewed accounting file dismisses a finding, never a cached record.
@@ -1030,7 +1063,7 @@ export async function readCheckpoint(file: string | undefined) {
   } catch {
     // A missing or unreadable checkpoint scans from scratch.
   }
-  return { records, failures, retries };
+  return { records, failures, retries, deferredAttempts };
 }
 
 export async function main(argv: string[]) {
@@ -1064,7 +1097,7 @@ export async function main(argv: string[]) {
   const accounting = option("--accounting")
     ? readAccounting(JSON.parse(await readFile(option("--accounting")!, "utf8")), listings)
     : [];
-  const { records: previous, failures, retries } = await readCheckpoint(option("--checkpoint"));
+  const { records: previous, failures, retries, deferredAttempts } = await readCheckpoint(option("--checkpoint"));
   const numeric = (name: string) => {
     const value = option(name);
     if (value === undefined) return undefined;
@@ -1080,6 +1113,7 @@ export async function main(argv: string[]) {
     checkpoint,
     failures: nextFailures,
     retries: nextRetries,
+    deferredAttempts: nextDeferredAttempts,
   } = await scan(targets, previous, hostedDependencies(process.env.GH_TOKEN), {
     maxAssets: numeric("--max-assets"),
     maxAssetBytes: numeric("--max-asset-bytes"),
@@ -1088,6 +1122,7 @@ export async function main(argv: string[]) {
     deadline: Date.now() + (numeric("--minutes") ?? 75) * 60_000,
     failures,
     retries,
+    deferredAttempts,
     maxRetryAssets: numeric("--max-retry-assets"),
     maxRetryBytes: numeric("--max-retry-bytes"),
     accounting,
@@ -1102,6 +1137,11 @@ export async function main(argv: string[]) {
           records: [...checkpoint.values()],
           failures: [...nextFailures.values()],
           retries: [...nextRetries].map(([key, checked_at]) => ({
+            key,
+            rules: RULES_VERSION,
+            checked_at,
+          })),
+          deferred_attempts: [...nextDeferredAttempts].map(([key, checked_at]) => ({
             key,
             rules: RULES_VERSION,
             checked_at,
