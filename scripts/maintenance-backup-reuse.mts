@@ -44,7 +44,7 @@ function fingerprintSql(table: DeltaTable, maximum: number) {
   return `WITH fingerprints AS (
     SELECT coalesce(jsonb_object_agg(${table.key}, encode(sha256(convert_to(t::text, 'UTF8')), 'hex')), '{}'::jsonb) AS value
     FROM ${table.table} t
-  ) SELECT CASE WHEN octet_length(value::text) <= ${maximum} THEN value ELSE NULL END FROM fingerprints;`;
+  ) SELECT CASE WHEN octet_length(value::text) <= ${maximum} THEN value ELSE 'null'::jsonb END FROM fingerprints;`;
 }
 
 function deltaSql(table: DeltaTable, local: string, maximum: number) {
@@ -61,7 +61,7 @@ function deltaSql(table: DeltaTable, local: string, maximum: number) {
       coalesce(sum(bytes), 0) AS bytes FROM changed
   ) SELECT CASE WHEN octet_length(keys::text) <= ${maximum}
     AND bytes + octet_length(keys::text) < (SELECT coalesce(sum(bytes), 0) FROM remote)
-    THEN keys ELSE NULL END FROM plan;`;
+    THEN keys ELSE 'null'::jsonb END FROM plan;`;
 }
 
 function deltaPredicate(delta: RowDelta, local: boolean) {
@@ -237,7 +237,7 @@ export async function backupReusingHistory(options: {
       const metadataAllowance = Math.floor(reservedBytes * 0.7);
       for (const table of discoveryDeltaTables) {
         if (!localTables?.[table.table]?.rows || reusedTables.has(table.table)) continue;
-        const remaining = metadataAllowance - planBytes;
+        const remaining = Math.min(metadataAllowance - planBytes, reservedBytes - 2_000_000 - planBytes);
         if (remaining <= 0) break;
         const local = queryJson(prefixDatabase, `${copySettings}\n${fingerprintSql(table, remaining)}`);
         if (local === null) continue;
