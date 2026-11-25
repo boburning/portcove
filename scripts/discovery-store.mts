@@ -39,6 +39,7 @@ export interface DiscoveryWatchChange {
 export interface DiscoveryLeaseGrant {
   revision: number;
   state: Record<string, unknown>;
+  /** Stored continuation digest; compact for a seeded acquire, expanded for a complete acquire. */
   state_sha256: string;
   definition_sha256: string;
   acquisition: number;
@@ -183,12 +184,18 @@ export function readSeededDiscoveryRows(
     throw new MaintenanceStoreError("Discovery seed must be an independent local database");
   const { table, key, value } = seedTables[kind];
   const relation = "portcove_maintenance." + table;
-  const local = runSql(seed, `SET TRANSACTION READ ONLY;
+  let local: string;
+  try {
+    local = runSql(seed, `SET TRANSACTION READ ONLY;
     WITH rows AS (
       SELECT coalesce(jsonb_object_agg(${key}::text, jsonb_build_object(
         'value', ${value}, 'sha', encode(sha256(convert_to(${value}::text, 'UTF8')), 'hex')
       )), '{}'::jsonb) AS data FROM ${relation} WHERE scope = ${sqlLiteral(scope)}
     ) SELECT CASE WHEN octet_length(data::text) <= ${pageBytes} THEN data ELSE 'null'::jsonb END FROM rows;`).trim();
+  } catch {
+    // An optional local seed cannot suppress an authoritative complete read.
+    return null;
+  }
   const cached: unknown = JSON.parse(local);
   if (cached === null) return null;
   if (!isRecord(cached)) throw new MaintenanceStoreError("Malformed local seed rows");
