@@ -644,7 +644,22 @@ void test(
       leaseSeconds: 600,
       state: {
         format: 1,
-        leads: { format: 1, next_family: 3, slices: {}, records: {} },
+        leads: {
+          format: 1, next_family: 3, slices: {}, records: {},
+          external: {
+            lists: {},
+            hints: {
+              "https://github.com/ports/game-1": {
+                url: "https://github.com/ports/game-1",
+                host: "github",
+                title: "Game",
+                lists: ["decomp-buddy-finds"],
+                first_observed_at: "2026-11-01T00:00:00.000Z",
+                last_observed_at: "2026-11-01T00:00:00.000Z",
+              },
+            },
+          },
+        },
         checkpoint: emptyCheckpoint(),
         research_progress: {},
       },
@@ -658,6 +673,22 @@ void test(
     if (read.outcome !== "read") return;
     assert.equal(read.revision, 1);
     assert.equal(read.leads.next_family, 3, "the store's continuation comes along");
+    assert.equal(read.leads.external?.hints["https://github.com/ports/game-1"]?.title, "Game");
+    assert.equal(count(environment, "discovery_external_hints"), 1);
+    assert.equal(queryJson(environment, "SELECT state #> '{leads,external,hints}' IS NULL FROM portcove_maintenance.discovery_collection_state;"), true);
+    store.finish(owner, "complete", {});
+    const next = lease("2");
+    const grant = store.acquire(next, options);
+    assert.deepEqual((grant.state.leads as { external: unknown }).external, read.leads.external);
+    const state = structuredClone(grant.state);
+    const external = (state.leads as { external: { hints: Record<string, unknown> } }).external;
+    delete external.hints["https://github.com/ports/game-1"];
+    commit(store, next, grant.revision, state);
+    assert.equal(count(environment, "discovery_external_hints"), 0);
+    assert.throws(() => commit(store, owner, grant.revision, grant.state), DiscoveryStoreRefused);
+    const after = await readStoredLeads(environment);
+    assert.equal(after.outcome, "read");
+    if (after.outcome === "read") assert.deepEqual(after.leads.external?.hints, {});
     assert.deepEqual(Object.keys(read.leads.records).sort(), ["1", "2"]);
     assert.ok(read.bytes > 0);
 
