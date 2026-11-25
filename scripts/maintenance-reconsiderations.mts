@@ -58,6 +58,97 @@ interface IssueReconsiderationFact {
   state?: string;
   project?: { project_id?: string; archived?: boolean; fields?: Record<string, string> }[];
   reconsideration?: { blocker: string | null; resume_condition: string } | null;
+  blocked_by?: { number?: number; state?: string }[];
+}
+
+function dependencyIssues(fact: IssueReconsiderationFact): number[] {
+  return [...new Set(
+    (fact.blocked_by ?? [])
+      .filter(({ number }) => typeof number === "number" && Number.isSafeInteger(number) && number > 0 && number !== fact.number)
+      .map(({ number }) => number!),
+  )].sort((a, b) => a - b);
+}
+
+/** A complete owner read may identify a review opportunity, never lift a hold.
+ * A missing or contradictory dependency is unknown, not closed. */
+export function dependencyWake(
+  condition: Record<string, unknown>,
+  issue: unknown,
+  issues: ReadonlyMap<string, unknown>,
+  complete: boolean,
+): "waiting" | "review-ready" | "unknown" | null {
+  if (condition.source !== "issues-project" || condition.project_status !== "Blocked" ||
+      !Array.isArray(condition.dependency_issues) || !condition.dependency_issues.length)
+    return null;
+  if (!complete || !issue || typeof issue !== "object") return "unknown";
+  const fact = issue as IssueReconsiderationFact;
+  if (fact.state !== "OPEN") return "unknown";
+  const ids = dependencyIssues(fact);
+  if (JSON.stringify(ids) !== JSON.stringify(condition.dependency_issues)) return "unknown";
+  const states = ids.map((id) => {
+    const linked = issues.get(`issue:${id}`) as IssueReconsiderationFact | undefined;
+    const edge = fact.blocked_by?.filter(({ number }) => number === id) ?? [];
+    if (linked?.number !== id || edge.length !== 1 || edge[0]?.state !== linked.state) return "unknown";
+    return linked.state === "OPEN" || linked.state === "CLOSED" ? linked.state : "unknown";
+  });
+  return states.includes("unknown") ? "unknown" : states.includes("OPEN") ? "waiting" : "review-ready";
+}
+
+/** Derived queue cohorts from the exact configured Project, not a second planning
+ * status. Neutral Watchlist is inventory, not an automatic engineering assignment. */
+export function backlogLifecycleReview(
+  issues: ReadonlyMap<string, unknown>,
+  roadmapProjectId: string,
+) {
+  const counts = {
+    neutral_watchlist: 0,
+    watchlist_with_planning: 0,
+    watchlist_active: 0,
+    watchlist_other: 0,
+    other_ports: 0,
+    unknown_membership: 0,
+  };
+  const statusStage = new Map<string, { status: string; stage: string; count: number }>();
+  for (const payload of issues.values()) {
+    if (!payload || typeof payload !== "object") continue;
+    const fact = payload as IssueReconsiderationFact;
+    if (fact.state !== "OPEN") continue;
+    const memberships = (fact.project ?? []).filter(
+      ({ archived, project_id }) => !archived && project_id === roadmapProjectId,
+    );
+    if (memberships.length !== 1) {
+      counts.unknown_membership++;
+      continue;
+    }
+    const fields = memberships[0]?.fields ?? {};
+    if (!fields["Work type"]) {
+      counts.unknown_membership++;
+      continue;
+    }
+    if (fields["Work type"] !== "Port") continue;
+    const status = fields.Status ?? "Unknown";
+    const stage = fields["Port stage"] ?? "Unknown";
+    const key = JSON.stringify([status, stage]);
+    const group = statusStage.get(key) ?? { status, stage, count: 0 };
+    group.count++;
+    statusStage.set(key, group);
+    if (stage !== "Watchlist") counts.other_ports++;
+    else if (status === "In progress" || status === "Validating" || status === "Ready")
+      counts.watchlist_active++;
+    else if (status !== "Inbox" && status !== "Triage") counts.watchlist_other++;
+    else if (fields.Priority === "None" && fields.Horizon === "Someday" &&
+      fields["Target release"] === "Unscheduled" && !fields["Release commitment"] &&
+      !dependencyIssues(fact).length)
+      counts.neutral_watchlist++;
+    else counts.watchlist_with_planning++;
+  }
+  return {
+    scope: "Complete configured Project read; derived cohorts only, no planning writes",
+    ...counts,
+    status_stage: [...statusStage.values()].sort(
+      (a, b) => a.status.localeCompare(b.status, "en") || a.stage.localeCompare(b.stage, "en"),
+    ),
+  };
 }
 
 /**
@@ -104,6 +195,9 @@ export function issueReconsiderations(
           source: "issues-project",
           project_status: "Blocked",
           ...recorded,
+          ...(!recorded.resume_condition?.trim() && dependencyIssues(fact).length
+            ? { dependency_issues: dependencyIssues(fact) }
+            : {}),
         }),
       );
   }
