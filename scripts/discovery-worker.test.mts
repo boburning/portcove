@@ -12,6 +12,7 @@ import {
   DiscoveryStoreRefused,
   discoveryStatusQuery,
   postgresDiscoveryStore,
+  measureDiscoverySeed,
 } from "./discovery-store.mts";
 import type {
   DiscoveryLease,
@@ -33,6 +34,7 @@ import {
   physicalLeadEnvelope,
   discoveryTransferForecastQuery,
   discoveryPassReservation,
+  discoverySeedReservation,
   runDiscoveryPasses,
   renderDiscoveryStatus,
   readStoredLeads,
@@ -1327,6 +1329,26 @@ void test(
     assert.deepEqual(fallback.state, state, "oversized seed uses complete production read");
     assert.deepEqual(bounded.loadLeadRecords("primary").records, authoritative.records);
     bounded.finish(lease("5"), "complete", {});
+
+    const measured = measureDiscoverySeed(environment, seedDb, "primary");
+    assert.ok(measured);
+    assert.ok(measured.hintsBytes < 2_000);
+    assert.ok(measured.leadsBytes < authoritative.bytes);
+    const planned = postgresDiscoveryStore(environment, undefined, seedDb, measured);
+    const plannedGrant = planned.acquire(lease("6"), options);
+    assert.deepEqual(plannedGrant.state, state);
+    assert.deepEqual(planned.loadLeadRecords("primary").records, authoritative.records);
+    planned.finish(lease("6"), "complete", {});
+
+    const stalePlan = measureDiscoverySeed(environment, seedDb, "primary");
+    assert.ok(stalePlan);
+    const writer = store.acquire(lease("7"), options);
+    commit(store, lease("7"), writer.revision, state);
+    store.finish(lease("7"), "complete", {});
+    const stale = postgresDiscoveryStore(environment, undefined, seedDb, stalePlan);
+    assert.throws(() => stale.acquire(lease("8"), options), DiscoveryStoreRefused);
+    assert.equal(queryJson(environment, "SELECT count(*) FROM portcove_maintenance.discovery_collection_attempts WHERE outcome = 'running';"), 0,
+      "moved plan rolls back acquisition before returning any payload");
   },
 );
 
@@ -1360,6 +1382,10 @@ void test("discovery pass reservation does not charge the cold read twice", () =
   assert.ok(Math.floor(reservation * 0.7) >= observed);
   assert.ok(reservation < (acquire + observed) / 0.7);
   assert.ok(Math.floor(discoveryPassReservation(observed, acquire, commits) * 0.7) >= observed);
+  const plan = { compactBytes: 8_000, hintsBytes: 621, leadsBytes: 1094 };
+  const measured = discoverySeedReservation(plan, commits);
+  assert.ok(measured < reservation);
+  assert.ok(Math.floor(measured * 0.7) >= plan.compactBytes + plan.hintsBytes + plan.leadsBytes);
 });
 
 void test("a stored-lead read reserves enough metered payload for the whole state", () => {
