@@ -63,7 +63,12 @@ import {
 } from "./maintenance-inventory.mts";
 import { reconcileIntakeHandoffReceipts } from "./maintenance-intake-receipts.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
-import { issueReconsiderations, targetReconsiderations } from "./maintenance-reconsiderations.mts";
+import {
+  backlogLifecycleReview,
+  dependencyWake,
+  issueReconsiderations,
+  targetReconsiderations,
+} from "./maintenance-reconsiderations.mts";
 import { targetsDigest } from "./release-content-scan.mts";
 import { explicitBlockerFields } from "./roadmap-qualification.mts";
 import type { HostedRequestStatus, HostedStatusAll } from "./hosted-discovery-intake.mts";
@@ -3809,6 +3814,75 @@ void test("holds and deferrals come only from their owners and episodes stay dis
     entries[0]!.technical_changes?.map(({ subject_key }) => subject_key),
     ["port:a@linux-x86-64"],
   );
+});
+
+void test("dependency wake requires matching complete owner facts and never changes planning", () => {
+  const project = (Status: string, fields: Record<string, string> = {}) => [
+    { project_id: "P1", archived: false, fields: { Status, ...fields } },
+  ];
+  const issue = (state: string, edgeState: string) => new Map<string, unknown>([
+    ["issue:1", {
+      number: 1, state: "OPEN", project: project("Blocked"),
+      blocked_by: [{ number: 2, state: edgeState }],
+    }],
+    ["issue:2", { number: 2, state, project: project("Done") }],
+    ["issue:3", {
+      number: 3, state: "OPEN", project: project("Deferred"),
+      blocked_by: [{ number: 2, state: edgeState }],
+    }],
+    ["issue:4", {
+      number: 4, state: "OPEN", project: project("Blocked"),
+      blocked_by: [{ number: 2, state: edgeState }],
+      reconsideration: { blocker: "Upstream", resume_condition: "New release" },
+    }],
+  ]);
+  const open = issue("OPEN", "OPEN");
+  const conditions = issueReconsiderations(open, "P1").conditions;
+  const blocked = conditions.find(({ subject_key }) => subject_key === "issue:1")!;
+  const deferred = conditions.find(({ subject_key }) => subject_key === "issue:3")!;
+  const explicit = conditions.find(({ subject_key }) => subject_key === "issue:4")!;
+  assert.deepEqual(blocked.condition.dependency_issues, [2]);
+  assert.equal(deferred.condition.dependency_issues, undefined);
+  assert.equal(explicit.condition.dependency_issues, undefined);
+  assert.equal(dependencyWake(blocked.condition, open.get("issue:1"), open, true), "waiting");
+  const closed = issue("CLOSED", "CLOSED");
+  assert.equal(dependencyWake(blocked.condition, closed.get("issue:1"), closed, true), "review-ready");
+  assert.deepEqual(issueReconsiderations(closed, "P1").conditions[0], blocked);
+  assert.equal(dependencyWake(blocked.condition, closed.get("issue:1"), closed, false), "unknown");
+  const inconsistent = issue("OPEN", "CLOSED");
+  assert.equal(dependencyWake(blocked.condition, inconsistent.get("issue:1"), inconsistent, true), "unknown");
+  closed.delete("issue:2");
+  assert.equal(dependencyWake(blocked.condition, closed.get("issue:1"), closed, true), "unknown");
+  assert.equal(dependencyWake(deferred.condition, closed.get("issue:3"), closed, true), null);
+});
+
+void test("backlog lifecycle cohorts preserve neutral watches and owner planning", () => {
+  const neutral = { "Work type": "Port", "Port stage": "Watchlist", Status: "Triage",
+    Priority: "None", Horizon: "Someday", "Target release": "Unscheduled" };
+  const make = (number: number, fields: Record<string, string>, project_id = "P1") => ({
+    number, state: "OPEN", project: [{ project_id, archived: false, fields }],
+  });
+  const issues = new Map<string, unknown>([
+    ["issue:1", make(1, neutral)],
+    ["issue:2", make(2, { ...neutral, Priority: "High" })],
+    ["issue:3", make(3, { ...neutral, Status: "In progress" })],
+    ["issue:4", make(4, { ...neutral, Status: "Blocked" })],
+    ["issue:5", make(5, { ...neutral, "Port stage": "Cataloged" })],
+    ["issue:6", make(6, neutral, "OTHER")],
+    ["issue:7", { ...make(7, neutral), blocked_by: [{ number: 2, state: "OPEN" }] }],
+    ["issue:8", { ...make(8, neutral), state: "CLOSED" }],
+    ["issue:9", make(9, { ...neutral, "Work type": "Bug" })],
+  ]);
+  const before = structuredClone(issues);
+  const review = backlogLifecycleReview(issues, "P1");
+  assert.equal(review.neutral_watchlist, 1);
+  assert.equal(review.watchlist_with_planning, 2);
+  assert.equal(review.watchlist_active, 1);
+  assert.equal(review.watchlist_other, 1);
+  assert.equal(review.other_ports, 1);
+  assert.equal(review.unknown_membership, 1);
+  assert.equal(review.status_stage.reduce((sum, group) => sum + group.count, 0), 6);
+  assert.deepEqual(issues, before);
 });
 
 void test(
