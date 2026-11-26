@@ -752,10 +752,19 @@ fn typed_selection_matches_legacy_selection_except_named_defects() {
             .unwrap()
             .to_owned();
         adapters.entry(adapter.clone()).or_default().1 += 1;
+        let mechanism = MECHANISM_FIXTURE_PORTS.iter().any(|(_, id)| *id == port.id);
         for &platform in &port.platforms {
+            // The synthetic Mac rows qualify these two mechanisms on their own
+            // release facts. Keep the historical cross-replay population for the
+            // synthetic Windows/Linux rows and all production definitions.
+            let mechanism_mac =
+                mechanism && matches!(platform, Platform::MacosAarch64 | Platform::MacosX86_64);
             let mut seen = BTreeSet::new();
             for (fixture, list) in &lists {
                 let own = own_fixture(port, list);
+                if mechanism_mac && !own {
+                    continue;
+                }
                 if own {
                     own_pairs.insert((port.id.as_str(), fixture.as_str()));
                     adapters
@@ -767,8 +776,6 @@ fn typed_selection_matches_legacy_selection_except_named_defects() {
                 let mut record =
                     |tag: &str, channel: String, defect: Option<Defect>, detail: String| {
                         let row = format!("{} {platform:?} {fixture} {tag} {channel}", port.id);
-                        let mechanism =
-                            MECHANISM_FIXTURE_PORTS.iter().any(|(_, id)| *id == port.id);
                         match defect {
                             Some(defect) if own && mechanism => {
                                 mechanism_own.insert(format!("{row} {defect:?}"));
