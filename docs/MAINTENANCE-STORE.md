@@ -1457,7 +1457,11 @@ until the owner explicitly decides how executor credentials are delegated.
   the open operation under the same key, so a holder must re-read. A changed
   finding abandons the open operation and plans a new one. Claim, checkpoint
   and complete events name the `operation_id` they act on. An event for an
-  earlier record of the handoff is refused as `superseded-operation`.
+  earlier record of the handoff is refused as `superseded-operation`. A new
+  completion event for the same record must still match its fence before it
+  can acknowledge an identical receipt. The adapter must serialize fresh
+  current-store observations and their application per subject. The opaque
+  run identifier alone cannot order delayed observations.
 - **Lease and checkpoint:** routine kinds have a 30-minute lease. A live lease
   has one holder; another claim is refused. The first claim after expiry
   reclaims it once, counts the reclaim and resumes after the last completed

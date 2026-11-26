@@ -1299,7 +1299,11 @@ export function contractOperationErrors(value: unknown): string[] {
   return errors;
 }
 
-/** The current store facts of one handoff subject, as an executor would read them. */
+/**
+ * A fresh read of the current store facts of one handoff subject. The adapter
+ * must serialize these reads and their application for the subject. A source
+ * generation identifies a run but does not order delayed observations.
+ */
 export interface HandoffObservation {
   state: "needs-attention" | "clear";
   deciding: DecidingFacts;
@@ -1507,15 +1511,15 @@ export function applyHandoffEvent(
         ? "superseded-operation"
         : "no-open-operation",
     );
-  if (!latest || (latest.state !== "planned" && latest.state !== "leased")) {
-    if (event.type !== "complete" || latest?.state !== "completed")
-      return refuse("no-open-operation");
-    // The same receipt delivered again records nothing; a different one is refused.
+  if (!latest || latest.state === "abandoned") return refuse("no-open-operation");
+  if (latest.state === "completed" && event.type !== "complete") return refuse("no-open-operation");
+  if (!sameFence(latest.fence, event.fence)) return refuse("stale-fence");
+  if (latest.state === "completed" && event.type === "complete") {
+    // The same receipt delivered again under the recorded fence has no effect.
     return JSON.stringify(latest.receipt) === JSON.stringify(event.receipt)
       ? done(operations, [])
       : refuse("receipt-immutable");
   }
-  if (!sameFence(latest.fence, event.fence)) return refuse("stale-fence");
   const ttl = contract.lease.ttl_minutes * 60_000;
   const lease = latest.lease;
   const live = lease !== null && event.now < lease.expires_at;
