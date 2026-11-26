@@ -52,26 +52,7 @@
       "macos-x86-64": ["King-s-Field-Recomp-", "-macos-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "King's Field (Japan, SLPS-00017)",
-    "original_game": {
-      "format_version": 1,
-      "id": "kings-field-japan",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/f7b7b169efe54df3648c3ea309cf6a692195e717/game.toml",
-        "https://github.com/Voicedrew11/verdite1/blob/b825f63ae43af2890f907f8d82ce094a55814506/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "kings-field-japan-playstation",
-          "title": "King's Field (Japan, SLPS-00017)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/f7b7b169efe54df3648c3ea309cf6a692195e717/game.toml",
-            "https://github.com/Voicedrew11/verdite1/blob/b825f63ae43af2890f907f8d82ce094a55814506/README.md"
-          ]
-        }
-      ]
-    }
+    "original_game_title": "King's Field"
   },
   "psx_managed_windows_v1": "split-mods",
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
@@ -131,12 +112,13 @@
     "bios_source_profile": "psx-scph-5500-bios"
   },
   "original_game_review": {
-    "disposition": "separate",
-    "reason": "The tagged v0.3.8 source contract and Verdite1 identify the original Japanese PlayStation disc SLPS-00017. Keep this established Japanese game ID distinct from the US release of King's Field II and the existing King's Field Enhanced game ID.",
+    "disposition": "unresolved",
+    "reason": "The tagged v0.3.8 contract identifies the original Japanese PlayStation disc SLPS-00017, with one track and the same first-track SHA-1 as the managed profile. Verdite1 and King's Field Enhanced already use different game IDs for implementations that consume this disc. Reconcile their established preference and media identities before grouping this port. The US release of King's Field II is a different original.",
     "evidence_urls": [
       "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/f7b7b169efe54df3648c3ea309cf6a692195e717/game.toml",
       "https://github.com/Voicedrew11/verdite1/blob/b825f63ae43af2890f907f8d82ce094a55814506/README.md",
-      "https://github.com/Acranon/kf1-enhanced"
+      "https://github.com/Acranon/kf1-enhanced/blob/ac147450249c95b8d7683300292a2761796cb611/README.md",
+      "https://github.com/boburning/portcove/issues/454"
     ]
   }
 }
