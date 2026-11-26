@@ -1460,6 +1460,8 @@ retry, which stays `unlistable`. Targets that share one package
 attempt it once per run, including transient failures. The existing checkpoint
 retains ordinary transient attempt order: fresh assets and the oldest deferred
 attempts take precedence on the next run, without increasing any budget.
+When a provider changes the digest or size metadata it supplies without proving
+that the package changed, the next attempt still uses the package's previous order.
 Successful scans and persistent failures leave that rotation. The scheduled run uses
 `--complete-targets` with the canonical listings. It drops deferred attempts for
 repositories with no remaining targets, or when every target for a repository resolves

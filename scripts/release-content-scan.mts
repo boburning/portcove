@@ -327,35 +327,79 @@ export function hintedAsset(assets: readonly ReleaseAsset[], hints: readonly str
 const repositoryKey = (target: ScanTarget) =>
   `${target.provider}|${target.repository.toLowerCase()}`;
 
+const assetIdentity = (repository: string, tag: string, name: string) =>
+  `r${RULES_VERSION}|${repository}|${tag}|${name}`;
+
 export const assetKey = (target: ScanTarget, tag: string, asset: ReleaseAsset) =>
-  [
-    `r${RULES_VERSION}`,
-    repositoryKey(target),
-    tag,
-    asset.name,
-    asset.digest ?? asset.size ?? "",
-  ].join("|");
+  `${assetIdentity(repositoryKey(target), tag, asset.name)}|${asset.digest ?? asset.size ?? ""}`;
+
+const knownDigest = (value: string | null) =>
+  value !== null && /^sha256:[a-f0-9]{64}$/u.test(value) ? value : null;
+
+const knownSize = (value: number | null) =>
+  value !== null && Number.isSafeInteger(value) && value >= 0 ? value : null;
+
+function deferredIdentity(key: string) {
+  const [rules, provider, repository, tag, name, value, extra] = key.split("|");
+  if (
+    extra !== undefined ||
+    rules !== `r${RULES_VERSION}` ||
+    (provider !== "github" && provider !== "gitlab") ||
+    !repository ||
+    !tag ||
+    !name ||
+    value === undefined
+  )
+    return undefined;
+  const marker = /^\d+$/u.test(value) ? knownSize(Number(value)) : knownDigest(value);
+  return { repository: `${provider}|${repository}`, tag, name, marker };
+}
 
 function differentAsset(
-  tag: string,
-  name: string,
-  marker: string,
+  prior: NonNullable<ReturnType<typeof deferredIdentity>>,
   release: UpstreamRelease,
   asset: ReleaseAsset,
 ) {
-  if (tag !== release.tag || name !== asset.name) return true;
-  // A digest appearing or disappearing does not prove the package changed.
-  const digest = /^sha256:[a-f0-9]{64}$/u;
-  if (digest.test(marker) && asset.digest !== null && digest.test(asset.digest))
-    return marker !== asset.digest;
-  return (
-    /^\d+$/u.test(marker) &&
-    Number.isSafeInteger(Number(marker)) &&
-    asset.size !== null &&
-    Number.isSafeInteger(asset.size) &&
-    asset.size >= 0 &&
-    Number(marker) !== asset.size
-  );
+  if (prior.tag !== release.tag || prior.name !== asset.name) return true;
+  // Compare only like metadata. A digest appearing or disappearing proves no change.
+  const current =
+    typeof prior.marker === "number" ? knownSize(asset.size) : knownDigest(asset.digest);
+  return prior.marker !== null && current !== null && prior.marker !== current;
+}
+
+function deferredAges() {
+  // For each provider/repository/tag/name, retain the latest attempt by marker
+  // and by marker type. Missing metadata can match any prior marker of that type.
+  const byIdentity = new Map<
+    string,
+    {
+      matching: Map<string | number, number>;
+      latest: { size: number; digest: number; unknown: number };
+    }
+  >();
+  return {
+    remember(identity: string, marker: string | number | null, age: number) {
+      let ages = byIdentity.get(identity);
+      if (!ages) {
+        ages = { matching: new Map(), latest: { size: 0, digest: 0, unknown: 0 } };
+        byIdentity.set(identity, ages);
+      }
+      const kind = marker === null ? "unknown" : typeof marker === "number" ? "size" : "digest";
+      ages.latest[kind] = Math.max(ages.latest[kind], age);
+      if (marker !== null) ages.matching.set(marker, Math.max(ages.matching.get(marker) ?? 0, age));
+    },
+    compatible(identity: string, asset: ReleaseAsset) {
+      const ages = byIdentity.get(identity);
+      if (!ages) return 0;
+      const digest = knownDigest(asset.digest);
+      const size = knownSize(asset.size);
+      return Math.max(
+        ages.latest.unknown,
+        digest === null ? ages.latest.digest : (ages.matching.get(digest) ?? 0),
+        size === null ? ages.latest.size : (ages.matching.get(size) ?? 0),
+      );
+    },
+  };
 }
 
 export interface ScanDependencies {
@@ -517,36 +561,32 @@ export async function scan(
         new Set(releases.map(({ tag }) => tag)).size === releases.length,
     });
   }
-  if (completeTargets && plans.length && deferredAttempts.size) {
-    // A legacy key identifies a repository, not the targets that chose the package.
-    // Any unresolved target for that repository might still select it next pass.
-    const byRepository = Map.groupBy(plans, ({ target }) => repositoryKey(target));
-    for (const key of deferredAttempts.keys()) {
-      const parts = key.split("|");
-      const [rules, provider, repository, tag, name, marker] = parts;
-      if (
-        parts.length !== 6 ||
-        rules !== `r${RULES_VERSION}` ||
-        (provider !== "github" && provider !== "gitlab") ||
-        !repository ||
-        !tag ||
-        !name ||
-        marker === undefined
-      )
-        continue;
-      const current = byRepository.get(`${provider}|${repository}`);
-      if (
-        !current ||
+  // A legacy key identifies a repository, not the targets that chose the package.
+  // Any unresolved target for that repository might still select it next pass.
+  const byRepository =
+    completeTargets && plans.length
+      ? Map.groupBy(plans, ({ target }) => repositoryKey(target))
+      : undefined;
+  const ages = deferredAges();
+  for (const [key, age] of deferredAttempts) {
+    const prior = deferredIdentity(key);
+    if (!prior) continue;
+    const current = byRepository?.get(prior.repository);
+    if (
+      byRepository &&
+      (!current ||
         current.every(
           (plan) =>
             "key" in plan &&
             plan.complete &&
             plan.key !== key &&
-            differentAsset(tag, name, marker, plan.release, plan.asset),
-        )
-      )
-        deferredAttempts.delete(key);
+            differentAsset(prior, plan.release, plan.asset),
+        ))
+    ) {
+      deferredAttempts.delete(key);
+      continue;
     }
+    ages.remember(assetIdentity(prior.repository, prior.tag, prior.name), prior.marker, age);
   }
   // Remembered unlistable assets are re-checked in rotation, least recently checked
   // first, within their own allowance; the rest keep their persistent code this run.
@@ -587,7 +627,13 @@ export async function scan(
   };
   const attemptAge = (plan: Plan) =>
     "key" in plan && !next.has(plan.key) && !blockingFailure(plan.key) && !retries.has(plan.key)
-      ? (deferredAttempts.get(plan.key) ?? 0)
+      ? Math.max(
+          deferredAttempts.get(plan.key) ?? 0,
+          ages.compatible(
+            assetIdentity(repositoryKey(plan.target), plan.release.tag, plan.asset.name),
+            plan.asset,
+          ),
+        )
       : 0;
   const ordered = [...plans].sort((a, b) => attemptAge(a) - attemptAge(b));
   const recheckOutcomes = new Map<string, { code: UnscannedCode; reason: string }>();
@@ -898,6 +944,7 @@ export const hostedDependencies = (token?: string, exec: Runner = run): ScanDepe
               isRecord(asset) &&
               typeof asset.name === "string" &&
               asset.name.length &&
+              asset.state === "uploaded" &&
               typeof asset.browser_download_url === "string" &&
               asset.browser_download_url.length,
           ),
