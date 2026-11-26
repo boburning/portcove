@@ -1445,6 +1445,7 @@ void test(
           lists: {},
           hints: {
             keep: { payload: "x".repeat(100_000) },
+            "é\"'雪": { title: "\t雪", payload: "é".repeat(410) },
             change: { title: "old" },
             remove: { title: "old" },
           } as Record<string, unknown>,
@@ -1475,7 +1476,7 @@ void test(
     state.leads.external.hints.add = { title: "added" };
     const changed = store.commit(owner, seeded.revision, input(state));
     assert.ok(changed.bytes < 2_000, "unchanged large hint is not sent again");
-    assert.equal(count(environment, "discovery_external_hints"), 3);
+    assert.equal(count(environment, "discovery_external_hints"), 4);
     assert.deepEqual(
       queryJson(
         environment,
