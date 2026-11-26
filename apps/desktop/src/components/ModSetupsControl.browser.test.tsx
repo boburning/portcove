@@ -1918,7 +1918,7 @@ it.each(["accepted", "refused"] as const)(
   },
 );
 
-it("checks every missing recipe mod in bounded steps past the former 32-file bound", async () => {
+function recipeStepFixture() {
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
   vi.spyOn(picker, "pickModRecipePath").mockResolvedValue("/picked/setup.json");
   const ids = Array.from({ length: 40 }, (_, index) => `mod-${index}.nrm`);
@@ -1954,6 +1954,11 @@ it("checks every missing recipe mod in bounded steps past the former 32-file bou
     acquired: ids.slice(done - 8, done),
   }));
   const acquire = vi.spyOn(desktopApi, "acquireModRecipePackages");
+  return { acquire, steps, first };
+}
+
+it("checks every missing recipe mod in bounded steps past the former 32-file bound", async () => {
+  const { acquire, steps, first } = recipeStepFixture();
   for (const step of steps) acquire.mockResolvedValueOnce(step);
   await render();
   await page.getByRole("button", { name: "Open setup recipe…" }).click();
@@ -1963,6 +1968,33 @@ it("checks every missing recipe mod in bounded steps past the former 32-file bou
   expect(acquire).toHaveBeenNthCalledWith(1, "shipwright", expect.any(String), first, 7);
   expect(acquire).toHaveBeenNthCalledWith(5, "shipwright", expect.any(String), steps[3]!.review, 7);
   await expect.element(page.getByRole("textbox", { name: "Name for the new setup" })).toBeVisible();
+});
+
+it("pauses after the in-flight recipe step and continues from its exact acquired prefix", async () => {
+  const { acquire, steps, first } = recipeStepFixture();
+  let complete!: () => void;
+  acquire.mockReturnValueOnce(
+    new Promise((resolve) => {
+      complete = () => resolve(steps[0]!);
+    }),
+  );
+  for (const step of steps.slice(1)) acquire.mockResolvedValueOnce(step);
+
+  await render();
+  await page.getByRole("button", { name: "Open setup recipe…" }).click();
+  const check = page.getByRole("button", { name: "Check the provider for every missing mod" });
+  await check.click();
+  await page.getByRole("button", { name: "Pause after this step" }).click();
+  await expect.element(page.getByText("Finishing this step before pausing…")).toBeVisible();
+  await act(async () => complete());
+  await expect.element(page.getByText(/^Paused after checking 8 of 40 mods/)).toBeVisible();
+  await expect.element(page.getByRole("heading", { name: "Recipe review" })).toHaveFocus();
+  expect(acquire).toHaveBeenCalledExactlyOnceWith("shipwright", "default", first, 7);
+
+  await check.click();
+  await expect.element(page.getByRole("textbox", { name: "Name for the new setup" })).toBeVisible();
+  expect(acquire).toHaveBeenCalledTimes(5);
+  expect(acquire).toHaveBeenNthCalledWith(2, "shipwright", "default", steps[0]!.review, 7);
 });
 
 it("stops checking recipe mods at a failed step and keeps what was checked", async () => {
