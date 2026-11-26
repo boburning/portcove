@@ -1473,6 +1473,68 @@ void test("exact provider cross-links enrich the signed listing without changing
   assert.equal(conflicting(["current-community"])(port, row(first.bytes)), undefined);
   assert.ok(conflicting(["another-community"])(port, row(first.bytes)));
   const defaults = listingModPortalDefaults(catalog, registry(), new Set(), now);
+  const reviewedGameBanana = {
+    id: "verified-mod-community",
+    site: "community_site",
+    url: "https://gamebanana.com/games/12345",
+    name: "GameBanana",
+    instructions: "Check the upstream community's setup instructions.",
+  };
+  const listingOnly = { ...unrelated, mod_portals: [reviewedGameBanana] };
+  const listingOnlyDirectory = { format_version: 16, listings: [port, listingOnly] };
+  const listingOnlyUpdate = projectListingDelivery(listingOnlyDirectory, [], first.bytes, {
+    modPortalDefaults: defaults,
+  });
+  const publishedListingOnly = requiredFixture(
+    rows(listingOnlyUpdate.bytes).find(({ id }) => id === listingOnly.id),
+  );
+  assert.deepEqual(publishedListingOnly.mod_portals, [
+    reviewedGameBanana,
+    {
+      id: `obs-ts-12345-${community.game_uuid}`,
+      site: "community_site",
+      url: "https://thunderstore.io/c/current-community/",
+      name: "Thunderstore",
+      instructions: "Open the community to browse its mods.",
+    },
+  ]);
+  assert.equal(listingOnlyUpdate.generated_mod_portals, 2);
+  assert.equal(
+    defaults(
+      {
+        ...port,
+        mod_portals: [{ ...reviewedGameBanana, url: "https://gamebanana.com/games/12346" }],
+      },
+      row(first.bytes),
+    ),
+    undefined,
+    "conflicting maintained identities cannot inherit the previous generated source",
+  );
+  assert.equal(
+    defaults(
+      {
+        ...listingOnly,
+        mod_portals: [{ ...reviewedGameBanana, url: "https://gamebanana.com/mods/12345" }],
+      },
+      undefined,
+    ),
+    undefined,
+    "a package URL is not a reviewed game identity",
+  );
+  assert.ok(
+    listingModPortalDefaults(catalog, undefined, new Set(), now)(listingOnly, publishedListingOnly),
+    "an unavailable registry keeps the last accepted exact association",
+  );
+  assert.equal(
+    listingModPortalDefaults(
+      catalog,
+      registry(),
+      new Set([listingOnly.id]),
+      now,
+    )(listingOnly, publishedListingOnly),
+    undefined,
+    "a maintained exclusion also takes precedence for listing-only entries",
+  );
   assert.equal(
     defaults(
       { ...port, mod_portals: [{ url: "https://THUNDERSTORE.IO/c/reviewed/" }] },

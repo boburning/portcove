@@ -1,7 +1,10 @@
 import { observedModPortalPrefix } from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
-import { validateModProviderRegistryProgress } from "./upstream-mod-provider-registry.mts";
+import {
+  exactGameBananaId,
+  validateModProviderRegistryProgress,
+} from "./upstream-mod-provider-registry.mts";
 import type { ModProviderRegistryProgress } from "./upstream-mod-provider-registry.mts";
 
 type RegistryCommunity = NonNullable<
@@ -50,8 +53,9 @@ export function withoutGeneratedModPortals(listing: Record<string, unknown>) {
 
 /**
  * Derive an optional website for the exact implementation with a reviewed
- * GameBanana binding. The provider's explicit numeric cross-link is the join.
- * This never adds an operational binding or uses a game title as identity.
+ * GameBanana identity. An authored exact website or operational binding can
+ * establish the identity. The registry's numeric cross-link supplies only a
+ * website and requires agreement between every reviewed identity for the port.
  */
 export function listingModPortalDefaults(
   catalog: unknown,
@@ -59,7 +63,8 @@ export function listingModPortalDefaults(
   excluded: ReadonlySet<string>,
   now: number,
 ) {
-  const gameIds = new Map<string, number>();
+  const reviewedGameIds = new Map<string, number[]>();
+  const boundThunderstore = new Set<string>();
   if (!isRecord(catalog) || !Array.isArray(catalog.ports))
     throw new Error("Mod portal projection requires the canonical operational catalog.");
   for (const port of catalog.ports as unknown[]) {
@@ -70,21 +75,22 @@ export function listingModPortalDefaults(
     )
       continue;
     const bindings: unknown[] = port.mod_provider_bindings;
-    if (bindings.some((binding) => isRecord(binding) && binding.provider === "thunderstore"))
+    if (bindings.some((binding) => isRecord(binding) && binding.provider === "thunderstore")) {
+      boundThunderstore.add(port.id);
       continue;
-    const gameBanana = bindings.filter(
-      (binding) => isRecord(binding) && binding.provider === "gamebanana",
+    }
+    reviewedGameIds.set(
+      port.id,
+      bindings.flatMap((binding) =>
+        isRecord(binding) &&
+        binding.provider === "gamebanana" &&
+        typeof binding.game_id === "number" &&
+        Number.isSafeInteger(binding.game_id) &&
+        binding.game_id > 0
+          ? [binding.game_id]
+          : [],
+      ),
     );
-    const binding: unknown = gameBanana[0];
-    if (
-      gameBanana.length === 1 &&
-      isRecord(binding) &&
-      typeof binding.game_id === "number" &&
-      Number.isSafeInteger(binding.game_id) &&
-      binding.game_id > 0 &&
-      !excluded.has(port.id)
-    )
-      gameIds.set(port.id, binding.game_id);
   }
   let communities: Map<number, RegistryCommunity[]> | undefined;
   let conflicted: Set<string> | "unknown" | undefined;
@@ -111,10 +117,23 @@ export function listingModPortalDefaults(
     }
   }
   return (listing: Record<string, unknown>, previous: Record<string, unknown> | undefined) => {
-    const gameId = typeof listing.id === "string" ? gameIds.get(listing.id) : undefined;
-    const authored = listingPortals(listing);
     if (
-      !gameId ||
+      typeof listing.id !== "string" ||
+      excluded.has(listing.id) ||
+      boundThunderstore.has(listing.id)
+    )
+      return undefined;
+    const authored = listingPortals(listing);
+    const gameIds = new Set(reviewedGameIds.get(listing.id));
+    for (const portal of authored) {
+      if (!isRecord(portal) || isGenerated(portal) || portal.site !== "community_site") continue;
+      const gameId = exactGameBananaId(portal.url);
+      if (gameId !== null) gameIds.add(gameId);
+    }
+    const [gameId] = gameIds;
+    if (
+      gameIds.size !== 1 ||
+      gameId === undefined ||
       authored.length >= 8 ||
       authored.some(
         (portal) =>

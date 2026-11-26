@@ -44,7 +44,7 @@ export interface ModProviderRegistryProgress {
   identity_conflicts?: string[] | "unknown";
 }
 
-function exactGameBananaId(link: unknown) {
+export function exactGameBananaId(link: unknown) {
   if (typeof link !== "string") return null;
   const match = /^https:\/\/gamebanana\.com\/games\/([1-9]\d*)\/?$/u.exec(link);
   const id = match ? Number(match[1]) : null;
