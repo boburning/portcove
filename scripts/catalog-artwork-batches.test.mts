@@ -1498,6 +1498,54 @@ void test("provider backoff survives continuation and applies to newly added ide
   }
 });
 
+void test("unavailable cover refresh retains its successful observation clock and remains due", async (t) => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-retained-clock-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const fixture = scalableArtworkFixture(1);
+  const artwork = {
+    game_id: 1,
+    cover_id: 1,
+    image_id: "scale0",
+    image_sha256: "d".repeat(64),
+    game_slug: "scale-0",
+    match_kind: "port",
+  };
+  fixture.catalog.ports[0]!.presentation = { artwork };
+  const started = Date.parse("2026-10-01T00:00:00Z");
+  let now = started;
+  const options = {
+    root: scratch,
+    identities: {},
+    validatorIdentity: null,
+    maintenance: true,
+    dueCoverLimit: 1,
+    now: () => now,
+    inspector: fixture.inspector,
+  };
+  const state = () =>
+    JSON.parse(
+      readFileSync(join(scratch, "artwork-maintenance-progress-scale-0.json"), "utf8"),
+    ) as { observed_at: string; last_live_observation_at: string | null };
+
+  await prepareArtworkWorkset(fixture.catalog, options);
+  assert.equal(state().last_live_observation_at, new Date(started).toISOString());
+  now += 28 * 86400000;
+  fixture.fail("Scale 0");
+  const unavailable = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(unavailable.records[0]?.mapping, artwork);
+  assert.deepEqual(unavailable.continuation.pending_port_ids, ["scale-0"]);
+  assert.equal(state().observed_at, new Date(now).toISOString());
+  assert.equal(state().last_live_observation_at, new Date(started).toISOString());
+
+  now++;
+  fixture.fail(null);
+  const recovered = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(recovered.workset.selected_port_ids, ["scale-0"]);
+  assert.equal(recovered.continuation.complete, true);
+  assert.equal(state().last_live_observation_at, new Date(now).toISOString());
+});
+
 void test("memoized image reuse cannot refresh the original observation clock", async () => {
   const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-memo-clock-"));
