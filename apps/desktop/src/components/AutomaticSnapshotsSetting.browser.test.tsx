@@ -90,8 +90,11 @@ it("reads the current value after a lost save reply without writing again", asyn
   expect(save).toHaveBeenCalledExactlyOnceWith(false, 3);
   expect(load.mock.calls).toEqual([[3], [3]]);
   expect(checkbox()?.hasAttribute("data-disabled")).toBe(true);
+  expect(document.querySelector("[role=alert]")?.textContent).toBe(
+    "Portcove couldn’t confirm whether automatic snapshots were turned off.",
+  );
   const retry = [...document.querySelectorAll("button")].find(
-    (button) => button.textContent === "Try again",
+    (button) => button.textContent === "Read setting again",
   );
   expect(retry).toBeDefined();
   await act(async () => retry?.click());
@@ -99,6 +102,7 @@ it("reads the current value after a lost save reply without writing again", asyn
   expect(checkbox()?.getAttribute("aria-checked")).toBe("false");
   expect(checkbox()?.hasAttribute("data-disabled")).toBe(false);
   expect(save).toHaveBeenCalledOnce();
+  expect(document.querySelector("[role=alert]")).toBeNull();
 });
 
 const labelText = "Snapshot saved data before each version change";
@@ -137,7 +141,7 @@ it("offers a retry after a failed read and recovers when Core answers", async ()
   expect(document.body.querySelector("[role=alert]")).not.toBeNull();
   expect(checkbox()?.hasAttribute("data-disabled")).toBe(true);
   const retry = [...document.body.querySelectorAll("button")].find(
-    (button) => button.textContent === "Try again",
+    (button) => button.textContent === "Read setting again",
   );
   expect(retry).toBeDefined();
   await act(async () => retry?.click());

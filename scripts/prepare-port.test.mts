@@ -28,6 +28,7 @@ import {
   preparePort,
   prepareDiscoveryListingAdditions,
   prepareArtworkBatch,
+  prepareSharedCoverBatch,
   prepareListingObservations,
   portablePreparationFeedback,
   downloadPreparationFeedback,
@@ -36,6 +37,7 @@ import {
 } from "./prepare-port.mts";
 import { checkedAuthoredPort, readCatalogSource } from "./catalog-authoring.mts";
 import { observationHash } from "./upstream-observer.mts";
+import { encodeCompactListing } from "./listing-directory-carrier.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
@@ -984,6 +986,156 @@ void test("discovery listing batch keeps independent additions and never replace
     );
     assert.equal(f.requests.length, 4);
   } finally {
+    f.clean();
+  }
+});
+
+void test("scheduled discovery scope binds first-party manifest bytes and keeps independent results", async (context) => {
+  const f = fixture();
+  try {
+    const sha = "a".repeat(40);
+    const tree = "c".repeat(40);
+    const candidates = [
+      "eligible",
+      "missing",
+      "fork",
+      "wrong-bytes",
+      "scummvm",
+      "legacy",
+      "symlink",
+      "multi",
+      "truncated",
+      "unknown-mirror",
+      "bad-tree",
+      "provider-missing-file",
+    ].map((name, index) => ({
+      id: `github-${80_000 + index}`,
+      project_url: `https://github.com/fixture/${name}`,
+      repository_id: 80_000 + index,
+      evidence_sha256: "b".repeat(64),
+    }));
+    const handoff = { format: "portcove-discovery-listing-handoff", format_version: 1, candidates };
+    const validatorCli = join(f.root, "fixture-cli");
+    writeFileSync(validatorCli, "inert");
+    context.mock.method(childProcess, "spawnSync", (_artifact: string, args: string[]) => {
+      assert.deepEqual(args.slice(-3, -1), ["inspect-listings", "--path"]);
+      const data: unknown = JSON.parse(readFileSync(args.at(-1)!, "utf8"));
+      return { status: 0, signal: null, stdout: JSON.stringify({ data }), stderr: "" };
+    });
+    syncBuiltinESMExports();
+    const { report } = await prepareDiscoveryListingAdditions({
+      catalogRoot,
+      outputDirectory: join(f.root, "automatic-scope"),
+      handoff,
+      automaticScope: true,
+      validatorCli,
+      facts: {
+        now: () => Date.parse("2026-11-26T00:00:00Z"),
+        fetcher: f.fetcher((url) => {
+          const candidate = candidates.find(({ project_url }) =>
+            url.endsWith(project_url.slice("https://github.com".length)),
+          );
+          if (candidate) {
+            return json({
+              id: candidate.repository_id,
+              private: false,
+              fork: candidate.project_url.endsWith("/fork"),
+              ...(candidate.project_url.endsWith("/unknown-mirror") ? {} : { mirror_url: null }),
+              default_branch: "main",
+              full_name: new URL(candidate.project_url).pathname.slice(1),
+            });
+          }
+          const match = /\/repositories\/(\d+)\/(.*)$/u.exec(url);
+          if (!match) assert.fail(`Unexpected provider request ${url}`);
+          const selected = candidates.find(
+            ({ repository_id }) => repository_id === Number(match[1]),
+          );
+          if (!selected || /\/(?:fork|unknown-mirror)$/u.test(selected.project_url))
+            assert.fail("Unbound or fork metadata request");
+          if (match[2] === "commits?per_page=1")
+            return json([{ sha, commit: { tree: { sha: tree } } }]);
+          const name = selected.project_url.split("/").at(-1);
+          const manifestPath = name === "legacy" ? ".recomp-board.json" : ".recomp.json";
+          const bytes = Buffer.from(
+            JSON.stringify({
+              game: "Fixture game",
+              type: "recomp",
+              system: "SNES",
+              ...(selected.project_url.endsWith("/scummvm") ? { toolchain: "ScummVM" } : {}),
+            }),
+          );
+          const digest = createHash("sha1")
+            .update(`blob ${bytes.length}\0`)
+            .update(bytes)
+            .digest("hex");
+          if (match[2] === `git/trees/${tree}`) {
+            const entries =
+              name === "missing"
+                ? []
+                : [
+                    {
+                      path: manifestPath,
+                      type: "blob",
+                      mode: name === "symlink" ? "120000" : "100644",
+                      sha: digest,
+                    },
+                  ];
+            if (name === "multi")
+              entries.push({ path: ".recomp-2.json", type: "blob", mode: "100644", sha: digest });
+            return json({
+              sha: tree,
+              tree: name === "bad-tree" ? [...entries, null] : entries,
+              truncated: name === "truncated",
+            });
+          }
+          assert.ok(!["missing", "symlink", "multi", "truncated", "bad-tree"].includes(name!));
+          assert.equal(match[2], `contents/${manifestPath}?ref=${sha}`);
+          if (name === "provider-missing-file") return new Response(null, { status: 404 });
+          if (name === "wrong-bytes") bytes[10] = bytes[10]! ^ 1;
+          return json({
+            type: "file",
+            path: manifestPath,
+            encoding: "base64",
+            size: bytes.length,
+            content: bytes.toString("base64"),
+            sha: digest,
+          });
+        }),
+      },
+    });
+    assert.deepEqual(report.changed_records, ["github-80000", "github-80005"]);
+    assert.deepEqual(
+      report.outcomes.map(({ status }) => status),
+      [
+        "prepared",
+        "held",
+        "held",
+        "held",
+        "restricted",
+        "prepared",
+        "held",
+        "held",
+        "held",
+        "held",
+        "held",
+        "unavailable",
+      ],
+    );
+    assert.equal(report.automatic_scope_policy, "github-primary-single-game-manifest/1");
+    assert.ok(report.admission);
+    assert.equal(report.operational_changed, false);
+    const result = checkedAuthoredPort(
+      JSON.parse(readFileSync(report.files.records[0]!.path, "utf8")),
+    );
+    assert.equal(
+      result.original_game_review?.evidence_urls[1],
+      `https://github.com/fixture/eligible/blob/${sha}/.recomp.json`,
+    );
+    assert.equal(result.listing.original_game, undefined);
+    assert.equal(result.integration, undefined);
+  } finally {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
     f.clean();
   }
 });
@@ -1940,6 +2092,238 @@ function clearFixtureArtwork(directory: string, ids: string[]) {
     writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
   }
 }
+
+void test("shared cover proposals bind exact authored scope to the signed donor", async (context) => {
+  const f = fixture();
+  try {
+    const source = copiedCatalog(join(f.root, "shared-cover-catalog"));
+    const game = {
+      format_version: 1,
+      id: "shared-original-fixture",
+      evidence_urls: ["https://example.org/shared-game"],
+      source_editions: [
+        {
+          id: "exact-edition",
+          title: "Shared Original",
+          evidence_urls: ["https://example.org/shared-edition"],
+        },
+      ],
+    };
+    const artwork = {
+      game_id: 70,
+      cover_id: 71,
+      image_id: "sharedcover",
+      image_sha256: batchImage().sha256,
+      game_slug: "shared-original-fixture",
+      match_kind: "underlying-game",
+    };
+    const donor = "fixture-cover-donor",
+      peer = "fixture-cover-peer",
+      other = "fixture-cover-other";
+    for (const id of [donor, peer, other]) {
+      const record = checkedAuthoredPort({
+        format_version: 1,
+        listing: {
+          id,
+          name: id,
+          project_url: `https://example.org/${id}`,
+          original_game:
+            id === other
+              ? { ...game, source_editions: [{ ...game.source_editions[0], id: "other-edition" }] }
+              : game,
+          summary: "Fixture port.",
+          ...(id === donor ? { artwork } : {}),
+        },
+      });
+      writeFileSync(join(source, "ports", `${id}.json`), JSON.stringify(record));
+    }
+    const validatorCli = join(f.root, "selected-cli");
+    writeFileSync(validatorCli, "inert listing validator fixture");
+    const anchor = readFileSync(join(catalogRoot, "official-definition-root.json"));
+    writeFileSync(join(source, "official-definition-root.json"), anchor);
+    const digest = (value: Buffer) => createHash("sha256").update(value).digest("hex");
+    const accepted = readCatalogSource(source).directory;
+    const rows = accepted.listings.filter((record) => [donor, peer, other].includes(record.id));
+    const target = join(f.root, "compact.json");
+    const status = {
+      selected: true,
+      fallback_reason: null,
+      anchor_sha256: digest(anchor),
+      revision: 1,
+      listing_count: rows.length,
+      expires_at: "2099-01-01T00:00:00Z",
+      target_sha256: "",
+      transport_target_sha256: "",
+    };
+    const setTarget = (listings: typeof rows, authenticated: boolean) => {
+      const decoded = Buffer.from(
+        JSON.stringify({
+          listing_delivery_schema: 1,
+          revision: 1,
+          withdrawn_ids: [],
+          directory: { format_version: accepted.format_version, listings },
+        }),
+      );
+      const wire = encodeCompactListing(decoded);
+      if (authenticated) {
+        status.target_sha256 = digest(decoded);
+        status.transport_target_sha256 = digest(wire);
+        status.listing_count = listings.length;
+      }
+      writeFileSync(target, wire);
+    };
+    setTarget(rows, true);
+    context.mock.method(childProcess, "spawnSync", (_artifact: string, args: string[]) => {
+      if (args.at(-1) === "listing-status")
+        return {
+          status: 0,
+          signal: null,
+          stdout: JSON.stringify({
+            data: status,
+            ok: true,
+            command: "catalog.listing-status",
+          }),
+          stderr: "",
+        };
+      assert.deepEqual(args.slice(-3, -1), ["inspect-listings", "--path"]);
+      const data: unknown = JSON.parse(readFileSync(args.at(-1)!, "utf8"));
+      return { status: 0, signal: null, stdout: JSON.stringify({ data }), stderr: "" };
+    });
+    syncBuiltinESMExports();
+    const options = {
+      catalogRoot: source,
+      outputDirectory: join(f.root, "cover-proposals"),
+      validatorCli,
+      target,
+      library: join(f.root, "verification-library"),
+    };
+    const { report } = await prepareSharedCoverBatch(options);
+    assert.deepEqual(report.changed_records, [peer]);
+    assert.deepEqual(report.record_changes[0]?.listing_fields, ["artwork"]);
+    assert.equal(report.operational_changed, false);
+    assert.deepEqual(
+      report.outcomes.find(({ id }) => id === peer),
+      {
+        id: peer,
+        game_id: game.id,
+        source_edition_id: "exact-edition",
+        status: "prepared",
+        donor_port_id: donor,
+        mapping: artwork,
+      },
+    );
+    assert.equal(report.outcomes.find(({ id }) => id === other)?.status, "no-accepted-donor");
+    setTarget(
+      rows.filter(({ id }) => id === donor),
+      false,
+    );
+    await assert.rejects(
+      prepareSharedCoverBatch(options),
+      /differs from the exact authenticated compact target/u,
+    );
+    setTarget(
+      rows.map((row) =>
+        row.id === donor ? { ...row, artwork: { ...artwork, image_sha256: "e".repeat(64) } } : row,
+      ),
+      true,
+    );
+    const changed = await prepareSharedCoverBatch(options);
+    assert.deepEqual(changed.report.changed_records, []);
+    setTarget(
+      rows.map((row) =>
+        row.id === other ? { ...row, artwork: { ...artwork, image_sha256: "e".repeat(64) } } : row,
+      ),
+      true,
+    );
+    assert.deepEqual((await prepareSharedCoverBatch(options)).report.changed_records, []);
+    setTarget(rows, true);
+    assert.deepEqual(
+      (await prepareSharedCoverBatch({ ...options, identities: { [donor]: null } })).report
+        .changed_records,
+      [],
+    );
+    assert.deepEqual(
+      (await prepareSharedCoverBatch({ ...options, identities: { [peer]: null } })).report
+        .changed_records,
+      [],
+    );
+    const conflicting = { ...artwork, image_sha256: "e".repeat(64) };
+    const retainedResult = {
+      port: { id: other, presentation: { artwork: conflicting } },
+      record: {
+        port_id: other,
+        role: "cover",
+        reason: "exact-original-game-cover",
+        mapping: conflicting,
+        exceptions: [],
+        checks: { content: { ...batchImage(), sha256: conflicting.image_sha256 } },
+      },
+    };
+    const refreshedAt = new Date().toISOString();
+    const retainedPath = join(options.outputDirectory, `artwork-refresh-progress-${other}.json`);
+    writeFileSync(
+      retainedPath,
+      JSON.stringify({
+        format: 1,
+        port_id: other,
+        input_sha256: "a".repeat(64),
+        result_sha256: observationHash(retainedResult),
+        result: retainedResult,
+        complete: true,
+        observed_at: refreshedAt,
+        last_live_observation_at: refreshedAt,
+        retry_at: null,
+      }),
+    );
+    assert.deepEqual((await prepareSharedCoverBatch(options)).report.changed_records, []);
+    for (const reason of ["collection-image-digest-changed", "companion-image-digest-changed"]) {
+      const fallback = {
+        port: { id: other },
+        record: {
+          ...retainedResult.record,
+          mapping: null,
+          checks: null,
+          exceptions: [{ reason, image_id: artwork.image_id }],
+        },
+      };
+      writeFileSync(
+        retainedPath,
+        JSON.stringify({
+          format: 1,
+          port_id: other,
+          input_sha256: "a".repeat(64),
+          result_sha256: observationHash(fallback),
+          result: fallback,
+          complete: false,
+          observed_at: refreshedAt,
+          last_live_observation_at: null,
+          retry_at: null,
+        }),
+      );
+      assert.deepEqual((await prepareSharedCoverBatch(options)).report.changed_records, []);
+    }
+    rmSync(retainedPath);
+    const images = [artwork.image_id];
+    writeFileSync(
+      join(options.outputDirectory, "artwork-gone.json"),
+      JSON.stringify({
+        format: 1,
+        image_ids: images,
+        sha256: observationHash(images),
+      }),
+    );
+    assert.deepEqual((await prepareSharedCoverBatch(options)).report.changed_records, []);
+    assert.equal(
+      readCatalogSource(source).authored.find((entry) => entry.listing.id === peer)?.listing
+        .artwork,
+      undefined,
+    );
+  } finally {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
+    f.clean();
+  }
+});
 
 void test("single-port preparation reuses selected artwork and rebuilds the current composition", async () => {
   const f = fixture();

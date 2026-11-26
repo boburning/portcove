@@ -577,9 +577,12 @@ Listing format 15 carries `restrictions`. In a format-15 document the legacy
 names `download`, at any scope. An older reader treats that string as a hold on
 every download, and the listing carries no other operation, so a reader limited
 to format 14 is never less restricted than a capable one. Exports below format 15 omit `restrictions` and
-keep that string. Signed listing delivery stays at format 11; a delivered
-listing that repeats the current string for the same project and game keeps
-the typed restrictions, and any other delivered value replaces them.
+keep that string. Signed listing delivery carries the compact format-15
+listing, with `restrictions`, to Preview 14 and later; the legacy format-11
+target is frozen at its last signed revision and Preview 13 and earlier
+receive no later hold ([compact listing delivery](SIGNED-CATALOG.md#compact-listing-delivery-and-the-minimum-supported-preview)).
+A delivered listing that repeats the current string for the same project and
+game keeps the typed restrictions, and any other delivered value replaces them.
 
 The managed wire format is unchanged. The generator emits typed integration
 data as the existing `managed_acquisition_hold` and refuses typed data that
@@ -2170,6 +2173,16 @@ missing, invalid and then oldest observed references automatically against the
 28-day refresh target. Unknown dates remain due. Explicit
 `--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` remains supported.
 This is the existing operator cadence, not a new scheduler or player startup task.
+To prepare shared defaults in one offline pass, use
+`prepare-port.mts --accepted-shared-covers COMPACT_TARGET --verification-library OWNED_LIBRARY --validator-cli TRUSTED_CLI --output-dir DIRECTORY`.
+Supply the exact compact target selected after a successful official catalog
+refresh in the project-owned verification library. Use the existing artwork
+checkpoint so confirmed image withdrawals remain available. The command checks
+Core's selected revision and both authenticated digests before reusing a unique
+accepted original-game cover when both ports have the same reviewed game and
+single source edition. The donor's exact game, edition and asset must also appear
+in the signed directory. The receipt names each donor and any conflicting scope.
+The existing reviewed path validates and accepts the prepared changes.
 Due refresh of a retained cover revalidates its approved IGDB game ID, slug
 and cover role. An accepted mapping can be revalidated by exact ID and slug
 even when the listing lacks an original title. This does not establish a new
@@ -7498,6 +7511,20 @@ metadata and catalog ownership, then assembles the additions together.
 It reports conflicting identities and unavailable provider facts per candidate.
 The handoff supplies evidence references for review. It grants no authority
 to publish, change existing records or decide which package Core can offer.
+
+With `--discovery-automatic-scope true`, the scheduled preparer checks the
+primary repository's bounded `.recomp.json` at its current immutable default
+commit using the stable repository ID. It also supports the original
+`.recomp-board.json` name when the main manifest is absent. A complete root tree
+must identify a single regular manifest. Repositories with companion game
+manifests retain an explicit scope hold. The assessment records its policy,
+commit, tree, blob and content digest. Fork and mirror identity conflicts, unsupported or
+missing manifests and failures retain their own dated outcomes. Projects with
+other scope evidence can still use reviewed discovery admission. An upstream
+manifest supplies descriptive scope. Acquisition still follows its own checks.
+The scheduled invocation produces unsigned evidence. A trusted checkout with
+the current Core validator can prepare the exact append-only patch from the
+same policy, subject to normal catalog review and publication.
 
 For a reviewed batch, run the same command with
 `--discovery-listing-approval /path/to/approval.json` and the trusted Core

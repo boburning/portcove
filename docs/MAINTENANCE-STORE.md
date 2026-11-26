@@ -70,7 +70,10 @@ It adds the concepts the history tables cannot represent:
 - `discovery_lead_records` (migration `0009`): the collector's lead records,
   one row per provider repository ID in a scope. The state document keeps the
   rest of the continuation. A commit upserts only records that changed and
-  rewrites no unchanged row.
+  rewrites no unchanged row. Hydration requires each lead ID to be a unique,
+  positive, safe JSON integer. A malformed ID fails the shared read. The
+  collector records the failure and closes its owned lease before querying
+  providers or committing any collection state.
 
 Writes go only through `discovery_acquire`, `discovery_commit` and
 `discovery_finish`. They check collection activation, the lease token and the
@@ -84,9 +87,50 @@ recent runs, so reads and commits stay inside an admitted, measured allowance.
 `definition_sha256` records the collector definitions (state format,
 parser version, search families and curated lists). A worker whose definitions
 differ resends its observations; cursor compatibility itself comes from each
-search slice's recorded query contract. Discovery tables are ordinary backup
-tables: each recovery export copies them in full, so their growth adds to the
-daily recovery transfer until they join the history-prefix reuse.
+search slice's recorded query contract. Discovery tables are ordinary backup tables. A complete table whose digest and
+row count match the verified local seed is reused without sending its rows over
+the network. Changed lead and discovery observation tables compare full-row
+fingerprints by their existing primary keys; only changed or new rows cross the
+network, while removed rows are omitted from local reconstruction. Migration `0011` separates curated-list external hints into keyed rows under
+the existing collector revision. The migration preserves all hint values and
+recomputes the compact continuation digest. Complete logical acquire and
+commit wrappers retain the existing caller contract, while the old compact
+functions are private to the wrappers. Current collector and read-only consumers
+hydrate the normalized hints separately in bounded pages, including cold reads
+without a seed and invalidated warm reads. The complete legacy wrapper still
+reassembles hints on the server; older direct state readers must upgrade.
+The final pending migration and role contract commit together. A failed role
+contract cannot leave the latest migration ledger entry committed without its
+callable permissions. The new hint table participates in
+whole-table and row-delta recovery. The maintained collector submits changed
+hint rows and explicitly removed keys against its confirmed lease and revision,
+using a compact continuation and the existing atomic commit fence. When no
+confirmed client baseline is available, it submits the complete logical state
+instead. An exact retained revision reacquire omits the state without rebuilding
+the hint document on the server. For cold hosted reads, the discovery job can reuse the existing independently
+verified recovery artifact. It restores the seed in a separate local PostgreSQL
+instance without production credentials and reads bounded primary-key pages
+containing actual restored hint and lead payloads with their fingerprints.
+After fenced compact acquisition, the
+production database compares those fingerprints and returns changed/new rows
+and removed keys. The current continuation always comes from production.
+An unavailable seed, a seed row beyond the local client response limit, or an
+oversized delta falls back to the complete read when admission permits it;
+no additional public cache or artifact is published. Initial admission can instead use a measured seed plan: a single read-only
+statement returns the exact delta JSON sizes and the production revision,
+activation generation and definition. The collector uses the same frozen seed
+fingerprints and acquires only that revision. Each response is capped at its
+measured size; a moved or oversized plan defers rather than falling back to an
+unadmitted complete read. If no usable plan exists, the complete-read admission
+remains the fallback. For the revision-fenced initial discovery read, the
+measured response envelope plus acknowledgement and protocol headroom replaces
+the 16 MB bootstrap estimate. The provider ceiling and recovery reserve do not
+change. Later passes retain complete-read admission; other operation estimates
+remain conservative defaults until their readers prove equivalent bounds.
+Admission evidence identifies the reservation basis. Discovery pass
+admission uses the larger of the measured previous receive payload and the
+current cold-read estimate, plus acknowledgement and protocol headroom, rather
+than counting the same acquire twice. The provider ceiling is unchanged.
 
 Collection has its own activation (`collection_active`) and
 `collection_generation` on the activation singleton. Portable restore clears
@@ -405,7 +449,8 @@ PORTCOVE_MAINTENANCE_DATABASE_URL="$RESTORE_TARGET_URL" node scripts/maintenance
   with the manifest in one transaction, so any difference rolls the whole restore
   back and the target stays empty for a retry. Verification uses the backup's
   own schema. Any newer migrations of the checkout, and the role contract, then
-  apply in that same transaction.
+  apply in that same transaction. The restore proof records the original schema
+  and its verified manifest separately from the current schema and its digests.
 - Use `psql`, `pg_dump` and `pg_restore` from one PostgreSQL client
   installation whose major version matches the server (set
   `PORTCOVE_POSTGRES_BIN` when `PATH` mixes versions). Restore renders the dump
@@ -1161,6 +1206,25 @@ nothing.
   roadmap identity no issue condition changes.
 - The condition records the source, the Project status or hold reason, and the
   issue's explicit blocker and resume condition when recorded (`null` otherwise).
+  For a Blocked issue without an explicit resume condition, existing GitHub
+  blocking relationships supply a sorted set of dependency issue references
+  with immutable node IDs and repository-qualified URLs. The report matches
+  each dependency's node ID, issue number, URL, and state against the complete
+  issue facts for the owner's repository. Legacy facts without identity and
+  dependencies outside that repository remain unknown. The report derives a wake signal:
+  `waiting` while a dependency is open, `review-ready` when every recorded
+  dependency is observed closed, and `unknown` when coverage or identity
+  disagrees. A dependency closing does not lift the hold, rewrite Project
+  fields, or replace an explicit owner condition. Deferred work never uses
+  dependency closure to change its authority.
+- The collection receipt includes a derived `backlog_lifecycle` summary when
+  the configured Project identity is known. The report uses complete repository
+  issue coverage and their memberships in that Project. It distinguishes neutral
+  Inbox and Triage Watchlist inventory, positive planning signals, missing
+  planning fields, active work, other dispositions, and unavailable membership.
+  Closed issues and known archived-only memberships are excluded.
+  Missing or ambiguous membership is reported, not interpreted as unassigned
+  work.
 - A complete read that no longer records a pending condition resolves it under
   its recorded authority, naming the observing run: `satisfied`
   (`condition-lifted`) when the Status or hold is gone, or `withdrawn`
@@ -1568,9 +1632,21 @@ When a prefix matches, only newer rows cross the network. A mismatch requires
 that table's full payload to fit the admission. The schedule requests a larger
 envelope when the retained recovery point is more than 30 hours old. Beyond 54
 hours, a live meter can admit a full recovery envelope. Incomplete GitHub
-inventory never implies that the prior backup is missing. All smaller tables, including
-mutable state and the migration ledger, come from the same snapshot. The
-independent reconstruction loads current schema and data, preserves sequence
+inventory never implies that the prior backup is missing. The export compares
+all other protected tables with the actual restored local seed under the same
+production snapshot. Identical complete tables are copied locally; changed or
+unavailable tables are exported normally. The transfer ceiling excludes only
+the proven local copies. For the row-delta discovery tables, the source
+returns only changed or removed keys under the same exported snapshot; the
+export transfers current rows for those keys and loads matching rows from the
+local seed. If the key plan cannot fit admission or is not cheaper than the
+full export, the original table path applies. The receipt accounts for both
+key-plan and delta-row transfer and lists the reused tables. Full-table digest
+verification still covers every reconstructed row before a standalone backup
+is written. The
+activation singleton is always exported from production, and portable restore
+still deactivates writers. The independent reconstruction loads current schema
+and data, preserves sequence
 values and verifies all protected table hashes before writing a new standalone
 ordinary PostgreSQL dump. The new dump has no runtime dependency on its seed
 artifact. Portable restore still clears discovery intake activation.
@@ -1599,7 +1675,11 @@ run, attempt where needed, source revision and trigger. A successful delivery
 with a saved output can satisfy an equivalent request. Cancellation or an
 uncertain outcome leaves its full reservation charged for the period. A completed
 operation records a logical PostgreSQL response estimate with a protocol margin.
-It stays charged alongside the project meter until the meter has settled past it:
+A recovery explicitly deferred before starting any file export also records its
+measured SQL response bytes, including exported-snapshot queries, with a
+conservative protocol allowance. Only that known preflight outcome can settle
+on its measured estimate; unknown and partially executed failures keep their
+full reservation. The measurement stays charged alongside the project meter until the meter has settled past it:
 once a sample is taken at least two hours after the operation finished, the
 cumulative counter already includes that transfer, whichever client caused it,
 and the estimate is no longer added on top. Neon refreshes usage roughly every
@@ -1628,9 +1708,12 @@ defers work. The next scheduled maintenance
 run, or the next existing discovery intake event, retries from its durable source
 or receipt. Retained-artifact reports and restore checks remain available offline.
 A repeated deferral stays visible as the age of the last verified recovery point
-and with its remaining allowance. If a large export cannot fit its reservation,
-work waits for a separately admissible baseline export. Normal collection
-failure does not grant permission for a full export.
+and with its remaining allowance. If a recovery's preflight finds that the conservative export estimate exceeds
+its admitted reservation, the same invocation can make one newly admitted
+attempt sized to that estimate. It reuses the verified local seed but replans
+against a new production snapshot. The normal provider meter, recovery reserve
+and hard ceiling still apply; a denied initial admission or denied retry defers
+work. Normal collection failure does not grant permission for a full export.
 
 ### Workload model
 

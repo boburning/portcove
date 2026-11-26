@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { appendFileSync, writeFileSync } from "node:fs";
 import { isRecord } from "./runtime-values.mts";
+import { MaintenanceBackupDeferred } from "./maintenance-backup-reuse.mts";
 import {
   MaintenanceStoreError,
   maintenanceTransfer,
@@ -283,14 +284,38 @@ export function isNeon(environment: NodeJS.ProcessEnv) {
   return /(?:^|\.)neon\.tech$/iu.test(environment.PGHOST ?? "");
 }
 
+/** The operation estimates are defaults, not measured lower bounds. Only the
+ * revision-fenced discovery reader currently proves a smaller response envelope.
+ * All other callers retain the default or a larger explicitly requested amount. */
+export function operationReservation(
+  operation: MaintenanceOperation,
+  reservationBytes?: number,
+  measuredDiscovery = false,
+) {
+  if (
+    reservationBytes !== undefined &&
+    (!Number.isSafeInteger(reservationBytes) || reservationBytes <= 0)
+  )
+    throw new MaintenanceStoreError("Invalid maintenance reservation size");
+  if (measuredDiscovery) {
+    if (operation !== "discovery" || reservationBytes === undefined)
+      throw new MaintenanceStoreError(
+        "Measured discovery admission requires a discovery response bound",
+      );
+    return reservationBytes;
+  }
+  return Math.max(costs[operation], reservationBytes ?? 0);
+}
+
 export function policyLimits(
   meter: NeonMeter,
   operation: MaintenanceOperation,
   now: number,
-  /** A measured reservation for this request; never below the operation's own cost. */
+  /** A reservation estimate, or a proven revision-fenced discovery bound. */
   reservationBytes?: number,
+  measuredDiscovery = false,
 ) {
-  const reservation = Math.max(costs[operation], reservationBytes ?? 0);
+  const reservation = operationReservation(operation, reservationBytes, measuredDiscovery);
   const days = Math.max(0, Math.ceil((Date.parse(meter.resetAt) - now) / day) - 1);
   const recovery = operation.startsWith("recovery");
   const reserve =
@@ -309,6 +334,9 @@ export function policyLimits(
     reserve_bytes: reserve,
     future_daily_recovery_bytes: scheduled,
     operation_reservation_bytes: reservation,
+    reservation_basis: measuredDiscovery
+      ? "revision-fenced-discovery"
+      : "conservative-default-or-larger",
     ceiling_bytes: operatingCeiling - chargeableForecast - bootstrapAllowance,
     cutover_allowance_bytes: meter.sampleOrigin === "november-cutover" ? transitionAllowance : null,
     recurring_monthly_projection_bytes: 31 * (recoveryDailyForecast + costs.collect),
@@ -330,11 +358,18 @@ export function acquireMaintenanceReservation(
     now?: number;
     executor?: boolean;
     reservationBytes?: number | undefined;
+    measuredDiscovery?: boolean | undefined;
   },
 ) {
   const { meter, operation, request, revision, reason } = input;
   const now = input.now ?? Date.now();
-  const limits = policyLimits(meter, operation, now, input.reservationBytes);
+  const limits = policyLimits(
+    meter,
+    operation,
+    now,
+    input.reservationBytes,
+    input.measuredDiscovery,
+  );
   const reserved = limits.operation_reservation_bytes;
   const age = now - Date.parse(meter.sampledAt);
   const useCutover = meter.sampleOrigin === "november-cutover";
@@ -359,7 +394,7 @@ export function acquireMaintenanceReservation(
     `DO $$ BEGIN PERFORM pg_advisory_xact_lock(41290007); END $$;
     WITH balance AS (
       SELECT coalesce(sum(
-        CASE WHEN outcome = 'completed' AND estimate_bytes IS NOT NULL
+        CASE WHEN (outcome = 'completed' OR (outcome = 'deferred' AND operation LIKE 'recovery%')) AND estimate_bytes IS NOT NULL
           -- The cumulative project counter already includes a completed
           -- operation's transfer once the sample was taken well after it
           -- finished, whichever client caused it. Only recent completions are
@@ -369,7 +404,7 @@ export function acquireMaintenanceReservation(
           ELSE reserved_bytes END), 0) AS unresolved,
         -- Every charge in the period, settled or not, for attribution evidence.
         coalesce(sum(
-          CASE WHEN outcome = 'completed' AND estimate_bytes IS NOT NULL
+          CASE WHEN (outcome = 'completed' OR (outcome = 'deferred' AND operation LIKE 'recovery%')) AND estimate_bytes IS NOT NULL
             THEN greatest(estimate_bytes, least(reserved_bytes, 500000))
             ELSE reserved_bytes END), 0) AS charged,
         max(reported_bytes) FILTER (WHERE period_start = ${period}::timestamptz) AS high_water,
@@ -463,13 +498,15 @@ export async function withMaintenanceAdmission<T>(
     completed?: (value: T) => boolean;
     bootstrap?: boolean;
     executor?: boolean;
-    /** Measured transfer this request expects; raises, never lowers, the reservation. */
+    /** Expected reservation; only an explicitly fenced discovery plan can lower the default. */
     reservationBytes?: number;
+    measuredDiscovery?: boolean;
   } = {},
 ): Promise<T> {
+  operationReservation(operation, options.reservationBytes, options.measuredDiscovery);
   if (!isNeon(environment))
     return await callback(
-      Math.max(costs[operation], options.reservationBytes ?? 0),
+      operationReservation(operation, options.reservationBytes, options.measuredDiscovery),
       Number.POSITIVE_INFINITY,
     );
   const revision = environment.GITHUB_SHA ?? environment.PORTCOVE_SOURCE_REVISION;
@@ -549,6 +586,7 @@ export async function withMaintenanceAdmission<T>(
     revision,
     reason,
     reservationBytes: options.reservationBytes,
+    measuredDiscovery: options.measuredDiscovery,
   });
   const coalesced =
     admission.reason === "equivalent-request" &&
@@ -559,29 +597,52 @@ export async function withMaintenanceAdmission<T>(
     outcome: admission.attempt_id ? "admitted" : coalesced ? "coalesced" : "deferred",
   });
   if (coalesced) throw new MaintenanceRequestCoalesced(admission.reason);
+  return runAdmittedMaintenance(environment, admission, callback, { ...options, executor });
+}
+
+/** Execute and settle an already acquired ledger reservation. */
+export async function runAdmittedMaintenance<T>(
+  environment: NodeJS.ProcessEnv,
+  admission: ReturnType<typeof acquireMaintenanceReservation>,
+  callback: (bytes: number, deadline: number) => Promise<T> | T,
+  options: {
+    estimate?: (value: T) => number;
+    completed?: (value: T) => boolean;
+    executor?: boolean;
+  } = {},
+): Promise<T> {
   if (!admission.attempt_id) throw new MaintenanceResourceDeferred(admission.reason);
+  const { operation, request, revision, meter, trigger: reason } = admission;
+  const executor = operation === "intake" || options.executor === true;
   let outcome = "failed";
   let estimate: number | undefined;
+  const measurement = {
+    host: environment.PGHOST!,
+    payloadBytes: 0,
+    byteLimit: Math.floor(admission.operation_reservation_bytes * 0.7),
+    deadline: Math.min(
+      Date.parse(admission.started_at!) + admissionTimeout,
+      Date.parse(meter.resetAt) - 60_000,
+    ),
+  };
   try {
-    const measurement = {
-      host: environment.PGHOST!,
-      payloadBytes: 0,
-      byteLimit: Math.floor(admission.operation_reservation_bytes * 0.7),
-      deadline: Math.min(
-        Date.parse(admission.started_at!) + admissionTimeout,
-        Date.parse(meter.resetAt) - 60_000,
-      ),
-    };
     const value = await maintenanceTransfer.run(measurement, () =>
       callback(admission.operation_reservation_bytes, measurement.deadline),
     );
-    estimate = options.estimate?.(value) ?? 200_000 + Math.ceil(measurement.payloadBytes * 1.3);
-    if (estimate !== undefined && (!Number.isSafeInteger(estimate) || estimate < 0))
+    const supplied = options.estimate?.(value);
+    if (supplied !== undefined && (!Number.isSafeInteger(supplied) || supplied < 0))
       throw new MaintenanceStoreError("Invalid maintenance transfer estimate");
+    estimate = Math.max(supplied ?? 0, 200_000 + Math.ceil(measurement.payloadBytes * 1.3));
     outcome = options.completed?.(value) === false ? "failed" : "completed";
     return value;
   } catch (error) {
-    if (error instanceof Error && error.name === "MaintenanceBackupDeferred") outcome = "deferred";
+    if (operation.startsWith("recovery") && error instanceof MaintenanceBackupDeferred) {
+      // This exception is produced only before any file export. All prior
+      // production reads used measured SQL responses; unknown failures keep
+      // their entire reservation. Retain conservative command/protocol margin.
+      outcome = "deferred";
+      estimate = 2_000_000 + Math.ceil(measurement.payloadBytes * 1.3);
+    }
     throw error;
   } finally {
     runSql(

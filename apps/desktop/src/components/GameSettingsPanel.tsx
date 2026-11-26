@@ -197,7 +197,7 @@ function SettingsFileDraft({
       {!available && <p role="status">{file.reason ?? t("panel.fileUnavailable")}</p>}
       {held && (
         <div>
-          <p role="status">{t("panel.held")}</p>
+          <p role="status">{t(available ? "panel.held" : "panel.heldUnavailable")}</p>
           <Button
             variant="outline"
             type="button"

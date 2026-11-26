@@ -21,6 +21,7 @@ import {
 import { useAppTranslation } from "../localization";
 import type {
   ModSetupDraftPreview,
+  ModSetupRevision,
   ModSetupView,
   ProviderCatalog,
   ProviderInstallPlan,
@@ -52,7 +53,7 @@ type Props = {
   setDraft: Dispatch<SetStateAction<ModDraft>>;
   onBusyChange: (busy: boolean) => void;
   onReviewChange?: (state: ModDraftReviewState | undefined) => void;
-  onInstalled: (message: string) => void;
+  onInstalled: (receipt: ModSetupRevision) => void;
   onRefresh?: () => void;
   onApplying?: (applying: boolean) => void;
   reviewFromPlay?: number | undefined;
@@ -445,13 +446,13 @@ export function ModProviderBrowser({
     }
   };
   const apply = async (allowCode: boolean) => {
-    if (!plans) return;
+    if (!plans || applying.current) return;
     setFailure(undefined);
     setWorking("apply");
     applying.current = true;
     onApplying?.(true);
     try {
-      await desktopApi.applyModSetupDraft(
+      const receipt = await desktopApi.applyModSetupDraft(
         portId,
         profileId,
         revision,
@@ -464,7 +465,7 @@ export function ModProviderBrowser({
       if (alive.current) {
         staged.current = [];
         closeReview();
-        onInstalled(t("mods.workspace.applied"));
+        onInstalled(receipt);
         if (playOrigin) onAppliedFromPlay?.();
       }
     } catch (error) {

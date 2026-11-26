@@ -115,7 +115,6 @@ async function render(
     sources?: string[];
     packages?: ModSetupView["revision"]["packages"];
     updates?: Pick<ModUpdateControlProps, "policy" | "setPolicy" | "automaticChecks">;
-    onInstalled?: (message: string) => void;
   } = {},
 ) {
   vi.spyOn(desktopApi, "previewModSetupDraft").mockResolvedValue({
@@ -133,7 +132,7 @@ async function render(
     revision: { packages: options.packages ?? [] },
   } as unknown as ModSetupView;
   const onBusyChange = vi.fn();
-  const onInstalled = options.onInstalled ?? vi.fn();
+  const onInstalled = vi.fn();
   function TestBrowser() {
     const [draft, setDraft] = useState(emptyModDraft);
     const [browsing, setBrowsing] = useState(options.browsing ?? !options.updates);

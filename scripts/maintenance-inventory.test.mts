@@ -57,13 +57,19 @@ import {
   renderHtml,
   takeIssueCredential,
   writeReport,
+  issueFacts,
   type DefinitionDeliveryInspection,
   type SubjectReassessment,
   type InventoryReport,
 } from "./maintenance-inventory.mts";
 import { reconcileIntakeHandoffReceipts } from "./maintenance-intake-receipts.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
-import { issueReconsiderations, targetReconsiderations } from "./maintenance-reconsiderations.mts";
+import {
+  backlogLifecycleReview,
+  dependencyWake,
+  issueReconsiderations,
+  targetReconsiderations,
+} from "./maintenance-reconsiderations.mts";
 import { targetsDigest } from "./release-content-scan.mts";
 import { explicitBlockerFields } from "./roadmap-qualification.mts";
 import type { HostedRequestStatus, HostedStatusAll } from "./hosted-discovery-intake.mts";
@@ -327,7 +333,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   // Discovery collection is read-only toward GitHub, isolated on its own runner and
   // holds no Roadmap or intake credential.
   const discover = workflow.jobs.discover!;
-  assert.deepEqual(discover.permissions, { contents: "read" });
+  assert.deepEqual(discover.permissions, { contents: "read", actions: "read" });
   assert.match(discover.if!, /github.event_name == 'schedule' \|\| inputs.purpose == 'discover'/u);
   assert.ok(discover["timeout-minutes"]! > 0);
   assert.doesNotMatch(
@@ -3840,6 +3846,195 @@ void test("holds and deferrals come only from their owners and episodes stay dis
     entries[0]!.technical_changes?.map(({ subject_key }) => subject_key),
     ["port:a@linux-x86-64"],
   );
+});
+
+void test("dependency wake requires matching complete owner facts and never changes planning", () => {
+  const project = (Status: string, fields: Record<string, string> = {}) => [
+    { project_id: "P1", archived: false, fields: { Status, ...fields } },
+  ];
+  const ref = {
+    number: 2,
+    node_id: "I2",
+    url: "https://github.com/boburning/portcove/issues/2",
+  };
+  const subject = {
+    number: 1,
+    node_id: "I1",
+    url: "https://github.com/boburning/portcove/issues/1",
+    state: "OPEN",
+    project: project("Blocked"),
+  };
+  const issue = (state: string, edgeState: string) =>
+    new Map<string, unknown>([
+      [
+        "issue:1",
+        {
+          ...subject,
+          blocked_by: [{ ...ref, state: edgeState }],
+        },
+      ],
+      ["issue:2", { ...ref, state, project: project("Done") }],
+      [
+        "issue:3",
+        {
+          number: 3,
+          state: "OPEN",
+          project: project("Deferred"),
+          blocked_by: [{ ...ref, state: edgeState }],
+        },
+      ],
+      [
+        "issue:4",
+        {
+          number: 4,
+          state: "OPEN",
+          project: project("Blocked"),
+          blocked_by: [{ ...ref, state: edgeState }],
+          reconsideration: { blocker: "Upstream", resume_condition: "New release" },
+        },
+      ],
+    ]);
+  const open = issue("OPEN", "OPEN");
+  const conditions = issueReconsiderations(open, "P1").conditions;
+  const blocked = conditions.find(({ subject_key }) => subject_key === "issue:1")!;
+  const deferred = conditions.find(({ subject_key }) => subject_key === "issue:3")!;
+  const explicit = conditions.find(({ subject_key }) => subject_key === "issue:4")!;
+  assert.deepEqual(blocked.condition.dependency_issues, [2]);
+  assert.deepEqual(blocked.condition.dependency_refs, [ref]);
+  assert.equal(deferred.condition.dependency_issues, undefined);
+  assert.equal(explicit.condition.dependency_issues, undefined);
+  assert.equal(dependencyWake(blocked.condition, open.get("issue:1"), open, true), "waiting");
+  const closed = issue("CLOSED", "CLOSED");
+  assert.equal(
+    dependencyWake(blocked.condition, closed.get("issue:1"), closed, true),
+    "review-ready",
+  );
+  assert.deepEqual(issueReconsiderations(closed, "P1").conditions[0], blocked);
+  assert.equal(dependencyWake(blocked.condition, closed.get("issue:1"), closed, false), "unknown");
+  const inconsistent = issue("OPEN", "CLOSED");
+  assert.equal(
+    dependencyWake(blocked.condition, inconsistent.get("issue:1"), inconsistent, true),
+    "unknown",
+  );
+  const edge = { ...ref, state: "CLOSED" };
+  const foreign = { ...edge, node_id: "foreign", url: "https://github.com/other/project/issues/2" };
+  for (const [reason, edges] of [
+    ["foreign URL with a matching local node ID", [{ ...foreign, node_id: ref.node_id }]],
+    ["URL names a different issue number", [{ ...edge, url: subject.url }]],
+    ["foreign issue with the same number", [foreign]],
+    [
+      "foreign issue sharing the owner's number",
+      [{ ...foreign, number: 1, url: "https://github.com/other/project/issues/1" }],
+    ],
+    ["self edge", [{ ...edge, number: 1, node_id: "I1", url: subject.url }]],
+    ["duplicate edge", [edge, edge]],
+    ["local and foreign issues share the same number", [edge, foreign]],
+  ] as const) {
+    const current = new Map(closed);
+    const owner = { ...subject, blocked_by: edges };
+    current.set("issue:1", owner);
+    const condition = issueReconsiderations(current, "P1").conditions[0]!.condition;
+    assert.deepEqual(
+      condition.dependency_issues,
+      [...new Set(edges.map(({ number }) => number))],
+      reason,
+    );
+    assert.equal(dependencyWake(condition, owner, current, true), "unknown", reason);
+  }
+  const legacyCondition = { ...blocked.condition };
+  delete legacyCondition.dependency_refs;
+  assert.equal(dependencyWake(legacyCondition, closed.get("issue:1"), closed, true), "unknown");
+  closed.set("issue:2", { number: 2, node_id: "I2", state: "CLOSED" });
+  assert.equal(dependencyWake(blocked.condition, closed.get("issue:1"), closed, true), "unknown");
+  closed.delete("issue:2");
+  assert.equal(dependencyWake(blocked.condition, closed.get("issue:1"), closed, true), "unknown");
+  assert.equal(dependencyWake(deferred.condition, closed.get("issue:3"), closed, true), null);
+});
+
+void test("issue inventory keeps repository-qualified evidence for a locally closed dependency", () => {
+  const repository = "boburning/portcove";
+  const dependency = {
+    id: "I2",
+    number: 2,
+    title: "Dependency",
+    state: "CLOSED",
+    url: `https://github.com/${repository}/issues/2`,
+  };
+  const owner = {
+    id: "I1",
+    number: 1,
+    title: "Owner",
+    state: "OPEN",
+    url: `https://github.com/${repository}/issues/1`,
+    blockedBy: {
+      nodes: [{ ...dependency, url: "https://github.com/Boburning/Portcove/issues/2" }],
+    },
+  };
+  const facts = issueFacts({
+    repository,
+    observed_at: "2026-11-25T00:00:00Z",
+    total: 2,
+    issues: [owner, dependency],
+    memberships: [
+      {
+        project_id: "P1",
+        issue_id: owner.id,
+        isArchived: false,
+        fieldValues: { nodes: [{ name: "Blocked", field: { name: "Status" } }] },
+      },
+    ],
+  });
+  const { condition } = issueReconsiderations(facts, "P1").conditions[0]!;
+  assert.equal(dependencyWake(condition, facts.get("issue:1"), facts, true), "review-ready");
+});
+
+void test("backlog lifecycle cohorts preserve neutral watches and owner planning", () => {
+  const neutral = {
+    "Work type": "Port",
+    "Port stage": "Watchlist",
+    Status: "Triage",
+    Priority: "None",
+    Horizon: "Someday",
+    "Target release": "Unscheduled",
+  };
+  const make = (number: number, fields: Record<string, string>, project_id = "P1") => ({
+    number,
+    state: "OPEN",
+    project: [{ project_id, archived: false, fields }],
+  });
+  const { Priority: _priority, ...withoutPriority } = neutral;
+  const issues = new Map<string, unknown>([
+    ["issue:1", make(1, neutral)],
+    ["issue:2", make(2, { ...neutral, Priority: "High" })],
+    ["issue:3", make(3, { ...neutral, Status: "In progress" })],
+    ["issue:4", make(4, { ...neutral, Status: "Blocked" })],
+    ["issue:5", make(5, { ...neutral, "Port stage": "Cataloged" })],
+    ["issue:6", make(6, neutral, "OTHER")],
+    ["issue:7", { ...make(7, neutral), blocked_by: [{ number: 2, state: "OPEN" }] }],
+    ["issue:8", { ...make(8, neutral), state: "CLOSED" }],
+    ["issue:9", make(9, { ...neutral, "Work type": "Bug" })],
+    ["issue:10", make(10, withoutPriority)],
+    [
+      "issue:11",
+      { ...make(11, neutral), project: [{ project_id: "P1", archived: true, fields: neutral }] },
+    ],
+    ["issue:12", make(12, { ...withoutPriority, Horizon: "Now" })],
+  ]);
+  const before = structuredClone(issues);
+  const review = backlogLifecycleReview(issues, "P1");
+  assert.equal(review.scope, "Repository issues and their memberships in the configured Project");
+  assert.equal(review.neutral_watchlist, 1);
+  assert.equal(review.watchlist_with_planning, 3);
+  assert.equal(review.watchlist_unknown_planning, 1);
+  assert.equal(review.watchlist_active, 1);
+  assert.equal(review.watchlist_other, 1);
+  assert.equal(review.other_ports, 1);
+  assert.equal(review.unknown_membership, 1);
+  assert.equal(
+    review.status_stage.reduce((sum, group) => sum + group.count, 0),
+    8,
+  );
+  assert.deepEqual(issues, before);
 });
 
 void test(

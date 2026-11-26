@@ -1080,6 +1080,18 @@ collection and fails the job at the last committed page, so a store error is
 never recorded as a source outcome. `result.json` lists every pass with its
 outcome, `committed.state_bytes` and transfer.
 
+Before bulk community-list work, each admitted collector pass gives retained
+release probes an early turn. It stops starting probes when they consume a
+quarter of the pass's initial request, byte or time budget. Each request remains
+subject to the existing admission and persistence paths, and one response can
+cross the early byte or time threshold. The collector then continues normal
+collection and later release checks for newly found leads. Never-checked and
+longest-unchecked leads go first. Probes use GitHub's immutable repository ID.
+An inaccessible or malformed response records a retry clock and preserves the
+last successful package observation. A lead keeps its dated observations across
+a refresh and can be probed again in a later run. Provider-wide quota,
+authentication and transport failures still use the existing boundaries.
+
 The natural maintenance run can prepare unsigned listing previews from current
 positive release watches. It exports the committed discovery generation,
 revision, release ID and digest of the observed release response for each
@@ -1113,6 +1125,17 @@ discovered, platform claims, unresolved hosts), due state and baseline progress.
 reads the latest run's export rather than rebuilding coverage from first-page
 searches. Whether the hosted task can read the run summary or artifact in its
 environment remains to be verified on the first scheduled run.
+
+The status export also derives `lead_reconciliation` directly from stored lead,
+upstream observation and intake checkpoint rows. Cohorts count scope/repository
+records by description signal and prior immutable repository-ID evidence. Verified
+intake and prepared checkpoints are separate flags; several candidates for one
+repository do not multiply the lead count. The bounded research and retained
+overlap examples are investigation inputs only. An unmatched repository is not
+necessarily new, and a matched repository may contain another game or edition.
+Use current canonical owner and primary game evidence through the existing intake
+contract before changing any disposition. This report does not write lead status,
+create issues, grant support, enable dispatch or introduce a new scheduler.
 
 `import-local --state-dir work/daily-discovery` imports a local checkout's
 `leads.json` once into an empty scope at its recorded strength. It does not

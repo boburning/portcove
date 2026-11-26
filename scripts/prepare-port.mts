@@ -23,6 +23,7 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { runCheckedGit } from "./checked-git.mts";
 import {
   assembleCatalogRecords,
@@ -36,17 +37,26 @@ import {
   projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.d.ts";
 import {
   managedSetupReleaseAdvice,
   managedSetupReleaseAdviceText,
 } from "./catalog-setup-release-advice.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { listedRepositories } from "./catalog-generated-registration.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
+import { validArtworkMapping, validArtworkCollection } from "./catalog-cover-mapping.mts";
+import {
+  listingDeliveryMaximum,
+  decodeRetainedCompactListing,
+} from "./listing-directory-carrier.mts";
+import { readControllerToolFile } from "./release-controller-tools.mts";
 import { compactPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { compactN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import {
   BoundRepositoryUnavailable,
   collectPortFacts,
+  discoveryScopePolicy,
   githubRepository,
 } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
@@ -62,7 +72,11 @@ import type {
   ArtworkPreparationOptions,
   ImageValidator,
 } from "./inspect-igdb-artwork.mts";
-import { prepareArtworkWorkset } from "./artwork-preparation-progress.mts";
+import {
+  prepareArtworkWorkset,
+  readKnownGoneArtwork,
+  retainedCoverDigests,
+} from "./artwork-preparation-progress.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
@@ -524,8 +538,9 @@ function preparedRecordOutputs(
   artworkResult: unknown,
   artworkReused: boolean,
   validatorIdentity: string | null,
-  listingOnlyAdmission = false,
+  sourceChange: "ordinary" | "listing-admission" | "cover-defaults" = "ordinary",
 ) {
+  const preserveFacts = sourceChange !== "ordinary";
   if (
     !isRecord(artworkResult) ||
     !isRecord(artworkResult.catalog) ||
@@ -557,9 +572,9 @@ function preparedRecordOutputs(
   const assembled = assembleCatalogRecords(
     shared,
     proposed,
-    listingOnlyAdmission ? authored.generation.facts : undefined,
+    preserveFacts ? authored.generation.facts : undefined,
   );
-  if (listingOnlyAdmission) {
+  if (sourceChange === "listing-admission") {
     const currentIds = new Set(authored.directory.listings.map(({ id }) => id));
     const retained = assembled.directory.listings.filter(({ id }) => currentIds.has(id));
     if (observationHash(retained) !== observationHash(authored.directory.listings))
@@ -612,7 +627,7 @@ function preparedRecordOutputs(
           "Listing structure checked locally; use --validator-cli or ordinary CI for Core validation.",
       };
   const generatedIds = new Set(
-    listingOnlyAdmission ? assembled.generation.enrollments.map(({ port_id }) => port_id) : [],
+    preserveFacts ? assembled.generation.enrollments.map(({ port_id }) => port_id) : [],
   );
   const compatibility = reviewCompatibilityFixture(
     {
@@ -622,8 +637,8 @@ function preparedRecordOutputs(
     readArtworkJson(join(options.catalogRoot, "catalog-schema1-fixture.json")),
     readFileSync(join(options.catalogRoot, "catalog-legacy-additions-fixture.json")),
   );
-  const currentRecords = listingOnlyAdmission ? authored.authored : authored.records;
-  const proposedRecords = listingOnlyAdmission ? assembled.authored : assembled.records;
+  const currentRecords = preserveFacts ? authored.authored : authored.records;
+  const proposedRecords = preserveFacts ? assembled.authored : assembled.records;
   const acceptedRecords = new Map(currentRecords.map((record) => [record.listing.id, record]));
   const changed = proposedRecords.flatMap((entry) => {
     const before = acceptedRecords.get(entry.listing.id);
@@ -1332,6 +1347,7 @@ export async function prepareDiscoveryListingAdditions(
     facts?: PrepareOptions["facts"];
     deadline?: number;
     approval?: { document: unknown };
+    automaticScope?: boolean;
     stage?: { repository: string; revision: string };
   },
 ) {
@@ -1341,9 +1357,14 @@ export async function prepareDiscoveryListingAdditions(
     throw new Error("Discovery preparation deadline must be a finite epoch in milliseconds.");
   if (options.approval && !options.validatorCli)
     throw new Error("Discovery listing approval requires a trusted Core validator.");
+  if (options.approval && options.automaticScope)
+    throw new Error("Choose either reviewed approval or automatic discovery scope.");
   const stage = options.stage;
   if (stage) {
-    if (!options.approval) throw new Error("Discovery staging requires an approved catalog patch.");
+    if ((!options.approval && !options.automaticScope) || !options.validatorCli)
+      throw new Error(
+        "Discovery staging requires an approved catalog patch and trusted Core validator.",
+      );
     if (
       realpathSync(options.catalogRoot) !==
       join(realpathSync(stage.repository), repositoryCatalogPath)
@@ -1383,6 +1404,8 @@ export async function prepareDiscoveryListingAdditions(
     const repository = githubRepository(value.project_url);
     if (!repository || new URL(value.project_url).port)
       throw new Error("Discovery listing preparation requires a public GitHub repository root.");
+    if (options.automaticScope && value.id !== `github-${value.repository_id}`)
+      throw new Error("Automatic discovery keys must derive from the immutable repository ID.");
     return {
       key: value.id,
       kind: "implementation" as const,
@@ -1517,8 +1540,27 @@ export async function prepareDiscoveryListingAdditions(
           projectUrl,
           expectedRepositoryId: candidate.repository_id,
           route: "listing",
+          ...(options.automaticScope ? { discoveryScope: true } : {}),
           cacheDirectory: join(root, "facts"),
         });
+        if (options.automaticScope && facts.discovery_scope?.state !== "eligible") {
+          const assessment = facts.discovery_scope;
+          if (!assessment) throw new Error("Discovery scope assessment is unavailable.");
+          if ("retry_after" in assessment && assessment.retry_after) {
+            providerBackoff = new BoundRepositoryUnavailable(
+              assessment.reason,
+              assessment.retry_after,
+            );
+          }
+          outcomes.push({
+            ...reported,
+            status:
+              "retry_after" in assessment && assessment.retry_after ? "deferred" : assessment.state,
+            scope_assessment: assessment,
+            upstream_receipt: immutableJson(root, `discovery-upstream-${candidate.key}`, facts),
+          });
+          continue;
+        }
         const metadata = isRecord(facts.project?.body) ? facts.project.body : {};
         const summary =
           typeof metadata.description === "string"
@@ -1539,7 +1581,13 @@ export async function prepareDiscoveryListingAdditions(
             disposition: "unresolved",
             reason:
               "Repository evidence does not establish an exact original game or source edition.",
-            evidence_urls: [projectUrl],
+            evidence_urls:
+              facts.discovery_scope?.state === "eligible"
+                ? [
+                    projectUrl,
+                    `${projectUrl}/blob/${facts.discovery_scope.commit}/${facts.discovery_scope.manifest_path}`,
+                  ]
+                : [projectUrl],
           },
           listing: {
             id: candidate.key,
@@ -1574,7 +1622,12 @@ export async function prepareDiscoveryListingAdditions(
       const receipt = immutableJson(root, `discovery-upstream-${candidate.key}`, facts);
       requireOriginalGameDecision(entry);
       additions.push(entry);
-      outcomes.push({ ...reported, status: "prepared", upstream_receipt: receipt });
+      outcomes.push({
+        ...reported,
+        status: "prepared",
+        ...(facts.discovery_scope ? { scope_assessment: facts.discovery_scope } : {}),
+        upstream_receipt: receipt,
+      });
     }
     const prepared = preparedRecordOutputs(
       options,
@@ -1584,7 +1637,7 @@ export async function prepareDiscoveryListingAdditions(
       { catalog: artworkCatalog(authored.authored) },
       true,
       validatorIdentity,
-      true,
+      "listing-admission",
     );
     if (
       prepared.operational_changed ||
@@ -1597,7 +1650,7 @@ export async function prepareDiscoveryListingAdditions(
         "Discovery listing preparation changed an accepted catalog record or integration.",
       );
     let admission: { path: string; sha256: string } | null = null;
-    if (approved && additions.length > 0) {
+    if ((approved || (options.automaticScope && options.validatorCli)) && additions.length > 0) {
       const patch = discoveryAdmissionPatch(additions);
       const sha256 = createHash("sha256").update(patch).digest("hex");
       const path = join(root, `discovery-listing-admission-${sha256}.patch`);
@@ -1617,6 +1670,7 @@ export async function prepareDiscoveryListingAdditions(
     const report = {
       format_version: 1,
       route: "discovery-listings",
+      ...(options.automaticScope ? { automatic_scope_policy: discoveryScopePolicy } : {}),
       selected_port_ids: candidates.map(({ key }) => key),
       handoff_semantic_sha256: admissionBinding.handoff_sha256,
       admission_binding: admissionBinding,
@@ -1729,6 +1783,225 @@ export function prepareListingObservations(
       next: "Review and deliver these prepared records through existing catalog acceptance and signed listing delivery. No authored facts need reconstruction from provider output.",
       scope:
         "Unsigned descriptive proposals only. Existing integrations, artwork mappings, restrictions, pin reasons and publication authority are preserved. Core inspection and normal delivery checks retain their existing roles.",
+    };
+    return { report, path: immutableJson(root, "completion", report) };
+  } finally {
+    rmdirSync(join(root, "active.lock"));
+  }
+}
+
+function sharedCoverScope(record: AuthoredPort) {
+  if (record.igdb_regional_cover || usesScummvmEngine(record)) return undefined;
+  const game = record.listing.original_game;
+  const edition = game?.source_editions.length === 1 ? game.source_editions[0] : undefined;
+  if (!game || !edition) return undefined;
+  return { game_id: game.id, source_edition_id: edition.id };
+}
+
+async function readSharedCoverTarget(options: {
+  cli: string;
+  library: string;
+  catalogRoot: string;
+  target: string;
+}) {
+  const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+  const anchor = sha256(readFileSync(join(options.catalogRoot, "official-definition-root.json")));
+  const status = () => {
+    const output = spawnSync(
+      resolve(options.cli),
+      [
+        "--library",
+        resolve(options.library),
+        "--non-interactive",
+        "--json",
+        "catalog",
+        "listing-status",
+      ],
+      { encoding: "utf8", timeout: 30_000, maxBuffer: 1024 * 1024, windowsHide: true },
+    );
+    if (output.status !== 0)
+      throw new Error("Trusted Core could not read the verification library's listing status.");
+    const response: unknown = JSON.parse(output.stdout);
+    const data =
+      isRecord(response) && response.ok === true && response.command === "catalog.listing-status"
+        ? response.data
+        : undefined;
+    if (
+      !isRecord(data) ||
+      data.selected !== true ||
+      data.fallback_reason !== null ||
+      data.anchor_sha256 !== anchor ||
+      !Number.isSafeInteger(data.revision) ||
+      !Number.isSafeInteger(data.listing_count) ||
+      typeof data.expires_at !== "string" ||
+      !(Date.parse(data.expires_at) > Date.now()) ||
+      typeof data.target_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(data.target_sha256) ||
+      typeof data.transport_target_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(data.transport_target_sha256)
+    )
+      throw new Error(
+        "Shared cover preparation requires a current official compact listing selection.",
+      );
+    return data;
+  };
+  const before = status();
+  const wire = await readControllerToolFile(resolve(options.target), listingDeliveryMaximum);
+  if (sha256(wire) !== before.transport_target_sha256)
+    throw new Error("Shared cover target differs from the exact authenticated compact target.");
+  const decoded = decodeRetainedCompactListing(wire);
+  if (sha256(decoded) !== before.target_sha256)
+    throw new Error("Shared cover target differs from the authenticated decoded listing document.");
+  const document = parseCatalogSource(decoded.toString("utf8"));
+  if (
+    !isRecord(document) ||
+    document.listing_delivery_schema !== 1 ||
+    document.revision !== before.revision ||
+    !isRecord(document.directory) ||
+    !Array.isArray(document.directory.listings) ||
+    document.directory.listings.length !== before.listing_count ||
+    observationHash(status()) !== observationHash(before)
+  )
+    throw new Error("The complete authenticated listing selection changed or could not be read.");
+  return { baseline: before, rows: document.directory.listings as unknown[] };
+}
+
+/** Prepare only exact cover reuse against the current authenticated listing target. */
+export async function prepareSharedCoverBatch(
+  options: Pick<
+    ArtworkOptions,
+    "catalogRoot" | "outputDirectory" | "validatorCli" | "identities"
+  > & {
+    target: string;
+    library: string;
+  },
+) {
+  const start = process.hrtime.bigint();
+  if (!options.validatorCli)
+    throw new Error("Shared cover preparation requires a trusted Core validator.");
+  const { rows, baseline } = await readSharedCoverTarget({
+    cli: options.validatorCli,
+    library: options.library,
+    catalogRoot: options.catalogRoot,
+    target: options.target,
+  });
+  const live = new Map<string, Record<string, unknown>>();
+  for (const row of rows) {
+    if (!isRecord(row) || typeof row.id !== "string" || live.has(row.id))
+      throw new Error("Shared cover preparation requires unique signed listing IDs.");
+    live.set(row.id, row);
+  }
+
+  const root = resolve(options.outputDirectory);
+  const validator = createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex");
+  openCheckpoint(root);
+  try {
+    const gone = readKnownGoneArtwork(root);
+    const authored = readCatalogSource(options.catalogRoot);
+    const checked = retainedCoverDigests(
+      root,
+      authored.authored.map(({ listing }) => listing.id),
+      Date.now(),
+    );
+    const signedDigests = new Map<string, Set<string>>();
+    for (const row of live.values()) {
+      const covers = [
+        ...(validArtworkMapping(row.artwork) ? [row.artwork] : []),
+        ...(validArtworkCollection(row.collection_covers) ? row.collection_covers : []),
+      ];
+      for (const cover of covers) {
+        const digests = signedDigests.get(cover.image_id) ?? new Set<string>();
+        digests.add(cover.image_sha256);
+        signedDigests.set(cover.image_id, digests);
+      }
+    }
+    const exclusions = isRecord(options.identities) ? options.identities : {};
+    const scoped = authored.authored.flatMap((record) => {
+      if (Object.hasOwn(exclusions, record.listing.id)) return [];
+      const scope = sharedCoverScope(record);
+      return scope ? [{ record, scope, key: observationHash(scope) }] : [];
+    });
+    type CoverDonor = { id: string; artwork: IgdbArtwork };
+    const donors = new Map<string, Map<string, CoverDonor>>();
+    for (const { record, scope, key } of scoped) {
+      const { id, artwork } = record.listing;
+      const signed = live.get(id);
+      const game = signed?.original_game;
+      const newer = validArtworkMapping(artwork) ? checked.get(artwork.image_id) : undefined;
+      if (
+        !signed ||
+        signed.project_url !== record.listing.project_url ||
+        !isRecord(game) ||
+        game.id !== scope.game_id ||
+        !Array.isArray(game.source_editions) ||
+        game.source_editions.length !== 1 ||
+        !isRecord(game.source_editions[0]) ||
+        game.source_editions[0].id !== scope.source_edition_id ||
+        !validArtworkMapping(artwork) ||
+        artwork.match_kind !== "underlying-game" ||
+        gone.has(artwork.image_id) ||
+        signedDigests.get(artwork.image_id)?.size !== 1 ||
+        (newer !== undefined && newer.digest !== artwork.image_sha256) ||
+        observationHash(signed.artwork ?? null) !== observationHash(artwork)
+      )
+        continue;
+      const variants = donors.get(key) ?? new Map<string, CoverDonor>();
+      const digest = observationHash(artwork);
+      const existing = variants.get(digest);
+      if (!existing || id < existing.id) variants.set(digest, { id, artwork });
+      donors.set(key, variants);
+    }
+
+    const proposals = new Map<string, IgdbArtwork>();
+    const outcomes = scoped.flatMap(({ record, scope, key }) => {
+      const { id, artwork, collection_covers } = record.listing;
+      const existing = live.get(id);
+      if (artwork || collection_covers || existing?.artwork || existing?.collection_covers)
+        return [];
+      const choices = donors.get(key);
+      const result = { id, ...scope };
+      if (choices?.size !== 1)
+        return [{ ...result, status: choices ? "ambiguous" : "no-accepted-donor" }];
+      const donor = choices.values().next().value!;
+      proposals.set(id, donor.artwork);
+      return [{ ...result, status: "prepared", donor_port_id: donor.id, mapping: donor.artwork }];
+    });
+
+    const result = artworkCatalog(authored.authored);
+    for (const port of result.ports) {
+      if (proposals.has(port.id))
+        port.presentation = { ...port.presentation, artwork: proposals.get(port.id) };
+    }
+    const prepared = preparedRecordOutputs(
+      options,
+      root,
+      authored,
+      authored.authored,
+      { catalog: result, outcomes },
+      true,
+      validator,
+      "cover-defaults",
+    );
+    if (
+      prepared.record_changes.length !== proposals.size ||
+      prepared.record_changes.some(
+        ({ id, integration_changed, listing_fields }) =>
+          !proposals.has(id) ||
+          integration_changed ||
+          listing_fields.length !== 1 ||
+          listing_fields[0] !== "artwork",
+      )
+    )
+      throw new Error("Shared cover preparation changed data outside its exact cover proposals.");
+    const report = {
+      format_version: 1,
+      route: "shared-covers",
+      signed_listing_baseline: baseline,
+      selected_port_ids: [...proposals.keys()],
+      outcomes,
+      ...prepared,
+      preparation_costs: preparationCosts(start),
+      next: "Review and deliver the exact cover proposals through the existing catalog path.",
     };
     return { report, path: immutableJson(root, "completion", report) };
   } finally {
@@ -1881,7 +2154,7 @@ export async function prepareArtworkBatch(
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+async function main() {
   const values = new Map<string, string>();
   const allowed = new Set([
     "--project",
@@ -1899,10 +2172,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--credentials-file",
     "--output-dir",
     "--artwork-ids",
+    "--accepted-shared-covers",
+    "--verification-library",
     "--refresh-artwork",
     "--artwork-retained-limit",
     "--discovery-listings",
     "--discovery-listing-approval",
+    "--discovery-automatic-scope",
     "--discovery-stage-source",
     "--discovery-deadline-epoch-ms",
     "--listing-observations",
@@ -1926,6 +2202,26 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const output = values.get("--output-dir");
   if (!output) throw new Error("--output-dir is required (a new or owned preparation checkpoint).");
   const artworkIds = values.get("--artwork-ids");
+  const sharedCoverSource = values.get("--accepted-shared-covers");
+  const verificationLibrary = values.get("--verification-library");
+  if (Boolean(sharedCoverSource) !== Boolean(verificationLibrary))
+    throw new Error(
+      "Shared cover preparation requires the approved target and verification library.",
+    );
+  if (
+    sharedCoverSource &&
+    [...values.keys()].some(
+      (name) =>
+        ![
+          "--accepted-shared-covers",
+          "--verification-library",
+          "--validator-cli",
+          "--output-dir",
+          "--identities",
+        ].includes(name),
+    )
+  )
+    throw new Error("Shared cover reuse is an offline preparation route.");
   const refreshIds = values.get("--refresh-artwork");
   const retainedLimit = values.get("--artwork-retained-limit");
   if (
@@ -1938,6 +2234,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const observationHandoff = values.get("--listing-observations");
   const discoveryHandoff = values.get("--discovery-listings");
   const discoveryApproval = values.get("--discovery-listing-approval");
+  const automaticDiscoveryScope = values.get("--discovery-automatic-scope");
   const discoveryStageSource = values.get("--discovery-stage-source");
   const discoveryDeadline = values.get("--discovery-deadline-epoch-ms");
   if (discoveryDeadline && !discoveryHandoff)
@@ -1946,8 +2243,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     throw new Error(
       "--discovery-listing-approval requires --discovery-listings and --validator-cli.",
     );
-  if (discoveryStageSource && !discoveryApproval)
-    throw new Error("--discovery-stage-source requires --discovery-listing-approval.");
+  if (
+    automaticDiscoveryScope !== undefined &&
+    (automaticDiscoveryScope !== "true" || !discoveryHandoff)
+  )
+    throw new Error("--discovery-automatic-scope takes true with --discovery-listings.");
+  if (discoveryStageSource && !discoveryApproval && !automaticDiscoveryScope)
+    throw new Error("--discovery-stage-source requires reviewed approval or automatic scope.");
   if (
     discoveryHandoff &&
     [...values.keys()].some(
@@ -1955,6 +2257,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         ![
           "--discovery-listings",
           "--discovery-listing-approval",
+          "--discovery-automatic-scope",
           "--discovery-stage-source",
           "--discovery-deadline-epoch-ms",
           "--validator-cli",
@@ -2014,11 +2317,22 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const handoff = handoffPath
     ? parseCatalogSource(readArtworkInput(handoffPath, 16 * 1024 * 1024).bytes.toString("utf8"))
     : undefined;
+  if (sharedCoverSource && verificationLibrary) {
+    printPreparationResult(
+      await prepareSharedCoverBatch({
+        ...common,
+        target: sharedCoverSource,
+        library: verificationLibrary,
+      }),
+    );
+    return;
+  }
   const result = handoffPath
     ? discoveryHandoff
       ? await prepareDiscoveryListingAdditions({
           ...common,
           facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
+          ...(automaticDiscoveryScope ? { automaticScope: true } : {}),
           ...(discoveryDeadline ? { deadline: Number(discoveryDeadline) } : {}),
           ...(discoveryStageSource
             ? { stage: { repository, revision: discoveryStageSource } }
@@ -2086,6 +2400,16 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
           releaseTag: values.get("--release-tag"),
           facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
         });
+  printPreparationResult(result);
+}
+
+function printPreparationResult(result: {
+  path: string;
+  report: ({ port_id: string } | { selected_port_ids: readonly unknown[] }) & {
+    files: unknown;
+    next: string;
+  };
+}) {
   process.stdout.write(
     `${JSON.stringify(
       {
@@ -2100,4 +2424,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       2,
     )}\n`,
   );
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
 }
