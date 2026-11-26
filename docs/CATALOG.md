@@ -2170,6 +2170,16 @@ missing, invalid and then oldest observed references automatically against the
 28-day refresh target. Unknown dates remain due. Explicit
 `--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` remains supported.
 This is the existing operator cadence, not a new scheduler or player startup task.
+To prepare shared defaults in one offline pass, use
+`prepare-port.mts --accepted-shared-covers COMPACT_TARGET --verification-library OWNED_LIBRARY --validator-cli TRUSTED_CLI --output-dir DIRECTORY`.
+Supply the exact compact target selected after a successful official catalog
+refresh in the project-owned verification library. Use the existing artwork
+checkpoint so confirmed image withdrawals remain available. The command checks
+Core's selected revision and both authenticated digests before reusing a unique
+accepted original-game cover when both ports have the same reviewed game and
+single source edition. The donor's exact game, edition and asset must also appear
+in the signed directory. The receipt names each donor and any conflicting scope.
+The existing reviewed path validates and accepts the prepared changes.
 Due refresh of a retained cover revalidates its approved IGDB game ID, slug
 and cover role. An accepted mapping can be revalidated by exact ID and slug
 even when the listing lacks an original title. This does not establish a new
