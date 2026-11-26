@@ -326,7 +326,7 @@ async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
     let proposed_cover_approvals = config
         .cover_approvals
         .as_ref()
-        .map(|input| {
+        .map(|input| -> Result<_> {
             let path = io::resolve(base, &input.path)?;
             let maximum = cover_approval::COVER_APPROVALS_MAX as u64;
             let bytes = io::read(&path, maximum)?;

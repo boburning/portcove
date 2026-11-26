@@ -1,5 +1,6 @@
 use super::{Files, Result, TufRepositoryError, invalid, sha};
 use portcove_listing_carrier::{COMPACT_TARGET, COVER_CHECKPOINT_TARGET};
+use serde::Deserialize;
 use serde_json::Value;
 use tough::TargetName;
 use tough::schema::{Signed, Targets};
