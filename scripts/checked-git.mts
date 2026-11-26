@@ -12,6 +12,8 @@ interface GitOptions {
   timeoutMs?: number;
   maxBuffer?: number;
   encoding?: "buffer" | "utf8";
+  input?: Buffer;
+  env?: NodeJS.ProcessEnv;
   spawn?: (
     command: string,
     args: readonly string[],
@@ -41,6 +43,8 @@ export function runCheckedGit(args: unknown, options: GitOptions = {}): string |
     cwd,
     encoding: options.encoding === "buffer" ? null : "utf8",
     shell: false,
+    input: options.input,
+    env: options.env,
     windowsHide: true,
     timeout: timeoutMs,
     maxBuffer,

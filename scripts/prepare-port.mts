@@ -14,6 +14,7 @@ import {
   mkdtempSync,
   lstatSync,
   readFileSync,
+  realpathSync,
   writeFileSync,
   rmdirSync,
   readdirSync,
@@ -22,6 +23,7 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import { runCheckedGit } from "./checked-git.mts";
 import {
   assembleCatalogRecords,
   compactGbaArchive,
@@ -97,6 +99,7 @@ interface PrepareOptions {
   artwork?: Pick<ArtworkPreparationOptions, "inspectGame" | "inspectImage">;
 }
 const owner = { format_version: 1, tool: "portcove-prepare-port" };
+const repositoryCatalogPath = join("crates", "portcove-core", "catalog");
 type PackageFacts = Pick<
   Awaited<ReturnType<typeof collectPortFacts>>,
   "assets" | "assets_complete"
@@ -1300,6 +1303,28 @@ function discoveryAdmissionPatch(additions: readonly AuthoredPort[]) {
     .join("");
 }
 
+function checkDiscoveryStagingSource(repository: string, revision: string) {
+  if (!/^[a-f0-9]{40}$/u.test(revision))
+    throw new Error("Discovery staging requires a full reviewed Git revision.");
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => !name.toUpperCase().startsWith("GIT_")),
+  );
+  const options = { cwd: realpathSync(repository), env };
+  const root = runCheckedGit(["rev-parse", "--show-toplevel"], options).trim();
+  if (realpathSync(root) !== options.cwd)
+    throw new Error("Discovery staging requires the root of the reviewed Git checkout.");
+  const head = runCheckedGit(["rev-parse", "--verify", "HEAD"], options).trim();
+  const changes = runCheckedGit(["status", "--porcelain=v1", "--untracked-files=all"], options);
+  const ignored = runCheckedGit(
+    ["ls-files", "--others", "--ignored", "--exclude-standard", "--", repositoryCatalogPath],
+    options,
+  );
+  const index = runCheckedGit(["ls-files", "-z", "-v"], { ...options, maxBuffer: 8 * 1024 * 1024 });
+  if (head !== revision || changes || ignored || /(?:^|\0)[a-zS] /u.test(index))
+    throw new Error("Discovery staging requires a clean checkout at the reviewed Git revision.");
+  return options;
+}
+
 /** Prepare one append-only authoring proposal from a batch of discovery selections. */
 export async function prepareDiscoveryListingAdditions(
   options: Pick<ArtworkOptions, "catalogRoot" | "outputDirectory" | "validatorCli"> & {
@@ -1307,6 +1332,7 @@ export async function prepareDiscoveryListingAdditions(
     facts?: PrepareOptions["facts"];
     deadline?: number;
     approval?: { document: unknown };
+    stage?: { repository: string; revision: string };
   },
 ) {
   const started = process.hrtime.bigint();
@@ -1315,6 +1341,16 @@ export async function prepareDiscoveryListingAdditions(
     throw new Error("Discovery preparation deadline must be a finite epoch in milliseconds.");
   if (options.approval && !options.validatorCli)
     throw new Error("Discovery listing approval requires a trusted Core validator.");
+  const stage = options.stage;
+  if (stage) {
+    if (!options.approval) throw new Error("Discovery staging requires an approved catalog patch.");
+    if (
+      realpathSync(options.catalogRoot) !==
+      join(realpathSync(stage.repository), repositoryCatalogPath)
+    )
+      throw new Error("Discovery staging requires the catalog source from the same checkout.");
+    checkDiscoveryStagingSource(stage.repository, stage.revision);
+  }
   const handoff = options.handoff;
   if (
     !isRecord(handoff) ||
@@ -1567,6 +1603,16 @@ export async function prepareDiscoveryListingAdditions(
       const path = join(root, `discovery-listing-admission-${sha256}.patch`);
       retainArtifact(path, patch);
       admission = { path, sha256 };
+      if (stage) {
+        const gitOptions = checkDiscoveryStagingSource(stage.repository, stage.revision);
+        immutableJson(root, "staging-intent", {
+          format_version: 1,
+          source_revision: stage.revision,
+          patch: admission,
+          approved_ids: prepared.changed_records,
+        });
+        runCheckedGit(["apply", "--index"], { ...gitOptions, input: Buffer.from(patch) });
+      }
     }
     const report = {
       format_version: 1,
@@ -1575,12 +1621,16 @@ export async function prepareDiscoveryListingAdditions(
       handoff_semantic_sha256: admissionBinding.handoff_sha256,
       admission_binding: admissionBinding,
       admission,
+      staged_source_revision: stage && admission ? stage.revision : null,
       outcomes,
       ...prepared,
       preparation_costs: preparationCosts(started),
-      next: admission
-        ? "Apply the patch to the reviewed source revision, regenerate the catalog and run normal validation."
-        : "Use the identity evidence to review eligible additions as a batch.",
+      next:
+        stage && admission
+          ? "Regenerate the catalog and run normal validation on the staged additions."
+          : admission
+            ? "Apply the patch to the reviewed source revision, regenerate the catalog and run normal validation."
+            : "Use the identity evidence to review eligible additions as a batch.",
     };
     return { report, path: immutableJson(root, "completion", report) };
   } finally {
@@ -1853,6 +1903,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--artwork-retained-limit",
     "--discovery-listings",
     "--discovery-listing-approval",
+    "--discovery-stage-source",
     "--discovery-deadline-epoch-ms",
     "--listing-observations",
     "--package-observation",
@@ -1887,6 +1938,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const observationHandoff = values.get("--listing-observations");
   const discoveryHandoff = values.get("--discovery-listings");
   const discoveryApproval = values.get("--discovery-listing-approval");
+  const discoveryStageSource = values.get("--discovery-stage-source");
   const discoveryDeadline = values.get("--discovery-deadline-epoch-ms");
   if (discoveryDeadline && !discoveryHandoff)
     throw new Error("--discovery-deadline-epoch-ms requires --discovery-listings.");
@@ -1894,6 +1946,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     throw new Error(
       "--discovery-listing-approval requires --discovery-listings and --validator-cli.",
     );
+  if (discoveryStageSource && !discoveryApproval)
+    throw new Error("--discovery-stage-source requires --discovery-listing-approval.");
   if (
     discoveryHandoff &&
     [...values.keys()].some(
@@ -1901,6 +1955,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         ![
           "--discovery-listings",
           "--discovery-listing-approval",
+          "--discovery-stage-source",
           "--discovery-deadline-epoch-ms",
           "--validator-cli",
           "--output-dir",
@@ -1947,13 +2002,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     throw new Error("--expected-repository-id must be a positive decimal repository ID.");
   const originalGame = values.get("--original-game");
   const identities = values.get("--identities");
+  const repository = dirname(dirname(fileURLToPath(import.meta.url)));
   const common = {
-    catalogRoot: join(
-      dirname(dirname(fileURLToPath(import.meta.url))),
-      "crates",
-      "portcove-core",
-      "catalog",
-    ),
+    catalogRoot: join(repository, repositoryCatalogPath),
     outputDirectory: output,
     ...(identities ? { identities: readArtworkJson(identities, 1024 * 1024) } : {}),
     validatorCli: values.get("--validator-cli"),
@@ -1969,6 +2020,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
           ...common,
           facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
           ...(discoveryDeadline ? { deadline: Number(discoveryDeadline) } : {}),
+          ...(discoveryStageSource
+            ? { stage: { repository, revision: discoveryStageSource } }
+            : {}),
           ...(discoveryApproval
             ? {
                 approval: {

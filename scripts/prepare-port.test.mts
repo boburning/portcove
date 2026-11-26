@@ -15,6 +15,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runCheckedGit } from "./checked-git.mts";
 import test from "node:test";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import { projectReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
@@ -982,6 +983,82 @@ void test("discovery listing batch keeps independent additions and never replace
       /requires a stable ID, public repository and evidence digest/u,
     );
     assert.equal(f.requests.length, 4);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery listing staging refuses stale or changed source before reading candidates", async () => {
+  const f = fixture();
+  try {
+    const repository = join(f.root, "checkout");
+    const catalog = join(repository, "crates", "portcove-core", "catalog");
+    mkdirSync(catalog, { recursive: true });
+    const git = (args: string[]) => runCheckedGit(args, { cwd: repository }).trim();
+    git(["init", "--quiet"]);
+    writeFileSync(join(repository, ".gitignore"), "ignored.json\n");
+    git(["add", ".gitignore"]);
+    git([
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "commit",
+      "-qm",
+      "fixture",
+    ]);
+    const revision = git(["rev-parse", "HEAD"]);
+    const validatorCli = join(f.root, "fixture-validator");
+    const options = {
+      catalogRoot: catalog,
+      outputDirectory: join(f.root, "output"),
+      handoff: null,
+      validatorCli,
+      approval: { document: null },
+      stage: { repository, revision },
+    };
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        stage: { repository, revision: "0".repeat(40) },
+      }),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /versioned discovery listing handoff/u,
+    );
+    const inheritedIndex = process.env.GIT_INDEX_FILE;
+    process.env.GIT_INDEX_FILE = join(f.root, "unrelated-index");
+    try {
+      await assert.rejects(
+        prepareDiscoveryListingAdditions(options),
+        /versioned discovery listing handoff/u,
+      );
+      assert.equal(existsSync(process.env.GIT_INDEX_FILE), false);
+    } finally {
+      if (inheritedIndex === undefined) delete process.env.GIT_INDEX_FILE;
+      else process.env.GIT_INDEX_FILE = inheritedIndex;
+    }
+    writeFileSync(join(catalog, "ignored.json"), "{}");
+    assert.equal(git(["status", "--porcelain=v1"]), "");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    rmSync(join(catalog, "ignored.json"));
+    writeFileSync(join(repository, ".gitignore"), "");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    git(["update-index", "--assume-unchanged", ".gitignore"]);
+    assert.equal(git(["status", "--porcelain=v1"]), "");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    assert.equal(existsSync(options.outputDirectory), false);
   } finally {
     f.clean();
   }

@@ -7490,7 +7490,16 @@ carry an explicit unresolved original-game review so shared game metadata can
 be resolved separately. A source or
 handoff change requires reconsidering the approval. An unavailable selected
 repository leaves its own outcome for retry. Other selected additions can
-proceed. Apply the patch on the same reviewed source revision, regenerate with
+proceed. Add `--discovery-stage-source FULL_GIT_REVISION` to stage the approved
+additions directly in a clean checkout reserved for this operation. The command rechecks the revision and
+stages the same bytes it records in the receipt. Keep preparation outputs
+outside the checkout.
+If preparation stops during staging, the checkpoint retains the exact patch
+and staging intent. Confirm that HEAD still matches the intent. Use
+`git apply --reverse --check --index PATCH` to confirm that the staged additions
+match the retained patch. Review `git diff --cached --name-status` for unrelated
+changes before continuing.
+Regenerate with
 `node scripts/generate-catalog.mts`, and use the ordinary catalog review path.
 Package observations, operational bindings and signing keep their existing
 approval and delivery paths.
