@@ -446,7 +446,8 @@ PORTCOVE_MAINTENANCE_DATABASE_URL="$RESTORE_TARGET_URL" node scripts/maintenance
   with the manifest in one transaction, so any difference rolls the whole restore
   back and the target stays empty for a retry. Verification uses the backup's
   own schema. Any newer migrations of the checkout, and the role contract, then
-  apply in that same transaction.
+  apply in that same transaction. The restore proof records the original schema
+  and its verified manifest separately from the current schema and its digests.
 - Use `psql`, `pg_dump` and `pg_restore` from one PostgreSQL client
   installation whose major version matches the server (set
   `PORTCOVE_POSTGRES_BIN` when `PATH` mixes versions). Restore renders the dump

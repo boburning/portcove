@@ -838,6 +838,8 @@ export function restore(
   return {
     verified: true,
     schema_version: manifest.schema_version,
+    manifest_tables_verified: true,
+    target_schema_version: manifest.schema_version + plan.pending.length,
     migrated: plan.pending.map(({ version }) => version),
     tables: storeDigest(environment),
     sequences_verified: manifest.sequences ? true : null,

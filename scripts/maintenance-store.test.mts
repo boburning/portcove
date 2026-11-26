@@ -1269,7 +1269,15 @@ void test(
     assert.deepEqual(manifest.tables, JSON.parse(runSql(source, digestQuery(10))));
     const restored = restore(target, archive);
     assert.equal(restored.verified, true);
+    assert.equal(restored.manifest_tables_verified, true);
     assert.equal(restored.sequences_verified, true);
+    assert.equal(restored.schema_version, manifest.schema_version);
+    assert.equal(restored.target_schema_version, readMigrations().length);
+    assert.notDeepEqual(
+      restored.tables,
+      manifest.tables,
+      "post-migration digests cover the new schema",
+    );
     assert.deepEqual(
       restored.migrated,
       readMigrations()

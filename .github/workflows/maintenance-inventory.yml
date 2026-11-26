@@ -682,15 +682,25 @@ jobs:
               verified: $restore[0].verified, source_server_version_num: $manifest[0].server_version_num,
               target_server_version_num: $server[0].server_version_num,
               dump_sha256: $dump, manifest_dump_sha256: $manifest[0].dump.sha256,
+              source_schema_version: $manifest[0].schema_version,
+              target_schema_version: $restore[0].target_schema_version,
+              migrated: $restore[0].migrated,
               sequences_verified: $restore[0].sequences_verified,
-              tables_match_manifest: ($restore[0].tables == $manifest[0].tables)}' \
+              tables_match_manifest: ($restore[0].manifest_tables_verified == true and
+                $restore[0].schema_version == $manifest[0].schema_version),
+              post_restore_tables_match_manifest: (if ($restore[0].migrated | length) == 0
+                then ($restore[0].tables == $manifest[0].tables) else null end)}' \
             > work/maintenance-restore/evidence/evidence.json
-          jq -e '.verified and .tables_match_manifest and .dump_sha256 == .manifest_dump_sha256' \
-            work/maintenance-restore/evidence/evidence.json > /dev/null
+          jq -e '.verified and .tables_match_manifest and
+            (if (.migrated | length) == 0 then .post_restore_tables_match_manifest == true
+              else .post_restore_tables_match_manifest == null end) and
+            (.source_schema_version < 6 or .sequences_verified == true) and
+            .target_schema_version == (.source_schema_version + (.migrated | length)) and
+            .dump_sha256 == .manifest_dump_sha256' work/maintenance-restore/evidence/evidence.json > /dev/null
           {
             echo '## Maintenance backup restore proof'
             echo
-            echo "Restored onto an independent PostgreSQL $MAJOR server in ${seconds}s; every table count and digest matches the manifest."
+            echo "Restored onto an independent PostgreSQL $MAJOR server in ${seconds}s. The backup's original schema matched its manifest before any upgrade."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Retain restore evidence
         if: ${{ !cancelled() && hashFiles('work/maintenance-restore/evidence/*') != '' }}
