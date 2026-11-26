@@ -7313,8 +7313,9 @@ Implementation entries in that universe do not inflate port coverage counts.
 For descriptive batches, use the tool's `apply --assignments <file>` dry-run,
 then `--write` after relationship review. Each assignment binds the complete
 input-file SHA-256 and explicitly supplies `original_game`,
-`original_game_title` and/or `original_game_review`. Existing IDs cannot be
-replaced through this helper. It preflights the entire catalog and every changed
+`original_game_title` and/or `original_game_review`. To clear a superseded
+review, supply `original_game_review: null` together with the reviewed
+`original_game` binding. Existing IDs cannot be replaced through this helper. It preflights the entire catalog and every changed
 projection before writing, retains partial-publication recovery evidence, and
 preserves unrelated source, runtime and lineage fields. Regenerate with
 `node scripts/generate-catalog.mts`; identity-only work does not need another
