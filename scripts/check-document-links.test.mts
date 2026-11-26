@@ -123,6 +123,82 @@ const isBoundName = (name: string) =>
     ? name.split("_").some((segment) => boundSegments.has(segment))
     : camelBound.test(name);
 
+const blankRustText = (text: string) =>
+  text.replace(/[^\r\n]+/gu, (line) => " ".repeat(line.length));
+
+function maskRustLiteralsAndComments(source: string) {
+  const tokens =
+    /\/\/[^\r\n]*|\/\*|\b(?:b|c)?r(#*)"[\s\S]*?"\1|"(?:\\[\s\S]|[^"\\])*"|'(?:\\(?:u\{[\da-fA-F_]+\}|x[\da-fA-F]{2}|[^\r\n])|[^'\\\r\n])'/gu;
+  const commentDelimiters = /\/\*|\*\//gu;
+  let masked = "";
+  let end = 0;
+  for (let token; (token = tokens.exec(source));) {
+    masked += source.slice(end, token.index);
+    end = tokens.lastIndex;
+    if (token[0] === "/*") {
+      commentDelimiters.lastIndex = end;
+      let depth = 1;
+      for (let delimiter; depth > 0 && (delimiter = commentDelimiters.exec(source));) {
+        depth += delimiter[0] === "/*" ? 1 : -1;
+      }
+      end = depth === 0 ? commentDelimiters.lastIndex : source.length;
+      tokens.lastIndex = end;
+    }
+    masked += blankRustText(source.slice(token.index, end));
+  }
+  return masked + source.slice(end);
+}
+
+function productionRustSource(source: string) {
+  const code = maskRustLiteralsAndComments(source);
+  const testAttributes = /^[\t ]*#\[\s*cfg\s*\(\s*test\s*\)\s*\]/gmu;
+  const delimiters = /[[\]{}();]/gu;
+  let production = "";
+  let end = 0;
+  for (let attribute; (attribute = testAttributes.exec(code));) {
+    production += code.slice(end, attribute.index);
+    end = testAttributes.lastIndex;
+    // Skip the remaining outer attributes, including multiline ones.
+    while (/^\s*#\[/u.test(code.slice(end))) {
+      delimiters.lastIndex = end;
+      let depth = 0;
+      for (let delimiter; (delimiter = delimiters.exec(code));) {
+        if (delimiter[0] === "[") depth++;
+        if (delimiter[0] === "]") {
+          depth--;
+          if (depth === 0) break;
+        }
+      }
+      end = delimiters.lastIndex;
+    }
+    const requiresSemicolon =
+      /^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const\s+\w+\s*:|(?:static|use|type|let)\b)/u.test(
+        code.slice(end),
+      );
+    delimiters.lastIndex = end;
+    let depth = 0;
+    for (let delimiter; (delimiter = delimiters.exec(code));) {
+      const symbol = delimiter[0];
+      if (symbol === "[" || symbol === "(" || symbol === "{") depth++;
+      if (symbol === "]" || symbol === ")" || symbol === "}") depth--;
+      if (depth < 0) {
+        end = delimiter.index;
+        break;
+      }
+      // An out-of-line module ends at ';'. An inline module ends at its
+      // own matching '}', after which the file can still contain production code.
+      if (depth === 0 && (symbol === ";" || (symbol === "}" && !requiresSemicolon))) {
+        end = delimiters.lastIndex;
+        break;
+      }
+      end = code.length;
+    }
+    production += blankRustText(code.slice(attribute.index, end));
+    testAttributes.lastIndex = end;
+  }
+  return production + code.slice(end);
+}
+
 // Production bound constants: Rust constants and statics with a MAX, MAXIMUM, LIMIT,
 // BOUND, CAP or BUDGET name segment, and top-level TypeScript constants named like a
 // bound (`MAX_ITEMS`, `maxItems`, `maximumBytes`, `requestLimit`, `pageBound`).
@@ -135,28 +211,8 @@ function productionBoundConstants(root: string) {
     .filter((directory) => existsSync(path.join(root, directory)))
     .flatMap((directory) => [...registerSources(root, directory)])) {
     const rust = file.endsWith(".rs");
-    let testModule = false;
-    let testItem = false;
-    let testItemDepth = 0;
-    for (const line of readFileSync(path.join(root, file), "utf8").split(/\r?\n/u)) {
-      if (testModule) break;
-      if (rust && testItemDepth > 0) {
-        testItemDepth += (line.match(/\{/gu)?.length ?? 0) - (line.match(/\}/gu)?.length ?? 0);
-        continue;
-      }
-      if (rust && /^\s*#\[cfg\(test\)\]/u.test(line)) {
-        testItem = true;
-        continue;
-      }
-      if (rust && testItem) {
-        if (/^\s*#\[/u.test(line) || !line.trim()) continue;
-        // A test module ends the production part of the file; a test-only item
-        // (with any braced body) excludes only itself.
-        if (/^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s/u.test(line)) testModule = true;
-        testItemDepth = (line.match(/\{/gu)?.length ?? 0) - (line.match(/\}/gu)?.length ?? 0);
-        testItem = false;
-        continue;
-      }
+    const source = readFileSync(path.join(root, file), "utf8");
+    for (const line of (rust ? productionRustSource(source) : source).split(/\r?\n/u)) {
       const name = (rust ? rustBound : scriptBound).exec(line)?.[1];
       if (name && isBoundName(name)) found.add(`${file} ${name}`);
     }
@@ -246,6 +302,53 @@ void test("restriction register matching uses whole words and bound-shaped names
     assert.ok(isBoundName(name), name);
   for (const name of ["CAPABILITY_V2", "MAXIMIZE", "maxim", "limitedMode", "boundary", "capture"])
     assert.ok(!isBoundName(name), name);
+});
+
+void test("Rust bound scanning resumes after each test-only item", () => {
+  const source = [
+    "const MAX_BEFORE: usize = 1;",
+    "#[cfg(test)]",
+    '#[path = "tests.rs"]',
+    "mod tests;",
+    "const MAX_AFTER_DECLARATION: usize = 2;",
+    "#[cfg(test)]",
+    "mod inline_tests {",
+    '    const CLOSE: &str = "}";',
+    "    /* } /* nested comment */",
+    "    const MAX_COMMENT: usize = 3;",
+    "    */",
+    '    const OPEN: &str = r##"{ "#',
+    "    const MAX_RAW_STRING: usize = 4;",
+    '    "##;',
+    "    const CLOSE_CHARACTER: char = '}';",
+    "    mod nested {",
+    "        const MAX_NESTED: usize = 5; // }",
+    "    }",
+    "    const MAX_INLINE: usize = 6;",
+    "}",
+    "const MAX_AFTER_INLINE: usize = 7;",
+    "#[cfg(test)]",
+    "const MAX_TEST_ONLY: usize = {",
+    "    const MAX_TEST_INITIALIZER: usize = 8;",
+    "    MAX_TEST_INITIALIZER",
+    "};",
+    'const COOKED: &str = "',
+    "#[cfg(test)]",
+    "const MAX_IN_STRING: usize = 9;",
+    '";',
+    "// #[cfg(test)]",
+    "const MAX_AFTER_COMMENT: usize = 10;",
+  ].join("\n");
+  const names = productionRustSource(source)
+    .split("\n")
+    .map((line) => rustBound.exec(line)?.[1])
+    .filter((name): name is string => name !== undefined && isBoundName(name));
+  assert.deepEqual(names, [
+    "MAX_BEFORE",
+    "MAX_AFTER_DECLARATION",
+    "MAX_AFTER_INLINE",
+    "MAX_AFTER_COMMENT",
+  ]);
 });
 
 void test("restriction register parsing reads row locations and named bounds", () => {
