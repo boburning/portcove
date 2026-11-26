@@ -2,9 +2,16 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmod, mkdtemp } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { requireOperationalReaderCapabilities } from "./catalog-definition-reader-gate.mts";
-import type { AcquiredReleasedReader } from "./catalog-released-reader.mts";
+import { assembledInventory } from "./catalog-pages-overlay.mts";
+import { priorVersions, publishedTargets } from "./catalog-publish.mts";
+import {
+  type AcquiredReleasedReader,
+  requireCurrentCatalogReaderSelection,
+  requireReleasedReaderReceipt,
+} from "./catalog-released-reader.mts";
 import { artworkCheckpointTarget, readArtworkCheckpoint } from "./listing-artwork-checkpoint.mts";
 import {
   compactListingDeliveryTarget,
@@ -114,4 +121,56 @@ export async function proveReleasedCoverInspection(
   const pair = requireExactReleasedCoverInspection(stdout, stderr, files);
   await verifyReader();
   return { ...reader.receipt, reader_sha256: reader.sha256, ...pair };
+}
+
+/** Compare the scoped retained proof to the exact keyless assembled logical
+ * targets, after Pages overlay has checked the guarded prior and staged bytes. */
+export async function recheckReleasedCoverPublication(work: string, site: string) {
+  const repository = path.join(work, "repository");
+  const prior = path.join(work, "prior");
+  const targets = publishedTargets(repository);
+  const before = priorVersions(prior) ? publishedTargets(prior) : {};
+  const cover = targets[artworkCheckpointTarget];
+  if (cover === undefined) {
+    if (before[artworkCheckpointTarget] !== undefined)
+      throw new Error("Signed candidate omitted the retained cover checkpoint");
+    return;
+  }
+  if (cover === before[artworkCheckpointTarget] &&
+      targets[compactListingDeliveryTarget] === before[compactListingDeliveryTarget]) return;
+
+  const json = async (name: string, limit: number): Promise<unknown> =>
+    JSON.parse((await readControllerToolFile(path.join(work, name), limit)).toString("utf8"));
+  const receipt = await json("observation-projection.json", 1024 * 1024);
+  const proof = isRecord(receipt) && receipt.released_cover_proof;
+  if (!isRecord(proof) || typeof proof.reader_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(proof.reader_sha256))
+    throw new Error("Signed cover transition requires exact staged released-reader proof");
+
+  const inventory = assembledInventory(await json("assembly-report.json", 32 * 1024 ** 2));
+  const files = new Map<string, Buffer>();
+  let remaining = 32 * 1024 ** 2;
+  for (const [name, digest] of Object.entries(targets)) {
+    // The signer derives this separate history pointer after inspection.
+    if (name === "policy/official/catalog.history-checkpoint.json") continue;
+    const physical = `targets/${digest}.${name}`;
+    const entry = inventory.get(physical);
+    if (!entry || entry.sha256 !== digest || entry.bytes > remaining || files.size >= 16385)
+      throw new Error("Cover proof target differs from the signed assembly inventory");
+    const bytes = await readControllerToolFile(path.join(repository, physical), entry.bytes);
+    if (bytes.length !== entry.bytes || sha(bytes) !== digest)
+      throw new Error("Cover proof target bytes changed after signing");
+    remaining -= bytes.length;
+    files.set(name, bytes);
+  }
+  const pair = exactCoverReaderPair(files);
+  if (Object.entries(pair).some(([name, digest]) => proof[name] !== digest))
+    throw new Error("Released cover proof describes a different signed bundle");
+  requireCurrentCatalogReaderSelection(requireReleasedReaderReceipt(proof), site);
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const [work, site, ...rest] = process.argv.slice(2);
+  if (!work || !site || rest.length) throw new Error("Expected WORK PAGES_WORKTREE");
+  await recheckReleasedCoverPublication(path.resolve(work), path.resolve(site));
 }

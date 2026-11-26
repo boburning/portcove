@@ -1050,7 +1050,10 @@ void test("compact listing activation selects the released reader and rechecks i
   const steps = prepare.steps!;
   const observe = steps.find(({ id }) => id === "observe")!;
   assert.equal(observe.if, "steps.decide.outputs.publish == 'true'");
-  assert.equal(observe.env, undefined);
+  assert.deepEqual(observe.env, {
+    ACTIVATE_COVER_CHECKPOINT:
+      "${{ github.event_name == 'workflow_dispatch' && inputs.activate_cover_checkpoint == true }}",
+  });
   assert.match(
     observe.run!,
     /node scripts\/listing-observation-delivery\.mts [^]*--official-released-reader\n/u,

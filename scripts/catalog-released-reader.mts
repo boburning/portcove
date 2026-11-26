@@ -341,6 +341,29 @@ export async function acquireCatalogReleasedReader(
   };
 }
 
+export function requireReleasedReaderReceipt(reader: unknown) {
+  if (
+    !isRecord(reader) ||
+    typeof reader.version !== "string" ||
+    typeof reader.tag !== "string" ||
+    ![reader.feed_commit, reader.source, reader.tag_object].every(
+      (value) => typeof value === "string" && hex40.test(value),
+    ) ||
+    ![reader.archive_sha256, reader.checksum_sha256].every(
+      (value) => typeof value === "string" && /^[a-f0-9]{64}$/u.test(value),
+    ) ||
+    typeof reader.release_id !== "number" ||
+    !Number.isSafeInteger(reader.release_id) ||
+    reader.release_id < 1 ||
+    typeof reader.archive_bytes !== "number" ||
+    !Number.isSafeInteger(reader.archive_bytes) ||
+    reader.archive_bytes < 1 ||
+    reader.archive_bytes > packageMaximum
+  )
+    throw new Error("Released reader proof has no verified release identity");
+  return reader;
+}
+
 /** Publish-time recheck: the fresh Pages base still selects the prepared
  * release and has not withdrawn it. */
 export function requireCurrentCatalogReaderSelection(expected: unknown, site: string) {

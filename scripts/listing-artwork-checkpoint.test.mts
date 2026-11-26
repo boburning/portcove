@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { sameStaticPublicationTargets } from "./catalog-publish.mts";
 import {
   exactCoverReaderPair,
+  recheckReleasedCoverPublication,
   requireExactReleasedCoverInspection,
 } from "./listing-cover-reader-proof.mts";
 import {
@@ -413,7 +418,7 @@ void test("compact projection retains release activity through exact cover withd
   assert.equal(read(changed.bytes).upstream_observation, undefined);
 });
 
-void test("the released cover inspection must match exact staged bytes and the compact decoded identity", () => {
+function coverReaderFixture() {
   const row = { ...fixtureListing, artwork };
   const decisions = advanceArtworkCheckpoint(null, [
     {
@@ -438,6 +443,11 @@ void test("the released cover inspection must match exact staged bytes and the c
     [compactListingDeliveryTarget, compact],
     [artworkCheckpointTarget, checkpoint],
   ]);
+  return { baseline, files };
+}
+
+void test("the released cover inspection must match exact staged bytes and the compact decoded identity", () => {
+  const { baseline, files } = coverReaderFixture();
   const pair = exactCoverReaderPair(files);
   const data = {
     publication_schema: 3,
@@ -509,6 +519,102 @@ void test("the released cover inspection must match exact staged bytes and the c
   const changed = new Map(files);
   changed.set(compactListingDeliveryTarget, encodeCompactListing(baseline.bytes));
   assert.throws(() => requireExactReleasedCoverInspection(envelope(data), "", changed), /unbound/u);
+});
+
+void test("the Pages guard binds cover activation to the signed bundle and still-selected immutable reader", async (t) => {
+  const work = mkdtempSync(path.join(os.tmpdir(), "cover-publication-"));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  const site = path.join(work, "site");
+  const { files } = coverReaderFixture();
+  const sha = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
+  const write = (name: string, bytes: Buffer | string) => {
+    const file = path.join(work, name);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, bytes);
+  };
+  const publishFixture = (root: string, logicalFiles: ReadonlyMap<string, Buffer>) => {
+    const timestamp = JSON.stringify({ signed: { version: 1, meta: { "snapshot.json": { version: 1 } } } });
+    write(`${root}/metadata/timestamp.json`, timestamp);
+    write(`${root}/metadata/1.snapshot.json`, JSON.stringify({ signed: { meta: {
+      "official-definitions.json": { version: 1 },
+      "official-policy.json": { version: 1 },
+    } } }));
+    const inventory = [{ target: "metadata/timestamp.json", bytes: Buffer.byteLength(timestamp), sha256: sha(timestamp) }];
+    for (const role of ["official-definitions", "official-policy"]) {
+      const targets: Record<string, { hashes: { sha256: string } }> = {};
+      for (const [name, bytes] of logicalFiles) {
+        if (name.startsWith("policy/") !== (role === "official-policy")) continue;
+        const digest = sha(bytes);
+        targets[name] = { hashes: { sha256: digest } };
+        const target = `targets/${digest}.${name}`;
+        write(`${root}/${target}`, bytes);
+        inventory.push({ target, bytes: bytes.length, sha256: digest });
+      }
+      write(`${root}/metadata/1.${role}.json`, JSON.stringify({ signed: { targets } }));
+    }
+    if (root === "repository") {
+      write("assembly-report.json", JSON.stringify({
+        schema_version: 1,
+        authority: "none",
+        files: inventory,
+        timestamp_sha256: sha(timestamp),
+        repository_sha256: sha(JSON.stringify(inventory)),
+      }));
+    }
+  };
+  const baseline = new Map(files);
+  baseline.delete(artworkCheckpointTarget);
+  publishFixture("prior", baseline);
+  publishFixture("repository", files);
+  write("observation-projection.json", "{}");
+  await assert.rejects(recheckReleasedCoverPublication(work, site), /exact staged released-reader proof/u);
+
+  const version = "1.0.0-preview.1";
+  const tag = `v${version}`;
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: site, stdio: "pipe" });
+  write("site/updates/preview/latest.json", JSON.stringify({
+    version,
+    platforms: { "linux-x86_64": {
+      url: `https://github.com/boburning/portcove/releases/download/${tag}/Portcove_${version}_amd64.AppImage`,
+    } },
+  }));
+  git("init");
+  const commit = () => {
+    git("add", "updates");
+    git("-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "Update fixture");
+  };
+  commit();
+  const release = {
+    version,
+    tag,
+    feed_commit: "a".repeat(40),
+    source: "b".repeat(40),
+    tag_object: "c".repeat(40),
+    release_id: 1,
+    archive_bytes: 10,
+    archive_sha256: "d".repeat(64),
+    checksum_sha256: "e".repeat(64),
+    reader_sha256: "a".repeat(64),
+  };
+  write("observation-projection.json", JSON.stringify({
+    released_cover_proof: { ...release, ...exactCoverReaderPair(files) },
+  }));
+  await recheckReleasedCoverPublication(work, site);
+
+  const changed = new Map(files);
+  changed.set(listingDeliveryTarget, Buffer.from("different retained legacy bytes"));
+  publishFixture("repository", changed);
+  await assert.rejects(recheckReleasedCoverPublication(work, site), /different signed bundle/u);
+
+  publishFixture("repository", files);
+  write("site/updates/withdrawn.json", JSON.stringify([version]));
+  commit();
+  await assert.rejects(recheckReleasedCoverPublication(work, site), /Official Preview is withdrawn/u);
+
+  publishFixture("prior", files);
+  await recheckReleasedCoverPublication(work, site);
+  publishFixture("repository", baseline);
+  await assert.rejects(recheckReleasedCoverPublication(work, site), /omitted the retained cover checkpoint/u);
 });
 
 void test("derived cover proof does not mark unchanged authored publication input dirty", () => {
