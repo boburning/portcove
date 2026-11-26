@@ -1,0 +1,190 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  advanceArtworkCheckpoint,
+  coverDeclarationScope,
+  readArtworkCheckpoint,
+} from "./listing-artwork-checkpoint.mts";
+import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
+
+const artwork = {
+  game_id: 100,
+  cover_id: 1,
+  game_slug: "original",
+  match_kind: "underlying-game",
+  image_id: "cosample",
+  image_sha256: "a".repeat(64),
+} as const;
+const listing = {
+  id: "fixture-port",
+  project_url: "https://github.com/example/fixture-port",
+  original_game_title: "Original",
+  original_game: { id: "original" },
+  artwork,
+};
+const observedAt = "2026-11-26T12:00:00.000Z";
+const newerAt = "2026-11-26T13:00:00.000Z";
+const report = "sha256:" + "b".repeat(64);
+const wire = (row: Record<string, unknown>) =>
+  Buffer.from(JSON.stringify({ revision: 1, listings: [row] }));
+const gone = {
+  id: listing.id,
+  artwork,
+  scope: coverDeclarationScope(listing, artwork),
+  report,
+  status: "propose_fallback",
+  observed_at: observedAt,
+};
+
+void test("exact scoped withdrawal survives a quiet renewal and only later accepted bytes restore it", () => {
+  const initial = advanceArtworkCheckpoint(null, [gone]);
+  const stripped = initial.apply(listing);
+  assert.ok(!Object.hasOwn(stripped, "artwork"));
+  const strippedListing = wire(stripped);
+  const checkpoint = initial.finish(strippedListing);
+  assert.ok(checkpoint);
+  const prior = { bytes: checkpoint, listing: strippedListing };
+  const reread = advanceArtworkCheckpoint(prior, []);
+  assert.deepEqual(reread.apply(listing), stripped);
+  assert.deepEqual(reread.finish(strippedListing), checkpoint);
+  assert.throws(() => readArtworkCheckpoint(checkpoint, wire(listing)), /unbound/u);
+
+  const stale = { ...gone, status: "verified_accepted_bytes" };
+  const changed = { ...gone, observed_at: newerAt, status: "hold_changed_bytes" };
+  const attempted = advanceArtworkCheckpoint(prior, [stale, changed]);
+  assert.deepEqual(attempted.apply(listing), stripped);
+  assert.deepEqual(attempted.finish(strippedListing), checkpoint);
+  const restored = advanceArtworkCheckpoint(prior, [{ ...stale, observed_at: newerAt }]);
+  assert.deepEqual(restored.apply(listing), listing);
+  const next = restored.finish(wire(listing));
+  assert.ok(next);
+  const decoded = readArtworkCheckpoint(next, wire(listing));
+  assert.equal(decoded.entries[0]?.state, "restored");
+  assert.ok(decoded.prior_checkpoint_sha256);
+});
+
+void test("cover declarations and collection members do not borrow previous authority", () => {
+  const initial = advanceArtworkCheckpoint(null, [gone]);
+  const replacement = { ...listing, artwork: { ...artwork, image_sha256: "c".repeat(64) } };
+  const edition = { ...listing, original_game: { id: "other" } };
+  const project = { ...listing, project_url: "https://github.com/example/successor" };
+  for (const changed of [replacement, edition, project])
+    assert.deepEqual(initial.apply(changed), changed);
+
+  const alternate = {
+    ...artwork,
+    image_id: "coalternate",
+    image_sha256: "d".repeat(64),
+    game_id: 101,
+    cover_id: 2,
+  };
+  const { artwork: _artwork, ...base } = listing;
+  const collection = { ...base, collection_covers: [artwork, alternate] };
+  assert.deepEqual(initial.apply(collection), collection);
+  const cover = advanceArtworkCheckpoint(null, [
+    { ...gone, scope: coverDeclarationScope(collection, artwork) },
+  ]);
+  assert.deepEqual(cover.apply(collection).collection_covers, [alternate]);
+});
+
+void test("completed observations can only affect their exact current authored declaration", () => {
+  const facts = new Map<string, unknown>([
+    [
+      `port:${listing.id}@${artwork.image_id}`,
+      {
+        id: listing.id,
+        artwork,
+        status: "gone",
+        observed_at: observedAt,
+      },
+    ],
+  ]);
+  const evidence = {
+    producerDirectory: { listings: [listing] },
+    facts,
+    artifact: report,
+    producer: { workflow: "fixture", run: "1", attempt: "1", revision: "a".repeat(40) },
+    revision: "fixture",
+    rows: 1,
+    expected: 1,
+    complete: true,
+    gaps: [],
+    counts: { unchanged: 0, mismatch: 0, gone: 1, unavailable: 0, deferred: 0 },
+  };
+  assert.deepEqual(applicableCoverHealth({ listings: [listing] }, evidence), [gone]);
+  assert.deepEqual(
+    applicableCoverHealth(
+      { listings: [{ ...listing, original_game_title: "Remaster" }] },
+      evidence,
+    ),
+    [],
+  );
+  facts.set(`port:${listing.id}@${artwork.image_id}`, {
+    id: listing.id,
+    artwork: { ...artwork, cover_id: 9 },
+    status: "gone",
+    observed_at: observedAt,
+  });
+  assert.deepEqual(applicableCoverHealth({ listings: [listing] }, evidence), []);
+});
+
+void test("a completed schedule without successful collection supplies no publication transition", async () => {
+  const result = await readHostedCoverHealth(
+    () => {
+      throw new Error("failed schedule cannot supply prior declarations");
+    },
+    {
+      now: Date.parse("2026-11-26T15:00:00Z"),
+      transport: {
+        read: async () => {
+          return {
+            workflow_runs: [
+              {
+                id: 45839944185,
+                run_attempt: 1,
+                path: ".github/workflows/maintenance-inventory.yml",
+                event: "schedule",
+                head_branch: "main",
+                status: "completed",
+                conclusion: "failure",
+                head_repository: { id: 1354613114, full_name: "boburning/portcove" },
+                head_sha: "e5d6160e1c3f8ffd970e1ef8df9f4d7611b2e4ff",
+                run_started_at: "2026-11-26T14:20:00Z",
+                updated_at: "2026-11-26T14:38:49Z",
+              },
+            ],
+          };
+        },
+        download: async () => {
+          throw new Error("failed schedule cannot supply artifact");
+        },
+      },
+    },
+  );
+  assert.equal(result, null);
+});
+
+void test("a full checkpoint still accepts a newer result for an admitted scope", () => {
+  const cover = { ...artwork, image_id: "e".repeat(128) };
+  const prefix = { ...listing, id: "a-priority-fixture", artwork: cover };
+  const first = {
+    ...gone,
+    id: prefix.id,
+    artwork: cover,
+    scope: coverDeclarationScope(prefix, cover),
+  };
+  const rows = Array.from({ length: 3072 }, (_, index) => {
+    const row = { ...prefix, id: "z-fixture-" + index.toString().padStart(4, "0") };
+    return { ...first, id: row.id, scope: coverDeclarationScope(row, cover) };
+  });
+  const initial = advanceArtworkCheckpoint(null, [first, ...rows]);
+  assert.ok(initial.deferred > 0);
+  const active = wire(initial.apply(prefix));
+  const checkpoint = initial.finish(active);
+  assert.ok(checkpoint);
+  const restored = advanceArtworkCheckpoint({ bytes: checkpoint, listing: active }, [
+    { ...first, status: "verified_accepted_bytes", observed_at: newerAt },
+  ]);
+  assert.deepEqual(restored.apply(prefix), prefix);
+  assert.ok(restored.finish(wire(prefix)));
+});
