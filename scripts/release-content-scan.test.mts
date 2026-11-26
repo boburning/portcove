@@ -9,6 +9,7 @@ import { crc32 } from "node:zlib";
 import {
   loadReleaseScanCheckpoint,
   releaseScanProducerQuery,
+  releaseScanSuccessQuery,
 } from "./release-content-checkpoint.mts";
 import {
   type ReleaseAsset,
@@ -266,6 +267,94 @@ void test("a historical schedule cannot publish a continuation over a newer prod
   );
 });
 
+void test("a streak of failed schedules can still select a retained or expired successful producer", async () => {
+  const unsuccessful = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      ...checkpointProducer,
+      id: 124 + count - index,
+      run_number: 27 + count - index,
+      run_attempt: 1,
+      conclusion: "failure",
+    }));
+  for (const expired of [false, true]) {
+    const failed = unsuccessful(expired ? 160 : 21);
+    const oldRun = expired
+      ? { ...checkpointProducer, updated_at: "2026-10-01T00:00:00Z" }
+      : checkpointProducer;
+    const runs = [...failed, oldRun];
+    const result = await loadReleaseScanCheckpoint(
+      async (endpoint) => {
+        if (endpoint === releaseScanSuccessQuery) {
+          assert.equal(expired, true);
+          return { total_count: 1, workflow_runs: [oldRun] };
+        }
+        if (endpoint.startsWith(releaseScanProducerQuery)) {
+          const page = Number(
+            new URL(`https://example.invalid/${endpoint}`).searchParams.get("page") ?? 1,
+          );
+          return {
+            total_count: runs.length,
+            workflow_runs: runs.slice((page - 1) * 20, page * 20),
+          };
+        }
+        assert.equal(endpoint, "actions/runs/123/artifacts?per_page=100&page=1");
+        return expired
+          ? { total_count: 0, artifacts: [] }
+          : { total_count: 1, artifacts: [checkpointArtifact] };
+      },
+      async () => {
+        assert.equal(expired, false);
+        return checkpointArchive;
+      },
+      nextScan,
+    );
+    assert.equal(result.source, expired ? "expired" : "artifact");
+  }
+});
+
+void test("uncapped legacy signals survive migration into a verified checkpoint", async (t) => {
+  const [record] = checkpointDocument.records;
+  assert.ok(record);
+  const { signal_count: _count, ...legacy } = record;
+  const signals = Array.from({ length: SIGNAL_CAP + 2 }, (_, index) => ({
+    kind: "rom-or-disc-image",
+    path: `game-${index}.z64`,
+    reason: "Nintendo 64 ROM image",
+  }));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "legacy-scan-checkpoint-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "checkpoint.json");
+  await writeFile(
+    file,
+    JSON.stringify({ ...checkpointDocument, records: [{ ...legacy, signals }] }),
+  );
+  const imported = await readCheckpoint(file);
+  const normalized = imported.records.get(record.key);
+  assert.equal(normalized?.signal_count, signals.length);
+  assert.equal(normalized.signals.length, SIGNAL_CAP);
+  const archive = checkpointZip({ ...checkpointDocument, records: [...imported.records.values()] });
+  const retained = await loadReleaseScanCheckpoint(
+    async (endpoint) =>
+      endpoint === releaseScanProducerQuery
+        ? { total_count: 1, workflow_runs: [checkpointProducer] }
+        : {
+            total_count: 1,
+            artifacts: [
+              {
+                ...checkpointArtifact,
+                size_in_bytes: archive.length,
+                digest: `sha256:${createHash("sha256").update(archive).digest("hex")}`,
+              },
+            ],
+          },
+    async () => archive,
+    nextScan,
+  );
+  assert.equal(retained.source, "artifact");
+  await writeFile(file, retained.checkpoint);
+  assert.deepEqual((await readCheckpoint(file)).records.get(record.key), normalized);
+});
+
 void test("an artifact with a valid archive digest and malformed retained data is refused", async () => {
   const archive = checkpointZip({ ...checkpointDocument, records: [{ key: "invalid" }] });
   await assert.rejects(
@@ -384,12 +473,17 @@ void test("a measured checkpoint capacity deferral prevents repeat downloads and
   const initialAsset = initialRelease?.assets[0];
   assert.ok(initialRelease && initialAsset);
   const largeKey = assetKey(large, initialRelease.tag, initialAsset);
-  const first = await scan([large, small], new Map(), deps, { maxCheckpointBytes: 900 });
+  const sibling = { ...large, id: "other-listing-for-same-asset" };
+  const first = await scan([large, sibling, small], new Map(), deps, { maxCheckpointBytes: 900 });
   assert.deepEqual(
     first.report.scanned.map(({ id }) => id),
     [large.id, small.id],
   );
   assert.equal(first.checkpoint.size, 1);
+  assert.deepEqual(
+    first.report.findings.map(({ id }) => id),
+    [large.id, sibling.id],
+  );
   assert.ok((first.retentionRequired.get(largeKey) ?? 0) > 900);
   assert.equal(first.checkpoint.has(largeKey), false);
   const second = await scan([large, small], first.checkpoint, deps, {

@@ -706,6 +706,9 @@ export async function scan(
       throw new Error("Existing release scan checkpoint exceeds its retention budget");
   }
   const recheckOutcomes = new Map<string, { code: UnscannedCode; reason: string }>();
+  // A checked package still supplies evidence for every matching target this
+  // run, even when the checkpoint has no room to keep it for the next run.
+  const scannedWithoutRetention = new Map<string, ScanRecord>();
   for (const plan of ordered) {
     const { target } = plan;
     const skip = (code: UnscannedCode, reason: string) =>
@@ -723,7 +726,7 @@ export async function scan(
       continue;
     }
     const { release, asset, key } = plan;
-    const known = next.get(key);
+    const known = next.get(key) ?? scannedWithoutRetention.get(key);
     if (known) {
       report.reused++;
       report.reused_targets.push({
@@ -888,6 +891,8 @@ export async function scan(
       if (maxCheckpointBytes !== undefined) {
         const required = keyStorage(key);
         if (checkpointWithoutKey + required > maxCheckpointBytes) {
+          const scanned = next.get(key);
+          if (scanned) scannedWithoutRetention.set(key, scanned);
           next.delete(key);
           if (previousFailure) failures.set(key, previousFailure);
           else failures.delete(key);
@@ -895,10 +900,6 @@ export async function scan(
           else retries.set(key, previousRetry);
           deferredAttempts.set(key, deferredRun);
           retentionRequired.set(key, required);
-          recheckOutcomes.set(key, {
-            code: "asset-budget",
-            reason: "insufficient space to retain this package scan checkpoint",
-          });
         }
         checkpointBytes = checkpointWithoutKey + keyStorage(key);
       }
@@ -1353,7 +1354,10 @@ export async function readCheckpoint(file: string | undefined) {
       if (record.rules === RULES_VERSION) {
         // Only the reviewed accounting file dismisses a finding, never a cached record.
         const { accounted: _accounted, ...plain } = record as ScanFinding;
-        records.set(record.key, plain);
+        records.set(record.key, {
+          ...plain,
+          ...cappedSignals(plain.signals, plain.signal_count ?? plain.signals.length),
+        });
       }
     for (const failure of stored.failures ?? [])
       if (

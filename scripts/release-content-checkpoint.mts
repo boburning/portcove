@@ -17,8 +17,12 @@ const workflowId = 417668017;
 const archiveLimit = 8 * 1024 * 1024;
 const retentionMs = 30 * 24 * 60 * 60 * 1000;
 const recentRunLimit = 20;
+// Four natural runs per day. This covers the 30-day retention window.
+const recentRunPages = 8;
 const priorAttemptLimit = 20;
-export const releaseScanProducerQuery = `actions/workflows/release-content-scan.yml/runs?branch=main&event=schedule&per_page=${recentRunLimit}`;
+const scanRuns = "actions/workflows/release-content-scan.yml/runs?branch=main&event=schedule";
+export const releaseScanProducerQuery = `${scanRuns}&per_page=${recentRunLimit}`;
+export const releaseScanSuccessQuery = `${scanRuns}&status=success&per_page=1`;
 
 function requireEvidence(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`Release scan checkpoint: ${message}`);
@@ -158,61 +162,89 @@ function scanRun(run: unknown, now: number) {
 }
 
 async function latestScanProducer(get: RunLookup, now: number, current?: CurrentSchedule) {
-  const result = await get(releaseScanProducerQuery);
+  let total: number | undefined;
+  let lastNumber = Infinity;
+  const seen = new Set<number>();
+  const accept = (producer: ReturnType<typeof scanRun>) => {
+    requireEvidence(
+      !current || producer.number <= current.number,
+      "a newer schedule already advanced the checkpoint",
+    );
+    return producer;
+  };
+  // Reruns update the list entry for the original run. Inspect its exact
+  // prior attempts before considering any older producer.
+  let priorAttempts = 0;
+  for (let page = 1; page <= recentRunPages; page++) {
+    const result = await get(
+      page === 1 ? releaseScanProducerQuery : `${releaseScanProducerQuery}&page=${page}`,
+    );
+    requireEvidence(
+      isRecord(result) &&
+        wholeNumber(result.total_count) &&
+        (total === undefined || total === result.total_count) &&
+        Array.isArray(result.workflow_runs) &&
+        result.workflow_runs.length === Math.min(recentRunLimit, result.total_count - seen.size),
+      "incomplete schedule lookup",
+    );
+    total = result.total_count;
+    const rows: unknown[] = result.workflow_runs;
+    const runs = rows.map((raw) => scanRun(raw, now));
+    for (const run of runs) {
+      requireEvidence(
+        !seen.has(run.id) && run.number < lastNumber,
+        "schedule lookup is not in producer order",
+      );
+      seen.add(run.id);
+      lastNumber = run.number;
+    }
+    for (const listed of runs) {
+      if (listed.id === current?.id)
+        requireEvidence(listed.number === current.number, "running schedule identity differs");
+      const beforeCurrent =
+        listed.id === current?.id ? Math.min(current.attempt - 1, listed.attempt) : listed.attempt;
+      for (let attempt = beforeCurrent; attempt > 0; attempt--) {
+        let producer = listed;
+        if (attempt !== listed.attempt) {
+          requireEvidence(
+            ++priorAttempts <= priorAttemptLimit,
+            "previous attempt lookup exceeds budget",
+          );
+          producer = scanRun(await get(`actions/runs/${listed.id}/attempts/${attempt}`), now);
+        }
+        requireEvidence(
+          producer.id === listed.id &&
+            producer.number === listed.number &&
+            producer.sha === listed.sha &&
+            producer.attempt === attempt &&
+            (producer === listed || producer.completed),
+          "previous attempt identity differs",
+        );
+        if (producer.completed && producer.success) return accept(producer);
+      }
+    }
+    if (total === seen.size) return undefined;
+  }
+  // The schedule window covers retention. An older successful run from the
+  // server-filtered view can establish expiry if every recent schedule failed.
+  const result = await get(releaseScanSuccessQuery);
   requireEvidence(
     isRecord(result) &&
-      Number.isSafeInteger(result.total_count) &&
-      Number(result.total_count) >= 0 &&
+      wholeNumber(result.total_count) &&
       Array.isArray(result.workflow_runs) &&
-      result.workflow_runs.length === Math.min(recentRunLimit, Number(result.total_count)),
-    "incomplete schedule lookup",
+      result.workflow_runs.length === Math.min(1, result.total_count),
+    "incomplete historical success lookup",
   );
-  const rows: unknown[] = result.workflow_runs;
-  const runs = rows.map((raw) => scanRun(raw, now));
-  const ids = new Set(runs.map(({ id }) => id));
+  if (result.workflow_runs.length === 0) return undefined;
+  const producer = scanRun(result.workflow_runs[0], now);
   requireEvidence(
-    ids.size === runs.length &&
-      runs.every((run, index) => index === 0 || runs[index - 1]!.number > run.number),
-    "schedule lookup is not in producer order",
+    producer.completed &&
+      producer.success &&
+      producer.number < lastNumber &&
+      now - producer.updated >= retentionMs,
+    "successful producer is beyond the retained schedule lookup budget",
   );
-  // A rerun updates the list entry for the original run. Inspect its exact
-  // earlier attempts before considering any older producer.
-  let priorAttempts = 0;
-  for (const listed of runs) {
-    if (listed.id === current?.id)
-      requireEvidence(listed.number === current.number, "running schedule identity differs");
-    const beforeCurrent =
-      listed.id === current?.id ? Math.min(current.attempt - 1, listed.attempt) : listed.attempt;
-    for (let attempt = beforeCurrent; attempt > 0; attempt--) {
-      let producer = listed;
-      if (attempt !== listed.attempt) {
-        requireEvidence(
-          ++priorAttempts <= priorAttemptLimit,
-          "previous attempt lookup exceeds budget",
-        );
-        producer = scanRun(await get(`actions/runs/${listed.id}/attempts/${attempt}`), now);
-      }
-      requireEvidence(
-        producer.id === listed.id &&
-          producer.number === listed.number &&
-          producer.sha === listed.sha &&
-          producer.attempt === attempt &&
-          (producer === listed || producer.completed),
-        "previous attempt identity differs",
-      );
-      if (!producer.completed || !producer.success) continue;
-      requireEvidence(
-        !current || producer.number <= current.number,
-        "a newer schedule already advanced the checkpoint",
-      );
-      return producer;
-    }
-  }
-  requireEvidence(
-    result.total_count === runs.length,
-    "successful producer is beyond the schedule lookup budget",
-  );
-  return undefined;
+  return accept(producer);
 }
 
 export async function loadReleaseScanCheckpoint(
@@ -319,7 +351,10 @@ async function main([mode, filename]: string[]) {
     allowRequest: (method, url) =>
       method === "GET" && url.pathname.startsWith(`/repos/${repository}/actions/`),
     reserve() {
-      requireEvidence(++requests <= priorAttemptLimit + 6, "lookup exceeded its request budget");
+      requireEvidence(
+        ++requests <= priorAttemptLimit + recentRunPages + 6,
+        "lookup exceeded its request budget",
+      );
       return { consumeBytes() {}, settle() {} };
     },
   });
