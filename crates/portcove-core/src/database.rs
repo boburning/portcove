@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 mod concurrency_tests;
 
 // The native release source recipe reads this declaration as a literal.
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 79;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 80;
 pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
 
 struct Migration {
@@ -498,6 +498,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "supported setup revision bound",
         apply: crate::profile::migrate_revision_bound,
         verify: crate::profile::verify_revision_bound,
+    },
+    Migration {
+        version: 80,
+        name: "player mod website preferences",
+        apply: crate::mod_portal_preferences::migrate,
+        verify: crate::mod_portal_preferences::verify,
     },
 ];
 
@@ -2645,7 +2651,7 @@ fn table_columns(connection: &Connection, table: &str) -> Result<Vec<String>> {
     Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
 }
 
-fn require_columns(connection: &Connection, table: &str, required: &[&str]) -> Result<()> {
+pub(crate) fn require_columns(connection: &Connection, table: &str, required: &[&str]) -> Result<()> {
     let columns = table_columns(connection, table)?;
     if columns.is_empty() {
         return Err(PortcoveError::state(format!(
