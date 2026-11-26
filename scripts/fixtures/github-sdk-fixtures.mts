@@ -10,12 +10,17 @@ export async function fixtureGitHub(
     headers: Headers;
     body: unknown;
   }) => unknown,
-  options: Pick<GitHubClientOptions, "reserve" | "allowRequest"> = {},
+  {
+    timeoutMs = 60_000,
+    ...options
+  }: Pick<GitHubClientOptions, "reserve" | "allowRequest"> & {
+    timeoutMs?: number;
+  } = {},
 ) {
   return await createGitHubClient({
     ...options,
     credential: { kind: "anonymous" },
-    deadline: performance.now() + 60_000,
+    deadline: performance.now() + timeoutMs,
     random: () => 0,
     sleep: async () => {},
     fetch: async (input, init) => {
