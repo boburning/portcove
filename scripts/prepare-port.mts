@@ -2481,8 +2481,12 @@ async function main() {
                 stage: {
                   repository,
                   revision: discoveryStageSource,
-                  expectedPatchSha256: discoveryExpectedPatch,
-                  previewListedDate: discoveryPreviewListedDate,
+                  ...(discoveryExpectedPatch
+                    ? { expectedPatchSha256: discoveryExpectedPatch }
+                    : {}),
+                  ...(discoveryPreviewListedDate
+                    ? { previewListedDate: discoveryPreviewListedDate }
+                    : {}),
                 },
               }
             : {}),

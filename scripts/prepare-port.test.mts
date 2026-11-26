@@ -1212,18 +1212,19 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     ]);
     const revision = git(["rev-parse", "HEAD"]);
     const replay = {
-      ...options,
       catalogRoot: replayCatalog,
-      acquireValidator: undefined,
+      handoff,
+      automaticScope: true,
       validatorCli,
       facts: { ...options.facts, now: () => Date.parse("2026-11-27T00:00:00Z") },
     };
-    assert.equal(report.automatic_listed_date, "2026-11-26");
+    const previewListedDate = report.automatic_listed_date;
+    assert.equal(previewListedDate, "2026-11-26");
     const stage = {
       repository,
       revision,
       expectedPatchSha256: report.admission.sha256,
-      previewListedDate: report.automatic_listed_date,
+      previewListedDate,
     };
     await assert.rejects(
       prepareDiscoveryListingAdditions({
