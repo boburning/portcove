@@ -211,6 +211,39 @@ void test("reviewed unresolved and non-single-game decisions remain authoring-on
     after.records.find(({ listing }) => listing.id === "remake"),
     { ...before, original_game_review: review },
   );
+
+  const resolved = {
+    port_id: "remake",
+    expected_sha256: hash(readFileSync(path)),
+    original_game: game("reviewed-remake"),
+    original_game_review: null,
+  } satisfies ReviewedGameAssignment;
+  assert.throws(
+    () =>
+      applyReviewedGameAssignments(
+        root,
+        {
+          format_version: 1,
+          assignments: [
+            {
+              port_id: resolved.port_id,
+              expected_sha256: resolved.expected_sha256,
+              original_game_review: null,
+            },
+          ],
+        },
+        true,
+      ),
+    /Assignments require/u,
+  );
+  const input = { format_version: 1 as const, assignments: [resolved] };
+  assert.equal(applyReviewedGameAssignments(root, input).written, false);
+  assert.equal(hash(readFileSync(path)), resolved.expected_sha256);
+  assert.equal(applyReviewedGameAssignments(root, input, true).written, true);
+  assert.deepEqual(
+    readCatalogSource(root).records.find(({ listing }) => listing.id === "remake"),
+    { ...before, listing: { ...before.listing, original_game: resolved.original_game } },
+  );
 });
 
 void test("semantic review flags candidate relationships without assigning or merging identities", () => {

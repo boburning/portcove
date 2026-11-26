@@ -331,7 +331,7 @@ export interface ReviewedGameAssignment {
   /** SHA-256 of the complete authored input file bytes, including unrelated fields. */
   expected_sha256: string;
   original_game?: NonNullable<AuthoredListing["original_game"]>;
-  original_game_review?: AuthoredPort["original_game_review"];
+  original_game_review?: AuthoredPort["original_game_review"] | null;
   original_game_title?: string;
 }
 
@@ -395,7 +395,8 @@ export function applyReviewedGameAssignments(
     const next = structuredClone(existing);
     if (assignment.original_game !== undefined)
       next.listing.original_game = assignment.original_game;
-    if (assignment.original_game_review !== undefined)
+    if (assignment.original_game_review === null) delete next.original_game_review;
+    else if (assignment.original_game_review !== undefined)
       next.original_game_review = assignment.original_game_review;
     if (assignment.original_game_title !== undefined)
       next.listing.original_game_title = assignment.original_game_title;
