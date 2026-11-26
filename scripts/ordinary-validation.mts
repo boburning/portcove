@@ -240,7 +240,7 @@ const restrictionRegisterInput = (file: string) =>
   /^crates\/[^/]+\/src\//u.test(file) ||
   file.startsWith("apps/desktop/src/") ||
   file.startsWith("apps/desktop/src-tauri/src/") ||
-  /^scripts\/.+\.(?:mts|ts)$/u.test(file) ||
+  /^scripts\/.+\.(?:rs|ts|tsx|mts)$/u.test(file) ||
   file === "docs/RESTRICTION-REGISTER.md";
 
 const roadmapFeatureTests = ordinaryFamily("roadmap-feature-tests");

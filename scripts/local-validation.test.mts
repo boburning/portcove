@@ -85,7 +85,10 @@ void test("bound sources and the register select the restriction register ratche
     "apps/desktop/src-tauri/src/lib.rs",
     "apps/desktop/src/App.tsx",
     "scripts/public-catalog.mts",
+    "scripts/browser-traces.ts",
     "scripts/qualification/example.mts",
+    "scripts/qualification/example.rs",
+    "scripts/qualification/example.tsx",
     "docs/RESTRICTION-REGISTER.md",
   ])
     for (const status of ["A", "M", "D"])

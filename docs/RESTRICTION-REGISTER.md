@@ -167,10 +167,10 @@ Rows by session: unassigned 162, #8634 24, #8633 14, #8637 11, #8641 9, #8640 8,
 
 Appendix F by class: class 1 25, class 2 145, class 3 109, class 4 120, class UNKNOWN 21.
 
-**Defect found.** SC-16 is a class-2 defect, assigned to #8633. Store detection
-stops enumerating manifests and registry keys at its bounds, but
-`refuse_store_install_move` ignores `report.limited`. Incomplete coverage
-therefore permits a Move out of a store-owned folder.
+**Resolved by #8633.** SC-16 recorded that incomplete store detection could
+permit a Move out of a store-owned folder. Store ownership now reports
+`Undetermined` when any store read is incomplete, and the Move is refused.
+The Windows registry subkey count limit was removed.
 
 ## B. Register
 
