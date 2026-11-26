@@ -587,9 +587,9 @@ describe("local artwork controls", () => {
     },
   );
 
-  it.each([false, true])(
-    "settles focus after a second catalog cache replacement (player moved focus: %s)",
-    async (movedFocus) => {
+  it.each(["unchanged", "same role during apply", "dialog close during refresh"] as const)(
+    "settles focus after a second catalog cache replacement (%s)",
+    async (focusMove) => {
       const before = artworkState("sample", "cover");
       const committed = artworkState("sample", "cover", 1, true);
       let pendingRead: "first" | "latest" | undefined;
@@ -611,6 +611,11 @@ describe("local artwork controls", () => {
       await chooseAndApplyLocal("cover");
       expect(change).toHaveBeenCalledTimes(1);
 
+      const source = container.querySelector<HTMLElement>(".artwork-source summary")!;
+      if (focusMove === "same role during apply") {
+        source.focus();
+        expect(document.activeElement).toBe(source);
+      }
       pendingRead = "first";
       await render("sample", 7, "intermediate-cover");
       await expect.poll(() => reads.has("first")).toBe(true);
@@ -627,11 +632,16 @@ describe("local artwork controls", () => {
         .getByRole("dialog", { name: "Change artwork", exact: true })
         .getByRole("button", { name: "Close", exact: true });
       await expect.element(pickerControl).toBeDisabled();
-      if (movedFocus) (close.element() as HTMLButtonElement).focus();
+      if (focusMove === "dialog close during refresh")
+        (close.element() as HTMLButtonElement).focus();
 
       await act(async () => reads.get("latest")!(committed));
       await expect.element(pickerControl).toBeEnabled();
-      await expect.element(movedFocus ? close : pickerControl).toHaveFocus();
+      if (focusMove === "same role during apply") expect(document.activeElement).toBe(source);
+      else
+        await expect
+          .element(focusMove === "dialog close during refresh" ? close : pickerControl)
+          .toHaveFocus();
       expect(change).toHaveBeenCalledTimes(1);
     },
   );

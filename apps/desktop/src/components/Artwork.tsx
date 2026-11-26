@@ -509,10 +509,14 @@ function ArtworkSlotControl({
     visibilityReview,
   ]);
 
-  const queueReturnFocus = (target: HTMLButtonElement | null, owner = cache) => {
+  const queueReturnFocus = (
+    target: HTMLButtonElement | null,
+    owner = cache,
+    from = document.activeElement,
+  ) => {
     returnFocus.current = {
       target,
-      from: document.activeElement,
+      from,
       generation: owner?.generation,
       portId: port.id,
       originalGameId,
@@ -536,7 +540,12 @@ function ArtworkSlotControl({
       committedRevision,
     );
   };
-  const focusDraftTrigger = (review: ArtworkImageReview, cancelled = false, owner = cache) => {
+  const focusDraftTrigger = (
+    review: ArtworkImageReview,
+    cancelled = false,
+    owner = cache,
+    from = document.activeElement,
+  ) => {
     const target =
       review.source.kind === "selected"
         ? frameButton.current
@@ -547,7 +556,7 @@ function ArtworkSlotControl({
               ? findButton.current
               : pickerButton.current
           : pickerButton.current;
-    queueReturnFocus(target, owner);
+    queueReturnFocus(target, owner, from);
   };
   const draftIsCurrent = (review: ArtworkReviewTarget) =>
     review.portId === port.id &&
@@ -579,11 +588,16 @@ function ArtworkSlotControl({
     return true;
   };
 
-  const finishChange = (target: HTMLButtonElement | null, restoreFocus = true, owner = cache) => {
+  const finishChange = (
+    target: HTMLButtonElement | null,
+    from: Element | null,
+    restoreFocus = true,
+    owner = cache,
+  ) => {
     busy.current = false;
     if (!mounted.current) return;
     if (restoreFocus && stillInView() && currentIdentity.current.cache === owner)
-      queueReturnFocus(target, owner);
+      queueReturnFocus(target, owner, from);
     setPending(false);
   };
 
@@ -614,7 +628,7 @@ function ArtworkSlotControl({
     } catch (value) {
       if (stillCurrent()) setError(errorText(value));
     } finally {
-      finishChange(pickerButton.current, !staged);
+      finishChange(pickerButton.current, initiator, !staged);
     }
   };
 
@@ -635,6 +649,7 @@ function ArtworkSlotControl({
 
   const applyVisibility = async (review: ArtworkVisibilityReview) => {
     if (!cache || busy.current || !stillCurrent() || !draftIsCurrent(review)) return;
+    const initiator = document.activeElement;
     let focusOwner = cache;
     let focusTarget = visibilityCancel.current;
     busy.current = true;
@@ -677,7 +692,7 @@ function ArtworkSlotControl({
         focusOwner = currentIdentity.current.cache ?? cache;
       }
     } finally {
-      finishChange(focusTarget, true, focusOwner);
+      finishChange(focusTarget, initiator, true, focusOwner);
     }
   };
 
@@ -685,8 +700,8 @@ function ArtworkSlotControl({
     if (!cache || !display.state || busy.current) return;
     const revision = display.state.choice.revision;
     let staged = false;
-    const trigger =
-      document.activeElement instanceof HTMLButtonElement ? document.activeElement : null;
+    const initiator = document.activeElement;
+    const trigger = initiator instanceof HTMLButtonElement ? initiator : null;
     busy.current = true;
     returnFocus.current = null;
     setPending(true);
@@ -705,7 +720,7 @@ function ArtworkSlotControl({
     } catch (value) {
       if (stillCurrent()) setError(steamGridDbErrorText(value));
     } finally {
-      finishChange(trigger?.isConnected ? trigger : findButton.current, !staged);
+      finishChange(trigger?.isConnected ? trigger : findButton.current, initiator, !staged);
     }
   };
 
@@ -735,6 +750,7 @@ function ArtworkSlotControl({
       busy.current
     )
       return;
+    const initiator = document.activeElement;
     busy.current = true;
     returnFocus.current = null;
     setPending(true);
@@ -759,14 +775,14 @@ function ArtworkSlotControl({
       if (!stillInView()) return;
       if (!result) {
         if (currentIdentity.current.cache !== cache) {
-          focusDraftTrigger(review, true, currentIdentity.current.cache);
+          focusDraftTrigger(review, true, currentIdentity.current.cache, initiator);
           setDraft(undefined);
         }
         return;
       }
       if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
       if (!stillInView()) return;
-      focusDraftTrigger(review, false, currentIdentity.current.cache);
+      focusDraftTrigger(review, false, currentIdentity.current.cache, initiator);
       setDraft(undefined);
       setFindOpen(false);
       if (slot === "detail") setMessage("Background saved.");
