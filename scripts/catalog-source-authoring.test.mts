@@ -1170,6 +1170,44 @@ void test("an accepted original screenshot follows the exact edition into existi
     conflict.directory.listings.find(({ id }) => id === competingDonor.listing.id)?.media,
     [conflictingAsset],
   );
+
+  const bothEditions = {
+    ...future,
+    listing: {
+      ...future.listing,
+      original_game: {
+        ...future.listing.original_game!,
+        source_editions: [
+          ...future.listing.original_game!.source_editions,
+          ...otherEdition.listing.original_game.source_editions,
+        ],
+      },
+    },
+  };
+  const competingEdition = {
+    ...otherEdition,
+    listing: {
+      ...otherEdition.listing,
+      media: [
+        {
+          ...conflictingAsset,
+          subject: {
+            ...fixtureRecord(originalAsset.subject),
+            source_edition_id: "other-edition-fixture",
+          },
+        },
+      ],
+    },
+  };
+  const crossEditionConflict = assembleCatalogRecords(shared, [
+    donor,
+    competingEdition,
+    bothEditions,
+  ]);
+  assert.equal(
+    crossEditionConflict.directory.listings.find(({ id }) => id === bothEditions.listing.id)?.media,
+    undefined,
+  );
 });
 
 void test("optional recommendation observations round-trip as inert presentation without changing the operational route", () => {

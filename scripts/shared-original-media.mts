@@ -40,7 +40,8 @@ export function sharedOriginalMedia<
       if (!item) continue;
       const key = scopeKey(item.game, item.edition);
       const assets = scopes.get(key) ?? new Map<string, Asset | null>();
-      const assetKey = item.asset.role === "screenshot" ? item.asset.id : item.asset.role;
+      const assetKey =
+        item.asset.role === "screenshot" ? `screenshot:${item.asset.id}` : item.asset.role;
       const prior = assets.get(assetKey);
       if (prior === undefined) assets.set(assetKey, item.asset);
       else if (prior && orderedJsonSha256(prior) !== orderedJsonSha256(item.asset))
@@ -58,21 +59,21 @@ export function sharedOriginalMedia<
     const media = [...authored];
     const roles = new Set(authored.flatMap((asset) => (isRecord(asset) ? [asset.role] : [])));
     const ids = new Set(authored.flatMap((asset) => (isRecord(asset) ? [asset.id] : [])));
-    const count = { header: 0, logo: 0, key_art: 0, screenshot: 0 };
+    const candidates = new Map<string, Asset | null>();
     for (const edition of game.source_editions) {
       for (const item of scopes.get(scopeKey(game.id, edition.id))?.values() ?? []) {
-        if (
-          !item ||
-          roles.has(item.role) ||
-          ids.has(item.id) ||
-          count[item.role] >= limits[item.role] ||
-          media.length >= 14
-        )
-          continue;
-        media.push(structuredClone(item));
-        ids.add(item.id);
-        count[item.role]++;
+        if (!item || roles.has(item.role) || ids.has(item.id)) continue;
+        const prior = candidates.get(item.id);
+        if (prior === undefined) candidates.set(item.id, item);
+        else if (prior && orderedJsonSha256(prior) !== orderedJsonSha256(item))
+          candidates.set(item.id, null);
       }
+    }
+    const count = { header: 0, logo: 0, key_art: 0, screenshot: 0 };
+    for (const item of candidates.values()) {
+      if (!item || count[item.role] >= limits[item.role] || media.length >= 14) continue;
+      media.push(structuredClone(item));
+      count[item.role]++;
     }
     return media.length === authored.length ? listing : { ...listing, media };
   });
