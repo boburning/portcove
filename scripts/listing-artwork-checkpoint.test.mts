@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { sameStaticPublicationTargets } from "./catalog-publish.mts";
+import { readApprovedCoverJournal } from "./catalog-cover-approval-journal.mts";
 import {
   exactCoverReaderPair,
   recheckReleasedCoverPublication,
@@ -23,6 +24,7 @@ import {
   advanceArtworkCheckpoint,
   artworkCheckpointTarget,
   coverDeclarationScope,
+  legacyCoverDeclarationScope,
   readArtworkCheckpoint,
 } from "./listing-artwork-checkpoint.mts";
 import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
@@ -57,6 +59,41 @@ const gone = {
   observed_at: observedAt,
 };
 
+void test("publisher scope vector matches the Rust signer for compatible edition identity", () => {
+  const row = {
+    id: "mortal-kombat-4-recompiled",
+    project_url: "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp",
+    original_game_title: "Mortal Kombat 4 \u2014 \u65e5\u672c",
+    original_game: {
+      format_version: 1,
+      id: "mortal-kombat-4",
+      evidence_urls: ["https://www.igdb.com/games/mortal-kombat-4"],
+      source_editions: [
+        {
+          id: "mortal-kombat-4-playstation",
+          title: "Mortal Kombat 4 (PlayStation)",
+          system: "playstation",
+          evidence_urls: ["https://example.com/edition"],
+        },
+      ],
+    },
+  };
+  const cover = {
+    cover_id: 237769,
+    game_id: 1622,
+    game_slug: "mortal-kombat-4",
+    image_id: "co53gp",
+    image_sha256: "a".repeat(64),
+    match_kind: "underlying-game",
+  };
+  const digest = "c25dff06c9522577cf534aad11c8e61d9f3f52954ec665f3075f2326cbdc3a2a";
+  assert.equal(coverDeclarationScope(row, cover), digest);
+  assert.equal(
+    coverDeclarationScope(row, { ...cover, game_slug: "mortal-kombat-4-renamed" }),
+    digest,
+  );
+  assert.notEqual(coverDeclarationScope(row, { ...cover, match_kind: "port" }), digest);
+});
 void test("exact scoped withdrawal survives a quiet renewal and only later accepted bytes restore it", () => {
   const initial = advanceArtworkCheckpoint(null, [gone]);
   const stripped = initial.apply(listing);
@@ -84,6 +121,64 @@ void test("exact scoped withdrawal survives a quiet renewal and only later accep
   assert.ok(decoded.prior_checkpoint_sha256);
 });
 
+void test("the original checkpoint scope can be restored by later accepted bytes", () => {
+  const oldScope = "1cb3c6053536c7896db85e3020906028d99312d27609beb19542d1ca9fae31fc";
+  const previous = advanceArtworkCheckpoint(null, [{ ...gone, scope: oldScope }]);
+  const stripped = previous.apply(listing);
+  assert.equal(stripped.artwork, undefined);
+  const active = wire(stripped);
+  const bytes = previous.finish(active);
+  assert.ok(bytes);
+  const prior = { listing: active, bytes };
+  const quiet = advanceArtworkCheckpoint(prior, []);
+  assert.deepEqual(quiet.apply(listing), stripped);
+  assert.deepEqual(quiet.finish(active), bytes);
+
+  const observation = {
+    ...gone,
+    status: "verified_accepted_bytes",
+    legacy_scopes: [oldScope],
+  };
+  assert.deepEqual(advanceArtworkCheckpoint(prior, [observation]).apply(listing), stripped);
+  const restored = advanceArtworkCheckpoint(prior, [{ ...observation, observed_at: newerAt }]);
+  assert.deepEqual(restored.apply(listing), listing);
+  const current = wire(listing);
+  const after = restored.finish(current);
+  assert.ok(after);
+  assert.deepEqual(
+    readArtworkCheckpoint(after, current).entries.map(({ scope, state }) => ({ scope, state })),
+    [{ scope: oldScope, state: "restored" }],
+  );
+});
+void test("new exact evidence retains a historical withdrawal across a renamed slug and renewal", () => {
+  const oldScope = "1cb3c6053536c7896db85e3020906028d99312d27609beb19542d1ca9fae31fc";
+  const old = advanceArtworkCheckpoint(null, [{ ...gone, scope: oldScope }]);
+  const withoutCover = wire(old.apply(listing));
+  const bytes = old.finish(withoutCover);
+  assert.ok(bytes);
+  const renamed = { ...listing, artwork: { ...artwork, game_slug: "original-renamed" } };
+  const later = {
+    ...gone,
+    artwork: renamed.artwork,
+    observed_at: newerAt,
+    legacy_scopes: [oldScope],
+  };
+  const updated = advanceArtworkCheckpoint({ bytes, listing: withoutCover }, [later]);
+  assert.equal(updated.apply(renamed).artwork, undefined);
+  const next = updated.finish(withoutCover);
+  assert.ok(next);
+  assert.deepEqual(
+    readArtworkCheckpoint(next, withoutCover).entries.map(({ scope }) => scope),
+    [oldScope, gone.scope],
+  );
+  const prior = { bytes: next, listing: withoutCover };
+  assert.equal(advanceArtworkCheckpoint(prior, []).apply(renamed).artwork, undefined);
+  const restored = advanceArtworkCheckpoint(prior, [
+    { ...later, observed_at: "2026-11-26T14:00:00.000Z", status: "verified_accepted_bytes" },
+  ]);
+  assert.deepEqual(restored.apply(renamed), renamed);
+  assert.deepEqual(restored.apply(listing), listing);
+});
 void test("a provider slug rename preserves authenticated mismatch and durable withdrawal", () => {
   const renamed = { ...listing, artwork: { ...artwork, game_slug: "original-renamed" } };
   assert.equal(coverDeclarationScope(renamed, renamed.artwork), gone.scope);
@@ -182,7 +277,12 @@ void test("completed observations can only affect their exact current authored d
     gaps: [],
     counts: { unchanged: 0, mismatch: 0, gone: 1, unavailable: 0, deferred: 0 },
   };
-  assert.deepEqual(applicableCoverHealth({ listings: [listing] }, evidence), [gone]);
+  assert.deepEqual(applicableCoverHealth({ listings: [listing] }, evidence), [
+    {
+      ...gone,
+      legacy_scopes: ["1cb3c6053536c7896db85e3020906028d99312d27609beb19542d1ca9fae31fc"],
+    },
+  ]);
   assert.deepEqual(
     applicableCoverHealth(
       { listings: [{ ...listing, original_game_title: "Remaster" }] },
@@ -466,6 +566,145 @@ void test("compact projection retains release activity through exact cover withd
     { coverCheckpoint: renew },
   );
   assert.equal(read(changed.bytes).upstream_observation, undefined);
+});
+
+void test("compact projection holds a renamed legacy withdrawal until its exact scope is verified", () => {
+  const row = { ...fixtureListing, artwork };
+  const source = { format_version: 15, listings: [row] };
+  const legacy = legacyCoverDeclarationScope(row, artwork);
+  const observed = { ...gone, id: row.id, scope: legacy };
+  const original = projectListingDelivery(source, [], null);
+  const withdraw = advanceArtworkCheckpoint(null, [observed]);
+  const removed = projectListingDelivery(source, [], original.bytes, {
+    coverCheckpoint: withdraw,
+  });
+  const checkpoint = withdraw.finish(removed.bytes);
+  assert.ok(checkpoint);
+  const prior = { bytes: checkpoint, listing: removed.bytes };
+  const renamed = { ...row, artwork: { ...artwork, game_slug: "verified-new-slug" } };
+  const renamedSource = { ...source, listings: [renamed] };
+  assert.throws(
+    () =>
+      projectListingDelivery(renamedSource, [], removed.bytes, {
+        coverCheckpoint: advanceArtworkCheckpoint(prior, []),
+      }),
+    { code: "cover_evidence_unavailable" },
+  );
+  const retained = projectListingDelivery(source, [], removed.bytes, {
+    coverCheckpoint: advanceArtworkCheckpoint(prior, []),
+  });
+  assert.deepEqual(retained.bytes, removed.bytes);
+  const matched = advanceArtworkCheckpoint(prior, [
+    {
+      ...observed,
+      artwork: renamed.artwork,
+      scope: coverDeclarationScope(renamed, renamed.artwork),
+      legacy_scopes: [legacy],
+      observed_at: newerAt,
+    },
+  ]);
+  const projected = projectListingDelivery(renamedSource, [], removed.bytes, {
+    coverCheckpoint: matched,
+  });
+  assert.deepEqual(projected.bytes, removed.bytes);
+  const advanced = matched.finish(projected.bytes);
+  assert.ok(advanced);
+  const quiet = projectListingDelivery(renamedSource, [], removed.bytes, {
+    coverCheckpoint: advanceArtworkCheckpoint({ listing: projected.bytes, bytes: advanced }, []),
+  });
+  assert.deepEqual(quiet.bytes, removed.bytes);
+});
+void test("an approved replacement keeps release activity across Gone, renewal, and restoration", () => {
+  const row = { ...fixtureListing, artwork };
+  const authored = { format_version: 15, listings: [row] };
+  const original = projectListingDelivery(authored, [fixturePolicy(row).listing_update], null);
+  const candidate = {
+    ...artwork,
+    cover_id: 2,
+    image_id: "coreviewed",
+    image_sha256: "c".repeat(64),
+  };
+  const packet = "d".repeat(64);
+  const journal = readApprovedCoverJournal({
+    format_version: 1,
+    approvals: [
+      {
+        id: row.id,
+        scope: coverDeclarationScope(row, artwork),
+        role: "cover",
+        authored: artwork,
+        prior: artwork,
+        candidate,
+        packet,
+        source: "e".repeat(40),
+        run: "1",
+        bytes: 100,
+      },
+    ],
+    consumed_packets: [packet],
+  });
+  const selected = projectListingDelivery(authored, [], original.bytes, {
+    coverApprovals: journal,
+  });
+  const project = (
+    previous: Buffer,
+    coverCheckpoint: ReturnType<typeof advanceArtworkCheckpoint>,
+  ) =>
+    projectListingDelivery(authored, [], previous, {
+      coverApprovals: journal,
+      coverCheckpoint,
+    });
+  const read = (bytes: Buffer) => {
+    const parsed = JSON.parse(bytes.toString("utf8")) as {
+      directory: { listings: Record<string, unknown>[] };
+    };
+    return parsed.directory.listings[0]!;
+  };
+  const activity = read(original.bytes).upstream_observation;
+  assert.ok(activity);
+  assert.deepEqual(read(selected.bytes).artwork, candidate);
+  const changedAuthoredCover = {
+    ...artwork,
+    cover_id: 7,
+    image_id: "coahead",
+    image_sha256: "f".repeat(64),
+  };
+  const unauthenticatedChange = projectListingDelivery(
+    { ...authored, listings: [{ ...row, artwork: changedAuthoredCover }] },
+    [],
+    selected.bytes,
+    { coverApprovals: journal },
+  );
+  assert.equal(unauthenticatedChange.changed, false);
+  assert.deepEqual(read(unauthenticatedChange.bytes).artwork, candidate);
+  assert.deepEqual(read(selected.bytes).upstream_observation, activity);
+  const exactGone = {
+    ...gone,
+    id: row.id,
+    artwork: candidate,
+    scope: coverDeclarationScope(row, candidate),
+  };
+  const withdraw = advanceArtworkCheckpoint(null, [exactGone]);
+  const removed = project(selected.bytes, withdraw);
+  assert.equal(read(removed.bytes).artwork, undefined);
+  assert.deepEqual(read(removed.bytes).upstream_observation, activity);
+  const checkpoint = withdraw.finish(removed.bytes);
+  assert.ok(checkpoint);
+  const prior = { bytes: checkpoint, listing: removed.bytes };
+  const renewal = project(removed.bytes, advanceArtworkCheckpoint(prior, []));
+  assert.equal(renewal.changed, false);
+  const restored = project(
+    removed.bytes,
+    advanceArtworkCheckpoint(prior, [
+      {
+        ...exactGone,
+        status: "verified_accepted_bytes",
+        observed_at: newerAt,
+      },
+    ]),
+  );
+  assert.deepEqual(read(restored.bytes).artwork, candidate);
+  assert.deepEqual(read(restored.bytes).upstream_observation, activity);
 });
 
 function coverReaderFixture() {

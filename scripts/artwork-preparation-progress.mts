@@ -398,6 +398,7 @@ export async function prepareArtworkWorkset(
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     maintenance?: boolean;
+    revalidateAccepted?: boolean;
     retainedCoverLimit?: number;
     dueCoverLimit?: number;
     now?: () => number;
@@ -407,6 +408,7 @@ export async function prepareArtworkWorkset(
 ) {
   const now = options.now ?? Date.now;
   const maintenance = options.maintenance === true;
+  const revalidateAccepted = maintenance || options.revalidateAccepted === true;
   const limit = options.dueCoverLimit ?? options.retainedCoverLimit;
   if (options.dueCoverLimit !== undefined && options.retainedCoverLimit !== undefined)
     throw new Error("Choose one bounded artwork workset scope");
@@ -477,6 +479,7 @@ export async function prepareArtworkWorkset(
       input,
       refresh,
       maintenance,
+      revalidateAccepted,
       validator: options.validatorIdentity,
       tool: toolIdentity,
       // A newly verified image can restore an otherwise ambiguous original mapping.
@@ -600,7 +603,7 @@ export async function prepareArtworkWorkset(
       acceptedCatalog: accepted,
       selectedPortIds: batch,
       refreshPortIds: [...refreshing],
-      revalidateAccepted: maintenance,
+      revalidateAccepted,
       identities: isRecord(identities)
         ? Object.fromEntries(batch.map((id) => [id, identities[id]]))
         : undefined,

@@ -69,6 +69,7 @@ import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-packag
 import {
   createIgdbInspector,
   createCoreImageValidator,
+  hashCoreImageValidatorFile,
   readArtworkJson,
   readArtworkInput,
 } from "./inspect-igdb-artwork.mts";
@@ -2063,6 +2064,7 @@ export async function prepareArtworkBatch(
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     maintenance?: boolean;
+    revalidateAccepted?: boolean;
     retainedCoverLimit?: number;
     dueCoverLimit?: number;
     now?: () => number;
@@ -2089,8 +2091,13 @@ export async function prepareArtworkBatch(
     refreshPortIds.some((id) => !selected.has(id))
   )
     throw new Error("Artwork refresh requires unique IDs within the selected workset.");
+  if (
+    options.revalidateAccepted &&
+    (options.maintenance || refreshPortIds.length !== selected.size)
+  )
+    throw new Error("Exact artwork revalidation requires an explicit fully refreshed selection.");
   const validatorIdentity = options.validatorCli
-    ? createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex")
+    ? hashCoreImageValidatorFile(options.validatorCli)
     : null;
   const boundedDue = options.dueCoverLimit !== undefined;
   const excluded = new Set(
@@ -2143,6 +2150,7 @@ export async function prepareArtworkBatch(
         ...(options.selectedPortIds ? { selectedPortIds: options.selectedPortIds } : {}),
         refreshPortIds,
         ...(options.maintenance ? { maintenance: true } : {}),
+        ...(options.revalidateAccepted ? { revalidateAccepted: true } : {}),
         ...(options.retainedCoverLimit === undefined
           ? {}
           : { retainedCoverLimit: options.retainedCoverLimit }),

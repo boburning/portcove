@@ -1919,3 +1919,72 @@ void test("a sparse refresh withdraws matching collection members outside the se
   assert.ok(result.workset.invalidated_port_ids.includes("collection-other"));
   assert.deepEqual(fixture.accepted.ports[1]?.presentation?.collection_covers, [first, second]);
 });
+
+void test("explicit cover review revalidates only the retained original even when the port has its own cover", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-original-cover-review-"));
+  try {
+    const fixture = scalableArtworkFixture(2);
+    const artwork = {
+      game_id: 42,
+      cover_id: 1,
+      image_id: "acceptedimage",
+      image_sha256: "d".repeat(64),
+      game_slug: "original-game",
+      match_kind: "underlying-game",
+    };
+    const port = requiredFixture(fixture.catalog.ports[0]);
+    const original = {
+      game_id: 42,
+      slug: "original-game",
+      names: ["Original Game"],
+      evidence_url: "https://example.org/original",
+    };
+    port.presentation = { artwork };
+    port.underlying_game = original;
+    const requests: string[] = [];
+    const result = await prepareArtworkWorkset(fixture.catalog, {
+      root: scratch,
+      validatorIdentity: null,
+      identities: { "scale-0": { underlying_game: original } },
+      selectedPortIds: ["scale-0"],
+      refreshPortIds: ["scale-0"],
+      revalidateAccepted: true,
+      inspector: {
+        inspectGame(identity) {
+          requests.push(identity.kind);
+          if (identity.kind === "port")
+            return [
+              {
+                id: 1,
+                name: "Scale 0",
+                slug: "scale-0",
+                websites: [{ url: port.project_url }],
+                cover: { id: 3, image_id: "distinctportcover" },
+              },
+            ];
+          assert.equal(identity.game_id, 42);
+          assert.equal(identity.slug, "original-game");
+          return [
+            {
+              id: 42,
+              name: "Original Game",
+              slug: "original-game",
+              cover: { id: 2, image_id: "replacementimage" },
+            },
+          ];
+        },
+        inspectImage() {
+          return fixture.inspector.inspectImage();
+        },
+      },
+    });
+    assert.deepEqual(requests, ["underlying-game"]);
+    assert.equal(result.records.length, 1);
+    assert.equal(result.records[0]?.mapping?.image_id, "replacementimage");
+    assert.equal(result.records[0]?.mapping?.match_kind, "underlying-game");
+    assert.equal(result.continuation.complete, true);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});

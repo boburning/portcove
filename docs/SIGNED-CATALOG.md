@@ -559,18 +559,23 @@ policy still publish. The report records `listing_publication_stopped` with a
 `Catalog publish` emits an `::error::` annotation and a step summary with those
 figures and fails the run, so a person resolves it. The stop codes are:
 
-| Code                         | Cause                                                                      |
-| ---------------------------- | -------------------------------------------------------------------------- |
-| `decoded_bound`              | The decoded compact document exceeds 32 MiB                                |
-| `transport_bound`            | The encoded compact target exceeds 8 MiB                                   |
-| `listing_count`              | Delivered listings exceed 10,000 (`compactListingCountMaximum`)            |
-| `record_bound`               | A delivered listing serializes above 1 MiB (`compactListingRecordMaximum`) |
-| `withdrawal_count`           | Withdrawals exceed 10,000                                                  |
-| `withdrawal_input`           | The committed withdrawal record is invalid (see the next section)          |
-| `missing_without_withdrawal` | A published listing left `listings.json` without a committed withdrawal    |
-| `conflicting_observations`   | Two observer candidates claim the same listing                             |
-| `core_refusal`               | Core refused the final staged publication with an input-refusal envelope   |
+| Code                         | Cause                                                                         |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| `decoded_bound`              | The decoded compact document exceeds 32 MiB                                   |
+| `transport_bound`            | The encoded compact target exceeds 8 MiB                                      |
+| `listing_count`              | Delivered listings exceed 10,000 (`compactListingCountMaximum`)               |
+| `record_bound`               | A delivered listing serializes above 1 MiB (`compactListingRecordMaximum`)    |
+| `withdrawal_count`           | Withdrawals exceed 10,000                                                     |
+| `withdrawal_input`           | The committed withdrawal record is invalid (see the next section)             |
+| `missing_without_withdrawal` | A published listing left `listings.json` without a committed withdrawal       |
+| `conflicting_observations`   | Two observer candidates claim the same listing                                |
+| `cover_evidence_unavailable` | Evidence for a cover withdrawal is missing or its historical scope is unknown |
+| `core_refusal`               | Core refused the final staged publication with an input-refusal envelope      |
 
+If an older withdrawal blocks a cover from returning, recover the exact old
+mapping from a verified observation or signed listing. The current publication
+keeps its prior listing and withdrawal until the publisher can match that
+mapping to the current cover.
 Everything else fails preparation as before and publishes nothing: canonical
 inputs (`listings.json`, `catalog.json`, the withdrawal record) changing during
 the run; a Core crash, timeout, output overflow or non-refusal error; Core

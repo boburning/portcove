@@ -2198,6 +2198,32 @@ A durable withdrawal removes the donor and any resulting defaults. Restoration
 can make the same verified image eligible again. The publisher keeps release
 observations independently of a generated cover. Players can still choose or
 hide artwork in their own libraries.
+
+To prepare a replacement for an existing original-game cover, use
+`node scripts/catalog-cover-replacement-review.mts --help` for the command inputs.
+Use a clean checkout at the exact commit under review. Supply the retained signed
+repository, its authenticated history, and the trusted Core and release tools.
+Choose up to 32 exact port IDs and a new output directory outside the checkout.
+The predecessor must match the authored original-game cover or its exact
+withdrawal in the signed cover checkpoint.
+
+The command reuses the ordinary artwork preparation route. The review packet
+records the current and proposed image identities, the verified predecessor,
+and the hashes of the evidence. Its file name includes the packet's SHA-256.
+The packet records a proposal for independent review. After review, the
+repository owner starts a protected Catalog publish run from main. Supply the
+exact packet in `cover_replacement_packet` and its SHA-256 in
+`cover_replacement_sha256`. In `cover_replacement_preimages`, supply a JSON
+object that maps each proposed port ID to its reviewed current image SHA-256.
+
+The publisher checks the selected signed predecessor and verifies each
+replacement image again. It requires the released reader to inspect the exact
+candidate bundle. The signer records the approved packet on the compact target
+and carries that record forward through renewal. A later approval must identify
+the currently signed replacement as its predecessor. Matching original-game
+scopes keep the signed choice when the authored cover changes. The new
+authored cover can enter the signed catalog through the same reviewed process.
+
 Due refresh of a retained cover revalidates its approved IGDB game ID, slug
 and cover role. An accepted mapping can be revalidated by exact ID and slug
 even when the listing lacks an original title. This does not establish a new

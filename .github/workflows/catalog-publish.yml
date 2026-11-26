@@ -42,6 +42,16 @@ on:
         type: boolean
         default: false
 
+      cover_replacement_packet:
+        description: Exact independently reviewed cover replacement packet JSON
+        type: string
+      cover_replacement_sha256:
+        description: SHA-256 of the exact review packet bytes
+        type: string
+      cover_replacement_preimages:
+        description: JSON mapping of all reviewed port IDs to their signed current cover digests
+        type: string
+
 permissions:
   contents: read
 
@@ -58,7 +68,10 @@ jobs:
   prepare:
     if: >-
       github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')) &&
+      ((!inputs.cover_replacement_packet && !inputs.cover_replacement_sha256 && !inputs.cover_replacement_preimages) ||
+      (github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' &&
+      github.triggering_actor == github.repository_owner))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -199,8 +212,17 @@ jobs:
         if: steps.decide.outputs.publish == 'true'
         env:
           ACTIVATE_COVER_CHECKPOINT: ${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_cover_checkpoint == true }}
+          PORTCOVE_COVER_REVIEW_PACKET: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_packet || '' }}
+          PORTCOVE_COVER_REVIEW_SHA256: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_sha256 || '' }}
+          PORTCOVE_COVER_REVIEW_PREIMAGES: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_preimages || '' }}
+          PORTCOVE_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
         run: |
           set -euo pipefail
+          if [ -n "$PORTCOVE_COVER_REVIEW_PACKET$PORTCOVE_COVER_REVIEW_SHA256$PORTCOVE_COVER_REVIEW_PREIMAGES" ] &&
+            [ ! -f scripts/catalog-cover-approval.mts ]; then
+            echo "::error::Wait for a CI-green main commit that supports approved cover replacement"
+            exit 1
+          fi
           cover_options=()
           if [ -d site/catalog-history ]; then cover_options+=(--prior-history "$PWD/site/catalog-history"); fi
           if [ "$ACTIVATE_COVER_CHECKPOINT" = true ]; then cover_options+=(--activate-cover-checkpoint); fi
@@ -239,6 +261,7 @@ jobs:
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
             --bundle "$BUNDLE" \
             --inspection-stdout "$RUNNER_TEMP/inspection.stdout" \
+            --cover-approval-report "$RUNNER_TEMP/observation-bundle/report.json" \
             --retain-bodies "$CATALOG_RETAIN_BODIES" \
             --prior "$PRIOR" "${history_request[@]}" > "$RUNNER_TEMP/prepare.outputs"
           cat "$RUNNER_TEMP/prepare.outputs" >> "$GITHUB_OUTPUT"
@@ -450,6 +473,11 @@ jobs:
           fi
           url="https://boburning.github.io/portcove/catalog/metadata/timestamp.json"
           deadline=$((SECONDS + 900))
+          require_approval_receipt=$(node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const report = JSON.parse(readFileSync(process.argv[1], "utf8"));
+            process.stdout.write(report.cover_approvals ? "true" : "false");
+          ' "$RUNNER_TEMP/catalog-work/assembly-report.json")
           fetch_digest() {
             local remaining=$((deadline - SECONDS))
             if [ "$remaining" -le 0 ]; then echo unavailable; return; fi
@@ -480,16 +508,20 @@ jobs:
                 --output "$RUNNER_TEMP/catalog-publication-live-readback.json" \
                 --browse-index-sha256 "$browse_actual" --browse-inputs-sha256 "$inputs_actual"; then
                 echo "receipt=true" >> "$GITHUB_OUTPUT"
-              else
-                echo "::warning::Catalog publication succeeded, but the exact immutable readback receipt was unavailable."
+                exit 0
               fi
-              exit 0
+              echo "::warning::Catalog publication succeeded, but the exact immutable readback receipt was unavailable."
+              if [ "$require_approval_receipt" != true ]; then exit 0; fi
             fi
             remaining=$((deadline - SECONDS))
             if [ "$remaining" -le 0 ]; then break; fi
             if [ "$remaining" -gt 30 ]; then remaining=30; fi
             sleep "$remaining"
           done
+          if [ "$require_approval_receipt" = true ]; then
+            echo "::error::Pages did not serve the exact signed cover approval receipt within 15 minutes."
+            exit 1
+          fi
           echo "::warning::Pages did not serve the complete new timestamp and browse output within 15 minutes; check the Pages build."
       - name: Retain the successful public catalog readback
         if: steps.readback.outputs.receipt == 'true'
