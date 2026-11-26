@@ -7445,6 +7445,7 @@ node scripts/prepare-port.mts --project https://github.com/owner/project --expec
 node scripts/prepare-port.mts --project https://github.com/owner/project --original-game /path/to/game-identity.json --output-dir /path/to/preparation
 node scripts/prepare-port.mts --record /path/to/stable-id.json --route download --release-tag v1.2 --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/preparation
 node scripts/prepare-port.mts --listing-observations /path/to/catalog-upstream-observations/source.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/observation-preparation
+node scripts/prepare-port.mts --discovery-listings /path/to/discovery-listing-handoff.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/discovery-preparation
 ```
 
 The command accepts a canonical Portcove issue number/URL, a direct public
@@ -7467,6 +7468,15 @@ metadata and cache entries use the provider's immutable ID. A new listing points
 feed even if no release is available yet. Original-game identity and artwork
 can be resolved independently. Preparation still produces reviewable
 catalog inputs for the normal validation and publication path.
+
+The discovery batch preparer takes a handoff with format
+`portcove-discovery-listing-handoff`, format version 1 and a `candidates` array.
+Each candidate carries `id`, `project_url`, the immutable `repository_id`
+and the retained `evidence_sha256`. The preparer rechecks public repository
+metadata and catalog ownership, then assembles the additions together.
+It reports conflicting identities and unavailable provider facts per candidate.
+The handoff supplies evidence references for review. It grants no authority
+to publish, change existing records or decide which package Core can offer.
 
 The `--original-game` input uses the same reviewed object as
 `listing.original_game` in an authored record. It carries the stable game ID,

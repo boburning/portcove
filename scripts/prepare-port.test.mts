@@ -25,6 +25,7 @@ import {
 } from "./port-upstream-facts.mts";
 import {
   preparePort,
+  prepareDiscoveryListingAdditions,
   prepareArtworkBatch,
   prepareListingObservations,
   portablePreparationFeedback,
@@ -813,6 +814,139 @@ void test("complete selected-release observations reuse exact assets and do not 
     assert.equal(f.requests.length, 3);
     await preparePort(options);
     assert.equal(f.requests.length, 3);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery listing batch keeps independent additions and never replaces accepted records", async () => {
+  const f = fixture();
+  try {
+    const claim = (id: string, repository: string, repository_id: number) => ({
+      id,
+      project_url: `https://github.com/${repository}`,
+      repository_id,
+      evidence_sha256: "a".repeat(64),
+    });
+    const handoff = {
+      format: "portcove-discovery-listing-handoff",
+      format_version: 1,
+      candidates: [
+        claim("dcs-moved", "moved/crawl", 23038334),
+        claim("dcs-reused", "crawl/crawl", 777),
+        claim("warioland4", "moved/crawl", 23038334),
+        claim("first-new-port", "example/fixture", metadata.id),
+        claim("second-new-port", "example/second", 124),
+        claim("third-new-port", "example/third", 125),
+        claim("overlap-one", "example/overlap", 126),
+        claim("overlap-two", "other/relocated", 126),
+      ],
+    };
+    const options = {
+      catalogRoot,
+      outputDirectory: join(f.root, "discovery-listings"),
+      handoff,
+      facts: {
+        now: () => Date.parse("2026-11-26T00:00:00Z"),
+        fetcher: f.fetcher((url) => {
+          if (url.endsWith("/example/fixture")) return json({ ...metadata, private: false });
+          if (url.endsWith("/example/second"))
+            return json({ ...metadata, id: 555, full_name: "example/second", private: false });
+          if (url.endsWith("/example/third"))
+            return json({ ...metadata, id: 125, full_name: "example/third", private: false });
+          return new Response(null, { status: 404 });
+        }),
+      },
+    };
+    const { report } = await prepareDiscoveryListingAdditions(options);
+    assert.deepEqual(report.changed_records, ["first-new-port", "third-new-port"]);
+    assert.equal(report.operational_changed, false);
+    assert.deepEqual(
+      report.outcomes.map(({ status }) => status),
+      ["already-cataloged", "held", "held", "prepared", "held", "prepared", "held", "held"],
+    );
+    assert.equal(f.requests.length, 3);
+    assert.deepEqual(JSON.parse(readFileSync(report.files.records[0]!.path, "utf8")), {
+      format_version: 1,
+      upstream_lineage: {
+        format_version: 1,
+        target_key: "first-new-port",
+        origin: { project_url: project, repository: { host: "github.com", id: "123" } },
+        decisions: [],
+      },
+      listing: {
+        id: "first-new-port",
+        name: "fixture",
+        project_url: project,
+        listed_at: "2026-11-26",
+        release_url: `${project}/releases`,
+        summary: metadata.description,
+      },
+    });
+    const accepted = readCatalogSource(catalogRoot);
+    const directory: unknown = JSON.parse(readFileSync(report.files.listings, "utf8"));
+    assert.ok(isRecord(directory) && Array.isArray(directory.listings));
+    assert.equal(directory.listings.length, accepted.directory.listings.length + 2);
+    assert.equal(report.accepted_listings_sha256, observationHash(accepted.directory));
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        handoff: {
+          ...handoff,
+          candidates: [{ ...handoff.candidates[0], integration: { adapter: "native-portable" } }],
+        },
+      }),
+      /requires a stable ID, public repository and evidence digest/u,
+    );
+    assert.equal(f.requests.length, 3);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery listing batch honors provider backoff across repositories", async () => {
+  const f = fixture();
+  try {
+    const { report } = await prepareDiscoveryListingAdditions({
+      catalogRoot,
+      outputDirectory: join(f.root, "discovery-backoff"),
+      handoff: {
+        format: "portcove-discovery-listing-handoff",
+        format_version: 1,
+        candidates: [123, 124, 23038334].map((repository_id) => ({
+          id: `discovery-${repository_id}`,
+          project_url:
+            repository_id === 23038334
+              ? "https://github.com/crawl/crawl"
+              : `https://github.com/example/port-${repository_id}`,
+          repository_id,
+          evidence_sha256: "a".repeat(64),
+        })),
+      },
+      facts: {
+        now: () => Date.parse("2026-11-26T00:00:00Z"),
+        fetcher: f.fetcher(
+          () =>
+            new Response(null, {
+              status: 429,
+              headers: { "Retry-After": "3600" },
+            }),
+        ),
+      },
+    });
+    assert.equal(f.requests.length, 1);
+    assert.deepEqual(report.changed_records, []);
+    assert.deepEqual(
+      report.outcomes.map((row) => [
+        row.status,
+        "retry_after" in row ? row.retry_after : undefined,
+      ]),
+      [
+        ["deferred", "2026-11-26T01:00:00.000Z"],
+        ["deferred", "2026-11-26T01:00:00.000Z"],
+        ["already-cataloged", undefined],
+      ],
+    );
   } finally {
     f.clean();
   }
