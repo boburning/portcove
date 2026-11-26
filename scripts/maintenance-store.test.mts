@@ -1258,10 +1258,11 @@ void test(
     );
     // The removal list is larger than the response allowance, yet smaller
     // than the complete-row estimate. An uncapped incremental plan would emit it.
+    const priorPayload = 2_068_000;
     const measurement = {
       host: source.PGHOST!,
-      payloadBytes: 0,
-      byteLimit: 12_000,
+      payloadBytes: priorPayload,
+      byteLimit: 2_080_000,
       deadline: Date.now() + 120_000,
     };
     const result = await maintenanceTransfer.run(measurement, () =>
@@ -1276,7 +1277,9 @@ void test(
     );
     assert.equal(result.reused, false);
     assert.deepEqual(result.transfer.row_delta_tables, []);
-    assert.ok(measurement.payloadBytes > 0 && measurement.payloadBytes < measurement.byteLimit);
+    assert.ok(
+      measurement.payloadBytes > priorPayload && measurement.payloadBytes < measurement.byteLimit,
+    );
     assert.deepEqual(result.manifest.tables, storeDigest(source));
   },
 );
