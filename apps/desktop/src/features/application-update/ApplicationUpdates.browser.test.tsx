@@ -1,15 +1,17 @@
 import { captureParityState } from "../../../test/parity-capture";
 import { page } from "vite-plus/test/browser";
+import { act } from "react";
 import { cleanup, render } from "vitest-browser-react";
 import { afterEach, beforeAll, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
+import { listenDesktopEvent } from "../../desktop-events";
 import { failureReport } from "../../test-fixtures";
 import type { ApplicationUpdateProgress, ApplicationUpdateStatus } from "../../types";
 import { initializeLocalization } from "../../localization";
 import { ApplicationUpdateSettings } from "./ApplicationUpdates";
 import { useApplicationUpdate } from "./use-application-update";
 
-vi.mock("../../desktop-events", () => ({ listenDesktopEvent: async () => () => undefined }));
+vi.mock("../../desktop-events", () => ({ listenDesktopEvent: vi.fn(async () => () => undefined) }));
 
 const available: ApplicationUpdateStatus = {
   current_version: "0.1.0",
@@ -72,7 +74,13 @@ it("saves the channel and automatic checks immediately", async () => {
 it("installs the reviewed version with progress and shows a busy-library refusal", async () => {
   await page.viewport(430, 780);
   document.documentElement.dataset.theme = "light";
-  vi.spyOn(desktopApi, "applicationUpdateStatus").mockResolvedValue(available);
+  const longNotes = Array.from({ length: 20 }, (_, index) => `Release change ${index + 1}.`).join(
+    "\n",
+  );
+  vi.spyOn(desktopApi, "applicationUpdateStatus").mockResolvedValue({
+    ...available,
+    available: { ...available.available!, notes: longNotes },
+  });
   vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
     channel: "beta",
     automatic_checks: true,
@@ -91,8 +99,13 @@ it("installs the reviewed version with progress and shows a busy-library refusal
   await expect
     .element(page.getByRole("heading", { name: "Portcove 0.2.0 is available" }))
     .toBeVisible();
-  await expect.element(page.getByText("Faster library loading.")).toBeVisible();
-  await page.getByRole("button", { name: "Download and restart", exact: true }).click();
+  const notes = page.getByText(/Release change 20/u);
+  await expect.element(notes).toBeVisible();
+  const download = page.getByRole("button", { name: "Download and restart", exact: true });
+  expect(
+    download.element().compareDocumentPosition(notes.element()) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  await download.click();
   expect(install).toHaveBeenCalledExactlyOnceWith("0.2.0", 7, expect.any(Function));
   await expect.element(page.getByText("Starting the download…")).toBeVisible();
   await expect.element(page.getByText("Updating Portcove…", { exact: true })).toBeVisible();
@@ -124,12 +137,47 @@ it("installs the reviewed version with progress and shows a busy-library refusal
     .element(page.getByText("Portcove 0.2.0 is ready to download.", { exact: true }))
     .toBeVisible();
   const alert = page.getByRole("alert").element();
-  alert.scrollIntoView({ block: "center", inline: "nearest" });
+  expect(download.element().closest("article")).toBe(alert.closest("article"));
+  expect(
+    alert.compareDocumentPosition(download.element()) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
   const alertBounds = alert.getBoundingClientRect();
   expect(alertBounds.top).toBeGreaterThanOrEqual(0);
   expect(alertBounds.bottom).toBeLessThanOrEqual(innerHeight);
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
   await captureParityState("application-update-settled-refusal");
+});
+
+it("keeps a refusal from an older offer outside a replacement offer", async () => {
+  vi.spyOn(desktopApi, "applicationUpdateStatus").mockResolvedValue(available);
+  vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
+    channel: "beta",
+    automatic_checks: true,
+  });
+  let refuse: ((reason: unknown) => void) | undefined;
+  const install = vi.spyOn(desktopApi, "installApplicationUpdate").mockImplementation(
+    () =>
+      new Promise((_resolve, reject) => {
+        refuse = reject;
+      }),
+  );
+  await render(<Fixture />);
+  const download = page.getByRole("button", { name: "Download and restart", exact: true });
+  await download.click();
+  const subscription = vi.mocked(listenDesktopEvent).mock.lastCall;
+  expect(subscription?.[0]).toBe("portcove://application-update-notice");
+  await act(async () => {
+    subscription?.[1]({ ...available, available: { ...available.available!, version: "0.3.0" } });
+    refuse?.({ ...failureReport(), details: { application_update_refusal: "stale" } });
+  });
+  await expect
+    .element(page.getByRole("heading", { name: "Portcove 0.3.0 is available" }))
+    .toBeVisible();
+  const alert = page.getByRole("alert");
+  await expect.element(alert).toBeVisible();
+  expect(download.element().closest("article")?.contains(alert.element())).toBe(false);
+  await expect.element(download).toBeEnabled();
+  expect(install).toHaveBeenCalledExactlyOnceWith("0.2.0", 7, expect.any(Function));
 });
 
 it("shows a host-reported update as active without inventing local download progress", async () => {
