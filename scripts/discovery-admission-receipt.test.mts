@@ -197,13 +197,23 @@ void test("replay seals only candidates prepared before the preview deadline", a
       ),
     /unique prepared candidates/u,
   );
+  const duplicate = { ...source, candidates: [...source.candidates, handoff.candidates[0]] };
+  assert.throws(
+    () =>
+      scheduledDiscoveryReplayReceipt(
+        { ...prepared, handoff_semantic_sha256: orderedJsonSha256(duplicate) },
+        duplicate,
+        context,
+      ),
+    /prepared discovery candidates differ/iu,
+  );
 });
 
 void test("retained format-one replay receipts still bind their original handoff", async () => {
   const retained = fixture();
   const original: unknown = JSON.parse(retained.bytes.toString());
   assert.ok(isRecord(original));
-  const legacy = { ...original, format_version: 1 };
+  const legacy: Record<string, unknown> = { ...original, format_version: 1 };
   delete legacy["source_handoff_sha256"];
   retained.replaceZip(createAuditZip([[receiptFile, JSON.stringify(legacy)]]));
   assert.deepEqual(

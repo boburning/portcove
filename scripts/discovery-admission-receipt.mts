@@ -64,9 +64,13 @@ export function scheduledDiscoveryReplayReceipt(
   )
     throw new Error("Scheduled discovery receipt requires unique prepared candidates.");
   const candidates = (handoff.candidates as unknown[]).filter(
-    (row) => isRecord(row) && typeof row.id === "string" && prepared.delete(row.id),
+    (row): row is Record<string, unknown> & { id: string } =>
+      isRecord(row) && typeof row.id === "string" && prepared.has(row.id),
   );
-  if (prepared.size || candidates.length !== report.changed_records.length)
+  if (
+    candidates.length !== prepared.size ||
+    new Set(candidates.map(({ id }) => id)).size !== prepared.size
+  )
     throw new Error("Prepared discovery candidates differ from the approved handoff.");
   const replayHandoff = { ...handoff, candidates };
   const receipt = {

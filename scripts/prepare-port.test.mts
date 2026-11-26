@@ -44,6 +44,7 @@ import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { coreProposalInspector, type ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort, CatalogPort } from "./catalog-authoring.mts";
 import { managedSetupReleaseAdvice } from "./catalog-setup-release-advice.mts";
+import { scheduledDiscoveryReplayReceipt } from "./discovery-admission-receipt.mts";
 
 void test("managed setup release advice reports exact actions without changing evidence", () => {
   const releaseBase = "https://github.com/example/fixture/releases";
@@ -1273,6 +1274,60 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     assert.equal(declared.integration, undefined);
 
     refuse = false;
+    let clock = Date.parse("2026-11-26T00:00:00Z");
+    const limitedHandoff = { ...handoff, candidates: [candidates[0], candidates[5]] };
+    const normalFetch = options.facts?.fetcher;
+    assert.ok(normalFetch);
+    const limited = await prepareDiscoveryListingAdditions({
+      ...options,
+      handoff: limitedHandoff,
+      deadline: clock + 1_000,
+      outputDirectory: join(f.root, "deadline-preview"),
+      facts: {
+        ...options.facts,
+        now: () => clock,
+        fetcher: async (...args) => {
+          const response = await normalFetch(...args);
+          const [input] = args;
+          const url =
+            typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+          if (url.includes("/repositories/80000/contents/")) clock += 1_001;
+          return response;
+        },
+      },
+    });
+    assert.deepEqual(
+      limited.report.outcomes.map(({ status }) => status),
+      ["prepared", "deferred"],
+    );
+    const receipt = scheduledDiscoveryReplayReceipt(limited.report, limitedHandoff, {
+      GITHUB_EVENT_NAME: "schedule",
+      GITHUB_REPOSITORY: "boburning/portcove",
+      GITHUB_WORKFLOW_REF:
+        "boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main",
+      GITHUB_WORKFLOW_SHA: sha,
+      GITHUB_SHA: sha,
+      GITHUB_RUN_ID: "42",
+      GITHUB_RUN_ATTEMPT: "1",
+    });
+    assert.ok(receipt);
+    const replayReceipt: unknown = JSON.parse(receipt.toString());
+    assert.ok(isRecord(replayReceipt));
+    const availableLater = await prepareDiscoveryListingAdditions({
+      ...options,
+      handoff: limitedHandoff,
+      outputDirectory: join(f.root, "deadline-cleared"),
+    });
+    assert.deepEqual(availableLater.report.changed_records, ["github-80000", "github-80005"]);
+    assert.notEqual(availableLater.report.admission?.sha256, limited.report.admission?.sha256);
+    const replayLimited = await prepareDiscoveryListingAdditions({
+      ...options,
+      handoff: replayReceipt.handoff,
+      outputDirectory: join(f.root, "deadline-replay"),
+    });
+    assert.deepEqual(replayLimited.report.changed_records, ["github-80000"]);
+    assert.equal(replayLimited.report.admission?.sha256, limited.report.admission?.sha256);
+
     scheduledReader = false;
     const repository = join(f.root, "replay");
     const replayCatalog = join(repository, "crates", "portcove-core", "catalog");
