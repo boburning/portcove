@@ -200,56 +200,68 @@ it("shows different installed and selected update channels separately", async ()
   );
 });
 
-it("uses a viewport-bound demo workspace across resizing and preserves embedded mode on reset", async () => {
-  window.history.replaceState(
-    null,
-    "",
-    "/scenarios.html?mode=interactive&journey=collection-large&embed=1",
-  );
-  document.body.innerHTML =
-    '<details class="scenario-controls" open><summary>Review desk</summary><p id="scenario-description">Static previews</p><select id="scenario"></select><p id="scenario-limitation"></p></details><div id="scenario-preview" class="scenario-preview" inert></div>';
-  await act(async () => startInteractiveScenarios());
-  await document.fonts.ready;
-  expect(document.querySelector("#scenario-description")?.textContent).toContain(
-    "Actions are simulated",
-  );
-  expect(document.querySelector<HTMLDetailsElement>(".scenario-controls")?.open).toBe(false);
-  const preview = document.querySelector<HTMLElement>("#scenario-preview")!;
-  const work = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;
-  for (const [width, height] of [
-    [1366, 768],
-    [1920, 1080],
-    [960, 640],
-    [1366, 768],
-  ] as const) {
-    await page.viewport(width, height);
-    await expect.poll(() => Math.round(preview.getBoundingClientRect().height)).toBe(height);
-    expect(work.getBoundingClientRect().bottom).toBeLessThanOrEqual(height);
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
-    expect(work.scrollHeight).toBeGreaterThan(work.clientHeight);
-  }
-  await page.viewport(320, 900);
-  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320);
-  expect(getComputedStyle(work).overflowY).toBe("visible");
-  expect(document.scrollingElement!.scrollHeight).toBeGreaterThan(900);
-  await click("Reset journey");
-  expect(new URL(window.location.href).searchParams.get("embed")).toBe("1");
-  await vi.waitFor(() =>
-    expect(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")).toBe(
-      "60",
-    ),
-  );
-  const indices = [
-    2,
-    ...Array.from({ length: 14 }, (_, n) => 4 * n + 6),
-    ...Array.from({ length: 14 }, (_, n) => 4 * n + 4),
-    ...Array.from({ length: 14 }, (_, n) => 4 * n + 5),
-    0,
-    1,
-    ...Array.from({ length: 15 }, (_, n) => 4 * n + 3),
-  ];
-  await inspectLibraryGroups(indices.map((index) => [`collection-${index}`]));
-});
+it(
+  "uses a viewport-bound demo workspace across resizing and preserves embedded mode on reset",
+  // The full macOS browser suite took 19 seconds on the five resizes and 60-entry walk.
+  { timeout: 30_000 },
+  async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/scenarios.html?mode=interactive&journey=collection-large&embed=1",
+    );
+    document.body.innerHTML =
+      '<details class="scenario-controls" open><summary>Review desk</summary><p id="scenario-description">Static previews</p><select id="scenario"></select><p id="scenario-limitation"></p></details><div id="scenario-preview" class="scenario-preview" inert></div>';
+    await act(async () => startInteractiveScenarios());
+    await document.fonts.ready;
+    expect(document.querySelector("#scenario-description")?.textContent).toContain(
+      "Actions are simulated",
+    );
+    expect(document.querySelector<HTMLDetailsElement>(".scenario-controls")?.open).toBe(false);
+    const preview = document.querySelector<HTMLElement>("#scenario-preview")!;
+    const work = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;
+    const resize = async (width: number, height: number) => {
+      await act(async () => {
+        await page.viewport(width, height);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+      });
+    };
+    for (const [width, height] of [
+      [1366, 768],
+      [1920, 1080],
+      [960, 640],
+      [1366, 768],
+    ] as const) {
+      await resize(width, height);
+      await expect.poll(() => Math.round(preview.getBoundingClientRect().height)).toBe(height);
+      expect(work.getBoundingClientRect().bottom).toBeLessThanOrEqual(height);
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+      expect(work.scrollHeight).toBeGreaterThan(work.clientHeight);
+    }
+    await resize(320, 900);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320);
+    expect(getComputedStyle(work).overflowY).toBe("visible");
+    expect(document.scrollingElement!.scrollHeight).toBeGreaterThan(900);
+    await click("Reset journey");
+    expect(new URL(window.location.href).searchParams.get("embed")).toBe("1");
+    await vi.waitFor(() =>
+      expect(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")).toBe(
+        "60",
+      ),
+    );
+    const indices = [
+      2,
+      ...Array.from({ length: 14 }, (_, n) => 4 * n + 6),
+      ...Array.from({ length: 14 }, (_, n) => 4 * n + 4),
+      ...Array.from({ length: 14 }, (_, n) => 4 * n + 5),
+      0,
+      1,
+      ...Array.from({ length: 15 }, (_, n) => 4 * n + 3),
+    ];
+    await inspectLibraryGroups(indices.map((index) => [`collection-${index}`]));
+  },
+);
 
 it("returns to the exact older recovery activity after opening its game", async () => {
   const snapshot = workspace("library");
