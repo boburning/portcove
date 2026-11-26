@@ -118,8 +118,8 @@ export function reviewCoverReplacementBatch(
       throw new Error(
         `Cover observation is incomplete or differs from the accepted subject: ${id}`,
       );
-    if (!replacement) return [];
-    const withPriorCover = { ...replacement, listing: { ...replacement.listing, artwork: prior } };
+    const proposal = replacement ?? record;
+    const withPriorCover = { ...proposal, listing: { ...proposal.listing, artwork: prior } };
     if (!isDeepStrictEqual(withPriorCover, record))
       throw new Error("Cover proposal changed facts outside the replacement mapping: " + id);
     if (isDeepStrictEqual(proposedMapping, effective)) return [];
@@ -129,7 +129,10 @@ export function reviewCoverReplacementBatch(
       proposedMapping.image_sha256 === effective.image_sha256
     )
       throw new Error(`Changed effective cover bytes need independent source evidence: ${id}`);
-    if (proposedMapping.cover_id === prior.cover_id || proposedMapping.image_id === prior.image_id)
+    if (
+      !isDeepStrictEqual(proposedMapping, prior) &&
+      (proposedMapping.cover_id === prior.cover_id || proposedMapping.image_id === prior.image_id)
+    )
       throw new Error(`Changed cover bytes need independent source evidence: ${id}`);
     return [
       {
@@ -137,7 +140,7 @@ export function reviewCoverReplacementBatch(
         role: "cover",
         source: identity.evidence_url,
         prior_record_sha256: observationHash(record),
-        proposed_record_sha256: observationHash(replacement),
+        proposed_record_sha256: observationHash(proposal),
         prior,
         accepted_prior: effective,
         candidate: proposedMapping,

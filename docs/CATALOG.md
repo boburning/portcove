@@ -2216,7 +2216,9 @@ The publisher checks the selected signed predecessor and verifies each
 replacement image again. It requires the released reader to inspect the exact
 candidate bundle. The signer records the approved packet on the compact target
 and carries that record forward through renewal. A later approval must identify
-the currently signed replacement as its predecessor.
+the currently signed replacement as its predecessor. Matching original-game
+scopes keep the signed choice when the authored cover changes. The new
+authored cover can enter the signed catalog through the same reviewed process.
 
 Due refresh of a retained cover revalidates its approved IGDB game ID, slug
 and cover role. An accepted mapping can be revalidated by exact ID and slug

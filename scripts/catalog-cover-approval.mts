@@ -31,11 +31,7 @@ const hash = (value: string) => createHash("sha256").update(value).digest("hex")
 const originalGameUrl = (slug: string) => `https://www.igdb.com/games/${slug}`;
 
 function matches(row: Record<string, unknown> | undefined, entry: Approval) {
-  return (
-    row &&
-    isDeepStrictEqual(row.artwork, entry.authored) &&
-    entry.scope === coverDeclarationScope(row, entry.authored)
-  );
+  return row && entry.scope === coverDeclarationScope(row, entry.authored);
 }
 
 export function projectApprovedCovers<T extends { listings: Record<string, unknown>[] }>(
@@ -50,9 +46,7 @@ export function projectApprovedCovers<T extends { listings: Record<string, unkno
     ...directory,
     listings: directory.listings.map((listing) => {
       const entry = typeof listing.id === "string" ? active.get(listing.id) : undefined;
-      return entry &&
-        isDeepStrictEqual(listing.artwork, entry.authored) &&
-        matches(originals.get(listing.id), entry)
+      return entry && matches(originals.get(listing.id), entry)
         ? { ...listing, artwork: entry.candidate }
         : listing;
     }),
@@ -170,7 +164,8 @@ export async function acceptApprovedCovers(options: {
       !mapping(value.prior) ||
       !mapping(value.accepted_prior) ||
       !mapping(value.candidate) ||
-      !replacement(value.prior, value.candidate) ||
+      (!isDeepStrictEqual(value.prior, value.candidate) &&
+        !replacement(value.prior, value.candidate)) ||
       value.source !== originalGameUrl(value.prior.game_slug) ||
       !isRecord(value.content) ||
       !exact(value.content, "bytes,format,height,sha256,width") ||
@@ -186,11 +181,10 @@ export async function acceptApprovedCovers(options: {
     const record = authored.get(value.port_id);
     const compatible = compatibleRows.get(value.port_id);
     const old = previousRows.get(value.port_id);
-    const currentApproval = entries.get(value.port_id);
-    const approvedPrior =
-      currentApproval && matches(compatible, currentApproval)
-        ? currentApproval.candidate
-        : value.prior;
+    const former = entries.get(value.port_id);
+    const active = former && matches(compatible, former) ? former : undefined;
+    const approvedPrior = active?.candidate ?? value.prior;
+    const authoredAnchor = active?.authored ?? value.prior;
     if (
       !row ||
       !old ||
@@ -218,7 +212,8 @@ export async function acceptApprovedCovers(options: {
         old.artwork,
         options.priorWasWithdrawn(compatible, approvedPrior) ? undefined : approvedPrior,
       ) ||
-      !replacement(approvedPrior, value.candidate)
+      !replacement(approvedPrior, value.candidate) ||
+      !replacement(authoredAnchor, value.candidate)
     )
       throw new Error(
         "Cover replacement differs from the authenticated preimage or authored subject",
@@ -246,8 +241,8 @@ export async function acceptApprovedCovers(options: {
       throw new Error("Reviewed cover differs from the verified CDN bytes");
     entries.set(value.port_id, {
       id: value.port_id,
-      scope: coverDeclarationScope(compatible, value.prior),
-      authored: value.prior,
+      scope: coverDeclarationScope(compatible, authoredAnchor),
+      authored: authoredAnchor,
       prior: approvedPrior,
       role: "cover",
       candidate: value.candidate,

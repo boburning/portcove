@@ -423,6 +423,106 @@ void test("catalog success readback requires every affected immutable target and
   );
 });
 
+void test("cover approval receipt brackets exact snapshot and policy bytes with the public timestamp", async (t) => {
+  const dir = temp(t);
+  receiptSite(dir, [{ id: "chameleon", revision: 1 }], 1, "descriptive");
+  const compact = "policy/official/catalog.listings.compact.json";
+  const cover = "policy/official/catalog.cover-checkpoint.json";
+  const targets = publishedTargets(dir);
+  for (const name of [compact, cover]) {
+    targets[name] = overlaySha256(name);
+    put(dir, "targets/" + targets[name] + "." + name, name);
+  }
+  site(dir, targets);
+  const pathToPolicy = "metadata/4.official-policy.json";
+  const pathToSnapshot = "metadata/7.snapshot.json";
+  const policy = JSON.parse(readFileSync(path.join(dir, pathToPolicy), "utf8")) as {
+    signed: { targets: Record<string, Record<string, unknown>> };
+  };
+  const source = {
+    game_id: 1,
+    game_slug: "original",
+    cover_id: 1,
+    image_id: "originalimage",
+    image_sha256: "a".repeat(64),
+    match_kind: "underlying-game",
+  };
+  const packet = "c".repeat(64);
+  const journal = {
+    format_version: 1,
+    approvals: [
+      {
+        id: "chameleon",
+        scope: "f".repeat(64),
+        authored: source,
+        prior: source,
+        candidate: {
+          ...source,
+          cover_id: 2,
+          image_id: "replacementimage",
+          image_sha256: "b".repeat(64),
+        },
+        role: "cover",
+        bytes: 20,
+        packet,
+        source: "d".repeat(40),
+        run: "5",
+      },
+    ],
+    consumed_packets: [packet],
+  };
+  policy.signed.targets[compact]!.custom = { portcove_cover_approvals_v1: journal };
+  const policyBytes = JSON.stringify(policy);
+  put(dir, pathToPolicy, policyBytes);
+  const role = (version: number, bytes: string) => ({
+    version,
+    length: Buffer.byteLength(bytes),
+    hashes: { sha256: overlaySha256(bytes) },
+  });
+  const snapshot = JSON.stringify({
+    signed: {
+      version: 7,
+      meta: {
+        "targets.json": { version: 1 },
+        "official-definitions.json": { version: 5 },
+        "official-policy.json": role(4, policyBytes),
+      },
+    },
+  });
+  put(dir, pathToSnapshot, snapshot);
+  put(dir, "metadata/timestamp.json", {
+    signed: { version: 9, meta: { "snapshot.json": role(7, snapshot) } },
+  });
+  const description = await describeCatalogPublication(null, dir);
+  assert.deepEqual(description.coverApprovalReadback?.journal.consumed_packets, [packet]);
+  assert.deepEqual(
+    description.coverApprovalReadback?.metadata.map(({ path: file }) => file),
+    [pathToSnapshot, pathToPolicy],
+  );
+  const requests: string[] = [];
+  const localFetch =
+    (stale?: string): typeof fetch =>
+    (input) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const file = url.pathname.split("/portcove/catalog/")[1]!;
+      requests.push(file + url.search);
+      return Promise.resolve(
+        new Response(file === stale ? "stale role" : readFileSync(path.join(dir, file))),
+      );
+    };
+  await verifyCatalogPublicationLive(description, "approval", localFetch());
+  assert.deepEqual(requests.slice(0, 3), [
+    "metadata/timestamp.json?receipt=approval",
+    pathToSnapshot,
+    pathToPolicy,
+  ]);
+  assert.equal(requests.at(-1), "metadata/timestamp.json?receipt=approval-end");
+  for (const stale of [pathToSnapshot, pathToPolicy])
+    await assert.rejects(verifyCatalogPublicationLive(description, "approval", localFetch(stale)));
+  put(dir, pathToPolicy, policyBytes + " ");
+  await assert.rejects(describeCatalogPublication(null, dir), /timestamp chain/u);
+});
+
 void test("scheduled catalog readback observes the exact retained publication across an app-only Pages deploy", async (t) => {
   const dir = temp(t);
   const git = (...args: string[]) =>

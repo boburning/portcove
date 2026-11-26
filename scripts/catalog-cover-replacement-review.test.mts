@@ -390,3 +390,17 @@ void test("an authenticated earlier approval supplies the next review preimage",
     /consumed/u,
   );
 });
+
+void test("review can approve an already-authored cover against a different signed predecessor", () => {
+  const [row] = reviewCoverReplacementBatch(
+    [replacement],
+    [],
+    ["example"],
+    [record],
+    validator,
+    new Map([["example", prior]]),
+  );
+  assert.equal(row?.prior_record_sha256, row?.proposed_record_sha256);
+  assert.deepEqual(row?.accepted_prior, prior);
+  assert.deepEqual(row?.candidate, next);
+});

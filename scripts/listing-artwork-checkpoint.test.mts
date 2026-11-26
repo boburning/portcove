@@ -468,6 +468,20 @@ void test("an approved replacement keeps release activity across Gone, renewal, 
   const activity = read(original.bytes).upstream_observation;
   assert.ok(activity);
   assert.deepEqual(read(selected.bytes).artwork, candidate);
+  const changedAuthoredCover = {
+    ...artwork,
+    cover_id: 7,
+    image_id: "coahead",
+    image_sha256: "f".repeat(64),
+  };
+  const unauthenticatedChange = projectListingDelivery(
+    { ...authored, listings: [{ ...row, artwork: changedAuthoredCover }] },
+    [],
+    selected.bytes,
+    { coverApprovals: journal },
+  );
+  assert.equal(unauthenticatedChange.changed, false);
+  assert.deepEqual(read(unauthenticatedChange.bytes).artwork, candidate);
   assert.deepEqual(read(selected.bytes).upstream_observation, activity);
   const exactGone = {
     ...gone,
