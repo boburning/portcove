@@ -679,6 +679,89 @@ export interface DiscoveryPassOptions extends Omit<
   ) => Promise<DiscoveryWorkerResult | undefined>;
   sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
   signal?: AbortSignal;
+  previewListings?: (preview: ReturnType<typeof scheduledListingPreview>) => void;
+}
+
+/** Select current watch evidence for the unsigned preparer. Release hints are leads;
+ * product scope, package eligibility and all catalog writes have separate owners. */
+export function scheduledListingPreview(
+  retained: DiscoveryRetainedState,
+  runStartedAt: string,
+  covered: ReadonlySet<string>,
+  sourceRevision: string,
+  releaseEvidence: (repositoryId: number) => unknown,
+) {
+  const { leads } = parseWorkerState(retained.state);
+  const observed = Object.values(leads.records)
+    .flatMap((lead) => {
+      if (lead.status !== "pending" && lead.status !== "researched") return [];
+      const hint = lead.release_hint;
+      if (!hint?.assets_observed || hint.observed_at !== runStartedAt) return [];
+      const upstream = externalRepository(lead.url);
+      if (!upstream || upstream.key !== lead.url.toLowerCase() || covered.has(upstream.key))
+        return [];
+      const releases = releaseEvidence(lead.id);
+      if (!Array.isArray(releases)) return [];
+      const matching = (releases as unknown[]).find(
+        (release) =>
+          isRecord(release) &&
+          release.draft === false &&
+          typeof release.html_url === "string" &&
+          externalRepository(release.html_url)?.key === upstream.key &&
+          typeof release.id === "number" &&
+          Number.isSafeInteger(release.id) &&
+          release.id > 0 &&
+          Array.isArray(release.assets) &&
+          (release.assets as unknown[]).some(
+            (asset) =>
+              isRecord(asset) &&
+              asset.state === "uploaded" &&
+              typeof asset.name === "string" &&
+              /\.(?:zip|tar\.gz|AppImage|exe|msi|dmg)$/iu.test(asset.name),
+          ),
+      );
+      if (!isRecord(matching)) return [];
+      return [
+        {
+          repository_id: lead.id,
+          repository: lead.repository,
+          lead_revision: lead.revision,
+          observed_at: hint.observed_at,
+          desktop_asset_hint: true,
+          release_id: matching.id,
+          release_response_sha256: sha256(releases),
+        },
+      ];
+    })
+    .sort((a, b) => a.repository_id - b.repository_id);
+  const evidence = observed.map((input) => ({ input, sha256: sha256(input) }));
+  return {
+    handoff: {
+      format: "portcove-discovery-listing-handoff",
+      format_version: 1,
+      candidates: evidence.map(({ input, sha256: digest }) => ({
+        id: `github-${input.repository_id}`,
+        project_url: `https://github.com/${input.repository}`,
+        repository_id: input.repository_id,
+        evidence_sha256: digest,
+      })),
+    },
+    receipt: {
+      format: "portcove-discovery-listing-preview",
+      format_version: 1,
+      collector_source: sourceRevision,
+      committed: {
+        generation: retained.generation,
+        revision: retained.revision,
+        definition: retained.definition,
+        attempt: retained.attempt,
+      },
+      run_started_at: runStartedAt,
+      retained_record_count: Object.keys(leads.records).length,
+      selection: "current-positive-release-hints-for-unsigned-preparation",
+      evidence,
+    },
+  };
 }
 
 const cancellableSleep = (milliseconds: number, signal?: AbortSignal) =>
@@ -777,6 +860,25 @@ async function collectPasses(options: DiscoveryPassOptions) {
     failure || passes.some((p) => p.outcome === "failed")
       ? "failed"
       : (last?.outcome ?? "deferred");
+  if (
+    options.previewListings &&
+    retained &&
+    last?.revision === retained.revision &&
+    last.generation === retained.generation &&
+    (outcome === "complete" || outcome === "partial")
+  )
+    options.previewListings(
+      scheduledListingPreview(
+        retained,
+        runStartedAt,
+        options.covered(),
+        options.sourceRevision,
+        (repositoryId) => {
+          const file = path.join(options.runDir, `lead-release-hint-${repositoryId}.json`);
+          return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as unknown) : undefined;
+        },
+      ),
+    );
   return {
     outcome,
     passes,
@@ -1233,11 +1335,27 @@ export async function discoveryWorkerMain(argv: string[]) {
       return () => (cache ??= catalogCoveredHints());
     })();
     let previousTransfer = forecast.previous_transfer_bytes;
+    let listingPreviewSha256: string | undefined;
     const collected = await runDiscoveryPasses({
       store,
       runDir,
       covered,
       sourceRevision: process.env.GITHUB_SHA ?? "local",
+      ...(process.env.PORTCOVE_MAINTENANCE_PURPOSE === "schedule"
+        ? {
+            previewListings(preview: ReturnType<typeof scheduledListingPreview>) {
+              writeFileSync(
+                path.join(output, "listing-preview-evidence.json"),
+                JSON.stringify(preview.receipt),
+              );
+              writeFileSync(
+                path.join(output, "listing-preview-handoff.json"),
+                JSON.stringify(preview.handoff),
+              );
+              listingPreviewSha256 = sha256(preview.handoff);
+            },
+          }
+        : {}),
       runner: run
         ? `github-actions:${run}:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}`
         : `local:${os.hostname()}:${randomUUID()}`,
@@ -1292,7 +1410,12 @@ export async function discoveryWorkerMain(argv: string[]) {
         }
       },
     });
-    write({ format: "portcove-discovery-run-result", format_version: 1, ...collected });
+    write({
+      format: "portcove-discovery-run-result",
+      format_version: 1,
+      ...collected,
+      ...(listingPreviewSha256 ? { listing_preview_sha256: listingPreviewSha256 } : {}),
+    });
     return collected.outcome === "failed" ? 1 : collected.outcome === "deferred" ? 75 : 0;
   } finally {
     process.off("SIGTERM", cancel);

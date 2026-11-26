@@ -952,6 +952,43 @@ void test("discovery listing batch honors provider backoff across repositories",
   }
 });
 
+void test("scheduled discovery preparation retains completed work when the batch deadline arrives", async () => {
+  const f = fixture();
+  try {
+    let clock = Date.parse("2026-11-26T00:00:00Z");
+    const { report } = await prepareDiscoveryListingAdditions({
+      catalogRoot,
+      outputDirectory: join(f.root, "discovery-deadline"),
+      deadline: clock + 10,
+      handoff: {
+        format: "portcove-discovery-listing-handoff",
+        format_version: 1,
+        candidates: [123, 124].map((repository_id) => ({
+          id: `discovery-${repository_id}`,
+          project_url: repository_id === 123 ? project : "https://github.com/example/remaining",
+          repository_id,
+          evidence_sha256: "a".repeat(64),
+        })),
+      },
+      facts: {
+        now: () => clock,
+        fetcher: f.fetcher(() => {
+          clock += 20;
+          return json({ ...metadata, private: false });
+        }),
+      },
+    });
+    assert.deepEqual(report.changed_records, ["discovery-123"]);
+    assert.deepEqual(
+      report.outcomes.map(({ status }) => status),
+      ["prepared", "deferred"],
+    );
+    assert.equal(f.requests.length, 1);
+  } finally {
+    f.clean();
+  }
+});
+
 void test("discovery-bound preparation retains a public repository and its ongoing release feed", async () => {
   const f = fixture();
   try {

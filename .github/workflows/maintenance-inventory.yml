@@ -540,6 +540,19 @@ jobs:
             echo 'Discovery collection deferred; the retained continuation resumes on the next run.' >> "$GITHUB_STEP_SUMMARY"
           elif [[ "$rc" != 0 ]]; then
             exit "$rc"
+          else
+            node -e '
+              const { createHash } = require("node:crypto");
+              const { readFileSync } = require("node:fs");
+              const root = "work/discovery-worker";
+              const result = JSON.parse(readFileSync(root + "/result.json", "utf8"));
+              if (!["complete", "partial"].includes(result.outcome) || !result.listing_preview_sha256)
+                process.exit(0);
+              const handoff = readFileSync(root + "/listing-preview-handoff.json");
+              if (createHash("sha256").update(handoff).digest("hex") !== result.listing_preview_sha256)
+                throw new Error("Current listing preview handoff differs from the collection result");
+              console.log("listing_preview=" + (JSON.parse(handoff).candidates.length > 0));
+            ' >> "$GITHUB_OUTPUT"
           fi
       - name: Export read-only discovery status
         if: ${{ !cancelled() }}
@@ -554,6 +567,19 @@ jobs:
             cat work/discovery-worker/status.md >> "$GITHUB_STEP_SUMMARY"
           fi
           [[ "$rc" == 0 || "$rc" == 75 ]]
+      - name: Preview unsigned listings from scheduled discovery evidence
+        if: >-
+          !cancelled() && github.event_name == 'schedule' &&
+          steps.discover.outcome == 'success' &&
+          steps.discover.outputs.listing_preview == 'true'
+        timeout-minutes: 8
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/prepare-port.mts \
+            --discovery-listings work/discovery-worker/listing-preview-handoff.json \
+            --discovery-deadline-epoch-ms "$(((EPOCHSECONDS + 360) * 1000))" \
+            --output-dir work/discovery-worker/listing-preview
       - name: Retain discovery result and status
         if: ${{ !cancelled() && hashFiles('work/discovery-worker/*.json') != '' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -564,6 +590,11 @@ jobs:
             work/discovery-worker/status.json
             work/discovery-worker/status.md
             work/discovery-worker/resource.jsonl
+            work/discovery-worker/listing-preview-evidence.json
+            work/discovery-worker/listing-preview-handoff.json
+            work/discovery-worker/listing-preview/completion-*.json
+            work/discovery-worker/listing-preview/github-*.json
+            work/discovery-worker/listing-preview/discovery-upstream-*.json
           if-no-files-found: warn
           retention-days: 30
 

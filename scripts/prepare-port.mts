@@ -1234,9 +1234,13 @@ export async function prepareDiscoveryListingAdditions(
   options: Pick<ArtworkOptions, "catalogRoot" | "outputDirectory" | "validatorCli"> & {
     handoff: unknown;
     facts?: PrepareOptions["facts"];
+    deadline?: number;
   },
 ) {
   const started = process.hrtime.bigint();
+  const now = options.facts?.now ?? Date.now;
+  if (options.deadline !== undefined && !Number.isSafeInteger(options.deadline))
+    throw new Error("Discovery preparation deadline must be a finite epoch in milliseconds.");
   const handoff = options.handoff;
   if (
     !isRecord(handoff) ||
@@ -1354,16 +1358,17 @@ export async function prepareDiscoveryListingAdditions(
         });
         continue;
       }
-      if (
-        providerBackoff?.retryAfter &&
-        Date.parse(providerBackoff.retryAfter) > (options.facts?.now?.() ?? Date.now())
-      ) {
+      if (providerBackoff?.retryAfter && Date.parse(providerBackoff.retryAfter) > now()) {
         outcomes.push({
           ...reported,
           status: "deferred",
           reason: providerBackoff.reason,
           retry_after: providerBackoff.retryAfter,
         });
+        continue;
+      }
+      if (options.deadline !== undefined && now() >= options.deadline) {
+        outcomes.push({ ...reported, status: "deferred", reason: "Preparation deadline reached." });
         continue;
       }
       const projectUrl = `https://github.com/${candidate.repository}`;
@@ -1726,6 +1731,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--refresh-artwork",
     "--artwork-retained-limit",
     "--discovery-listings",
+    "--discovery-deadline-epoch-ms",
     "--listing-observations",
     "--package-observation",
     "--package-observation-reference",
@@ -1758,10 +1764,19 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     throw new Error("--artwork-retained-limit requires @due and a count from 1 through 400");
   const observationHandoff = values.get("--listing-observations");
   const discoveryHandoff = values.get("--discovery-listings");
+  const discoveryDeadline = values.get("--discovery-deadline-epoch-ms");
+  if (discoveryDeadline && !discoveryHandoff)
+    throw new Error("--discovery-deadline-epoch-ms requires --discovery-listings.");
   if (
     discoveryHandoff &&
     [...values.keys()].some(
-      (name) => !["--discovery-listings", "--validator-cli", "--output-dir"].includes(name),
+      (name) =>
+        ![
+          "--discovery-listings",
+          "--discovery-deadline-epoch-ms",
+          "--validator-cli",
+          "--output-dir",
+        ].includes(name),
     )
   )
     throw new Error(
@@ -1825,6 +1840,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       ? await prepareDiscoveryListingAdditions({
           ...common,
           facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
+          ...(discoveryDeadline ? { deadline: Number(discoveryDeadline) } : {}),
           handoff,
         })
       : prepareListingObservations({ ...common, handoff })
