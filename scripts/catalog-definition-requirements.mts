@@ -107,10 +107,14 @@ function exceeds(next: ReaderRequirements, prior: ReaderRequirements) {
 
 /** Compare operational requirements from previously verified publication inputs.
  * Listing carriers and artwork have their own publication checks. */
-export function strengthenedReaderSubjects(prior: DefinitionFiles | null, next: DefinitionFiles) {
+export function operationalReaderRequirements(
+  prior: DefinitionFiles | null,
+  next: DefinitionFiles,
+) {
   const before = prior ? readerRequirements(prior) : null;
+  const after = readerRequirements(next);
   const baseline = before ? [...before.values()] : [];
-  return [...readerRequirements(next)]
+  const subjects = [...after]
     .filter(([id, requirement]) => {
       const previous = before?.get(id);
       if (previous) return exceeds(requirement, previous);
@@ -127,4 +131,10 @@ export function strengthenedReaderSubjects(prior: DefinitionFiles | null, next: 
     })
     .map(([id]) => id)
     .sort();
+  const features = new Set<string>();
+  for (const requirement of [...baseline, ...after.values()]) {
+    for (const feature of requirement.features) features.add(feature);
+    if (requirement.policyDecisionSchema >= 2) features.add("catalog.policy-decision-v2");
+  }
+  return { subjects, features: [...features].sort() };
 }
