@@ -139,6 +139,24 @@ pub fn check_cover_checkpoint(
     parse(raw, listing_sha256).map(drop)
 }
 
+/// Bind a current checkpoint to the prior cover identity retained by thin
+/// signed history. Full successor validation also checks monotonic rows.
+pub fn check_cover_checkpoint_predecessor_digest(
+    current: &[u8],
+    listing_sha256: &str,
+    predecessor_sha256: &str,
+) -> Result<(), InvalidCoverCheckpoint> {
+    let checkpoint = parse(current, listing_sha256)?;
+    if digest(predecessor_sha256)
+        && (hex::encode(Sha256::digest(current)) == predecessor_sha256
+            || checkpoint.prior_checkpoint_sha256.as_deref() == Some(predecessor_sha256))
+    {
+        Ok(())
+    } else {
+        Err(InvalidCoverCheckpoint)
+    }
+}
+
 /// Compare the current and proposed states after the repository authenticated its prior.
 pub fn check_cover_checkpoint_successor(
     prior: Option<(&[u8], &str)>,
@@ -223,6 +241,18 @@ mod tests {
         let next = Some((restored.as_slice(), successor_listing.as_str()));
         assert!(check_cover_checkpoint_successor(prior, next).is_ok());
         assert!(check_cover_checkpoint_successor(next, prior).is_err());
+        let predecessor = hex::encode(Sha256::digest(&first));
+        assert!(check_cover_checkpoint_predecessor_digest(&first, &listing, &predecessor).is_ok());
+        assert!(
+            check_cover_checkpoint_predecessor_digest(&restored, &successor_listing, &predecessor)
+                .is_ok()
+        );
+        value["prior_checkpoint_sha256"] = json!(null);
+        let restarted = serde_json::to_vec(&value).unwrap();
+        assert!(
+            check_cover_checkpoint_predecessor_digest(&restarted, &successor_listing, &predecessor)
+                .is_err()
+        );
     }
 
     #[test]

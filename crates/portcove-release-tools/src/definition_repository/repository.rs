@@ -294,6 +294,7 @@ pub(super) async fn inspect_prior(
     verify_history(&context.into(), &files, |role, version, targets| {
         floors.observe(&files, &logical, role, version, targets)
     })?;
+    floors.check_cover_presence(&logical.files)?;
     floors.check_ledger_floors()?;
     let ledger = context
         .listing_ledger
@@ -418,6 +419,11 @@ pub(super) async fn inspect_prior(
             if !thin {
                 verified.verify_archive(store, &file_inventory)?;
             }
+            verified.check_cover_predecessor(
+                prior_cover
+                    .as_ref()
+                    .map(|(bytes, sha)| (*bytes, sha.as_str())),
+            )?;
             verified.check_new(&context.targets)?;
             let readback = verified.readback(store);
             let mut prepared = verified.advance(input, next_timestamp, next_policy)?;
@@ -574,6 +580,7 @@ struct HistoricalRevisionFloors {
     listing_revisions: BTreeMap<u64, String>,
     legacy_listing: Option<(super::history_checkpoint::ListingFloor, Vec<u8>)>,
     compact_listing: Option<super::history_checkpoint::ListingFloor>,
+    cover_checkpoint_seen: bool,
     /// Published listing-floor ledger, consulted only for a listing body that
     /// is absent from the retained tree (#1422 body window).
     ledger: Option<Ledger>,
@@ -661,6 +668,7 @@ impl HistoricalRevisionFloors {
                 continue;
             }
             if target.raw() == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+                self.cover_checkpoint_seen = true;
                 // Checkpoints remain immutable historical policy bodies. Their
                 // active transition is verified against the authenticated prior.
                 continue;
@@ -774,6 +782,17 @@ impl HistoricalRevisionFloors {
 
     /// Every successor is checked against the newest body of each listing
     /// target, so that body must be served: a pruned body above it fails closed.
+    fn check_cover_presence(&self, current: &Files) -> Result<()> {
+        if self.cover_checkpoint_seen
+            && !current.contains_key(portcove_listing_carrier::COVER_CHECKPOINT_TARGET)
+        {
+            return invalid(
+                "catalog current policy omitted an authenticated historical cover checkpoint",
+            );
+        }
+        Ok(())
+    }
+
     /// The body the latest signed policy version names for each target must be
     /// served and verified from its bytes, so an unsigned ledger entry can never
     /// stand in for it (and so never lower that target's floor).
@@ -1258,6 +1277,7 @@ pub async fn verify_definition_history(path: &Path) -> Result<DefinitionHistoryR
         policy_versions += usize::from(role == "official-policy.json");
         floors.observe(&files, &logical, role, version, targets)
     })?;
+    floors.check_cover_presence(&logical.files)?;
     floors.check_ledger_floors()?;
     let ledger_report = match &ledger {
         Some(prior) => {
@@ -1364,6 +1384,11 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
             &delegation_sha256,
             timestamp.signed.version.get(),
             policy.signed.version.get(),
+        )?
+        .check_cover_predecessor(
+            bundle::checked_cover_checkpoint(&logical.files)?
+                .as_ref()
+                .map(|(bytes, sha)| (*bytes, sha.as_str())),
         )?;
     }
     let index_sha256 = sha(at(&logical.files, "definitions/index.json")?);

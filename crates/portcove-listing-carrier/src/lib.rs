@@ -4,7 +4,7 @@ mod cover_checkpoint;
 
 pub use cover_checkpoint::{
     COVER_CHECKPOINT_MAX, COVER_CHECKPOINT_TARGET, InvalidCoverCheckpoint, check_cover_checkpoint,
-    check_cover_checkpoint_successor,
+    check_cover_checkpoint_predecessor_digest, check_cover_checkpoint_successor,
 };
 
 use std::io::Read as _;

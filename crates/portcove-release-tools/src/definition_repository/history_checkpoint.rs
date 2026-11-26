@@ -598,6 +598,33 @@ impl VerifiedHistory {
         Ok(())
     }
 
+    pub(super) fn check_cover_predecessor(&self, current: Option<(&[u8], &str)>) -> Result<()> {
+        let target = portcove_listing_carrier::COVER_CHECKPOINT_TARGET;
+        let mut covered = self.active.active_files.iter().filter(|file| {
+            file.target
+                .strip_prefix("targets/")
+                .and_then(|path| path.split_once('.'))
+                .is_some_and(|(_, name)| name == target)
+        });
+        let Some(predecessor) = covered.next() else {
+            return Ok(());
+        };
+        if covered.next().is_some() {
+            return invalid("catalog history repeats a covered checkpoint");
+        }
+        let Some((current, listing_sha256)) = current else {
+            return invalid(
+                "catalog history records a cover checkpoint absent from the current policy",
+            );
+        };
+        portcove_listing_carrier::check_cover_checkpoint_predecessor_digest(
+            current,
+            listing_sha256,
+            &predecessor.sha256,
+        )
+        .map_err(|error| TufRepositoryError::Invalid(error.to_string()))
+    }
+
     pub(super) fn check_new(&self, new: &Files) -> Result<()> {
         let index = new.get("definitions/index.json").ok_or_else(|| {
             TufRepositoryError::Invalid("catalog proposed definition index is absent".into())
@@ -845,6 +872,69 @@ mod tests {
         )
         .unwrap();
         (verified, files)
+    }
+
+    #[test]
+    fn thin_history_refuses_omitted_and_restarted_cover_checkpoints() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = "a".repeat(64);
+        let listing = "d".repeat(64);
+        let mut cover = serde_json::json!({
+            "checkpoint_schema": 1,
+            "listing_sha256": listing,
+            "prior_checkpoint_sha256": null,
+            "entries": [{
+                "id": "fixture", "scope": "e".repeat(64), "image_id": "cov",
+                "prior_sha256": "f".repeat(64),
+                "observed_at": "2026-11-26T12:00:00.000Z",
+                "receipt": format!("sha256:{}", "0".repeat(64)), "state": "gone",
+            }],
+        });
+        let bytes = serde_json::to_vec(&cover).unwrap();
+        let digest = sha(&bytes);
+        let target = portcove_listing_carrier::COVER_CHECKPOINT_TARGET;
+        let prepared = bootstrap(
+            chain_input(
+                &root,
+                45,
+                vec![
+                    snapshot_file(45),
+                    DefinitionFile {
+                        target: format!("targets/{digest}.{target}"),
+                        sha256: digest.clone(),
+                        bytes: bytes.len() as u64,
+                    },
+                ],
+            ),
+            46,
+            41,
+        )
+        .unwrap();
+        store_objects(directory.path(), &prepared);
+        let verified = read_current(
+            &prepared.pointer_bytes,
+            directory.path(),
+            &root,
+            &"b".repeat(64),
+            46,
+            41,
+        )
+        .unwrap();
+        assert!(verified.check_cover_predecessor(None).is_err());
+        verified
+            .check_cover_predecessor(Some((&bytes, &listing)))
+            .unwrap();
+        cover["entries"][0]["observed_at"] = serde_json::json!("2026-11-26T13:00:00.000Z");
+        let restart = serde_json::to_vec(&cover).unwrap();
+        assert!(
+            verified
+                .check_cover_predecessor(Some((&restart, &listing)))
+                .is_err()
+        );
+        cover["prior_checkpoint_sha256"] = serde_json::json!(digest);
+        verified
+            .check_cover_predecessor(Some((&serde_json::to_vec(&cover).unwrap(), &listing)))
+            .unwrap();
     }
 
     #[test]
