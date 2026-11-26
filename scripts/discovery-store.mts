@@ -206,8 +206,8 @@ function loadSeedRows(
   const orderedKey = kind === "hints" ? `${key} COLLATE "C"` : key;
   const hardLimit = outputLimitBytes - 1; // Leave room for psql's trailing newline.
   const preferred = Math.min(pageBytes, hardLimit);
-  const hashes: Record<string, string> = Object.create(null);
-  const rows: Record<string, unknown> = Object.create(null);
+  const hashes = Object.create(null) as Record<string, string>;
+  const rows = Object.create(null) as Record<string, unknown>;
   let after: string | undefined;
   for (;;) {
     const cursor = after === undefined ? "" : `AND ${orderedKey} > ${sqlLiteral(after)}`;
@@ -373,7 +373,7 @@ export function readSeededDiscoveryRows(
 }
 
 function loadExternalHints(environment: NodeJS.ProcessEnv, scope: string, pageBytes: number) {
-  const rows: Record<string, unknown> = Object.create(null);
+  const rows = Object.create(null) as Record<string, unknown>;
   let bytes = 0;
   let after: string | undefined;
   for (;;) {
