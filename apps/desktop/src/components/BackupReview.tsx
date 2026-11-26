@@ -120,6 +120,8 @@ export function BackupReviewDialog({
     !requiresReconciliation &&
     hold !== "targetChanged" &&
     hold !== "backupUnavailable";
+  const canReviewRefusedRestore =
+    canRefresh && failurePhase === "apply" && mutation === "no_changes";
   const canApply = Boolean(review && (!restore || (!hold && !refreshingHistory)));
   const holdMessage = {
     backupUnavailable: t("review.backupUnavailable"),
@@ -134,7 +136,9 @@ export function BackupReviewDialog({
         ? t("review.reopenRestore")
         : hold && !pending && !refreshingHistory
           ? holdMessage[hold]
-          : undefined;
+          : canReviewRefusedRestore
+            ? t("review.refreshRefusedRestore")
+            : undefined;
   return (
     <Dialog
       open
@@ -180,6 +184,7 @@ export function BackupReviewDialog({
             pending !== "apply" && (
               <Button
                 data-focusable
+                variant={canReviewRefusedRestore ? "primary" : undefined}
                 disabled={Boolean(pending) || (restore && refreshingHistory)}
                 onClick={() => {
                   if (canRefresh) {
