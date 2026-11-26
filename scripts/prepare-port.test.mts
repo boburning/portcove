@@ -818,6 +818,133 @@ void test("complete selected-release observations reuse exact assets and do not 
   }
 });
 
+void test("discovery-bound preparation retains a public repository and its ongoing release feed", async () => {
+  const f = fixture();
+  try {
+    const result = await preparePort({
+      catalogRoot,
+      outputDirectory: join(f.root, "bound"),
+      projectUrl: "https://github.com/Example/Fixture/",
+      expectedRepositoryId: metadata.id,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?") ? json([]) : json({ ...metadata, private: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const record = checkedAuthoredPort(
+      JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+    );
+    assert.equal(record.listing.id, "fixture");
+    assert.equal(record.listing.release_url?.toLowerCase(), `${project}/releases`);
+    assert.deepEqual(record.upstream_lineage?.origin.repository, { host: "github.com", id: "123" });
+    assert.equal(record.listing.original_game, undefined);
+    assert.equal(record.listing.issue_number, undefined);
+    assert.equal(record.listing.availability, undefined);
+    assert.equal(record.listing.artwork, undefined);
+    assert.equal(record.integration, undefined);
+    assert.equal(f.requests.filter((url) => url.includes("/releases?")).length, 1);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery-bound preparation refuses changed or unverified provider identity before release reads", async () => {
+  const f = fixture();
+  try {
+    const mismatches = [
+      { ...metadata, private: false, id: 999 },
+      { ...metadata, private: false, full_name: "different/fixture" },
+      { ...metadata, private: undefined },
+      { ...metadata, private: false, id: undefined },
+    ];
+    for (const [index, provider] of mismatches.entries()) {
+      await assert.rejects(
+        preparePort({
+          catalogRoot,
+          outputDirectory: join(f.root, `mismatch-${index}`),
+          projectUrl: project,
+          expectedRepositoryId: metadata.id,
+          facts: { fetcher: f.fetcher(() => json(provider)) },
+        }),
+        /does not match the observed repository ID and location/u,
+      );
+    }
+    assert.equal(f.requests.length, mismatches.length);
+    assert.equal(
+      f.requests.some((url) => url.includes("/releases")),
+      false,
+    );
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery-bound release reads isolate repository IDs across a warm reused path", async () => {
+  const f = fixture();
+  try {
+    let currentId = metadata.id;
+    const options = {
+      projectUrl: project,
+      route: "download" as const,
+      cacheDirectory: join(f.root, "facts"),
+      fetcher: f.fetcher((url) =>
+        url.includes("/releases?")
+          ? json([{ tag_name: url.includes("/repositories/456/") ? "new-release" : "old-release" }])
+          : json({ ...metadata, id: currentId, private: false }),
+      ),
+    };
+    await collectPortFacts(options);
+    currentId = 456;
+    await assert.rejects(
+      collectPortFacts({ ...options, expectedRepositoryId: metadata.id }),
+      /does not match the observed repository ID and location/u,
+    );
+    assert.equal(f.requests.filter((url) => url.includes("/releases?")).length, 1);
+    const legacy = await collectPortFacts(options);
+    assert.equal(legacy.project?.status, "reused");
+    assert.deepEqual(legacy.project?.body, { ...metadata, private: false });
+    assert.deepEqual(legacy.release_candidates?.body, [{ tag_name: "old-release" }]);
+    const result = await collectPortFacts({ ...options, expectedRepositoryId: 456 });
+    assert.deepEqual(result.release_candidates?.body, [{ tag_name: "new-release" }]);
+    assert.match(result.release_candidates?.endpoint ?? "", /\/repositories\/456\/releases/u);
+    assert.equal(result.release_candidates?.status, "observed");
+    const warm = await collectPortFacts({ ...options, expectedRepositoryId: 456 });
+    assert.equal(warm.project?.status, "observed");
+    assert.equal(warm.release_candidates?.status, "reused");
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery-bound preparation keeps a published external release source", async () => {
+  const f = fixture();
+  try {
+    const result = await preparePort({
+      catalogRoot,
+      outputDirectory: join(f.root, "external-source"),
+      projectUrl: "https://github.com/colobot/colobot",
+      expectedRepositoryId: metadata.id,
+      facts: {
+        fetcher: f.fetcher(() =>
+          json({ ...metadata, private: false, full_name: "colobot/colobot" }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    assert.equal(result.report.port_id, "colobot");
+    assert.deepEqual(result.report.changed_records, []);
+    assert.equal(f.requests.length, 1);
+    const upstream: unknown = JSON.parse(readFileSync(result.report.files.upstream, "utf8"));
+    assert.ok(isRecord(upstream));
+    assert.equal(upstream.release_repository, null);
+    assert.equal(upstream.release_candidates, undefined);
+  } finally {
+    f.clean();
+  }
+});
+
 void test("starts issue-free preparation from an official project and reviewed game identity", async () => {
   const f = fixture();
   try {
@@ -930,6 +1057,25 @@ void test("starts issue-free preparation from an official project and reviewed g
       originalGame: { ...otherGame, source_editions: [...otherGame.source_editions].reverse() },
     });
     assert.equal(reordered.report.port_id, newId);
+    await assert.rejects(
+      preparePort({
+        ...common,
+        expectedRepositoryId: metadata.id,
+        id: "duplicate-reviewed-game",
+        outputDirectory: join(f.root, "bound-duplicate"),
+        originalGame,
+      }),
+      /already have a stable listing/u,
+    );
+    await assert.rejects(
+      preparePort({
+        ...common,
+        expectedRepositoryId: 456,
+        id: record.listing.id,
+        outputDirectory: join(f.root, "bound-reused-source"),
+      }),
+      /contradicts retained lineage/u,
+    );
     await assert.rejects(
       preparePort({
         ...common,
