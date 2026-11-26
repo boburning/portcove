@@ -63524,7 +63524,16 @@
         "evidence_urls": [
           "https://github.com/Voicedrew11/verdite1"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "kings-field-japan-playstation",
+            "title": "King's Field (Japan, SLPS-00017)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Voicedrew11/verdite1/blob/b825f63ae43af2890f907f8d82ce094a55814506/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "King's Field Japan",
       "platforms": [],
