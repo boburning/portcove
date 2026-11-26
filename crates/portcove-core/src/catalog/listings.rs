@@ -27,6 +27,7 @@ const _: () = assert!(
 const MAX_FUNDING_URLS: usize = 12;
 pub(crate) const VERIFIED_EDITION_LISTING_FORMAT: u32 = 14;
 pub(crate) const MOD_PORTAL_LISTING_FORMAT: u32 = 16;
+pub(crate) const REPOSITORY_BOUND_LISTING_FORMAT: u32 = 17;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -185,9 +186,9 @@ pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=MOD_PORTAL_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=REPOSITORY_BOUND_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 16",
+                "listing export supports formats 5 through 17",
             ));
         }
         let mut document = self.clone();
@@ -255,6 +256,13 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self
+            .listings
+            .iter()
+            .any(|listing| listing.admitted_github_repository_id().is_some())
+        {
+            self.format_version = self.format_version.max(REPOSITORY_BOUND_LISTING_FORMAT);
+        }
         if self
             .listings
             .iter()
@@ -404,11 +412,21 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=MOD_PORTAL_LISTING_FORMAT) {
+        if !matches!(self.format_version, 1..=REPOSITORY_BOUND_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        if self.format_version < REPOSITORY_BOUND_LISTING_FORMAT
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.admitted_github_repository_id().is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "repository-bound GitHub listings require listing format 17",
+            ));
         }
         if self.format_version < MOD_PORTAL_LISTING_FORMAT
             && self
@@ -748,6 +766,19 @@ impl crate::OriginalGameIdentity {
 }
 
 impl PortListing {
+    /// The discovery admission contract reserves `github-<repository ID>`
+    /// for canonical automatic listings.
+    pub(crate) fn admitted_github_repository_id(&self) -> Option<u64> {
+        let suffix = self.id.strip_prefix("github-")?;
+        if suffix.starts_with('0') || !suffix.bytes().all(|byte| byte.is_ascii_digit()) {
+            return None;
+        }
+        suffix
+            .parse()
+            .ok()
+            .filter(|id| *id <= 9_007_199_254_740_991)
+    }
+
     fn validate_observation_metadata(&self) -> Result<()> {
         let invalid = || {
             PortcoveError::usage("invalid descriptive listing observation or maintenance metadata")
@@ -937,6 +968,16 @@ impl PortListing {
                 "{} has invalid listing identity or description",
                 self.id
             )));
+        }
+        if self.admitted_github_repository_id().is_some() {
+            let project = crate::release::catalog_download_repository(&self.project_url)?;
+            if let Some(url) = &self.release_url
+                && !crate::release::catalog_download_repository(url)?.eq_ignore_ascii_case(&project)
+            {
+                return Err(PortcoveError::usage(
+                    "repository-bound listing project and release URLs differ",
+                ));
+            }
         }
         for value in [&self.original_game_title, &self.variant_label]
             .into_iter()
@@ -1368,6 +1409,35 @@ mod tests {
             "summary":"Known project; package and platform availability are unknown.",
             "project_url":"https://example.com/project", "availability":"source-only"
         })
+    }
+
+    #[test]
+    fn repository_bound_listings_cannot_be_read_or_exported_in_older_formats() {
+        let mut admitted = listing();
+        admitted["id"] = json!("github-890");
+        admitted["project_url"] = json!("https://github.com/example/unknown-port");
+        admitted["release_url"] = json!("https://github.com/example/unknown-port/releases");
+        let mut directory = json!({
+            "format_version": MOD_PORTAL_LISTING_FORMAT,
+            "listings": [listing(), admitted],
+        });
+        assert!(CatalogListingDocument::from_json(&directory.to_string()).is_err());
+        directory["format_version"] = json!(REPOSITORY_BOUND_LISTING_FORMAT);
+        let accepted = CatalogListingDocument::from_json(&directory.to_string()).unwrap();
+        assert_eq!(
+            accepted.listings[1].admitted_github_repository_id(),
+            Some(890)
+        );
+        assert!(
+            accepted
+                .export_format(REPOSITORY_BOUND_LISTING_FORMAT)
+                .is_ok()
+        );
+        assert!(accepted.export_format(MOD_PORTAL_LISTING_FORMAT).is_err());
+
+        directory["listings"][1]["release_url"] =
+            json!("https://github.com/elsewhere/unknown-port/releases");
+        assert!(CatalogListingDocument::from_json(&directory.to_string()).is_err());
     }
 
     /// The release-tools signer binds an added legacy row to
@@ -1901,7 +1971,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":17,"listings":[listing()]}),
+            json!({"format_version":REPOSITORY_BOUND_LISTING_FORMAT + 1,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),

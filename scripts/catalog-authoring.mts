@@ -233,6 +233,10 @@ function boundedText(value: unknown, maximum: number): value is string {
   return true;
 }
 
+function repositoryBoundListingId(id: string): boolean {
+  return /^github-[1-9][0-9]*$/u.test(id) && Number.isSafeInteger(Number(id.slice(7)));
+}
+
 function publicUrl(value: unknown, field: string) {
   if (!boundedText(value, 4096))
     throw new Error(`Listing ${field} requires a bounded public HTTPS URL.`);
@@ -723,6 +727,17 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   publicUrl(listing.project_url, "project_url");
   for (const field of ["release_url", "setup_url"] as const)
     if (listing[field] !== undefined) publicUrl(listing[field], field);
+  if (repositoryBoundListingId(listing.id)) {
+    const project = listing.project_url.toLowerCase().replace(/\/$/u, "");
+    const release = listing.release_url?.toLowerCase().replace(/\/$/u, "");
+    if (
+      !/^https:\/\/github\.com\/[a-z0-9_-]{1,100}\/[a-z0-9_.-]{1,100}$/u.test(project) ||
+      project.endsWith("/.") ||
+      project.endsWith("/..") ||
+      (release !== undefined && release !== project && release !== `${project}/releases`)
+    )
+      throw new Error("A repository-bound listing needs one GitHub project and its release scope.");
+  }
   if (
     listing.availability !== undefined &&
     (typeof listing.availability !== "string" ||
@@ -1202,9 +1217,11 @@ export function assembleCatalogRecords(
                                 )
                               ? 2
                               : 1;
-  const format_version = listings.some((listing) => listing.mod_portals?.length)
-    ? 16
-    : precedingFormat;
+  const format_version = listings.some((listing) => repositoryBoundListingId(listing.id))
+    ? 17
+    : listings.some((listing) => listing.mod_portals?.length)
+      ? 16
+      : precedingFormat;
   return {
     records,
     /** The checked authored records before generated registration routes were added. */

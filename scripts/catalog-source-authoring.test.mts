@@ -98,6 +98,50 @@ void test("reviewed mod websites promote the directory without an operational de
   }
 });
 
+void test("automatic GitHub identities require repository-bound listing format 17", () => {
+  const listing = {
+    id: "github-123",
+    name: "Discovery fixture",
+    summary: "A newly admitted upstream project.",
+    project_url: "https://github.com/example/fixture",
+    release_url: "https://github.com/example/fixture/releases",
+  };
+  const authored = checkedAuthoredPort({ format_version: 1, listing });
+  const result = assembleCatalogRecords(
+    {
+      schema_version: 3,
+      source_catalog: {
+        identities: [],
+        contracts: [],
+        validators: [],
+        evidence: [],
+        qualification: [],
+      },
+    },
+    [authored],
+  );
+  assert.equal(result.directory.format_version, 17);
+  assert.equal(result.directory.listings[0]?.id, listing.id);
+  assert.deepEqual(result.catalog.ports, []);
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        format_version: 1,
+        listing: { ...listing, release_url: "https://github.com/elsewhere/fixture/releases" },
+      }),
+    /repository-bound listing/u,
+  );
+  const oversized = `https://github.com/example/${"a".repeat(101)}`;
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        format_version: 1,
+        listing: { ...listing, project_url: oversized, release_url: `${oversized}/releases` },
+      }),
+    /repository-bound listing/u,
+  );
+});
+
 void test("managed platform warnings are checked and stay outside definition projections", () => {
   const authored = checkedAuthoredPort(
     fixtureJson(readFileSync(join(catalogRoot, "ports", "snap64-recomp.json"))),

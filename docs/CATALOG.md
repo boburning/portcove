@@ -457,7 +457,7 @@ upstream itself publishes and holds a package only for concrete reasons.
   also covers the ordinary listing download from the upstream's own releases.
   Its accepted identity is that release location, checked against the
   provider's published digest when there is one. Automatically admitted GitHub
-  listings use `github-<repository ID>`. Core binds live release lookup,
+  listings use `github-<repository ID>` and require listing format 17. Core binds live release lookup,
   checksums and package transfer to that ID. If GitHub's asset URL identifies
   a different repository path, review the upstream move before updating the
   catalog URL. Later releases stay offered unless one bundles game data outside

@@ -5720,7 +5720,7 @@ mod tests {
         assert_eq!(capabilities.port_capability_schema, Some(1));
         assert_eq!(
             capabilities.listing_formats,
-            [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+            [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
         );
         assert_eq!(
             capabilities.listing_delivery_carriers,
