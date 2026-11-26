@@ -1457,7 +1457,16 @@ deadline; those targets are reported as `time-budget`. Targets that need no
 further I/O keep their outcome after the deadline: a resolved skip, a package
 reused from the checkpoint, a remembered failure, or a remembered unlistable
 retry, which stays `unlistable`. Targets that share one package
-re-check it once per run. Every target not scanned
+attempt it once per run, including transient failures. The existing checkpoint
+retains ordinary transient attempt order: fresh assets and the oldest deferred
+attempts take precedence on the next run, without increasing any budget.
+When a provider changes the digest or size metadata it supplies without proving
+that the package changed, the next attempt still uses the package's previous order.
+Successful scans and persistent failures leave that rotation. The scheduled run uses
+`--complete-targets` with the canonical listings. It drops deferred attempts for
+repositories with no remaining targets, or when every target for a repository resolves
+to a different package from a complete release read. Scoped scans and failed,
+incomplete or ambiguous reads preserve the previous attempt order. Every target not scanned
 is reported with a stable code. Persistent targets are reported as not
 scannable: `no-release`,
 `no-single-asset`, `release-unavailable` (the release read answers with a

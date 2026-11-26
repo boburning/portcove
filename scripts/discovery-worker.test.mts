@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -33,6 +34,7 @@ import {
   physicalLeadEnvelope,
   discoveryTransferForecastQuery,
   runDiscoveryPasses,
+  scheduledListingPreview,
   renderDiscoveryStatus,
   readStoredLeads,
   runDiscoveryWorker,
@@ -577,6 +579,93 @@ void test("observations exclude local paths and clocks so unchanged projects sta
   assert.equal(leadWatch(unhinted), undefined);
 });
 
+void test("scheduled listing preview binds current release evidence to committed discovery state", () => {
+  const start = "2026-11-01T00:00:00.000Z";
+  const lead = (id: number, change: Partial<DiscoveryLead> = {}): DiscoveryLead => ({
+    id,
+    repository: `ports/game-${id}`,
+    url: `https://github.com/ports/game-${id}`,
+    description: "Native port",
+    revision: "upstream-change",
+    observed_at: start,
+    evidence: "/private/lead-evidence.json",
+    status: "pending",
+    release_hint: {
+      assets_observed: true,
+      observed_at: start,
+      evidence: "/private/release-evidence.json",
+    },
+    ...change,
+  });
+  const retained: DiscoveryRetainedState = {
+    generation: 3,
+    revision: 5,
+    definition: hex("d"),
+    attempt: lease("1").attempt,
+    state: {
+      format: 1,
+      checkpoint: emptyCheckpoint(),
+      leads: {
+        format: 1,
+        next_family: 0,
+        slices: {},
+        records: Object.fromEntries(
+          [
+            lead(5),
+            lead(6, { status: "held" }),
+            lead(7, {
+              release_hint: { assets_observed: false, observed_at: start, evidence: "/x" },
+            }),
+            lead(8, {
+              release_hint: {
+                assets_observed: true,
+                observed_at: "2026-10-31T00:00:00.000Z",
+                evidence: "/x",
+              },
+            }),
+            lead(9, {
+              repository: "moved/game-9",
+              url: "https://github.com/moved/game-9",
+            }),
+            lead(10),
+          ].map((row) => [row.id, row]),
+        ),
+      },
+    },
+  };
+  const preview = scheduledListingPreview(
+    retained,
+    start,
+    new Set(["https://github.com/ports/game-10"]),
+    "source",
+    (id) => [
+      {
+        id: id * 100,
+        html_url: `https://github.com/ports/game-${id}/releases/tag/1.0`,
+        draft: false,
+        assets: [{ state: "uploaded", name: "windows.zip" }],
+      },
+    ],
+  );
+  assert.equal(preview.receipt.retained_record_count, 6);
+  assert.equal(preview.receipt.committed.revision, 5);
+  assert.equal(preview.receipt.committed.generation, 3);
+  assert.equal(preview.receipt.evidence.length, 1);
+  assert.equal(preview.receipt.evidence[0]!.input.release_id, 500);
+  const digest = createHash("sha256")
+    .update(JSON.stringify(preview.receipt.evidence[0]!.input))
+    .digest("hex");
+  assert.deepEqual(preview.handoff.candidates, [
+    {
+      id: "github-5",
+      project_url: "https://github.com/ports/game-5",
+      repository_id: 5,
+      evidence_sha256: digest,
+    },
+  ]);
+  assert.doesNotMatch(JSON.stringify(preview), /\/private/u);
+});
+
 void test(
   "local lead state imports once with its recorded strength",
   { skip: server.skip ?? false, timeout: 120_000 },
@@ -855,12 +944,16 @@ void test("an exhausted provider quota waits for its reset between passes and co
   const sleeps: number[] = [];
   const admitted: number[] = [];
   let quotaReads = 0;
+  let preview: ReturnType<typeof scheduledListingPreview> | undefined;
   const run = await runDiscoveryPasses({
     store: memory.store,
     runDir: root,
     sourceRevision: "fixture",
     runner: "fixture",
     covered: () => new Set(),
+    previewListings: (value) => {
+      preview = value;
+    },
     now,
     deadline: start + 3 * 3_600_000,
     diskBytes: 512 * 1024 * 1024,
@@ -914,6 +1007,8 @@ void test("an exhausted provider quota waits for its reset between passes and co
     "the next pass offers the revision the first committed",
   );
   assert.equal(memory.loads(), 1, "the next pass reuses its lead records instead of rereading");
+  assert.equal(preview?.receipt.committed.revision, run.passes.at(-1)?.revision);
+  assert.deepEqual(preview?.handoff.candidates, []);
   assert.equal(
     memory.finished.length,
     2,

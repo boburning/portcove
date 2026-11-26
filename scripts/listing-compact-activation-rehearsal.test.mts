@@ -628,6 +628,38 @@ void test("automatic reader selection activates, advances or renews exact carrie
       name,
     );
   }
+  const portalListing = {
+    ...canonical.listings[0]!,
+    mod_portals: [
+      {
+        id: "community",
+        site: "community_site",
+        name: "Game mods",
+        url: "https://mods.example.com/",
+        instructions: "Read the community requirements.",
+      },
+    ],
+  };
+  const portalDirectory = path.join(fixture.root, "portal-directory.json");
+  writeFileSync(
+    portalDirectory,
+    wire({ format_version: 16, listings: [portalListing, ...canonical.listings.slice(1)] }),
+  );
+  const previousAcquisitions = acquisitions;
+  const portalDeferred = await prepare(
+    "portal-deferred",
+    current,
+    { binary: stub, version: "0.1.0" },
+    { canonical: portalDirectory },
+  );
+  assert.equal(acquisitions, previousAcquisitions);
+  assert.equal(portalDeferred.listing_format, 15);
+  assert.equal(portalDeferred.changed, false);
+  assert.match(
+    String(portalDeferred.released_reader_unavailable),
+    /format 16 has no declared released reader floor/u,
+  );
+
   // A compact format increase with a verified reader advances the format.
   const advanced = await prepare("advance", compactPrior, { binary: stub, version: "0.1.0" });
   assert.equal(advanced.listing_format, 15);
