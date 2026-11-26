@@ -314,6 +314,9 @@ it.each([
   );
   const state = document.querySelector<HTMLElement>(loading ? ".loading-state" : ".empty-state")!;
   expect(state.scrollWidth).toBeLessThanOrEqual(state.clientWidth + 1);
+  const heading = state.querySelector(loading ? "strong" : "h2")!;
+  expect(heading.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+  expect(heading.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight);
   await captureParityState(loading ? "library-loading-narrow" : "library-empty-narrow");
 });
 
