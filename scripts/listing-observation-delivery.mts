@@ -868,7 +868,11 @@ export async function prepareObservationBundle(options: {
   const automatic = options.officialReleasedReader === true;
   if (automatic && options.releasedReader)
     throw new Error("Official released-reader selection takes no explicit reader");
-  for (const target of [listingDeliveryTarget, compactListingDeliveryTarget, artworkCheckpointTarget])
+  for (const target of [
+    listingDeliveryTarget,
+    compactListingDeliveryTarget,
+    artworkCheckpointTarget,
+  ])
     if (existsSync(path.join(options.bundle, target)))
       throw new Error("Listing targets come only from observation projection, not the bundle");
   // The signer accepts compact delivery only beside the retained legacy target,
@@ -886,12 +890,16 @@ export async function prepareObservationBundle(options: {
   const priorCompact = Object.hasOwn(priorTargets, compactListingDeliveryTarget);
   const priorCoverDigest = priorTargets[artworkCheckpointTarget];
   const coverEnabled = priorCoverDigest !== undefined || options.activateCoverCheckpoint === true;
-  if (coverEnabled && (
-    !automatic ||
-    !priorCompact ||
-    !options.priorHistory ||
-    !Object.hasOwn(priorTargets, "policy/official/catalog.history-checkpoint.json")
-  )) throw new Error("Cover checkpoints require official reader selection and active authenticated compact history");
+  if (
+    coverEnabled &&
+    (!automatic ||
+      !priorCompact ||
+      !options.priorHistory ||
+      !Object.hasOwn(priorTargets, "policy/official/catalog.history-checkpoint.json"))
+  )
+    throw new Error(
+      "Cover checkpoints require official reader selection and active authenticated compact history",
+    );
   mkdirSync(options.output, { recursive: true });
   const workspace = path.join(options.output, "observation-work");
   mkdirSync(workspace);
@@ -977,7 +985,12 @@ export async function prepareObservationBundle(options: {
       ? readDeliveryCarrier(compactWire, compactListingDeliveryTarget).bytes
       : legacyWire;
     if (priorCoverDigest !== undefined) {
-      priorCover = await verifiedPriorTarget(prior, report, artworkCheckpointTarget, artworkCheckpointMax);
+      priorCover = await verifiedPriorTarget(
+        prior,
+        report,
+        artworkCheckpointTarget,
+        artworkCheckpointMax,
+      );
       if (!priorCover) throw new Error("Prior cover checkpoint is not referenced");
       readArtworkCheckpoint(priorCover, previous);
     }
@@ -1016,11 +1029,13 @@ export async function prepareObservationBundle(options: {
   // Released-reader gate: the compact carrier is first published, or raised to
   // a newer format, only after the current released preview is verified to read
   // it. Otherwise the exact prior state is renewed and nothing new is published.
-  const acquireReader = options.acquireReleasedReader ??
-    ((root: string) => acquireCatalogReleasedReader(
-      root,
-      liveReleasedReaderSources(process.cwd(), root, priorRepository),
-    ));
+  const acquireReader =
+    options.acquireReleasedReader ??
+    ((root: string) =>
+      acquireCatalogReleasedReader(
+        root,
+        liveReleasedReaderSources(process.cwd(), root, priorRepository),
+      ));
   let officialReader: AcquiredReleasedReader | undefined;
   let releasedReader: { version: string; sha256: string } | undefined;
   let readerUnavailable: string | undefined;
@@ -1108,7 +1123,9 @@ export async function prepareObservationBundle(options: {
         const evidence = await (options.readCoverHealth ?? readHostedCoverHealth)();
         if (evidence) observations = applicableCoverHealth(canonical, evidence);
       } catch (error) {
-        diagnostics.push(`cover observer unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "read failed"}`);
+        diagnostics.push(
+          `cover observer unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "read failed"}`,
+        );
       }
     }
     coverCheckpoint = advanceArtworkCheckpoint(
@@ -1146,8 +1163,9 @@ export async function prepareObservationBundle(options: {
       writeFileSync(path.join(destinationRoot, compactListingDeliveryTarget), wire, {
         flag: "wx",
       });
-    const cover = renewal ? priorCover : coverCheckpoint?.finish(projected.bytes) ?? null;
-    if (cover) writeFileSync(path.join(destinationRoot, artworkCheckpointTarget), cover, { flag: "wx" });
+    const cover = renewal ? priorCover : (coverCheckpoint?.finish(projected.bytes) ?? null);
+    if (cover)
+      writeFileSync(path.join(destinationRoot, artworkCheckpointTarget), cover, { flag: "wx" });
     try {
       cli(["--json", "catalog", "inspect-definition-publication", destinationRoot]);
     } catch (error) {
@@ -1248,16 +1266,25 @@ export async function prepareObservationBundle(options: {
           "First cover checkpoint needs an accepted withdrawal from the completed artwork report",
         );
       }
-      if (staged.cover && (!priorCover?.equals(staged.cover) || !wire || !compactWire?.equals(wire))) {
+      if (
+        staged.cover &&
+        (!priorCover?.equals(staged.cover) || !wire || !compactWire?.equals(wire))
+      ) {
         try {
-          const reader = officialReader ?? await acquireReader(workspace);
-          const files = await readCatalogPublicationBundle(bundle, performance.now() + 90_000, true);
+          const reader = officialReader ?? (await acquireReader(workspace));
+          const files = await readCatalogPublicationBundle(
+            bundle,
+            performance.now() + 90_000,
+            true,
+          );
           coverProof = await proveReleasedCoverInspection(reader, workspace, bundle, files);
         } catch (error) {
           throw new ListingPublicationStop(
             "cover_reader_unavailable",
             "Exact staged cover transition could not be verified by the official released reader",
-            { reason: error instanceof Error ? error.message.slice(0, 300) : "reader proof failed" },
+            {
+              reason: error instanceof Error ? error.message.slice(0, 300) : "reader proof failed",
+            },
           );
         }
       }

@@ -118,10 +118,10 @@ export async function readCatalogPublicationBundle(
             : name === checkpointTarget
               ? 1024 * 1024
               : name.startsWith("policy/")
-              ? 65536
-              : name === "definitions/index.json"
-                ? catalogDefinitionIndexBytes
-                : catalogDefinitionContentBytes,
+                ? 65536
+                : name === "definitions/index.json"
+                  ? catalogDefinitionIndexBytes
+                  : catalogDefinitionContentBytes,
         );
         total += bytes.length;
         if (total > 32 * 1024 ** 2 || files.size >= 16385)

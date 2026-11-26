@@ -533,13 +533,28 @@ void test("the Pages guard binds cover activation to the signed bundle and still
     writeFileSync(file, bytes);
   };
   const publishFixture = (root: string, logicalFiles: ReadonlyMap<string, Buffer>) => {
-    const timestamp = JSON.stringify({ signed: { version: 1, meta: { "snapshot.json": { version: 1 } } } });
+    const timestamp = JSON.stringify({
+      signed: { version: 1, meta: { "snapshot.json": { version: 1 } } },
+    });
     write(`${root}/metadata/timestamp.json`, timestamp);
-    write(`${root}/metadata/1.snapshot.json`, JSON.stringify({ signed: { meta: {
-      "official-definitions.json": { version: 1 },
-      "official-policy.json": { version: 1 },
-    } } }));
-    const inventory = [{ target: "metadata/timestamp.json", bytes: Buffer.byteLength(timestamp), sha256: sha(timestamp) }];
+    write(
+      `${root}/metadata/1.snapshot.json`,
+      JSON.stringify({
+        signed: {
+          meta: {
+            "official-definitions.json": { version: 1 },
+            "official-policy.json": { version: 1 },
+          },
+        },
+      }),
+    );
+    const inventory = [
+      {
+        target: "metadata/timestamp.json",
+        bytes: Buffer.byteLength(timestamp),
+        sha256: sha(timestamp),
+      },
+    ];
     for (const role of ["official-definitions", "official-policy"]) {
       const targets: Record<string, { hashes: { sha256: string } }> = {};
       for (const [name, bytes] of logicalFiles) {
@@ -553,13 +568,16 @@ void test("the Pages guard binds cover activation to the signed bundle and still
       write(`${root}/metadata/1.${role}.json`, JSON.stringify({ signed: { targets } }));
     }
     if (root === "repository") {
-      write("assembly-report.json", JSON.stringify({
-        schema_version: 1,
-        authority: "none",
-        files: inventory,
-        timestamp_sha256: sha(timestamp),
-        repository_sha256: sha(JSON.stringify(inventory)),
-      }));
+      write(
+        "assembly-report.json",
+        JSON.stringify({
+          schema_version: 1,
+          authority: "none",
+          files: inventory,
+          timestamp_sha256: sha(timestamp),
+          repository_sha256: sha(JSON.stringify(inventory)),
+        }),
+      );
     }
   };
   const baseline = new Map(files);
@@ -567,21 +585,37 @@ void test("the Pages guard binds cover activation to the signed bundle and still
   publishFixture("prior", baseline);
   publishFixture("repository", files);
   write("observation-projection.json", "{}");
-  await assert.rejects(recheckReleasedCoverPublication(work, site), /exact staged released-reader proof/u);
+  await assert.rejects(
+    recheckReleasedCoverPublication(work, site),
+    /exact staged released-reader proof/u,
+  );
 
   const version = "1.0.0-preview.1";
   const tag = `v${version}`;
   const git = (...args: string[]) => execFileSync("git", args, { cwd: site, stdio: "pipe" });
-  write("site/updates/preview/latest.json", JSON.stringify({
-    version,
-    platforms: { "linux-x86_64": {
-      url: `https://github.com/boburning/portcove/releases/download/${tag}/Portcove_${version}_amd64.AppImage`,
-    } },
-  }));
+  write(
+    "site/updates/preview/latest.json",
+    JSON.stringify({
+      version,
+      platforms: {
+        "linux-x86_64": {
+          url: `https://github.com/boburning/portcove/releases/download/${tag}/Portcove_${version}_amd64.AppImage`,
+        },
+      },
+    }),
+  );
   git("init");
   const commit = () => {
     git("add", "updates");
-    git("-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "Update fixture");
+    git(
+      "-c",
+      "user.name=Test",
+      "-c",
+      "user.email=test@example.invalid",
+      "commit",
+      "-m",
+      "Update fixture",
+    );
   };
   commit();
   const release = {
@@ -596,9 +630,12 @@ void test("the Pages guard binds cover activation to the signed bundle and still
     checksum_sha256: "e".repeat(64),
     reader_sha256: "a".repeat(64),
   };
-  write("observation-projection.json", JSON.stringify({
-    released_cover_proof: { ...release, ...exactCoverReaderPair(files) },
-  }));
+  write(
+    "observation-projection.json",
+    JSON.stringify({
+      released_cover_proof: { ...release, ...exactCoverReaderPair(files) },
+    }),
+  );
   await recheckReleasedCoverPublication(work, site);
 
   const changed = new Map(files);
@@ -609,12 +646,18 @@ void test("the Pages guard binds cover activation to the signed bundle and still
   publishFixture("repository", files);
   write("site/updates/withdrawn.json", JSON.stringify([version]));
   commit();
-  await assert.rejects(recheckReleasedCoverPublication(work, site), /Official Preview is withdrawn/u);
+  await assert.rejects(
+    recheckReleasedCoverPublication(work, site),
+    /Official Preview is withdrawn/u,
+  );
 
   publishFixture("prior", files);
   await recheckReleasedCoverPublication(work, site);
   publishFixture("repository", baseline);
-  await assert.rejects(recheckReleasedCoverPublication(work, site), /omitted the retained cover checkpoint/u);
+  await assert.rejects(
+    recheckReleasedCoverPublication(work, site),
+    /omitted the retained cover checkpoint/u,
+  );
 });
 
 void test("derived cover proof does not mark unchanged authored publication input dirty", () => {

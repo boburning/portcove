@@ -136,15 +136,21 @@ export async function recheckReleasedCoverPublication(work: string, site: string
       throw new Error("Signed candidate omitted the retained cover checkpoint");
     return;
   }
-  if (cover === before[artworkCheckpointTarget] &&
-      targets[compactListingDeliveryTarget] === before[compactListingDeliveryTarget]) return;
+  if (
+    cover === before[artworkCheckpointTarget] &&
+    targets[compactListingDeliveryTarget] === before[compactListingDeliveryTarget]
+  )
+    return;
 
   const json = async (name: string, limit: number): Promise<unknown> =>
     JSON.parse((await readControllerToolFile(path.join(work, name), limit)).toString("utf8"));
   const receipt = await json("observation-projection.json", 1024 * 1024);
   const proof = isRecord(receipt) && receipt.released_cover_proof;
-  if (!isRecord(proof) || typeof proof.reader_sha256 !== "string" ||
-      !/^[a-f0-9]{64}$/u.test(proof.reader_sha256))
+  if (
+    !isRecord(proof) ||
+    typeof proof.reader_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(proof.reader_sha256)
+  )
     throw new Error("Signed cover transition requires exact staged released-reader proof");
 
   const inventory = assembledInventory(await json("assembly-report.json", 32 * 1024 ** 2));
