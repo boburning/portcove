@@ -7441,6 +7441,7 @@ independently reviewed acquisition restrictions stay local to each record.
 ```text
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation
 node scripts/prepare-port.mts --project https://github.com/owner/project --id stable-id --name "Project name" --output-dir /path/to/preparation
+node scripts/prepare-port.mts --project https://github.com/owner/project --expected-repository-id 123 --output-dir /path/to/preparation
 node scripts/prepare-port.mts --project https://github.com/owner/project --original-game /path/to/game-identity.json --output-dir /path/to/preparation
 node scripts/prepare-port.mts --record /path/to/stable-id.json --route download --release-tag v1.2 --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/preparation
 node scripts/prepare-port.mts --listing-observations /path/to/catalog-upstream-observations/source.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/observation-preparation
@@ -7457,6 +7458,15 @@ metadata only. `--route download` collects one 20-release candidate window or th
 explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailable
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
+
+For a discovery candidate with an observed GitHub repository ID, pass
+`--expected-repository-id` and its project URL. Preparation checks the public
+provider record against both values before collecting releases and retains the
+ID in the new listing's lineage. Each run rechecks the project path. Release
+metadata and cache entries use the provider's immutable ID. A new listing points to the ongoing release
+feed even if no release is available yet. Original-game identity and artwork
+can be resolved independently. Preparation still produces reviewable
+catalog inputs for the normal validation and publication path.
 
 The `--original-game` input uses the same reviewed object as
 `listing.original_game` in an authored record. It carries the stable game ID,

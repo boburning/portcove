@@ -71,6 +71,7 @@ interface PrepareOptions {
   packageObservation?: { receipt: unknown; reference: string };
   settingsNativeScope?: unknown;
   projectUrl?: string | undefined;
+  expectedRepositoryId?: number | undefined;
   issue?: string | undefined;
   id?: string | undefined;
   name?: string | undefined;
@@ -688,6 +689,12 @@ export async function preparePort(options: PrepareOptions) {
   const root = resolve(options.outputDirectory);
   const authored = readCatalogSource(options.catalogRoot);
   const explicit = options.record === undefined ? undefined : checkedAuthoredPort(options.record);
+  const expectedRepositoryId = options.expectedRepositoryId;
+  const bound = expectedRepositoryId !== undefined;
+  if (bound && (!options.projectUrl || options.issue || explicit))
+    throw new Error(
+      "A bound discovery input requires an official project URL without an issue or record override.",
+    );
   const originalGame = options.originalGame;
   if (originalGame !== undefined && (!options.projectUrl || options.issue))
     throw new Error("An original-game input starts preparation with an official project URL.");
@@ -701,7 +708,7 @@ export async function preparePort(options: PrepareOptions) {
     )
       throw new Error("The reviewed record and supplied game or edition identity differ.");
   }
-  const route = options.route ?? (originalGame === undefined ? "listing" : "download");
+  const route = options.route ?? (!bound && originalGame === undefined ? "listing" : "download");
   const validatorIdentity = options.validatorCli
     ? createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex")
     : null;
@@ -709,9 +716,9 @@ export async function preparePort(options: PrepareOptions) {
     throw new Error("Record and selected stable ID differ.");
   const selected = authored.records.find((record) => record.listing.id === options.id);
   const resolveIdentity = (projectUrl: string, issuePortId?: string) => {
-    const sourceKey = originalGame === undefined ? projectUrl : identityUrl(projectUrl);
-    const sameProject = (url: string) =>
-      sourceKey === (originalGame === undefined ? url : identityUrl(url));
+    const normalizeSource = bound || originalGame !== undefined;
+    const sourceKey = normalizeSource ? identityUrl(projectUrl) : projectUrl;
+    const sameProject = (url: string) => sourceKey === (normalizeSource ? identityUrl(url) : url);
     const matching = authored.records.filter((record) => sameProject(record.listing.project_url));
     const suppliedId = explicit?.listing.id ?? options.id ?? issuePortId;
     let matched: AuthoredPort | undefined;
@@ -752,6 +759,16 @@ export async function preparePort(options: PrepareOptions) {
     if (issuePortId && issuePortId !== id)
       throw new Error("Canonical issue and proposed stable ID differ.");
     const previous = authored.records.find((record) => record.listing.id === id);
+    if (bound && previous && !sameProject(previous.listing.project_url))
+      throw new Error("The stable implementation ID already belongs to another project.");
+    if (bound && !previous && !gameSelector && matching.length > 0)
+      throw new Error(
+        "The same project already has a catalog identity. Resolve its game scope before adding another listing.",
+      );
+    if (bound && !previous && gameSelector && matchReviewedGame(matching, gameSelector))
+      throw new Error(
+        "The game and source editions already have a stable listing at this project.",
+      );
     if (originalGame !== undefined && explicit) {
       if (!previous && explicit.listing.issue_number !== undefined)
         throw new Error("A new issue-free record cannot supply an unverified issue association.");
@@ -809,10 +826,35 @@ export async function preparePort(options: PrepareOptions) {
       );
     return { id, previous, base };
   };
+  const boundIdentity = bound ? resolveIdentity(options.projectUrl!) : undefined;
+  if (boundIdentity?.previous)
+    checkObservedRepository(boundIdentity.previous, expectedRepositoryId);
+  if (boundIdentity) {
+    const source = identityUrl(options.projectUrl!);
+    const repositoryId = String(expectedRepositoryId);
+    const retainedConflict = authored.records.some((entry) => {
+      const { current, history } = assessUpstreamLineage(entry);
+      if (
+        current.repository?.host === "github.com" &&
+        current.repository.id === repositoryId &&
+        identityUrl(current.project_url) === source
+      )
+        return false;
+      return history.some((upstream) => {
+        if (upstream.repository?.host !== "github.com") return false;
+        const sameSource = identityUrl(upstream.project_url) === source;
+        const sameRepository = upstream.repository.id === repositoryId;
+        return sameRepository !== sameSource;
+      });
+    });
+    if (retainedConflict)
+      throw new Error("This repository already has a retained origin. Review its lineage move.");
+  }
   openCheckpoint(root);
   try {
     const facts = await collectPortFacts({
       ...options.facts,
+      expectedRepositoryId,
       projectUrl:
         options.projectUrl ?? explicit?.listing.project_url ?? selected?.listing.project_url,
       issue: options.issue,
@@ -822,8 +864,13 @@ export async function preparePort(options: PrepareOptions) {
           : route,
       releaseTag: options.releaseTag,
       resolveReleaseUrl: ({ projectUrl, issuePortId }) => {
-        const { base } = resolveIdentity(projectUrl, issuePortId);
-        if (!base?.integration) return base?.listing.release_url;
+        const { base } = boundIdentity ?? resolveIdentity(projectUrl, issuePortId);
+        if (!base?.integration) {
+          const retainedUrl = base?.listing.release_url;
+          return bound && retainedUrl && new URL(retainedUrl).hostname !== "github.com"
+            ? null
+            : retainedUrl;
+        }
         const release = projectAuthoredPort(base)?.release;
         return isRecord(release) &&
           (release.provider === undefined || release.provider === "github") &&
@@ -833,9 +880,11 @@ export async function preparePort(options: PrepareOptions) {
       },
       cacheDirectory: join(root, "facts"),
     });
-    const { id, previous, base } = resolveIdentity(facts.project_url, facts.issue?.id);
+    const { id, previous, base } =
+      boundIdentity ?? resolveIdentity(facts.project_url, facts.issue?.id);
     const metadata = isRecord(facts.project?.body) ? facts.project.body : {};
     if (
+      !bound &&
       originalGame !== undefined &&
       facts.repository &&
       typeof metadata.full_name === "string" &&
@@ -864,6 +913,7 @@ export async function preparePort(options: PrepareOptions) {
         throw new Error("The reviewed record and provider repository identities differ.");
     }
     if (
+      !bound &&
       originalGame !== undefined &&
       !previous &&
       recordedRepositoryId &&
@@ -881,7 +931,10 @@ export async function preparePort(options: PrepareOptions) {
     const existingListedAt = base?.listing.listed_at ?? previous?.listing.listed_at;
     let record = checkedAuthoredPort({
       ...(base ?? { format_version: 1 }),
-      ...(originalGame !== undefined && !previous && !base?.upstream_lineage && recordedRepositoryId
+      ...((bound || originalGame !== undefined) &&
+      !previous &&
+      !base?.upstream_lineage &&
+      recordedRepositoryId
         ? {
             upstream_lineage: {
               format_version: 1,
@@ -898,8 +951,11 @@ export async function preparePort(options: PrepareOptions) {
         ...base?.listing,
         id,
         project_url:
-          (originalGame === undefined ? undefined : previous?.listing.project_url) ??
+          (bound || originalGame !== undefined ? previous?.listing.project_url : undefined) ??
           facts.project_url,
+        ...(bound && !previous && facts.repository
+          ? { release_url: `https://github.com/${facts.repository}/releases` }
+          : {}),
         name:
           options.name ??
           base?.listing.name ??
@@ -1414,6 +1470,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const values = new Map<string, string>();
   const allowed = new Set([
     "--project",
+    "--expected-repository-id",
     "--issue",
     "--id",
     "--name",
@@ -1492,6 +1549,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (values.has("--package-observation") !== values.has("--package-observation-reference"))
     throw new Error("Package observations require their exact retained receipt reference.");
   const input = values.get("--record");
+  const repositoryId = values.get("--expected-repository-id");
+  if (repositoryId !== undefined && !/^[1-9][0-9]*$/u.test(repositoryId))
+    throw new Error("--expected-repository-id must be a positive decimal repository ID.");
   const originalGame = values.get("--original-game");
   const identities = values.get("--identities");
   const common = {
@@ -1525,6 +1585,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       : await preparePort({
           ...common,
           projectUrl: values.get("--project"),
+          expectedRepositoryId: repositoryId === undefined ? undefined : Number(repositoryId),
           issue: values.get("--issue"),
           id: values.get("--id"),
           name: values.get("--name"),
