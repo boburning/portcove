@@ -146,7 +146,7 @@ contract.
 ## A. Summary
 
 Section B holds 250 traced rows. Of these, 77 class-4 rows and 26 UNKNOWN rows
-have no open pull request. Appendix F has 420 rows of further named bounds.
+have no open pull request. Appendix F has 425 rows of further named bounds.
 
 | Area                      | Class 1 | Class 2 | Class 3 | Class 4 | UNKNOWN | Rows    |
 | ------------------------- | ------- | ------- | ------- | ------- | ------- | ------- |
@@ -165,7 +165,7 @@ have no open pull request. Appendix F has 420 rows of further named bounds.
 
 Rows by session: unassigned 162, #8634 24, #8633 14, #8637 11, #8641 9, #8640 8, #8638 5, #8632 5, #8619 3, #8661 3, #8630 3, #8635 1, #8631 1, #8626 1.
 
-Appendix F by class: class 1 25, class 2 145, class 3 109, class 4 120, class UNKNOWN 21.
+Appendix F by class: class 1 25, class 2 146, class 3 112, class 4 121, class UNKNOWN 21.
 
 **Resolved by #8633.** SC-16 recorded that incomplete store detection could
 permit a Move out of a store-owned folder. Store ownership now reports
@@ -1232,3 +1232,13 @@ UNKNOWN and it needs tracing.
 | `planEnvironmentByteLimit`                 | `scripts/validation-plan.mts`                                                     | 120 KiB gzip/base64 plan env string. Repository tooling (CI)                                          | 1       | Linux MAX_ARG_STRLEN 128 KiB per exec string, 8 KiB reserved                                                                             | Plan encoding throws                                                            | Retain                                                                             |
 | `planJsonByteLimit`                        | `scripts/validation-plan.mts`                                                     | 1 MiB inflated validation plan JSON. Repository tooling (CI)                                          | 2       | Gzip inflation containment for transported plan                                                                                          | Plan encoding/reading throws                                                    | Retain                                                                             |
 | `maxMetadataBytes`                         | `scripts/windows-rust-tests.mts`                                                  | 32 MiB; cargo metadata and nextest list output. Repository tooling (CI)                               | 4       | Output grows with workspace and dependency graph                                                                                         | spawnSync maxBuffer error                                                       | Measure current output size                                                        |
+
+### Release scan checkpoint retention
+
+| Bound                              | Source                                   | Value and scope                                  | Class | Rationale                                                                                                                           | Behavior at the limit                                                                                        | Disposition                                                                              |
+| ---------------------------------- | ---------------------------------------- | ------------------------------------------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `archiveLimit`                     | `scripts/release-content-checkpoint.mts` | 8 MiB ZIP for one scan checkpoint                | 2     | Matches the existing bounded Actions artifact downloader.                                                                           | Restore refuses unbound or oversized archive metadata before transfer.                                       | Retain                                                                                   |
+| `recentRunLimit`, `recentRunPages` | `scripts/release-content-checkpoint.mts` | 20 scheduled runs per page, up to eight pages    | 3     | Pages cover 40 days on the four-per-day schedule. A validated older successful run can establish expiry after that window.          | Invalid or incomplete pages refuse recovery.                                                                 | Validate alongside schedule or retention changes                                         |
+| `priorAttemptLimit`                | `scripts/release-content-checkpoint.mts` | 20 exact earlier-attempt lookups per restoration | 4     | Effective ceiling for a long streak of reruns. Attempts can replace the visible conclusion for an older successful run.             | Restoration pauses rather than guessing which attempt succeeded.                                             | Measure repeated exhaustion and use a complete provider attempt inventory when available |
+| `retentionMs`                      | `scripts/release-content-checkpoint.mts` | 30 days from producer completion                 | 3     | Matches the configured artifact retention. A verified expiry permits a fresh bounded scan.                                          | A missing in-window artifact stops restoration.                                                              | Keep aligned with the hosted workflow                                                    |
+| `retainedCheckpointLimit`          | `scripts/release-content-scan.mts`       | 8 MiB less 64 KiB container overhead             | 3     | Compact retained JSON fits the existing transfer envelope. Per-key continuation records the measured bytes needed for a later scan. | Oversized records stay in the current report. Subsequent transfers for that key defer until the record fits. | Retain existing evidence and track storage holds                                         |

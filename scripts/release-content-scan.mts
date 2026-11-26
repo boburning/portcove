@@ -211,6 +211,40 @@ export interface ScanFailure {
   max_asset_bytes: number;
 }
 
+// The scan artifact uses the existing 8 MiB ZIP transport. Reserve room for
+// the one-member container even when deflation does not save bytes.
+export const retainedCheckpointLimit = 8 * 1024 * 1024 - 64 * 1024;
+
+const attemptRow = (key: string, checkedAt: number, capacityRequired?: number) => ({
+  key,
+  rules: RULES_VERSION,
+  checked_at: checkedAt,
+  capacity_required: capacityRequired,
+});
+
+function checkpointDocument(
+  records: ReadonlyMap<string, ScanRecord>,
+  failures: ReadonlyMap<string, ScanFailure>,
+  retries: ReadonlyMap<string, number>,
+  deferredAttempts: ReadonlyMap<string, number>,
+  retentionRequired: ReadonlyMap<string, number>,
+) {
+  return {
+    format_version: 1,
+    records: [...records.values()],
+    failures: [...failures.values()],
+    retries: [...retries].map(([key, age]) => attemptRow(key, age)),
+    deferred_attempts: [...deferredAttempts].map(([key, age]) =>
+      attemptRow(key, age, retentionRequired.get(key)),
+    ),
+  };
+}
+
+// Include one separator per row. The budget overcounts by at most four
+// commas so admitting a package can never overflow the serialized snapshot.
+const rowStorage = (row: unknown) =>
+  row === undefined ? 0 : Buffer.byteLength(JSON.stringify(row)) + 1;
+
 /**
  * Persistent download failures the checkpoint remembers and does not fetch
  * again. `unlistable` is persistent for coverage but is remembered as a retry
@@ -429,6 +463,8 @@ export async function scan(
     failures: knownFailures = new Map<string, ScanFailure>(),
     retries: knownRetries = new Map<string, number>(),
     deferredAttempts: knownDeferredAttempts = new Map<string, number>(),
+    retentionRequired: knownRetentionRequired = new Map<string, number>(),
+    maxCheckpointBytes,
     completeTargets = false,
     maxRetryAssets = 4,
     maxRetryBytes = 2_000_000_000,
@@ -448,6 +484,8 @@ export async function scan(
     retries?: ReadonlyMap<string, number>;
     /** Ordinary transient attempts, oldest first on the next scan. */
     deferredAttempts?: ReadonlyMap<string, number>;
+    retentionRequired?: ReadonlyMap<string, number>;
+    maxCheckpointBytes?: number;
     /** Whether targets come from the entire canonical listings inventory. */
     completeTargets?: boolean;
     maxRetryAssets?: number | undefined;
@@ -461,11 +499,13 @@ export async function scan(
   failures: Map<string, ScanFailure>;
   retries: Map<string, number>;
   deferredAttempts: Map<string, number>;
+  retentionRequired: Map<string, number>;
 }> {
   const next = new Map(checkpoint);
   const failures = new Map(knownFailures);
   const retries = new Map(knownRetries);
   const deferredAttempts = new Map(knownDeferredAttempts);
+  const retentionRequired = new Map(knownRetentionRequired);
   const deferredRun =
     [...deferredAttempts.values()].reduce((max, value) => Math.max(max, value), 0) + 1;
   const matched = new Set<AccountingEntry>();
@@ -584,6 +624,7 @@ export async function scan(
         ))
     ) {
       deferredAttempts.delete(key);
+      retentionRequired.delete(key);
       continue;
     }
     ages.remember(assetIdentity(prior.repository, prior.tag, prior.name), prior.marker, age);
@@ -636,7 +677,38 @@ export async function scan(
         )
       : 0;
   const ordered = [...plans].sort((a, b) => attemptAge(a) - attemptAge(b));
+  const keyStorage = (key: string) => {
+    const retry = retries.get(key);
+    const deferred = deferredAttempts.get(key);
+    return (
+      rowStorage(next.get(key)) +
+      rowStorage(failures.get(key)) +
+      rowStorage(retry === undefined ? undefined : attemptRow(key, retry)) +
+      rowStorage(
+        deferred === undefined ? undefined : attemptRow(key, deferred, retentionRequired.get(key)),
+      )
+    );
+  };
+  let checkpointBytes = 0;
+  if (maxCheckpointBytes !== undefined) {
+    const keys = new Set([
+      ...next.keys(),
+      ...failures.keys(),
+      ...retries.keys(),
+      ...deferredAttempts.keys(),
+    ]);
+    checkpointBytes =
+      Buffer.byteLength(
+        JSON.stringify(checkpointDocument(new Map(), new Map(), new Map(), new Map(), new Map())),
+      ) + 1;
+    for (const key of keys) checkpointBytes += keyStorage(key);
+    if (checkpointBytes > maxCheckpointBytes)
+      throw new Error("Existing release scan checkpoint exceeds its retention budget");
+  }
   const recheckOutcomes = new Map<string, { code: UnscannedCode; reason: string }>();
+  // A checked package still supplies evidence for every matching target this
+  // run, even when the checkpoint has no room to keep it for the next run.
+  const scannedWithoutRetention = new Map<string, ScanRecord>();
   for (const plan of ordered) {
     const { target } = plan;
     const skip = (code: UnscannedCode, reason: string) =>
@@ -654,7 +726,7 @@ export async function scan(
       continue;
     }
     const { release, asset, key } = plan;
-    const known = next.get(key);
+    const known = next.get(key) ?? scannedWithoutRetention.get(key);
     if (known) {
       report.reused++;
       report.reused_targets.push({
@@ -732,6 +804,21 @@ export async function scan(
       else skip("time-budget", "time budget reached; scanned in a later run");
       continue;
     }
+    const checkpointWithoutKey =
+      maxCheckpointBytes === undefined ? 0 : checkpointBytes - keyStorage(key);
+    if (maxCheckpointBytes !== undefined) {
+      const beforeTransfer = rowStorage(attemptRow(key, deferredRun, Number.MAX_SAFE_INTEGER));
+      if (
+        checkpointBytes + beforeTransfer > maxCheckpointBytes ||
+        checkpointWithoutKey + (retentionRequired.get(key) ?? 0) > maxCheckpointBytes
+      ) {
+        skip("asset-budget", "insufficient space to retain the package scan checkpoint");
+        continue;
+      }
+    }
+    const previousFailure = failures.get(key);
+    const previousRetry = retries.get(key);
+    retentionRequired.delete(key);
     // The previous size-bound failure no longer governs this admitted attempt.
     // Its new outcome determines whether it is persistent or rotates normally.
     failures.delete(key);
@@ -801,6 +888,21 @@ export async function scan(
       recheckOutcomes.set(key, { code, reason });
       skip(code, reason);
     } finally {
+      if (maxCheckpointBytes !== undefined) {
+        const required = keyStorage(key);
+        if (checkpointWithoutKey + required > maxCheckpointBytes) {
+          const scanned = next.get(key);
+          if (scanned) scannedWithoutRetention.set(key, scanned);
+          next.delete(key);
+          if (previousFailure) failures.set(key, previousFailure);
+          else failures.delete(key);
+          if (previousRetry === undefined) retries.delete(key);
+          else retries.set(key, previousRetry);
+          deferredAttempts.set(key, deferredRun);
+          retentionRequired.set(key, required);
+        }
+        checkpointBytes = checkpointWithoutKey + keyStorage(key);
+      }
       // Failed transfers spend their budget too, so a bad asset cannot repeat unbounded.
       const spent = await stat(file).then(
         (info) => info.size,
@@ -814,7 +916,7 @@ export async function scan(
   report.accounting_unmatched = accounting
     .filter((entry) => !matched.has(entry))
     .map(({ port_id, platform, sha256, rules }) => ({ port_id, platform, sha256, rules }));
-  return { report, checkpoint: next, failures, retries, deferredAttempts };
+  return { report, checkpoint: next, failures, retries, deferredAttempts, retentionRequired };
 }
 
 // ---- Hosted implementations -------------------------------------------------
@@ -1203,13 +1305,20 @@ export async function readCheckpoint(file: string | undefined) {
   const failures = new Map<string, ScanFailure>();
   const retries = new Map<string, number>();
   const deferredAttempts = new Map<string, number>();
-  if (!file || file === "-") return { records, failures, retries, deferredAttempts };
+  const retentionRequired = new Map<string, number>();
+  if (!file || file === "-")
+    return { records, failures, retries, deferredAttempts, retentionRequired };
   try {
     const stored = JSON.parse(await readFile(file, "utf8")) as {
       records?: ScanRecord[];
       failures?: ScanFailure[];
       retries?: { key?: unknown; rules?: unknown; checked_at?: unknown }[];
-      deferred_attempts?: { key?: unknown; rules?: unknown; checked_at?: unknown }[];
+      deferred_attempts?: {
+        key?: unknown;
+        rules?: unknown;
+        checked_at?: unknown;
+        capacity_required?: unknown;
+      }[];
     };
     for (const retry of stored.retries ?? [])
       if (
@@ -1232,13 +1341,23 @@ export async function readCheckpoint(file: string | undefined) {
         typeof attempt.checked_at === "number" &&
         Number.isSafeInteger(attempt.checked_at) &&
         attempt.checked_at >= 0
-      )
+      ) {
         deferredAttempts.set(attempt.key, attempt.checked_at);
+        if (
+          typeof attempt.capacity_required === "number" &&
+          Number.isSafeInteger(attempt.capacity_required) &&
+          attempt.capacity_required > 0
+        )
+          retentionRequired.set(attempt.key, attempt.capacity_required);
+      }
     for (const record of stored.records ?? [])
       if (record.rules === RULES_VERSION) {
         // Only the reviewed accounting file dismisses a finding, never a cached record.
         const { accounted: _accounted, ...plain } = record as ScanFinding;
-        records.set(record.key, plain);
+        records.set(record.key, {
+          ...plain,
+          ...cappedSignals(plain.signals, plain.signal_count ?? plain.signals.length),
+        });
       }
     for (const failure of stored.failures ?? [])
       if (
@@ -1251,7 +1370,7 @@ export async function readCheckpoint(file: string | undefined) {
   } catch {
     // A missing or unreadable checkpoint scans from scratch.
   }
-  return { records, failures, retries, deferredAttempts };
+  return { records, failures, retries, deferredAttempts, retentionRequired };
 }
 
 export async function main(argv: string[]) {
@@ -1290,6 +1409,7 @@ export async function main(argv: string[]) {
     failures,
     retries,
     deferredAttempts,
+    retentionRequired,
   } = await readCheckpoint(option("--checkpoint"));
   const numeric = (name: string) => {
     const value = option(name);
@@ -1307,6 +1427,7 @@ export async function main(argv: string[]) {
     failures: nextFailures,
     retries: nextRetries,
     deferredAttempts: nextDeferredAttempts,
+    retentionRequired: nextRetentionRequired,
   } = await scan(targets, previous, hostedDependencies(process.env.GH_TOKEN), {
     maxAssets: numeric("--max-assets"),
     maxAssetBytes: numeric("--max-asset-bytes"),
@@ -1316,6 +1437,10 @@ export async function main(argv: string[]) {
     failures,
     retries,
     deferredAttempts,
+    retentionRequired,
+    ...(argv.includes("--retained-checkpoint")
+      ? { maxCheckpointBytes: retainedCheckpointLimit }
+      : {}),
     completeTargets: argv.includes("--complete-targets"),
     maxRetryAssets: numeric("--max-retry-assets"),
     maxRetryBytes: numeric("--max-retry-bytes"),
@@ -1325,25 +1450,7 @@ export async function main(argv: string[]) {
   if (option("--checkpoint-out"))
     await writeFile(
       option("--checkpoint-out")!,
-      `${JSON.stringify(
-        {
-          format_version: 1,
-          records: [...checkpoint.values()],
-          failures: [...nextFailures.values()],
-          retries: [...nextRetries].map(([key, checked_at]) => ({
-            key,
-            rules: RULES_VERSION,
-            checked_at,
-          })),
-          deferred_attempts: [...nextDeferredAttempts].map(([key, checked_at]) => ({
-            key,
-            rules: RULES_VERSION,
-            checked_at,
-          })),
-        },
-        null,
-        2,
-      )}\n`,
+      `${JSON.stringify(checkpointDocument(checkpoint, nextFailures, nextRetries, nextDeferredAttempts, nextRetentionRequired))}\n`,
     );
   process.stdout.write(
     `${JSON.stringify({ targets: targets.length, scanned: report.scanned.length, reused: report.reused, findings: report.findings.length, unscanned: report.unscanned.length })}\n`,

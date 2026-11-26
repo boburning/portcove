@@ -1445,10 +1445,24 @@ is review evidence, so a person confirms it and, unless the material falls
 under a rights-basis owner exception, sets the listing's
 `download_block_reason` in a reviewed change.
 
-Each scanned asset is remembered in a cached checkpoint by rules version,
+Each scanned asset is remembered in a checkpoint by rules version,
 provider, repository, tag, name and, where the provider gives them, digest or
 size, so a successfully scanned
-release is downloaded once; a rules change rescans. Each scheduled run has an
+release is downloaded once; a rules change rescans. Scheduled runs retain the
+checkpoint separately from the report for 30 days. The next scan verifies the
+latest successful scheduled main run, its exact attempt, and the checkpoint
+archive digest before reusing that continuation. A missing checkpoint from a
+legacy producer can use the old cache during rollout. A missing or invalid
+checkpoint from an artifact-producing run stops the scan while that artifact
+is within retention. Confirmed expiry starts a fresh scan under the same
+budgets. Manual runs can read the checkpoint and only scheduled runs advance it.
+A rerun reuses its own previous successful attempt when available. A historical
+rerun stops if a newer schedule already advanced the checkpoint. The retained
+checkpoint uses the existing 8 MiB artifact receive budget. The scan preserves
+retained records at that bound. If a package result needs more space, it records
+the measured requirement and defers a new transfer until that result can fit.
+
+Each scheduled run has an
 asset budget of 160 packages that counts every attempt, a 40 GB byte budget
 that counts failed transfers too, and a 75-minute deadline that also caps every release read (each at
 most one minute), download, listing and file read, so a slow provider or

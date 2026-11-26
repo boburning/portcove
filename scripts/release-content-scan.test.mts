@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { crc32 } from "node:zlib";
+import {
+  loadReleaseScanCheckpoint,
+  releaseScanProducerQuery,
+  releaseScanSuccessQuery,
+} from "./release-content-checkpoint.mts";
 import {
   type ReleaseAsset,
   type Runner,
@@ -32,6 +39,345 @@ import {
   scan,
   scanTargets,
 } from "./release-content-scan.mts";
+
+function checkpointZip(contents: unknown) {
+  const bytes = Buffer.from(JSON.stringify(contents));
+  const name = Buffer.from("checkpoint.json");
+  const local = Buffer.alloc(30 + name.length);
+  local.writeUInt32LE(0x04034b50, 0);
+  local.writeUInt32LE(crc32(bytes), 14);
+  local.writeUInt32LE(bytes.length, 18);
+  local.writeUInt32LE(bytes.length, 22);
+  local.writeUInt16LE(name.length, 26);
+  name.copy(local, 30);
+  const central = Buffer.alloc(46 + name.length);
+  central.writeUInt32LE(0x02014b50, 0);
+  central.writeUInt32LE(crc32(bytes), 16);
+  central.writeUInt32LE(bytes.length, 20);
+  central.writeUInt32LE(bytes.length, 24);
+  central.writeUInt16LE(name.length, 28);
+  name.copy(central, 46);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(1, 8);
+  end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(central.length, 12);
+  end.writeUInt32LE(local.length + bytes.length, 16);
+  return Buffer.concat([local, bytes, central, end]);
+}
+
+const checkpointProducer = {
+  id: 123,
+  run_attempt: 2,
+  run_number: 26,
+  workflow_id: 417668017,
+  head_repository: { id: 1354613114 },
+  head_branch: "main",
+  event: "schedule",
+  status: "completed",
+  conclusion: "success",
+  head_sha: "e".repeat(40),
+  updated_at: "2026-11-26T09:46:22Z",
+};
+const nextScan = Date.parse("2026-11-26T16:00:00Z");
+const retainedScanKey = (name: string) => `r2|github|up/example|v1|${name}|20`;
+const checkpointDocument = {
+  format_version: 1,
+  records: [
+    {
+      key: retainedScanKey("record"),
+      id: "example",
+      platform: "linux-x86_64",
+      repository: "up/example",
+      tag: "v1",
+      asset: "record",
+      sha256: "a".repeat(64),
+      entries: 1,
+      heads_unread: 0,
+      heads_truncated: false,
+      rules: 2,
+      signals: [],
+      signal_count: 0,
+    },
+  ],
+  failures: [{ key: retainedScanKey("failure"), code: "asset-too-large", max_asset_bytes: 20 }],
+  retries: [{ key: retainedScanKey("retry"), rules: 2, checked_at: 1 }],
+  deferred_attempts: [
+    { key: retainedScanKey("deferred"), rules: 2, checked_at: 2, capacity_required: 1234 },
+  ],
+};
+const checkpointArchive = checkpointZip(checkpointDocument);
+const checkpointArtifact = {
+  name: "release-content-checkpoint-123-2",
+  id: 12,
+  expired: false,
+  size_in_bytes: checkpointArchive.length,
+  digest: `sha256:${createHash("sha256").update(checkpointArchive).digest("hex")}`,
+  workflow_run: {
+    id: 123,
+    repository_id: 1354613114,
+    head_repository_id: 1354613114,
+    head_branch: "main",
+    head_sha: checkpointProducer.head_sha,
+  },
+};
+
+void test("scan restores only the digest-bound artifact for the exact scheduled attempt", async (t) => {
+  const priorAttempt = { ...checkpointArtifact, id: 11, name: "release-content-checkpoint-123-1" };
+  const result = await loadReleaseScanCheckpoint(
+    async (endpoint) => {
+      if (endpoint === releaseScanProducerQuery)
+        return { total_count: 1, workflow_runs: [checkpointProducer] };
+      assert.equal(endpoint, "actions/runs/123/artifacts?per_page=100&page=1");
+      return { total_count: 2, artifacts: [priorAttempt, checkpointArtifact] };
+    },
+    async (id, size) => {
+      assert.equal(id, 12);
+      assert.equal(size, checkpointArchive.length);
+      return checkpointArchive;
+    },
+    nextScan,
+  );
+  assert.equal(result.source, "artifact");
+  assert.deepEqual(JSON.parse(result.checkpoint), checkpointDocument);
+  const directory = await mkdtemp(path.join(os.tmpdir(), "retained-scan-checkpoint-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "checkpoint.json");
+  await writeFile(file, result.checkpoint);
+  const restored = await readCheckpoint(file);
+  assert.equal(restored.records.get(retainedScanKey("record"))?.id, "example");
+  assert.equal(restored.failures.get(retainedScanKey("failure"))?.max_asset_bytes, 20);
+  assert.equal(restored.retries.get(retainedScanKey("retry")), 1);
+  assert.equal(restored.deferredAttempts.get(retainedScanKey("deferred")), 2);
+  assert.equal(restored.retentionRequired.get(retainedScanKey("deferred")), 1234);
+});
+
+void test("a first scheduled attempt starts empty only after a complete run lookup", async () => {
+  const running = {
+    ...checkpointProducer,
+    run_attempt: 1,
+    status: "in_progress",
+    conclusion: null,
+  };
+  const result = await loadReleaseScanCheckpoint(
+    async (endpoint) => {
+      assert.equal(endpoint, releaseScanProducerQuery);
+      return { total_count: 1, workflow_runs: [running] };
+    },
+    async () => assert.fail("a first schedule has no artifact to restore"),
+    nextScan,
+    { id: 123, number: 26, attempt: 1 },
+  );
+  assert.deepEqual(result, { source: "empty" });
+});
+
+void test("scan accepts the cache only for a verified legacy attempt", async () => {
+  const lookup = (stepName: string) =>
+    loadReleaseScanCheckpoint(
+      async (endpoint) => {
+        if (endpoint === releaseScanProducerQuery)
+          return { total_count: 1, workflow_runs: [checkpointProducer] };
+        if (endpoint === "actions/runs/123/artifacts?per_page=100&page=1")
+          return { total_count: 0, artifacts: [] };
+        assert.equal(endpoint, "actions/runs/123/attempts/2/jobs?per_page=100");
+        return {
+          total_count: 1,
+          jobs: [{ name: "scan", steps: [{ name: stepName, conclusion: "success" }] }],
+        };
+      },
+      async () => assert.fail("no artifact should be downloaded"),
+      nextScan,
+    );
+  assert.deepEqual(await lookup("Preserve scanned-asset checkpoint"), {
+    source: "legacy",
+    cache: "release-content-scan-v1-main-123-2",
+  });
+  await assert.rejects(lookup("Retain scheduled scan checkpoint"), /checkpoint absent/u);
+});
+
+void test("scan refuses unbound, ambiguous or corrupt checkpoint artifacts before reuse", async () => {
+  const lookup = (artifacts: unknown[], archive = checkpointArchive) =>
+    loadReleaseScanCheckpoint(
+      async (endpoint) =>
+        endpoint === releaseScanProducerQuery
+          ? { total_count: 1, workflow_runs: [checkpointProducer] }
+          : { total_count: artifacts.length, artifacts },
+      async () => archive,
+      nextScan,
+    );
+  await assert.rejects(
+    lookup([
+      { ...checkpointArtifact, workflow_run: { ...checkpointArtifact.workflow_run, id: 8 } },
+    ]),
+    /metadata is unbound/u,
+  );
+  await assert.rejects(
+    lookup([checkpointArtifact, { ...checkpointArtifact, id: 99 }]),
+    /duplicate checkpoint artifacts/u,
+  );
+  await assert.rejects(
+    lookup([checkpointArtifact], Buffer.alloc(checkpointArchive.length)),
+    /digest differs/u,
+  );
+  assert.deepEqual(await lookup([{ ...checkpointArtifact, expired: true }]), { source: "expired" });
+});
+
+void test("a failed intervening attempt does not hide the same run's last successful continuation", async () => {
+  const failed = { ...checkpointProducer, run_attempt: 3, conclusion: "failure" };
+  const running = {
+    ...checkpointProducer,
+    run_attempt: 4,
+    status: "in_progress",
+    conclusion: null,
+  };
+  const endpoints: string[] = [];
+  const result = await loadReleaseScanCheckpoint(
+    async (endpoint) => {
+      endpoints.push(endpoint);
+      if (endpoint === releaseScanProducerQuery)
+        return { total_count: 1, workflow_runs: [running] };
+      if (endpoint === "actions/runs/123/attempts/3") return failed;
+      if (endpoint === "actions/runs/123/attempts/2") return checkpointProducer;
+      assert.equal(endpoint, "actions/runs/123/artifacts?per_page=100&page=1");
+      return { total_count: 1, artifacts: [checkpointArtifact] };
+    },
+    async () => checkpointArchive,
+    nextScan,
+    { id: 123, number: 26, attempt: 4 },
+  );
+  assert.equal(result.source, "artifact");
+  assert.deepEqual(endpoints.slice(1, 3), [
+    "actions/runs/123/attempts/3",
+    "actions/runs/123/attempts/2",
+  ]);
+});
+
+void test("a historical schedule cannot publish a continuation over a newer producer", async () => {
+  await assert.rejects(
+    loadReleaseScanCheckpoint(
+      async (endpoint) => {
+        assert.equal(endpoint, releaseScanProducerQuery);
+        return { total_count: 1, workflow_runs: [checkpointProducer] };
+      },
+      async () => assert.fail("historical rerun should stop before download"),
+      nextScan,
+      { id: 102, number: 25, attempt: 2 },
+    ),
+    /newer schedule already advanced/u,
+  );
+});
+
+void test("a streak of failed schedules can still select a retained or expired successful producer", async () => {
+  const unsuccessful = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      ...checkpointProducer,
+      id: 124 + count - index,
+      run_number: 27 + count - index,
+      run_attempt: 1,
+      conclusion: "failure",
+    }));
+  for (const expired of [false, true]) {
+    const failed = unsuccessful(expired ? 160 : 21);
+    const oldRun = expired
+      ? { ...checkpointProducer, updated_at: "2026-10-01T00:00:00Z" }
+      : checkpointProducer;
+    const runs = [...failed, oldRun];
+    const result = await loadReleaseScanCheckpoint(
+      async (endpoint) => {
+        if (endpoint === releaseScanSuccessQuery) {
+          assert.equal(expired, true);
+          return { total_count: 1, workflow_runs: [oldRun] };
+        }
+        if (endpoint.startsWith(releaseScanProducerQuery)) {
+          const page = Number(
+            new URL(`https://example.invalid/${endpoint}`).searchParams.get("page") ?? 1,
+          );
+          return {
+            total_count: runs.length,
+            workflow_runs: runs.slice((page - 1) * 20, page * 20),
+          };
+        }
+        assert.equal(endpoint, "actions/runs/123/artifacts?per_page=100&page=1");
+        return expired
+          ? { total_count: 0, artifacts: [] }
+          : { total_count: 1, artifacts: [checkpointArtifact] };
+      },
+      async () => {
+        assert.equal(expired, false);
+        return checkpointArchive;
+      },
+      nextScan,
+    );
+    assert.equal(result.source, expired ? "expired" : "artifact");
+  }
+});
+
+void test("uncapped legacy signals survive migration into a verified checkpoint", async (t) => {
+  const [record] = checkpointDocument.records;
+  assert.ok(record);
+  const { signal_count: _count, ...legacy } = record;
+  const signals = Array.from({ length: SIGNAL_CAP + 2 }, (_, index) => ({
+    kind: "rom-or-disc-image",
+    path: `game-${index}.z64`,
+    reason: "Nintendo 64 ROM image",
+  }));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "legacy-scan-checkpoint-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "checkpoint.json");
+  await writeFile(
+    file,
+    JSON.stringify({ ...checkpointDocument, records: [{ ...legacy, signals }] }),
+  );
+  const imported = await readCheckpoint(file);
+  const normalized = imported.records.get(record.key);
+  assert.equal(normalized?.signal_count, signals.length);
+  assert.equal(normalized.signals.length, SIGNAL_CAP);
+  const archive = checkpointZip({ ...checkpointDocument, records: [...imported.records.values()] });
+  const retained = await loadReleaseScanCheckpoint(
+    async (endpoint) =>
+      endpoint === releaseScanProducerQuery
+        ? { total_count: 1, workflow_runs: [checkpointProducer] }
+        : {
+            total_count: 1,
+            artifacts: [
+              {
+                ...checkpointArtifact,
+                size_in_bytes: archive.length,
+                digest: `sha256:${createHash("sha256").update(archive).digest("hex")}`,
+              },
+            ],
+          },
+    async () => archive,
+    nextScan,
+  );
+  assert.equal(retained.source, "artifact");
+  await writeFile(file, retained.checkpoint);
+  assert.deepEqual((await readCheckpoint(file)).records.get(record.key), normalized);
+});
+
+void test("an artifact with a valid archive digest and malformed retained data is refused", async () => {
+  const archive = checkpointZip({ ...checkpointDocument, records: [{ key: "invalid" }] });
+  await assert.rejects(
+    loadReleaseScanCheckpoint(
+      async (endpoint) =>
+        endpoint === releaseScanProducerQuery
+          ? { total_count: 1, workflow_runs: [checkpointProducer] }
+          : {
+              total_count: 1,
+              artifacts: [
+                {
+                  ...checkpointArtifact,
+                  size_in_bytes: archive.length,
+                  digest: `sha256:${createHash("sha256").update(archive).digest("hex")}`,
+                },
+              ],
+            },
+      async () => archive,
+      nextScan,
+    ),
+    /invalid checkpoint document/u,
+  );
+});
 
 const listings = {
   listings: [
@@ -110,6 +456,55 @@ void test("channel and hint selection skip drafts, prereleases, symbols and ambi
 
 const header = Buffer.alloc(352);
 Buffer.from("24ffae51699aa2213d84820a84e409ad", "hex").copy(header, 0xc0);
+
+void test("a measured checkpoint capacity deferral prevents repeat downloads and preserves other progress", async () => {
+  const [large, small] = scanTargets(listings);
+  assert.ok(large && small);
+  const calls: string[] = [];
+  const deps = {
+    ...fakes(calls),
+    async list(_file: string, name: string) {
+      return name === "Code-1-windows-x64.zip"
+        ? [{ path: `${"long/".repeat(300)}game.z64`, size: 10 }]
+        : [];
+    },
+  };
+  const [initialRelease] = await deps.releases(large, Infinity);
+  const initialAsset = initialRelease?.assets[0];
+  assert.ok(initialRelease && initialAsset);
+  const largeKey = assetKey(large, initialRelease.tag, initialAsset);
+  const sibling = { ...large, id: "other-listing-for-same-asset" };
+  const first = await scan([large, sibling, small], new Map(), deps, { maxCheckpointBytes: 900 });
+  assert.deepEqual(
+    first.report.scanned.map(({ id }) => id),
+    [large.id, small.id],
+  );
+  assert.equal(first.checkpoint.size, 1);
+  assert.deepEqual(
+    first.report.findings.map(({ id }) => id),
+    [large.id, sibling.id],
+  );
+  assert.ok((first.retentionRequired.get(largeKey) ?? 0) > 900);
+  assert.equal(first.checkpoint.has(largeKey), false);
+  const second = await scan([large, small], first.checkpoint, deps, {
+    deferredAttempts: first.deferredAttempts,
+    retentionRequired: first.retentionRequired,
+    maxCheckpointBytes: 900,
+  });
+  assert.equal(second.report.reused, 1);
+  assert.equal(second.report.unscanned[0]?.code, "asset-budget");
+  assert.match(second.report.unscanned[0]?.reason ?? "", /retain the package scan checkpoint/u);
+  assert.deepEqual(second.checkpoint, first.checkpoint);
+  assert.equal(calls.filter((call) => call.startsWith("download")).length, 2);
+  const resumed = await scan([large, small], second.checkpoint, deps, {
+    deferredAttempts: second.deferredAttempts,
+    retentionRequired: second.retentionRequired,
+    maxCheckpointBytes: 3000,
+  });
+  assert.equal(resumed.checkpoint.has(largeKey), true);
+  assert.equal(resumed.retentionRequired.size, 0);
+  assert.equal(calls.filter((call) => call.startsWith("download")).length, 3);
+});
 
 function fakes(calls: string[]): ScanDependencies {
   const releases: Record<string, UpstreamRelease[]> = {
