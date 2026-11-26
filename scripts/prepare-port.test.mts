@@ -990,6 +990,156 @@ void test("discovery listing batch keeps independent additions and never replace
   }
 });
 
+void test("scheduled discovery scope binds first-party manifest bytes and keeps independent results", async (context) => {
+  const f = fixture();
+  try {
+    const sha = "a".repeat(40);
+    const tree = "c".repeat(40);
+    const candidates = [
+      "eligible",
+      "missing",
+      "fork",
+      "wrong-bytes",
+      "scummvm",
+      "legacy",
+      "symlink",
+      "multi",
+      "truncated",
+      "unknown-mirror",
+      "bad-tree",
+      "provider-missing-file",
+    ].map((name, index) => ({
+      id: `github-${80_000 + index}`,
+      project_url: `https://github.com/fixture/${name}`,
+      repository_id: 80_000 + index,
+      evidence_sha256: "b".repeat(64),
+    }));
+    const handoff = { format: "portcove-discovery-listing-handoff", format_version: 1, candidates };
+    const validatorCli = join(f.root, "fixture-cli");
+    writeFileSync(validatorCli, "inert");
+    context.mock.method(childProcess, "spawnSync", (_artifact: string, args: string[]) => {
+      assert.deepEqual(args.slice(-3, -1), ["inspect-listings", "--path"]);
+      const data: unknown = JSON.parse(readFileSync(args.at(-1)!, "utf8"));
+      return { status: 0, signal: null, stdout: JSON.stringify({ data }), stderr: "" };
+    });
+    syncBuiltinESMExports();
+    const { report } = await prepareDiscoveryListingAdditions({
+      catalogRoot,
+      outputDirectory: join(f.root, "automatic-scope"),
+      handoff,
+      automaticScope: true,
+      validatorCli,
+      facts: {
+        now: () => Date.parse("2026-11-26T00:00:00Z"),
+        fetcher: f.fetcher((url) => {
+          const candidate = candidates.find(({ project_url }) =>
+            url.endsWith(project_url.slice("https://github.com".length)),
+          );
+          if (candidate) {
+            return json({
+              id: candidate.repository_id,
+              private: false,
+              fork: candidate.project_url.endsWith("/fork"),
+              ...(candidate.project_url.endsWith("/unknown-mirror") ? {} : { mirror_url: null }),
+              default_branch: "main",
+              full_name: new URL(candidate.project_url).pathname.slice(1),
+            });
+          }
+          const match = /\/repositories\/(\d+)\/(.*)$/u.exec(url);
+          if (!match) assert.fail(`Unexpected provider request ${url}`);
+          const selected = candidates.find(
+            ({ repository_id }) => repository_id === Number(match[1]),
+          );
+          if (!selected || /\/(?:fork|unknown-mirror)$/u.test(selected.project_url))
+            assert.fail("Unbound or fork metadata request");
+          if (match[2] === "commits?per_page=1")
+            return json([{ sha, commit: { tree: { sha: tree } } }]);
+          const name = selected.project_url.split("/").at(-1);
+          const manifestPath = name === "legacy" ? ".recomp-board.json" : ".recomp.json";
+          const bytes = Buffer.from(
+            JSON.stringify({
+              game: "Fixture game",
+              type: "recomp",
+              system: "SNES",
+              ...(selected.project_url.endsWith("/scummvm") ? { toolchain: "ScummVM" } : {}),
+            }),
+          );
+          const digest = createHash("sha1")
+            .update(`blob ${bytes.length}\0`)
+            .update(bytes)
+            .digest("hex");
+          if (match[2] === `git/trees/${tree}`) {
+            const entries =
+              name === "missing"
+                ? []
+                : [
+                    {
+                      path: manifestPath,
+                      type: "blob",
+                      mode: name === "symlink" ? "120000" : "100644",
+                      sha: digest,
+                    },
+                  ];
+            if (name === "multi")
+              entries.push({ path: ".recomp-2.json", type: "blob", mode: "100644", sha: digest });
+            return json({
+              sha: tree,
+              tree: name === "bad-tree" ? [...entries, null] : entries,
+              truncated: name === "truncated",
+            });
+          }
+          assert.ok(!["missing", "symlink", "multi", "truncated", "bad-tree"].includes(name!));
+          assert.equal(match[2], `contents/${manifestPath}?ref=${sha}`);
+          if (name === "provider-missing-file") return new Response(null, { status: 404 });
+          if (name === "wrong-bytes") bytes[10] = bytes[10]! ^ 1;
+          return json({
+            type: "file",
+            path: manifestPath,
+            encoding: "base64",
+            size: bytes.length,
+            content: bytes.toString("base64"),
+            sha: digest,
+          });
+        }),
+      },
+    });
+    assert.deepEqual(report.changed_records, ["github-80000", "github-80005"]);
+    assert.deepEqual(
+      report.outcomes.map(({ status }) => status),
+      [
+        "prepared",
+        "held",
+        "held",
+        "held",
+        "restricted",
+        "prepared",
+        "held",
+        "held",
+        "held",
+        "held",
+        "held",
+        "unavailable",
+      ],
+    );
+    assert.equal(report.automatic_scope_policy, "github-primary-single-game-manifest/1");
+    assert.ok(report.admission);
+    assert.equal(report.operational_changed, false);
+    const result = checkedAuthoredPort(
+      JSON.parse(readFileSync(report.files.records[0]!.path, "utf8")),
+    );
+    assert.equal(
+      result.original_game_review?.evidence_urls[1],
+      `https://github.com/fixture/eligible/blob/${sha}/.recomp.json`,
+    );
+    assert.equal(result.listing.original_game, undefined);
+    assert.equal(result.integration, undefined);
+  } finally {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
+    f.clean();
+  }
+});
+
 void test("discovery listing staging refuses stale or changed source before reading candidates", async () => {
   const f = fixture();
   try {

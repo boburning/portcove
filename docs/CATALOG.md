@@ -7509,6 +7509,20 @@ It reports conflicting identities and unavailable provider facts per candidate.
 The handoff supplies evidence references for review. It grants no authority
 to publish, change existing records or decide which package Core can offer.
 
+With `--discovery-automatic-scope true`, the scheduled preparer checks the
+primary repository's bounded `.recomp.json` at its current immutable default
+commit using the stable repository ID. It also supports the original
+`.recomp-board.json` name when the main manifest is absent. A complete root tree
+must identify a single regular manifest. Repositories with companion game
+manifests retain an explicit scope hold. The assessment records its policy,
+commit, tree, blob and content digest. Fork and mirror identity conflicts, unsupported or
+missing manifests and failures retain their own dated outcomes. Projects with
+other scope evidence can still use reviewed discovery admission. An upstream
+manifest supplies descriptive scope. Acquisition still follows its own checks.
+The scheduled invocation produces unsigned evidence. A trusted checkout with
+the current Core validator can prepare the exact append-only patch from the
+same policy, subject to normal catalog review and publication.
+
 For a reviewed batch, run the same command with
 `--discovery-listing-approval /path/to/approval.json` and the trusted Core
 validator. The approval has format `portcove-discovery-listing-approval`,

@@ -56,6 +56,7 @@ import { compactN64RecompPersistence } from "./catalog-n64-recomp-persistence.mt
 import {
   BoundRepositoryUnavailable,
   collectPortFacts,
+  discoveryScopePolicy,
   githubRepository,
 } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
@@ -1346,6 +1347,7 @@ export async function prepareDiscoveryListingAdditions(
     facts?: PrepareOptions["facts"];
     deadline?: number;
     approval?: { document: unknown };
+    automaticScope?: boolean;
     stage?: { repository: string; revision: string };
   },
 ) {
@@ -1355,9 +1357,14 @@ export async function prepareDiscoveryListingAdditions(
     throw new Error("Discovery preparation deadline must be a finite epoch in milliseconds.");
   if (options.approval && !options.validatorCli)
     throw new Error("Discovery listing approval requires a trusted Core validator.");
+  if (options.approval && options.automaticScope)
+    throw new Error("Choose either reviewed approval or automatic discovery scope.");
   const stage = options.stage;
   if (stage) {
-    if (!options.approval) throw new Error("Discovery staging requires an approved catalog patch.");
+    if ((!options.approval && !options.automaticScope) || !options.validatorCli)
+      throw new Error(
+        "Discovery staging requires an approved catalog patch and trusted Core validator.",
+      );
     if (
       realpathSync(options.catalogRoot) !==
       join(realpathSync(stage.repository), repositoryCatalogPath)
@@ -1397,6 +1404,8 @@ export async function prepareDiscoveryListingAdditions(
     const repository = githubRepository(value.project_url);
     if (!repository || new URL(value.project_url).port)
       throw new Error("Discovery listing preparation requires a public GitHub repository root.");
+    if (options.automaticScope && value.id !== `github-${value.repository_id}`)
+      throw new Error("Automatic discovery keys must derive from the immutable repository ID.");
     return {
       key: value.id,
       kind: "implementation" as const,
@@ -1531,8 +1540,27 @@ export async function prepareDiscoveryListingAdditions(
           projectUrl,
           expectedRepositoryId: candidate.repository_id,
           route: "listing",
+          ...(options.automaticScope ? { discoveryScope: true } : {}),
           cacheDirectory: join(root, "facts"),
         });
+        if (options.automaticScope && facts.discovery_scope?.state !== "eligible") {
+          const assessment = facts.discovery_scope;
+          if (!assessment) throw new Error("Discovery scope assessment is unavailable.");
+          if ("retry_after" in assessment && assessment.retry_after) {
+            providerBackoff = new BoundRepositoryUnavailable(
+              assessment.reason,
+              assessment.retry_after,
+            );
+          }
+          outcomes.push({
+            ...reported,
+            status:
+              "retry_after" in assessment && assessment.retry_after ? "deferred" : assessment.state,
+            scope_assessment: assessment,
+            upstream_receipt: immutableJson(root, `discovery-upstream-${candidate.key}`, facts),
+          });
+          continue;
+        }
         const metadata = isRecord(facts.project?.body) ? facts.project.body : {};
         const summary =
           typeof metadata.description === "string"
@@ -1553,7 +1581,13 @@ export async function prepareDiscoveryListingAdditions(
             disposition: "unresolved",
             reason:
               "Repository evidence does not establish an exact original game or source edition.",
-            evidence_urls: [projectUrl],
+            evidence_urls:
+              facts.discovery_scope?.state === "eligible"
+                ? [
+                    projectUrl,
+                    `${projectUrl}/blob/${facts.discovery_scope.commit}/${facts.discovery_scope.manifest_path}`,
+                  ]
+                : [projectUrl],
           },
           listing: {
             id: candidate.key,
@@ -1588,7 +1622,12 @@ export async function prepareDiscoveryListingAdditions(
       const receipt = immutableJson(root, `discovery-upstream-${candidate.key}`, facts);
       requireOriginalGameDecision(entry);
       additions.push(entry);
-      outcomes.push({ ...reported, status: "prepared", upstream_receipt: receipt });
+      outcomes.push({
+        ...reported,
+        status: "prepared",
+        ...(facts.discovery_scope ? { scope_assessment: facts.discovery_scope } : {}),
+        upstream_receipt: receipt,
+      });
     }
     const prepared = preparedRecordOutputs(
       options,
@@ -1611,7 +1650,7 @@ export async function prepareDiscoveryListingAdditions(
         "Discovery listing preparation changed an accepted catalog record or integration.",
       );
     let admission: { path: string; sha256: string } | null = null;
-    if (approved && additions.length > 0) {
+    if ((approved || (options.automaticScope && options.validatorCli)) && additions.length > 0) {
       const patch = discoveryAdmissionPatch(additions);
       const sha256 = createHash("sha256").update(patch).digest("hex");
       const path = join(root, `discovery-listing-admission-${sha256}.patch`);
@@ -1631,6 +1670,7 @@ export async function prepareDiscoveryListingAdditions(
     const report = {
       format_version: 1,
       route: "discovery-listings",
+      ...(options.automaticScope ? { automatic_scope_policy: discoveryScopePolicy } : {}),
       selected_port_ids: candidates.map(({ key }) => key),
       handoff_semantic_sha256: admissionBinding.handoff_sha256,
       admission_binding: admissionBinding,
@@ -2138,6 +2178,7 @@ async function main() {
     "--artwork-retained-limit",
     "--discovery-listings",
     "--discovery-listing-approval",
+    "--discovery-automatic-scope",
     "--discovery-stage-source",
     "--discovery-deadline-epoch-ms",
     "--listing-observations",
@@ -2193,6 +2234,7 @@ async function main() {
   const observationHandoff = values.get("--listing-observations");
   const discoveryHandoff = values.get("--discovery-listings");
   const discoveryApproval = values.get("--discovery-listing-approval");
+  const automaticDiscoveryScope = values.get("--discovery-automatic-scope");
   const discoveryStageSource = values.get("--discovery-stage-source");
   const discoveryDeadline = values.get("--discovery-deadline-epoch-ms");
   if (discoveryDeadline && !discoveryHandoff)
@@ -2201,8 +2243,13 @@ async function main() {
     throw new Error(
       "--discovery-listing-approval requires --discovery-listings and --validator-cli.",
     );
-  if (discoveryStageSource && !discoveryApproval)
-    throw new Error("--discovery-stage-source requires --discovery-listing-approval.");
+  if (
+    automaticDiscoveryScope !== undefined &&
+    (automaticDiscoveryScope !== "true" || !discoveryHandoff)
+  )
+    throw new Error("--discovery-automatic-scope takes true with --discovery-listings.");
+  if (discoveryStageSource && !discoveryApproval && !automaticDiscoveryScope)
+    throw new Error("--discovery-stage-source requires reviewed approval or automatic scope.");
   if (
     discoveryHandoff &&
     [...values.keys()].some(
@@ -2210,6 +2257,7 @@ async function main() {
         ![
           "--discovery-listings",
           "--discovery-listing-approval",
+          "--discovery-automatic-scope",
           "--discovery-stage-source",
           "--discovery-deadline-epoch-ms",
           "--validator-cli",
@@ -2284,6 +2332,7 @@ async function main() {
       ? await prepareDiscoveryListingAdditions({
           ...common,
           facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
+          ...(automaticDiscoveryScope ? { automaticScope: true } : {}),
           ...(discoveryDeadline ? { deadline: Number(discoveryDeadline) } : {}),
           ...(discoveryStageSource
             ? { stage: { repository, revision: discoveryStageSource } }
