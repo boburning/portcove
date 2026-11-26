@@ -70,7 +70,9 @@ pub(crate) enum CatalogCommand {
     },
     /// Prepare exact successor evidence from two already admitted libraries without downloading game bytes.
     PrepareSuccessorEvidence {
+        /// ID of the port to compare in both libraries.
         port_id: String,
+        /// Path to the library that admitted the predecessor release.
         #[arg(long)]
         predecessor_library: std::path::PathBuf,
     },
