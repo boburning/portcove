@@ -1745,6 +1745,7 @@ export default interface Resources {
       "fileUnavailable": "This settings file is unavailable.",
       "heading": "Game settings",
       "held": "This draft belongs to an earlier setup or file. To edit the current settings, discard this draft and enter your changes again.",
+      "heldUnavailable": "Portcove couldn’t read the settings for this draft. Read settings again to check for the original setup and file.",
       "installTarget": "Game version {{version}}",
       "intro": "Edit settings, then review the changes for each file before saving.",
       "label": "Game settings",

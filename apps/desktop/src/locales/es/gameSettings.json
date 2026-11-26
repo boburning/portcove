@@ -507,6 +507,7 @@
     "fileUnavailable": "Este archivo de ajustes no está disponible.",
     "heading": "Ajustes del juego",
     "held": "Este borrador pertenece a una configuración o un archivo anterior. Para editar los ajustes actuales, descarta este borrador y vuelve a introducir tus cambios.",
+    "heldUnavailable": "Portcove no pudo leer los ajustes de este borrador. Vuelve a leer los ajustes para buscar la configuración y el archivo originales.",
     "installTarget": "Versión del juego {{version}}",
     "intro": "Edita los ajustes y revisa los cambios de cada archivo antes de guardarlos.",
     "label": "Ajustes del juego",
