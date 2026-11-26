@@ -10,12 +10,17 @@ import { startManagedSubscription } from "../../shared/subscription-lifecycle";
 
 export type ApplicationUpdateAction = "check" | "save" | "install";
 
+type ApplicationUpdateFailure = {
+  action: ApplicationUpdateAction | "read";
+  error: unknown;
+};
+
 export interface ApplicationUpdateModel {
   status: ApplicationUpdateStatus | undefined;
   preferences: ApplicationUpdatePreferences | undefined;
   busy: ApplicationUpdateAction | undefined;
   progress: ApplicationUpdateProgress | undefined;
-  failure: unknown;
+  failure: ApplicationUpdateFailure | undefined;
   /** The available version the global notice still announces. */
   noticeVersion: string | undefined;
   check: () => Promise<void>;
@@ -34,7 +39,7 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
   const [preferences, setPreferences] = useState<ApplicationUpdatePreferences>();
   const [busy, setBusy] = useState<ApplicationUpdateAction>();
   const [progress, setProgress] = useState<ApplicationUpdateProgress>();
-  const [failure, setFailure] = useState<unknown>();
+  const [failure, setFailure] = useState<ApplicationUpdateFailure>();
   const [dismissedVersion, setDismissedVersion] = useState<string>();
 
   useEffect(() => {
@@ -53,7 +58,7 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
       if (disposed) return;
       if (nextStatus.status === "fulfilled") setStatus(nextStatus.value);
       if (nextPreferences.status === "fulfilled") setPreferences(nextPreferences.value);
-      else setFailure(nextPreferences.reason);
+      else setFailure({ action: "read", error: nextPreferences.reason });
     })();
     return () => {
       disposed = true;
@@ -67,7 +72,7 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
     try {
       await task();
     } catch (error) {
-      setFailure(error);
+      setFailure({ action, error });
     } finally {
       setBusy(undefined);
       setProgress(undefined);

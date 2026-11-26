@@ -72,7 +72,13 @@ it("saves the channel and automatic checks immediately", async () => {
 it("installs the reviewed version with progress and shows a busy-library refusal", async () => {
   await page.viewport(430, 780);
   document.documentElement.dataset.theme = "light";
-  vi.spyOn(desktopApi, "applicationUpdateStatus").mockResolvedValue(available);
+  const longNotes = Array.from({ length: 20 }, (_, index) => `Release change ${index + 1}.`).join(
+    "\n",
+  );
+  vi.spyOn(desktopApi, "applicationUpdateStatus").mockResolvedValue({
+    ...available,
+    available: { ...available.available!, notes: longNotes },
+  });
   vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
     channel: "beta",
     automatic_checks: true,
@@ -91,8 +97,13 @@ it("installs the reviewed version with progress and shows a busy-library refusal
   await expect
     .element(page.getByRole("heading", { name: "Portcove 0.2.0 is available" }))
     .toBeVisible();
-  await expect.element(page.getByText("Faster library loading.")).toBeVisible();
-  await page.getByRole("button", { name: "Download and restart", exact: true }).click();
+  const notes = page.getByText(/Release change 20/u);
+  await expect.element(notes).toBeVisible();
+  const download = page.getByRole("button", { name: "Download and restart", exact: true });
+  expect(
+    download.element().compareDocumentPosition(notes.element()) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  await download.click();
   expect(install).toHaveBeenCalledExactlyOnceWith("0.2.0", 7, expect.any(Function));
   await expect.element(page.getByText("Starting the download…")).toBeVisible();
   await expect.element(page.getByText("Updating Portcove…", { exact: true })).toBeVisible();
@@ -124,7 +135,10 @@ it("installs the reviewed version with progress and shows a busy-library refusal
     .element(page.getByText("Portcove 0.2.0 is ready to download.", { exact: true }))
     .toBeVisible();
   const alert = page.getByRole("alert").element();
-  alert.scrollIntoView({ block: "center", inline: "nearest" });
+  expect(download.element().closest("article")).toBe(alert.closest("article"));
+  expect(
+    alert.compareDocumentPosition(download.element()) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
   const alertBounds = alert.getBoundingClientRect();
   expect(alertBounds.top).toBeGreaterThanOrEqual(0);
   expect(alertBounds.bottom).toBeLessThanOrEqual(innerHeight);

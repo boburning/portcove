@@ -30,6 +30,9 @@ export function ApplicationUpdateSettings({
 }) {
   const { t } = useAppTranslation("applicationUpdate");
   const { status, preferences, busy, failure } = update;
+  const failureMessage = failure?.error === undefined ? undefined : failureCopy(t, failure.error);
+  const offerFailure =
+    failure?.action === "install" && status?.available ? failureMessage : undefined;
   const locked = disabled || busy !== undefined || Boolean(status?.installing);
   return (
     <SettingsRow
@@ -121,6 +124,7 @@ export function ApplicationUpdateSettings({
             showProgress={busy === "install"}
             progress={update.progress}
             disabled={locked}
+            failure={offerFailure}
             install={() => void update.install(generation)}
           />
         )}
@@ -137,7 +141,9 @@ export function ApplicationUpdateSettings({
         </div>
       </section>
 
-      {failure !== undefined && <p role="alert">{failureCopy(t, failure)}</p>}
+      {failureMessage !== undefined && offerFailure === undefined && (
+        <p role="alert">{failureMessage}</p>
+      )}
     </SettingsRow>
   );
 }
@@ -204,12 +210,14 @@ function AvailableUpdate({
   showProgress,
   progress,
   disabled,
+  failure,
   install,
 }: {
   available: NonNullable<ApplicationUpdateStatus["available"]>;
   showProgress: boolean;
   progress: ApplicationUpdateProgress | undefined;
   disabled: boolean;
+  failure: string | undefined;
   install: () => void;
 }) {
   const { t } = useAppTranslation("applicationUpdate");
@@ -228,15 +236,12 @@ function AvailableUpdate({
           </p>
         )}
       </div>
-      {available.notes ? (
-        <div className="grid gap-1">
-          <h5 className="m-0 text-xs">{t("available.notesTitle")}</h5>
-          <p className="m-0 text-sm whitespace-pre-line">{available.notes}</p>
-        </div>
-      ) : (
-        <p className={mutedCopyClass}>{t("available.noNotes")}</p>
-      )}
       <p className={mutedCopyClass}>{t("available.restartDisclosure")}</p>
+      {failure !== undefined && (
+        <p className="m-0 text-sm wrap-anywhere" role="alert">
+          {failure}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <Button data-focusable variant="primary" size="sm" disabled={disabled} onClick={install}>
           {t("available.install")}
@@ -247,6 +252,14 @@ function AvailableUpdate({
           </p>
         )}
       </div>
+      {available.notes ? (
+        <div className="grid gap-1">
+          <h5 className="m-0 text-xs">{t("available.notesTitle")}</h5>
+          <p className="m-0 text-sm wrap-anywhere whitespace-pre-line">{available.notes}</p>
+        </div>
+      ) : (
+        <p className={mutedCopyClass}>{t("available.noNotes")}</p>
+      )}
     </article>
   );
 }
