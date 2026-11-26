@@ -74,7 +74,7 @@ interface Checkpoint {
   exception: CheckpointException | null;
   continuation?: ObservationContinuation;
 }
-export interface AdvanceOptions extends Omit<ObserveOptions, "cache"> {
+export interface AdvanceOptions extends Omit<ObserveOptions, "cache" | "onAttemptUsage"> {
   project: (observation: Observation) => unknown;
   reprojectFreshFacts?: boolean;
   catalogIds?: string[];
@@ -303,6 +303,7 @@ export async function advanceObservation(
   let transition = "deferred";
   let changedException = false;
   let failedPolicyInput: Observation | null = null;
+  let attemptProviderUsage: Observation["consumed"] | null = null;
   // A retained provider clock never defers beyond the provider retry horizon.
   const retainedRetry = boundedRetainedRetryClock(now(), next.exception?.retry_at ?? null);
   const retryClock = retainedRetry ? Date.parse(retainedRetry) : 0;
@@ -349,12 +350,16 @@ export async function advanceObservation(
         ...options,
         cache: next.last_complete?.cache,
         continuation: next.continuation,
+        onAttemptUsage: (usage) => {
+          attemptProviderUsage = usage;
+        },
         onCheckpoint: async (continuation) => {
           next.continuation = structuredClone(continuation);
           await options.onCheckpoint?.(structuredClone(continuation));
           await options.commitContinuation?.(structuredClone(next));
         },
       });
+      attemptProviderUsage ??= result.observation.batch_consumed ?? null;
       failedPolicyInput = result.observation;
       if (options.signal?.aborted)
         throw new ObservationFailure("cancelled", "Observation cancelled before Core projection");
@@ -450,6 +455,10 @@ export async function advanceObservation(
       stale_after_hours: config.stale_after_hours,
     },
     unmonitored_port_ids: unmonitored,
+    attempt_provider_usage:
+      transition === "deferred"
+        ? { requests: 0, response_bytes: 0, conditional_hits: 0 }
+        : attemptProviderUsage,
     observation: next.last_complete?.observation ?? null,
     policy: next.last_complete?.projection ?? null,
     exception: next.exception,
