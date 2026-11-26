@@ -49,8 +49,9 @@ async function openCreationReview(
   surface: ReactNode = (
     <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />
   ),
+  reviewedPlan = plan,
 ) {
-  const review = vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockResolvedValue(plan);
+  const review = vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockResolvedValue(reviewedPlan);
   await render(surface);
   const trigger = page.getByRole("button", { name: "Create recovery bundle", exact: true });
   await trigger.click();
@@ -62,6 +63,47 @@ async function openCreationReview(
   expect(review).toHaveBeenCalledExactlyOnceWith(destination, 7);
   return { dialog, trigger };
 }
+
+it.each([
+  { width: 1280, height: 500, separateActions: true },
+  { width: 320, height: 500, separateActions: true },
+  { width: 320, height: 300, separateActions: false },
+])(
+  "keeps recovery actions reachable at $width × $height",
+  async ({ width, height, separateActions }) => {
+    await page.viewport(width, height);
+    const longPath = `E:/${"Player data/Installed versions/Library exports/".repeat(10)}library`;
+    const { dialog } = await openCreationReview(undefined, { ...plan, source_root: longPath });
+    const review = dialog.getByRole("region", { name: "Creation review" });
+    await expect.element(review.getByText(longPath)).toBeVisible();
+    const action = dialog.getByRole("button", { name: "Copy and verify" }).element();
+    const close = dialog.getByRole("button", { name: "Close", exact: true }).element();
+    const panel = dialog.element();
+
+    if (separateActions) {
+      const details = review.element().parentElement!;
+      expect(details.scrollHeight).toBeGreaterThan(details.clientHeight);
+      expect(details.scrollWidth).toBeLessThanOrEqual(details.clientWidth);
+      const bounds = details.getBoundingClientRect();
+      for (const button of [close, action]) {
+        const actionBounds = button.getBoundingClientRect();
+        expect(actionBounds.top).toBeGreaterThanOrEqual(bounds.bottom);
+        expect(actionBounds.bottom).toBeLessThanOrEqual(panel.getBoundingClientRect().bottom);
+      }
+      await page.screenshot({
+        path: `../../../../outputs/recovery-review/actions-${width}x${height}.png`,
+        element: dialog,
+      });
+      details.scrollTop = details.scrollHeight;
+      expect(details.scrollTop).toBeGreaterThan(0);
+      expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(height);
+    } else {
+      expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight);
+      action.scrollIntoView();
+      expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(height);
+    }
+  },
+);
 
 it("reviews coverage before copying and shows the verified bundle after publishing", async () => {
   const create = vi.spyOn(desktopApi, "createLibraryRecoveryBundle").mockResolvedValue(bundle);

@@ -445,264 +445,266 @@ function RecoveryBundleDialog({
         reviewSize="wide"
         showCloseButton={false}
         aria-describedby={descriptionId}
+        className="[@media(height>24rem)]:grid-rows-[minmax(0,1fr)_auto] [@media(height>24rem)]:overflow-hidden"
       >
-        <DialogTitle>{titles[operation]}</DialogTitle>
-        <DialogDescription id={descriptionId}>
-          {descriptions[operation]} {!verified && bundleAuthority}
-        </DialogDescription>
-        <NavigationHints />
-        {!transferred && (choosingBundle || resumeOperation) && (
-          <FolderField
-            label={
-              choosingBundle
-                ? "Recovery bundle folder"
-                : operation === "resumeCreation"
-                  ? "Staging folder"
-                  : "Restore destination"
-            }
-            value={path}
-            disabled={disabled}
-            fieldRef={firstField}
-            change={editPath}
-            browse={() => chooseFolder(editPath)}
-          />
-        )}
-        {!transferred && (operation === "create" || reviewingRestore) && (
-          <FolderField
-            label={operation === "create" ? "New bundle folder" : "Restore destination"}
-            value={destination}
-            disabled={disabled}
-            fieldRef={operation === "create" ? firstField : restoreDestinationField}
-            invalidDescriptionId={destinationOccupied ? destinationErrorId : undefined}
-            change={editDestination}
-            browse={() =>
-              chooseFolder(
-                editDestination,
-                operation === "create" ? "Portcove Recovery Bundle" : "Portcove Recovered Library",
-              )
-            }
-            chooseParent
-          />
-        )}
-        {destinationOccupied && (
-          <ActionReviewFailure
-            error={error}
-            summary="This folder already contains other files, so Portcove didn’t change anything. Choose a new or empty folder to restore the library."
-            summaryId={destinationErrorId}
-            showMutationSummary={false}
-          />
-        )}
-        {creation && (
-          <section aria-label="Creation review" className="grid gap-2">
-            <h3 className="text-sm font-semibold">Review what Portcove will copy</h3>
-            <PathValue label="Source library" value={creation.source_root} />
-            <PathValue label="Bundle destination" value={creation.destination_root} />
-            <p>Required space {formatBytes(creation.required_bytes)}</p>
-            <p>Use a destination that supports folders private to your account.</p>
-            <BundleCoverage coverage={creation.coverage} exclusions={creation.exclusions} />
-          </section>
-        )}
-        {verified && (
-          <section aria-label="Verified recovery bundle" className="grid gap-2">
-            <h3 className="text-sm font-semibold" role="status">
-              Bundle verified
-            </h3>
-            <PathValue label="Bundle folder" value={verified.path} />
-            <p>{bundleAuthority}</p>
-            <BundleCoverage coverage={verified.coverage} exclusions={verified.exclusions} />
-            <details>
-              <summary data-focusable>Verification details</summary>
-              <PathValue label="Bundle ID" value={verified.bundle_id} />
-              <PathValue label="Receipt SHA-256" value={verified.receipt_sha256} />
-            </details>
-          </section>
-        )}
-        {restore && (
-          <section aria-label="Restore review" className="grid gap-2">
-            <h3 className="text-sm font-semibold">Review the restore destination</h3>
-            <PathValue label="Restore destination" value={restore.destination_root} />
-            <p>
-              Required space {formatBytes(restore.required_bytes)}. Your current library stays
-              selected.
-            </p>
-          </section>
-        )}
-        {restored && (
-          <section className="grid gap-2">
-            <h3 role="status" className="text-sm font-semibold">
-              Library restored
-            </h3>
-            <PathValue label="Restored library" value={restored} />
-            <p>
-              To use it, close this review and choose the restored folder under Library and storage.
-            </p>
-          </section>
-        )}
-        {pending && (
-          <div className="grid gap-2">
-            <p role="status">
-              {cancelRequested
-                ? "Stopping the copy… Files copied so far stay in place so you can resume later."
-                : copying
-                  ? "Copying recovery data…"
-                  : verifying
-                    ? "Verifying recovery data. Keep Portcove open until verification finishes."
-                    : pending}
-            </p>
-            {copying && copying.total && copying.total > 0 ? (
-              <div className="grid gap-1">
-                <progress
-                  aria-label="Recovery data copied"
-                  className="w-full"
-                  value={copying.completed}
-                  max={copying.total}
-                />
-                <span>
-                  {formatBytes(copying.completed)} of {formatBytes(copying.total)}
-                </span>
-              </div>
-            ) : null}
-            {copying && (
+        <div className="[@media(height>24rem)]:-mx-2 [@media(height>24rem)]:-mt-2 [@media(height>24rem)]:min-h-0 [@media(height>24rem)]:scroll-py-2 [@media(height>24rem)]:overflow-y-auto [@media(height>24rem)]:overscroll-contain [@media(height>24rem)]:p-2">
+          <DialogTitle>{titles[operation]}</DialogTitle>
+          <DialogDescription id={descriptionId}>
+            {descriptions[operation]} {!verified && bundleAuthority}
+          </DialogDescription>
+          <NavigationHints />
+          {!transferred && (choosingBundle || resumeOperation) && (
+            <FolderField
+              label={
+                choosingBundle
+                  ? "Recovery bundle folder"
+                  : operation === "resumeCreation"
+                    ? "Staging folder"
+                    : "Restore destination"
+              }
+              value={path}
+              disabled={disabled}
+              fieldRef={firstField}
+              change={editPath}
+              browse={() => chooseFolder(editPath)}
+            />
+          )}
+          {!transferred && (operation === "create" || reviewingRestore) && (
+            <FolderField
+              label={operation === "create" ? "New bundle folder" : "Restore destination"}
+              value={destination}
+              disabled={disabled}
+              fieldRef={operation === "create" ? firstField : restoreDestinationField}
+              invalidDescriptionId={destinationOccupied ? destinationErrorId : undefined}
+              change={editDestination}
+              browse={() =>
+                chooseFolder(
+                  editDestination,
+                  operation === "create"
+                    ? "Portcove Recovery Bundle"
+                    : "Portcove Recovered Library",
+                )
+              }
+              chooseParent
+            />
+          )}
+          {destinationOccupied && (
+            <ActionReviewFailure
+              error={error}
+              summary="This folder already contains other files, so Portcove didn’t change anything. Choose a new or empty folder to restore the library."
+              summaryId={destinationErrorId}
+              showMutationSummary={false}
+            />
+          )}
+          {creation && (
+            <section aria-label="Creation review" className="grid gap-2">
+              <h3 className="text-sm font-semibold">Review what Portcove will copy</h3>
+              <PathValue label="Source library" value={creation.source_root} />
+              <PathValue label="Bundle destination" value={creation.destination_root} />
+              <p>Required space {formatBytes(creation.required_bytes)}</p>
+              <p>Use a destination that supports folders private to your account.</p>
+              <BundleCoverage coverage={creation.coverage} exclusions={creation.exclusions} />
+            </section>
+          )}
+          {verified && (
+            <section aria-label="Verified recovery bundle" className="grid gap-2">
+              <h3 className="text-sm font-semibold" role="status">
+                Bundle verified
+              </h3>
+              <PathValue label="Bundle folder" value={verified.path} />
+              <p>{bundleAuthority}</p>
+              <BundleCoverage coverage={verified.coverage} exclusions={verified.exclusions} />
+              <details>
+                <summary data-focusable>Verification details</summary>
+                <PathValue label="Bundle ID" value={verified.bundle_id} />
+                <PathValue label="Receipt SHA-256" value={verified.receipt_sha256} />
+              </details>
+            </section>
+          )}
+          {restore && (
+            <section aria-label="Restore review" className="grid gap-2">
+              <h3 className="text-sm font-semibold">Review the restore destination</h3>
+              <PathValue label="Restore destination" value={restore.destination_root} />
+              <p>
+                Required space {formatBytes(restore.required_bytes)}. Your current library stays
+                selected.
+              </p>
+            </section>
+          )}
+          {restored && (
+            <section className="grid gap-2">
+              <h3 role="status" className="text-sm font-semibold">
+                Library restored
+              </h3>
+              <PathValue label="Restored library" value={restored} />
+              <p>
+                To use it, close this review and choose the restored folder under Library and
+                storage.
+              </p>
+            </section>
+          )}
+          {pending && (
+            <div className="grid gap-2">
+              <p role="status">
+                {cancelRequested
+                  ? "Stopping the copy… Files copied so far stay in place so you can resume later."
+                  : copying
+                    ? "Copying recovery data…"
+                    : verifying
+                      ? "Verifying recovery data. Keep Portcove open until verification finishes."
+                      : pending}
+              </p>
+              {copying && copying.total && copying.total > 0 ? (
+                <div className="grid gap-1">
+                  <progress
+                    aria-label="Recovery data copied"
+                    className="w-full"
+                    value={copying.completed}
+                    max={copying.total}
+                  />
+                  <span>
+                    {formatBytes(copying.completed)} of {formatBytes(copying.total)}
+                  </span>
+                </div>
+              ) : null}
+              <ActionReviewFailure error={cancelFailure} />
+            </div>
+          )}
+          {!destinationOccupied && (
+            <ActionReviewFailure
+              error={error}
+              summary={
+                needsFolderGuidance
+                  ? "Portcove couldn’t verify this bundle. Check the folder and verify again, or choose another bundle."
+                  : publishedCreationReview
+                    ? "A previous copy was published to this folder. Check the bundle to verify its contents."
+                    : interruptedCreationReview
+                      ? "An interrupted copy is waiting for this bundle folder."
+                      : publishedRestoreReview
+                        ? "This bundle was restored to this folder. Check the recorded restore result."
+                        : interruptedRestoreReview
+                          ? "An interrupted restore is waiting in this folder."
+                          : undefined
+              }
+              showMutationSummary={failure?.action === "operation"}
+            />
+          )}
+          {createReceipt &&
+            (createReceipt.bundle_id || error !== undefined) &&
+            !recovery &&
+            !verified && (
               <Button
                 data-focusable
                 variant="outline"
                 className="justify-self-start"
-                disabled={cancelRequested}
-                onClick={() => void cancelCopy()}
+                aria-disabled={Boolean(pending)}
+                onClick={() =>
+                  void run("Checking the reviewed bundle folder…", async () => {
+                    const bundle = await desktopApi.inspectLibraryRecoveryBundle(
+                      createReceipt.destination_root,
+                      createReceipt.plan_sha256,
+                    );
+                    if (
+                      bundle.path !== createReceipt.destination_root ||
+                      bundle.source_library_id !== createReceipt.source_library_id ||
+                      (createReceipt.bundle_id && bundle.bundle_id !== createReceipt.bundle_id)
+                    )
+                      throw new Error("The verified bundle does not match the reviewed copy.");
+                    setTransferred(true);
+                    setVerified(bundle);
+                  })
+                }
               >
-                Cancel copy
+                {createReceipt.bundle_id
+                  ? "Verify published bundle"
+                  : "Check reviewed bundle again"}
               </Button>
             )}
-            <ActionReviewFailure error={cancelFailure} />
-          </div>
-        )}
-        {!destinationOccupied && (
-          <ActionReviewFailure
-            error={error}
-            summary={
-              needsFolderGuidance
-                ? "Portcove couldn’t verify this bundle. Check the folder and verify again, or choose another bundle."
-                : publishedCreationReview
-                  ? "A previous copy was published to this folder. Check the bundle to verify its contents."
-                  : interruptedCreationReview
-                    ? "An interrupted copy is waiting for this bundle folder."
-                    : publishedRestoreReview
-                      ? "This bundle was restored to this folder. Check the recorded restore result."
-                      : interruptedRestoreReview
-                        ? "An interrupted restore is waiting in this folder."
-                        : undefined
-            }
-            showMutationSummary={failure?.action === "operation"}
-          />
-        )}
-        {createReceipt &&
-          (createReceipt.bundle_id || error !== undefined) &&
-          !recovery &&
-          !verified && (
+          {restoreReceipt && (restoreReceipt.transfer_id || error !== undefined) && !restored && (
             <Button
               data-focusable
               variant="outline"
               className="justify-self-start"
               aria-disabled={Boolean(pending)}
               onClick={() =>
-                void run("Checking the reviewed bundle folder…", async () => {
-                  const bundle = await desktopApi.inspectLibraryRecoveryBundle(
-                    createReceipt.destination_root,
-                    createReceipt.plan_sha256,
-                  );
-                  if (
-                    bundle.path !== createReceipt.destination_root ||
-                    bundle.source_library_id !== createReceipt.source_library_id ||
-                    (createReceipt.bundle_id && bundle.bundle_id !== createReceipt.bundle_id)
-                  )
-                    throw new Error("The verified bundle does not match the reviewed copy.");
-                  setTransferred(true);
-                  setVerified(bundle);
+                void run("Checking the reviewed restore destination…", async () => {
+                  const expected = restoreReceipt.destination_root;
+                  try {
+                    const result = await desktopApi.readLibraryRecoveryRestore(
+                      expected,
+                      restoreReceipt.plan_sha256,
+                    );
+                    if (
+                      restoreReceipt.transfer_id &&
+                      result.transfer_id !== restoreReceipt.transfer_id
+                    )
+                      throw new Error("The restored library does not match the reviewed transfer.");
+                    acceptRestoredDestination(result, expected);
+                    setTransferred(true);
+                    setRecovery(undefined);
+                  } catch (failure) {
+                    const step = recoveryStep(failure, "resumeRestore");
+                    if (!restoreReceipt.transfer_id && step?.path === expected) setRecovery(step);
+                    throw failure;
+                  }
                 })
               }
             >
-              {createReceipt.bundle_id ? "Verify published bundle" : "Check reviewed bundle again"}
+              {restoreReceipt.transfer_id
+                ? "Check restored library"
+                : "Check reviewed restore again"}
             </Button>
           )}
-        {restoreReceipt && (restoreReceipt.transfer_id || error !== undefined) && !restored && (
-          <Button
-            data-focusable
-            variant="outline"
-            className="justify-self-start"
-            aria-disabled={Boolean(pending)}
-            onClick={() =>
-              void run("Checking the reviewed restore destination…", async () => {
-                const expected = restoreReceipt.destination_root;
-                try {
-                  const result = await desktopApi.readLibraryRecoveryRestore(
-                    expected,
-                    restoreReceipt.plan_sha256,
-                  );
-                  if (
-                    restoreReceipt.transfer_id &&
-                    result.transfer_id !== restoreReceipt.transfer_id
-                  )
-                    throw new Error("The restored library does not match the reviewed transfer.");
-                  acceptRestoredDestination(result, expected);
-                  setTransferred(true);
-                  setRecovery(undefined);
-                } catch (failure) {
-                  const step = recoveryStep(failure, "resumeRestore");
-                  if (!restoreReceipt.transfer_id && step?.path === expected) setRecovery(step);
-                  throw failure;
+          {errorDetail(error, "recovery_action") === "discard_game_update_acquisition" && (
+            <section className="grid gap-2" aria-label="Retained update download">
+              <p>
+                Open Versions for the game below. If a download is still running, let it finish or
+                cancel it. If Versions offers preparation, you can review that step. You can also
+                review deleting the retained download. Then review bundle creation again.
+              </p>
+              <PathValue label="Port" value={errorDetail(error, "port_id") ?? ""} />
+              <PathValue
+                label="Update download ID"
+                value={errorDetail(error, "acquisition_id") ?? ""}
+              />
+            </section>
+          )}
+          {errorDetail(error, "recovery_action") === "review_managed_installation_location" && (
+            <section className="grid gap-2" aria-label="Managed installation outside the library">
+              <p>
+                This installation blocks the bundle. Open Manage for the game below, choose Review
+                library default, then choose Review moving existing versions. After the versions
+                move to the library default, review bundle creation again.
+              </p>
+              <PathValue label="Port" value={errorDetail(error, "port_id") ?? ""} />
+              <PathValue label="Installation ID" value={errorDetail(error, "install_id") ?? ""} />
+            </section>
+          )}
+          {errorDetail(error, "recovery_destination") && (
+            <PathValue
+              label="Recorded bundle folder"
+              value={errorDetail(error, "recovery_destination") ?? ""}
+            />
+          )}
+          {restoreReceipt?.transfer_id && !restored && (
+            <PathValue
+              label="Recorded restore destination"
+              value={restoreReceipt.destination_root}
+            />
+          )}
+          {recovery && (
+            <>
+              <p>{resumeNextSteps[recovery.operation]}</p>
+              <PathValue
+                label={
+                  recovery.operation === "resumeCreation" ? "Staging folder" : "Restore destination"
                 }
-              })
-            }
-          >
-            {restoreReceipt.transfer_id ? "Check restored library" : "Check reviewed restore again"}
-          </Button>
-        )}
-        {errorDetail(error, "recovery_action") === "discard_game_update_acquisition" && (
-          <section className="grid gap-2" aria-label="Retained update download">
-            <p>
-              Open Versions for the game below. If a download is still running, let it finish or
-              cancel it. If Versions offers preparation, you can review that step. You can also
-              review deleting the retained download. Then review bundle creation again.
-            </p>
-            <PathValue label="Port" value={errorDetail(error, "port_id") ?? ""} />
-            <PathValue
-              label="Update download ID"
-              value={errorDetail(error, "acquisition_id") ?? ""}
-            />
-          </section>
-        )}
-        {errorDetail(error, "recovery_action") === "review_managed_installation_location" && (
-          <section className="grid gap-2" aria-label="Managed installation outside the library">
-            <p>
-              This installation blocks the bundle. Open Manage for the game below, choose Review
-              library default, then choose Review moving existing versions. After the versions move
-              to the library default, review bundle creation again.
-            </p>
-            <PathValue label="Port" value={errorDetail(error, "port_id") ?? ""} />
-            <PathValue label="Installation ID" value={errorDetail(error, "install_id") ?? ""} />
-          </section>
-        )}
-        {errorDetail(error, "recovery_destination") && (
-          <PathValue
-            label="Recorded bundle folder"
-            value={errorDetail(error, "recovery_destination") ?? ""}
-          />
-        )}
-        {restoreReceipt?.transfer_id && !restored && (
-          <PathValue label="Recorded restore destination" value={restoreReceipt.destination_root} />
-        )}
-        {recovery && (
-          <>
-            <p>{resumeNextSteps[recovery.operation]}</p>
-            <PathValue
-              label={
-                recovery.operation === "resumeCreation" ? "Staging folder" : "Restore destination"
-              }
-              value={recovery.path}
-            />
-          </>
-        )}
-        <DialogFooter>
+                value={recovery.path}
+              />
+            </>
+          )}
+        </div>
+        <DialogFooter className="[@media(height>24rem)]:mt-2 [@media(height>24rem)]:pt-4">
           <Button
             data-focusable
             variant="outline"
@@ -711,6 +713,16 @@ function RecoveryBundleDialog({
           >
             {pending && copyEvent ? "Hide details" : "Close"}
           </Button>
+          {pending && copying && (
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={cancelRequested}
+              onClick={() => void cancelCopy()}
+            >
+              Cancel copy
+            </Button>
+          )}
           {recovery && (
             <Button
               data-focusable
