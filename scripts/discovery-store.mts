@@ -217,16 +217,20 @@ function loadSeedRows(
         seed,
         `SET TRANSACTION READ ONLY;
         WITH entries AS (
-          SELECT ${key}, json_build_array(${key}::text, ${value},
-            encode(sha256(convert_to(${value}::text, 'UTF8')), 'hex')) AS entry
+          -- 72 bytes: brackets, two comma-space separators, and the quoted 64-digit hash.
+          -- Size the key and jsonb payload as PostgreSQL serializes them.
+          SELECT ${key}, ${value},
+            octet_length(to_json(${key}::text)::text) + octet_length(${value}::text) + 72 AS byte_size
           FROM ${relation} WHERE scope = ${sqlLiteral(scope)} ${cursor}
         ), sized AS (
-          SELECT ${key}, entry,
-            sum(octet_length(entry::text) + 2) OVER (ORDER BY ${orderedKey}) AS running,
+          SELECT ${key}, ${value},
+            sum(byte_size + 2) OVER (ORDER BY ${orderedKey}) AS running,
             row_number() OVER (ORDER BY ${orderedKey}) AS position
           FROM entries
         ), page AS (
-          SELECT coalesce(json_agg(entry ORDER BY ${orderedKey}), '[]')::text AS data
+          SELECT coalesce(json_agg(json_build_array(${key}::text, ${value},
+            encode(sha256(convert_to(${value}::text, 'UTF8')), 'hex'))
+            ORDER BY ${orderedKey}), '[]')::text AS data
           FROM sized WHERE running <= ${preferred} - 2 OR position = 1
         ) SELECT CASE WHEN octet_length(data) <= ${hardLimit} THEN data ELSE 'null' END FROM page;`,
         { timeoutMs: 300_000 },
