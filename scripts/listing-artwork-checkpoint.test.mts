@@ -1,10 +1,22 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { sameStaticPublicationTargets } from "./catalog-publish.mts";
+import {
+  exactCoverReaderPair,
+  requireExactReleasedCoverInspection,
+} from "./listing-cover-reader-proof.mts";
+import {
+  compactListingDeliveryTarget,
+  encodeCompactListing,
+  listingDeliveryTarget,
+} from "./listing-directory-carrier.mts";
+import { catalogPublicationInventory } from "./release-catalog-publication-contract.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { fixtureListing, fixturePolicy } from "./fixtures/listing-observation-delivery-fixture.mts";
 import {
   advanceArtworkCheckpoint,
+  artworkCheckpointTarget,
   coverDeclarationScope,
   readArtworkCheckpoint,
 } from "./listing-artwork-checkpoint.mts";
@@ -399,4 +411,107 @@ void test("compact projection retains release activity through exact cover withd
     { coverCheckpoint: renew },
   );
   assert.equal(read(changed.bytes).upstream_observation, undefined);
+});
+
+void test("the released cover inspection must match exact staged bytes and the compact decoded identity", () => {
+  const row = { ...fixtureListing, artwork };
+  const decisions = advanceArtworkCheckpoint(null, [
+    {
+      ...gone,
+      id: row.id,
+      scope: coverDeclarationScope(row, artwork),
+    },
+  ]);
+  const baseline = projectListingDelivery({ format_version: 15, listings: [row] }, [], null);
+  const projected = projectListingDelivery(
+    { format_version: 15, listings: [row] },
+    [],
+    baseline.bytes,
+    { coverCheckpoint: decisions },
+  );
+  const checkpoint = decisions.finish(projected.bytes);
+  assert.ok(checkpoint);
+  const compact = encodeCompactListing(projected.bytes);
+  const files = new Map<string, Buffer>([
+    ["definitions/index.json", Buffer.from('{"index_schema":1,"definitions":[],"contents":[]}')],
+    [listingDeliveryTarget, baseline.bytes],
+    [compactListingDeliveryTarget, compact],
+    [artworkCheckpointTarget, checkpoint],
+  ]);
+  const pair = exactCoverReaderPair(files);
+  const data = {
+    publication_schema: 3,
+    authority: "none",
+    scope: "inert-catalog-publication-inspection",
+    index_sha256: pair.index_sha256,
+    files: catalogPublicationInventory(files),
+    listings: { target: compactListingDeliveryTarget, sha256: pair.listing_wire_sha256 },
+    cover_checkpoint: {
+      target: artworkCheckpointTarget,
+      sha256: pair.checkpoint_sha256,
+      listing_decoded_sha256: pair.listing_decoded_sha256,
+    },
+  };
+  const envelope = (data: unknown) =>
+    JSON.stringify({
+      schema_version: 100,
+      ok: true,
+      error: null,
+      command: "catalog.inspect-definition-publication",
+      data,
+    });
+  assert.deepEqual(requireExactReleasedCoverInspection(envelope(data), "", files), pair);
+  assert.throws(
+    () =>
+      requireExactReleasedCoverInspection(envelope({ ...data, publication_schema: 2 }), "", files),
+    /exact staged bundle/u,
+  );
+  assert.throws(
+    () =>
+      requireExactReleasedCoverInspection(
+        envelope({
+          ...data,
+          files: data.files.filter((file) => file.target !== listingDeliveryTarget),
+        }),
+        "",
+        files,
+      ),
+    /exact staged bundle/u,
+  );
+  assert.throws(
+    () =>
+      requireExactReleasedCoverInspection(
+        envelope({
+          ...data,
+          cover_checkpoint: {
+            ...data.cover_checkpoint,
+            listing_decoded_sha256: pair.listing_wire_sha256,
+          },
+        }),
+        "",
+        files,
+      ),
+    /active compact directory/u,
+  );
+  const changed = new Map(files);
+  changed.set(compactListingDeliveryTarget, encodeCompactListing(baseline.bytes));
+  assert.throws(() => requireExactReleasedCoverInspection(envelope(data), "", changed), /unbound/u);
+});
+
+void test("derived cover proof does not mark unchanged authored publication input dirty", () => {
+  const authored = { "definitions/index.json": "same" };
+  const published = {
+    ...authored,
+    [compactListingDeliveryTarget]: "compact",
+    [artworkCheckpointTarget]: "checkpoint",
+  };
+  assert.equal(sameStaticPublicationTargets(authored, published), true);
+  assert.equal(
+    sameStaticPublicationTargets({ ...authored, [artworkCheckpointTarget]: "changed" }, published),
+    false,
+  );
+  assert.equal(
+    sameStaticPublicationTargets({ "definitions/index.json": "changed" }, published),
+    false,
+  );
 });

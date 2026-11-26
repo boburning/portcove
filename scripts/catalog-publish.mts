@@ -6,6 +6,7 @@
 // The compiled root (`crates/portcove-core/catalog/official-definition-root.json`)
 // and the owner's offline Targets stay authoritative; this script only writes
 // configuration. Every signer and the assembler re-verify all inputs.
+import { artworkCheckpointTarget } from "./listing-artwork-checkpoint.mts";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -504,7 +505,11 @@ export function sameStaticPublicationTargets(
 ) {
   const previous = { ...published };
   delete previous[historyTarget];
-  for (const target of [listingDeliveryTarget, compactListingDeliveryTarget])
+  for (const target of [
+    listingDeliveryTarget,
+    compactListingDeliveryTarget,
+    artworkCheckpointTarget,
+  ])
     if (!Object.hasOwn(bundle, target)) delete previous[target];
   return sameTargets(bundle, previous);
 }
