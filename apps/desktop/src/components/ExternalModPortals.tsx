@@ -10,14 +10,15 @@ type PortalView = Pick<ModSetupsView, "external_mod_portals" | "mod_portal_prefe
 type Preferences = NonNullable<PortalView["mod_portal_preferences"]>;
 type Choices = Preferences["preferences"]["choices"];
 
-export function useExternalModPortals(
+export function useBrowseOnlyModView(
   port: string,
   generation: number,
+  scope: string,
   listingPortals: unknown,
   definitionSources: unknown,
 ) {
-  const key = JSON.stringify([port, generation]);
-  const [read, setRead] = useState<{ key: string; view: PortalView }>();
+  const key = JSON.stringify([port, generation, scope]);
+  const [read, setRead] = useState<{ key: string; view: ModSetupsView }>();
   useEffect(() => {
     const readLifetime = new AbortController();
     void desktopApi.modSetups(port, generation, true).then(

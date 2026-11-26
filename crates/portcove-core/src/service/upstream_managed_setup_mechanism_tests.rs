@@ -6,7 +6,7 @@
 //! resolution and download, install, explicit preparation (the upstream
 //! setup run), launch preparation, update, rollback and removal. The setup
 //! program is the repository's owned native probe, so the same cases run on
-//! hosted Windows and Linux.
+//! hosted Windows, Linux, and macOS.
 //!
 //! The mechanism's promises: Portcove runs the upstream setup only as an
 //! explicit, journaled preparation into a private copy, publishes it only when
@@ -413,7 +413,7 @@ async fn refusal_unsupported_platform_downloads_nothing() {
         vec![harness.package("v2.0.0", "success")],
     );
     let mut document = fixture::document();
-    let other = fixture::platforms()
+    let other = fixture::PLATFORMS
         .into_iter()
         .find(|platform| *platform != host())
         .unwrap();

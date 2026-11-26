@@ -688,6 +688,8 @@ impl PortcoveService {
             "DELETE FROM retained_build_references WHERE id=?1",
             [&reference.id],
         )?;
+        // Retirement records describe this reference's offers; they go with it.
+        delete_retirements(&transaction, port_id, Some(setup_id))?;
         self.reference_publication_checkpoint()?;
         transaction.commit()?;
         self.reference_committed(&reference)?;
@@ -1170,6 +1172,25 @@ fn record_retirement(
             now.max(0),
         ],
     )?;
+    Ok(())
+}
+
+/// Removes the retirement records of one setup, or of every setup of a port.
+pub(crate) fn delete_retirements(
+    connection: &Connection,
+    port_id: &str,
+    setup_id: Option<&str>,
+) -> Result<()> {
+    match setup_id {
+        Some(setup_id) => connection.execute(
+            "DELETE FROM retained_build_retirements WHERE port_id=?1 AND setup_id=?2",
+            params![port_id, setup_id],
+        )?,
+        None => connection.execute(
+            "DELETE FROM retained_build_retirements WHERE port_id=?1",
+            [port_id],
+        )?,
+    };
     Ok(())
 }
 

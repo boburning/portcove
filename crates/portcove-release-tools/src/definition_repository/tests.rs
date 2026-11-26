@@ -1246,6 +1246,62 @@ fn replace_bundle_revision(fixture: &Fixture, revision: u64) {
     fixture.set_context(context);
 }
 #[tokio::test]
+async fn successor_support_fails_at_protected_context_before_opening_role_key() {
+    let fixture = Fixture::new().await;
+    let bundle = fixture.root().join("bundle");
+    let index_path = bundle.join("definitions/index.json");
+    let mut index: serde_json::Value =
+        serde_json::from_slice(&fs::read(&index_path).unwrap()).unwrap();
+    let leaf = br#"{"catalog":{"source_catalog":{"qualification":[{"successor_support":{}}]}}}"#;
+    let digest = sha(leaf);
+    let target = format!("sha256/{digest}.json");
+    fs::remove_file(bundle.join(index["definitions"][0]["target"].as_str().unwrap())).unwrap();
+    fs::write(bundle.join(&target), leaf).unwrap();
+    index["definitions"][0]["target"] = json!(target);
+    index["contents"][0] = json!({"target":target,"sha256":digest,"length":leaf.len()});
+    let index = serde_json::to_vec(&index).unwrap();
+    fs::write(index_path, &index).unwrap();
+
+    let policy_path = bundle.join("policy/official/fixture.json");
+    let mut policy: serde_json::Value =
+        serde_json::from_slice(&fs::read(&policy_path).unwrap()).unwrap();
+    policy["decision"]["index_sha256"] = json!(sha(&index));
+    policy["decision"]["definition_sha256"] = json!(digest);
+    fs::write(policy_path, serde_json::to_vec(&policy).unwrap()).unwrap();
+
+    let report_path = fixture.root().join("inspection.json");
+    let mut report: serde_json::Value =
+        serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+    report["index_sha256"] = json!(sha(&index));
+    report["definitions"][0]["definition_target"] = json!(target);
+    report["files"] = json!(bundle::identities(
+        &io::tree(&bundle, BUNDLE_FILES, BUNDLE_MAX).unwrap()
+    ));
+    let report = serde_json::to_vec(&report).unwrap();
+    fs::write(report_path, &report).unwrap();
+    let mut context = fixture.context_value();
+    context["inspection_sha256"] = json!(sha(&report));
+    fixture.set_context(context);
+
+    let role = DefinitionOnlineRole::Definitions;
+    let config = json_file(
+        fixture.root(),
+        "absent-key.json",
+        json!({"schema_version":1,"context":"context.json",
+            "signing_key":"absent-key.pk8","output":"roles/definitions.json"}),
+    );
+    let error = sign_definition_role(role, &config)
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("successor support requires independently verified evidence"),
+        "{error}"
+    );
+    assert_eq!(fs::read_dir(&fixture.roles).unwrap().count(), 0);
+}
+
+#[tokio::test]
 async fn deletion_then_reintroduction_cannot_erase_authenticated_catalog_revision_floor() {
     let mut fixture = Fixture::new().await;
     replace_bundle_revision(&fixture, 5);

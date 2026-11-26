@@ -33,13 +33,24 @@ type Checkpoint = {
 };
 
 export function coverDeclarationScope(row: Record<string, unknown>, artwork: unknown) {
+  // A provider slug is display and attribution metadata. A rename preserves
+  // the exact provider game, cover, image, byte identity and match kind.
+  const settledArtwork = validArtworkMapping(artwork)
+    ? [
+        artwork.game_id,
+        artwork.cover_id,
+        artwork.image_id,
+        artwork.image_sha256,
+        artwork.match_kind,
+      ]
+    : artwork;
   return orderedJsonSha256([
     row.id,
     row.project_url ?? null,
     row.original_game_title ?? null,
     row.original_game ?? null,
     Array.isArray(row.collection_covers) ? "collection" : "single",
-    artwork,
+    settledArtwork,
   ]);
 }
 

@@ -137,6 +137,101 @@ fn qualification(kind: SourceEvidenceKind, outcome: SourceEvidenceOutcome) -> So
 }
 
 #[test]
+fn successor_subject_requires_the_exact_applicability_artifact() {
+    let mut sources = fixture();
+    let sha256 = "a".repeat(64);
+    for digest in [None, Some("b".repeat(64)), Some(sha256.to_uppercase())] {
+        let matches = digest
+            .as_deref()
+            .is_some_and(|value| value.eq_ignore_ascii_case(&sha256));
+        sources.contracts[0].applicability = vec![SourceContractApplicability {
+            upstream_ref: "fixture-v2".into(),
+            artifact_sha256: digest,
+        }];
+        assert_eq!(
+            crate::successor_support::exact_source_contract(
+                &sources,
+                "sample-port",
+                "fixture-v2",
+                &sha256
+            )
+            .is_ok(),
+            matches,
+        );
+    }
+    assert!(
+        crate::successor_support::exact_source_contract(
+            &sources,
+            "sample-port",
+            "fixture-v3",
+            &sha256,
+        )
+        .is_err()
+    );
+    sources.contracts[0].evidence_gap = Some("awaiting review".into());
+    assert!(
+        crate::successor_support::exact_source_contract(
+            &sources,
+            "sample-port",
+            "fixture-v2",
+            &sha256
+        )
+        .is_err()
+    );
+    sources.contracts[0].evidence_gap = None;
+    sources.contracts[0].evidence_ids.clear();
+    assert!(
+        crate::successor_support::exact_source_contract(
+            &sources,
+            "sample-port",
+            "fixture-v2",
+            &sha256
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn successor_coordinates_compare_actual_definition_and_source_facts() {
+    let embedded = crate::Catalog::embedded().unwrap();
+    let mut port = embedded.ports()[0].clone();
+    port.id = "sample-port".into();
+    port.source_profile = None;
+    port.bios_source_profile = None;
+    let platform = crate::Platform::WindowsX86_64;
+    let mut sources = fixture();
+    let compute = |port: &crate::PortDefinition, sources: &SourceCatalog| {
+        crate::successor_support::compatibility_coordinates(
+            &embedded,
+            port,
+            sources,
+            &sources.contracts[0],
+            platform,
+        )
+        .unwrap()
+    };
+    let coordinates = compute(&port, &sources);
+    let mut pin = crate::curated_acquisition::fixture_record();
+    port.release.curated.insert(platform, pin.clone());
+    pin.tag = "unseen-next".into();
+    port.release.curated.insert(platform, pin);
+    port.summary = "Changed display copy".into();
+    assert_eq!(coordinates, compute(&port, &sources));
+
+    let mut changed = port.clone();
+    changed.launch_arguments.push("--different".into());
+    assert_ne!(coordinates, compute(&changed, &sources));
+    let mut changed = port.clone();
+    changed.setup_arguments.push("--different".into());
+    assert_ne!(coordinates, compute(&changed, &sources));
+    let mut changed = port.clone();
+    changed.persistent_paths.push("new-save-path".into());
+    assert_ne!(coordinates, compute(&changed, &sources));
+    sources.identities[0].variants[0].id = "unseen-variant".into();
+    assert_ne!(coordinates, compute(&port, &sources));
+}
+
+#[test]
 fn valid_typed_source_catalog_keeps_digest_pairs_conjunctive() {
     let catalog = fixture();
     catalog.validate(["sample-port"]).unwrap();

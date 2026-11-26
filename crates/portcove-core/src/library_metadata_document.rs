@@ -219,16 +219,31 @@ fn open_regular(path: &Path) -> Result<fs::File> {
 /// Streams and decodes a metadata document from a regular, non-link file
 /// within the admission budget.
 pub(crate) fn read(path: &Path) -> Result<(DocumentDigest, LibraryMetadata)> {
-    let mut reader = BufReader::new(Hashing::new(open_admitted(path, "library metadata")?));
+    read_document(open_admitted(path, "library metadata")?)
+}
+
+fn read_document(input: impl Read) -> Result<(DocumentDigest, LibraryMetadata)> {
+    let mut reader = BufReader::new(Hashing::new(input));
     let decoded = serde_json::from_reader(&mut reader);
     if reader.get_ref().size > admission_budget() {
         require_admitted(reader.get_ref().size, "library metadata")?;
     }
     let document = decoded?;
-    // The decoder accepts only trailing whitespace; hash whatever remains so the
-    // digest names the complete file that was reviewed.
-    std::io::copy(&mut reader, &mut std::io::sink())?;
-    Ok((reader.into_inner().finish().1, document))
+    // The decoder validates whitespace through EOF. Any bytes found after that
+    // EOF appeared during the read, so an earlier parse cannot attest to them.
+    let changed = reader.read(&mut [0])? != 0;
+    let (_, digest) = reader.into_inner().finish();
+    // The reader stops one byte past the budget. Reaching that byte means the
+    // file grew beyond it while it was read, so the digest would name only a
+    // prefix: refuse instead.
+    require_admitted(digest.size, "library metadata")?;
+    if changed {
+        return Err(
+            PortcoveError::verification("Library metadata changed while being read.")
+                .with_mutation_state(crate::MutationState::NoChanges),
+        );
+    }
+    Ok((digest, document))
 }
 
 /// Digest of a metadata file without decoding it.
@@ -236,4 +251,67 @@ pub(crate) fn file_digest(path: &Path) -> Result<DocumentDigest> {
     let mut reader = Hashing::new(open_regular(path)?);
     std::io::copy(&mut reader, &mut std::io::sink())?;
     Ok(reader.finish().1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct AppendAfterEof<'a> {
+        original: &'a [u8],
+        appended: &'a [u8],
+        ended: bool,
+    }
+
+    impl Read for AppendAfterEof<'_> {
+        fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+            if !self.original.is_empty() {
+                return self.original.read(buffer);
+            }
+            if !self.ended {
+                self.ended = true;
+                return Ok(0);
+            }
+            self.appended.read(buffer)
+        }
+    }
+
+    #[test]
+    fn metadata_growth_after_parsed_eof_refuses_before_returning_a_digest() {
+        let root = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(root.path()).unwrap();
+        let metadata = crate::PortcoveService::new(library)
+            .unwrap()
+            .export_library_metadata()
+            .unwrap();
+        let original = serde_json::to_vec(&metadata).unwrap();
+        let bytes = original.len() as u64;
+        let appended = |tail| AppendAfterEof {
+            original: &original,
+            appended: tail,
+            ended: false,
+        };
+
+        let unchanged = with_admission_budget(bytes + 2, || {
+            read_document(appended(b"").take(bytes + 3)).unwrap()
+        });
+        assert_eq!(unchanged.0.size, bytes);
+        assert_eq!(unchanged.0.sha256, hex::encode(Sha256::digest(&original)));
+
+        let changed = with_admission_budget(bytes + 2, || {
+            read_document(appended(b"x").take(bytes + 3)).unwrap_err()
+        });
+        assert_eq!(changed.code, crate::ErrorCode::Verification);
+        assert!(changed.message.contains("changed while being read"));
+
+        let too_large = with_admission_budget(bytes, || {
+            read_document(appended(b" ").take(bytes + 1)).unwrap_err()
+        });
+        assert_eq!(too_large.code, crate::ErrorCode::Unsupported);
+        assert_eq!(too_large.details["document_bytes"], (bytes + 1).to_string());
+        assert_eq!(
+            too_large.details["admission_budget_bytes"],
+            bytes.to_string()
+        );
+    }
 }

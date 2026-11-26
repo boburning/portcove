@@ -634,6 +634,79 @@ fn preparation_plan_reports_missing_inputs_without_starting_work() {
 }
 
 #[test]
+fn successor_preparation_declares_its_command_and_schema() {
+    let directory = tempfile::tempdir().unwrap();
+    let missing = directory.path().join("unopened");
+    let caps = json_stdout(&portcove(&missing, &["--json", "capabilities"]));
+    assert!(
+        caps["data"]["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|name| name == "catalog.prepare-successor-evidence")
+    );
+    let schema = json_stdout(&portcove(
+        &missing,
+        &["--json", "schema", "export", "--contract", "output"],
+    ));
+    let preparation = &schema["data"]["successor_evidence_preparation"];
+    for field in [
+        "predecessor",
+        "successor",
+        "anchor_observations",
+        "selected_at",
+    ] {
+        assert!(preparation["properties"][field].is_object(), "{field}");
+    }
+    let help = portcove(
+        &missing,
+        &["catalog", "prepare-successor-evidence", "--help"],
+    );
+    assert!(help.status.success());
+    assert!(
+        String::from_utf8(help.stdout)
+            .unwrap()
+            .contains("--predecessor-library")
+    );
+    assert!(!missing.exists());
+}
+
+#[test]
+fn successor_preparation_refuses_unknown_subject_and_preserves_both_libraries() {
+    let directory = tempfile::tempdir().unwrap();
+    let current = directory.path().join("current");
+    let previous = directory.path().join("previous");
+    for library in [&current, &previous] {
+        assert!(
+            portcove(library, &["--json", "library", "identity"])
+                .status
+                .success()
+        );
+    }
+    let before =
+        [&current, &previous].map(|path| std::fs::read(path.join("portcove.sqlite3")).unwrap());
+    let output = portcove(
+        &current,
+        &[
+            "--json",
+            "catalog",
+            "prepare-successor-evidence",
+            "unknown-successor-fixture",
+            "--predecessor-library",
+            previous.to_str().unwrap(),
+        ],
+    );
+    assert!(!output.status.success());
+    let response = json_stdout(&output);
+    assert_eq!(response["command"], "catalog.prepare-successor-evidence");
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["code"], "not_found");
+    let after =
+        [&current, &previous].map(|path| std::fs::read(path.join("portcove.sqlite3")).unwrap());
+    assert_eq!(before, after);
+}
+
+#[test]
 fn schema_contract_direction_is_explicit_compatible_and_library_free() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("unopened");

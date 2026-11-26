@@ -510,6 +510,18 @@ impl DefinitionContentIndex {
                 "unsupported definition catalog projection contract",
             ));
         }
+        if document.catalog["source_catalog"]["qualification"]
+            .as_array()
+            .is_some_and(|records| {
+                records
+                    .iter()
+                    .any(|record| record.get("successor_support").is_some())
+            })
+        {
+            return Err(PortcoveError::unsupported(
+                "successor support requires independently verified evidence and a released reader",
+            ));
+        }
         let mut catalog = document.validated_catalog(
             (entry.has_named_features() && document.contract_schema == 3).then_some(stable_id),
         )?;

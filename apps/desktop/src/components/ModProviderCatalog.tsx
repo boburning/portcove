@@ -92,6 +92,7 @@ export function ModProviderCatalog({
   refresh,
   installed,
   showProject,
+  openProject,
   action,
   providerLabel,
   active,
@@ -105,12 +106,22 @@ export function ModProviderCatalog({
   browseUrl?: string | undefined;
   setSource: (source: string) => void;
   refresh: () => void;
-  installed: ReadonlySet<string>;
-  showProject: (project: Project) => void;
-  action: (project: Project) => React.ReactNode;
   providerLabel: (source: string) => string;
   active: boolean;
-}) {
+} & (
+  | {
+      installed: ReadonlySet<string>;
+      showProject: (project: Project) => void;
+      action: (project: Project) => React.ReactNode;
+      openProject?: never;
+    }
+  | {
+      installed?: never;
+      showProject?: never;
+      action?: never;
+      openProject: (project: Project) => Promise<void>;
+    }
+)) {
   const { t, i18n } = useAppTranslation("gameSettings");
   const [query, setQuery] = useState("");
   const [categoriesBySource, setCategoriesBySource] = useState<Record<string, string[]>>({});
@@ -119,9 +130,10 @@ export function ModProviderCatalog({
     setCategoriesBySource((current) => ({ ...current, [source]: values }));
     setPage(1);
   };
-  const [installation, setInstallation] = useState<Installation>(() =>
+  const [installationPreference, setInstallation] = useState<Installation>(() =>
     preference("portcove.mods.installation", ["all", "hide", "only"], "all"),
   );
+  const installation = installed ? installationPreference : "all";
   const [layout, setLayout] = useState<Layout>(() =>
     preference("portcove.mods.layout", ["covers", "rows"], "covers"),
   );
@@ -145,12 +157,13 @@ export function ModProviderCatalog({
   ].sort((a, b) => a.localeCompare(b, i18n.resolvedLanguage));
   const activeCount = categories.length + Number(installation !== "all");
   const updateInstallation = (next: Installation) => {
+    if (!installed) return;
     savePreference("portcove.mods.installation", next);
     setInstallation(next);
     setPage(1);
   };
   const isInstalled = (project: Project) =>
-    installed.has(modProjectKey(project.provider, project.project_id, project.game_id));
+    installed?.has(modProjectKey(project.provider, project.project_id, project.game_id)) ?? false;
   const term = catalogSearchText(query);
   const matching = projects.filter((project) => {
     if (installation !== "all" && isInstalled(project) !== (installation === "only")) return false;
@@ -286,21 +299,23 @@ export function ModProviderCatalog({
                   </label>
                 ))}
               </fieldset>
-              <fieldset className="grid max-w-full min-w-0 gap-1">
-                <legend>{t("mods.workspace.installation")}</legend>
-                {(["all", "hide", "only"] as const).map((value) => (
-                  <label key={value} className="mod-filter-choice flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name={`${panelId}-installed`}
-                      value={value}
-                      checked={installation === value}
-                      onChange={() => updateInstallation(value)}
-                    />
-                    {t(`mods.workspace.status.${value}`)}
-                  </label>
-                ))}
-              </fieldset>
+              {installed && (
+                <fieldset className="grid max-w-full min-w-0 gap-1">
+                  <legend>{t("mods.workspace.installation")}</legend>
+                  {(["all", "hide", "only"] as const).map((value) => (
+                    <label key={value} className="mod-filter-choice flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name={`${panelId}-installed`}
+                        value={value}
+                        checked={installation === value}
+                        onChange={() => updateInstallation(value)}
+                      />
+                      {t(`mods.workspace.status.${value}`)}
+                    </label>
+                  ))}
+                </fieldset>
+              )}
             </div>
             <Button variant="outline" size="sm" onClick={close}>
               {t("mods.workspace.done")}
@@ -430,17 +445,9 @@ export function ModProviderCatalog({
         </div>
       )}
       <ul className="mod-catalog-results" data-layout={layout}>
-        {visible.map((project) => (
-          <li
-            className="mod-catalog-item"
-            key={modProjectKey(project.provider, project.project_id, project.game_id)}
-          >
-            <button
-              type="button"
-              className="mod-catalog-project"
-              aria-label={project.name}
-              onClick={() => showProject(project)}
-            >
+        {visible.map((project) => {
+          const content = (
+            <>
               <ModArtwork project={project} />
               <span className="mod-catalog-identity">
                 <span className="mod-catalog-category">
@@ -459,16 +466,43 @@ export function ModProviderCatalog({
                   </span>
                 )}
               </span>
-            </button>
-            <span className="mod-catalog-metric">
-              <ModMetric project={project} sort={sort} />
-            </span>
-            <span className="mod-catalog-status">
-              {isInstalled(project) && t("mods.workspace.installed")}
-            </span>
-            <span className="mod-catalog-action">{action(project)}</span>
-          </li>
-        ))}
+            </>
+          );
+          return (
+            <li
+              className="mod-catalog-item"
+              key={modProjectKey(project.provider, project.project_id, project.game_id)}
+            >
+              {openProject ? (
+                <ExternalLink
+                  href={project.profile_url}
+                  className="mod-catalog-project"
+                  openUrl={() => openProject(project)}
+                >
+                  {content}
+                </ExternalLink>
+              ) : (
+                <button
+                  type="button"
+                  className="mod-catalog-project"
+                  aria-label={project.name}
+                  onClick={() => showProject(project)}
+                >
+                  {content}
+                </button>
+              )}
+              <span className="mod-catalog-metric">
+                <ModMetric project={project} sort={sort} />
+              </span>
+              {installed && (
+                <span className="mod-catalog-status">
+                  {isInstalled(project) && t("mods.workspace.installed")}
+                </span>
+              )}
+              {action && <span className="mod-catalog-action">{action(project)}</span>}
+            </li>
+          );
+        })}
       </ul>
       {lastPage > 1 && (
         <nav aria-label={t("mods.workspace.pages")} className="flex flex-wrap items-center gap-2">

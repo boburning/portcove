@@ -71,9 +71,10 @@ channel, catalog maturity, or Project Status:
   automated and hands-on records for the artifact, source contract, variant,
   representation, platform, and check version actually assessed. The visible
   support scope must identify which form applies. A port can therefore be
-  Supported on Windows while declared Linux or macOS pairs remain unqualified,
-  and a newly added artifact or source representation does not inherit the old
-  claim.
+  Supported on Windows while declared Linux or macOS pairs remain unqualified.
+  A compatible selector-resolved successor may display a scoped inherited claim
+  only under the approved [successor support policy](CATALOG.md#scoped-successor-support).
+  This policy requires verified evidence and a released reader before activation.
 - **Blocked:** progress cannot continue until a named external, source,
   hardware, upstream, or engineering condition is satisfied. The issue states
   the usable blocker and exact resume condition.

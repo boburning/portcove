@@ -322,6 +322,7 @@ struct ResolvedGithub {
     explicit_tag_commit: Option<String>,
     activity: Option<crate::UpstreamActivity>,
     fallback_reason: Option<String>,
+    live_scoped_github_selection: bool,
     newer_other_host_releases: Vec<String>,
 }
 
@@ -1070,6 +1071,7 @@ impl GithubReleaseProvider {
             explicit_tag_commit: None,
             activity: None,
             fallback_reason: entry.fallback_reason.clone(),
+            live_scoped_github_selection: false,
             newer_other_host_releases: entry.newer_other_host_releases.clone(),
         })
     }
@@ -2082,6 +2084,7 @@ impl GithubReleaseProvider {
         resolved.explicit_tag_commit = selected.explicit_tag_commit;
         resolved.upstream_activity = selected.activity;
         resolved.fallback_reason = selected.fallback_reason;
+        resolved.live_scoped_github_selection = selected.live_scoped_github_selection;
         resolved.newer_other_host_releases = selected.newer_other_host_releases;
         if let Some(variant) = selection.variant() {
             resolved.saved_variant = Some(variant.clone());
@@ -2703,6 +2706,9 @@ impl GithubReleaseProvider {
             explicit_tag_commit,
             activity,
             fallback_reason,
+            live_scoped_github_selection: scope.is_some()
+                && curated.is_some()
+                && matches!(selection, GithubSelection::Ordinary),
             newer_other_host_releases,
         })
     }
@@ -2761,6 +2767,7 @@ fn preserved_resolution(
         explicit_tag_commit: None,
         activity: None,
         fallback_reason: None,
+        live_scoped_github_selection: false,
         newer_other_host_releases: Vec::new(),
     })
 }

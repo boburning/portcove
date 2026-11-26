@@ -6,7 +6,6 @@ import { validArtworkCollection, validArtworkMapping } from "./catalog-cover-map
 import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
 import { createGitHubClient } from "./github-client.mts";
-import { orderedJsonSha256 } from "./json-values.mts";
 import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 import { coverDeclarationScope } from "./listing-artwork-checkpoint.mts";
 import {
@@ -301,8 +300,8 @@ export function applicableCoverHealth(
       if (
         !isRecord(fact) ||
         (fact.status !== "unchanged" && fact.status !== "gone" && fact.status !== "mismatch") ||
-        scope !== coverDeclarationScope(originalRow, artwork) ||
-        orderedJsonSha256(fact.artwork) !== orderedJsonSha256(artwork)
+        !validArtworkMapping(fact.artwork) ||
+        scope !== coverDeclarationScope(originalRow, fact.artwork)
       )
         return [];
       return [

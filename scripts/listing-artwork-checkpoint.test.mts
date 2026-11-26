@@ -85,6 +85,56 @@ void test("exact scoped withdrawal survives a quiet renewal and only later accep
   assert.ok(decoded.prior_checkpoint_sha256);
 });
 
+void test("a provider slug rename preserves authenticated mismatch and durable withdrawal", () => {
+  const renamed = { ...listing, artwork: { ...artwork, game_slug: "original-renamed" } };
+  assert.equal(coverDeclarationScope(renamed, renamed.artwork), gone.scope);
+  const priorSelection = advanceArtworkCheckpoint(null, [gone]);
+  const stripped = priorSelection.apply(listing);
+  const strippedListing = wire(stripped);
+  const checkpoint = priorSelection.finish(strippedListing);
+  assert.ok(checkpoint);
+  const retained = advanceArtworkCheckpoint({ bytes: checkpoint, listing: strippedListing }, []);
+  assert.deepEqual(retained.apply(renamed), stripped);
+  assert.deepEqual(retained.finish(strippedListing), checkpoint);
+
+  const facts = new Map<string, unknown>([
+    [
+      `port:${listing.id}@${artwork.image_id}`,
+      { id: listing.id, artwork, status: "mismatch", observed_at: newerAt },
+    ],
+  ]);
+  const evidence = {
+    producerDirectory: { listings: [listing] },
+    facts,
+    artifact: report,
+    producer: { workflow: "fixture", run: "1", attempt: "1", revision: "a".repeat(40) },
+    revision: "fixture",
+    rows: 1,
+    expected: 1,
+    complete: true,
+    gaps: [],
+    counts: { unchanged: 0, mismatch: 1, gone: 0, unavailable: 0, deferred: 0 },
+  };
+  const observations = applicableCoverHealth({ listings: [renamed] }, evidence);
+  assert.equal(observations[0]?.status, "hold_changed_bytes");
+  assert.equal(observations[0]?.scope, gone.scope);
+  const different = { ...renamed, artwork: { ...renamed.artwork, cover_id: 2 } };
+  assert.deepEqual(applicableCoverHealth({ listings: [different] }, evidence), []);
+  assert.deepEqual(retained.apply(different), different);
+
+  facts.set(`port:${listing.id}@${artwork.image_id}`, {
+    id: listing.id,
+    artwork,
+    status: "unchanged",
+    observed_at: newerAt,
+  });
+  const restored = advanceArtworkCheckpoint(
+    { bytes: checkpoint, listing: strippedListing },
+    applicableCoverHealth({ listings: [renamed] }, evidence),
+  );
+  assert.deepEqual(restored.apply(renamed), renamed);
+});
+
 void test("cover declarations and collection members do not borrow previous authority", () => {
   const initial = advanceArtworkCheckpoint(null, [gone]);
   const replacement = { ...listing, artwork: { ...artwork, image_sha256: "c".repeat(64) } };

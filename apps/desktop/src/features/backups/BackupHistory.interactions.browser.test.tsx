@@ -1144,6 +1144,13 @@ it.each(["survives", "disappears", "is replaced", "changes target"] as const)(
     const dialog = fixtureValue(document.body.querySelector('[role="dialog"]'), "restore review");
     await click("Restore this backup", dialog);
     expect(read).toHaveBeenCalledOnce();
+    expect(dialog.textContent).toContain("Refresh backup history to review this backup again.");
+    expect(dialog.textContent).not.toContain("Check the restore result in Activity");
+    expect(
+      [...dialog.querySelectorAll("button")].find(
+        (button) => button.textContent === "Refresh backup history",
+      ),
+    ).toHaveAttribute("data-variant", "primary");
     await click("Refresh backup history", dialog);
     expect(read).toHaveBeenCalledTimes(2);
     expect(restore).toHaveBeenCalledExactlyOnceWith("sample", selected.id, "reviewed-data", 7);

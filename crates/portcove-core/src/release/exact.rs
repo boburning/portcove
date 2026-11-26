@@ -639,6 +639,7 @@ impl GithubReleaseProvider {
                 explicit_tag_commit: None,
                 activity: Some(repository.activity(&port.release.repository)),
                 fallback_reason: None,
+                live_scoped_github_selection: false,
                 // One exact tag: no channel walk passes newer releases.
                 newer_other_host_releases: Vec::new(),
             },

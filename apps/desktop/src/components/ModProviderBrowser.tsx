@@ -23,6 +23,7 @@ import type {
   ModSetupDraftPreview,
   ModSetupRevision,
   ModSetupView,
+  ModSetupsView,
   ProviderCatalog,
   ProviderInstallPlan,
   ProviderProjectView,
@@ -97,6 +98,139 @@ export function providerName(provider: string) {
   return provider;
 }
 
+function useProviderCatalogs(
+  portId: string,
+  generation: number,
+  source: string | undefined,
+  active: boolean,
+) {
+  const [catalogs, setCatalogs] = useState<Record<string, ProviderCatalog>>({});
+  const [catalogFailures, setCatalogFailures] = useState<
+    Record<string, { browseUrl?: string } | undefined>
+  >({});
+  const [loading, setLoading] = useState(new Set<string>());
+  const requests = useRef(new Map<string, AbortController>());
+  useEffect(() => {
+    const pending = requests.current;
+    return () => {
+      for (const request of pending.values()) request.abort();
+      pending.clear();
+    };
+  }, []);
+  const loadCatalog = (provider: string) => {
+    if (requests.current.has(provider)) return;
+    const request = new AbortController();
+    requests.current.set(provider, request);
+    setLoading((current) => new Set(current).add(provider));
+    setCatalogFailures((current) => ({ ...current, [provider]: undefined }));
+    void desktopApi
+      .modProviderCatalog(portId, provider, generation)
+      .then(async (result) => {
+        if (request.signal.aborted) return;
+        setCatalogs((current) => ({ ...current, [provider]: result }));
+        // A large catalog arrives in bounded reads. Keep showing what is known,
+        // labeled partial, while later reads continue from the provider page.
+        let merged = result;
+        while (merged.next_page !== undefined && merged.next_page !== null) {
+          let next: ProviderCatalog;
+          try {
+            next = await desktopApi.modProviderCatalog(
+              portId,
+              provider,
+              generation,
+              merged.next_page,
+            );
+          } catch {
+            merged = { ...merged, next_page: null, complete: false };
+            if (!request.signal.aborted)
+              setCatalogs((current) => ({ ...current, [provider]: merged }));
+            return;
+          }
+          if (request.signal.aborted) return;
+          merged = mergeCatalogReads(merged, next);
+          setCatalogs((current) => ({ ...current, [provider]: merged }));
+        }
+      })
+      .catch((error: unknown) => {
+        if (request.signal.aborted) return;
+        const url = failurePresentation(error)?.technical_context.provider_browse_url;
+        const verifiedUrl =
+          provider === "thunderstore" &&
+          typeof url === "string" &&
+          /^https:\/\/thunderstore\.io\/c\/[a-zA-Z0-9_-]{1,128}\/$/u.test(url);
+        setCatalogFailures((current) => ({
+          ...current,
+          [provider]: verifiedUrl ? { browseUrl: url } : {},
+        }));
+      })
+      .finally(() => {
+        if (request.signal.aborted) return;
+        requests.current.delete(provider);
+        setLoading((current) => {
+          const next = new Set(current);
+          next.delete(provider);
+          return next;
+        });
+      });
+  };
+  const refreshVisible = useEffectEvent(() => {
+    if (active && source && !catalogs[source] && !catalogFailures[source]) loadCatalog(source);
+  });
+  useEffect(() => {
+    refreshVisible();
+  }, [active, source]);
+  return { catalogs, catalogFailures, loading, loadCatalog };
+}
+
+export function reviewedProviderChoices(
+  view: Pick<ModSetupsView, "provider" | "providers"> | undefined,
+): readonly string[] {
+  if (view?.providers?.length) return view.providers;
+  return view?.provider ? [view.provider] : [];
+}
+
+export function ReadOnlyModProviderBrowser({
+  portId,
+  generation,
+  sources,
+  active,
+}: {
+  portId: string;
+  generation: number;
+  sources: readonly string[];
+  active: boolean;
+}) {
+  const [choice, setSource] = useState<string>();
+  const source =
+    choice && sources.includes(choice) ? choice : sources.length === 1 ? sources[0] : undefined;
+  const { catalogs, catalogFailures, loading, loadCatalog } = useProviderCatalogs(
+    portId,
+    generation,
+    source,
+    active,
+  );
+  return (
+    <ModProviderCatalog
+      catalog={source ? catalogs[source] : undefined}
+      source={source ?? ""}
+      sources={sources}
+      locked={false}
+      loading={Boolean(source && loading.has(source))}
+      failed={Boolean(source && catalogFailures[source])}
+      browseUrl={source ? catalogFailures[source]?.browseUrl : undefined}
+      setSource={setSource}
+      refresh={() => {
+        if (source) loadCatalog(source);
+      }}
+      openProject={(project) =>
+        desktopApi.openProviderModProject(portId, project.project_id, generation, project.provider)
+      }
+      providerLabel={providerName}
+      active={active}
+    />
+  );
+}
+
 export function ModProviderBrowser({
   portId,
   generation,
@@ -128,11 +262,12 @@ export function ModProviderBrowser({
       : sources.length === 1
         ? sources[0]
         : undefined;
-  const [catalogs, setCatalogs] = useState<Record<string, ProviderCatalog>>({});
-  const [catalogFailures, setCatalogFailures] = useState<
-    Record<string, { browseUrl?: string } | undefined>
-  >({});
-  const [catalogLoading, setCatalogLoading] = useState<string>();
+  const { catalogs, catalogFailures, loading, loadCatalog } = useProviderCatalogs(
+    portId,
+    generation,
+    source,
+    active && browsing,
+  );
   const [project, setProject] = useState<Project>();
   const [updateFiles, setUpdateFiles] = useState<readonly string[]>();
   const [files, setFiles] = useState<ProviderProjectView>();
@@ -171,7 +306,6 @@ export function ModProviderBrowser({
   const staged = useRef<ProviderInstallPlan[]>([]);
   const cleanup = useRef<Promise<unknown>>(Promise.resolve());
   const applying = useRef(false);
-  const catalogInFlight = useRef(new Set<string>());
   const requestId = useRef({ generation: 0 });
   const discard = (items: readonly ProviderInstallPlan[]) => {
     if (!items.length) return;
@@ -208,63 +342,6 @@ export function ModProviderBrowser({
   useEffect(() => {
     if (project) detailHeading.current?.focus();
   }, [project]);
-
-  const loadCatalog = (provider: string) => {
-    if (catalogInFlight.current.has(provider)) return;
-    catalogInFlight.current.add(provider);
-    setCatalogLoading(provider);
-    setCatalogFailures((current) => ({ ...current, [provider]: undefined }));
-    void desktopApi
-      .modProviderCatalog(portId, provider, generation)
-      .then(async (result) => {
-        if (!alive.current) return;
-        setCatalogs((current) => ({ ...current, [provider]: result }));
-        // A large catalog arrives in bounded reads. Keep showing what is known,
-        // labeled partial, while later reads continue from the provider page.
-        let merged = result;
-        while (merged.next_page !== undefined && merged.next_page !== null) {
-          let next: ProviderCatalog;
-          try {
-            next = await desktopApi.modProviderCatalog(
-              portId,
-              provider,
-              generation,
-              merged.next_page,
-            );
-          } catch {
-            merged = { ...merged, next_page: null, complete: false };
-            if (alive.current) setCatalogs((current) => ({ ...current, [provider]: merged }));
-            return;
-          }
-          if (!alive.current) return;
-          merged = mergeCatalogReads(merged, next);
-          setCatalogs((current) => ({ ...current, [provider]: merged }));
-        }
-      })
-      .catch((error: unknown) => {
-        if (!alive.current) return;
-        const url = failurePresentation(error)?.technical_context.provider_browse_url;
-        const verifiedUrl =
-          provider === "thunderstore" &&
-          typeof url === "string" &&
-          /^https:\/\/thunderstore\.io\/c\/[a-zA-Z0-9_-]{1,128}\/$/u.test(url);
-        setCatalogFailures((current) => ({
-          ...current,
-          [provider]: verifiedUrl ? { browseUrl: url } : {},
-        }));
-      })
-      .finally(() => {
-        catalogInFlight.current.delete(provider);
-        if (alive.current)
-          setCatalogLoading((current) => (current === provider ? undefined : current));
-      });
-  };
-  useEffect(() => {
-    if (active && browsing && source && !catalogs[source] && !catalogFailures[source])
-      loadCatalog(source);
-    // Catalog results and pending requests are keyed by reviewed source.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, browsing, source]);
 
   const installed = new Map<string, string[]>();
   for (const item of selected.revision.packages ?? []) {
@@ -589,7 +666,7 @@ export function ModProviderBrowser({
             catalog={source ? catalogs[source] : undefined}
             source={source ?? ""}
             sources={sources}
-            loading={Boolean(source && catalogLoading === source)}
+            loading={Boolean(source && loading.has(source))}
             failed={Boolean(source && catalogFailures[source])}
             browseUrl={source ? catalogFailures[source]?.browseUrl : undefined}
             locked={disabled}

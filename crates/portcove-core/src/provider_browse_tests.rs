@@ -2,6 +2,33 @@ use super::*;
 use crate::GameBananaClient;
 use crate::{ErrorCode, retained_build::tests::fixture, test_http::serve_http_bytes};
 
+#[test]
+fn reviewed_provider_remains_browsable_without_an_installed_setup() {
+    let (_temporary, mut service, _) = fixture();
+    let mut document = service.catalog().authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "shipwright")
+        .unwrap();
+    port.mod_provider_bindings = Some(vec![crate::ModProviderBinding::Gamebanana {
+        game_id: 32001,
+    }]);
+    service.replace_catalog_for_test(crate::Catalog::from_document(document).unwrap());
+    let port_id = "shipwright";
+    for view in [
+        service.preview_mod_handoff(port_id).unwrap(),
+        service.preview_mod_setups(port_id).unwrap(),
+        service.mod_setups(port_id).unwrap(),
+    ] {
+        assert_eq!(view.provider.as_deref(), Some("gamebanana"));
+        assert!(!view.supported);
+        assert!(view.inventory.is_none());
+        assert!(view.current_install_id.is_none());
+        assert!(view.package_types.is_empty());
+    }
+}
+
 fn json_response(body: &str) -> Vec<u8> {
     format!(
         "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",

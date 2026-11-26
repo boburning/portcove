@@ -32,7 +32,13 @@ pub(crate) const SETUP_MODE_FILE: &str = "owned-setup-mode";
 
 pub(crate) const RELEASES: &str = "src/testdata/mechanism-fixture-releases.json";
 
-const DESKTOP: [Platform; 2] = [Platform::WindowsX86_64, Platform::LinuxX86_64];
+// The same synthetic catalog and release facts are replayed on every runner.
+pub(crate) const PLATFORMS: [Platform; 4] = [
+    Platform::WindowsX86_64,
+    Platform::LinuxX86_64,
+    Platform::MacosX86_64,
+    Platform::MacosAarch64,
+];
 
 pub(crate) fn platform_key(platform: Platform) -> String {
     serde_json::to_value(platform)
@@ -50,22 +56,11 @@ fn program(name: &str, platform: Platform) -> String {
     }
 }
 
-/// Declared desktop platforms: Windows and Linux, plus the host when a
-/// developer runs the suites elsewhere.
-pub(crate) fn platforms() -> Vec<Platform> {
-    let mut platforms = DESKTOP.to_vec();
-    let host = Platform::current().unwrap();
-    if !platforms.contains(&host) {
-        platforms.push(host);
-    }
-    platforms
-}
-
-fn asset_token(platform: Platform) -> &'static str {
+pub(crate) fn asset_token(platform: Platform) -> &'static str {
     match platform {
         Platform::WindowsX86_64 => "windows-x64",
         Platform::LinuxX86_64 => "linux-x64",
-        Platform::MacosX86_64 => "macos-x64",
+        Platform::MacosX86_64 => "macos-x86_64",
         Platform::MacosAarch64 => "macos-arm64",
     }
 }
@@ -92,7 +87,7 @@ pub(crate) fn disc_player_program(platform: Platform) -> String {
 
 fn per_platform(value: impl Fn(Platform) -> Value) -> Value {
     Value::Object(
-        platforms()
+        PLATFORMS
             .into_iter()
             .map(|platform| (platform_key(platform), value(platform)))
             .collect(),
@@ -158,7 +153,7 @@ pub(crate) fn document() -> Value {
                 "id": SETUP_PORT, "name": "Mechanism fixture: upstream-managed setup",
                 "summary": "Synthetic upstream-managed setup mechanism fixture",
                 "project_url": "https://example.invalid/fixtures/mechanism-setup",
-                "support_tier": "stable", "channels": ["stable"], "platforms": platforms(),
+                "support_tier": "stable", "channels": ["stable"], "platforms": PLATFORMS,
                 "adapter": "upstream-managed-setup",
                 "release": { "repository": SETUP_REPOSITORY },
                 "source_profile": SETUP_PROFILE, "runtime_source_filename": "source.iso",
@@ -179,7 +174,7 @@ pub(crate) fn document() -> Value {
                 "id": DISC_PORT, "name": "Mechanism fixture: referenced disc",
                 "summary": "Synthetic referenced-disc mechanism fixture",
                 "project_url": "https://example.invalid/fixtures/mechanism-disc",
-                "support_tier": "stable", "channels": ["stable"], "platforms": platforms(),
+                "support_tier": "stable", "channels": ["stable"], "platforms": PLATFORMS,
                 "adapter": "referenced-disc",
                 "release": { "repository": DISC_REPOSITORY },
                 "source_profile": DISC_PROFILE,
@@ -240,7 +235,7 @@ pub(crate) fn served_releases(member: &str) -> Value {
 /// Returns `(tag, asset)` pairs with each release's own asset metadata.
 pub(crate) fn same_host_decoys(member: &str) -> Vec<(String, Value)> {
     let host = asset_token(Platform::current().unwrap());
-    let games = DESKTOP
+    let games = PLATFORMS
         .iter()
         .flat_map(|platform| [setup_asset_name(*platform), disc_asset_name(*platform)])
         .collect::<Vec<_>>();
@@ -513,7 +508,8 @@ fn fixture_catalog_declares_each_mechanism_by_data() {
     assert!(crate::preparation::managed(setup));
     let disc = catalog.port(DISC_PORT).unwrap();
     assert_eq!(disc.adapter, crate::AdapterKind::ReferencedDisc);
-    assert!(platforms().contains(&Platform::current().unwrap()));
+    assert_eq!(setup.platforms, PLATFORMS);
+    assert_eq!(disc.platforms, PLATFORMS);
 }
 
 /// The fixture identities must not be named by production code or scripts:

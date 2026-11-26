@@ -9,6 +9,7 @@ import * as filePicker from "../file-picker";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import { portDefinition, portStatus, sourceProfile, fixtureValue } from "../test-fixtures";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
+import { ListingDetailPanel } from "./ListingDetailPanel";
 import { actions as detailActions, installRecord } from "./rendered-test-fixtures";
 import type { PortOutputLocation, ReadinessBlocker, SourceHealth } from "../types";
 import "../styles/index.css";
@@ -1198,6 +1199,86 @@ it.each(["uninstalled", "unsupported", "external"] as const)(
     expect(read).toHaveBeenCalledWith(port.id, expect.any(Number), ...browseOnly);
     read.mockRestore();
     open.mockRestore();
+  },
+);
+
+it.each(["standard", "self-service"] as const)(
+  "opens a reviewed provider catalog before setup with no package actions (%s)",
+  async (surface) => {
+    await page.viewport(1280, 800);
+    const port = portDefinition();
+    const priorFilter = localStorage.getItem("portcove.mods.installation");
+    localStorage.setItem("portcove.mods.installation", "only");
+    const bindings = vi.spyOn(desktopApi, "modSetups").mockResolvedValue({
+      held_updates: [],
+      inventory: null,
+      later_mods_take_priority: false,
+      live: null,
+      provider: "gamebanana",
+      package_types: [],
+      port_id: port.id,
+      supported: false,
+    });
+    const catalog = vi.spyOn(desktopApi, "modProviderCatalog").mockResolvedValue({
+      projects: [
+        {
+          provider: "gamebanana",
+          project_id: "42",
+          name: "Trail Colors",
+          version: null,
+          updated_at: 1,
+          game_id: "12345",
+          obsolete: false,
+          profile_url: "https://gamebanana.com/mods/42",
+          submitter: null,
+          files: [],
+          unreadable_files: 0,
+        },
+      ],
+      complete: true,
+      observed_at: 1,
+      freshness: "fresh",
+    });
+    const open = vi.spyOn(desktopApi, "openProviderModProject").mockResolvedValue(undefined);
+    try {
+      const status = { ...portStatus(), port_id: port.id, active: null };
+      await render(
+        surface === "standard" ? (
+          <DetailPanel
+            port={port}
+            status={status}
+            sourcePath=""
+            setSourcePath={vi.fn()}
+            actions={detailActions}
+          />
+        ) : (
+          <ListingDetailPanel
+            entry={{ ...port, definition: port }}
+            status={status}
+            generation={3}
+            perform={vi.fn()}
+            onChanged={vi.fn()}
+            close={vi.fn()}
+          />
+        ),
+      );
+      const tab = page.getByRole("tab", { name: "Mods", exact: true });
+      await expect.element(tab).toBeVisible();
+      expect(catalog).not.toHaveBeenCalled();
+      await tab.click();
+      const project = page.getByRole("link", { name: /Trail Colors/ });
+      await expect.element(project).toBeVisible();
+      await project.click();
+      expect(catalog).toHaveBeenCalledWith(port.id, "gamebanana", expect.any(Number));
+      expect(open).toHaveBeenCalledWith(port.id, "42", expect.any(Number), "gamebanana");
+      expect(page.getByRole("button", { name: /create.*setup|add to setup/i }).query()).toBeNull();
+    } finally {
+      bindings.mockRestore();
+      catalog.mockRestore();
+      open.mockRestore();
+      if (priorFilter === null) localStorage.removeItem("portcove.mods.installation");
+      else localStorage.setItem("portcove.mods.installation", priorFilter);
+    }
   },
 );
 

@@ -14,6 +14,25 @@ function sharedCoverScope(record: AuthoredPort) {
   return { game_id: game.id, source_edition_id: edition.id };
 }
 
+function matchesSharedCoverScope(
+  game: unknown,
+  scope: NonNullable<ReturnType<typeof sharedCoverScope>>,
+) {
+  return (
+    isRecord(game) &&
+    game.id === scope.game_id &&
+    Array.isArray(game.source_editions) &&
+    game.source_editions.length === 1 &&
+    isRecord(game.source_editions[0]) &&
+    game.source_editions[0].id === scope.source_edition_id
+  );
+}
+
+// The provider may rename a game slug without changing the admitted asset.
+function coverIdentity({ game_id, cover_id, image_id, image_sha256 }: IgdbArtwork) {
+  return JSON.stringify([game_id, cover_id, image_id, image_sha256]);
+}
+
 export function indexSharedCoverRows(rows: readonly unknown[]) {
   const live = new Map<string, Record<string, unknown>>();
   for (const row of rows) {
@@ -67,28 +86,26 @@ export function projectExactSharedCovers({
     const { id, artwork } = record.listing;
     const signed = live.get(id);
     const game = signed?.original_game;
+    const signedArtwork = signed?.artwork;
     const newer = validArtworkMapping(artwork) ? checked.get(artwork.image_id) : undefined;
     if (
       !signed ||
       signed.project_url !== record.listing.project_url ||
-      !isRecord(game) ||
-      game.id !== scope.game_id ||
-      !Array.isArray(game.source_editions) ||
-      game.source_editions.length !== 1 ||
-      !isRecord(game.source_editions[0]) ||
-      game.source_editions[0].id !== scope.source_edition_id ||
+      !matchesSharedCoverScope(game, scope) ||
       !validArtworkMapping(artwork) ||
       artwork.match_kind !== "underlying-game" ||
       gone.has(artwork.image_id) ||
       signedDigests.get(artwork.image_id)?.size !== 1 ||
       (newer !== undefined && newer.digest !== artwork.image_sha256) ||
-      observationHash(signed.artwork ?? null) !== observationHash(artwork)
+      !validArtworkMapping(signedArtwork) ||
+      signedArtwork.match_kind !== "underlying-game" ||
+      coverIdentity(signedArtwork) !== coverIdentity(artwork)
     )
       continue;
     const variants = donors.get(key) ?? new Map<string, CoverDonor>();
-    const digest = observationHash(artwork);
-    const existing = variants.get(digest);
-    if (!existing || id < existing.id) variants.set(digest, { id, artwork });
+    const identity = coverIdentity(artwork);
+    const existing = variants.get(identity);
+    if (!existing || id < existing.id) variants.set(identity, { id, artwork: signedArtwork });
     donors.set(key, variants);
   }
 
@@ -107,13 +124,21 @@ export function projectExactSharedCovers({
     if (choices?.size !== 1)
       return [{ ...result, status: choices ? "ambiguous" : "no-accepted-donor" }];
     const donor = choices.values().next().value!;
-    if (
-      holdNewForImages.has(donor.artwork.image_id) &&
-      observationHash(existing?.artwork ?? null) !== observationHash(donor.artwork)
-    )
-      return [{ ...result, status: "donor-content-held" }];
-    proposals.set(id, donor.artwork);
-    return [{ ...result, status: "prepared", donor_port_id: donor.id, mapping: donor.artwork }];
+    let mapping = donor.artwork;
+    if (holdNewForImages.has(mapping.image_id)) {
+      const prior = existing?.artwork;
+      if (
+        existing?.project_url !== record.listing.project_url ||
+        !matchesSharedCoverScope(existing?.original_game, scope) ||
+        !validArtworkMapping(prior) ||
+        prior.match_kind !== "underlying-game" ||
+        coverIdentity(prior) !== coverIdentity(mapping)
+      )
+        return [{ ...result, status: "donor-content-held" }];
+      mapping = prior;
+    }
+    proposals.set(id, mapping);
+    return [{ ...result, status: "prepared", donor_port_id: donor.id, mapping }];
   });
 
   return { proposals, outcomes };

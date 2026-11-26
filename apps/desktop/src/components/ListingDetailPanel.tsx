@@ -1,4 +1,5 @@
-import { ExternalModPortals, useExternalModPortals } from "./ExternalModPortals";
+import { ExternalModPortals, useBrowseOnlyModView } from "./ExternalModPortals";
+import { ReadOnlyModProviderBrowser, reviewedProviderChoices } from "./ModProviderBrowser";
 import type { useFavorites } from "../features/favorites/use-favorites";
 import { releaseKey } from "../features/browsing/download-identity";
 import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
@@ -167,12 +168,15 @@ export function ListingDetailPanel({
 }) {
   const { t } = useAppTranslation("installation");
   const listing = entry.listing;
-  const modPortals = useExternalModPortals(
+  const modScope = JSON.stringify([entry.id, generation, entry.definition?.mod_provider_bindings]);
+  const modView = useBrowseOnlyModView(
     entry.id,
     generation,
+    modScope,
     listing?.mod_portals,
     entry.definition?.mod_sources,
   );
+  const providerSources = reviewedProviderChoices(modView);
   const platforms = listing?.platforms ?? (entry.definition ? [] : entry.platforms);
   const updates = listing && upstreamUpdatesDestination(listing.project_url, listing.release_url);
   const registered = status?.external_runtime;
@@ -345,11 +349,24 @@ export function ListingDetailPanel({
               : undefined
           }
         >
-          {(reveal) => ({
-            ...(modPortals?.mod_portal_preferences || modPortals?.external_mod_portals?.length
+          {(reveal, selectedSection) => ({
+            ...(modView?.mod_portal_preferences ||
+            modView?.external_mod_portals?.length ||
+            providerSources.length
               ? {
                   mods: (
-                    <ExternalModPortals view={modPortals} port={entry.id} generation={generation} />
+                    <>
+                      <ExternalModPortals view={modView} port={entry.id} generation={generation} />
+                      {providerSources.length > 0 && (
+                        <ReadOnlyModProviderBrowser
+                          key={modScope}
+                          portId={entry.id}
+                          generation={generation}
+                          sources={providerSources}
+                          active={selectedSection === "mods"}
+                        />
+                      )}
+                    </>
                   ),
                 }
               : {}),
