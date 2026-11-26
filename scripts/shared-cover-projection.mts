@@ -6,7 +6,8 @@ import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 
 function sharedCoverScope(record: AuthoredPort) {
-  if (record.igdb_regional_cover || usesScummvmEngine(record)) return undefined;
+  if (record.igdb_no_shared_cover || record.igdb_regional_cover || usesScummvmEngine(record))
+    return undefined;
   const game = record.listing.original_game;
   const edition = game?.source_editions.length === 1 ? game.source_editions[0] : undefined;
   if (!game || !edition) return undefined;
@@ -31,12 +32,17 @@ export function projectExactSharedCovers({
   excludedPortIds,
   gone,
   checked,
+  deriveDefaultsForPublishedRecipients = false,
+  holdNewForImages = new Set<string>(),
 }: {
   live: ReadonlyMap<string, Record<string, unknown>>;
   authored: readonly AuthoredPort[];
   excludedPortIds: ReadonlySet<string>;
   gone: ReadonlySet<string>;
   checked: ReadonlyMap<string, { digest: string | null }>;
+  /** The publisher recomputes defaults even when the previous generation had one. */
+  deriveDefaultsForPublishedRecipients?: boolean;
+  holdNewForImages?: ReadonlySet<string>;
 }) {
   const signedDigests = new Map<string, Set<string>>();
   for (const row of live.values()) {
@@ -90,15 +96,53 @@ export function projectExactSharedCovers({
   const outcomes = scoped.flatMap(({ record, scope, key }) => {
     const { id, artwork, collection_covers } = record.listing;
     const existing = live.get(id);
-    if (artwork || collection_covers || existing?.artwork || existing?.collection_covers) return [];
+    if (
+      artwork ||
+      collection_covers ||
+      (!deriveDefaultsForPublishedRecipients && (existing?.artwork || existing?.collection_covers))
+    )
+      return [];
     const choices = donors.get(key);
     const result = { id, ...scope };
     if (choices?.size !== 1)
       return [{ ...result, status: choices ? "ambiguous" : "no-accepted-donor" }];
     const donor = choices.values().next().value!;
+    if (
+      holdNewForImages.has(donor.artwork.image_id) &&
+      observationHash(existing?.artwork ?? null) !== observationHash(donor.artwork)
+    )
+      return [{ ...result, status: "donor-content-held" }];
     proposals.set(id, donor.artwork);
     return [{ ...result, status: "prepared", donor_port_id: donor.id, mapping: donor.artwork }];
   });
 
   return { proposals, outcomes };
+}
+
+/** Retain an authenticated prior default during a source read failure only
+ * for the same repository and exact original-game and edition relationship. */
+export function retainSharedCoverDefaults(
+  previous: ReadonlyMap<string, Record<string, unknown>>,
+  current: readonly Record<string, unknown>[],
+  gone: ReadonlySet<string>,
+): ReturnType<typeof projectExactSharedCovers> {
+  const proposals = new Map<string, IgdbArtwork>();
+  for (const row of current) {
+    if (typeof row.id !== "string" || row.artwork || row.collection_covers) continue;
+    const old = previous.get(row.id);
+    const game = row.original_game;
+    if (
+      old?.project_url !== row.project_url ||
+      !isRecord(game) ||
+      !Array.isArray(game.source_editions) ||
+      game.source_editions.length !== 1 ||
+      observationHash(game) !== observationHash(old?.original_game ?? null) ||
+      !validArtworkMapping(old?.artwork) ||
+      old.artwork.match_kind !== "underlying-game" ||
+      gone.has(old.artwork.image_id)
+    )
+      continue;
+    proposals.set(row.id, old.artwork);
+  }
+  return { proposals, outcomes: [] };
 }

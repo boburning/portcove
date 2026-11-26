@@ -118,6 +118,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
   igdb_regional_cover?: IgdbRegionalCover;
+  /** Keep this variant out of the exact same-edition shared cover policy. */
+  igdb_no_shared_cover?: true;
   /** Ordered platforms with an independently reviewed flat, single-program archive. */
   reviewed_flat_package_layout_v1?: string[];
   /** Desktop review copy, outside signed and retained definition schemas. */
@@ -669,6 +671,8 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     (!validArtworkCollection(listing.collection_covers) || listing.artwork != null)
   )
     throw new Error("Invalid authored cover collection.");
+  if (value.igdb_no_shared_cover !== undefined && value.igdb_no_shared_cover !== true)
+    throw new Error("An authored shared cover exclusion must be true.");
   const regional = value.igdb_regional_cover;
   if (regional !== undefined) {
     if (listing.collection_covers !== undefined)

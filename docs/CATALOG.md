@@ -2183,6 +2183,17 @@ accepted original-game cover when both ports have the same reviewed game and
 single source edition. The donor's exact game, edition and asset must also appear
 in the signed directory. The receipt names each donor and any conflicting scope.
 The existing reviewed path validates and accepts the prepared changes.
+
+When the signed cover checkpoint has been activated, the compact publisher
+also derives a missing cover from an authored donor for the same exact original
+game and single source edition. The donor's repository, edition and cover
+digest must match the previous authenticated listing. A regional cover, cover
+collection, existing authored cover or `igdb_no_shared_cover: true` excludes
+that variant. Conflicting donors leave the variant without a shared cover.
+A durable withdrawal removes the donor and any resulting defaults. Restoration
+can make the same verified image eligible again. The publisher keeps release
+observations independently of a generated cover. Players can still choose or
+hide artwork in their own libraries.
 Due refresh of a retained cover revalidates its approved IGDB game ID, slug
 and cover role. An accepted mapping can be revalidated by exact ID and slug
 even when the listing lacks an original title. This does not establish a new

@@ -212,6 +212,93 @@ void test("first cover checkpoint without an accepted withdrawal renews the exac
   assertExactPriorRenewal(output, report, legacyTarget, compact);
 });
 
+void test("an unavailable shared-cover source preserves the authenticated publication", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const artwork = {
+    game_id: 100,
+    cover_id: 1,
+    game_slug: "original",
+    match_kind: "underlying-game",
+    image_id: "cosample",
+    image_sha256: "a".repeat(64),
+  } as const;
+  const recipient = row("shared-cover-recipient", {
+    original_game: {
+      format_version: 1,
+      id: "original",
+      evidence_urls: ["https://example.org/original"],
+      source_editions: [
+        {
+          id: "exact-edition",
+          system: "pc",
+          title: "Original",
+          evidence_urls: ["https://example.org/edition"],
+        },
+      ],
+    },
+  });
+  const retiredArtwork = { ...artwork, image_id: "coother", image_sha256: "c".repeat(64) };
+  const retired = row("unrelated-withdrawn-cover", { artwork: retiredArtwork });
+  const directory = { ...canonical, listings: [...canonical.listings, recipient, retired] };
+  const decisions = advanceArtworkCheckpoint(null, [
+    {
+      id: retired.id,
+      artwork: retiredArtwork,
+      scope: coverDeclarationScope(retired, retiredArtwork),
+      report: "sha256:" + "b".repeat(64),
+      status: "propose_fallback",
+      observed_at: "2026-11-26T12:00:00.000Z",
+    },
+  ]);
+  const original = projectListingDelivery(directory, [], legacyTarget, {
+    coverCheckpoint: decisions,
+  });
+  const decoded = document(original.bytes);
+  const historicalRecipient = decoded.directory.listings.find(({ id }) => id === recipient.id);
+  assert.ok(historicalRecipient);
+  historicalRecipient.artwork = artwork;
+  const projected = {
+    listing_delivery_schema: 1,
+    ...decoded,
+  };
+  const accepted = wire(projected);
+  const compact = encodeCompactListing(accepted);
+  const checkpoint = decisions.finish(accepted);
+  assert.ok(checkpoint);
+  const prior = writePriorRepository(path.join(fixture.root, "prior"), {
+    [listingDeliveryTarget]: legacyTarget,
+    [compactListingDeliveryTarget]: compact,
+    [artworkCheckpointTarget]: checkpoint,
+    "policy/official/catalog.history-checkpoint.json": wire({}),
+  });
+  const output = path.join(fixture.root, "out");
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: fixture.write("current-listings.json", directory),
+    catalog: fixture.catalog,
+    prior,
+    priorHistory: path.join(fixture.root, "history"),
+    output,
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    observe: false,
+    officialReleasedReader: true,
+    acquireReleasedReader: () =>
+      assert.fail("the existing exact cover publication can renew without a new reader"),
+    sharedCoverSource: path.join(fixture.root, "missing-authoring-input"),
+  });
+  assert.ok(report.diagnostics.some((line) => line.startsWith("shared cover enrichment deferred")));
+  assert.equal(report.listing_publication_stopped, undefined);
+  assert.deepEqual(readFileSync(path.join(output, "bundle", listingDeliveryTarget)), legacyTarget);
+  assert.deepEqual(
+    readFileSync(path.join(output, "bundle", compactListingDeliveryTarget)),
+    compact,
+  );
+  assert.deepEqual(readFileSync(path.join(output, "bundle", artworkCheckpointTarget)), checkpoint);
+});
+
 void test("a released reader without cover support leaves the exact prior withdrawal published", async (t) => {
   const fixture = fixtureWorkspace(t);
   const artwork = {

@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { isRecord } from "./runtime-values.mts";
-import { parseCatalogSource, typedIgdbScene } from "./catalog-authoring.mts";
+import { parseCatalogSource, readCatalogSource, typedIgdbScene } from "./catalog-authoring.mts";
 import {
   advanceArtworkCheckpoint,
   artworkCheckpointMax,
@@ -17,6 +17,12 @@ import {
   readArtworkCheckpoint,
 } from "./listing-artwork-checkpoint.mts";
 import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
+import {
+  indexSharedCoverRows,
+  projectExactSharedCovers,
+  retainSharedCoverDefaults,
+} from "./shared-cover-projection.mts";
+import { validArtworkCollection, validArtworkMapping } from "./catalog-cover-mapping.mts";
 import { proveReleasedCoverInspection } from "./listing-cover-reader-proof.mts";
 import { readCatalogPublicationBundle } from "./release-catalog-inspection.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
@@ -315,6 +321,7 @@ export function projectListingDelivery(
     byteLimit?: number;
     /** Exact cover decisions for this generation and its authenticated predecessor. */
     coverCheckpoint?: ReturnType<typeof advanceArtworkCheckpoint>;
+    sharedCoverDefaults?: ReturnType<typeof projectExactSharedCovers>;
   } = {},
 ) {
   const {
@@ -324,6 +331,7 @@ export function projectListingDelivery(
     withdrawals = [],
     byteLimit = compactListingDecodedMaximum,
     coverCheckpoint,
+    sharedCoverDefaults,
   } = options;
   const raw = directory(canonical);
   const previousDocument = previous
@@ -386,7 +394,17 @@ export function projectListingDelivery(
     .map((listing) => {
       const declaration = declarations.get(listing.id)!;
       const result = structuredClone(coverCheckpoint?.apply(listing, declaration) ?? listing);
+      const defaultCover = sharedCoverDefaults?.proposals.get(String(listing.id));
+      if (defaultCover && !declaration.artwork && !declaration.collection_covers)
+        result.artwork = defaultCover;
       const old = previousListings.get(listing.id);
+      let priorDeclaration = old;
+      if (old && !declaration.artwork && !declaration.collection_covers && sharedCoverDefaults) {
+        // For a listing without an authored cover, the previous generated
+        // cover is independent of its release evidence.
+        priorDeclaration = { ...old };
+        delete priorDeclaration.artwork;
+      }
       let comparable = listing;
       // Pre-format-13 signed rows could not carry typed scenes.
       if (
@@ -407,7 +425,8 @@ export function projectListingDelivery(
       if (coverCheckpoint) comparable = coverCheckpoint.applyPrevious(comparable, declaration);
       const prior =
         old &&
-        listingDeclarationHash(old) === listingDeclarationHash(comparable) &&
+        priorDeclaration &&
+        listingDeclarationHash(priorDeclaration) === listingDeclarationHash(comparable) &&
         isRecord(old.upstream_observation)
           ? old.upstream_observation
           : undefined;
@@ -851,6 +870,7 @@ export async function prepareObservationBundle(options: {
   activateCoverCheckpoint?: boolean;
   priorHistory?: string;
   readCoverHealth?: typeof readHostedCoverHealth;
+  sharedCoverSource?: string;
   /** Select and verify the reader from the protected Preview pointer
    * (`Catalog publish`). */
   officialReleasedReader?: boolean;
@@ -1116,6 +1136,7 @@ export async function prepareObservationBundle(options: {
     }
   }
   let coverCheckpoint: ReturnType<typeof advanceArtworkCheckpoint> | undefined;
+  let sharedCoverDefaults: ReturnType<typeof projectExactSharedCovers> | undefined;
   if (coverEnabled && !renewal) {
     let observations: ReturnType<typeof applicableCoverHealth> = [];
     if (options.observe !== false) {
@@ -1132,6 +1153,48 @@ export async function prepareObservationBundle(options: {
       priorCover ? { bytes: priorCover, listing: previous } : null,
       observations,
     );
+    const sharedCoverSource =
+      options.sharedCoverSource ?? (automatic ? path.dirname(options.canonical) : undefined);
+    if (sharedCoverSource && priorCompact) {
+      const gone = new Set<string>();
+      for (const declaration of canonical.listings) {
+        const applied = coverCheckpoint.apply(declaration);
+        if (validArtworkMapping(declaration.artwork) && !applied.artwork)
+          gone.add(declaration.artwork.image_id);
+        if (validArtworkCollection(declaration.collection_covers)) {
+          const remaining = validArtworkCollection(applied.collection_covers)
+            ? new Set(applied.collection_covers.map(({ image_id }) => image_id))
+            : new Set();
+          for (const { image_id } of declaration.collection_covers)
+            if (!remaining.has(image_id)) gone.add(image_id);
+        }
+      }
+      const holdNewForImages = new Set(
+        observations
+          .filter(({ status }) => status === "hold_changed_bytes")
+          .map(({ artwork }) => artwork.image_id),
+      );
+      const live = indexSharedCoverRows(previousDocument.directory.listings);
+      try {
+        const source = readCatalogSource(sharedCoverSource);
+        if (observationHash(source.directory) !== observationHash(canonical))
+          throw new Error("Shared cover declarations differ from the canonical listing input.");
+        sharedCoverDefaults = projectExactSharedCovers({
+          live,
+          authored: source.authored,
+          excludedPortIds: new Set(),
+          gone,
+          checked: new Map(),
+          deriveDefaultsForPublishedRecipients: true,
+          holdNewForImages,
+        });
+      } catch (error) {
+        diagnostics.push(
+          `shared cover enrichment deferred: ${error instanceof Error ? error.message.slice(0, 300) : "read failed"}`,
+        );
+        sharedCoverDefaults = retainSharedCoverDefaults(live, canonical.listings, gone);
+      }
+    }
   }
   // Every compact revision exceeds the frozen legacy revision, the signer's
   // replay floor for the first compact publication.
@@ -1144,6 +1207,7 @@ export async function prepareObservationBundle(options: {
         now,
         withdrawals,
         ...(coverCheckpoint ? { coverCheckpoint } : {}),
+        ...(sharedCoverDefaults ? { sharedCoverDefaults } : {}),
       }),
       legacyDocument.revision,
     );
@@ -1321,6 +1385,7 @@ export async function prepareObservationBundle(options: {
     listing_format: delivered.directory.format_version,
     ...(coverProof ? { released_cover_proof: coverProof } : {}),
     ...(coverCheckpoint?.deferred ? { cover_scopes_deferred: coverCheckpoint.deferred } : {}),
+    ...(sharedCoverDefaults ? { shared_cover_candidates: sharedCoverDefaults.proposals.size } : {}),
     ...(releasedReader ? { released_reader: releasedReader } : {}),
     ...(officialReader && !stopped
       ? {
@@ -1407,7 +1472,7 @@ export async function prepareObservationBundle(options: {
         : "Complete canonical directory with applicable observations and explicit withdrawals.",
     diagnostics,
     scope:
-      "descriptive-observation-only; canonical fields unchanged; no operation or publication grant",
+      "descriptive observations and exact shared cover defaults; no operation or publication grant",
   };
   writeFileSync(path.join(options.output, "report.json"), JSON.stringify(report, null, 2));
   return report;
