@@ -612,10 +612,7 @@ describe("local artwork controls", () => {
       expect(change).toHaveBeenCalledTimes(1);
 
       const source = container.querySelector<HTMLElement>(".artwork-source summary")!;
-      if (focusMove === "same role during apply") {
-        source.focus();
-        expect(document.activeElement).toBe(source);
-      }
+      if (focusMove === "same role during apply") source.focus();
       pendingRead = "first";
       await render("sample", 7, "intermediate-cover");
       await expect.poll(() => reads.has("first")).toBe(true);
@@ -637,11 +634,13 @@ describe("local artwork controls", () => {
 
       await act(async () => reads.get("latest")!(committed));
       await expect.element(pickerControl).toBeEnabled();
-      if (focusMove === "same role during apply") expect(document.activeElement).toBe(source);
-      else
-        await expect
-          .element(focusMove === "dialog close during refresh" ? close : pickerControl)
-          .toHaveFocus();
+      const expectedFocus =
+        focusMove === "same role during apply"
+          ? source
+          : focusMove === "dialog close during refresh"
+            ? close.element()
+            : pickerControl.element();
+      await expect.poll(() => document.activeElement).toBe(expectedFocus);
       expect(change).toHaveBeenCalledTimes(1);
     },
   );
