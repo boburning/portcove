@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import { protectedCoverApproval, readApprovedCoverJournal } from "./catalog-cover-approval.mts";
 import {
   readCoverPreparation,
   requireReviewedListingCovers,
@@ -309,4 +310,83 @@ void test("the candidate must appear in the exact listing and all preparation ar
   );
   writeFileSync(report.files.artwork, JSON.stringify({ records: [] }));
   assert.throws(() => readCoverPreparation(result), /artifact changed/u);
+});
+
+void test("approval requires the exact packet digest and the appointed owner dispatch", () => {
+  const packet = '{"fixture":true}';
+  const digest = createHash("sha256").update(packet).digest("hex");
+  const env = {
+    PORTCOVE_COVER_REVIEW_PACKET: packet,
+    PORTCOVE_COVER_REVIEW_SHA256: digest,
+    PORTCOVE_COVER_REVIEW_PREIMAGES: '{"example":"sha"}',
+    GITHUB_ACTIONS: "true",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_REPOSITORY_ID: "1354613114",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_WORKFLOW_REF: "boburning/portcove/.github/workflows/catalog-publish.yml@refs/heads/main",
+    GITHUB_ACTOR_ID: "43177418",
+    PORTCOVE_TRIGGERING_ACTOR: "boburning",
+    GITHUB_RUN_ID: "123",
+  };
+  assert.equal(protectedCoverApproval({}), undefined);
+  assert.deepEqual(protectedCoverApproval(env), {
+    packet,
+    digest,
+    preimages: env.PORTCOVE_COVER_REVIEW_PREIMAGES,
+    run: "123",
+  });
+  for (const changed of [
+    { GITHUB_EVENT_NAME: "schedule" },
+    { GITHUB_REF: "refs/heads/feature" },
+    { PORTCOVE_TRIGGERING_ACTOR: "other" },
+    { GITHUB_ACTOR_ID: "9" },
+    { PORTCOVE_COVER_REVIEW_PACKET: packet + "\n" },
+    { PORTCOVE_COVER_REVIEW_PREIMAGES: "" },
+  ])
+    assert.throws(() => protectedCoverApproval({ ...env, ...changed }), /owner-approved/u);
+});
+
+void test("an authenticated earlier approval supplies the next review preimage", () => {
+  const packet = "f".repeat(64);
+  const approval = {
+    id: "example",
+    scope: coverDeclarationScope(declaration, prior),
+    authored: prior,
+    prior,
+    role: "cover",
+    candidate: next,
+    bytes: 100,
+    packet,
+    source: "c".repeat(40),
+    run: "10",
+  };
+  const journal = readApprovedCoverJournal({
+    format_version: 1,
+    approvals: [approval],
+    consumed_packets: [packet],
+  });
+  assert.deepEqual(
+    replacementCoverPreimages(
+      canonical,
+      ...predecessor({ ...declaration, artwork: next }, "restored"),
+      ["example"],
+      journal,
+    ),
+    new Map([["example", next]]),
+  );
+  assert.throws(
+    () =>
+      replacementCoverPreimages(
+        canonical,
+        ...predecessor(declaration, "restored"),
+        ["example"],
+        journal,
+      ),
+    /authenticated preimage/u,
+  );
+  assert.throws(
+    () => readApprovedCoverJournal({ ...journal, consumed_packets: [packet, packet] }),
+    /consumed/u,
+  );
 });

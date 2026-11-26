@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { sameStaticPublicationTargets } from "./catalog-publish.mts";
+import { readApprovedCoverJournal } from "./catalog-cover-approval-journal.mts";
 import {
   exactCoverReaderPair,
   recheckReleasedCoverPublication,
@@ -416,6 +417,86 @@ void test("compact projection retains release activity through exact cover withd
     { coverCheckpoint: renew },
   );
   assert.equal(read(changed.bytes).upstream_observation, undefined);
+});
+
+void test("an approved replacement keeps release activity across Gone, renewal, and restoration", () => {
+  const row = { ...fixtureListing, artwork };
+  const authored = { format_version: 15, listings: [row] };
+  const original = projectListingDelivery(authored, [fixturePolicy(row).listing_update], null);
+  const candidate = {
+    ...artwork,
+    cover_id: 2,
+    image_id: "coreviewed",
+    image_sha256: "c".repeat(64),
+  };
+  const packet = "d".repeat(64);
+  const journal = readApprovedCoverJournal({
+    format_version: 1,
+    approvals: [
+      {
+        id: row.id,
+        scope: coverDeclarationScope(row, artwork),
+        role: "cover",
+        authored: artwork,
+        prior: artwork,
+        candidate,
+        packet,
+        source: "e".repeat(40),
+        run: "1",
+        bytes: 100,
+      },
+    ],
+    consumed_packets: [packet],
+  });
+  const empty = readApprovedCoverJournal(undefined);
+  const selected = projectListingDelivery(authored, [], original.bytes, {
+    coverApprovals: { current: journal, previous: empty },
+  });
+  const project = (
+    previous: Buffer,
+    coverCheckpoint: ReturnType<typeof advanceArtworkCheckpoint>,
+  ) =>
+    projectListingDelivery(authored, [], previous, {
+      coverApprovals: { current: journal, previous: journal },
+      coverCheckpoint,
+    });
+  const read = (bytes: Buffer) => {
+    const parsed = JSON.parse(bytes.toString("utf8")) as {
+      directory: { listings: Record<string, unknown>[] };
+    };
+    return parsed.directory.listings[0]!;
+  };
+  const activity = read(original.bytes).upstream_observation;
+  assert.ok(activity);
+  assert.deepEqual(read(selected.bytes).artwork, candidate);
+  assert.deepEqual(read(selected.bytes).upstream_observation, activity);
+  const exactGone = {
+    ...gone,
+    id: row.id,
+    artwork: candidate,
+    scope: coverDeclarationScope(row, candidate),
+  };
+  const withdraw = advanceArtworkCheckpoint(null, [exactGone]);
+  const removed = project(selected.bytes, withdraw);
+  assert.equal(read(removed.bytes).artwork, undefined);
+  assert.deepEqual(read(removed.bytes).upstream_observation, activity);
+  const checkpoint = withdraw.finish(removed.bytes);
+  assert.ok(checkpoint);
+  const prior = { bytes: checkpoint, listing: removed.bytes };
+  const renewal = project(removed.bytes, advanceArtworkCheckpoint(prior, []));
+  assert.equal(renewal.changed, false);
+  const restored = project(
+    removed.bytes,
+    advanceArtworkCheckpoint(prior, [
+      {
+        ...exactGone,
+        status: "verified_accepted_bytes",
+        observed_at: newerAt,
+      },
+    ]),
+  );
+  assert.deepEqual(read(restored.bytes).artwork, candidate);
+  assert.deepEqual(read(restored.bytes).upstream_observation, activity);
 });
 
 function coverReaderFixture() {

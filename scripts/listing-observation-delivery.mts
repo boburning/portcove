@@ -24,6 +24,14 @@ import {
   retainSharedCoverDefaults,
 } from "./shared-cover-projection.mts";
 import { validArtworkCollection, validArtworkMapping } from "./catalog-cover-mapping.mts";
+import {
+  acceptApprovedCovers,
+  activeApprovedCovers,
+  observeApprovedCoverHealth,
+  projectApprovedCovers,
+  protectedCoverApproval,
+  readApprovedCoverJournal,
+} from "./catalog-cover-approval.mts";
 import { proveReleasedCoverInspection } from "./listing-cover-reader-proof.mts";
 import { readCatalogPublicationBundle } from "./release-catalog-inspection.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
@@ -341,6 +349,10 @@ export function projectListingDelivery(
     byteLimit?: number;
     /** Exact cover decisions for this generation and its authenticated predecessor. */
     coverCheckpoint?: ReturnType<typeof advanceArtworkCheckpoint>;
+    coverApprovals?: {
+      current: ReturnType<typeof readApprovedCoverJournal>;
+      previous: ReturnType<typeof readApprovedCoverJournal>;
+    };
     sharedCoverDefaults?: ReturnType<typeof projectExactSharedCovers>;
     modPortalDefaults?: ReturnType<typeof listingModPortalDefaults>;
   } = {},
@@ -352,6 +364,7 @@ export function projectListingDelivery(
     withdrawals = [],
     byteLimit = compactListingDecodedMaximum,
     coverCheckpoint,
+    coverApprovals,
     sharedCoverDefaults,
     modPortalDefaults,
   } = options;
@@ -373,6 +386,27 @@ export function projectListingDelivery(
   );
   const updates = new Map<string, Record<string, unknown>>();
   const declarations = new Map(raw.listings.map((listing) => [listing.id, listing]));
+  const effectiveBaseline = coverApprovals
+    ? projectApprovedCovers(baseline, coverApprovals.current)
+    : baseline;
+  const effectiveDeclarations = new Map(
+    (coverApprovals
+      ? projectApprovedCovers(raw, coverApprovals.current, baseline.listings)
+      : raw
+    ).listings.map((listing) => [listing.id, listing]),
+  );
+  const priorBaseline = new Map(
+    (coverApprovals
+      ? projectApprovedCovers(baseline, coverApprovals.previous)
+      : baseline
+    ).listings.map((listing) => [listing.id, listing]),
+  );
+  const priorDeclarations = new Map(
+    (coverApprovals
+      ? projectApprovedCovers(raw, coverApprovals.previous, baseline.listings)
+      : raw
+    ).listings.map((listing) => [listing.id, listing]),
+  );
   for (const candidate of candidates) {
     const current = typeof candidate.id === "string" ? declarations.get(candidate.id) : undefined;
     if (
@@ -413,10 +447,10 @@ export function projectListingDelivery(
   let updated = 0;
   let generatedModPortals = 0;
   let deferredModPortals = 0;
-  const listings = baseline.listings
+  const listings = effectiveBaseline.listings
     .filter((listing) => !withdrawalSet.has(String(listing.id)))
     .map((listing) => {
-      const declaration = declarations.get(listing.id)!;
+      const declaration = effectiveDeclarations.get(listing.id)!;
       const result = structuredClone(coverCheckpoint?.apply(listing, declaration) ?? listing);
       const defaultCover = sharedCoverDefaults?.proposals.get(String(listing.id));
       if (defaultCover && !declaration.artwork && !declaration.collection_covers)
@@ -429,24 +463,25 @@ export function projectListingDelivery(
         priorDeclaration = { ...priorDeclaration };
         delete priorDeclaration.artwork;
       }
-      let comparable = listing;
+      let comparable = priorBaseline.get(listing.id)!;
       // Pre-format-13 signed rows could not carry typed scenes.
       if (
         old &&
         format >= 13 &&
         previousDocument &&
         previousDocument.directory.format_version < 13 &&
-        Array.isArray(listing.media) &&
-        listing.media.some(typedIgdbScene)
+        Array.isArray(comparable.media) &&
+        comparable.media.some(typedIgdbScene)
       ) {
-        comparable = { ...listing };
-        const media = listing.media.filter((asset) => !typedIgdbScene(asset));
+        comparable = { ...comparable };
+        const media = (comparable.media as unknown[]).filter((asset) => !typedIgdbScene(asset));
         if (media.length > 0) comparable.media = media;
         else delete comparable.media;
       }
       // Compare the prior signed declaration under its own cover decisions.
       // Artwork withdrawal/restoration does not invalidate release observations.
-      if (coverCheckpoint) comparable = coverCheckpoint.applyPrevious(comparable, declaration);
+      if (coverCheckpoint)
+        comparable = coverCheckpoint.applyPrevious(comparable, priorDeclarations.get(listing.id)!);
       const prior =
         old &&
         priorDeclaration &&
@@ -948,8 +983,11 @@ export function replacementCoverPreimages(
   signedListing: Buffer,
   signedCheckpoint: Buffer,
   selected: readonly string[],
+  journal = readApprovedCoverJournal(undefined),
 ) {
   const declarations = new Map(directory(canonical).listings.map((row) => [row.id, row]));
+  const projected = projectApprovedCovers(directory(canonical), journal);
+  const effective = new Map(projected.listings.map((row) => [row.id, row]));
   const signed = delivery(parseCatalogSource(signedListing.toString("utf8")));
   const assigned = new Map(signed.directory.listings.map((row) => [row.id, row]));
   const checkpoint = advanceArtworkCheckpoint(
@@ -962,9 +1000,11 @@ export function replacementCoverPreimages(
   for (const id of selected) {
     const declaration = declarations.get(id);
     const previous = assigned.get(id);
+    const expected = effective.get(id);
     if (
       !declaration ||
       !previous ||
+      !expected ||
       signed.withdrawn_ids.includes(id) ||
       !validArtworkMapping(declaration.artwork) ||
       declaration.artwork.match_kind !== "underlying-game" ||
@@ -972,10 +1012,10 @@ export function replacementCoverPreimages(
       previous.collection_covers !== undefined ||
       coverDeclarationScope(declaration, declaration.artwork) !==
         coverDeclarationScope(previous, declaration.artwork) ||
-      !isDeepStrictEqual(previous.artwork, checkpoint.apply(declaration).artwork)
+      !isDeepStrictEqual(previous.artwork, checkpoint.apply(expected).artwork)
     )
       throw new Error("Selected cover does not match the authenticated preimage: " + id);
-    preimages.set(id, declaration.artwork);
+    preimages.set(id, expected.artwork);
   }
   return preimages;
 }
@@ -1019,6 +1059,7 @@ export async function readAuthenticatedCoverPreimages(
       readDeliveryCarrier(wire, compactListingDeliveryTarget).bytes,
       checkpoint,
       selected,
+      readApprovedCoverJournal(report.cover_approvals),
     ),
     identity: report.repository_sha256,
   };
@@ -1037,6 +1078,7 @@ export async function prepareObservationBundle(options: {
   observe?: boolean;
   /** Explicit protected first activation; subsequent renewals follow signed state. */
   activateCoverCheckpoint?: boolean;
+  coverApproval?: ReturnType<typeof protectedCoverApproval>;
   priorHistory?: string;
   readCoverHealth?: typeof readHostedCoverHealth;
   sharedCoverSource?: string;
@@ -1079,6 +1121,13 @@ export async function prepareObservationBundle(options: {
   const priorCompact = Object.hasOwn(priorTargets, compactListingDeliveryTarget);
   const priorCoverDigest = priorTargets[artworkCheckpointTarget];
   const coverEnabled = priorCoverDigest !== undefined || options.activateCoverCheckpoint === true;
+  if (
+    options.coverApproval &&
+    (!automatic || !priorCompact || !priorCoverDigest || options.activateCoverCheckpoint)
+  )
+    throw new Error(
+      "Cover replacement requires the active signed cover checkpoint and official reader.",
+    );
   if (
     coverEnabled &&
     (!automatic ||
@@ -1132,6 +1181,8 @@ export async function prepareObservationBundle(options: {
   let compactWire: Buffer | null = null;
   let previous: Buffer;
   let priorCover: Buffer | null = null;
+  let priorApprovals = readApprovedCoverJournal(undefined);
+  let authenticatedPriorIdentity: string | undefined;
   let renewal: ReturnType<typeof retainedListingRenewal> | undefined;
   let observerRevision = options.observe === false ? "offline" : "unavailable";
   // Why the prior signed repository could not be verified, when it could not.
@@ -1143,6 +1194,14 @@ export async function prepareObservationBundle(options: {
       workspace,
       coverEnabled ? options.priorHistory : undefined,
     );
+    if (isRecord(report)) {
+      priorApprovals = readApprovedCoverJournal(report.cover_approvals);
+      if (
+        typeof report.repository_sha256 === "string" &&
+        /^[a-f0-9]{64}$/u.test(report.repository_sha256)
+      )
+        authenticatedPriorIdentity = report.repository_sha256;
+    }
     const legacy = await verifiedPriorListing(prior, report);
     if (!legacy) throw new Error("Prior legacy listing is not referenced");
     legacyWire = legacy;
@@ -1164,6 +1223,10 @@ export async function prepareObservationBundle(options: {
       readArtworkCheckpoint(priorCover, previous);
     }
   } catch (error) {
+    if (options.coverApproval)
+      throw new Error("Cover replacement could not authenticate the exact predecessor", {
+        cause: error,
+      });
     // Active checkpoints cannot be silently forgotten by an ordinary listing
     // fallback. The existing prior pair can be renewed only for signer verification.
     if (priorCoverDigest !== undefined) {
@@ -1212,6 +1275,8 @@ export async function prepareObservationBundle(options: {
   // run publishes it; every deferral is reported and fails the run after
   // readback, so it is never silently postponed.
   const activationNeeded = !priorCompact || format > previousDocument.directory.format_version;
+  if (options.coverApproval && (activationNeeded || renewal || !authenticatedPriorIdentity))
+    throw new Error("Cover replacement requires the same authenticated live listing format.");
   const priorUnavailable = renewal !== undefined;
   if (!renewal && activationNeeded) {
     try {
@@ -1314,6 +1379,28 @@ export async function prepareObservationBundle(options: {
       );
     }
   }
+  let coverApprovals = priorApprovals;
+  if (options.coverApproval) {
+    if (!compatible || !priorCover || !authenticatedPriorIdentity || renewal)
+      throw new Error("Cover replacement lacks a verified predecessor or compatible listing.");
+    const held = advanceArtworkCheckpoint({ bytes: priorCover, listing: previous }, []);
+    coverApprovals = await acceptApprovedCovers({
+      input: options.coverApproval,
+      prior: priorApprovals,
+      canonical,
+      compatibleCanonical: compatible,
+      authenticatedPriorSha: authenticatedPriorIdentity,
+      previous: previousDocument.directory,
+      priorWasWithdrawn(declaration, artwork) {
+        return held.apply({ ...declaration, artwork }).artwork === undefined;
+      },
+      canonicalSha: observationHash(canonical),
+      catalogSha: observationHash(current),
+      canonicalPath: options.canonical,
+      cli: options.cli,
+      scratch: workspace,
+    });
+  }
   let coverCheckpoint: ReturnType<typeof advanceArtworkCheckpoint> | undefined;
   let sharedCoverDefaults: ReturnType<typeof projectExactSharedCovers> | undefined;
   if (coverEnabled && !renewal) {
@@ -1328,6 +1415,28 @@ export async function prepareObservationBundle(options: {
         );
       }
     }
+    if (
+      compatible &&
+      !options.coverApproval &&
+      options.observe !== false &&
+      coverApprovals.approvals.length
+    ) {
+      try {
+        const approved = await observeApprovedCoverHealth({
+          journal: coverApprovals,
+          compatible,
+          now,
+          cli: options.cli,
+          scratch: workspace,
+        });
+        observations.push(...approved.observations);
+      } catch (error) {
+        diagnostics.push(
+          "Approved cover health unavailable: " +
+            (error instanceof Error ? error.message.slice(0, 300) : "read failed"),
+        );
+      }
+    }
     coverCheckpoint = advanceArtworkCheckpoint(
       priorCover ? { bytes: priorCover, listing: previous } : null,
       observations,
@@ -1336,7 +1445,11 @@ export async function prepareObservationBundle(options: {
       options.sharedCoverSource ?? (automatic ? path.dirname(options.canonical) : undefined);
     if (sharedCoverSource && priorCompact) {
       const gone = new Set<string>();
-      for (const declaration of canonical.listings) {
+      const effectiveCovers =
+        compatible && coverApprovals.approvals.length
+          ? projectApprovedCovers(compatible, coverApprovals).listings
+          : canonical.listings;
+      for (const declaration of effectiveCovers) {
         const applied = coverCheckpoint.apply(declaration);
         if (validArtworkMapping(declaration.artwork) && !applied.artwork)
           gone.add(declaration.artwork.image_id);
@@ -1360,7 +1473,18 @@ export async function prepareObservationBundle(options: {
           throw new Error("Shared cover declarations differ from the canonical listing input.");
         sharedCoverDefaults = projectExactSharedCovers({
           live,
-          authored: source.authored,
+          authored: (() => {
+            if (!compatible || !coverApprovals.approvals.length) return source.authored;
+            const active = new Map(
+              activeApprovedCovers(coverApprovals, compatible).map((entry) => [entry.id, entry]),
+            );
+            return source.authored.map((entry) => {
+              const approved = active.get(entry.listing.id);
+              return approved
+                ? { ...entry, listing: { ...entry.listing, artwork: approved.candidate } }
+                : entry;
+            });
+          })(),
           excludedPortIds: new Set(),
           gone,
           checked: new Map(),
@@ -1389,6 +1513,9 @@ export async function prepareObservationBundle(options: {
         now,
         withdrawals,
         ...(coverCheckpoint ? { coverCheckpoint } : {}),
+        ...(coverApprovals.approvals.length
+          ? { coverApprovals: { current: coverApprovals, previous: priorApprovals } }
+          : {}),
         ...(sharedCoverDefaults ? { sharedCoverDefaults } : {}),
         ...(portals ? { modPortalDefaults: portals } : {}),
       }),
@@ -1554,6 +1681,10 @@ export async function prepareObservationBundle(options: {
       rmSync(bundle, { recursive: true, force: true });
     }
   }
+  if (stopped && options.coverApproval)
+    throw new Error("Reviewed cover replacement could not be projected and verified", {
+      cause: stopped,
+    });
   if (stopped) {
     diagnostics.push(
       `listing publication stopped (${stopped.code}); renewing the exact prior listing targets: ${stopped.message.slice(0, 300)}`,
@@ -1570,6 +1701,17 @@ export async function prepareObservationBundle(options: {
   }
   if (!projected) throw new Error("No listing projection was prepared");
   const delivered = delivery(parseCatalogSource(projected.bytes.toString("utf8")));
+  if (options.coverApproval) {
+    const artwork = new Map(delivered.directory.listings.map((row) => [row.id, row.artwork]));
+    if (
+      !coverProof ||
+      !wire ||
+      !coverApprovals.approvals
+        .filter((row) => row.packet === options.coverApproval?.digest)
+        .every((row) => isDeepStrictEqual(artwork.get(row.id), row.candidate))
+    )
+      throw new Error("Released reader did not verify the exact reviewed cover candidates.");
+  }
   const report = {
     bundle,
     carrier: wire ? "compact" : "legacy-renewal",
@@ -1579,6 +1721,7 @@ export async function prepareObservationBundle(options: {
     revision: projected.revision,
     listing_format: delivered.directory.format_version,
     ...(coverProof ? { released_cover_proof: coverProof } : {}),
+    ...(options.coverApproval ? { cover_approvals: coverApprovals } : {}),
     ...(coverCheckpoint?.deferred ? { cover_scopes_deferred: coverCheckpoint.deferred } : {}),
     ...(sharedCoverDefaults ? { shared_cover_candidates: sharedCoverDefaults.proposals.size } : {}),
     ...(releasedReader ? { released_reader: releasedReader } : {}),
@@ -1712,6 +1855,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (!values[key]) throw new Error(`--${key} is required`);
   if (Boolean(values["released-reader"]) !== Boolean(values["released-reader-sha256"]))
     throw new Error("--released-reader and --released-reader-sha256 are required together");
+  const coverApproval = protectedCoverApproval(process.env);
   console.log(
     JSON.stringify(
       await prepareObservationBundle({
@@ -1727,6 +1871,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         observe: !values.offline,
         officialReleasedReader: values["official-released-reader"],
         activateCoverCheckpoint: values["activate-cover-checkpoint"],
+        ...(coverApproval ? { coverApproval } : {}),
         ...(values["prior-history"] ? { priorHistory: path.resolve(values["prior-history"]) } : {}),
         ...(values.withdrawals ? { withdrawals: path.resolve(values.withdrawals) } : {}),
         ...(values["released-reader"] && values["released-reader-sha256"]
