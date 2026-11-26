@@ -1199,15 +1199,17 @@ void test("an accepted original screenshot follows the exact edition into existi
       ],
     },
   };
-  const crossEditionConflict = assembleCatalogRecords(shared, [
-    donor,
-    competingEdition,
-    bothEditions,
-  ]);
-  assert.equal(
-    crossEditionConflict.directory.listings.find(({ id }) => id === bothEditions.listing.id)?.media,
-    undefined,
-  );
+  for (const donors of [
+    [donor, competingEdition],
+    [donor, competingDonor, competingEdition],
+  ]) {
+    const crossEditionConflict = assembleCatalogRecords(shared, [...donors, bothEditions]);
+    assert.equal(
+      crossEditionConflict.directory.listings.find(({ id }) => id === bothEditions.listing.id)
+        ?.media,
+      undefined,
+    );
+  }
 });
 
 void test("optional recommendation observations round-trip as inert presentation without changing the operational route", () => {
