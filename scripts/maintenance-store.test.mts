@@ -1231,6 +1231,57 @@ void test(
 );
 
 void test(
+  "recovery caps row-delta metadata against measured remaining response bytes",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const source = fixture.start("source").owner;
+    const scratch = postgresFixture(context, server.directory!);
+    const prefixDatabase = scratch.start("prefix").owner;
+    const target = scratch.start("target").owner;
+    migrate(source);
+    runSql(
+      source,
+      `INSERT INTO portcove_maintenance.discovery_collection_state
+      (scope, definition_sha256, revision, state, state_sha256, updated_at)
+      VALUES ('primary', '${hex("a")}', 1, '{"leads":{"external":{}}}', '${hex("b")}', clock_timestamp());
+      INSERT INTO portcove_maintenance.discovery_external_hints (scope, hint_key, hint)
+      SELECT 'primary', repeat('p', 250) || lpad(n::text, 4, '0'),
+        jsonb_build_object('title', repeat('x', 1024) || n) FROM generate_series(1, 160) n;`,
+    );
+    const previous = path.join(fixture.root, "previous-backup");
+    await backup(source, previous);
+    runSql(
+      source,
+      `DELETE FROM portcove_maintenance.discovery_external_hints
+      WHERE right(hint_key, 4)::integer > 40;`,
+    );
+    // The removal list is larger than the response allowance, yet smaller
+    // than the complete-row estimate. An uncapped incremental plan would emit it.
+    const measurement = {
+      host: source.PGHOST!,
+      payloadBytes: 0,
+      byteLimit: 12_000,
+      deadline: Date.now() + 120_000,
+    };
+    const result = await maintenanceTransfer.run(measurement, () =>
+      backupReusingHistory({
+        source,
+        prefixDatabase,
+        target,
+        previous,
+        output: path.join(fixture.root, "current-backup"),
+        reservedBytes: 5_000_000,
+      }),
+    );
+    assert.equal(result.reused, false);
+    assert.deepEqual(result.transfer.row_delta_tables, []);
+    assert.ok(measurement.payloadBytes > 0 && measurement.payloadBytes < measurement.byteLimit);
+    assert.deepEqual(result.manifest.tables, storeDigest(source));
+  },
+);
+
+void test(
   "a pre-0011 portable backup restores and migrates normalized discovery hints",
   { skip: server.skip ?? false, timeout: 240_000 },
   async (context) => {

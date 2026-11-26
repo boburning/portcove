@@ -7,6 +7,7 @@ import {
   digestQuery,
   dumpTimeoutMs,
   maintenanceSchemas,
+  maintenanceTransfer,
   migrationStatus,
   outputLimitBytes,
   portableRestoreSql,
@@ -32,6 +33,7 @@ const history = [
 
 const schema = "portcove_maintenance";
 const activation = "portcove_maintenance_meta.discovery_intake_activation";
+const backupProtocolHeadroomBytes = 2_000_000;
 /** Explicit primary keys of large discovery tables. These keys identify rows,
  * while the digest covers the entire row including its mutable columns. */
 const discoveryDeltaTables = [
@@ -157,7 +159,7 @@ function exportCeiling(
       // Allow for text COPY escaping, row framing and query/transport overhead.
       return `(SELECT coalesce(sum(octet_length(t::text)::bigint * 2 + 100), 0) FROM ${table} t${where})`;
     });
-  return `SELECT ${2_000_000 + planBytes} + ${sources.join(" + ")};`;
+  return `SELECT ${backupProtocolHeadroomBytes + planBytes} + ${sources.join(" + ")};`;
 }
 
 /**
@@ -308,9 +310,15 @@ async function backupPrepared(
       const metadataAllowance = Math.floor(reservedBytes * 0.7);
       for (const table of discoveryDeltaTables) {
         if (!localTables?.[table.table]?.rows || reusedTables.has(table.table)) continue;
+        const transfer = maintenanceTransfer.getStore();
+        const responseRemaining =
+          transfer?.host === source.PGHOST && transfer
+            ? transfer.byteLimit - transfer.payloadBytes
+            : reservedBytes - planBytes;
         const remaining = Math.min(
           metadataAllowance - planBytes,
-          reservedBytes - 2_000_000 - planBytes,
+          reservedBytes - planBytes - backupProtocolHeadroomBytes,
+          responseRemaining - backupProtocolHeadroomBytes,
         );
         if (remaining <= 0) break;
         const localLimit = backupFingerprintResponseLimit(remaining);
