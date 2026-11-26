@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { fixtureListing, fixturePolicy } from "./fixtures/listing-observation-delivery-fixture.mts";
 import {
   advanceArtworkCheckpoint,
   coverDeclarationScope,
   readArtworkCheckpoint,
 } from "./listing-artwork-checkpoint.mts";
 import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
+import { projectListingDelivery } from "./listing-observation-delivery.mts";
 
 const artwork = {
   game_id: 100,
@@ -337,4 +339,64 @@ void test("the appointed report archive admits an exact cover receipt and skips 
     read(createAuditZip(siblings.filter(([name]) => name !== "cover-artwork-health.json"))),
     /omitted referenced observation/u,
   );
+});
+
+void test("compact projection retains release activity through exact cover withdrawal, renewal and restoration", () => {
+  const row = { ...fixtureListing, artwork };
+  const canonical = { format_version: 15, listings: [row] };
+  const observed = {
+    ...gone,
+    id: row.id,
+    scope: coverDeclarationScope(row, artwork),
+  };
+  const original = projectListingDelivery(canonical, [fixturePolicy(row).listing_update], null);
+  const read = (bytes: Buffer) => {
+    const decoded = JSON.parse(bytes.toString("utf8")) as {
+      directory: { listings: Record<string, unknown>[] };
+    };
+    const projected = decoded.directory.listings[0];
+    assert.ok(projected);
+    return projected;
+  };
+  const activity = read(original.bytes).upstream_observation;
+  assert.ok(activity);
+  const withdraw = advanceArtworkCheckpoint(null, [observed]);
+  const removed = projectListingDelivery(canonical, [], original.bytes, {
+    coverCheckpoint: withdraw,
+  });
+  assert.equal(removed.revision, original.revision + 1);
+  assert.equal(read(removed.bytes).artwork, undefined);
+  assert.deepEqual(read(removed.bytes).upstream_observation, activity);
+  const checkpoint = withdraw.finish(removed.bytes);
+  assert.ok(checkpoint);
+
+  const prior = { bytes: checkpoint, listing: removed.bytes };
+  const renew = advanceArtworkCheckpoint(prior, []);
+  const unchanged = projectListingDelivery(canonical, [], removed.bytes, {
+    coverCheckpoint: renew,
+  });
+  assert.equal(unchanged.changed, false);
+  assert.deepEqual(unchanged.bytes, removed.bytes);
+  assert.deepEqual(renew.finish(unchanged.bytes), checkpoint);
+
+  const restore = advanceArtworkCheckpoint(prior, [
+    { ...observed, status: "verified_accepted_bytes", observed_at: newerAt },
+  ]);
+  const restored = projectListingDelivery(canonical, [], removed.bytes, {
+    coverCheckpoint: restore,
+  });
+  assert.equal(restored.revision, removed.revision + 1);
+  assert.deepEqual(read(restored.bytes).artwork, artwork);
+  assert.deepEqual(read(restored.bytes).upstream_observation, activity);
+
+  const changed = projectListingDelivery(
+    {
+      ...canonical,
+      listings: [{ ...row, release_url: "https://github.com/owner/replacement/releases" }],
+    },
+    [],
+    removed.bytes,
+    { coverCheckpoint: renew },
+  );
+  assert.equal(read(changed.bytes).upstream_observation, undefined);
 });

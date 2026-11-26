@@ -99,6 +99,32 @@ export function readArtworkCheckpoint(bytes: Buffer, listing: Buffer): Checkpoin
   };
 }
 
+function applyCoverState(
+  entries: ReadonlyMap<string, Row>,
+  listing: Record<string, unknown>,
+  declaration: Record<string, unknown>,
+) {
+  if (typeof listing.id !== "string") return listing;
+  const gone = (artwork: { image_id: string; image_sha256: string }) =>
+    entries.get(
+      key({
+        id: String(listing.id),
+        scope: coverDeclarationScope(declaration, artwork),
+        image_id: artwork.image_id,
+        prior_sha256: artwork.image_sha256,
+      }),
+    )?.state === "gone";
+  const result = { ...listing };
+  if (validArtworkMapping(listing.artwork) && gone(listing.artwork)) {
+    delete result.artwork;
+  } else if (validArtworkCollection(listing.collection_covers)) {
+    const remaining = listing.collection_covers.filter((artwork) => !gone(artwork));
+    if (remaining.length) result.collection_covers = remaining;
+    else delete result.collection_covers;
+  }
+  return result;
+}
+
 /** Only the compiler-authenticated publisher input supplies prior. A mismatch,
  * unavailable window or expired artifact supplies no transition.
  */
@@ -107,7 +133,8 @@ export function advanceArtworkCheckpoint(
   observations: ReturnType<typeof applicableCoverHealth>,
 ) {
   const held = prior ? readArtworkCheckpoint(prior.bytes, prior.listing) : null;
-  const entries = new Map(held?.entries.map((row) => [key(row), row]));
+  const previousEntries = new Map(held?.entries.map((row) => [key(row), row]));
+  const entries = new Map(previousEntries);
   const reserved = (row: Row) =>
     Buffer.byteLength(JSON.stringify({ ...row, state: "restored" })) + 1;
   let reservation =
@@ -160,25 +187,10 @@ export function advanceArtworkCheckpoint(
   return {
     deferred: deferred.size,
     apply(listing: Record<string, unknown>, declaration = listing) {
-      if (typeof listing.id !== "string") return listing;
-      const gone = (artwork: { image_id: string; image_sha256: string }) =>
-        entries.get(
-          key({
-            id: String(listing.id),
-            scope: coverDeclarationScope(declaration, artwork),
-            image_id: artwork.image_id,
-            prior_sha256: artwork.image_sha256,
-          }),
-        )?.state === "gone";
-      const result = { ...listing };
-      if (validArtworkMapping(listing.artwork) && gone(listing.artwork)) {
-        delete result.artwork;
-      } else if (validArtworkCollection(listing.collection_covers)) {
-        const remaining = listing.collection_covers.filter((artwork) => !gone(artwork));
-        if (remaining.length) result.collection_covers = remaining;
-        else delete result.collection_covers;
-      }
-      return result;
+      return applyCoverState(entries, listing, declaration);
+    },
+    applyPrevious(listing: Record<string, unknown>, declaration = listing) {
+      return applyCoverState(previousEntries, listing, declaration);
     },
     finish(listing: Buffer) {
       if (!sorted.length) return null;

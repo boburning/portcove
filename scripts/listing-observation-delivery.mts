@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import { parseCatalogSource, typedIgdbScene } from "./catalog-authoring.mts";
+import type { advanceArtworkCheckpoint } from "./listing-artwork-checkpoint.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { compatibleGithubListingAssetUrl, observationHash } from "./upstream-observer.mts";
 import {
@@ -304,6 +305,8 @@ export function projectListingDelivery(
     withdrawals?: readonly string[];
     /** A tighter decoded bound (tests); never above the compact decoded maximum. */
     byteLimit?: number;
+    /** Exact cover decisions for this generation and its authenticated predecessor. */
+    coverCheckpoint?: ReturnType<typeof advanceArtworkCheckpoint>;
   } = {},
 ) {
   const {
@@ -312,6 +315,7 @@ export function projectListingDelivery(
     now = Date.now(),
     withdrawals = [],
     byteLimit = compactListingDecodedMaximum,
+    coverCheckpoint,
   } = options;
   const raw = directory(canonical);
   const previousDocument = previous
@@ -372,7 +376,8 @@ export function projectListingDelivery(
   const listings = baseline.listings
     .filter((listing) => !withdrawalSet.has(String(listing.id)))
     .map((listing) => {
-      const result = structuredClone(listing);
+      const declaration = declarations.get(listing.id)!;
+      const result = structuredClone(coverCheckpoint?.apply(listing, declaration) ?? listing);
       const old = previousListings.get(listing.id);
       let comparable = listing;
       // Pre-format-13 signed rows could not carry typed scenes.
@@ -389,6 +394,9 @@ export function projectListingDelivery(
         if (media.length > 0) comparable.media = media;
         else delete comparable.media;
       }
+      // Compare the prior signed declaration under its own cover decisions.
+      // Artwork withdrawal/restoration does not invalidate release observations.
+      if (coverCheckpoint) comparable = coverCheckpoint.applyPrevious(comparable, declaration);
       const prior =
         old &&
         listingDeclarationHash(old) === listingDeclarationHash(comparable) &&
