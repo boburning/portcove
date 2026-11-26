@@ -40,6 +40,8 @@ export function listingDeclarationHash(listing: Record<string, unknown>) {
   delete declaration.funding_urls;
   // Technique and dependency explanations do not change the observed release scope.
   delete declaration.implementation;
+  // Mod community navigation is independent of release identity and coverage.
+  delete declaration.mod_portals;
   return observationHash(declaration);
 }
 /** At most this many assets of one release are observed. */

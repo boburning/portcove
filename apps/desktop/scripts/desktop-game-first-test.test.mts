@@ -966,9 +966,15 @@ async function productionWorkspace() {
   assert.ok(isRecord(listings) && Array.isArray(listings.listings));
   const ports: unknown[] = catalog.ports;
   const directory: unknown[] = listings.listings;
+  // This native-verifier fixture exercises its exact reviewed audit cohort.
+  // Current-catalog browser projection has a separate full-universe assertion.
+  const { expected } = await readGameFirstRelationships();
+  const audited = new Set(expected.audited_port_ids);
   return {
-    catalog: { ports: ports.map(authoredDefinition) },
-    listing_catalog: { listings: directory.map(authoredListing) },
+    catalog: { ports: ports.map(authoredDefinition).filter(({ id }) => audited.has(id)) },
+    listing_catalog: {
+      listings: directory.map(authoredListing).filter(({ id }) => audited.has(id)),
+    },
   };
 }
 

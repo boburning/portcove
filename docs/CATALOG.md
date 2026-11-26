@@ -489,6 +489,27 @@ upstream itself publishes and holds a package only for concrete reasons.
   policy; the re-review is recorded in its owning issue or a dated evidence
   record, and the policy itself lifts no hold.
 
+### Listing mod websites
+
+A port record can declare up to eight reviewed links in `listing.mod_portals`.
+Each link has an exact source ID, site family, display name, URL and brief
+instructions. The supported site families are `nexus_mods`, `mod_db`, `mod_io`
+and `community_site`. Attribute the link to the exact implementation before
+acceptance. The URL must be canonical HTTPS on a public DNS host. Provider
+site families use the fixed host for that provider.
+
+The link appears in the Mods view for a listing even if no game is installed
+or its platform is unknown. These links grant browser navigation only.
+Operational definitions retain authority over provider browsing and installation
+actions. An operational source ID takes precedence over a matching listing link.
+
+The authoring generator selects directory format 16 only when a listing
+declares a link. The signed compact publication path requires a declared live
+reader floor and a released reader that advertises format 16. Live delivery
+stays on format 15 until that successor floor is set. Compatibility exports
+below format 16 omit the links. A later format-16 snapshot can update or
+withdraw a link without changing the game package or installation.
+
 ### Acquisition restrictions
 
 Both carriers express a restriction as the same typed decision, which Core's
