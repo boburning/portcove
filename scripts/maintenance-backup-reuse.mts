@@ -179,9 +179,33 @@ interface BackupReuseOptions {
   reuseRecent?: boolean;
 }
 
+function validateRecoveryDestinations({
+  prefixDatabase,
+  target,
+  output,
+}: Omit<BackupReuseOptions, "reservedBytes">) {
+  if (existsSync(output)) throw new MaintenanceStoreError("Backup destination already exists");
+  for (const environment of [prefixDatabase, target]) {
+    if (environment.PGHOST?.startsWith("/") !== true)
+      throw new MaintenanceStoreError("Recovery scratch databases must use a local Unix socket");
+    if (environment.PGOPTIONS || environment.PGSERVICE)
+      throw new MaintenanceStoreError(
+        "Recovery scratch databases must use a direct local connection",
+      );
+  }
+  if (
+    prefixDatabase.PGHOST === target.PGHOST &&
+    prefixDatabase.PGPORT === target.PGPORT &&
+    prefixDatabase.PGDATABASE === target.PGDATABASE
+  )
+    throw new MaintenanceStoreError("Recovery scratch databases must be distinct");
+}
+
 /** A retry may reuse only a seed restored by this invocation into its own
  * scratch database. No caller-provided manifest or remote cache is trusted. */
 export function createBackupRecovery(options: Omit<BackupReuseOptions, "reservedBytes">) {
+  // Refuse a known local setup error before the caller acquires provider capacity.
+  validateRecoveryDestinations(options);
   let seed:
     | {
         base: ReturnType<typeof readBackupManifest> | undefined;
@@ -210,7 +234,7 @@ export async function retryBackupAdmission<T>(admit: (reservationBytes?: number)
   }
 }
 
-export function backupReusingHistory({ reservedBytes, ...options }: BackupReuseOptions) {
+export async function backupReusingHistory({ reservedBytes, ...options }: BackupReuseOptions) {
   return createBackupRecovery(options)(reservedBytes);
 }
 
@@ -222,21 +246,8 @@ async function backupPrepared(
   },
 ) {
   const { source, prefixDatabase, target, previous, output, reservedBytes } = options;
-  if (existsSync(output)) throw new MaintenanceStoreError("Backup destination already exists");
-  for (const environment of [prefixDatabase, target]) {
-    if (environment.PGHOST?.startsWith("/") !== true)
-      throw new MaintenanceStoreError("Recovery scratch databases must use a local Unix socket");
-    if (environment.PGOPTIONS || environment.PGSERVICE)
-      throw new MaintenanceStoreError(
-        "Recovery scratch databases must use a direct local connection",
-      );
-  }
-  if (
-    prefixDatabase.PGHOST === target.PGHOST &&
-    prefixDatabase.PGPORT === target.PGPORT &&
-    prefixDatabase.PGDATABASE === target.PGDATABASE
-  )
-    throw new MaintenanceStoreError("Recovery scratch databases must be distinct");
+  // A destination can appear while admission is pending or between attempts.
+  validateRecoveryDestinations(options);
   const status = migrationStatus(source);
   if (status.problems.length || status.pending.length || !status.schema_version)
     throw new MaintenanceStoreError("Back up only a store migrated to this checkout's schema");

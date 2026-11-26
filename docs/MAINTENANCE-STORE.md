@@ -1629,7 +1629,9 @@ There is no separately committed recovery time. The independent restore job
 retains its existing 20-minute job budget and records actual restore duration.
 
 The newest retained backup with matching independent restore evidence seeds the
-next export. A manual recovery request can reuse a verified backup under 20 hours
+next export. Recovery checks the output path and scratch connection settings
+before requesting provider admission and again when each attempt starts.
+A manual recovery request can reuse a verified backup under 20 hours
 old after matching protected table digests and sequence values. PostgreSQL compares ordered content hashes and row counts for the
 retained prefix of each large append-only table under one exported snapshot.
 When a prefix matches, only newer rows cross the network. A mismatch requires
