@@ -1382,6 +1382,32 @@ void test("a completed operation re-opens only when its wake condition holds", (
     },
   ]).model;
   assert.equal(completed.operations.at(-1)!.state, "completed");
+  const repeatedCompletion = {
+    event_id: "repeat-completion",
+    type: "complete",
+    operation_id: op,
+    holder: "job",
+    now: 3,
+    receipt,
+    fence,
+    cleared_sequence: 2,
+  } as const;
+  for (const stale of [
+    { ...fence, sequence: fence.sequence + 1 },
+    { ...fence, assessment_id: fence.assessment_id + 1 },
+    { ...fence, source_generation: `${fence.source_generation}-other` },
+    { ...fence, policy_generation: `${fence.policy_generation}-other` },
+  ]) {
+    assert.deepEqual(
+      applyHandoffEvent(completed, { ...repeatedCompletion, fence: stale }, modelled),
+      { model: completed, outcome: "refused", reason: "stale-fence", effects: [] },
+    );
+  }
+  assert.equal(applyHandoffEvent(completed, repeatedCompletion, modelled).outcome, "unchanged");
+  assert.deepEqual(
+    applyHandoffEvent(completed, { ...repeatedCompletion, event_id: "done" }, modelled),
+    { model: completed, outcome: "duplicate", effects: [] },
+  );
   // A late replay of the deciding observation, or the clear itself, does not re-open it.
   for (const late of [observe(kind, fence), observe(kind, fenceAt(2), "clear", "clear")]) {
     assert.equal(handoffWakes(completed.operations[0]!, late), false);
