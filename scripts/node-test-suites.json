@@ -306,6 +306,14 @@
       "ordinary_families": ["release-contract-tests"]
     },
     {
+      "file": "scripts/catalog-definition-requirements.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3510],
+        ["release-check", 4310]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-body-window.test.mts",
       "memberships": [
         ["catalog-full-2", 3508],

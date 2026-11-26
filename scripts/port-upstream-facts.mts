@@ -29,6 +29,7 @@ interface FactResult {
 }
 export interface PortFactsOptions {
   projectUrl?: string | undefined;
+  expectedRepositoryId?: number | undefined;
   issue?: string | undefined;
   route?: "listing" | "download";
   releaseTag?: string | undefined;
@@ -41,6 +42,16 @@ export interface PortFactsOptions {
   token?: string | undefined;
   now?: () => number;
   fetcher?: typeof fetch;
+}
+
+export class BoundRepositoryUnavailable extends Error {
+  readonly reason: string;
+  readonly retryAfter: string | undefined;
+  constructor(reason: string, retryAfter?: string) {
+    super(`Public repository metadata unavailable: ${reason}.`);
+    this.reason = reason;
+    this.retryAfter = retryAfter;
+  }
 }
 
 function checkedPublicUrl(value: string) {
@@ -131,6 +142,9 @@ function readCache(file: string, endpoint: string): CachedFact | undefined {
 
 /** Small route-specific reads. No release history, tag resolution, README or package execution. */
 export async function collectPortFacts(options: PortFactsOptions) {
+  const expectedId = options.expectedRepositoryId;
+  if (expectedId !== undefined && (!Number.isSafeInteger(expectedId) || expectedId <= 0))
+    throw new Error("Expected repository ID must be a positive GitHub repository ID.");
   if (options.releaseUrl !== undefined && options.resolveReleaseUrl)
     throw new Error(
       "Select either an explicit release provider or its canonical identity resolver.",
@@ -185,12 +199,14 @@ export async function collectPortFacts(options: PortFactsOptions) {
     lstatSync(options.cacheDirectory).isSymbolicLink()
   )
     throw new Error("Preparation cache must be a real directory.");
-  const read = async (endpoint: string, hours = 1): Promise<FactResult> => {
+  const read = async (endpoint: string, hours = 1, reuseCached = true): Promise<FactResult> => {
     const url = new URL(endpoint, "https://api.github.com/");
     if (url.origin !== "https://api.github.com") throw new Error("Unexpected facts provider.");
-    const file = join(options.cacheDirectory, `${observationHash(url.href)}.json`);
+    const pathHash = observationHash(url.href);
+    const cacheHash = expectedId === undefined ? pathHash : observationHash([expectedId, url.href]);
+    const file = join(options.cacheDirectory, `${cacheHash}.json`);
     const cached = readCache(file, url.href);
-    const retryFile = `${file}.retry`;
+    const retryFile = join(options.cacheDirectory, `${pathHash}.json.retry`);
     let retainedRetry: string | undefined;
     try {
       const info = lstatSync(retryFile);
@@ -210,6 +226,7 @@ export async function collectPortFacts(options: PortFactsOptions) {
     }
     let result: FactResult;
     if (
+      reuseCached &&
       cached &&
       Date.parse(cached.observed_at) <= now() &&
       Date.parse(cached.fresh_until) > now()
@@ -363,9 +380,27 @@ export async function collectPortFacts(options: PortFactsOptions) {
   }
   if (!projectUrl) throw new Error("A project URL or canonical issue is required.");
   const repository = githubRepository(projectUrl);
-  const project = repository ? await read(`repos/${repository}`, 24) : undefined;
+  if (expectedId !== undefined && !repository)
+    throw new Error("A bound repository ID requires a GitHub repository URL.");
+  // A path cache cannot prove who owns a mutable repository name now.
+  const project = repository
+    ? await read(`repos/${repository}`, 24, expectedId === undefined)
+    : undefined;
   if (isRecord(project?.body) && project.body.private === true)
     throw new Error("Private repository metadata cannot establish a public catalog origin.");
+  if (expectedId !== undefined && project?.status === "unavailable")
+    throw new BoundRepositoryUnavailable(project.reason ?? "unobserved", project.retry_after);
+  if (
+    expectedId !== undefined &&
+    (!isRecord(project?.body) ||
+      project.body.private !== false ||
+      project.body.id !== expectedId ||
+      typeof project.body.full_name !== "string" ||
+      project.body.full_name.toLowerCase() !== repository?.toLowerCase())
+  )
+    throw new Error(
+      "Public repository metadata does not match the observed repository ID and location.",
+    );
   const releaseUrl =
     options.route === "download"
       ? options.resolveReleaseUrl
@@ -387,7 +422,7 @@ export async function collectPortFacts(options: PortFactsOptions) {
   const releaseProject = !releaseRepository
     ? undefined
     : relatedProvider
-      ? await read(`repos/${releaseRepository}`, 24)
+      ? await read(`repos/${releaseRepository}`, 24, expectedId === undefined)
       : project;
   if (
     relatedProvider &&
@@ -406,11 +441,15 @@ export async function collectPortFacts(options: PortFactsOptions) {
   const assets: unknown[] = [];
   let assetsComplete = false;
   if (options.route === "download" && releaseRepository) {
+    const releaseLocation =
+      expectedId === undefined
+        ? `repos/${releaseRepository}`
+        : `repositories/${relatedProvider && isRecord(releaseProject?.body) ? Number(releaseProject.body.id) : expectedId}`;
     if (options.releaseTag) {
       if (options.releaseTag.length > 255 || hasControl(options.releaseTag))
         throw new Error("Release tag is not bounded text.");
       release = await read(
-        `repos/${releaseRepository}/releases/tags/${encodeURIComponent(options.releaseTag)}`,
+        `${releaseLocation}/releases/tags/${encodeURIComponent(options.releaseTag)}`,
       );
       const value = release.body;
       if (isRecord(value) && (relatedProvider || typeof value.html_url === "string")) {
@@ -429,7 +468,7 @@ export async function collectPortFacts(options: PortFactsOptions) {
       ) {
         for (let page = 1; page <= 2; page++) {
           const fact = await read(
-            `repos/${releaseRepository}/releases/${Number(value.id)}/assets?per_page=100&page=${page}`,
+            `${releaseLocation}/releases/${Number(value.id)}/assets?per_page=100&page=${page}`,
           );
           if (!Array.isArray(fact.body)) break;
           const pageAssets: unknown[] = fact.body;
@@ -457,7 +496,7 @@ export async function collectPortFacts(options: PortFactsOptions) {
           }
         }
       }
-    } else candidates = await read(`repos/${releaseRepository}/releases?per_page=20&page=1`);
+    } else candidates = await read(`${releaseLocation}/releases?per_page=20&page=1`);
   }
   return {
     format_version: 1,

@@ -100,6 +100,7 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // Implementation explanations are directory-only too. Keep earlier strict
         // retained-listing readers compatible without changing their launch contract.
         listing.implementation = None;
+        listing.mod_portals.clear();
         listing.media.retain(|asset| !asset.is_typed_igdb_scene());
         crate::catalog::listings::strip_verified_sources(&mut listing);
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
@@ -166,6 +167,7 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
                 .iter()
                 .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
             || crate::catalog::listings::has_verified_source_editions(&retained.listing)
+            || !retained.listing.mod_portals.is_empty()
             || retained.listing.id != port_id
         {
             return Err(PortcoveError::verification(
@@ -4078,6 +4080,29 @@ mod tests {
                 .funding_urls
                 .is_none()
         );
+    }
+
+    #[test]
+    fn a_retained_selection_does_not_carry_current_mod_portals() {
+        let id = "mod-portal-project";
+        let links = serde_json::json!([{
+            "id":"community", "site":"community_site", "name":"Game mods",
+            "url":"https://mods.example.com/", "instructions":"Read the community instructions."
+        }]);
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":id, "name":"Mod portal project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream", "mod_portals":links.clone()
+        }))
+        .unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, id).unwrap();
+        assert!(!content.contains("mod_portals"), "{content}");
+        let retained = decode_external_catalog(&content, id).unwrap();
+        assert!(retained.listing(id).unwrap().mod_portals.is_empty());
+
+        let mut invalid: serde_json::Value = serde_json::from_str(&content).unwrap();
+        invalid["listing"]["mod_portals"] = links;
+        assert!(decode_external_catalog(&invalid.to_string(), id).is_err());
     }
 
     #[test]
