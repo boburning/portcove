@@ -393,6 +393,12 @@ compact carrier, and later previews read it too. The publisher states it as
 in each preparation report. It is raised when a later reader generation
 replaces the compact carrier.
 
+Format 16 adds descriptive mod website links. Authoring and local rehearsal
+can validate it before cutover. The live publisher holds format 15 until
+`liveListingReaderFloors` records the first supported released preview for
+format 16 and the official reader probe verifies the candidate format. Older
+compact readers keep their last accepted directory if they reject a successor.
+
 The legacy format-11 target `policy/official/catalog.listings.json` stays
 named in the official-policy role with its last signed pre-cutover bytes and
 never changes again. Those bytes are revision 49, SHA-256 `9a025755…`,

@@ -387,6 +387,8 @@ jobs:
           cargo build --locked -p portcove-cli
           mkdir -p "$WORK/cli"
           cp target/debug/portcove "$WORK/cli/portcove"
+          # Every inspection and reproduction shard downloads this copy.
+          strip --strip-debug "$WORK/cli/portcove"
       # Every listing the observer has accumulated: its checkpoint snapshot,
       # not one rotating run's handoff, so a source observed in any earlier
       # observer run reaches the worker.
