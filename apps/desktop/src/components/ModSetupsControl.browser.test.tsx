@@ -1995,6 +1995,8 @@ it("pauses after the in-flight recipe step and continues from its exact acquired
   await expect.element(page.getByRole("textbox", { name: "Name for the new setup" })).toBeVisible();
   expect(acquire).toHaveBeenCalledTimes(5);
   expect(acquire).toHaveBeenNthCalledWith(2, "shipwright", "default", steps[0]!.review, 7);
+  await page.getByRole("button", { name: "Close review" }).click();
+  await expect.element(page.getByText(/mods checked with the provider/)).not.toBeInTheDocument();
 });
 
 it("stops checking recipe mods at a failed step and keeps what was checked", async () => {

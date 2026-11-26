@@ -129,6 +129,7 @@ export function ModRecipeControl({
     focusOpenOnClose.current = reviewSection.current?.contains(document.activeElement) ?? false;
     showReview();
     setAllowCode(false);
+    setNotice(undefined);
   };
 
   const inspectRecipe = () =>
