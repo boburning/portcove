@@ -6,6 +6,7 @@ import {
 } from "./catalog-cover-mapping.mts";
 import type { applicableCoverHealth } from "./listing-artwork-observation.mts";
 import { orderedJsonSha256 } from "./json-values.mts";
+import { ListingPublicationStop } from "./listing-directory-carrier.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export const artworkCheckpointTarget = "policy/official/catalog.cover-checkpoint.json";
@@ -133,8 +134,12 @@ function applyCoverState(
   const id = listing.id;
   const gone = (artwork: { image_id: string; image_sha256: string }) => {
     const identity = { id, image_id: artwork.image_id, prior_sha256: artwork.image_sha256 };
-    const stable = entries.get(key({ ...identity, scope: coverDeclarationScope(declaration, artwork) }));
-    const legacy = entries.get(key({ ...identity, scope: legacyCoverDeclarationScope(declaration, artwork) }));
+    const stable = entries.get(
+      key({ ...identity, scope: coverDeclarationScope(declaration, artwork) }),
+    );
+    const legacy = entries.get(
+      key({ ...identity, scope: legacyCoverDeclarationScope(declaration, artwork) }),
+    );
     return newestCoverRow(stable, legacy)?.state === "gone";
   };
   const result = { ...listing };
@@ -205,34 +210,78 @@ export function advanceArtworkCheckpoint(
     for (const scope of legacyScopes.get(identity) ?? []) {
       previous = newestCoverRow(previous, entries.get(key({ ...row, scope })));
     }
-    if (
-      (!previous && row.state === "restored") ||
-      (previous && row.observed_at <= previous.observed_at)
-    )
-      continue;
-    if (!previous) {
-      const needed = reserved(row);
+    if (previous && row.observed_at <= previous.observed_at) continue;
+    // A verified Gone can establish a durable stable scope across a slug rename.
+    // Restore only under an existing wire identity that supplies the authority.
+    const scope = row.state === "restored" ? previous?.scope : row.scope;
+    if (!scope) continue;
+    const next = { ...row, scope };
+    const nextKey = key(next);
+    if (!entries.has(nextKey)) {
+      const needed = reserved(next);
       if (entries.size >= maxRows || reservation + needed > artworkCheckpointMax) {
         deferred.add(identity);
         continue;
       }
       reservation += needed;
     }
-    // A restoration updates the existing wire row that supplies its authority.
-    // A new scope cannot start in the restored state.
-    if (previous) {
-      entries.set(key(previous), { ...row, scope: previous.scope });
-    } else {
-      entries.set(identity, row);
-    }
+    entries.set(nextKey, next);
   }
   const sorted = [...entries.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([, row]) => row);
+  const imageIdentity = (id: string, image: string, bytes: string) => [id, image, bytes].join("/");
+  const unresolved = new Set(
+    sorted
+      .filter(({ state }) => state === "gone")
+      .map(({ id, image_id, prior_sha256 }) => imageIdentity(id, image_id, prior_sha256)),
+  );
+  const covers = (listing: Record<string, unknown> | undefined) =>
+    validArtworkMapping(listing?.artwork)
+      ? [listing.artwork]
+      : validArtworkCollection(listing?.collection_covers)
+        ? listing.collection_covers
+        : [];
   return {
     deferred: deferred.size,
     apply(listing: Record<string, unknown>, declaration = listing) {
       return applyCoverState(entries, listing, declaration);
+    },
+    assertHistoricalCoverVisibility(
+      listing: Record<string, unknown>,
+      declaration: Record<string, unknown>,
+      active: Record<string, unknown> | undefined,
+    ) {
+      if (!held || typeof listing.id !== "string" || !unresolved.size) return;
+      const id = listing.id;
+      const activeImages = new Set(
+        covers(active).map(({ image_id, image_sha256 }) =>
+          imageIdentity(id, image_id, image_sha256),
+        ),
+      );
+      for (const artwork of covers(listing)) {
+        const { image_id, image_sha256 } = artwork;
+        const image = imageIdentity(id, image_id, image_sha256);
+        if (!unresolved.has(image) || activeImages.has(image)) continue;
+        const identity = {
+          id,
+          image_id,
+          prior_sha256: image_sha256,
+          scope: coverDeclarationScope(declaration, artwork),
+        };
+        const stable = entries.get(key(identity));
+        const current = legacyCoverDeclarationScope(declaration, artwork);
+        let latest = newestCoverRow(stable, entries.get(key({ ...identity, scope: current })));
+        for (const scope of legacyScopes.get(key(identity)) ?? []) {
+          latest = newestCoverRow(latest, entries.get(key({ ...identity, scope })));
+        }
+        if (latest?.state === "restored") continue;
+        throw new ListingPublicationStop(
+          "cover_evidence_unavailable",
+          "A cover would reappear without an exact historical withdrawal preimage",
+          { listing_id: id, image_id },
+        );
+      }
     },
     finish(listing: Buffer) {
       if (!sorted.length) return null;

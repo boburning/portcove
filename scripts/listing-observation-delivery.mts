@@ -467,6 +467,7 @@ export function projectListingDelivery(
       if (defaultCover && !declaration.artwork && !declaration.collection_covers)
         result.artwork = defaultCover;
       const old = previousListings.get(listing.id);
+      coverCheckpoint?.assertHistoricalCoverVisibility(result, declaration, old);
       const prior =
         old &&
         releaseObservationListingHash(old) === releaseObservationListingHash(listing) &&
