@@ -49,8 +49,9 @@ async function openCreationReview(
   surface: ReactNode = (
     <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />
   ),
+  reviewedPlan = plan,
 ) {
-  const review = vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockResolvedValue(plan);
+  const review = vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockResolvedValue(reviewedPlan);
   await render(surface);
   const trigger = page.getByRole("button", { name: "Create recovery bundle", exact: true });
   await trigger.click();
@@ -62,6 +63,53 @@ async function openCreationReview(
   expect(review).toHaveBeenCalledExactlyOnceWith(destination, 7);
   return { dialog, trigger };
 }
+
+const longReview = {
+  ...plan,
+  source_root: `E:/${"Player data/Installed versions/Library exports/".repeat(10)}library`,
+};
+
+it.each([1280, 320])(
+  "keeps recovery actions in view beside scrollable details at %ipx",
+  async (width) => {
+    await page.viewport(width, 500);
+    const { dialog } = await openCreationReview(undefined, longReview);
+    const review = dialog.getByRole("region", { name: "Creation review" });
+    await expect.element(review.getByText(longReview.source_root)).toBeVisible();
+    const action = dialog.getByRole("button", { name: "Copy and verify" }).element();
+    const close = dialog.getByRole("button", { name: "Close", exact: true }).element();
+    const detailRegion = dialog.getByRole("region", { name: "Recovery details" });
+    const details = detailRegion.element() as HTMLElement;
+    expect(details.scrollHeight).toBeGreaterThan(details.clientHeight);
+    expect(details.scrollWidth).toBeLessThanOrEqual(details.clientWidth);
+    const detailsBottom = details.getBoundingClientRect().bottom;
+    const panelBottom = dialog.element().getBoundingClientRect().bottom;
+    expect(close.getBoundingClientRect().top).toBeGreaterThanOrEqual(detailsBottom);
+    expect(action.getBoundingClientRect().top).toBeGreaterThanOrEqual(detailsBottom);
+    expect(close.getBoundingClientRect().bottom).toBeLessThanOrEqual(panelBottom);
+    expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(panelBottom);
+    await page.screenshot({
+      path: `../../../../outputs/recovery-review/actions-${width}x500.png`,
+      element: dialog,
+    });
+    expect(details.tabIndex).toBe(0);
+    details.focus();
+    await expect.element(detailRegion).toHaveFocus();
+    await userEvent.keyboard("{PageDown}");
+    await expect.poll(() => details.scrollTop).toBeGreaterThan(0);
+    expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(500);
+  },
+);
+
+it("keeps recovery actions reachable through whole-dialog scrolling in a short window", async () => {
+  await page.viewport(320, 300);
+  const { dialog } = await openCreationReview(undefined, longReview);
+  const action = dialog.getByRole("button", { name: "Copy and verify" }).element();
+  const panel = dialog.element();
+  expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight);
+  action.scrollIntoView();
+  expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(300);
+});
 
 it("reviews coverage before copying and shows the verified bundle after publishing", async () => {
   const create = vi.spyOn(desktopApi, "createLibraryRecoveryBundle").mockResolvedValue(bundle);
@@ -143,6 +191,7 @@ it.each([
 );
 
 it("waits for the copy worker to stop and offers continuation from its exact staging folder", async () => {
+  await page.viewport(320, 500);
   const staging = "D:/backups/.portcove-recovery-bundle-stage";
   let stopCopy!: () => void;
   const pending = new Promise<LibraryRecoveryBundle>((_resolve, reject) => {
@@ -207,6 +256,8 @@ it("waits for the copy worker to stop and offers continuation from its exact sta
       .toBeVisible();
     await page.getByRole("button", { name: "View recovery bundle operation", exact: true }).click();
     const cancelButton = dialog.getByRole("button", { name: "Cancel copy", exact: true });
+    await expect.element(cancelButton).toBeVisible();
+    expect(cancelButton.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(500);
     await cancelButton.click();
     expect(cancel).toHaveBeenCalledExactlyOnceWith("copy-operation");
     await expect.element(cancelButton).toBeDisabled();
