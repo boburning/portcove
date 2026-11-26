@@ -3664,9 +3664,10 @@ correcting or removing a source is a catalog change. Each entry has:
 - `authority`: the most the source may do. `link_out` opens the source page in
   the player's browser. `browse` also reads a bounded, attributed provider
   listing. `inspect` also downloads one exact file privately and reviews it.
-- `platforms`: a sorted, non-empty list of host platforms. Core offers a
-  source on a platform the integration manages, or one the matching listing
-  presents.
+- `platforms`: a sorted list of host platforms. Core offers a scoped source
+  on a platform the integration manages or the matching listing presents.
+  For a platform-independent `external_portal` website, use an empty list.
+  Its link is available even when the host or port platform is unknown.
 - `name` and `instructions`: the player-facing site or collection name and a
   setup guide for files from this source. Follow
   [content design](CONTENT-DESIGN.md). GitHub release sources omit both.

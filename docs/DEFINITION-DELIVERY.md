@@ -2494,6 +2494,9 @@ Readers check compatibility per definition:
   upgrades.
 - A reader with the feature refuses a definition whose source has an unknown
   kind, authority or field. A new kind or authority needs a new feature name.
+- A source with an empty `platforms` list must be an external website and
+  also name `mods.platform-independent-portals-v1` in the definition's
+  required features. Older clients keep their current definition for that port.
 - Definitions without `mod_sources` keep their existing schema and remain
   readable by older clients.
 

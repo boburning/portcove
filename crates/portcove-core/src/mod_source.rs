@@ -125,6 +125,10 @@ impl ModSource {
         }
     }
 
+    pub(crate) fn is_platform_independent_portal(&self) -> bool {
+        self.platforms.is_empty() && matches!(self.source, ModSourceKind::ExternalPortal { .. })
+    }
+
     pub(crate) fn offered_on(&self, platform: Platform) -> bool {
         self.platforms.contains(&platform)
     }
@@ -405,9 +409,13 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         if grants_install(source) {
             return Err(invalid(port, "a mod source cannot carry install authority"));
         }
-        if source.platforms.is_empty() || !source.platforms.windows(2).all(|pair| pair[0] < pair[1])
+        if (source.platforms.is_empty() && !source.is_platform_independent_portal())
+            || !source.platforms.windows(2).all(|pair| pair[0] < pair[1])
         {
-            return Err(invalid(port, "platforms must be a sorted, non-empty set"));
+            return Err(invalid(
+                port,
+                "platforms must be sorted and may be empty only for an external portal",
+            ));
         }
         let github = matches!(source.source, ModSourceKind::GithubRelease { .. });
         let described = match (&source.name, &source.instructions) {
