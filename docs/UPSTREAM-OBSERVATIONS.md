@@ -1456,6 +1456,11 @@ legacy producer can use the old cache during rollout. A missing or invalid
 checkpoint from an artifact-producing run stops the scan while that artifact
 is within retention. Confirmed expiry starts a fresh scan under the same
 budgets. Manual runs can read the checkpoint and only scheduled runs advance it.
+A rerun reuses its own previous successful attempt when available. A historical
+rerun stops if a newer schedule already advanced the checkpoint. The retained
+checkpoint uses the existing 8 MiB artifact receive budget. The scan preserves
+retained records at that bound. If a package result needs more space, it records
+the measured requirement and defers a new transfer until that result can fit.
 
 Each scheduled run has an
 asset budget of 160 packages that counts every attempt, a 40 GB byte budget
