@@ -252,7 +252,11 @@ void test("semantic review flags candidate relationships without assigning or me
     { game_id: "original-game", artwork_ids: ["42", "43"], port_ids: ["alpha", "beta"] },
   ]);
   assert.deepEqual(report.shared_artwork_different_games, [
-    { artwork_id: "42", game_ids: ["different-game", "original-game"], port_ids: ["alpha", "remake"] },
+    {
+      artwork_id: "42",
+      game_ids: ["different-game", "original-game"],
+      port_ids: ["alpha", "remake"],
+    },
   ]);
   assert.deepEqual(report.missing_authored_metadata.source_editions, [
     "beta",

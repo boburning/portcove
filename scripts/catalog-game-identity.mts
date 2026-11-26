@@ -134,7 +134,9 @@ export function catalogSemanticReview(records: readonly AuthoredPort[]) {
       (a, b) =>
         a.game_id.localeCompare(b.game_id, "en") || a.repository.localeCompare(b.repository, "en"),
     ),
-    same_game_different_artwork: gameArtwork.sort((a, b) => a.game_id.localeCompare(b.game_id, "en")),
+    same_game_different_artwork: gameArtwork.sort((a, b) =>
+      a.game_id.localeCompare(b.game_id, "en"),
+    ),
     shared_artwork_different_games: sharedArtwork.sort((a, b) =>
       a.artwork_id.localeCompare(b.artwork_id, "en"),
     ),
