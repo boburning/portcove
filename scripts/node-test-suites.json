@@ -709,7 +709,8 @@
       "memberships": [
         ["catalog-full-2", 5200],
         ["repository-tools-2", 800]
-      ]
+      ],
+      "ordinary_families": ["restriction-register-tests"]
     },
     {
       "file": "scripts/check-fallow-report.test.mts",
