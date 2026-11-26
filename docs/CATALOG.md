@@ -7562,7 +7562,7 @@ and `--discovery-preview-listed-date YYYY-MM-DD` from the verified preview's
 from that same scheduled Actions run as `FULL_GIT_REVISION`. For hosted
 replay, use `--discovery-scheduled-run RUN_ID/ATTEMPT` with
 `--validator-cli` and `--output-dir` in the clean checkout. The command
-uses the authenticated GitHub CLI with Actions read access. It reads the
+uses the standard GitHub credential with Actions read access. It reads the
 exact GitHub attempt and checks the successful discovery job, the receipt
 upload, the artifact digest and the handoff. It takes the source revision
 and patch digest directly from that verified receipt. An unrelated job

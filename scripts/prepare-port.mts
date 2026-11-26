@@ -2401,7 +2401,7 @@ async function main() {
     credentialsFile: values.get("--credentials-file"),
   };
   if (scheduledRun) {
-    const { handoff, ...stage } = verifyScheduledDiscoveryReplay(scheduledRun);
+    const { handoff, ...stage } = await verifyScheduledDiscoveryReplay(scheduledRun);
     printPreparationResult(
       await prepareDiscoveryListingAdditions({
         ...common,

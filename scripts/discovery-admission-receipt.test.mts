@@ -101,10 +101,9 @@ function fixture() {
     [artifactPath, artifacts],
   ]);
   const read = (path: string) => {
-    if (path === zipPath) return zip;
-    const response = responses.get(path);
+    const response = path === zipPath ? zip : responses.get(path);
     assert.ok(response, `unexpected fetch of ${path}`);
-    return Buffer.from(JSON.stringify(response));
+    return Promise.resolve(response);
   };
   return {
     read,
@@ -137,9 +136,9 @@ void test("seals only released-Core preparation from the scheduled source", () =
   );
 });
 
-void test("binds the exact scheduled job, artifact bytes and replay inputs despite an unrelated job failure", () => {
+void test("binds the exact scheduled job, artifact bytes and replay inputs despite an unrelated job failure", async () => {
   const { read } = fixture();
-  assert.deepEqual(verifyScheduledDiscoveryReplay(`${run}/${attempt}`, read), {
+  assert.deepEqual(await verifyScheduledDiscoveryReplay(`${run}/${attempt}`, read), {
     handoff,
     revision: sourceRevision,
     expectedPatchSha256: report.admission.sha256,
@@ -147,7 +146,7 @@ void test("binds the exact scheduled job, artifact bytes and replay inputs despi
   });
 });
 
-void test("refuses incomplete or mismatched origin and artifact evidence", () => {
+void test("refuses incomplete or mismatched origin and artifact evidence", async () => {
   const cases: [RegExp, (input: ReturnType<typeof fixture>) => void][] = [
     [/completed scheduled/u, ({ runRecord }) => (runRecord.event = "workflow_dispatch")],
     [/completed scheduled/u, ({ runRecord }) => (runRecord.head_repository.id = 1)],
@@ -182,6 +181,6 @@ void test("refuses incomplete or mismatched origin and artifact evidence", () =>
   for (const [expected, change] of cases) {
     const input = fixture();
     change(input);
-    assert.throws(() => verifyScheduledDiscoveryReplay(`${run}/${attempt}`, input.read), expected);
+    await assert.rejects(verifyScheduledDiscoveryReplay(`${run}/${attempt}`, input.read), expected);
   }
 });

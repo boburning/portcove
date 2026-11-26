@@ -1,7 +1,12 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { inflateRawSync } from "node:zlib";
+import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
+import {
+  downloadGitHubArtifactArchive,
+  observerCheckpointArchiveLimit,
+} from "./github-artifact-download.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import { createGitHubClient } from "./github-client.mts";
 import { orderedJsonSha256 } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -13,7 +18,6 @@ const preparationStep = "Prepare listing admission from scheduled discovery evid
 const uploadStep = "Retain scheduled listing admission replay receipt";
 const receiptFile = "listing-admission-replay.json";
 const receiptFormat = "portcove-scheduled-listing-admission-replay";
-const maximumReceiptBytes = 16 * 1024 * 1024;
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const gitSha = /^[a-f0-9]{40}$/u;
 const sha = /^[a-f0-9]{64}$/u;
@@ -62,24 +66,35 @@ export function scheduledDiscoveryReplayReceipt(
     handoff,
   };
   const bytes = Buffer.from(JSON.stringify(receipt));
-  if (bytes.length > maximumReceiptBytes)
+  if (bytes.length > observerCheckpointArchiveLimit)
     throw new Error("Scheduled discovery receipt exceeds its handoff byte bound.");
   return bytes;
 }
 
-// Only fixed GitHub REST paths and numeric IDs reach gh. Read the archive as
-// bytes so no downloaded filename or Git patch is ever applied.
-function githubApi(route: string, maxBuffer: number) {
-  return execFileSync(
-    "gh",
-    ["api", "--method", "GET", "--hostname", "github.com", "--allow-escape-sequences", route],
-    { timeout: 60_000, maxBuffer, windowsHide: true },
-  );
+async function githubReplayReader(paths: readonly string[]) {
+  const deadline = performance.now() + 120_000;
+  const credential = localDeveloperCredential({ deadline });
+  const client = await createGitHubClient({
+    credential,
+    deadline,
+    maxBytes: 4 * 1024 * 1024,
+    allowRequest: (method, url) =>
+      method === "GET" && paths.includes(`${url.pathname.slice(1)}${url.search}`),
+  });
+  return async (route: string): Promise<unknown> =>
+    paths.includes(route)
+      ? (await client.request({ method: "GET", url: `https://api.github.com/${route}` })).data
+      : downloadGitHubArtifactArchive(route, {
+          credential,
+          deadline,
+          maxBytes: observerCheckpointArchiveLimit,
+          bufferAllowance: "observer-checkpoint",
+        });
 }
 
-export function verifyScheduledDiscoveryReplay(
+export async function verifyScheduledDiscoveryReplay(
   locator: string,
-  read: (route: string, maximumBytes: number) => Buffer = githubApi,
+  read?: (route: string) => Promise<unknown>,
 ) {
   const parts = locator.split("/");
   if (parts.length !== 2) throw new Error("Use RUN_ID/ATTEMPT for scheduled discovery replay.");
@@ -87,8 +102,10 @@ export function verifyScheduledDiscoveryReplay(
   const attempt = positiveId(parts[1]);
   const base = `repos/${repository}/actions/runs/${run}`;
   const attemptPath = `${base}/attempts/${attempt}`;
-  const json = (route: string): unknown => readDocument(read(route, 4 * 1024 * 1024));
-  const source = json(attemptPath);
+  const artifactList = `${base}/artifacts?name=listing-admission-replay-${run}-${attempt}&per_page=100`;
+  const jobsPath = `${attemptPath}/jobs?per_page=100`;
+  const load = read ?? (await githubReplayReader([attemptPath, jobsPath, artifactList]));
+  const source = await load(attemptPath);
   if (
     !isRecord(source) ||
     source.id !== run ||
@@ -109,7 +126,7 @@ export function verifyScheduledDiscoveryReplay(
 
   // An unrelated job may fail after discovery succeeds. Require the one
   // discovery job and both successful steps within the exact attempt.
-  const jobs = json(`${attemptPath}/jobs?per_page=100`);
+  const jobs = await load(jobsPath);
   if (!isRecord(jobs) || !Array.isArray(jobs.jobs) || jobs.total_count !== jobs.jobs.length)
     throw new Error("Scheduled discovery job enumeration is incomplete.");
   const discovery = jobs.jobs.filter((job: unknown) => isRecord(job) && job.name === "discover");
@@ -132,7 +149,7 @@ export function verifyScheduledDiscoveryReplay(
     throw new Error("Expected a successful scheduled discovery preparation and receipt upload.");
 
   const name = `listing-admission-replay-${run}-${attempt}`;
-  const artifacts = json(`${base}/artifacts?name=${name}&per_page=100`);
+  const artifacts = await load(artifactList);
   if (!isRecord(artifacts) || artifacts.total_count !== 1 || !Array.isArray(artifacts.artifacts))
     throw new Error("Expected exactly one retained discovery replay artifact.");
   const artifact: unknown = artifacts.artifacts[0];
@@ -154,15 +171,15 @@ export function verifyScheduledDiscoveryReplay(
     artifact.workflow_run.head_sha !== source.head_sha
   )
     throw new Error("Discovery replay artifact metadata differs from the scheduled source.");
-  const archiveLimit = maximumReceiptBytes + 4096;
-  const archive = read(`repos/${repository}/actions/artifacts/${artifact.id}/zip`, archiveLimit);
-  if (`sha256:${sha256(archive)}` !== artifact.digest)
+  const archivePath = `repos/${repository}/actions/artifacts/${artifact.id}/zip`;
+  const archive = await load(archivePath);
+  if (!Buffer.isBuffer(archive) || `sha256:${sha256(archive)}` !== artifact.digest)
     throw new Error("Discovery replay archive differs from the GitHub artifact digest.");
   const { entries } = inspectBoundedZip(
     archive,
     {
-      compressedBytes: archiveLimit,
-      expandedBytes: maximumReceiptBytes,
+      compressedBytes: observerCheckpointArchiveLimit,
+      expandedBytes: observerCheckpointArchiveLimit,
       files: 1,
       nameBytes: 64,
       allowedPaths: new Set([receiptFile]),
@@ -176,7 +193,8 @@ export function verifyScheduledDiscoveryReplay(
     entry.method === 0
       ? payload
       : inflateRawSync(payload, { maxOutputLength: Math.max(1, entry.bytes) });
-  if (bytes.length !== entry.bytes) throw new Error("Discovery replay receipt size differs.");
+  if (bytes.length !== entry.bytes || crc32(bytes) !== entry.crc)
+    throw new Error("Discovery replay receipt member integrity differs.");
   const receipt = readDocument(bytes);
   if (
     !isRecord(receipt) ||
