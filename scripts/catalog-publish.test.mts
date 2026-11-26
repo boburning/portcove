@@ -2076,7 +2076,8 @@ void test("format 17 projects a new repository-bound listing and preserves earli
   };
   const canonical = { format_version: 17, listings: [fixtureListing, admitted] };
   const candidate = fixturePolicy(admitted, { id: 890, name: "owner/new-port" }).listing_update;
-  const projected = projectListingDelivery(canonical, [candidate], prior, {
+  const reusedPath = fixturePolicy(admitted, { id: 891, name: "owner/new-port" }).listing_update;
+  const projected = projectListingDelivery(canonical, [reusedPath, candidate], prior, {
     compatible: canonical,
     now: 0,
   });
@@ -2099,11 +2100,29 @@ void test("format 17 projects a new repository-bound listing and preserves earli
   });
   assert.equal(newRow.artwork, undefined);
   assert.equal(newRow.mod_portals, undefined);
-  const replay = projectListingDelivery(canonical, [candidate], projected.bytes, {
+  const replay = projectListingDelivery(canonical, [reusedPath], projected.bytes, {
     compatible: canonical,
     now: 0,
   });
   assert.deepEqual(replay.bytes, projected.bytes);
+
+  const badPrior = structuredClone(decoded);
+  badPrior.directory.listings.find((row) => row.id === admitted.id)!.upstream_observation =
+    reusedPath.upstream_observation;
+  const repaired = projectListingDelivery(
+    canonical,
+    [reusedPath],
+    Buffer.from(JSON.stringify(badPrior)),
+    {
+      compatible: canonical,
+      now: 0,
+    },
+  );
+  assert.equal(repaired.delivered_records, 2);
+  assert.deepEqual(
+    decodedListingDelivery(repaired.bytes).directory.listings.find((row) => row.id === admitted.id),
+    admitted,
+  );
 });
 
 void test("complete format-13 compact snapshots keep authored scenes and format-12 explanations", async () => {
@@ -2399,6 +2418,35 @@ void test("completed source observations stay bound to current canonical provide
     completedListingCandidates(managedInput, { ports: [changedRelease] }, illustratedDirectory),
     [],
   );
+
+  const reusedPath = { ...fixtureListing, id: "github-891" };
+  const correctIdentity = { ...fixtureListing, id: "github-42" };
+  const matching = fixturePolicy(correctIdentity);
+  const mismatch = fixturePolicy(reusedPath);
+  const listings = [reusedPath, correctIdentity];
+  const gaps: string[] = [];
+  const reusedPathInput = {
+    ...input,
+    catalog: { ports: [], listings },
+    checkpoint: checkpoint({
+      [keyOf("owner/game")]: progress("owner/game", [], {
+        repository_id: 42,
+        last_complete_facts_sha256: matching.facts_sha256,
+        last_complete_policies: [mismatch, matching],
+      }),
+    }),
+  };
+  assert.deepEqual(
+    completedListingCandidates(
+      reusedPathInput,
+      { ports: [] },
+      { format_version: 17, listings },
+      Date.now(),
+      gaps,
+    ),
+    [matching.listing_update],
+  );
+  assert.deepEqual(gaps, ["github-891: observer result names a different GitHub repository ID"]);
 });
 
 void test("compact publication rebinds the exact decoded directory to its separate retained physical identity", async (t) => {
