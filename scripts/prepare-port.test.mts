@@ -1017,12 +1017,16 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     const handoff = { format: "portcove-discovery-listing-handoff", format_version: 1, candidates };
     const validatorCli = join(f.root, "fixture-cli");
     writeFileSync(validatorCli, "inert");
+    const spawn = childProcess.spawnSync;
     let refuse = false;
+    let scheduledReader = true;
     context.mock.method(
       childProcess,
       "spawnSync",
-      (_artifact: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
-        assert.deepEqual(Object.keys(options.env).sort(), ["HOME", "PATH", "TMPDIR"]);
+      (artifact: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
+        if (artifact === "git") return spawn(artifact, args, options);
+        if (scheduledReader)
+          assert.deepEqual(Object.keys(options.env).sort(), ["HOME", "PATH", "TMPDIR"]);
         if (refuse)
           return { status: 1, signal: null, stdout: "", stderr: "fixture refuses this format" };
         assert.deepEqual(args.slice(-3, -1), ["inspect-listings", "--path"]);
@@ -1187,6 +1191,69 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     );
     assert.equal(result.listing.original_game, undefined);
     assert.equal(result.integration, undefined);
+
+    refuse = false;
+    scheduledReader = false;
+    const repository = join(f.root, "replay");
+    const replayCatalog = join(repository, "crates", "portcove-core", "catalog");
+    mkdirSync(dirname(replayCatalog), { recursive: true });
+    cpSync(catalogRoot, replayCatalog, { recursive: true });
+    const git = (args: string[]) => runCheckedGit(args, { cwd: repository }).trim();
+    git(["init", "--quiet"]);
+    git(["add", "."]);
+    git([
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "commit",
+      "-qm",
+      "fixture",
+    ]);
+    const revision = git(["rev-parse", "HEAD"]);
+    const replay = {
+      ...options,
+      catalogRoot: replayCatalog,
+      acquireValidator: undefined,
+      validatorCli,
+      facts: { ...options.facts, now: () => Date.parse("2026-11-27T00:00:00Z") },
+    };
+    assert.equal(report.automatic_listed_date, "2026-11-26");
+    const stage = {
+      repository,
+      revision,
+      expectedPatchSha256: report.admission.sha256,
+      previewListedDate: report.automatic_listed_date,
+    };
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...replay,
+        outputDirectory: join(f.root, "unbound-replay"),
+        stage: { repository, revision },
+      }),
+      /requires the exact preview patch SHA-256/u,
+    );
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...replay,
+        outputDirectory: join(f.root, "changed-replay"),
+        handoff: { ...handoff, candidates: [candidates[0]] },
+        stage,
+      }),
+      /Rebuilt discovery patch differs/u,
+    );
+    assert.equal(git(["status", "--porcelain=v1"]), "");
+    const staged = await prepareDiscoveryListingAdditions({
+      ...replay,
+      outputDirectory: join(f.root, "matching-replay"),
+      stage,
+    });
+    assert.equal(staged.report.admission?.sha256, report.admission.sha256);
+    assert.equal(staged.report.staged_source_revision, revision);
+    assert.deepEqual(git(["diff", "--cached", "--name-status"]).split(/\r?\n/u), [
+      "A\tcrates/portcove-core/catalog/ports/github-80000.json",
+      "A\tcrates/portcove-core/catalog/ports/github-80005.json",
+    ]);
   } finally {
     context.mock.restoreAll();
     syncBuiltinESMExports();

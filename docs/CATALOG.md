@@ -7544,9 +7544,16 @@ be resolved separately. A source or
 handoff change requires reconsidering the approval. An unavailable selected
 repository leaves its own outcome for retry. Other selected additions can
 proceed. Add `--discovery-stage-source FULL_GIT_REVISION` to stage the approved
-additions directly in a clean checkout reserved for this operation. The command rechecks the revision and
-stages the same bytes it records in the receipt. Keep preparation outputs
-outside the checkout.
+additions directly in a clean checkout reserved for this operation. For
+automatic-scope staging, also pass `--discovery-expected-patch-sha256 SHA256`
+and `--discovery-preview-listed-date YYYY-MM-DD` from the verified preview's
+`admission.sha256` and `automatic_listed_date`. Use the exact source commit
+from that same scheduled Actions run as `FULL_GIT_REVISION`. Staging rebuilds
+the patch against that revision, rechecks the live upstream evidence and
+requires the same patch digest before it changes the index. The retained date
+keeps an otherwise identical replay stable after midnight UTC. If upstream
+facts or the selected candidates change, prepare a fresh preview. Keep
+preparation outputs outside the checkout.
 If preparation stops during staging, the checkpoint retains the exact patch
 and staging intent. Confirm that HEAD still matches the intent. Use
 `git apply --reverse --check --index PATCH` to confirm that the staged additions
