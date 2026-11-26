@@ -1464,6 +1464,15 @@ void test(
     assert.deepEqual(planned.loadLeadRecords("primary").records, authoritative.records);
     planned.finish(lease("6"), "complete", {});
 
+    const laterPass = planned.acquire(lease("14"), options);
+    assert.deepEqual(laterPass.state, state);
+    assert.ok(
+      (laterPass.received_bytes ?? 0) > 100_000,
+      "a later cold pass uses complete-read admission",
+    );
+    assert.deepEqual(planned.loadLeadRecords("primary").records, authoritative.records);
+    planned.finish(lease("14"), "complete", {});
+
     // Expiry after hint hydration must refuse the lead read, even without a
     // measured seed. The original owner cannot publish a stale continuation.
     const expiring = postgresDiscoveryStore(environment, 1024);

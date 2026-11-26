@@ -454,6 +454,9 @@ export function postgresDiscoveryStore(
   const active = new Map<string, { attempt: string; generation: number; token: string }>();
   if (plan && !seed) throw new MaintenanceStoreError("A measured discovery plan requires a seed");
   let pendingPlan = plan;
+  // A measured adapter uses its seed only for the pass admitted for that plan.
+  // Later passes can use the full-read allowance even if their warm fence moves.
+  const unplannedSeed = plan ? undefined : seed;
   const hydration = new Map<string, DiscoveryHydrationFence>();
   return {
     acquire(lease, options) {
@@ -488,10 +491,11 @@ export function postgresDiscoveryStore(
         let received = Buffer.byteLength(output);
         if (!grant.unchanged) {
           try {
-            const incremental = seed
+            const readSeed = planned ? seed : unplannedSeed;
+            const incremental = readSeed
               ? readSeededDiscoveryRows(
                   environment,
-                  seed,
+                  readSeed,
                   lease.scope,
                   "hints",
                   planned?.hintsBytes ?? pageBytes,
@@ -626,11 +630,12 @@ export function postgresDiscoveryStore(
           throw error;
         }
       };
+      const readSeed = measured ? seed : unplannedSeed;
       const incremental =
-        seed &&
+        readSeed &&
         readSeededDiscoveryRows(
           environment,
-          seed,
+          readSeed,
           scope,
           "leads",
           measured?.leadsBytes ?? pageBytes,

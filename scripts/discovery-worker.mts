@@ -1287,7 +1287,12 @@ export async function discoveryWorkerMain(argv: string[]) {
         discoveryPassReservation(acquireBytes, forecast.previous_transfer_bytes, commits)
         ? measuredPlan
         : undefined;
-    const store = postgresDiscoveryStore(environment, undefined, seed, selectedPlan);
+    const store = postgresDiscoveryStore(
+      environment,
+      undefined,
+      selectedPlan ? seed : undefined,
+      selectedPlan,
+    );
     const covered = (() => {
       let cache: Set<string> | undefined;
       return () => (cache ??= catalogCoveredHints());
