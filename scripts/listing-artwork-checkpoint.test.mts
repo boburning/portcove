@@ -58,6 +58,41 @@ const gone = {
   observed_at: observedAt,
 };
 
+void test("publisher scope vector matches the Rust signer for compatible edition identity", () => {
+  const row = {
+    id: "mortal-kombat-4-recompiled",
+    project_url: "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp",
+    original_game_title: "Mortal Kombat 4 \u2014 \u65e5\u672c",
+    original_game: {
+      format_version: 1,
+      id: "mortal-kombat-4",
+      evidence_urls: ["https://www.igdb.com/games/mortal-kombat-4"],
+      source_editions: [
+        {
+          id: "mortal-kombat-4-playstation",
+          title: "Mortal Kombat 4 (PlayStation)",
+          system: "playstation",
+          evidence_urls: ["https://example.com/edition"],
+        },
+      ],
+    },
+  };
+  const cover = {
+    cover_id: 237769,
+    game_id: 1622,
+    game_slug: "mortal-kombat-4",
+    image_id: "co53gp",
+    image_sha256: "a".repeat(64),
+    match_kind: "underlying-game",
+  };
+  const digest = "c25dff06c9522577cf534aad11c8e61d9f3f52954ec665f3075f2326cbdc3a2a";
+  assert.equal(coverDeclarationScope(row, cover), digest);
+  assert.equal(
+    coverDeclarationScope(row, { ...cover, game_slug: "mortal-kombat-4-renamed" }),
+    digest,
+  );
+  assert.notEqual(coverDeclarationScope(row, { ...cover, match_kind: "port" }), digest);
+});
 void test("exact scoped withdrawal survives a quiet renewal and only later accepted bytes restore it", () => {
   const initial = advanceArtworkCheckpoint(null, [gone]);
   const stripped = initial.apply(listing);

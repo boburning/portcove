@@ -216,8 +216,8 @@ pub(super) fn cover_approval_packets(journal: &serde_json::Value) -> Result<&[se
 }
 
 // Matches coverDeclarationScope in scripts/listing-artwork-checkpoint.mts.
-// Both inputs are the actual assembled compatible listing shape. Explicitly
-// sort nested objects before hashing, including when serde_json preserves order.
+// Provider slugs can change without changing the reviewed cover identity.
+// Sort the assembled original-game identity even when serde_json preserves order.
 fn cover_approval_scope(
     listing: &serde_json::Value,
     artwork: &serde_json::Value,
@@ -232,7 +232,13 @@ fn cover_approval_scope(
         } else {
             "single"
         },
-        artwork,
+        [
+            &artwork["game_id"],
+            &artwork["cover_id"],
+            &artwork["image_id"],
+            &artwork["image_sha256"],
+            &artwork["match_kind"],
+        ],
     ]);
     scope.sort_all_objects();
     Ok(sha(&serde_json::to_vec(&scope)?))
@@ -592,9 +598,14 @@ mod tests {
             "cover_id": 237769, "game_id": 1622, "game_slug": "mortal-kombat-4",
             "image_id": "co53gp", "image_sha256": "a".repeat(64), "match_kind": "underlying-game",
         });
-        assert_eq!(
-            cover_approval_scope(&listing, &artwork).unwrap(),
-            "2f814ad1c3629bd5b9aa0a7b1a6d2abe83d22f1e088d9392f31a718702cf3287"
-        );
+        let expected = "c25dff06c9522577cf534aad11c8e61d9f3f52954ec665f3075f2326cbdc3a2a";
+        assert_eq!(cover_approval_scope(&listing, &artwork).unwrap(), expected);
+
+        let mut renamed = artwork;
+        renamed["game_slug"] = json!("mortal-kombat-4-renamed");
+        assert_eq!(cover_approval_scope(&listing, &renamed).unwrap(), expected);
+
+        renamed["match_kind"] = json!("port");
+        assert_ne!(cover_approval_scope(&listing, &renamed).unwrap(), expected);
     }
 }
