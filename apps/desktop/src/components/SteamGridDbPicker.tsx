@@ -51,7 +51,7 @@ const roleAspect: Record<SteamGridDbArtworkRole, string> = {
   logo: "aspect-[3/2]",
 };
 
-export function steamGridDbRole(slot: ArtworkSlot): SteamGridDbArtworkRole {
+function steamGridDbRole(slot: ArtworkSlot): SteamGridDbArtworkRole {
   return slotRoles[slot];
 }
 

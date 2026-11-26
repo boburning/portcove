@@ -56,7 +56,6 @@ export type ArtworkFraming = NonNullable<ArtworkState["choice"]["framing"]>;
 export type ArtworkSelectionFraming = Requests.TransportInputs["desktop_artwork_selection_framing"];
 export type ArtworkSelectionPreview =
   Generated.TransportOutputs["desktop_artwork_selection_preview"];
-export type ArtworkAttribution = ArtworkState["attribution"][number];
 export type SteamGridDbKeyStatus = Generated.TransportOutputs["steamgriddb_key_status"];
 export type SteamGridDbListingReport = Generated.TransportOutputs["steamgriddb_listing_report"];
 export type SteamGridDbGame = Generated.TransportOutputs["steamgriddb_games"][number];
@@ -106,7 +105,6 @@ export type QuaddictedCatalog = Generated.TransportOutputs["quaddicted_catalog"]
 export type ModDbFileNotices = Generated.TransportOutputs["moddb_file_notices"];
 export type JakModsCatalog = Generated.TransportOutputs["jakmods_catalog"];
 export type ProviderCatalog = Generated.TransportOutputs["provider_catalog"];
-export type ProviderBrowsePage = Generated.TransportOutputs["provider_browse_page"];
 export type ProviderProjectView = Generated.TransportOutputs["provider_project_view"];
 export type ProviderInstallPlan = Generated.TransportOutputs["provider_install_plan"];
 export type ModCodeReview = Generated.TransportOutputs["mod_code_review"];
