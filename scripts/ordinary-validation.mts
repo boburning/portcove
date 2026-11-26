@@ -1652,6 +1652,10 @@ for (const [file, tests] of [
     ],
   ],
   [
+    "scripts/fixtures/discovery-windows-sharing.mts",
+    ["scripts/daily-discovery.test.mts", "scripts/fixture-module-closure.test.mts"],
+  ],
+  [
     "scripts/fixtures/module-closure.mts",
     [
       "scripts/desktop-boundary-wiring.test.mts",
