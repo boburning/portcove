@@ -1151,9 +1151,14 @@ void test("the existing Pages readback emits the receipt only after matching liv
     /\[ "\$actual" = "\$expected" \][^\n]+\[ "\$sample_actual" = "\$sample_expected" \] && \[ "\$history_verified" = true \]; then\s+echo [^\n]+\s+if node scripts\/catalog-publication-receipt\.mts/u,
   );
   assert.equal(readback.match(/receipt=true/gu)?.length, 1);
+  assert.match(readback, /report\.cover_approvals \? "true" : "false"/u);
   assert.match(
     readback,
-    /receipt=true[^\n]+\n\s+else\s+echo "::warning::Catalog publication succeeded/u,
+    /if \[ "\$require_approval_receipt" = true \]; then\n\s+echo "::error::Pages did not serve the exact signed cover approval receipt[^]*?\n\s+exit 1/u,
+  );
+  assert.match(
+    readback,
+    /receipt=true[^\n]+\n\s+exit 0\n\s+fi\n\s+echo "::warning::Catalog publication succeeded/u,
   );
   const upload = steps[index + 1]!;
   assert.equal(upload.if, "steps.readback.outputs.receipt == 'true'");
