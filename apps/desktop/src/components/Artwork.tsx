@@ -446,7 +446,10 @@ function ArtworkSlotControl({
   const hideButton = useRef<HTMLButtonElement>(null);
   const returnFocus = useRef<{
     target: HTMLButtonElement | null;
-    cache: typeof cache;
+    from: Element | null;
+    generation: number | undefined;
+    portId: string;
+    originalGameId: string | undefined;
   } | null>(null);
   const originalGameId = port.presentation?.original_game?.id;
   const currentIdentity = useRef({ cache, portId: port.id, originalGameId, slot });
@@ -463,19 +466,58 @@ function ArtworkSlotControl({
     if (visibilityReview) visibilityHeading.current?.focus();
   }, [visibilityReview]);
   useEffect(() => {
-    if (pending || !returnFocus.current || !isCurrentOpening()) return;
-    const { target, cache: owner } = returnFocus.current;
-    returnFocus.current = null;
+    const request = returnFocus.current;
+    if (!request || pending) return;
     const panel = slotPanel.current;
-    if (!panel || currentIdentity.current.cache !== owner || panel.closest("[hidden], [inert]"))
+    const focused = document.activeElement;
+    if (
+      !isCurrentOpening() ||
+      !active ||
+      !panel ||
+      panel.closest("[hidden], [inert]") ||
+      request.generation !== cache?.generation ||
+      request.portId !== port.id ||
+      request.originalGameId !== originalGameId ||
+      (focused !== null &&
+        focused !== document.body &&
+        (focused !== request.from || !panel.contains(focused)))
+    ) {
+      returnFocus.current = null;
       return;
+    }
+    const available = (control: HTMLButtonElement | null) =>
+      control?.isConnected && !control.disabled && !control.closest("[hidden], [inert]");
+    const primary = [request.target, pickerButton.current].find(available);
+    // A same-library cache can change while the committed choice is being read.
+    // Keep the request until the current role's action becomes available.
+    if (!primary && (display.loading || (!display.state && !display.error))) return;
     const focus =
-      [target, pickerButton.current, refreshButton.current].find(
-        (control) =>
-          control?.isConnected && !control.disabled && !control.closest("[hidden], [inert]"),
-      ) ?? panel.closest("dialog")?.querySelector<HTMLElement>("[data-artwork-editor-close]");
+      primary ??
+      (available(refreshButton.current) ? refreshButton.current : null) ??
+      panel.closest("dialog")?.querySelector<HTMLElement>("[data-artwork-editor-close]");
+    returnFocus.current = null;
     focus?.focus();
-  }, [draft, visibilityReview, pending, isCurrentOpening]);
+  }, [
+    active,
+    cache,
+    display,
+    draft,
+    isCurrentOpening,
+    originalGameId,
+    pending,
+    port.id,
+    visibilityReview,
+  ]);
+
+  const queueReturnFocus = (target: HTMLButtonElement | null, owner = cache) => {
+    returnFocus.current = {
+      target,
+      from: document.activeElement,
+      generation: owner?.generation,
+      portId: port.id,
+      originalGameId,
+    };
+  };
 
   const stillInView = () =>
     mounted.current &&
@@ -505,7 +547,7 @@ function ArtworkSlotControl({
               ? findButton.current
               : pickerButton.current
           : pickerButton.current;
-    returnFocus.current = { target, cache: owner };
+    queueReturnFocus(target, owner);
   };
   const draftIsCurrent = (review: ArtworkReviewTarget) =>
     review.portId === port.id &&
@@ -541,7 +583,7 @@ function ArtworkSlotControl({
     busy.current = false;
     if (!mounted.current) return;
     if (restoreFocus && stillInView() && currentIdentity.current.cache === owner)
-      returnFocus.current = { target, cache: owner };
+      queueReturnFocus(target, owner);
     setPending(false);
   };
 
@@ -916,7 +958,7 @@ function ArtworkSlotControl({
               variant="outline"
               disabled={pending}
               onClick={() => {
-                returnFocus.current = { target: visibilityTrigger(visibilityReview.action), cache };
+                queueReturnFocus(visibilityTrigger(visibilityReview.action));
                 setVisibilityReview(undefined);
                 setError(undefined);
               }}
