@@ -64,50 +64,52 @@ async function openCreationReview(
   return { dialog, trigger };
 }
 
-it.each([
-  { width: 1280, height: 500, separateActions: true },
-  { width: 320, height: 500, separateActions: true },
-  { width: 320, height: 300, separateActions: false },
-])(
-  "keeps recovery actions reachable at $width × $height",
-  async ({ width, height, separateActions }) => {
-    await page.viewport(width, height);
-    const longPath = `E:/${"Player data/Installed versions/Library exports/".repeat(10)}library`;
-    const { dialog } = await openCreationReview(undefined, { ...plan, source_root: longPath });
+const longReview = {
+  ...plan,
+  source_root: `E:/${"Player data/Installed versions/Library exports/".repeat(10)}library`,
+};
+
+it.each([1280, 320])(
+  "keeps recovery actions in view beside scrollable details at %ipx",
+  async (width) => {
+    await page.viewport(width, 500);
+    const { dialog } = await openCreationReview(undefined, longReview);
     const review = dialog.getByRole("region", { name: "Creation review" });
-    await expect.element(review.getByText(longPath)).toBeVisible();
+    await expect.element(review.getByText(longReview.source_root)).toBeVisible();
     const action = dialog.getByRole("button", { name: "Copy and verify" }).element();
     const close = dialog.getByRole("button", { name: "Close", exact: true }).element();
-    const panel = dialog.element();
-
-    if (separateActions) {
-      const detailRegion = dialog.getByRole("region", { name: "Recovery details" });
-      const details = detailRegion.element() as HTMLElement;
-      expect(details.scrollHeight).toBeGreaterThan(details.clientHeight);
-      expect(details.scrollWidth).toBeLessThanOrEqual(details.clientWidth);
-      const bounds = details.getBoundingClientRect();
-      for (const button of [close, action]) {
-        const actionBounds = button.getBoundingClientRect();
-        expect(actionBounds.top).toBeGreaterThanOrEqual(bounds.bottom);
-        expect(actionBounds.bottom).toBeLessThanOrEqual(panel.getBoundingClientRect().bottom);
-      }
-      await page.screenshot({
-        path: `../../../../outputs/recovery-review/actions-${width}x${height}.png`,
-        element: dialog,
-      });
-      expect(details.tabIndex).toBe(0);
-      details.focus();
-      await expect.element(detailRegion).toHaveFocus();
-      await userEvent.keyboard("{PageDown}");
-      await expect.poll(() => details.scrollTop).toBeGreaterThan(0);
-      expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(height);
-    } else {
-      expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight);
-      action.scrollIntoView();
-      expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(height);
-    }
+    const detailRegion = dialog.getByRole("region", { name: "Recovery details" });
+    const details = detailRegion.element() as HTMLElement;
+    expect(details.scrollHeight).toBeGreaterThan(details.clientHeight);
+    expect(details.scrollWidth).toBeLessThanOrEqual(details.clientWidth);
+    const detailsBottom = details.getBoundingClientRect().bottom;
+    const panelBottom = dialog.element().getBoundingClientRect().bottom;
+    expect(close.getBoundingClientRect().top).toBeGreaterThanOrEqual(detailsBottom);
+    expect(action.getBoundingClientRect().top).toBeGreaterThanOrEqual(detailsBottom);
+    expect(close.getBoundingClientRect().bottom).toBeLessThanOrEqual(panelBottom);
+    expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(panelBottom);
+    await page.screenshot({
+      path: `../../../../outputs/recovery-review/actions-${width}x500.png`,
+      element: dialog,
+    });
+    expect(details.tabIndex).toBe(0);
+    details.focus();
+    await expect.element(detailRegion).toHaveFocus();
+    await userEvent.keyboard("{PageDown}");
+    await expect.poll(() => details.scrollTop).toBeGreaterThan(0);
+    expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(500);
   },
 );
+
+it("keeps recovery actions reachable through whole-dialog scrolling in a short window", async () => {
+  await page.viewport(320, 300);
+  const { dialog } = await openCreationReview(undefined, longReview);
+  const action = dialog.getByRole("button", { name: "Copy and verify" }).element();
+  const panel = dialog.element();
+  expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight);
+  action.scrollIntoView();
+  expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(300);
+});
 
 it("reviews coverage before copying and shows the verified bundle after publishing", async () => {
   const create = vi.spyOn(desktopApi, "createLibraryRecoveryBundle").mockResolvedValue(bundle);
