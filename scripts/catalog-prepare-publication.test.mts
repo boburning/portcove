@@ -24,7 +24,18 @@ const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex")
 const target = (bytes: Buffer) => `sha256/${hash(bytes)}.json`;
 const json = (value: unknown) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 
-function heldProjection(named = false) {
+const platformIndependentSource = {
+  id: "community",
+  authority: "link_out",
+  platforms: [],
+  name: "Community mods",
+  instructions: "Follow the author's setup.",
+  source: { kind: "external_portal", site: "community_site", url: "https://mods.example.org/" },
+};
+
+type NamedFixture = boolean | "mod-source";
+
+function heldProjection(named: NamedFixture = false) {
   const authored = readFileSync(
     new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
   );
@@ -33,7 +44,13 @@ function heldProjection(named = false) {
         ports: [
           {
             id: heldId,
-            reviewed_launch_contract_v1: { package_format: { "windows-x86-64": "tar.xz" } },
+            ...(named === "mod-source"
+              ? { mod_sources: [platformIndependentSource] }
+              : {
+                  reviewed_launch_contract_v1: {
+                    package_format: { "windows-x86-64": "tar.xz" },
+                  },
+                }),
           },
         ],
       })
@@ -50,7 +67,7 @@ function heldProjection(named = false) {
   };
 }
 
-async function fixture(named = false) {
+async function fixture(named: NamedFixture = false) {
   const prior = await readCatalogPublicationBundle(bundle, performance.now() + 5000);
   const retained = [...prior.keys()].filter((name) => name.startsWith("sha256/"));
   assert.equal(retained.length, 2);
@@ -60,7 +77,11 @@ async function fixture(named = false) {
   // authority. Actual Core inspection still owns every schema and scope check.
   const held = json({
     definition_schema: named ? 4 : 3,
-    ...(named ? { required_features: ["runtime.reviewed-package-and-launch-v1"] } : {}),
+    ...(named === "mod-source"
+      ? { required_features: ["mods.platform-independent-portals-v1", "mods.sources-v1"] }
+      : named
+        ? { required_features: ["runtime.reviewed-package-and-launch-v1"] }
+        : {}),
     namespace: "official",
     stable_id: heldId,
     revision: 1,
@@ -206,6 +227,29 @@ void test("an authored loader reaches preparation with one schema 3 entry and le
       ),
     /definition and generated projection schemas differ/u,
   );
+});
+
+void test("a mod-source entry binds schema 4 to a schema 3 leaf with both reader names", async () => {
+  const f = await fixture("mod-source");
+  const prepared = assembleReviewedPublication(f.prior, f.next, heldId, f.projection);
+  assert.deepEqual(prepared.files.get(f.projectionTarget), f.projection);
+  const entry = JSON.parse(f.next.get(f.heldTarget)!.toString()) as Record<string, unknown>;
+  for (const [features, error] of [
+    [[], /mod sources require schema 4 and the named reader/u],
+    [["mods.sources-v1"], /platform-independent mod portals require the named reader/u],
+  ] as const) {
+    entry.required_features = features;
+    assert.throws(
+      () =>
+        assembleReviewedPublication(
+          f.prior,
+          new Map([...f.next, [f.heldTarget, json(entry)]]),
+          heldId,
+          f.projection,
+        ),
+      error,
+    );
+  }
 });
 
 void test("index additions refuse stale policy or launch inputs and revoked Chameleon scope", async () => {
