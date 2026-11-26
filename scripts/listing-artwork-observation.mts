@@ -7,6 +7,7 @@ import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { orderedJsonSha256 } from "./json-values.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 import { coverDeclarationScope } from "./listing-artwork-checkpoint.mts";
 import {
   artworkHealthInventory,
@@ -43,7 +44,7 @@ function readReviewedAncestor(revision: string, file: string) {
   execFileSync("git", ["merge-base", "--is-ancestor", revision, "HEAD"], { timeout: 10_000 });
   return execFileSync("git", ["show", `${revision}:${file}`], {
     timeout: 10_000,
-    maxBuffer: 32 * 1024 * 1024,
+    maxBuffer: listingDirectoryTextMaximum,
   });
 }
 
@@ -91,7 +92,9 @@ function readReportMembers(archive: Buffer) {
     expandedBytes: 48 * 1024 * 1024,
     files: 64,
     nameBytes: 128,
-    allowedPaths: new Set([receiptPath, evidencePath]),
+    // The successful producer emits this inert report alongside the receipt.
+    // It participates in ZIP bounds but is never inflated or interpreted here.
+    allowedPaths: new Set([receiptPath, evidencePath, "report/index.html"]),
     allowedFilePath: (name) => /^(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:jsonl?|md)$/u.test(name),
   });
   function read(name: string) {
@@ -107,7 +110,10 @@ function readReportMembers(archive: Buffer) {
       throw new Error("Cover receipt member failed its integrity check");
     return bytes;
   }
-  return { evidence: read(evidencePath), receipt: read(receiptPath) };
+  return {
+    evidence: read(evidencePath),
+    receipt: entries.some((entry) => entry.name === receiptPath) ? read(receiptPath) : null,
+  };
 }
 
 /** Authenticate an existing scheduled report as observation evidence only. */
@@ -181,13 +187,11 @@ export async function readHostedCoverHealth(
     !/^sha256:[a-f0-9]{64}$/u.test(artifact.digest)
   )
     throw new Error("Unbound scheduled cover artifact");
-  const listings = readAncestorFile(run.head_sha, listingsPath);
   const archive = await transport.download(artifact.id, artifact.size_in_bytes);
   if (archive.length !== artifact.size_in_bytes || `sha256:${hash(archive)}` !== artifact.digest)
     throw new Error("Scheduled cover artifact digest differs");
   const { evidence, receipt } = readReportMembers(archive);
   const recorded: unknown = JSON.parse(evidence.toString("utf8"));
-  const report: unknown = JSON.parse(receipt.toString("utf8"));
   if (
     !isRecord(recorded) ||
     recorded.format !== "portcove-maintenance-hosted-evidence" ||
@@ -202,10 +206,34 @@ export async function readHostedCoverHealth(
     recorded.outcomes.collect !== "success" ||
     recorded.outcomes.report !== "success" ||
     !isRecord(recorded.files) ||
-    !isRecord(recorded.files[receiptEvidencePath]) ||
-    recorded.files[receiptEvidencePath].bytes !== receipt.length ||
-    recorded.files[receiptEvidencePath].sha256 !== hash(receipt) ||
-    !Array.isArray(recorded.sources) ||
+    !Array.isArray(recorded.sources)
+  )
+    throw new Error("Unbound scheduled cover observation");
+  const generation = `scheduled-artwork-health:${runId}-${runAttempt}@${run.head_sha}#sha256:`;
+  const admissions = (recorded.sources as unknown[]).filter(
+    (row) =>
+      isRecord(row) &&
+      row.source === "cover-artwork-health" &&
+      typeof row.source_revision === "string" &&
+      row.source_revision.startsWith(generation),
+  );
+  const file = recorded.files[receiptEvidencePath];
+  if (!receipt && (file !== undefined || admissions.length))
+    throw new Error("Scheduled cover report omitted referenced observation bytes");
+  if (!receipt) return null;
+  if (!isRecord(file) || file.bytes !== receipt.length || file.sha256 !== hash(receipt))
+    throw new Error("Scheduled cover observation differs from the evidence inventory");
+  if (!admissions.length) return null;
+  const admission = admissions[0];
+  if (
+    admissions.length !== 1 ||
+    !isRecord(admission) ||
+    admission.source_revision !== generation + hash(receipt) ||
+    (admission.coverage !== "complete" && admission.coverage !== "partial")
+  )
+    throw new Error("Scheduled report did not admit the exact cover observation");
+  const report: unknown = JSON.parse(receipt.toString("utf8"));
+  if (
     !isRecord(report) ||
     !digest(report.cli_sha256) ||
     typeof report.observed_at !== "string" ||
@@ -227,6 +255,7 @@ export async function readHostedCoverHealth(
     },
     run.head_sha,
   );
+  const listings = readAncestorFile(run.head_sha, listingsPath);
   const producerDirectory: unknown = JSON.parse(listings.toString("utf8"));
   const projected = projectArtworkHealth(report, {
     inventory: artworkHealthInventory(producerDirectory),
@@ -235,16 +264,6 @@ export async function readHostedCoverHealth(
     producer,
     now: Date.parse(report.observed_at),
   });
-  const admissions = (recorded.sources as unknown[]).filter(
-    (row) => isRecord(row) && row.source === "cover-artwork-health",
-  );
-  if (
-    admissions.length !== 1 ||
-    !isRecord(admissions[0]) ||
-    admissions[0].source_revision !== projected.revision + "#sha256:" + hash(receipt) ||
-    (admissions[0].coverage !== "complete" && admissions[0].coverage !== "partial")
-  )
-    throw new Error("Scheduled report did not admit the exact cover observation");
   return {
     ...projected,
     artifact: artifact.digest,

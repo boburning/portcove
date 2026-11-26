@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import {
   advanceArtworkCheckpoint,
   coverDeclarationScope,
@@ -187,4 +189,152 @@ void test("a full checkpoint still accepts a newer result for an admitted scope"
   ]);
   assert.deepEqual(restored.apply(prefix), prefix);
   assert.ok(restored.finish(wire(prefix)));
+});
+
+void test("the appointed report archive admits an exact cover receipt and skips inert report HTML", async () => {
+  const runId = 123;
+  const attempt = 1;
+  const revision = "a".repeat(40);
+  const repository = "boburning/portcove";
+  const workflow = ".github/workflows/maintenance-inventory.yml";
+  const repositoryId = 1354613114;
+  const source = wire(listing);
+  const hash = (value: Buffer | string) => createHash("sha256").update(value).digest("hex");
+  const receipt = JSON.stringify({
+    format: 1,
+    authority: "none",
+    listings_sha256: hash(source),
+    cli_sha256: "c".repeat(64),
+    observed_at: observedAt,
+    producer: {
+      workflow: repository + "/" + workflow + "@refs/heads/main",
+      run: String(runId),
+      attempt: String(attempt),
+      revision,
+    },
+    images: [{ image_id: artwork.image_id, status: "gone" }],
+  });
+  const evidence = JSON.stringify({
+    format: "portcove-maintenance-hosted-evidence",
+    format_version: 1,
+    purpose: "schedule",
+    run: { id: runId, attempt, head_sha: revision, event: "schedule" },
+    outcomes: { collect: "success", report: "success" },
+    files: {
+      "maintenance-report/cover-artwork-health.json": {
+        bytes: Buffer.byteLength(receipt),
+        sha256: hash(receipt),
+      },
+    },
+    sources: [
+      {
+        source: "cover-artwork-health",
+        source_revision: `scheduled-artwork-health:${runId}-${attempt}@${revision}#sha256:${hash(receipt)}`,
+        coverage: "complete",
+      },
+    ],
+  });
+  const siblings = [
+    ["cover-artwork-health.json", receipt],
+    ["evidence.json", evidence],
+    ["ci-throughput.json", "{}"],
+    ["report/inventory.json", "{}"],
+    ["report/index.html", "<!doctype html><title>Maintenance</title>"],
+    ["digest/digest.json", "{}"],
+    ["digest/digest.md", "# Digest"],
+  ] as const;
+  const run = {
+    id: runId,
+    run_attempt: attempt,
+    path: workflow,
+    event: "schedule",
+    head_branch: "main",
+    status: "completed",
+    conclusion: "success",
+    head_repository: { id: repositoryId, full_name: repository },
+    head_sha: revision,
+    run_started_at: "2026-11-26T11:59:00Z",
+    updated_at: "2026-11-26T12:30:00Z",
+  };
+  const read = (archive: Buffer) =>
+    readHostedCoverHealth(
+      (actualRevision, file) => {
+        assert.equal(actualRevision, revision);
+        assert.equal(file, "crates/portcove-core/catalog/listings.json");
+        return source;
+      },
+      {
+        now: Date.parse(newerAt),
+        transport: {
+          read: async (endpoint) =>
+            endpoint.includes("/workflows/")
+              ? { workflow_runs: [run] }
+              : {
+                  total_count: 1,
+                  artifacts: [
+                    {
+                      id: 191,
+                      name: `maintenance-report-${runId}-${attempt}`,
+                      size_in_bytes: archive.length,
+                      expired: false,
+                      digest: "sha256:" + hash(archive),
+                      workflow_run: {
+                        id: runId,
+                        repository_id: repositoryId,
+                        head_repository_id: repositoryId,
+                        head_branch: "main",
+                        head_sha: revision,
+                      },
+                    },
+                  ],
+                },
+          download: async (id, bytes) => {
+            assert.equal(id, 191);
+            assert.equal(bytes, archive.length);
+            return archive;
+          },
+        },
+      },
+    );
+  const admitted = await read(createAuditZip(siblings));
+  assert.equal(
+    admitted?.facts.get(`port:${listing.id}@${artwork.image_id}`) instanceof Object,
+    true,
+  );
+  assert.equal(admitted?.counts.gone, 1);
+  await assert.rejects(
+    read(createAuditZip([...siblings, ["digest/extra.html", "unexpected"]])),
+    /path/u,
+  );
+  const priorEvidence: unknown = JSON.parse(evidence);
+  assert.ok(priorEvidence && typeof priorEvidence === "object");
+  const priorOnly = {
+    ...priorEvidence,
+    sources: [
+      {
+        source: "cover-artwork-health",
+        source_revision: "scheduled-artwork-health:older-generation",
+        coverage: "partial",
+      },
+    ],
+  };
+  const withoutAdmission = siblings.map(
+    ([name, bytes]) =>
+      [name, name === "evidence.json" ? JSON.stringify(priorOnly) : bytes] as const,
+  );
+  assert.equal(await read(createAuditZip(withoutAdmission)), null);
+  const withoutReceipt = withoutAdmission
+    .filter(([name]) => name !== "cover-artwork-health.json")
+    .map(
+      ([name, bytes]) =>
+        [
+          name,
+          name === "evidence.json" ? JSON.stringify({ ...priorOnly, files: {} }) : bytes,
+        ] as const,
+    );
+  assert.equal(await read(createAuditZip(withoutReceipt)), null);
+  await assert.rejects(
+    read(createAuditZip(siblings.filter(([name]) => name !== "cover-artwork-health.json"))),
+    /omitted referenced observation/u,
+  );
 });
