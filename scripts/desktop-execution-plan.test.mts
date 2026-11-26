@@ -540,6 +540,12 @@ void test("execution planning preserves the independently reviewed pre-change or
           nativeTransportReceiptSources.some((source) => source === added) ||
           (added === "scripts/fixtures/game-first-catalog-relationships.json" &&
             selection.selected_scenarios.includes("native-normal-package-webview-boundary")) ||
+          ([
+            "crates/portcove-core/catalog/catalog.json",
+            "crates/portcove-core/catalog/listings.json",
+          ].includes(added) &&
+            (selection.selected_scenarios.includes("native-normal-package-webview-boundary") ||
+              selection.selected_scenarios.includes("native-game-first-choice-and-restart"))) ||
           added === "apps/desktop/scripts/browser-script.mts" ||
           added === "apps/desktop/scripts/browser-readiness.mts" ||
           added === "apps/desktop/scripts/native-enlargement.mts" ||
@@ -2447,7 +2453,11 @@ void test("reviewed screenshot observation binds the embedded listing source", (
 });
 
 void test("game-first production relationship expectations have selected-only immutable custody", () => {
-  const fixture = "scripts/fixtures/game-first-catalog-relationships.json";
+  const fixtures = [
+    "scripts/fixtures/game-first-catalog-relationships.json",
+    "crates/portcove-core/catalog/catalog.json",
+    "crates/portcove-core/catalog/listings.json",
+  ];
   const selected = planDesktopExecution(
     resolveDesktopSelection({
       scenarios: ["native-game-first-choice-and-restart"],
@@ -2455,19 +2465,21 @@ void test("game-first production relationship expectations have selected-only im
     }),
     { platform: "win32" },
   );
-  assert.equal(
-    selected.receiptInputs.filter((input) => input.kind === "file" && input.path === fixture)
-      .length,
-    1,
-  );
   const smoke = planDesktopExecution(
     resolveDesktopSelection({ profile: "smoke", platform: "win32" }),
     { platform: "win32" },
   );
-  assert.equal(
-    smoke.receiptInputs.filter((input) => input.kind === "file" && input.path === fixture).length,
-    0,
-  );
+  for (const fixture of fixtures) {
+    assert.equal(
+      selected.receiptInputs.filter((input) => input.kind === "file" && input.path === fixture)
+        .length,
+      1,
+    );
+    assert.equal(
+      smoke.receiptInputs.filter((input) => input.kind === "file" && input.path === fixture).length,
+      0,
+    );
+  }
 });
 
 void test("normal package catalog readback retains reviewed fixture and oracle without changing execution authority", async (t) => {
@@ -2476,10 +2488,13 @@ void test("normal package catalog readback retains reviewed fixture and oracle w
     platform: "win32",
   });
   const plan = planDesktopExecution(selection, { platform: "win32" });
-  for (const source of [
+  const sources = [
     "scripts/fixtures/game-first-catalog-relationships.json",
     "apps/desktop/scripts/desktop-game-first-test.mts",
-  ]) {
+    "crates/portcove-core/catalog/catalog.json",
+    "crates/portcove-core/catalog/listings.json",
+  ];
+  for (const source of sources) {
     const inputs = plan.receiptInputs.filter(
       (input) => input.kind === "file" && input.path === source,
     );
@@ -2498,10 +2513,6 @@ void test("normal package catalog readback retains reviewed fixture and oracle w
   await mkdir(parent, { recursive: true, mode: 0o700 });
   const directory = await mkdtemp(path.join(parent, "portcove-package-catalog-custody-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const sources = [
-    "scripts/fixtures/game-first-catalog-relationships.json",
-    "apps/desktop/scripts/desktop-game-first-test.mts",
-  ];
   for (const source of sources) {
     const file = path.join(directory, source);
     await mkdir(path.dirname(file), { recursive: true });

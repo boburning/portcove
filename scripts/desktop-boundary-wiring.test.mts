@@ -103,7 +103,15 @@ void test("preparation dispatch consumes the imported game-first owner with ordi
     });
     assert.deepEqual(
       fields.sort((a, b) => a.localeCompare(b)),
-      ["artifacts", "browser", "invoke", "output", "restartApplication", "scenario"],
+      [
+        "artifacts",
+        "browser",
+        "invoke",
+        "output",
+        "restartApplication",
+        "scenario",
+        "sourcePopulationInputs",
+      ],
     );
     return { binding, call };
   }
