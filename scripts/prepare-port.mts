@@ -1384,7 +1384,12 @@ export async function prepareDiscoveryListingAdditions(
     acquireValidator?: (
       privateRoot: string,
     ) => AcquiredReleasedReader | Promise<AcquiredReleasedReader>;
-    stage?: { repository: string; revision: string };
+    stage?: {
+      repository: string;
+      revision: string;
+      expectedPatchSha256?: string;
+      previewListedDate?: string;
+    };
   },
 ) {
   const started = process.hrtime.bigint();
@@ -1403,11 +1408,33 @@ export async function prepareDiscoveryListingAdditions(
       "Released discovery validation requires automatic scope without local staging.",
     );
   const stage = options.stage;
+  const today = new Date(now()).toISOString().slice(0, 10);
+  const automaticListedDate = options.automaticScope
+    ? (stage?.previewListedDate ?? today)
+    : undefined;
   if (stage) {
     if ((!options.approval && !options.automaticScope) || !options.validatorCli)
       throw new Error(
         "Discovery staging requires an approved catalog patch and trusted Core validator.",
       );
+    if (
+      (options.automaticScope || stage.expectedPatchSha256 !== undefined) &&
+      !/^[a-f0-9]{64}$/u.test(stage.expectedPatchSha256 ?? "")
+    )
+      throw new Error("Automatic discovery staging requires the exact preview patch SHA-256.");
+    if (options.automaticScope) {
+      const date = stage.previewListedDate ?? "";
+      const timestamp = Date.parse(date);
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/u.test(date) ||
+        !Number.isFinite(timestamp) ||
+        new Date(timestamp).toISOString().slice(0, 10) !== date ||
+        date > today
+      )
+        throw new Error("Automatic discovery staging requires the preview listing date.");
+    } else if (stage.previewListedDate !== undefined) {
+      throw new Error("A preview listing date requires automatic discovery staging.");
+    }
     if (
       realpathSync(options.catalogRoot) !==
       join(realpathSync(stage.repository), repositoryCatalogPath)
@@ -1633,7 +1660,7 @@ export async function prepareDiscoveryListingAdditions(
             id: candidate.key,
             name: candidate.repository.split("/")[1],
             project_url: projectUrl,
-            listed_at: facts.project?.observed_at?.slice(0, 10),
+            listed_at: automaticListedDate ?? facts.project?.observed_at?.slice(0, 10),
             release_url: `${projectUrl}/releases`,
             summary:
               summary && Buffer.byteLength(summary) <= 4096
@@ -1721,15 +1748,17 @@ export async function prepareDiscoveryListingAdditions(
         }
       }
     }
-    let admission: { path: string; sha256: string } | null = null;
-    if (
+    const canPreparePatch =
       (approved ||
         (options.automaticScope && options.validatorCli) ||
         releasedValidation?.status === "validated") &&
-      additions.length > 0
-    ) {
-      const patch = discoveryAdmissionPatch(additions);
-      const sha256 = createHash("sha256").update(patch).digest("hex");
+      additions.length > 0;
+    const patch = canPreparePatch ? discoveryAdmissionPatch(additions) : null;
+    const sha256 = patch === null ? null : createHash("sha256").update(patch).digest("hex");
+    if (stage?.expectedPatchSha256 && stage.expectedPatchSha256 !== sha256)
+      throw new Error("Rebuilt discovery patch differs from the preview. Prepare a fresh preview.");
+    let admission: { path: string; sha256: string } | null = null;
+    if (patch !== null && sha256 !== null) {
       const path = join(root, `discovery-listing-admission-${sha256}.patch`);
       retainArtifact(path, patch);
       admission = { path, sha256 };
@@ -1747,7 +1776,12 @@ export async function prepareDiscoveryListingAdditions(
     const report = {
       format_version: 1,
       route: "discovery-listings",
-      ...(options.automaticScope ? { automatic_scope_policy: discoveryScopePolicy } : {}),
+      ...(options.automaticScope
+        ? {
+            automatic_scope_policy: discoveryScopePolicy,
+            automatic_listed_date: automaticListedDate,
+          }
+        : {}),
       selected_port_ids: candidates.map(({ key }) => key),
       handoff_semantic_sha256: admissionBinding.handoff_sha256,
       admission_binding: admissionBinding,
@@ -2189,6 +2223,8 @@ async function main() {
     "--discovery-listing-approval",
     "--discovery-automatic-scope",
     "--discovery-stage-source",
+    "--discovery-expected-patch-sha256",
+    "--discovery-preview-listed-date",
     "--discovery-released-validator",
     "--discovery-deadline-epoch-ms",
     "--listing-observations",
@@ -2246,6 +2282,8 @@ async function main() {
   const discoveryApproval = values.get("--discovery-listing-approval");
   const automaticDiscoveryScope = values.get("--discovery-automatic-scope");
   const discoveryStageSource = values.get("--discovery-stage-source");
+  const discoveryExpectedPatch = values.get("--discovery-expected-patch-sha256");
+  const discoveryPreviewListedDate = values.get("--discovery-preview-listed-date");
   const releasedDiscoveryValidator = values.get("--discovery-released-validator");
   if (
     releasedDiscoveryValidator !== undefined &&
@@ -2271,6 +2309,10 @@ async function main() {
     throw new Error("--discovery-automatic-scope takes true with --discovery-listings.");
   if (discoveryStageSource && !discoveryApproval && !automaticDiscoveryScope)
     throw new Error("--discovery-stage-source requires reviewed approval or automatic scope.");
+  if (discoveryExpectedPatch && !discoveryStageSource)
+    throw new Error("--discovery-expected-patch-sha256 requires --discovery-stage-source.");
+  if (discoveryPreviewListedDate && (!discoveryStageSource || !automaticDiscoveryScope))
+    throw new Error("--discovery-preview-listed-date requires automatic discovery staging.");
   if (
     discoveryHandoff &&
     [...values.keys()].some(
@@ -2280,6 +2322,8 @@ async function main() {
           "--discovery-listing-approval",
           "--discovery-automatic-scope",
           "--discovery-stage-source",
+          "--discovery-expected-patch-sha256",
+          "--discovery-preview-listed-date",
           "--discovery-released-validator",
           "--discovery-deadline-epoch-ms",
           "--validator-cli",
@@ -2362,7 +2406,18 @@ async function main() {
             : {}),
           ...(discoveryDeadline ? { deadline: Number(discoveryDeadline) } : {}),
           ...(discoveryStageSource
-            ? { stage: { repository, revision: discoveryStageSource } }
+            ? {
+                stage: {
+                  repository,
+                  revision: discoveryStageSource,
+                  ...(discoveryExpectedPatch
+                    ? { expectedPatchSha256: discoveryExpectedPatch }
+                    : {}),
+                  ...(discoveryPreviewListedDate
+                    ? { previewListedDate: discoveryPreviewListedDate }
+                    : {}),
+                },
+              }
             : {}),
           ...(discoveryApproval
             ? {
