@@ -238,10 +238,12 @@ fn validate_public_paths(files: &PublicHistory) -> Result<()> {
 pub(super) async fn inspect_prior(
     context: &Context,
     path: &Path,
+    proposed_cover_approvals: Option<&serde_json::Value>,
 ) -> Result<(
     PublicHistory,
     Option<super::history_checkpoint::PreparedHistory>,
     Option<listing_floor_ledger::Output>,
+    Option<serde_json::Value>,
 )> {
     let expects_thin = context.thin_history && context.history_store.is_some();
     let files = if expects_thin {
@@ -283,6 +285,12 @@ pub(super) async fn inspect_prior(
             .map(|(bytes, sha)| (*bytes, sha.as_str())),
     )
     .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
+    let cover_approvals = super::cover_approval::select(
+        super::cover_approval::from_policy(at(&roles, "official-policy.json")?)?,
+        proposed_cover_approvals,
+        &logical.files,
+        &context.targets,
+    )?;
     let thin = context.thin_history && pointer.is_some();
     let mut floors = HistoricalRevisionFloors {
         ledger: context
@@ -443,7 +451,7 @@ pub(super) async fn inspect_prior(
     } else {
         None
     };
-    Ok((files, history, ledger))
+    Ok((files, history, ledger, cover_approvals))
 }
 
 fn current_immutable_inventory(
@@ -1145,6 +1153,10 @@ fn repository_report(
         expires,
         index_sha256: index_sha256.to_owned(),
         listing_floor_ledger: None,
+        cover_approvals: super::cover_approval::from_policy(at(
+            &actual_roles,
+            "official-policy.json",
+        )?)?,
         authority: "none",
     })
 }
