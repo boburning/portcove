@@ -541,7 +541,7 @@ void test("unknown package metadata keeps ordinary retry age while proven replac
       { maxAssets: 1, deferredAttempts },
     );
     assert.deepEqual(attempted, [first === target ? current.name : otherAsset.name]);
-    const checked = first === target ? assetKey(target, release.tag, current) : competitor;
+    const checked: string = first === target ? assetKey(target, release.tag, current) : competitor;
     const currentRun = Math.max(...deferredAttempts.values()) + 1;
     assert.deepEqual(result.deferredAttempts, new Map(deferredAttempts).set(checked, currentRun));
   }
