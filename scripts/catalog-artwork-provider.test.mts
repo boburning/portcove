@@ -925,6 +925,7 @@ void test("an observed Gone image sweeps earlier and unselected references and c
     JSON.stringify({ client_id: "fixture-id", client_secret: "fixture-secret" }),
   );
   let imageCalls = 0;
+  const inventoryCalls: string[] = [];
   const inspector = createIgdbInspector(
     privateFile,
     () => ({ format: "png", width: 400, height: 200, validator: "portcove-core" }),
@@ -941,6 +942,8 @@ void test("an observed Gone image sweeps earlier and unselected references and c
             },
           ]),
         );
+      if (url.endsWith("/artworks") || url.endsWith("/screenshots") || url.endsWith("/logos"))
+        inventoryCalls.push(new URL(url).pathname);
       if (url.endsWith("/artworks") || url.endsWith("/screenshots")) return new Response("[]");
       if (url.endsWith("/logos"))
         // Duplicate records for one exact image must not retry it after withdrawal.
@@ -995,6 +998,7 @@ void test("an observed Gone image sweeps earlier and unselected references and c
     knownGoneImageIds: covers.gone_image_ids,
   });
   reconcileCatalogArtworkWithdrawals(covers, result.gone_image_ids);
+  assert.deepEqual(inventoryCalls, ["/v4/artworks", "/v4/logos", "/v4/screenshots"]);
   assert.equal(imageCalls, 2);
   assert.deepEqual(result.gone_image_ids, ["sharedlogo"]);
   assert.deepEqual(covers.gone_image_ids, ["sharedlogo"]);
