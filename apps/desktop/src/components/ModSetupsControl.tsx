@@ -303,8 +303,14 @@ function BoundModSetupsControl({
     review: OutputLocalModPackagePlan;
   }>();
   const setupHeading = useRef<HTMLHeadingElement>(null);
+  const inventoryArea = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    if (waitingForAppliedSetup && active && document.activeElement === document.body) {
+    const focused = document.activeElement;
+    if (
+      waitingForAppliedSetup &&
+      active &&
+      (focused === document.body || inventoryArea.current?.contains(focused))
+    ) {
       setupHeading.current?.focus();
     }
   }, [active, waitingForAppliedSetup]);
@@ -972,7 +978,13 @@ function BoundModSetupsControl({
         }}
       />
       {waitingForAppliedSetup && !error && <p>{t("mods.workspace.readingAppliedSetup")}</p>}
-      {waitingForAppliedSetup ? null : inventory}
+      <div
+        ref={inventoryArea}
+        hidden={waitingForAppliedSetup}
+        className={waitingForAppliedSetup ? "hidden" : "contents"}
+      >
+        {inventory}
+      </div>
     </section>
   );
 }

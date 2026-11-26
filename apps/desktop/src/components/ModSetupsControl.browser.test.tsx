@@ -2366,12 +2366,7 @@ it.each(["Browse mods", "Installed mods"] as const)(
   },
 );
 
-it("filters pending additions and confirms the committed inventory before showing new counts", async () => {
-  let standingPass!: () => void;
-  vi.spyOn(standingSetup, "onStandingSetupPass").mockImplementation((listener) => {
-    standingPass = listener;
-    return () => {};
-  });
+async function applyAndCheckStaleInventory() {
   fixtureProviderMods();
   const initial = view({ provider: "gamebanana", applied_package_count: 2 });
   const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue(initial);
@@ -2503,29 +2498,37 @@ it("filters pending additions and confirms the committed inventory before showin
   await click("Read setups again");
   await expect.element(stale).toBeVisible();
 
+  return { applied, apply, click, heading, initial, read, refreshed, stale };
+}
+
+it("reveals coherent later inventory only after one apply and a successful read", async () => {
+  const { apply, click, heading, read, refreshed, stale } = await applyAndCheckStaleInventory();
   read.mockResolvedValue(refreshed(5, "f".repeat(64)));
   await click("Read setups again");
   await expect.element(page.getByRole("button", { name: "Installed mods 4" })).toBeVisible();
   await expect.element(heading).toHaveFocus();
   await expect.element(stale).not.toBeInTheDocument();
   expect(apply).toHaveBeenCalledTimes(1);
+});
 
+it("keeps a pending apply receipt and its read within the original library generation", async () => {
+  const { applied, apply, click, initial, read, refreshed } = await applyAndCheckStaleInventory();
   let finishPriorRead!: (value: ModSetupsView) => void;
   read.mockReturnValueOnce(
     new Promise((resolve) => {
       finishPriorRead = resolve;
     }),
   );
-  await act(async () => {
-    standingPass();
-  });
+  await click("Read setups again");
+  expect(read).toHaveBeenLastCalledWith("shipwright", 7);
+
   read.mockResolvedValue(initial);
   const root = mounted.at(-1)!.root;
   await act(async () =>
     root.render(<ModSetupsControl portId="shipwright" generation={8} busy={false} />),
   );
   await expect.element(page.getByRole("button", { name: "Installed mods 2" })).toBeVisible();
-  await act(async () => finishPriorRead(refreshed(6, "a".repeat(64))));
+  await act(async () => finishPriorRead(refreshed(5, "f".repeat(64))));
   expect(read).toHaveBeenCalledWith("shipwright", 8);
   await expect.element(applied).not.toBeInTheDocument();
   await expect.element(page.getByRole("button", { name: "Installed mods 2" })).toBeVisible();
