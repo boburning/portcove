@@ -1174,6 +1174,12 @@ listing directory can enter the proposal, along with the registration counts
 for those additions. GitHub runs the normal required
 checks through the existing draft, review and merge process.
 
+Repository-bound GitHub listings raise the generated directory to format 17.
+The workflow needs a released reader that validates that format to open a
+proposal. Before signing that directory, the publisher also requires a reviewed
+format-17 reader floor. Earlier clients can retain their existing signed catalog
+through the regular compatibility and update path.
+
 Keep the dedicated private App installed only on this repository, with Contents
 and Pull requests write access and no branch-rule bypass. Store its private key
 as `CATALOG_ADMISSION_APP_PRIVATE_KEY` in the `catalog-admission` environment,

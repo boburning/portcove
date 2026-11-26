@@ -3017,7 +3017,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
             listing_delivery_carriers: vec![
                 "json-v1".into(),
                 crate::definition_repository::publisher_policy::listing_delivery::COMPACT_CARRIER

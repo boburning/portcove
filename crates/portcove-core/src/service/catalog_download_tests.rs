@@ -3561,7 +3561,7 @@ async fn admitted_github_listing_browses_and_acquires_only_from_its_numeric_repo
         service.catalog = service
             .catalog
             .with_listing_document(crate::CatalogListingDocument {
-                format_version: 15,
+                format_version: crate::catalog::listings::REPOSITORY_BOUND_LISTING_FORMAT,
                 listings: vec![listing],
             })
             .unwrap();

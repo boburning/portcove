@@ -531,17 +531,6 @@ fn stored_downloads_from(connection: &rusqlite::Connection) -> Result<Vec<Stored
     Ok(result)
 }
 
-/// The discovery admission contract reserves `github-<repository ID>` for
-/// canonical automatic listings. An observation may describe that repository,
-/// but cannot select another repository for live acquisition.
-fn admitted_github_repository_id(listing: &PortListing) -> Option<u64> {
-    let suffix = listing.id.strip_prefix("github-")?;
-    if suffix.starts_with('0') || !suffix.bytes().all(|byte| byte.is_ascii_digit()) {
-        return None;
-    }
-    suffix.parse().ok()
-}
-
 impl PortcoveService {
     pub fn pending_setups(&self) -> Result<Vec<PendingSetupRecord>> {
         Self::pending_setups_from(&self.library.connection()?)
@@ -836,7 +825,7 @@ impl PortcoveService {
     ) -> Result<CatalogDownloadCandidates> {
         let channel = channel.unwrap_or(self.catalog_download_channel(port_id)?);
         let listing = self.catalog.listing(port_id)?;
-        let github_repository_id = admitted_github_repository_id(listing);
+        let github_repository_id = listing.admitted_github_repository_id();
         let upstream_url = listing
             .release_url
             .as_ref()
@@ -1042,7 +1031,7 @@ impl PortcoveService {
                 repository.name(),
                 release_id,
                 asset_id,
-                admitted_github_repository_id(listing),
+                listing.admitted_github_repository_id(),
             )
             .await?;
         if release_url != displayed_url {
@@ -1100,7 +1089,7 @@ impl PortcoveService {
                 repository.name(),
                 &request.release_id,
                 &request.asset_id,
-                admitted_github_repository_id(listing),
+                listing.admitted_github_repository_id(),
             )
             .await?;
         if request.extract_archive && !artifact.can_extract {
@@ -1265,7 +1254,7 @@ impl PortcoveService {
                 .try_lock_port(&request.port_id, "download-package")?;
             self.require_download_available(&request.port_id)?;
             let listing = self.catalog.listing(&request.port_id)?;
-            let github_repository_id = admitted_github_repository_id(listing);
+            let github_repository_id = listing.admitted_github_repository_id();
             let repository = CatalogDownloadRepository::parse(
                 listing
                     .release_url

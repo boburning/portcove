@@ -1492,6 +1492,46 @@ fn explicit_legacy_withdrawal_preserves_other_rows_and_cannot_clear_a_withdrawal
 }
 
 #[test]
+fn legacy_safety_successor_cannot_add_a_repository_bound_listing() {
+    let prior = json!({
+        "listing_delivery_schema":1,"revision":3,"withdrawn_ids":[],
+        "directory":{"format_version":11,"listings":[{"id":"existing"}]}
+    });
+    let bound = json!({
+        "id":"github-123","project_url":"https://github.com/example/new-port",
+        "download_block_reason":"The package is held."
+    });
+    let mut next = prior.clone();
+    next["revision"] = json!(9);
+    next["directory"]["listings"][0]["download_block_reason"] = json!("Reviewed hold");
+    let compact = json!({
+        "listing_delivery_schema":1,"revision":20,"withdrawn_ids":[],
+        "directory":{"format_version":17,"listings":[
+            next["directory"]["listings"][0].clone(),bound.clone()
+        ]}
+    });
+    let prior = serde_json::to_vec(&prior).unwrap();
+    let compact = serde_json::to_vec(&compact).unwrap();
+    bundle::check_legacy_successor(&prior, &serde_json::to_vec(&next).unwrap(), &compact).unwrap();
+    next["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .push(bound);
+    let refusal =
+        bundle::check_legacy_successor(&prior, &serde_json::to_vec(&next).unwrap(), &compact)
+            .unwrap_err();
+    assert!(refusal.to_string().contains("repository-bound listing"));
+
+    let refusal = bundle::listing_revision(
+        portcove_listing_carrier::LEGACY_TARGET,
+        &serde_json::to_vec(&next).unwrap(),
+    )
+    .err()
+    .expect("plain legacy recovery must also reject repository-bound rows");
+    assert!(refusal.to_string().contains("repository-bound listing"));
+}
+
+#[test]
 fn reviewed_legacy_successor_adds_or_keeps_holds_and_never_loosens_one() {
     let older = json!({
         "listing_delivery_schema":1,"revision":3,"withdrawn_ids":[],

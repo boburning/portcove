@@ -524,8 +524,9 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // Readers reject formats newer than the reviewed mod portal directory.
-    candidate["directory"]["format_version"] = json!(17);
+    // Readers reject unknown formats and retain the previously accepted directory.
+    candidate["directory"]["format_version"] =
+        json!(crate::catalog::listings::REPOSITORY_BOUND_LISTING_FORMAT + 1);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -1275,7 +1276,7 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     let mut unsupported = current.clone();
     unsupported["carrier"] = json!("unsupported");
     edition_directory["directory"]["format_version"] =
-        json!(crate::catalog::listings::MOD_PORTAL_LISTING_FORMAT + 1);
+        json!(crate::catalog::listings::REPOSITORY_BOUND_LISTING_FORMAT + 1);
     let unsupported_format = carrier(&serde_json::to_vec(&edition_directory).unwrap());
     let mut trailing = current.clone();
     let mut concatenated = gzip(&next);
