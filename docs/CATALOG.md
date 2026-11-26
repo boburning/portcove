@@ -88,6 +88,171 @@ evidence, even after a different artifact becomes the recommendation.
 Installed launch and rollback keep their existing checks. Local files and
 saves are preserved.
 
+## Package and launch declaration compatibility
+
+Existing asset hints narrow supported package names. Reviewed release-stream
+exclusions separately filter tags for their declared platforms. Exact managed
+pins and package choices retain their own identity and authority checks.
+
+The archive dispatch accepts TAR.XZ and 7z on the player-owned setup route
+through the existing bounded extractors. Managed installation requires separate authority for the format. Existing managed TAR.XZ still requires
+its retained platform declaration. Launch resolution derives the installed
+source, per-game user data and cache paths from the trusted launch request.
+
+The indexed-only `reviewed_launch_contract_v1` declares platform asset
+rules, archive formats and typed launch values. The entry declares
+`runtime.reviewed-package-and-launch-v1` in definition schema 4. A scoped
+catalog projection holds the selected subject, and installation retains the
+exact entry, projection and separately admitted acquisition grant. Legacy
+catalog import and export refuse the declaration.
+
+Asset `include` and `exclude` use literal case-insensitive filename terms.
+`tag_pattern` matches one exact tag or a literal prefix ending in `*`.
+The default and `markers` preserve GitHub's prerelease flag and recognized
+tag markers. `flag` uses the flag alone. `never` excludes both detected kinds
+of prerelease. Package declarations use `zip`, `tar.gz`, `tar.xz` or `7z`.
+The exact suffix and container magic must agree before bounded extraction.
+
+Launch values are literal strings or objects with a `path` of `user_data`,
+`source`, `install_root` or `cache`. Each path occupies one argument or one
+environment value. Source expansion needs the verified launch source.
+Existing path, executable and environment policies still apply.
+A reviewed launch contract's values follow strict rules by construction,
+because the contract is catalog data that reaches players' machines and
+starts a game process. A location comes only from the closed `path` set.
+Core's `launch_paths::is_contract_launch_text` accepts a literal environment
+value or text argument only when:
+
+- It is 1 to 256 bytes drawn only from ASCII letters, digits and
+  `.` `_` `=` `,` `+` `-` `:`. Everything else is refused, including `/`, `\`,
+  `"`, `'`, `@`, `%`, `$`, backtick, `~`, `;`, whitespace, control characters
+  and every non-ASCII character (fullwidth or look-alike dots, slashes and
+  quotes, and superscript digits).
+- It contains no `..` anywhere.
+- Split into tokens at `=` and `,`, each token may start with one option
+  sigil, `-`, `--` or `+`, whose remaining body does not start with `-` or `+`
+  again. A token with a sigil contains no `:`. In a token without a sigil,
+  every `:`-separated segment before the last has at least two characters and
+  no `.`, which refuses drive forms (`C:x`, `--dir=C:x`, `-dC:x`) and
+  alternate data streams (`a.txt:evil`) while keeping `profile:fast`; a token
+  does not start with a case-insensitive `file:` scheme.
+- No `:`-separated segment of a token body, nor the body after its first
+  character for a single `-` or `+` sigil (an attached short option such as
+  `-oNUL`), is a Windows device name (`CON`, `PRN`, `AUX`, `NUL`,
+  `COM0`–`COM9`, `LPT0`–`LPT9`, case-insensitive, with or without an
+  extension).
+- No token names a refused runtime option (below).
+
+For example `profile:fast`, `--width=1280`, `-windowed`, `+set` and
+`r_mode=4` are accepted; `-d\\host\share\x.dll`, `-I/etc`, `-dC:x`,
+`@/etc/args`, `-I..`, `-game..`, `a.txt:evil`, `COM¹`, `%2e%2e` and
+`smb://x` are refused.
+
+Legacy catalog fields (`launch_environment` values, `launch_arguments` and
+`setup_arguments`) may carry relative paths in existing data, so they pass
+the looser shared rule `launch_paths::is_contained_launch_text`:
+
+- The text is ASCII and has no control character, no `"` or `'`, no `%`,
+  `$` or backtick (refusing `%NAME%`, `$NAME`, `${NAME}`, `$(...)` and
+  backtick expansion), and no `\\` or `//` anywhere (UNC, device, extended
+  `\\?\` paths and `scheme://` locations).
+- It is split into elements at `;`, `,`, `=` and ASCII whitespace. An element
+  is refused when it starts with `@` (a response file), starts with an ASCII
+  letter and `:` (`C:\x` or drive-relative `C:x`), has a drive form after any
+  option sigil (`-C:x`, `--C:x` or the attached `-dC:x` and `--dC:x`), or
+  starts with a case-insensitive `file:` scheme.
+- Each element is split into segments at `:`, the path-list separator; a
+  single `key:value` token such as `profile:fast` keeps two harmless segments.
+  A segment before the last that has a `.` is refused (an alternate data
+  stream such as `a.txt:evil`). A segment is refused when it starts with `/`,
+  `\` or `~`, or when a
+  component in either separator style is a parent reference (only dots and
+  spaces with at least two dots, which Windows reads as `..`), ends in `..`,
+  is a reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`,
+  `LPT0`–`LPT9`, including the superscript digits `¹` `²` `³`), or starts
+  with `-` or `+` and is followed by a separator (`-I/etc`).
+
+Catalog `launch_environment`, source and user-data variable names pass the
+shared deny-list `process::is_loader_injection_variable`, compared
+case-insensitively. It refuses every name under the runtime, loader, toolkit,
+graphics and TLS prefixes `DOTNET_`, `COMPLUS_`, `COR_`, `CORECLR_`, `MONO_`,
+`DOORSTOP_`, `PYTHON` (except the reviewed `PYTHONDONTWRITEBYTECODE`), `WINE`,
+`QT`, `QML`, `GTK_`, `GTK2_`, `GTK3_`, `GDK_`, `GST_`, `GIO_`, `OCL_`,
+`LIBVA_`, `VDPAU_`, `GBM_`, `EGL_`, `__GLX_`, `__EGL_`, `ELECTRON_`, `NODE_`,
+`SSL_`, `OPENSSL_`, `MALLOC_`, `LD_`, `DYLD_`, `JAVA_`, `_JAVA_`, `JDK_`,
+`PERL`, `RUBY`, `ENABLE_` and `DISABLE_` (Vulkan implicit layer toggles),
+`VK_`, `LIBGL_`, `MESA_LOADER_`, `LUA`, `WEBVIEW2`, `TCL`, `TK_`, `BASH_`,
+`GEM_`, `BUNDLE_`, `PIP_`, `NPM_`, `OPENCL`, `LIBDECOR_`, `IBM_`, `OPENJ9_`,
+`ASAN_`, `UBSAN_`, `LSAN_`, `TSAN_`, `MSAN_`, `PROCESSOR_`, `OBS_`,
+`MANGOHUD`, `XR_`, `VR_`, `CURL_`, `LADSPA_` and `LV2_`; the exact names
+`PATH`, `SDL_DYNAMIC_API`, `__COMPAT_LAYER`, `CORE_LIBRARIES`, `GCONV_PATH`,
+`LOCPATH`, `NLSPATH`, `TERMINFO`, `TERMINFO_DIRS`, `GLIBC_TUNABLES`,
+`HOSTALIASES`, `RES_OPTIONS`, `TZDIR`, `CLASSPATH`, `CURL_CA_BUNDLE`,
+`REQUESTS_CA_BUNDLE`, `_NT_SYMBOL_PATH`, `PSMODULEPATH`, `GSETTINGS_BACKEND`,
+`SSLKEYLOGFILE`, `NO_PROXY`, `SYSTEMROOT`, `WINDIR`, `COMSPEC`, `TEMP`,
+`TMP`, `APPDATA`, `LOCALAPPDATA`, `USERPROFILE`, `PROGRAMDATA`,
+`PROGRAMFILES`, `HOMEDRIVE`, `HOMEPATH`, `PUBLIC` and `ALLUSERSPROFILE`; and
+every proxy variable (`*_PROXY`). The deny-list is a second guard for legacy
+data, not the contract rule.
+
+A reviewed launch contract's environment names are title-specific by
+construction. Its prefix is derived from the port identity, not chosen in the
+data: the port ID's ASCII letters and digits, uppercased, in order, followed
+by one `_` (`blacklabelhq-medievilrecomp` becomes
+`BLACKLABELHQMEDIEVILRECOMP_`). A stem longer than 32 characters keeps its
+first 24 characters followed by the first 8 uppercase hexadecimal digits of
+the SHA-256 of the port ID, so long IDs that share a start stay distinct. A contract may omit `environment_prefix`, or
+restate exactly that derivation; any other value is refused, and a restated
+prefix must be used by a name. A contract environment name is accepted only
+when it passes the shared name check above and either is the reviewed
+harmless `PYTHONDONTWRITEBYTECODE` or starts with the derived prefix and
+continues after it. When the derivation is shorter than three characters,
+starts with a digit, or starts with or is the start of a loader-injection
+prefix above or a non-title runtime, driver, platform or tool prefix (for
+example `SDL`, `MESA_`, `DXVK_`, `STEAM`, `XDG_`, `TEMP`, `HOME` or
+`PORTCOVE_`), the port has no derived prefix and its contract may set no
+environment name except the harmless one. A test keeps the derivations of the
+embedded catalog distinct.
+
+The rules bound where text can point, not what a game does with it. A game
+may itself treat one of its prefixed variables, or a literal argument, as a
+file name; values cannot name a location outside the closed `path` set, but a
+relative name inside the working directory remains expressible. Literal
+arguments can also carry runtime-specific semantic flags. The strict class
+already refuses the single-sigil and `:` forms such as `-agentlib:jdwp=…`,
+`-agentpath:…`, `-javaagent:…`, `-Xrunjdwp:…`, `-XX:OnError=…` and
+`-Xbootclasspath/a:…`. The class admits `--remote-debugging-port=…`,
+`--inspect=…`, `--load-extension=…` and `--renderer-cmd-prefix=…`, so a
+contract value is also refused when a token, after any `-`, `--` or `+`
+sigil and before any `=`, names (case-insensitively)
+`remote-debugging-port`, `remote-debugging-pipe`, `remote-debugging-address`,
+`remote-allow-origins`, `inspect`, `inspect-brk`, `inspect-port`,
+`inspect-wait`, `debug-port`, `load-extension`, `disable-extensions-except`,
+`browser-subprocess-path`, `js-flags`, `require`, `import`, `loader`,
+`experimental-loader`, `no-sandbox`, `disable-web-security`,
+`register-pepper-plugins`, `r`, `m`, `env-file`, `inspect-brk-node`,
+`openssl-config`, `disable-gpu-sandbox`, `no-zygote` or `single-process`, or
+ends in `-cmd-prefix` or `-launcher`; a `-D` token is refused when its
+property starts (case-insensitively) with `com.sun.management` or
+`java.library.path`. This list does not bound every runtime's flags (for
+example a short `-e`, an attached `-mmodule` or another `-Dproperty=value`),
+and the bare tokens `-`, `--` and `=` stay accepted, so review of a contract's
+literal arguments remains a publication-time responsibility. Legacy fields do
+not use this option list.
+
+A reviewed launch contract whose platform entry has only literal text
+arguments keeps the previous decision about player-forwarded arguments, so
+moving an existing static list into it changes only the representation. A
+typed `path` value or any environment entry offers only the fixed launch.
+
+Reviewed forge qualification models the API dialect, API root, web host and
+exact asset hosts separately from the reviewed repository, release and artifact
+identity. The alternate-forge route is currently exercised by qualification
+fixtures. Naev's Codeberg listing and upstream-owned registration keep their
+existing scope. An indexed `reviewed-forge` selector requires a named definition reader.
+Managed acquisition also requires an exact, independently authenticated
+[schema-5 publisher grant](DEFINITION-DELIVERY.md#qualification-for-separately-reviewed-forges).
+
 ## Descriptive compatibility advisories
 
 The optional `listing.compatibility` envelope belongs to the existing
@@ -259,7 +424,7 @@ upstream itself publishes and holds a package only for concrete reasons.
   or third-party acquisition of its package keeps its hold whatever the code
   basis.
 - **Bundled game data stays held.** A package that bundles original game data
-  keeps its `download_block_reason`. That covers ROM, disc or BIOS contents,
+  keeps its listing download hold (see [acquisition restrictions](#acquisition-restrictions)). That covers ROM, disc or BIOS contents,
   original executables, copied ROM or cartridge headers, textures, models,
   audio, music, video, text tables or images extracted or captured from the
   game, art derived from them that the game uses, and shader caches, shader
@@ -293,10 +458,11 @@ upstream itself publishes and holds a package only for concrete reasons.
   Its accepted identity is that release location, checked against the
   provider's published digest when there is one. Later releases stay offered
   unless one bundles game data outside the owner exceptions or a verified
-  rights-holder request arrives; either restores the listing's
-  `download_block_reason`. A listing hold applies to every platform of the
+  rights-holder request arrives; either restores the listing's download hold.
+  Every migrated listing hold applies to every platform and release of the
   port, so a port keeps its hold while one platform's route, such as an
-  existing non-owning integration, still needs a separate decision. The owner
+  existing non-owning integration, still needs a separate decision. A
+  narrower scope is a later reviewed data change with exact evidence. The owner
   confirmed this on November 13, 2026. Core enforces one fresh route per host:
   it refuses the listing download (`managed-route`) only where this library's
   own Install assessment for the host is allowed or waiting for the player's
@@ -322,6 +488,131 @@ upstream itself publishes and holds a package only for concrete reasons.
 - **Existing holds** stay in force until each is re-reviewed against this
   policy; the re-review is recorded in its owning issue or a dated evidence
   record, and the policy itself lifts no hold.
+
+### Listing mod websites
+
+A port record can declare up to eight reviewed links in `listing.mod_portals`.
+Each link has an exact source ID, site family, display name, URL and brief
+instructions. The supported site families are `nexus_mods`, `mod_db`, `mod_io`
+and `community_site`. Attribute the link to the exact implementation before
+acceptance. The URL must be canonical HTTPS on a public DNS host. Provider
+site families use the fixed host for that provider.
+
+The link appears in the Mods view for a listing even if no game is installed
+or its platform is unknown. These links grant browser navigation only.
+Operational definitions retain authority over provider browsing and installation
+actions. An operational source ID takes precedence over a matching listing link.
+
+The authoring generator selects directory format 16 only when a listing
+declares a link. The signed compact publication path requires a declared live
+reader floor and a released reader that advertises format 16. Live delivery
+stays on format 15 until that successor floor is set. Compatibility exports
+below format 16 omit the links. A later format-16 snapshot can update or
+withdraw a link without changing the game package or installation.
+
+### Acquisition restrictions
+
+Both carriers express a restriction as the same typed decision, which Core's
+`acquisition_restriction` module evaluates once for Desktop and the CLI
+([#8538](https://github.com/boburning/portcove/issues/8538)). The listing
+authors `listing.restrictions`; a managed integration authors
+`integration.acquisition_restrictions`. Authoring refuses the legacy
+`download_block_reason` and `managed_acquisition_hold` keys; the generator
+derives them.
+
+Each decision has a slug `id`, an `effect` (`hold` or `permit`), a nonempty set
+of `operations` and an optional `scope`. A listing names only `download`: its
+legacy string can express nothing else, so a `register-external` or `launch`
+decision would vanish for older readers until they have a format gate. An
+integration names `download`, `install`, `update`, `adopt`, `activate` or
+`prepare`. Removal, rollback and backup are
+never restricted. The scope lists exact `platforms`, `releases`, `artifacts`
+(version, lowercase SHA-256 and optional file name), source `inputs` and
+`components`; an empty dimension is unconstrained. A listing scopes releases
+or artifacts only with a `release_url` or download asset hints. No Core path
+resolves inputs or components yet, so a permit cannot name them and a hold on
+them applies wherever its other dimensions match.
+
+A hold requires a descriptive `reason` code and a bounded player
+`explanation`; a permit carries neither. `reason`, `reconsider_when` and
+`tracking_issue` describe the decision and are never evaluated. The reason
+codes are `bundled-game-data`, `upstream-owned-route`,
+`package-facts-unresolved`, `legacy-rights-review`, `no-useful-route`,
+`upstream-prohibition`, `safety-evidence-mismatch`,
+`third-party-component-terms`, `known-defective-artifact` and
+`upstream-transition-unreviewed`. Core reads an older untyped listing string as
+a whole-listing download hold with the reader-only code `legacy-unclassified`;
+authoring refuses that code.
+
+Evaluation rules:
+
+- Within one carrier the most specific matching decision wins: artifacts, then
+  releases, then inputs or components, then platforms, then the whole port. A
+  hold wins a tie.
+- A hold from either carrier wins; a permit cancels only holds in its own
+  carrier. A permit never overrides a trust, integrity, definition-eligibility
+  or curated-revocation failure.
+- A permit must share an operation with a hold in its carrier and cannot repeat
+  that hold's scope, so data cannot grant by itself.
+- A hold whose scoped identity can never be proven, such as the release package
+  of an adopted folder, fails closed with Core's own explanation.
+- An offer, such as a status view or the download options, may defer an
+  identity Core resolves later: a hold that a more specific permit could still
+  cancel does not withhold the offer. The final check before bytes are used,
+  namely the downloaded package, the install artifact gate, activation and
+  adoption, defers nothing: there a hold matches an unresolved dimension and a
+  permit matches only known values. A provider-reported digest decides an
+  offer only; the downloaded bytes decide the download.
+
+Port action assessments report a held action as not offered, with its reason
+code in `restriction`; listing action assessments are unchanged because the
+listing carries only download decisions. The download offer drops a held
+sibling asset and names it in its limitations. When every asset of the selected
+release is held, the offer still lists the releases so a permitted package in
+another release stays reachable; it is refused with the explanation only when
+no release or package could be permitted.
+
+Listing format 15 carries `restrictions`. In a format-15 document the legacy
+`download_block_reason` must equal the explanation of the first hold that
+names `download`, at any scope. An older reader treats that string as a hold on
+every download, and the listing carries no other operation, so a reader limited
+to format 14 is never less restricted than a capable one. Exports below format 15 omit `restrictions` and
+keep that string. Signed listing delivery carries the compact format-15
+listing, with `restrictions`, to Preview 14 and later; the legacy format-11
+target is frozen at its last signed revision and Preview 13 and earlier
+receive no later hold ([compact listing delivery](SIGNED-CATALOG.md#compact-listing-delivery-and-the-minimum-supported-preview)).
+A delivered listing that repeats the current string for the same project and
+game keeps the typed restrictions, and any other delivered value replaces them.
+
+The managed wire format is unchanged. The generator emits typed integration
+data as the existing `managed_acquisition_hold` and refuses typed data that
+struct cannot represent exactly; Core normalizes the hold back to typed
+decisions when it loads. A typed definition field is not yet deliverable: it
+needs a reader gate that older applications refuse, which waits for the named
+definition features of [#8496](https://github.com/boburning/portcove/pull/8496).
+
+The one-shot `scripts/migrate-acquisition-restrictions.mts` re-expressed every
+existing hold at the scope and operations Core enforced: 152 listing rows as a
+whole-listing download hold with the explanation carried verbatim, and 5
+managed holds in the canonical form below. It narrowed, cleared and reworded
+nothing. Each narrowing is a later data change under the rights-basis decision
+authority.
+
+`reconsider_when` is never evaluated by Core. Run
+`node scripts/restriction-recheck.mts` for a read-only report of each hold's
+authored conditions. It reads committed catalog source, an optional listing
+observer report (`--observations`) and an optional evidence file (`--evidence`)
+of reviewed content scans, grants and route changes. It reports each condition
+as `satisfied`, `not-satisfied`, `unknown` or `manual`. A hold with any manual
+condition is flagged `manual`, for the owner, whatever its other conditions
+say. Every manual hold, and every hold whose machine-checkable result is
+satisfied or unknown, is listed by name under its flag. A successor release
+counts only when it was published after the newest scoped release. When more
+than one release is observed and any lacks a publication time, newest-release
+checks are `unknown`, and missing evidence is `unknown`, never `satisfied`. It uses no
+network, decides nothing and clears no hold. The [November 22, 2026 restriction evidence](evidence/acquisition-restriction-evidence-2026-11-22.md)
+records the upstream facts and a proposed scoped decision for every migrated
+row.
 
 ### Upstream listing and distribution requests
 
@@ -627,6 +918,12 @@ Retained format 11 carries the loader rule through source-only preparation.
 Embedded Windows installations retain the Windows package route using
 the existing format.
 
+NativePortable capability 41 admits the `daggerfall-unity-data` mod loader
+binding. A definition that declares it must require capability 41 or later.
+Older readers cannot interpret its reviewed artifacts, payload digests and
+repository ID. [Native mod loader bindings](DEFINITION-DELIVERY.md#native-mod-loader-bindings)
+owns the binding contract.
+
 NativePortable capability 26 adds checked Mac TAR.XZ app bundles through
 `release.tar_xz_platforms`. Each declared Mac route needs its own mandatory
 GitHub archive hints, a single exact `.app/Contents/MacOS/` executable and a
@@ -716,7 +1013,12 @@ its defined XDG_CONFIG_HOME or inherited HOME. OpenLoco uses a nonempty
 XDG_CONFIG_HOME on Linux, with the account home as the ordinary fallback.
 Managed CorsixTH gives its Windows and Linux player the neutral name
 `PLAYER` for the upstream blank-name fallback. It leaves the name already
-stored in the player's external profile to CorsixTH.
+stored in the player's external profile to CorsixTH. This `PLAYER` value is a
+separate title-bound launch behavior, not part of the external-profile policy:
+an equivalent definition under another identity keeps the profile guard but not
+the name. It cannot move to the definition's `launch_environment` because
+external-profile policies forbid launch environment, so moving it to data needs
+a catalog contract change.
 
 The managed offer covers the normal external profiles. Custom save,
 landscape, campaign and other locations stay with separately prepared
@@ -748,6 +1050,10 @@ The universal Mac disk image remains an upstream package.
 Surge the Rabbit uses the publisher’s Windows portable ZIP. The selected
 32-bit player runs on the Windows x64 host route with the bundled game data.
 Portcove sets `OPENSURGE_USER_PATH` to the existing per-title data directory.
+On Windows, any native portable definition that declares this environment
+refuses a non-ASCII data directory, because the player reads it through the
+narrow CRT environment; the declared environment, not the title identity,
+selects that check.
 The normal launch uses the bundled game and its separate writable data directory.
 Native portable definitions with a managed userdata environment use their
 declared arguments, since an alternate game-folder argument can change the
@@ -756,6 +1062,16 @@ Separately opened project folders retain their own files and backup ownership.
 
 The `external_profile_policy` declaration requires NativePortable capability 9 or
 the higher version specified for the selected layout.
+A policy is bound to the authenticated definition that satisfies its structural
+layout (adapter, permitted platforms, launch and data constraints, and the
+exact upstream package and executable shape its validator requires), not to a
+compiled list of port identities. Every delivered definition is already signed
+individually: its delivery binds the exact definition bytes (`definition_sha256`)
+and, for a managed GitHub subject, the numeric `repository_id`. The Dune Dynasty
+and fheroes2 policies have no package-shape validator, so they keep their
+reviewed identity and repository pins until the maintainers decide whether that
+per-definition signature is a sufficient binding or add a package-shape
+validator for them.
 It checks the effective profile selected by the final managed game environment
 before the player starts. The reviewed Dune Dynasty policy follows Allegro's
 Windows roaming folder and Linux HOME-relative XDG selection. It refuses a
@@ -862,9 +1178,10 @@ authored component's permission; under the
 component grant is a recorded note, not an acquisition hold. Retain a named
 acquisition condition at its exact operation scope. When fresh
 self-service acquisition is held, the authored listing can set
-`download_block_reason` to a bounded practical explanation and reconsideration
-condition. This restriction requires listing format 2 or later; Core refuses download options,
-preview and mutation before contacting the provider. This restriction grants no
+a `download` hold in `listing.restrictions` with a bounded practical explanation
+and reconsideration condition. Core refuses download options, preview and
+mutation before contacting the provider, except for an asset a scoped permit
+names, which is checked again on its downloaded bytes. This restriction grants no
 permission to acquire, register or execute an existing copy and does not rewrite
 its retained contract. Keep useful existing permitted-copy instructions and
 upstream links. Remove a restriction only after reviewing the changed fact.
@@ -995,7 +1312,7 @@ the local hash and the command says so. Kept paths (`--persistent`) require an
 explicit `--saves` choice, and a listing without `original_game_title` needs
 `--original-game-title`. `--repository`, `--channel`, `--env` and repeated
 `--launch-arg` values (written in order) cover the other declarations. It refuses
-a listing that still has a `download_block_reason`, or whose summary names a
+a listing whose restrictions still hold `download`, or whose summary names a
 structured fact such as the release channel, before writing anything. It needs a built CLI (`--cli` or `PORTCOVE_CLI`, default
 `target/debug/portcove`), and each managed platform needs an archive that the host
 can inspect, so a Windows host promotes only Windows. The guide, rights warnings,
@@ -1581,6 +1898,23 @@ materialization step and stays exact. An existing installation keeps the retaine
 contract it was installed under, so it accepts a headered dump only after it is next
 installed or updated.
 
+### Managed PS1 toolchain artifacts
+
+The bundled defaults live in `crates/portcove-core/catalog/tool-artifacts.json`.
+An admitted managed PS1 definition may propose one exact pack per
+declared platform through projection schema 4 and the
+`tools.psx-toolchain-v1` required feature. Each row fixes the publisher release,
+ZIP size and SHA-256, Python, CMake and Ninja layout, and the Mac executable
+member identities. Core refuses another repository, unexpected layout,
+duplicate platform, missing platform, or a mismatched archive digest.
+
+Acquisition, download resume, reopening and build require the exact bundled
+tool pack. A proposal that differs from the independently pinned artifact
+fails before acquisition or cache use, including after reopening. Legacy
+definitions and existing preparations keep their cache coordinates and receipt
+format. Player-selected chdman and DolphinTool paths use their existing trust
+checks.
+
 ## Default covers
 
 Ordinary single-record preparation uses [the authoring entry point](#adding-or-changing-a-port).
@@ -1839,6 +2173,16 @@ missing, invalid and then oldest observed references automatically against the
 28-day refresh target. Unknown dates remain due. Explicit
 `--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` remains supported.
 This is the existing operator cadence, not a new scheduler or player startup task.
+To prepare shared defaults in one offline pass, use
+`prepare-port.mts --accepted-shared-covers COMPACT_TARGET --verification-library OWNED_LIBRARY --validator-cli TRUSTED_CLI --output-dir DIRECTORY`.
+Supply the exact compact target selected after a successful official catalog
+refresh in the project-owned verification library. Use the existing artwork
+checkpoint so confirmed image withdrawals remain available. The command checks
+Core's selected revision and both authenticated digests before reusing a unique
+accepted original-game cover when both ports have the same reviewed game and
+single source edition. The donor's exact game, edition and asset must also appear
+in the signed directory. The receipt names each donor and any conflicting scope.
+The existing reviewed path validates and accepts the prepared changes.
 Due refresh of a retained cover revalidates its approved IGDB game ID, slug
 and cover role. An accepted mapping can be revalidated by exact ID and slug
 even when the listing lacks an original title. This does not establish a new
@@ -2330,6 +2674,31 @@ bundle.
 
 ### Release selection and maintenance
 
+Core's exact release selector binds one port, platform and channel to a specific
+tag or declared direct-manifest version, filename, size and SHA-256. GitHub
+revalidates the numeric repository, release and asset IDs, published digest and
+tag commit. GitLab revalidates the numeric project, release-link and registry
+file IDs, registry digest and tag commit. The configured direct manifest can
+resolve only its declared stable package.
+
+Exact checks apply the catalog's package, platform and channel rules. They
+revalidate provider metadata independently of the latest-release cache. A
+missing or changed artifact returns a hold for that selection. Curated
+integrations continue to require their separately admitted acquisition route.
+A matching selector describes provider metadata. The installer still verifies
+the downloaded bytes and applicable package layout before activation.
+Review evaluates the port's typed acquisition restrictions for the observed
+version and SHA-256 with the same final artifact gate that install and update
+apply, so a held package is refused at review with the restriction's
+explanation; a permitted package of the same port can still be pinned.
+
+A saved pin that Core cannot decode, or that names a channel the port no longer
+follows, becomes that port's `exact_release_hold`: other ports' status,
+checks and export are unaffected, the held port's checks and installs refuse
+instead of following the channel, and Follow clears it. Library metadata
+carries such a pin's stored text unchanged in `held_exact_release` (schema 13),
+so the destination keeps the same hold.
+
 Release asset hints should identify a stable port, platform, architecture and
 package shape when automatic release selection is offered. A controlled N/N+1
 test supports an automatic-update claim; it is not a prerequisite for a useful
@@ -2345,6 +2714,58 @@ for independently published add-ons or other platform streams with documented
 tag prefixes. Core excludes these tags even before asset collection. Releases
 in the selected stream with incomplete package evidence still hold. Review the
 existing tag history before adding a prefix and retain exact package verification.
+
+#### Artifact roles and fact sources
+
+Core gives every release asset it classifies a typed role, target operating
+system, architecture and fact source (`crates/portcove-core/src/route_facts.rs`).
+Only a `desktop-game-runtime` role may become a launch target. A consumer
+checks a fact's `source` before treating its role as authorized.
+
+Sources are consulted in this fixed precedence; the first with a definite role
+wins:
+
+1. `release-metadata`: machine-readable metadata the release publishes.
+2. `exact-release-structured`: a reviewed observation of the exact archive
+   bytes, such as a [generated package shape](#generated-reviewed-package-shapes).
+   Its player candidates exclude toolchain, installer, server and
+   development-tool programs beside the player. From shape version 2 it names
+   the version and each player's path, header machine and SHA-256 (see
+   [player candidates](#package-shape-player-candidates)); an archive with any
+   version 1 entry keeps the version 1 path-only candidates.
+3. `provider-cross-reference`: another provider's reviewed record.
+4. `family-extractor`: a bounded, versioned extractor for one release family.
+5. `stable-declaration`: a reviewed selector of the route matched the asset,
+   such as every reviewed asset hint for the platform or a curated pin.
+6. `filename-suggestion`: filename tokens, versioned by `rule_version`.
+
+A filename suggestion never authorizes a runtime. Selection by generic
+filename scoring, without a matching reviewed selector, records only a
+filename suggestion and keeps today's selection. Two authorizing sources that
+disagree about the role make the role unknown; when authorizing sources
+disagree about the host, the host is unknown rather than a refusal.
+
+What this release enforces:
+
+- A package named only for another operating system is never selected for this
+  host.
+- A release whose players are all for other hosts (another desktop, Android,
+  iOS or a console) is outside this platform's stream. A fresh install takes the
+  older release this host can use; an installation of the newer release is held
+  with `installed-release-newer-than-host-candidate`, never offered the older
+  one as an update.
+- Server, checksum, signature, symbol, source and license-compliance files keep
+  their existing exclusion from package selection.
+
+Reserved for later slices: refusing an asset whose authorized role is an
+installer, builder, importer, compiler, development tool, original-game input,
+mobile package, console output or documentation. The `wrong-role`,
+`wrong-host` and `contradictory-role` holds only fire when an authorizing
+source makes such a claim. In this slice, a reviewed package shape claims a
+desktop runtime and a matching reviewed selector claims the route's host, so
+none of the three triggers for current catalog entries. Prefer adding
+release-owned or structured facts over adding filename tokens or
+title-specific selectors.
 
 An ordinary compatible upstream release must resolve and install with the same
 application and unchanged definition. Author the reusable integration rules;
@@ -2389,16 +2810,21 @@ pins use their existing release contracts.
 
 When an upstream release still matches a managed route's selector but changes
 reviewed setup, replacement or data behavior, contain it with the integration's
-`managed_acquisition_hold` instead of port-specific Core code. A hold without
-`excluded_artifacts` refuses fresh Install, Update, catalog download and managed
-adoption before provider contact. Its `activation_reason` refuses activation and
-recovery of a staged or interrupted package unless its version and SHA-256 match
-one of the `reviewed_artifacts`.
+[acquisition restrictions](#acquisition-restrictions) instead of port-specific
+Core code. Two canonical forms are deliverable as the generated
+`managed_acquisition_hold`. A route-wide transition hold has an `acquisition`
+hold on `download`, `install`, `update` and `adopt`, an `activation` hold on
+`activate`, and one `reviewed-N` permit on `activate` per reviewed artifact.
+It refuses fresh Install, Update, catalog download and managed adoption before
+provider contact, and refuses activation and recovery of a staged or
+interrupted package unless its version and SHA-256 match a reviewed permit.
 
-A hold with `excluded_artifacts` identifies excluded packages by version and
-SHA-256. If the selected platform's package matches an exclusion, Core looks for
-a `reviewed_artifacts` match on that platform and channel and includes the hold
-reason in the install plan. Release observations record `reviewed-artifact-excluded`
+An exclusion form scopes `excluded-acquisition` and `excluded-activation` holds
+to exact artifacts and adds one `reviewed` permit on `install`, `update` and
+`activate`. It identifies excluded packages by version and SHA-256. If the
+selected platform's package matches an exclusion, Core looks for a reviewed
+permit match on that platform and channel and includes the hold
+explanation in the install plan. Release observations record `reviewed-artifact-excluded`
 for the candidate and retain the selected fallback as its own result. The fallback
 must match the reviewed digest using
 GitHub asset metadata or the publisher's checksum sidecar. Other releases go through ordinary selection and trust
@@ -2408,8 +2834,9 @@ can choose the reviewed fallback through Update when the installed artifact
 differs from the selected fallback.
 
 Review changes to the hold on the canonical port issue. A selected independent
-definition may preserve or strengthen the embedded restrictions. It cannot drop
-an exclusion or add a reviewed fallback. Embedded catalog changes reach players
+definition may keep or add restriction: every embedded hold must remain with at
+least its operations and scope, and every permit must already be reviewed in
+the embedded definition. It cannot drop an exclusion or add a reviewed fallback. Embedded catalog changes reach players
 with an application release. Independent delivery remains with #246.
 
 An integration may also record `reviewed_package_layouts`, one bounded fingerprint
@@ -2427,6 +2854,18 @@ different layout is refused with a player-facing reason naming the new or missin
 programs and folders, leaves the installed copy untouched, and uses the existing
 unsupported-acquisition surface, not a new hold authority. Platforms without a
 fingerprint keep today's behavior.
+
+An integration can retain up to four predecessor layouts per platform under
+`reviewed_predecessor_package_layouts_v1`. Each fingerprint applies to the exact
+verified GitHub repository, release, asset, tag, channel, filename, size and
+digest in the normal acquisition. The current full layout applies to other
+eligible packages. Portcove compares one complete layout and keeps the existing
+download rules, player release selection and retained install contracts.
+Signed delivery requires native-portable capability 42. Archive inspection
+reports an unassessed scope when matching predecessor bytes lack exact
+provider attribution. The scheduled metadata handoff supplies context for the
+existing exact predecessor, while a different provider assignment must be
+established by the ordinary acquisition route.
 
 An independently reviewed managed GitHub archive with only the selected root
 executable and no fingerprinted directories can declare
@@ -2630,6 +3069,13 @@ original game inputs or bundled runtimes:
 - `missing_persistent_parents`: parents of declared persistent paths the
   package does not ship.
 
+For a declared Linux portable data directory, a missing directory and an empty
+directory beside the selected executable represent the same package shape. Core
+checks the staged path before excluding it from the top-level directory set.
+Aliases, links and any packaged contents still fail the portable data checks.
+Existing recorded shapes stay intact, and future generated baselines for such a
+route must use the updated derivation inputs.
+
 Managed extraction never creates links: ZIP links are refused and an allowed
 TAR.XZ file link is written as a copy of its in-archive target, so every
 shipped file is a regular file the shape sees and links are not a blind spot.
@@ -2681,10 +3127,11 @@ explicit fingerprint's macOS library filter. Core computes that digest, and
 with; `--record` refuses a shape whose digest differs from `catalog.json`, so a
 CLI built before a catalog edit cannot record a stale shape under current
 inputs (rebuild the CLI, then record again). CI runs the offline `--check`:
-canonical bytes, the entries digest, Core's `SHAPE_VERSION`, and that every
-entry still names a managed portable route, one of its platforms, a reviewed
-catalog artifact with the same version and unchanged derivation inputs. Core's
-table-currency test checks the same digests and versions.
+canonical bytes, the entries digest, Core's `SHAPE_VERSION`, each entry's
+`shape_version` and its player candidates, and that every entry still names a
+managed portable route, one of its platforms, a reviewed catalog artifact with
+the same version and unchanged derivation inputs. Core's table-currency test
+checks the same digests and versions.
 
 When a catalog edit makes the table stale, run
 `node scripts/package-shape-baselines.mts --prune`; the failing `--check`
@@ -2697,11 +3144,11 @@ shape, so a dropped route only loses its baseline (`unknown`) until
 table by hand.
 
 Entry order follows catalog review order, so the last entry per route and
-platform is the newest reviewed shape. Changing the derivation rules (the
+platform is the newest reviewed shape. Changing the component rules (the
 program classifier, the configuration extensions, a part or its anchoring)
-bumps `SHAPE_VERSION` in the same change; a versioned golden-shape Core test
-over a fixture fails on any such change until the version and the golden are
-updated together. The N64 macOS archive inspection can additionally prove
+bumps `SHAPE_VERSION` and raises `COMPONENT_RULES_VERSION` to it in the same
+change; a versioned golden-shape Core test over a fixture fails on any such
+change until the version and the golden are updated together. The N64 macOS archive inspection can additionally prove
 flat install-root persistence absent when the whole payload consists of the
 app bundle that contains the resolved executable. It records the previously
 unknown persistence components through a distinct N64 macOS derivation-input
@@ -2709,9 +3156,45 @@ digest and preserves the existing coordinates and known values of other
 components. Earlier records still compare their known parts. The golden
 fixture is a Windows route, so the Unix
 executable-bit and verified macOS library branches of the shared classifier
-are not pinned by it; a change there still requires the version bump. After a bump Core ignores the table and recorded local shapes
-of the older version, and `--prune` empties the table until entries are
-re-derived.
+are not pinned by it; a change there still requires the version bump. After a
+component-rules bump Core ignores table entries and recorded local shapes below
+`COMPONENT_RULES_VERSION`, and `--prune` drops them until they are re-derived.
+
+#### Package shape player candidates
+
+Shape version 2 (#8569) adds `player_candidates` to each generated entry:
+`path`, `machine` and `sha256` of the players the reviewed bytes contain. The
+six components and their rules are unchanged from version 1, so
+`COMPONENT_RULES_VERSION` stays 1. Every table entry records its own
+`shape_version`; a version 1 entry has no players and remains a valid baseline
+with version 1 semantics until `--record` re-derives it. Installation manifests
+and withheld-release observations carry components only, so they are still
+written at version 1 and earlier Portcove builds keep reading them; this build
+reads records of either version. Release selection, install comparison and
+drift verdicts do not read players.
+
+A player is decided by declared facts and package structure, never by a list of
+titles. The candidate is the route's declared launch target, resolved from its
+`executable_hints` and runtime subdirectory exactly as the installer resolves
+it. It must be one of the shape's reviewed programs, no segment of its path may
+name an installer, setup, compiler or toolchain, importer, development tool or
+server (the existing structured-claim rule), and its header must classify as a
+native executable rather than a library, script or text. Bundled compilers such
+as `overlay_toolchain/tcc/tcc.exe`, updaters, crash handlers, setup programs,
+diagnostics collectors and dedicated servers are therefore never players; a
+route whose declared target is not such an executable records no player.
+
+`machine` comes from a bounded header reader, never from a filename:
+`pe-<arch>` for PE (`x86`, `x86-64`, `arm64`, `arm`), `elf32-<arch>` or
+`elf64-<arch>` for ELF (`elf32be-`/`elf64be-` when big-endian), `macho-<arch>`
+for a single-architecture Mach-O and `macho-universal-<arch>+<arch>` for a
+universal binary whose slices are all checked. Other machines keep their raw
+number (`0x%04x`, Mach-O `0x%08x`). Each read is at most 4 KiB and a
+classification makes a bounded number of reads; truncated, inconsistent or
+hostile headers classify as no native image or an unestablished kind and never
+fail the inspection. `sha256` is the digest of the whole player file. A
+reviewed player of a Windows x86-64 route may be a 32-bit `pe-x86` program;
+the machine records that fact and does not refuse the route.
 
 Core compares the active definition's shape inputs with the embedded
 definition that supplied the generated baseline. Changed inputs produce an
@@ -2887,6 +3370,39 @@ establish gameplay, a physical-controller path, or a platform not exercised.
 Retain the historical `automated_tested_platforms` and
 `manually_validated_platforms` field names and their existing recorded claims;
 this clarification creates no new qualification record or platform support.
+
+### Evidence by mechanism
+
+A mechanism suite proves what an adapter does for any port that declares it,
+using a synthetic fixture identity that production code and scripts never name
+(`mechanism_fixtures::identities_are_test_only` enforces this). It drives the
+real Core service entry points with inert packages from a local GitHub-shaped
+origin. It replaces per-title repetition of lifecycle checks, not title
+evidence: a port that fits a mechanism still needs the native and title
+evidence in the last column before its qualification claims change.
+
+| Mechanism                | Suite                                                                                                                                | What it proves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Still needs native or title evidence                                                                                                                                                                                                                         |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `upstream-managed-setup` | [`service/upstream_managed_setup_mechanism_tests.rs`](../crates/portcove-core/src/service/upstream_managed_setup_mechanism_tests.rs) | With this host's desktop package published, only it is downloaded, including when its name carries upstream's `setup` token; a checksum list, mobile or console file or another host's package is never selected, and an installer program or source archive is refused by its role; install refuses before download without a registered original, under a managed acquisition hold, on an undeclared platform or on a digest mismatch. A package without its declared setup program is refused at install before anything is published, keeping the active installation. Install and update never run setup; preparation runs the owned native setup probe into a private copy and publishes only with the declared marker and no writes outside declared outputs; Play never reruns setup. A changed or missing original, a setup failure, a missing marker or unowned writes keep the active installation. Interruption before the verified copy is journaled keeps the unprepared installation and retains the private work for reviewed cleanup; from that point recovery publishes the prepared copy, for a first install and for an update. Progress stays intact at every fault point. Update needs its own preparation and keeps the previous prepared copy. After preparing an update, rollback returns to the previous prepared version and again to the new one, with player data following the active version; the update's unprepared package stays tracked until removal. Removal leaves the original, its registration and collected progress. | The real upstream setup tool accepting real originals and producing a playable tree, per platform; gameplay; upstream launcher updates or settings outside the declared paths. The selection replay holds no recorded release facts for the cataloged ports. |
+| `referenced-disc`        | [`service/referenced_disc_mechanism_tests.rs`](../crates/portcove-core/src/service/referenced_disc_mechanism_tests.rs)               | With this host's player package published, only it is downloaded; a mobile package or another host's player is never selected, and a builder or debug package is refused by its role; the same install refusals as above. Launch passes the registered original in place with the player data folder, and repeated preparation is stable. The original is never modified, moved, copied into the library or written next to; a changed or moved original is refused, not repaired. Update and rollback keep player data and the reference; interruption before the install is journaled keeps the previous version, and from that point recovery activates the new version with the previous kept for rollback. Removal, and removing the source registration, leave the original untouched.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | The real player accepting real disc images and formats per platform; gameplay; the player's own data-location behavior beyond the descriptor Portcove writes. The selection replay holds no recorded release facts for the cataloged port.                   |
+
+The [selection-equivalence replay](../crates/portcove-core/src/release/tests/selection_equivalence.rs)
+counts these adapters as covered only through the synthetic mechanism ports and
+their own fixture, `mechanism-fixture-releases.json`.
+
+Release selection applies one typed-role gate for every adapter (#8602): a
+filename-suggested installer, builder, compiler, importer, development tool,
+debug build, source archive, documentation, mobile, console or server artifact
+never becomes the game package. The gate covers every provider that chooses a
+package by filename: GitHub release assets, and GitLab release links and their
+final registry filenames. Reviewed-forge and direct-manifest routes install an
+exact reviewed artifact and choose nothing by filename. When nothing else for
+this host remains, the refusal carries `route_hold: wrong-role` and nothing is
+downloaded. The widenings are declared by adapter: an upstream-managed setup
+route expects an extractable package named for its setup or installer, because
+its mechanism runs upstream's setup from that package; uninstallers and runtime
+redistributables stay refused. A PSX recompilation route expects its
+owned-input preparation kit, which may be named for its source.
 
 ### Preview successor support eligibility
 
@@ -3265,6 +3781,50 @@ wait for a current authenticated selection. Use the
 [indexed definition binding contract](DEFINITION-DELIVERY.md#reviewed-mod-provider-bindings)
 when delivering a binding through the signed feed.
 
+#### Declare mod sources
+
+Declare the mod websites and release feeds a port can use in
+`integration.mod_sources`. Core reads only this data to decide which sources a
+port offers; no port ID, game or repository name in code selects them. Adding,
+correcting or removing a source is a catalog change. Each entry has:
+
+- `id`: lowercase letters, digits and hyphens, unique in the port. Clients
+  use it to open the source.
+- `authority`: the most the source may do. `link_out` opens the source page in
+  the player's browser. `browse` also reads a bounded, attributed provider
+  listing. `inspect` also downloads one exact file privately and reviews it.
+- `platforms`: a sorted list of host platforms. Core offers a scoped source
+  on a platform the integration manages or the matching listing presents.
+  For a platform-independent `external_portal` website, use an empty list.
+  Its link is available even when the host or port platform is unknown.
+- `name` and `instructions`: the player-facing site or collection name and a
+  setup guide for files from this source. Follow
+  [content design](CONTENT-DESIGN.md). GitHub release sources omit both.
+- `source`: one typed kind.
+
+| Kind              | Fields                                                    | Highest authority | Rules                                                                                                                                                                                                                                                |
+| ----------------- | --------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `external_portal` | `site`, `url`                                             | `link_out`        | `nexus_mods` uses `www.nexusmods.com`, `mod_io` uses `mod.io`, `mod_db` uses `www.moddb.com`. `community_site` takes any public HTTPS DNS host.                                                                                                      |
+| `quaddicted`      | `engine` (`vk_quake` or `ironwail`)                       | `browse`          | The link is Quaddicted's database. Browsing needs a NativePortable GitHub release route on Windows or Linux.                                                                                                                                         |
+| `mod_db_feed`     | `url`                                                     | `browse`          | `url` is `https://www.moddb.com/mods/<slug>/downloads` or `/games/<slug>/downloads`. Core derives the feed address from it. Browsing has the Quaddicted platform rule.                                                                               |
+| `github_release`  | `repository`, `repository_id`, `asset_name`, `companions` | `inspect`         | The numeric repository ID must match GitHub. `asset_name` is the exact release asset. `inspect` needs a reviewed N64 Recomp loader with a native game and one `companions` layout per inspected platform. Other authority levels declare no layouts. |
+
+No source kind can install, update or activate anything. Install authority
+comes only from `mod_provider_bindings`, and Core's install helpers never read
+`mod_sources`. Private inspection of a GitHub release also needs the exact
+installed build's own retained loader. Compound activation stays behind
+managed custody.
+
+Every address in data is checked: HTTPS only, canonical spelling, no
+credentials, port, query, fragment or dot segments, a public DNS host, and the
+fixed host of its site. Core's provider readers fetch only fixed provider
+endpoints or addresses it derives, and refuse redirects. The browser follows
+its own redirects after a player opens a link-out page. A port may declare at
+most eight sources and at most one source of each browsing kind.
+
+[DEFINITION-DELIVERY](DEFINITION-DELIVERY.md#catalog-declared-mod-sources)
+describes the reader feature that guards this field.
+
 Run `node scripts/catalog-chip-gaps.mts` for read-only source system and supported
 OS coverage. Add `--json` for per-port detail. An authored
 `original_game_review` records deliberate multi-game, framework or unresolved
@@ -3272,6 +3832,2816 @@ scope. The report counts these separately from missing edition facts. Update
 ownership stays with upstream for listing-only records. A same-title match is a
 research lead. Check the implementation's actual input edition against pinned
 upstream evidence before adding a source system.
+
+Run `node scripts/catalog-route-fit.mts` for a read-only route-fit summary of
+every catalog identity. Add `--json` or `--output FILE` for the deterministic
+per-identity report, `--observations FILE` to apply listing observer output
+and `--check` to verify that every identity appears exactly once. Each record
+names its adapter and provider family, whether an operational route exists, its
+observation state, its typed restrictions and one disposition with a reason.
+ScummVM is decided first, by the declared runtime engine rather than the name,
+as `excluded-scummvm`. `enrolled` has an operational definition or generated
+route enrollment. For listing-only records the candidate is the non-owning
+user-selected registration route. `data-only` needs known desktop packages and
+player facts for one of those platforms: an accepted package player
+observation, a reviewed package shape or prepared-player `route_facts_v1`.
+`needs-bytes-worker` has known desktop packages without player facts.
+`unobserved` has unknown availability and no complete observation; it is
+unknown, not absent. `missing-capability` names a host no release provider
+adapter reads or packages without a supported desktop platform.
+`upstream-condition` covers source-only or unavailable upstreams, a complete
+observation without release packages, or restrictions that hold every
+registration operation on every package platform. `needs-admission` is reserved
+for data that declares a Portcove-owned route without an admitted reviewed
+artifact; no listing-only field can declare one, so it stays at zero. Only an
+observation with status `complete`, or a legacy one without a status, is
+evidence. Restrictions use Core's offer-time precedence, with releases and
+artifacts deferred, and name each held operation. A download hold does not
+remove the registration route. The report grants no admission and changes no
+catalog data.
+
+#### Generated user-selected registration
+
+Catalog generation adds the shared registration-only route to a listing-only
+identity when its observed facts fit. This follows the owner decision on
+[#1422](https://github.com/boburning/portcove/issues/1422#issuecomment-7083831868).
+Portcove downloads and executes nothing on this route. The player keeps and
+prepares their own copy, and the player and upstream own runtime replacement.
+`scripts/catalog-generated-registration.mts` decides every identity from data
+only. No title, id or hand-kept list appears in it.
+
+Because no title-specific review happens, these rules are the review. An
+identity fits when all of these hold, and the first one that fails is its
+blocked reason:
+
+1. It has no authored integration and no reviewed prepared-player
+   `route_facts_v1` enrollment.
+2. Its declared runtime engine is not the ScummVM project.
+3. Its availability is not `source-only` or `unavailable`.
+4. Its project or release URL names a GitHub repository.
+5. One `listing-package-facts.generated.json` entry names it and that same
+   repository, written by the current facts parser version, and records the
+   listing's own words its release text was judged with (`listing_words`,
+   [release text](#release-text-statements)); facts judged with another
+   listing name's words are `repository-mismatch` until observed again.
+6. The worker did not complete the entry as ineligible. The ineligible
+   reasons are listed below.
+7. That entry's observation is `complete` and its asset list is complete.
+   Any other coverage is unknown, never eligible. The facts were confirmed at
+   most 30 days (`maxFactsAgeDays`) before the table's `generated_at`
+   (`stale-facts`). Any run of non-complete upstream attempts since then is at
+   most 14 days (`lastGoodRetentionDays`) long (`observation-unavailable`).
+   The worker's own inspection backlog (`pending-inspection`) is not an
+   upstream attempt; only the facts age bounds it.
+8. The offered release belongs to this identity's product
+   ([release lines](#release-lines)). No other catalog identity names the
+   same repository, unless the listing's release URL binds this identity to a
+   release line no other identity is bound to (`shared-repository`). The
+   repository's observed stable releases form one release line, or the
+   listing binds one; the offered release is on that line; without a
+   binding, that line is the main line or names the listed product; and no
+   newer prerelease on the main line or another line naming the product
+   follows it (`ambiguous-release-line`). The offered release is stable by
+   Core's rule, its tag is not only channel words with a date, time or
+   hash, and neither its title nor the first line of its body states a
+   prerelease ([release text](#release-text-statements), `no-stable-release`).
+9. No other package form of the release serves a platform the release also
+   offers a readable archive for, unless it is that archive's own program
+   (its provider SHA-256 equals a player those archives hold for that
+   platform) or the listed product in another package form: its product
+   words are the listing's product (its id, name or original title words
+   joined), its product words and version equal those of every archive that
+   could be offered for the platform, and each such archive's player there is
+   named literally for that product
+   ([other package forms](#other-package-forms)). Any other form, including
+   one with no provider digest (UNKNOWN), means the release offers a
+   different package than its archive where the rule would bind, such as the
+   real game beside an archive holding only a build tool, so the whole
+   identity is excluded (`other-package-form-beside-archive`). A form serving
+   only platforms without an offered archive is ignored, and a source
+   archive offers no platform. Other package forms are never downloaded.
+10. For a supported desktop platform, an artifact has the role
+    `desktop-game-runtime` from an `exact-release-structured` fact. That fact
+    binds the archive's provider SHA-256 and holds player candidates with
+    their own SHA-256. No other fact source is accepted. The artifact is not
+    contradictory, its name carries no tool or system token and no
+    [archive role word](#one-program-per-platform) such as `update` or
+    `demo`, and it names no other system or architecture than the platform's. It holds a player
+    candidate whose platform-true machine runs on the platform and whose name
+    carries no tool token. It is no [source archive](#source-archives).
+    Each player's own machine decides where it runs:
+    another player in the same archive, such as a 32-bit helper or the other
+    system of a combined Windows and Linux archive, neither helps nor blocks
+    the platform. No archive Core refused has a name that allows the platform
+    without vetoing itself (`core-refused`): a refused archive could hold the
+    platform's game or a second one, so the platform is never decided around
+    it.
+11. On that platform the players are one program, and the archives holding
+    them are one package (equal archive bytes), whatever their names say
+    ([one program per platform](#one-program-per-platform)). No archive of
+    the release that could be the game, on any platform, bundles a compiler,
+    interpreter or build helper: that excludes the whole identity
+    (`bundled-toolchain`). The one program is not named for a launcher,
+    settings or setup step on any platform; that excludes the whole identity
+    too (`launcher-entry`), and the gate refuses every runtime of such an
+    identity, including platforms the fit would not enroll. No program of an
+    archive that could be the game, on any platform, has a
+    [program role word](#one-program-per-platform) in its file name or any
+    folder of its path, nor a role word glued to the product's name
+    (`role-program`). No archive or program name holds a character outside
+    ASCII (`non-ascii-name`). These deny-lists are contradiction detectors
+    and can only withhold. On top of them every name is parsed against a
+    [closed vocabulary](#closed-vocabulary-names): every token of the archive
+    offered on every platform is a product word, a version or a neutral word,
+    and its product words joined are the listing's or repository's name
+    (`archive-name-unaccounted`); the offered program is that name, in
+    folders of accounted words (`program-name-unaccounted`). Anything
+    unaccounted withholds; nothing enrolls by escaping a deny-list.
+12. On that platform no restriction holds `register-external` or `launch`. A
+    `download` hold does not block registration. This route never offers a
+    download.
+13. An authored listing guide leaves room for the generated selection step and
+    ownership reference within the eight-entry guide bound. That bound is
+    Core's catalog guide schema, which every client enforces; truncating
+    the authored guide would drop title-specific steps, so the identity is
+    withheld instead.
+
+The route's platforms are every platform satisfying 9 to 12. The generated
+record is exactly the hand-authored form: `external_registration_v1: true`, the
+`user-prepared` provider and the `staged-source-portable` adapter. Generated
+records then pass the same validation as authored ones. The listing keeps
+only its other descriptive platforms.
+
+##### Platform-true player machines
+
+A header machine alone does not say which system a program is for: an arm64
+Mach-O can be an iPhone app and an x86-64 ELF can be a FreeBSD or Android
+program. Core's listing inspection therefore reads the system from the header
+and names any other system in the machine (`ExecutableImage::platform_machine`
+in `crates/portcove-core/src/package_shape/machine.rs`). Only an unqualified
+`pe-x86-64`, `elf64-x86-64`, `macho-<arch>` or `macho-universal-…` runs on a
+supported platform; every qualified name runs on none.
+
+| Format | Desktop when                                                                                                                           | Other names                                                                                                                                                                  |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PE     | Windows GUI or console subsystem, without ARM64EC hybrid metadata                                                                      | `xbox`, `efi`, `arm64ec` (an x64 header whose load configuration names CHPE metadata: Windows on Arm), or `unknown` for any other or missing subsystem                       |
+| ELF    | A glibc or musl `/lib…/ld-linux…`/`ld-musl-…` interpreter with a System V or GNU OSABI, or a static image branded GNU/Linux            | `android` (`/system/bin/linker*`), `freebsd`, `openbsd`, `netbsd`, `haiku`, `solaris` by OSABI or interpreter; `unknown` for a static System V image or disagreeing evidence |
+| Mach-O | `LC_BUILD_VERSION` macOS or Mac Catalyst, or `LC_VERSION_MIN_MACOSX`, outside an iOS-shaped location; every universal slice must agree | `ios`, `tvos`, `watchos`, `visionos` (simulators count as their device), `other` (bridgeOS, DriverKit), `unknown`, and `unplatformed` for no platform load command           |
+
+An iOS-shaped location is inside a `Payload/` directory at any depth (an
+`.ipa` layout, also repacked inside another folder), or below an `.app` or
+`.appex` bundle that is not a macOS bundle: the innermost bundle around a macOS
+program is always followed by `Contents/MacOS/` and every outer one by
+`Contents/`, while an iOS bundle holds its program and nested extensions
+directly. A Mach-O image with no platform load command is macOS only outside
+every iOS-shaped location, such as under `*.app/Contents/MacOS/` or as a bare
+program; otherwise it stays `macho-unplatformed-…`. A macOS image in an iOS-shaped
+location is `macho-unknown-…`. Core reads at most 64 KiB of Mach-O load
+commands per slice; a platform command past that leaves the system unknown.
+An ARM64EC image keeps an x64 header machine, so its load configuration
+decides: a non-zero CHPE metadata pointer makes it `pe-arm64ec-x86-64`, a
+Windows program for an Arm host that runs on no supported platform. Core reads
+at most three more bounded headers for this (optional header, section table,
+load configuration); anything malformed is not hybrid. The historical
+unqualified `machine` that reviewed package shapes record keeps its meaning, so
+managed routes are unchanged.
+
+Players with only non-desktop machines block the identity as
+`non-desktop-platform`; players with only `unknown` or `unplatformed` machines
+block it as `unknown-platform`. Desktop players for another architecture or
+system than any supported platform remain `wrong-host`.
+
+##### One program per platform
+
+A release archive can hold several titles, such as two games built from one
+engine. After the tool veto, the kept players that run on a platform must be
+one program: at most `maxDistinctPrograms` (1) distinct program names, across
+every archive whose name allows the platform, and each archive's players under
+one top-level directory. Anything else is `ambiguous-player`. Two program names
+are the same program when they differ only in build-variant words: an
+architecture or system word (`x86_64`, `x64`, `win64`, `linux`, `universal`),
+`console`, `debug` or `exe`, and a bare `64`, `32` or `86` only when it stands
+alone between separators. So `skyrun.x86_64.exe` and `skyrun.x86.exe` are one
+program, `Game.exe`, `Game-64.exe` and `Game.console.exe` are one program, and
+`skyrun.x86_64.exe` beside `skyrow.x86_64.exe` is two. A number glued to the
+name is part of the name: `Lantern64.exe` can be a different game from
+`Lantern.exe`, and nothing in the names proves otherwise, so `Lantern.exe` beside
+`Lantern64.exe` (and likewise `Game.exe` beside `Game64.exe`) is
+`ambiguous-player`. A reviewed `route_facts_v1` enrollment can still offer
+such a release.
+
+The bound is one because a second distinct name cannot be told apart from a
+second title by name alone. That includes `Game.exe` beside `Launcher.exe`:
+`launcher` is not a tool token, because a launcher is often the documented
+entry point, so vetoing it could leave the wrong program as the only player.
+Such a release is excluded as `ambiguous-player`. A reviewed `route_facts_v1`
+enrollment can still offer it. The gate checks the same rule with its own code
+and also requires an enrollment to name every player of its artifact that runs
+on the platform.
+
+A launcher alone is not the game either. When the one program of a platform
+is named for a launcher, loader, settings or setup step (`launcher`,
+`launch`, `start`, `loader`, `settings`, `config`, `cfg`, `configure`,
+`setup`, `install` or `installer` as a whole word of its file name, split
+like product names, so `GameLauncher.exe`, `Launch.exe`, `StartGame.exe`,
+`GameCfg.exe` and `Game_Settings.exe` count and `Configurator.exe`,
+`Restart.exe`, `Startup.exe` and `Settler.exe` do not), the whole identity
+is withheld as `launcher-entry`. Such a program often builds or
+prepares the game on first start without bundling a toolchain, and nothing
+in the facts says it is the game's runtime entry. Reconsider an identity
+withheld this way when listing data or release-bound metadata declares the
+launcher as the game's runtime entry; a reviewed `route_facts_v1`
+enrollment can still offer it. `setup` and `installer` programs are usually
+already excluded by Core's tool veto; the launcher rule names them as a
+second guard. The gate restates the rule with its own word splitter and
+applies it to the whole identity: for each platform it takes the candidates
+of its own one-program check, and when exactly one offerable archive (by
+SHA-256) holds the platform's players, they are one program under one
+top-level directory, no refused archive's name permits the platform, and that
+program is launcher-named, it refuses every runtime of the identity. So an
+enrollment forged for a clean Windows zip beside a Linux tarball whose only
+program is a launcher is refused, as the fit rule withholds it.
+
+A program named, or placed, for another role is not the game either. When a
+program of any archive that could be the game (on any platform) holds
+`debug`, `dedicated`, `headless`, `server`, `tools`, `editor`, `sdk`, `demo`,
+`dbg`, `srv`, `ded`, `trial`, `shareware` or `test` as a whole word of its
+file name or of any folder of its path (`Game-debug.exe`, `GameServer.exe`,
+`server/Game.exe`, `tools/Game.exe`, `test/Game.exe`, `Game-trial.exe`,
+`Game Demo/Game.exe`), the whole identity is withheld as `role-program`, even
+beside the game's own program: a debug build is the same program by name,
+but nothing says which one the player should register. Where no word
+boundary shows (glued or in capitals), the program's literal name (the file
+name lowercased, without `.exe`, letters and digits only) is compared with
+the listing's, repository's and archive's names joined: one of them with a
+role word before or after it (`gameserver.exe`, `GAMESERVER.EXE`,
+`gamedebug.exe`, `servergame.exe`) or a trailing `d` (`gamed.exe`) is a role
+program too. A word only containing the letters (`Serverless.exe`,
+`Demos.exe`, `Testament.exe`, `Toolset/`, `Editorial/`) or a name plus another
+word (`Gamer.exe`, `Gamedev.exe`) is not. A demo, trial or shareware build is
+withheld: it is not the listed game. The gate restates the word list, the
+splitter and the glued comparison and refuses every enrollment of such an
+identity, and every runtime naming such a program.
+
+A name with a character outside ASCII can imitate another name (a Cyrillic
+`а` in `Gаme.exe`, the full-width `Ｇａｍｅ.exe`). When any archive of the
+release or any of its programs has such a name, the whole identity is
+withheld as `non-ascii-name`; the gate restates the rule.
+
+###### Closed-vocabulary names
+
+A deny-list of bad words loses to the next variation, so archive and program
+names are parsed against a closed vocabulary instead: a name enrolls only
+when every token is accounted for, and any unaccounted token withholds with
+that token as evidence.
+
+An archive name is tokenised (`archiveNameTokens`):
+
+- the package form or another file extension (and an `.app` suffix) is
+  removed;
+- `x86_64`, `x86-64` and `64-bit` are one word;
+- a run of digit groups joined by dots (`1.0.2`, `v2.1.0`) is a version,
+  never a product word;
+- the rest is split at separators into chunks:
+  - A chunk that is a neutral word (`neutralArchiveWords`) is neutral. These
+    are the platform and operating-system words `windows`, `win`, `win32`,
+    `win64`, `linux`, `linux32`, `linux64`, `macos`, `mac`, `osx`, `darwin`;
+    the architecture words `universal`, `universal2`, `x64`, `x86`, `x86_64`,
+    `amd64`, `arm64`, `aarch64`, `i386`, `i686`, `64bit`, `32bit`; and the
+    packaging words `portable`, `release` and `appimage`. `bin` is not one:
+    `Game-bin-…` names one part of a split package.
+  - A chunk of digits after `v` or `r` is a version. A `b` prefix is not
+    one: `b2` usually says beta 2.
+  - A chunk of digits only is an integer. It counts as a product word only
+    where the matched name has that number at that position; otherwise it
+    withholds (`number:<n>`). From four digits on (a date or build number) it
+    may instead be a version.
+  - Every other chunk is split into whole words (camel-case humps and
+    letter/digit changes), each a neutral word or a product word, glued
+    digits included.
+
+The tokens follow an ordered grammar, `PRODUCT (VERSION | NEUTRAL)*`. The
+product is the contiguous prefix of words and integers, and it must spell one
+of the listing's id or name, or the repository name (`accountNames`,
+`archiveNameAccount`). An integer is a product number only directly after the
+product words. After the first version or neutral token, no product word may
+appear, and an integer of one to three digits withholds, while one of four or
+more digits is a date or build number read as a version. Anything else
+withholds the whole identity as `archive-name-unaccounted`. The original game's title
+(`original_game_title`) is not an accepted name: a remake's listing must not
+enroll an archive named only for the original. So:
+
+- for a listing named `Super Game`, `supergame-1.0-win64.zip`,
+  `Super-Game-v1.0-windows-x64.zip` and `SuperGame-portable-x86_64.zip`
+  enroll;
+- for `Doom 2`, `doom2-1.0-win64.zip`, `doom-2-1.0-win64.zip` and
+  `Doom-2-win64.zip` enroll, and for `2048`, `2048-win64.zip` does;
+- these withhold, with the leftover token as evidence:
+  - `SuperGame2-…` (`2`), `Super-Game-2-1.0-…` (`number:2`), `Super-Other-…`
+    (`other`), `SuperGame-Trial-…` (`trial`), `SuperGame-beta-…` (`beta`),
+    `SuperGame-rc1-…` (`rc`, `1`) and `SuperGame-Lite-…` (`lite`) for
+    `Super Game`;
+  - `Doom3-win64.zip` (`3`), `doom-2.1.0-…` (Doom at version 2.1.0,
+    `missing:2`) and `Doom-1.0-win64.zip` (`missing:2`) for `Doom 2`;
+  - `Doom-2-win64.zip` (`number:2`) for `Doom`;
+  - `Game-1.0.2-win64.zip`, `Game-1.0-2-win64.zip`, `Game-v1-2-…`,
+    `Game-2024-2-…` and `Game-win64-2.zip` for `Game 2` (its own
+    `Game-2-1.0-win64.zip` enrolls), `Super-1.0-Game.zip` for `Super Game`,
+    and `OPEN_1.2-3.win64.tar.xz` for `Open 3`;
+  - `Game-b2-…` (`b2`), `Game-bin-…` (`bin`) and `Game-1-…` (`number:1`) for
+    `Game`;
+  - `Space-Invaders-…` (`invaders`) for `Space Game`, and `The-Other-…`
+    (`other`) for `The Game`;
+  - a platform-only name such as `win64.zip` (`no-product`).
+
+An archive accepted only by the repository's name (not the listing's id or
+name) is a common legitimate shape (a port's archive named after its own
+repository). It enrolls, but `registration_queues.accepted_by_repository_name_only`
+lists it for a person to check that group first. `numbered_products` lists
+every enrollment that depended on a number counted as a product word,
+`integer_as_version` every enrollment whose archive name was accounted for
+by reading the first integer after the product words as a version when it
+has exactly four digits or a leading zero, whatever its value
+(`doom-2016-win64.zip` for `Doom`; `game-1942-…`, `Game-1000-…` and
+`Game-0042-…` for `Game`; date-length runs of eight or more digits are not
+listed), `unstated_status_words` every enrollment whose offered release's
+title holds a status word (`beta`, `alpha`, `rc`, `preview`, `demo`,
+`nightly`) as a whole word but states no status (`Beta release notes`), and
+`tool_only_archives_beside` every enrollment whose release also holds an
+archive with only tool-vetoed programs. These queues are reporting only and
+never change what enrolls. The facts keep a release's title but not its
+body, only the statement the body's first line makes, so a status word in
+a first body line that states nothing is UNKNOWN to `unstated_status_words`.
+Until November 24, 2026 the integer queue was `year_as_version` and listed
+only 1970 to 2099.
+
+A release may split the game across archives. When another archive of the
+release holds no program, is no source archive, and has a name that allows
+the offered platform (`Game-data-1.0.zip` or `Game-assets-1.0.zip` beside
+`Game-1.0-win64.zip`), the offered archive alone may not be the whole game,
+and the whole identity is withheld as `split-package`. A part named for
+another platform (`Game-data-1.0-linux.tar.gz` beside a Windows zip) does not
+split it. Loose data in another form follows the
+[other package form](#other-package-forms) rule. The same-product relief
+there applies only to recognised forms: the Windows, Linux and macOS
+installer and package kinds, and the containers `.7z`, `.rar`, `.tar`,
+`.tar.bz2`, `.tbz2` and `.tar.zst` (`reliefForm`). An unrecognised container
+named for the product (`Game-1.0.pk3`) never gets relief and competes. A
+`.wad` beside a desktop archive competes as a container too: withholding a
+real console build is cheap.
+
+A program enrolls only when its literal name (the file name lowercased,
+without `.exe`, letters and digits only) equals the listing's, repository's
+or accepted archive's product name joined. Only where the release ships no
+other package form may architecture words follow it (`programArchitectureWords`:
+`Game-x64.exe`, `game.x86_64`; a bare `64` or `32` is not one, since
+`Game64` can be another title). Beside another form, the name stays strictly
+literal. Every folder on its path must be made of product words, versions,
+neutral words and the layout words `bin`, `game`, `app`, `contents`, `x64`
+and `win64` (`programLayoutWords`, which accounts for a macOS bundle's
+`Game.app/Contents/MacOS/`). Each folder segment follows the archive grammar:
+a dotted run, `v<N>`, `r<N>` and four or more digits are versions; an
+integer of one to three digits is accepted only directly after the segment's
+words, and only where they and the number spell an accounted name (`Doom-2/`
+for `Doom 2`; `Doom-2/`, `Doom 2/` and `Doom/2/` for `Doom`, and `Game-3/` for
+`Game`, withhold); a number glued to letters counts only as a whole accounted
+name (`Doom2/` for `Doom 2`, never for `Doom`); `b2/` is no version. Exactly one player may survive the platform selection:
+two product-named programs on one platform (`Game/bin/Game.exe` beside
+`Game/x64/Game.exe`, or `Game.exe` beside `Game-x64.exe`) are
+`ambiguous-player`. Anything else withholds the whole identity as
+`program-name-unaccounted`, with the leftover as evidence:
+`supergameserver64`, `SUPERGAMELAUNCHER`, `SGSERVER`, `SGEDIT`,
+`supergame-cli`, `Other.exe` in an archive named for the game, engine or
+codename binaries, and `server/`, `tools/`, `editor/` or `data/` folders.
+
+The neutral, architecture, layout and descriptor lists and the other
+[measured name reliefs](#measured-name-reliefs) grow only from measured
+evidence with a recorded example (`registration_queues.unaccounted_tokens`),
+never speculatively. The deny-lists (role words, launcher words, archive role
+words, names outside ASCII) stay as contradiction detectors layered on top:
+they can never enroll. The gate restates the tokeniser, the lists and both
+comparisons with its own code, for every runtime and for the identity-wide
+candidate of each platform.
+
+The cost of these name rules is stated, not hidden: they trade enrollment
+count for certainty. They withhold real games in these shapes:
+
+- a release that names only a platform (`win64.zip`, `linux.tar.gz`);
+- a title that holds a role or launcher word as a word of its program or
+  archive name (a title word `server`, `editor`, `demo` or `start`);
+- an archive that uses a codename, an edition word or a platform word outside
+  the neutral and descriptor lists (`Game-HD-…`, `Game-Deck-…`);
+- a program that is an engine or codename binary, or carries a variant or
+  bare-number suffix (`Game-64.exe`, `Game.console.exe`);
+- a program with an architecture suffix beside an installer (`Game-x64.exe`
+  beside `Game-1.0-Setup.exe`).
+
+Such identities stay in their queue with the matched evidence
+(`registration_queues.reason_evidence`, `unaccounted_tokens`) for a reviewed
+`route_facts_v1` enrollment or an authored integration.
+
+###### Measured name reliefs
+
+Exact name equality turned out to demand what real project naming does not
+provide. Of 131 identities an earlier run enrolled and a person verified as
+correct (right archive, right program, stable release), 106 were withheld at
+generator 22 by these name rules alone (`archive-name-unaccounted` 72,
+`program-name-unaccounted` 22, `split-package` 8, others 4). The product
+attribution of an archive comes from the catalog binding: the listing names
+its own repository, a shared repository is withheld, and more than one
+surviving archive is ambiguous. Names are there to detect contradictions.
+Generators 23 and 24 therefore add closed, measured reliefs. A relief only accounts
+for tokens: a deny-list word, an ambiguity, a split package, a wrong number or
+any token still unaccounted withholds exactly as before, and the gate restates
+each relief with its own code. Every enrollment records the reliefs it
+needed (`registration_queues.enrollment_reliefs`), and
+`registration_queues.relieved_enrollments` lists the relieved enrollments by
+relief for a person to hand-check first.
+
+- **Partial name** (`partial-name`). An accepted name is read in
+  segments: runs of words joined only by a space, `-`, `_`, `.`, an
+  apostrophe, `&`, `+`, `,` or glued (`&`, `+` and `,` link like `and`), so a
+  colon, bracket, slash or dash starts a new segment. The first segment and
+  colon subtitles are title segments; from the first em or en dash, slash,
+  backslash, vertical bar or opening bracket on, every segment is an
+  annotation (an author handle, a project, tool or platform name). The
+  archive's product may omit whole segments, but never one that holds a
+  sequel number (`sequel`): a number of one to three digits or a roman
+  number, unless it is part of a dotted version (`0.1`), follows a linked
+  platform word (`platformNumberWords`: "Xbox 360", "Nintendo 64", `N64`) or
+  is glued inside an annotation token of two or more letters (`BT2`,
+  `OpenKai2`, `oric212`); a single letter glued to it (`X4`) stays a sequel.
+  Since generator 27, in a later title segment (a colon subtitle, not the
+  first segment and not an annotation) a spelled number (`one` to `twenty`,
+  `first` to `twentieth`, `spelledNumberWords`; never `zero`) and an integer
+  of four or more digits are sequel numbers too: `Halo` never accounts for
+  "Halo: Chapter Two" or "Halo: Second", `SeriousSam` for "Serious Sam: The
+  Second Encounter", `Wipeout` for "Wipeout: 2048", `Battlefield` for
+  "Battlefield: 1942", `Anno` for "Anno: 1602" or `TheOrder` for "The Order:
+  1886". The cost is stated: on the catalog of November 24, 2026, 14 of 1,649
+  listings hold such a subtitle (both Serious Sam encounters, four The Order:
+  1886 listings, both The Two Towers listings, "Gakuou: The Royal Seven
+  Stars", "N3: Ninety-Nine Nights", "Command & Conquer: … Dune 2000", "Rogue
+  Trip: Vacation 2012 Recompiled", "Super Mario RPG: Legend of the Seven
+  Stars" and "The Operative: No One Lives Forever"), and none of them can be
+  accounted for by a partial name that omits it.
+  Since generator 28 every number of a later title segment is a sequel
+  number, but a linked platform's number ("Crackdown: Xbox 360"): a digit run
+  inside a dotted run too (`KingdomHearts` never accounts for "Kingdom Hearts:
+  2.8", `Halo` never for "Halo: 2.5", "Halo: Version 2.0" or "Halo: Chapter
+  1.5"), every roman numeral in standard form of two or more letters, of any
+  size, and a lone `V` or `X` (`Halo` never for "Halo: XXI", "Halo: XL" or
+  "Halo: MMXX", `HaloWars` never for "Halo Wars: XXI"; a lone `I` stays a
+  word), and the spelled tens beyond twenty, `hundred`, `thousand`, their
+  ordinals and joined or hyphenated compounds (`thirty`, `twentyfirst`,
+  `twenty-one`, `ninetynine`, `onehundred`; never `zero`). The first segment
+  keeps the dotted-version reading (`Lantern 0.1`). The cost is stated: on the catalog
+  of November 24, 2026, three of 1,649 listings read a new sequel number
+  (`dx` in both "Link's Awakening DX" listings, `ninety` in "N3: Ninety-Nine
+  Nights", which already held one), and of 5,920 archive names built from
+  every listing's first title segment, whole title, repository name, id and
+  initialisms, one changes outcome: `Zelda` no longer accounts for "Zelda:
+  Link's Awakening DX HD".
+  An annotation may also repeat a number the product carries ("Gears of War
+  2 — Gears of War 2 port" for `GearsOfWar2`). So `Halo` never accounts for
+  "Halo: 2", "Halo — 2" or "Halo, 2", `Doom` never for "Doom (2)" or "Doom:
+  3", `Shenmue` never for "Shenmue: Chapter 2", `MegaMan` never for "Mega
+  Man: X4" or "Mega Man (X4)", and `FinalFantasyVII` never for "Final
+  Fantasy VII / VIII". Before the first word it keeps of a segment, the
+  product may omit only articles (`the`, `a`, `an`) or a leading run that
+  ends in a possessive ("Tony Hawk's", "Tom Clancy's", "Disney's"): `Contra`
+  never accounts for "Super Contra", `Metroid` for "Super Metroid",
+  `PacMan` for "Ms. Pac-Man", `MarioBros` for "Super Mario Bros.",
+  `MortalKombat3` for "Ultimate Mortal Kombat 3", `CastleWolfenstein` for
+  "Return to Castle Wolfenstein", `Auto` for "Grand Theft Auto: Vice City",
+  `Mario` for "Paper Mario" or `Sonic` for "Sonic & Knuckles", while
+  `provingground` accounts for "Tony Hawk's Proving Ground". Once it keeps a
+  word of a segment it keeps every later
+  word of that segment, except the segment's trailing port descriptors and
+  measured edition suffixes (`editionSuffixWords`: `ce`, "Brogue CE"). So
+  `Crackdown-v0.6.2-windows-x64.zip` accounts for "Crackdown (Crackdown
+  Recompiled)", `crusader-no-remorse-…` for "Crusader: No Remorse / SDL port",
+  `cybermage-…` for "CyberMage: Darklight Re-Awakening", `SealTeam-0.6.1-…`
+  for "SEAL Team / SealTeam Source Port" and `shadowsoftheempire` for "Star
+  Wars: Shadows of the Empire". A dropped tail never does: `MegaManX` for
+  "Mega Man X4", `Mega-X` for "Mega Man X", `StarWars` for "Star Wars
+  Battlefront" or "Star Wars Episode II", `PerfectDark` for "Perfect Dark
+  Zero", `Batman` for "Batman Returns", `World` for "World of Goo", `Need`
+  for "Need for Speed" and `Sonic` for "Sonic and the Black Knight" withhold.
+  A port descriptor inside the title is a title word and is never omitted
+  ("Static Shock" is never `Shock`, "Pal Game Party" never `Game-Party`). Every
+  omitted name word, a trailing descriptor included, is recorded as
+  `partial-name`. When a core word is omitted, a kept word of a title
+  segment must be distinctive: not an article or connector, a generic or
+  edition noun, a platform or console word, a descriptor, a neutral word, a
+  number or a single letter (`nonDistinctiveWords`). So `game-1.0.zip` never
+  accounts for "The Game", and an annotation alone never accounts for
+  anything: an archive named only after the author, the project or the tool
+  ("Gears of War 3 — squarehole360 Gears3 (GloriousEggroll)" for
+  `GloriousEggroll-…`) withholds. Numbers are never optional: every number of the archive's
+  product must be a whole number of the name where it stands; a kept number
+  keeps its linked preceding word (`MegaMan2` never accounts for "Mega Man
+  Legends 2"); a kept word keeps its linked preceding number; and a number of
+  the name (digits or a roman number from `ii` to `xx`, `romanNumbers`)
+  linked to a distinctive word is never omitted, even with its whole segment.
+  "Doom" does not account for "Doom 2" or "Doom II", "Doom 2" does not
+  account for "Doom", and `Silent` does not account for "Silent Hill 2". A
+  number linked only to non-distinctive words may go: a year in brackets
+  (`Lantern (1998)`), or the `360` of `crackdown-xbox360-recompiled`, linked
+  only to `xbox`. Across names too: a product that drops a number another of
+  the listing's accepted names ties to a kept word, and does not carry that
+  number elsewhere, is unaccounted (a number glued inside an annotation
+  token never is one, nor one an annotation repeats from the product), also when it spells the id or repository
+  name exactly (`Doom-1.0-…` for a listing named "Doom 2" whose id is `doom`,
+  `Sims1-…` for "The Sims 2"). `DOA3` for "Dead or Alive 3 (DOA3 Recomp)"
+  carries its `3`. Since generator 29 a carried number compares by value: a
+  digit run carries a roman number of two or more letters from
+  `romanNumbers` of the same value, so `saboteur2-1.1-windows-x86_64.zip` in
+  the repository `saboteur2` carries the `II` of "Saboteur II". A different
+  value never does (`saboteur3-…` still drops it), nor does a digit run carry
+  a lone `V` or `X`, which may be a letter's name ("Mega Man X"), or a word
+  outside `romanNumbers`. Also since generator 29 an architecture word in the
+  name's annotation (one of `programArchitectureWords`, its pieces in one
+  chunk or joined by `-` or `_`: `x86-64`, `x86_64`, `x64`, `Win64`,
+  `amd64`, `i386`, `64-bit`) names the build, so its numbers are no sequel
+  numbers and never stop the annotation being omitted: the same archive
+  enrolls for the listed name "Saboteur II: Avenging Angel (Saboteur II
+  x86-64 recomp)". Only the annotation: in the title proper "Mario 64 (x86-64
+  recomp)" still needs its `64`, and a bare annotation `64` or `x65` is still
+  a number. A platform name split by camel case (`PlayStation 2`)
+  makes its number mandatory: the cost is stated.
+- **Initialism** (`initialism`). A product of three to six letters, or two
+  to six with a number of the name among its initials, may be the
+  initials of the first title segment's words from its first word on,
+  covering more than half of that segment's words and at least two of them,
+  with a distinctive word among them, and only where the partial name made
+  of that segment's words, omitting the same later segments, is accepted
+  (`laterSegmentsDroppable`): `nfs` never stands for "Need for Speed:
+  Underground 2", `dbz` for "Dragon Ball Z: Budokai 3", `sw` for "Star Wars:
+  Episode II", `mm` for "Mega Man: X4", `kh` for "Kingdom Hearts: Volume 2",
+  `gow` for "Gears of War: 2" or `dw` for "Dynasty Warriors: Gundam 2". Since
+  generator 26 a two-letter initialism without a number is none: `mm` for
+  "Midtown Madness", `ki` for "Killer Instinct" and `sc` for "Super Contra"
+  withhold (`mm2` for "Mega Man 2" and `ki2` for "Killer Instinct 2" do
+  not). A word gives its first letter, a
+  capitalised acronym its first letter or all of it (`otesa` for
+  `OpenTESArena`), a number all its digits or roman letters (`wg3d` for
+  "Wayne Gretzky's 3D Hockey"), a possessive `s` nothing (`thps` for "Tony
+  Hawk's Pro Skater"). The run ends only at the end of its segment (before
+  optional trailing words) or just after a chunk holding a number, never
+  inside a glued chunk, and never while a number remains later in the
+  segment: `dw2`, `doa3`, `wg3d` and `mhgu`, never `dw`, `doa`, `wg3`, `mhg`
+  for "Monster Hunter Generations Ultimate" or `nfs` for "Need for Speed
+  Underground 2". The same holds across the listing's names: a product that
+  is, with descriptors around it, the initials of a run of any accepted
+  name's first title segment that ends where no initialism may end (a
+  truncated initialism, `truncatedInitialisms`) is unaccounted, also when it
+  spells the id or repository name exactly. So `gow`, `gow-recomp` or
+  `Native-gow` never stands for "Gears of War 2", 3 or 4, even in a
+  repository named `gears-of-war-port` or `gow-recomp`, while `gow2` does;
+  `nfs` never stands for "Need for Speed Underground" through a repository
+  named `nfs-recomp`, `thps` never for "Tony Hawk's Pro Skater 2" through
+  `thps-port`, and `SSX-Recomp` never for "SSX 3". Measured: `sst`,
+  `rsc`, `ghr`, `gow`, `mhgu`, `dw2`, `wg3d`, `doa3`, `itc`, `thps`,
+  `otesa`; `mm` and `ki` were measured too and are lost since generator 26
+  (`ki` is still accounted where the repository name spells it, `ki-recomp`).
+  An initialism that is a
+  deny-list, neutral, descriptor, channel, variant, layout or package-form
+  word, a roman number, or a short edition, medium or bonus word (`ds`, `sv`,
+  `svr`, `cl`, `ed`, `me`, `dlc`, `ost`, `bgm`, `hd`, `sd`, `uhd`, `dx`, `cd`,
+  `dvd`, `ex`, `se`, `ce`, `le`, `re`, `mp`, `sp`, `vr`, `xl`), is never one
+  (`initialismVetoWords`), even where it really is the initials; `sc2` for
+  "Super Contra 2" is one. `ewj` for "Earthworm Jim" is not recovered as an
+  initialism: `earthworm` is one word in every accepted name, and the rules
+  split no compound words; it is accounted only where the repository name
+  spells it (`ewj-port`). Since generator 27 an initialism takes no initial
+  from an author handle (`authorHandles`): initials come from title words and
+  the repository's name, never from its owner. The first word of a listing
+  id is a handle when it is no word or whole chunk of the name's title
+  segments nor of the repository's name (`alexbeav` of
+  `alexbeav-suikoden-ii-recomp`, `abilliontokens` of
+  `abilliontokens-sims2-recomp`), and the first word of the repository's
+  name is one when it is no title word and the owner starts with it (three
+  or more letters: `owner/owner-game`); a name that starts with a handle has
+  no initialism, so `asii` and `as2` withhold. The cost is stated: on the
+  catalog of November 24, 2026, 508 listings have a handle, and 376
+  initialisms of their ids or repository names are no longer accepted (most
+  start with `a` for `alexbeav`; the id `diddy-kong-racing-golden-balloon` of
+  "Golden Balloon" also loses `dkrgb`, its words being neither title nor
+  repository words).
+- **Port descriptor** (`descriptor`). A closed list of words that say how a
+  port was made, not which game it is, may stand in the archive or program
+  name without being in the accepted name, and may be absent where the
+  accepted name has it as a trailing port descriptor ("… Recomp", "… PC
+  Port"; recorded as `partial-name`), never where it is a title word.
+  Descriptors are never the distinctive word. In an
+  archive or folder name a descriptor is a whole token (`Portal-…` never holds
+  `port`); in a program's glued name, descriptors only trail it
+  (`narutothebrokenbondpc`), as measured. Each has its measured example:
+  - `recomp`: `gow2-recomp-0.4.7-linux-x86_64.tar.gz` (repository
+    `gears-of-war-2-pc-port`), repositories `doa3-recomp` and `ki-recomp`;
+  - `recompiled`: `FZeroXRecompiled-v0.1.16-windows-x64.zip` (repository
+    `f-zero-x-recomp`), `DarkRiftRecompiled-macOS-arm64.zip` (repository
+    `DarkRiftRecomp`);
+  - `recompilation` and `static`: "The Sims (Original Xbox Static
+    Recompilation)" beside `Sims1-win64.zip`;
+  - `decomp`: repository `crusader-no-remorse-decomp`; `decompiled`: listed
+    with it by the owner, no separate archive measured;
+  - `port`: repository `SealTeam-Source-Port`;
+  - `pc`: `MechAssault2-PC-v0.1.0-win-x64.zip`, `Skate2-PC-v0.2.0.zip`,
+    `Skate1-PC-v0.2.0.zip`;
+  - `native`: two measured archive names;
+  - `unofficial`: listed by the owner in the same family, no separate archive
+    measured;
+  - the region of the original the player supplies: `usa` and `ntsc`
+    (measured), `pal` (same family);
+  - `uni`: a macOS universal-build marker (two measured macOS archives), only
+    directly beside `macos`, `mac`, `osx` or `darwin`.
+
+  These are never descriptors and still withhold: `beta`, `alpha`, `rc`,
+  `preview`, `nightly`, `dev`, `test`, `demo`, `trial`, `lite`, `deck`,
+  `mods`, `extended`, `fixed`, `hd`, `remaster`, `remastered`, `classic` and
+  every deny-list word. So `Game-PC-Demo-…` and `Game-Recompiled-Server-…`
+  withhold.
+
+- **Build identifier** (`build-id`). After the product, a token of 7 to 40
+  hexadecimal characters with a letter and a digit (`e1625759`, the
+  `0c97cca` of `0.79.0c97cca`) is read like a version; so is a dotted version
+  with one glued patch letter (`SymphonyRecomp-v1.2.0p-…`) and a dotted
+  version glued by `v` or `V` to a product word
+  (`condemned2recompV0.6.1_windows.zip`). The cost is stated: a real word of
+  seven or more hexadecimal letters with a digit (`decade2`) after the
+  product reads as a build identifier. A dotted version glued to `a`, `b`,
+  `r`, `rc`, `alpha`, `beta` or `pre`, with or without a number (`1.2.0b2`,
+  `1.0rc1`, `1.0a`), is a prerelease marker and withholds. Only the measured
+  `p` is a patch letter; any other letter glued to a version
+  (`1.0d`, `1.0x`) stays unaccounted.
+- **Program names** use the same reliefs where the release ships no other
+  package form: the literal name, before any architecture words, may spell an
+  accepted name or the accepted archive product under them
+  (`shadowsoftheempire`, `ogrebattle64`, `provingground`, `rampage`,
+  `brogue`, `crystaldefenders`, `dw2`, `wg3d`, `otesa`,
+  `battlearenatoshindenrecompiled`, `macrossvfx2recompiled`,
+  `narutothebrokenbondpc`). Beside another package form the name stays
+  strictly literal, and role and launcher words veto as before.
+- **Folders** (`folder`). A folder segment read by the archive grammar whose
+  product is the accepted archive product or spells an accepted name under
+  the reliefs, followed only by versions, build identifiers, neutral words,
+  descriptors and dates or build numbers of four or more digits, is
+  accounted: `Amped2-Recomp-v0.2.0-windows-x86_64/`,
+  `SSX3-Recomp-v0.3.0-windows-x86_64/` and `Dora64-3-1.0.0-Windows-x64/`
+  failed the per-word folder rule only because of their glued digits. A
+  folder accepted only under a relief (a partial name or an initialism) is
+  checked for uniqueness like a relieved program name (generator 27): `sm2/`
+  holding `SpiderMan2.exe` in `SpiderMan2-1.0-win64.zip` withholds beside a
+  "Space Marine 2" listing in another repository, as `gow/` would beside a
+  second God of War listing. A folder that spells the accepted product is
+  not compared.
+
+A name is relieved when it is accepted only through a partial name or an
+initialism: a product that spells one of the listing's accepted names whole,
+adding or omitting only descriptors and edition suffixes (`DarkRiftRecompiled`
+for the repository `DarkRiftRecomp`, `itc` for the repository `ITC-Recomp`),
+or only adding a build identifier, is not relieved, and the fit prefers such
+a spelling over a relieved one.
+
+**Uniqueness** (`name-not-unique-in-catalog`, generator 26). A relieved
+archive or program name is accepted only if no catalog listing in another
+repository would accept the same product literal, by equality with one of
+its accepted names or by the same reliefs (`catalogNameCollisions`; the gate
+restates it from `generation.records` with its own index,
+`gateCollisions`). A name that cannot tell two catalog games apart is a
+contradiction, whatever the repository says: on the catalog of November 24,
+2026, `gow` is accepted by God of War listings and by "Gears of War:
+Judgment", `tloz` by twelve Zelda listings, `ts2` by "The Sims 2",
+"TimeSplitters 2" (twice) and "Toy Story 2", `hst` by both Hot Shots Tennis
+games, `dw2` by Digimon World 2 and Dynasty Warriors 2, and `thps` by two
+ports of Tony Hawk's Pro Skater. The withhold lists the other listings as
+evidence (`registration_queues.reason_evidence`), so a person can see whether
+a more specific accepted name in the catalog would resolve it. A listing in
+the same repository is the [shared-repository](#release-lines) rule's
+concern and is not compared: two listings in one repository that are each
+bound to a distinct release line by their `release_url` tag are attributed
+by that authored binding, not by names (without such bindings the
+shared-repository rule withholds them). The cost is stated: two ports of one game in
+different repositories collide too (`thps`), and such an identity waits for
+a person. Since generator 27 numbers compare by value (`numberTwinGroups`,
+`gateTwinGroups`): each listing's names are compared as they are, then with
+every number written as a roman numeral, then with every roman numeral
+written as digits, one group at a time (since generator 28 for every value
+from 1 to 3999, read by a general roman parser both ways, so `gow21`
+collides with "God of War XXI"), so `gow2` collides with
+"God of War II", `sf3` for "Syphon Filter 3" with "Shining Force III" (and
+with a listing named "Street Fighter III"; the real "Street Fighter III: 3rd
+Strike" accepts neither `sf3` nor `sfiii`, its subtitle holding the number
+3), and `sfiii` with "Syphon Filter 3". The same holds for the cross-listing
+check below (`Lantern2` for "Lantern 2: Echoes" names a "Lantern II"
+listing). A lone `I` and `1` stand for each other only where the `I` (or
+`1`) directly follows the product words of a title as the last word of that
+segment (`ff1` meets "Final Fantasy I"); elsewhere neither is twinned
+(generator 28). A product that spells its own listing's or repository's name
+exactly, or modulo descriptors, is not relieved and is not compared:
+`sfiii` for the repository `sfiii-native` of "Shining Force III" still
+enrolls. Author handles give no initials in the index either (D3).
+
+The index maps every word of every listing's id, name and GitHub repository
+name (with their number twins), and the first letter of each, to its
+listings; it is built once per listing array (O(W) for W words in the
+catalog). A literal of length L is looked up in O(L × longest word) map reads
+after each leading run of descriptors, and every listing found is checked
+with the reliefs, in code-point order of their ids. The per-query cost is
+honestly linear in the catalog: every listing whose name starts with the
+literal's first letter is a candidate (on the catalog of November 24, 2026,
+426 of its 3,298 ids and names start with the most common letter), and a
+whole run costs the relieved candidates times the listings. Measured on that
+catalog (1,649 listings): the index builds in 160 ms, and 2,623
+relieved-shaped literals (every listing's initialisms and first title
+segment) take 3.8 ms each in the fit and 14.3 ms each in the gate, 10 s and
+37 s in all.
+
+A relieved archive product that spells the complete accepted name (id, name
+or GitHub repository name, modulo descriptors) of another catalog listing,
+or the first title segment of the name of a listing in another repository
+(real names carry `— X (author)` suffixes), is a contradiction, and the whole
+identity is withheld as `archive-names-another-listing`:
+`StarWars-1.0-win64.zip` in the repository of "Star Wars: Battlefront" names
+the listing "Star Wars". So does a four-digit-or-longer number read as a
+version that, with the product, spells another listing's name
+(`Wipeout-2048-…` for "Wipeout" beside a listing "Wipeout 2048"); alone such
+an archive stays in the `integer_as_version` queue. A partial name that is a
+leading-word prefix of two or more listings' names (`Crackdown` beside
+"Crackdown" and "Crackdown 2"), or an initialism whose run's words are
+(`mm2` beside "Mega Man 2" and "Mega Man 2: Disc 3"), enrolls but is listed
+in `registration_queues.franchise_only_partial` for a person to check first.
+Since generator 27 so is every relieved archive, program or folder name that
+drops a later title segment (a subtitle such as ": Peace Walker", ":
+Symphony of the Night" or ": San Andreas"; an initialism drops every later
+title segment), always, not only when two or more listings share the prefix:
+dropped subtitles are always hand-checked. Enrollment is unchanged (the
+hand-verified `cybermage` for "CyberMage: Darklight Re-Awakening" and
+`rampage` for "Rampage: Total Destruction" still enroll). The queue maps each
+listed identity to its findings, naming the dropped segment
+(`windows-x86-64: rampage.exe drops "total destruction"`) or the shared
+prefix (`… shares its words with two or more listings`). Since generator 29
+a segment is listed only when every accepted spelling of the name omits it:
+one that keeps the segment shows the name holds its words, so
+`SimsBustinOut` for "The Sims: Bustin' Out — Original Xbox (The Sims:
+Bustin' Out - Static Recompilation)" and `hardcorpsuprising` for "Hard
+Corps: Uprising (Hard Corps: Uprising Recompiled)" are not listed, although
+each could also be spelled with the annotation's copy of the subtitle; a name
+that lacks the subtitle (`HardCorps`) still is. Only a spelling that keeps
+the first title segment counts, so `lantern` still drops "The Lantern" from
+"Lantern: The Lantern" although it can spell the subtitle alone. The same
+holds for `subtitle_dropped_by_repository_name`, whose fallback (the
+longest leading run of title segments the literal spells) compares numbers
+by value too: `saboteur2` drops "Avenging Angel" from "Saboteur II:
+Avenging Angel" as from "Saboteur 2: Avenging Angel".
+Since generator 28 an offered archive or accepted program name that drops a
+later title segment of the listing's name while equal to its repository or
+id name (modulo descriptors), and so is not relieved, is listed in
+`registration_queues.subtitle_dropped_by_repository_name` with the same
+findings (`windows-x86-64: Doom2.exe drops "total destruction"` for "Doom 2:
+Total Destruction" in the repository `doom2`): reporting only, enrollment is
+unchanged.
+`HalfLife` for "Half-Life: Blue Shift" is such a franchise-only partial name
+(the colon makes "Blue Shift" a later segment without a number); beside a
+"Half-Life: Opposing Force" listing in another repository it spells that
+listing's first title segment and withholds, and beside any other listing in
+another repository that accepts it it withholds by uniqueness. An archive that
+spells its own listing's name exactly is not compared, and the check reads
+archive names only: a relieved program name is not compared with other
+listings.
+
+The next real-data run reports the enrolled count, the count per relief
+(`relieved_enrollments`), the fate of the 131 previously verified
+identities, and every newly enrolled identity for hand-checking, relieved
+ones first.
+
+One program name is not one package, and equal programs are not one package
+either. A release can carry the full game and a small update archive that
+holds the same game program (the same player SHA-256), or the game and an
+authoring-tool archive whose program has the same file name. Two archives are
+the same package only when their own bytes are (equal archive SHA-256).
+
+First, an archive whose own name holds a role word is never offered:
+`update`, `updater`, `hotfix`, `delta`, `incremental`, `patch`, `symbols`,
+`debug`, `dedicated`, `headless` or `demo` (`Game-Dedicated-1.0-win64.zip`,
+`Game-Demo-1.0-win64.zip`, withheld with or without an installer of their
+own). The archive name is split into words like product names are
+(separators, camel-case humps and letter/digit changes, as
+[release lines](#release-lines) split names), so a role word with a trailing
+number or glued into a camel-case name is that role word
+(`update-0.5.10.zip`, `Game-debug-win64.zip`, `Game-Windows-Update1.zip`,
+`Game-patch01.zip`, `GameUpdate-linux.tar.gz`), while `Updated-Game.zip`,
+`Deltaville-Fan.zip` and `Patchwork.zip` pass: a glued word that stays one
+word is not a role word. Every occurrence vetoes, whatever the product's or
+repository's own name: the archive name alone cannot tell a title word from a
+role suffix, and each earlier own-name exemption let an update or delta
+payload through (`Delta-Squadron-1.1-linux-delta.tar.gz` on a repository
+named `delta`). The cost is stated: a game whose own title holds a role word
+as a separate word of its archive name (`Delta-Lantern-win64.zip` for a
+listing named "Delta Lantern", or `DeltaLantern-win64.zip`, which camel case
+splits into `delta` and `lantern`) is withheld as `contradictory-role`.
+Reconsider an identity withheld this way only when a listing-declared package
+binding names this archive; the name rule itself does not change. A vetoed archive is reported as an
+`asset-role-name` exclusion with the word as its token. Then, when more than one distinct archive whose
+name allows the platform still holds players for it, the platform is
+`ambiguous-artifact`, never chosen by order, size or name. There is no
+exception for an archive that names the platform's system: a
+`Game-v1.2-windows-exe-only.zip` beside an OS-neutral full `Game-v1.2.zip`
+cannot be told apart from the full build by name, so choosing the explicit
+one would enroll a partial build. So a `Game-v1.0.zip` beside a
+`Game-v1.0.tar.gz` of the same game is ambiguous for every platform both
+allow, and `Game-v1.0-windows.zip` beside a neutral `Game-v1.0.tar.gz` that
+also holds the Windows program is ambiguous on Windows and offers the tarball
+on Linux. A neutral Linux-only tarball beside `Game-windows.zip` holds no
+Windows player, so each platform still has one archive. The one-program rule
+still counts the players of every such archive. The gate checks each part
+with its own code too.
+
+An archive that bundles a compiler, interpreter or build helper builds or
+prepares the game on the player's machine ("build on first start"), so a
+person must look at it. Core's inspection returns the archive's listing as
+names only: `names` (every distinct lowercase path component) and `leaves`
+(every distinct lowercase file name). The helpers are `zig`, `clang`, `clang++`, `gcc`,
+`g++`, `cc1`, `ld`, `lld`, `ld.lld`, `python`, `python3`, `pythonw`, `pip`,
+`node`, `cmake`,
+`ninja`, `make`, `msbuild`, `cl`, `link`, `hactool`, `extract-xiso`, `xdelta`
+and `xdelta3`. `7z` and `7za` are ordinary extraction helpers and are not on
+the list. A file leaf also names a helper when it is a versioned or renamed
+compiler or interpreter: `python`, `python3`, `pythonw`, `clang`, `clang++`,
+`gcc`, `g++`, `lld`, `ld.lld` or `zig` followed by digits and dotted digits
+(optionally after `-`) or by `-` and letters, digits or `_`, with or without
+`.exe` (`python3.11`, `clang-17`, `gcc-13`, `zig-x86_64`, `pythonw.exe`); such
+a name never counts as a directory (`gcc-libs/`), and another extension never
+matches (`python311.dll`). The worker records every listing entry naming a
+helper as the artifact's `toolchain_names`: a file leaf as is
+(`python.exe`), a directory component that is no file leaf with a trailing
+`/` (`zig/`, `link/`). The short or common helper names `cl`, `ld`, `link`,
+`make`, `node`, `python`, `python3`, `pythonw` and `pip` also name ordinary folders, so
+they count only as a file leaf: `assets/link/`, `levels/ld/` or a
+`lib/python3.11/` folder never match, while `Python/python.exe` does. The
+other helpers count as a file or a directory (`tools/zig/`). Only a whole
+name matches, so `python311.dll`, `scripts/` or `node_modules/` never do. The
+helpers the recorded entries show are the artifact's `bundled_toolchain`; the
+facts check refuses a summary the entries do not show. Any such archive that
+could be the game withholds the whole identity as `bundled-toolchain`,
+whatever the program is called and whichever platform the archive serves:
+building on first start is a property of the project, not of one archive,
+and a program name cannot prove the release does not build itself. "Could
+be the game" means a runtime archive from exact bytes whose own name vetoes
+nothing and permits a supported platform; a [source archive](#source-archives)
+never counts. The route-fit report lists the helper names per identity
+(`registration_queues.bundled_toolchains`). The gate re-derives the helpers
+from the recorded `toolchain_names` with its own code, never from the
+worker's summary, and refuses an enrollment of any platform of a release with
+such an archive.
+
+##### Release lines
+
+A repository can publish more than one product: a game and its modding tool,
+or two titles. Each release tag has a release line: its product words before
+the version, lowercase, without release-channel markers. Derivation errs toward
+one line for version and channel noise and toward different lines for
+different product words:
+
+- The version starts at a real version token: a whole word of digits,
+  optionally after one `v`, `r` or `b` (`v1`, `r14388`, `2025`). A number
+  followed by a letter is a product word (`game2x`, `game2`). A product word
+  ending in a glued `v<digits>` is cut there (`game2v0.3` is `game2`).
+- A `v`, `r` or `b` word directly followed, after a separator other than `.`,
+  by another version token is a product word: `r2-v1.0` is line `r2` and
+  `b2-v1.0` is line `b2`, while `v2.0-win`, `b5` and `r3` are the main line.
+- A bare number of one or two digits directly after a product word, not
+  before `.`, is part of the product: as the last kept word (`sm-1` and
+  `sm-2`, `game-2` and `game-3` are different lines), or before another
+  product word or a version (`lantern-64-v1` is `lantern-64`, `part-2-1.0` is
+  `part-2`, `game-2-v1.0` and `game-2-v1.1` are both `game-2`). Before
+  another bare number it is the version (`game-1-2-0` is `game`), and after a
+  dropped word or at the start it is always the version (`hotfix-1`,
+  `64-v1`). The repository's own name does not change this: on repository
+  `sm`, `sm-1` and `sm-2` are two lines (`sm-1-v1.0` is still `sm-1`), so a
+  listing for game 1 never enrolls game 2's release. The cost is plain: a
+  repository that tags its major versions `<repository>-N` (`proj-3`,
+  `proj-4` on `proj`) is `ambiguous-release-line` unless the listing binds
+  its release (`release_url`).
+- Release-channel words such as `release`, `nightly`, `beta`, `rc`, `build`
+  or `rev` are dropped, alone or glued to a number (`rc2`, `beta5`,
+  `build123`, `nightly20250101`, `release1.2`). `final` and `update` are not
+  channel words: they can name a product.
+- A commit hash (7 to 40 hex characters with at least one digit and one
+  letter `a`–`f`) is version noise after the first word: `native-only-1a2b3c4`
+  is line `native-only` and `dev-abc1234` is the main line, while
+  `deadbeef-v1` (no digit) is line `deadbeef`. As the tag's first word a
+  hex-looking word names the product: `facade1-v1.0`, `decade2-v1.0` and
+  `cafe2024-v2` are lines of their own. A tag that is only a commit hash
+  (`abc1234`, also with system or architecture words) is a channel build
+  (below), so it is never stable and never counts as a release line. `v.`
+  before digits is a version (`v.0.1.1`).
+- `test`, `testing`, `tester`, `prealpha`, `canary`, `wip`, `experimental`,
+  `fixed`, `fix`, `new` and `pr<digits>` are channel words when they stand
+  next to a version, date or hash, or when the tag holds nothing else
+  (`wip-v0.4`, `pr42`, `v1.0-fix`, `new`, `test`). Between product words they
+  stay product words: `new-game-v1` is line `new-game`, `fix-it-v1` is
+  `fix-it` and `test-orbit-v1.0` is `test-orbit`.
+- Operating-system and architecture words are dropped as whole words
+  (`windows`, `win`, `win32`, `win64`, `linux`, `linux64`, `macos`, `mac`,
+  `osx`, `darwin`, `universal`, `x64`, `x86`, `x86_64`, `amd64`, `arm64`,
+  `aarch64`, `i386`, `i686`, and a literal `x8664`), so builds of one
+  product for several systems
+  are one line: `windows-v1.0`, `win64-1.0` and `linux` are the main line.
+  `x86_64` and `x86-64` are one word only when no letter or digit touches
+  either end, in both copies of the rule; as one word they are a build
+  target, never a number beside a conditional channel word, so
+  `sm-x86-64-fixed-mac` is line `sm-fixed`. `nightly-x86-6412` holds `x86`
+  and `6412`.
+
+A line that spells the repository's own name is the main line. So `v1.0`,
+`v2`, `2.0`, `v1.2.0p`, `2.0.0-beta`, `r14388`, `2025.01.01`, `20250101`,
+`2025-01-01-nightly`, `release-1.2`, `build-123`, `rc2`, `latest`,
+`nightly`, `continuous`, `1.0.0-windows-x64` and `<repository>-v3` are the
+main line, while `level-editor-v1.0.0`, `game2-v1.1` and `lantern-64-v1` are
+lines of their own. A tag that is not printable ASCII, or unknown, is a line
+of its own.
+
+Ambiguity excludes. A final short number cannot be told apart from a second
+title by the tag alone, so a repository that tags major versions as `game-1`
+and `game-2` has several lines and its unbound listing is
+`ambiguous-release-line`. That is an honest exclusion: the listing's
+`release_url` can bind the line, and a reviewed `route_facts_v1` enrollment
+can offer it. The same holds for version-shaped product words: `v1-2` is
+line `v1-2` and `v1-r1` is line `v1`, so a repository tagging that way beside
+`v1.3` is excluded too.
+
+A tag that consists only of rolling-channel words (`nightly`, `continuous`,
+`latest`, `dev`, `build`, `snapshot`, `canary`, `preview`, `test`, `wip`,
+`experimental` and similar) plus dates, times, hashes and system or
+architecture words is a prerelease for the newest-stable choice even when the
+provider does not flag it: `build_20261120_2250`, `nightly-2025-01-01`,
+`continuous`, `latest` and `dev-abc1234`. A commit hash counts as a channel
+word here, so a tag of only a hash (`abc1234`, `abc1234-win64`) is such a tag;
+a hex-looking word without a digit (`deadbeef`) is no hash. A year alone is a
+date, so `build-2025` is a channel build too: a repository tagging its
+releases only `build-<year>` has no stable release (`no-stable-release`) until
+it publishes a versioned tag or the listing is reviewed. Only real calendar and clock shapes
+are dates: a year `19xx` or `20xx`, a month directly after a year and a day
+directly after that month (`2025-01-01`), an eight-digit `yyyymmdd`
+(optionally with `hhmm` or `hhmmss` glued after it), and an `hhmm` or
+`hhmmss` word directly after a whole date. Any other number is a version, so
+`build-42`, `build-12`, `build-1234`, `beta-01`, `release-2025-01-01`,
+`build-123`, `nightly-1` and `2025.01.01` are not such tags. The worker
+records the combined verdict, and the fit rule and the gate each restate the
+tag rule (`channelOnlyTag`, `gateChannelOnlyTag`) for the offered release and
+every observed release.
+
+A channel-only release counts as never stable. For the newest-stable choice
+and for the planned rule for repositories that publish only prereleases, a
+repository whose releases are all channel-only (or flagged prereleases) has
+never published a stable release (`no-stable-release`).
+
+The worker records each observed release (within the observer's own bound of
+the newest releases) with its tag, its prerelease verdict, publication time
+and whether it carries a package file. Each check sees these releases:
+
+- The line count (below) sees only the stable packaged releases, plus any
+  release whose verdict Core did not give: a prerelease's tag noise never
+  makes a second line.
+- The product check sees the offered release's own line.
+- The newer-prerelease check sees every prerelease (and unknown verdict)
+  published after the offered release whose line differs from it.
+
+The fit rule and, independently, the gate refuse an identity when:
+
+- another catalog identity names the same repository through its release URL
+  or project URL (any path below the repository counts), unless the listing's
+  `release_url` names a tag on its repository
+  (`…/releases/tag/<tag>`) whose line no other identity sharing the
+  repository is bound to (`shared-repository`);
+- the stable packaged releases fall into more than one line and the listing
+  binds none, or the offered release is not on the bound line
+  (`ambiguous-release-line`);
+- the listing binds no line and the offered release's line is neither the
+  main line nor names the listed product: joined, it is at least three
+  letters and digits long and equals one whole word, or a contiguous run of
+  whole words, of the repository name or the listing's id, name or original
+  title. Words are split at separators, camel-case humps and letter/digit
+  changes (`lantern64recomp` is `lantern`, `64`, `recomp`; `OpenLanternPS1` is
+  `open`, `lantern`, `ps`, `1`), so part of a word never counts: `rec` does
+  not name `lantern64recomp`. A window of only a tool's releases
+  (`level-editor-v1.0.x`) is never taken for the game, while `part-v1.2` on a
+  `part-decomp` repository is (`ambiguous-release-line`);
+- a prerelease on the main line or on another line that names the product,
+  or a release whose verdict Core did not give or whose tag is unknown, is
+  newer than the offered stable release and on another line
+  (`ambiguous-release-line`): the offered release may be another product's
+  older release, such as a tool's stable release beside the game's newer
+  betas. A newer prerelease on a line of other product words (a tool's beta
+  beside the game) does not decide the game.
+
+A listing bound to a line is read on that line only: the worker offers that
+line's latest stable release. This uses the existing `release_url` field; no
+per-title data is added. A repository that publishes a second product on the
+main line itself (`v1.1-tools`) is not told apart by its tags; the shared
+repository, tool-token, other-package-form and one-package rules still apply.
+
+Repositories are compared by name. A listing that still names a repository's
+old `owner/name` after upstream renamed it is not counted as sharing it with
+an identity whose facts carry the canonical name. This residual is accepted:
+the worker binds each entry to its listing's repository id
+(`repository-identity-changed`), and the gate requires the recorded id, so a
+renamed repository cannot enroll for a listing that names another one.
+
+###### Release text statements
+
+A release can call itself a prerelease in its own text while the provider
+flag says stable. A release whose title, or the first line of its body,
+states a prerelease is one for the newest-stable choice: the worker chooses
+the newest release without such a statement, and the fit rule and the gate
+treat it like a flagged prerelease everywhere (`no-stable-release` when it is
+the offered release, the line count, and the newer-prerelease check).
+Words may withhold, never pick an older release: when a newer release on the
+offered line is stable by its provider flag and Core's tag rule
+(`core_prerelease: false`) and is skipped only because its own words state a
+prerelease, the older release is not offered. The identity is withheld as
+`worded-prerelease-skipped` and listed in
+`registration_queues.worded_prerelease_skipped` (`<tag>: <field> <token>`
+per skipped release) for a person to hand-check: a newer release that is a
+real prerelease confirms the withhold; one that is stable after all (a
+measured false positive: Faxanadu's `v2.4.0` and `v2.5.0`, stable releases
+titled as an experimental mod, would otherwise have offered `v2.3.3`) stays
+withheld until its text, the rule or its provider flag changes, rather than
+silently offering an older game. A newer release the provider flags as a
+prerelease, or whose tag Core reads as one, is a prerelease by those
+semantics, and the older stable release is offered as before. The
+statements are `prerelease` (`prerelease`, or `pre` followed by `release`, so
+`pre-release`), `release-candidate` (`release` followed by `candidate`, or a
+standalone `rc`, also with digits: `RC1`, `1.0rc2`), `beta` and `alpha` (also
+with digits), `early-access` (`early` followed by `access`), `unstable`,
+`nightly`, `experimental`, `wip`, `preview`, `canary`, `demo`, `test-build`
+(`test` followed by `build`), `debug-build` (`debug build`), `daily-build`
+(`daily build`), `test-release` (`test release` or `testing release`),
+`development-snapshot` (`development` followed by `snapshot`), `dev`,
+`prototype` and `playtest` only with a number (glued, `dev2`, or directly
+before one, `Playtest 2`), and `not-for-production` (`not for production`,
+wherever it stands). A status word joined by a single hyphen or en dash to `test`,
+`testing`, `tests`, `phase` or `stage` is one compound status that stands
+where its last word stands: `Alpha-Testing 0.0.11` (measured: it stated
+nothing before), `Beta-Test 3` and `Game 1.0 Beta-Test` state a status, while
+`Alpha Testing 0.0.11` (no hyphen), `Alpha-Centauri 1.0` and `Out of
+Beta-Testing 2` do not. A bracket between two words never joins them. Between a status word and its number, `release` is
+skipped like a connector word (`Beta release 1.0`, `Nightly release
+20261101`, `Beta release (1.0)`). A status word also stands when only connector words
+(`build`, `version`, `ver`, `v`, `no`, `number`) and `release` follow it to
+the end of the line: `Demo version`, `Beta build`, `Canary release`,
+`Release candidate build` and `Super Game - Demo Version` state a status,
+while `Beta release notes` and `Demolition release` do not.
+Words are split at separators and letter/digit changes, never inside a word,
+so `Arc`, `Alphabet`, `Betamax` and `Publicity` state nothing.
+
+A status word states the release's status only where a status stands, never
+anywhere in a sentence:
+
+- what never states anything is removed first: image references
+  (an image's alt text and file path), HTML tags, link targets (the link text stays),
+  URLs, compare ranges (`v0.9-beta...v1.0`, as in GitHub's generated
+  "Full Changelog" line: a run of two or three dots with a digit both before
+  and after it, so `Beta...` and `Beta... finally` keep their status word) and
+  image file names. Raw HTML is removed in CommonMark's grammar, whether or
+  not GitHub renders the element (it strips what it does not render, and
+  shows neither as text): comments, declarations (`<!DOCTYPE html>`),
+  processing instructions, and any open or closing tag, so `<html>`,
+  `<body>`, `<center>` and `<font color=red>` never become the judged line; a
+  tag's whitespace may hold one line break (an `<img` whose attributes
+  continue on the next line) and a tag never spans a blank line (a quoted
+  value holding one is no tag: the paragraph ends there, and GitHub shows
+  its start as text), and a `<script>` or `<style>` element is
+  removed with its contents. A block element (`<br>`, `<p>`, `<div>`, list
+  items, headings, table rows and the like) ends a line. Anything else in
+  angle brackets is text, as GitHub shows it: `v1 <- Beta 2`,
+  `Windows < 10 Beta 3` and `<Beta 3>` (an attribute cannot start with a
+  digit) state _beta_. Every removal reads the text once, so a body of any
+  length is read in time linear in its length;
+- the word must be glued to digits (`rc2`, `1.0rc1`, `beta.2`), directly
+  before a version (`Beta 3`, also past `build`, `version`, `ver`, `v`, `no`
+  or `number`: `Pre-release build 7`), directly after one (`v1.0 Beta`), the
+  line's last word (`Final Beta`, `Release candidate`), inside parentheses
+  or brackets (`Game 1.0 (Beta)`, `Early access 0.3 (unstable)`), directly
+  before an ellipsis (`..`, `...` or `…`: `Beta... finally`, `Beta… out now`),
+  or directly after `public`, `open`, `closed`, `developer`, `technical` or `early`
+  (`Public beta test`, `Open alpha`, `Developer preview`);
+  `This is beta software for testing`, `Open the beta menu with F1` and `Now
+  in early access for everyone` state nothing;
+- a negation or past transition before it states nothing (`not`, `no`,
+  `longer`, `since`, `after`, `from`, `post`, `past`, `former`,
+  `formerly`, `previously`, `was`, `were`, `leaving`, `left`, `leaves`,
+  `exits`, `exited`, `ended`, `ends`, `graduated`, `graduates`, `than`,
+  `over`, `beyond`, and `out of`, skipping `a`, `an`, `the`, `last`,
+  `latest`, `previous`, `final`, `first`, `public`, `open`, `closed`,
+  `developer`, `technical` and `early`):
+  `Out of beta`, `Out of early access`, `No longer a public beta`, `Changes
+  since the last beta`;
+- the product's own words name the product before the line's first number:
+  the repository name's words and the listing's id, name and original title
+  words (`listing_words`). `Alpha Centauri Port v1.0` for a listing titled
+  `Alpha Centauri`, `Beta Squadron 1.2` and `RC Racing v3` state nothing,
+  while the same word after a version states again: `Beta Squadron 1.3 Beta
+  2` is a prerelease.
+
+Only two places are judged: the release title, and the body's first line
+that holds a letter or digit once what states nothing and leading Markdown
+heading, quote, list and emphasis marks are removed, looked for in the whole
+body (`bodyFirstLine` in `scripts/release-text.mts`, shared by the observer
+and the rule), so a banner image or link-only line is skipped. That whole
+line is judged, however long, and nothing is cut before it is found. Text the
+observer did not keep (a source over its text budget, below) is recorded
+`unobserved`: absence of a statement is never inferred from text that was not
+read. A project-level remark further down ("pre-release quality"
+in a long description) is never read. The facts record, per entry, the
+listing words the text was judged with (`listing_words`), and per observed
+release whether the text was observed (`text`: `observed` or
+`unobserved`), the title when it is bounded printable text (`title`), the
+statement found (`statement`: `{ field: "title" | "body-first-line",
+token }`, or null), Core's verdict from the provider flag and tag alone
+(`core_prerelease`) and the verdict the newest-stable choice used
+(`prerelease`: Core's, or a statement). The body itself is never stored. The
+facts check refuses a `prerelease` that is not exactly that, and a recorded
+title whose statement, judged with the recorded listing words, is not the
+recorded one. The fit rule and, independently, the gate re-derive the
+listing words from the listing and refuse facts judged with other words,
+re-derive the title's statement from the recorded title and read the body's
+from the record. Reproduction compares the release list's current title and
+body where the entry records the text as observed. Where the entry records a
+release's text as `unobserved` but the provider now reports text that states
+a prerelease (a stable-flagged release titled `v1.0 Beta`), reproduction
+refuses the entry as `mismatch` so the worker observes it again: unobserved
+text never keeps an enrollment through reconfirmation once the text is
+known to state a prerelease. One table pins the
+fit's and the gate's statement rules on the same rows, and generated
+comparisons check that both read every line alike (hyphenated compounds
+included) and decide every generated release window alike
+(`release-text-unobserved`, `worded-prerelease-skipped`).
+
+The observer feeds the rule. For a source whose consumers are all
+descriptive listings, its configuration keeps release text
+(`release_text: "listing-window"`), and its facts keep, for each of the
+newest four published releases (`releaseTextWindow`, the listing
+observation window), the release name and of the body only the line the rule
+judges (`text: { title, line, line_complete }`), so keeping less never
+changes a statement. A source's kept text is bounded by the checkpoint's
+capacity: at most `releaseTextSourceBytes` of JSON per source (half the
+32 MiB checkpoint for text, half of that for the projection's copy, divided
+among the modeled 1,295 sources). Over it, every kept release of that source
+records only a typed overflow (`overflow_bytes`, its size), the batch job's
+accumulated read reports it in `gaps` with that size, and the text reads as
+unobserved. Only the rows inside that window are read for text at
+all, so untrusted text of older releases is never parsed, and only the first
+release list page keeps text: the provider lists releases newest first, so the
+window is on it, and the stored pages hold one window of text, not one per
+page. A window release on a later page (behind more drafts than a page holds)
+keeps no text and reads as unobserved. A change to that
+text during an observation is a concurrent change like any other fact. A
+source shared by a listing and a managed port keeps no text, so that
+listing's releases stay `release-text-unobserved`. Managed sources keep no text and
+their facts are unchanged. The listing projection carries the text beside
+the observation (`listing_release_text`, bound to the observation's facts
+digest), never inside `upstream_observation`, whose shape Core's signed
+listing accepts. The observer's checkpoint retains it with the projection
+(`last_complete_policies`), and the batch job's accumulated read
+(`accumulatedObservations`) attaches it to the observation it names
+(`withReleaseText`) in the worker's release shape (`name`, `body_line`,
+`body_line_complete`); text of other facts, a malformed row, or a projection
+retained before the observer kept text (until its source is next observed)
+leaves those releases' text unobserved. A port with more than one completed
+projection in one source is reported in the read's `gaps`, never chosen
+between. The handoff does not carry the text.
+
+Unobserved text is UNKNOWN optional evidence, never a statement either way,
+and the fit never offers a release on it: an offered release whose text is
+unobserved is withheld as `release-text-unobserved` (the gate restates it),
+so the fit never enrolls a release whose text the reproduction would later
+read as a prerelease. `registration_queues.release_text_unobserved` lists
+every such identity, and `registration_queues.release_statements` lists
+every observed release with a statement per identity. Measured: every
+visible release of `youkaicountry-yknytt` is titled `vX beta` and none is
+flagged; with its text unobserved the fit had enrolled tag `0.7.3`, and with
+it observed the identity is `no-stable-release`.
+
+##### Other package forms
+
+A release can offer its program in a form the worker does not read beside
+the archive it does read. The classifier inverts the default: a release asset
+that is neither a readable archive nor on a closed list of non-program files
+competes with the archive. Only a read archive, a shared library, a
+non-desktop package and the closed non-program list are ever ignored; every
+other or unknown form (`.txz`, `.tar.Z`, `.zipx`, `.sit`, `.wim`, `.squashfs`,
+`.pck`, `.xyz`, …) is an unread container without being listed, so an
+unlisted form withholds the identity instead of letting a single non-game
+program enroll beside the real package. The honest cost: a release that
+carries an unusual extra file is withheld into the
+`other-package-form-beside-archive` queue, where the route-fit report lists
+the competing asset names of each withheld identity
+(`registration_queues.other_package_forms`, at most ten per identity), so the
+closed list is extended deliberately, in a reviewed change.
+
+The worker records every competing asset of the release with the provider's
+name, size and SHA-256 (never its bytes) and the platforms its form can
+serve. A container whose name verdict permits no supported platform (a
+non-desktop or other-architecture name such as `Game-android.7z` or
+`Game-win32.7z`) is recorded with an empty platform list; only a container
+may have one, and it competes nowhere. The lowercased name is judged in this
+order; the first match decides:
+
+1. A read archive (`.zip`, `.tar.gz`, `.tgz`, `.tar.xz`, including
+   `.app.zip`, `.app.tar.gz` and `.dSYM.zip`): read, never another form.
+2. A shared library (`*.so`, `*.so.<digits…>`, `*.dll`, `*.dylib`): ignored,
+   before the split-volume test, so `libgame.so.1.0.123` stays a library.
+3. The closed non-program list below, and a name without a file extension
+   holding `sha256sums`, `sha512sums` or `checksums` as a whole
+   separator-delimited word (`Game-1.0-SHA256SUMS`, `checksums-linux`): ignored.
+4. A volume of a split file: any name ending `.` and three or more digits
+   (`.7z.001`, `.zip.001`, `.exe.001`, `.iso.001`, bare `Game.001`), and
+   `.z01`, `.r00`, `.part1.rar`: a container.
+5. A single-system form, in the table below. Before `.pkg` is read as macOS,
+   a `.pkg` holding a non-desktop system word (`Game-ps4.pkg`, `ps5`, and
+   the other listing-only system tokens) is that system's package: ignored
+   as non-desktop. Before a name without an extension is read as a Linux
+   program, one holding `osx`, `macos` or `darwin` as a whole word is a
+   macOS program.
+6. A non-desktop package (`.apk`, `.aab`, `.ipa`, `.vpk`, `.nro`, `.nsp`,
+   `.3dsx`, `.cia`, `.wad`): its existing non-desktop treatment.
+7. Everything else, any other or unknown extension: an unread container.
+
+| Form                                                                                                                                                                                                | Serves                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `.exe`, `.msi`, `.msix`, `.appx`, `.msixbundle`, `.appxbundle`, `.appinstaller` (names an MSIX package by URI, possibly hosted elsewhere)                                                           | Windows                                                                                  |
+| `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.snap`, `.run`, `.bin`, `.sh`, a name ending `.linux`, `.x86`, `.x86_64`, `.arm64` or `.aarch64`, or a file without an extension and without a macOS word | Linux                                                                                    |
+| `.dmg`, a `.pkg` naming no non-desktop system, a file without an extension holding `osx`, `macos` or `darwin`                                                                                       | macOS                                                                                    |
+| a split volume, or any other or unknown form (`.7z`, `.rar`, `.jar`, `.tar`, `.tar.bz2`, `.txz`, `.tbz`, `.tzst`, `.tlz`, `.taz`, `.tz`, `.Z`, `.zipx`, `.iso`, `.love`, …)                         | every platform its name permits; all when the name is neutral or Core cannot classify it |
+
+A file without an extension has no final `.` followed by letters and digits
+including a letter (`Game`, `Game-v1.0-linux`, `installer`). A name whose
+apparent extension is only a version (`game-v1.0`, `Game.v1.2`,
+`game.1.2.3`, `Game.v1`) is such a file, so a Linux program; a split volume
+such as `Game.exe.001` is a container, never a bare binary.
+
+The closed non-program list, in any letter case, is the only way an asset is
+ignored:
+
+- suffixes for checksums and signatures: `.sha1`, `.sha224`, `.sha256`,
+  `.sha384`, `.sha512`, `.sha1sum`, `.sha256sum`, `.sha512sum`,
+  `.sha256sums`, `.md5`, `.md5sum`, `.checksum`, `.checksums`, `.sig`,
+  `.asc`, `.minisig`, `.pem`, `.gpg`, `.sigstore`, `.intoto.jsonl`;
+- update metadata: `.blockmap`, `.zsync`, `.yml`, `.yaml`, `.json`, `.xml`,
+  `.plist`;
+- text and documents: `.txt`, `.md`, `.markdown`, `.rst`, `.pdf`, `.html`,
+  `.htm`, `.rtf`, `.nfo`, `.log`, `.csv`;
+- images and media used as release decoration: `.png`, `.jpg`, `.jpeg`,
+  `.gif`, `.webp`, `.svg`, `.ico`, `.mp4`, `.webm`, `.mov`;
+- debug symbols: `.pdb`, `.dbg`, `.debug`, `.sym` (a `.dSYM.zip` is a read
+  archive with no players);
+- patches and torrents: `.torrent`, `.patch`, `.diff`;
+- audio, fonts and subtitles: `.mp3`, `.ogg`, `.flac`, `.wav`, `.opus`,
+  `.ttf`, `.otf`, `.woff`, `.woff2`, `.srt`, `.vtt`;
+- office documents and ebooks: `.docx`, `.odt`, `.epub`;
+- signing and attestation: `.bundle` (including `.cosign.bundle`), `.p7s`,
+  `.crt`, `.cer`, `.pub`, `.sbom`, `.spdx`;
+- lockfiles, configuration, translations and metadata: `.lock`, `.toml`
+  (so `Cargo.toml`), `.exe.config`, `.map`, `.ini`, `.cfg`, `.mo`, `.po`,
+  `.css`, `.desktop`;
+- the exact names `SHA256SUMS`, `SHA512SUMS`, `SHA1SUMS`, `MD5SUMS`,
+  `B2SUMS`, `B3SUMS`, `SHASUMS`, `SHASUMS256`, `SHASUMS512`, `CHECKSUM`,
+  `CHECKSUMS`, `hashes`, `signatures`, `sha256sum`, `sha512sum`, `sha1sum`,
+  `md5sum`, `RELEASES`, `VERSION`, `manifest`, `LICENSE`, `LICENCE`,
+  `COPYING`, `README`, `CHANGELOG`, `CHANGES`, `NOTICE`, `AUTHORS`,
+  `CREDITS`, `NEWS`, `TODO`, `INSTALL`, `Makefile`, `Dockerfile`, `go.sum`
+  and `go.mod`;
+- SPDX-looking license names (`gpl-3.0`, `lgpl-2.1-or-later`, `agpl-3.0`,
+  `apache-2.0`, `mpl-2.0`, `bsd-3-clause`);
+- `LICENSE`, `LICENCE`, `COPYING`, `README`, `CHANGELOG`, `CHANGES`, `NOTICE`
+  or `AUTHORS` followed only by `.lesser`, or by `-`, `_` or `.` and a
+  license identifier (`mit`, `bsd`, `isc`, `zlib`, `apache`, `gpl`, `lgpl`,
+  `agpl`, `mpl`, `epl`, `ofl`, `cc0`, `cc-by`, `cc-by-sa`, `unlicense`,
+  `boost`, `bsl`, `third-party`, `thirdparty`, `3rd-party`, optionally with a
+  version and `-only`, `-or-later` or `-clause`): `LICENSE-MIT`,
+  `COPYING.LESSER`, `LICENSE-APACHE-2.0`, `NOTICE-THIRD-PARTY`.
+  `README.markdown` and `LICENSE_THIRD_PARTY.txt` are ignored by their
+  suffix. Anything else after the word is classified by the other rules, the
+  safe direction: `Changes-Game-linux`, `Notice-Me-Senpai`,
+  `Readme-Launcher`, `Authors-Cut`, `readme_first` and `installer` are bare
+  Linux binaries, and `Install-Game.sh` and `INSTALL.sh` are `.sh` programs.
+
+Nothing else that can carry or launch a program is on the list: `.js`,
+`.py`, `.bat`, `.cmd`, `.ps1`, `.command`, `.aot`, `.nupkg`, `.7z`, `.lha`,
+`.db`, `.dat`, `.delta` and `.diff.gz` keep competing as unread containers.
+Game data packs for a host engine (`.pk4`, `.vbmod`, `.rtz`) compete too:
+beside an archive whose only program is the engine, ignoring them would
+enroll the engine as the game. A script or an ahead-of-time compiled image
+can be, or launch, the program.
+
+The identity is excluded as a whole (`other-package-form-beside-archive`)
+when the release carries such an asset for a platform the release also
+offers a readable archive for (one whose name permits that platform and that
+is no [source archive](#source-archives)), the asset's digest is not among
+the SHA-256s of the players those archives hold for that platform (an
+unknown digest is not), and the asset is not the same product in another
+package form. A single-file program equal to such a player is the same
+package and enrolls. A form that serves only platforms without an offered
+archive is ignored: a `.dmg` beside Windows and Linux archives leaves both
+enrolled.
+
+The same product in another package form is decided by attribution, never by
+loosening the rule. Each asset name's product words and version are derived
+the same way (`productIdentity`, restated by the gate as `gateProduct`): the
+package form (and an `.app` bundle suffix) or another file extension is
+removed; the rest is split at separators, with `x86_64`, `x86-64` and
+`64-bit` kept as one word; a whole word that is a platform or architecture
+word of the [release-line rule](#release-lines) (`linux`, `win64`, `x86_64`,
+`amd64`, `universal2`, `64bit`, …), a release-channel word alone or with
+digits (`release`, `beta`, `rc2`, `build`) or a package-form word (`setup`,
+`install`, `installer`, `portable`) is dropped; a version token (digits,
+optionally after `v`, `r` or `b`) is the version without that letter; every
+other word is split into product words at camel-case humps and letter/digit
+changes, dropping package-form parts (`GameSetup` is `game`). A form is the
+same product when its product words are not empty and equal those of every
+archive that could be offered for the platform (a runtime archive from exact
+bytes whose name vetoes nothing and that holds a player for the platform),
+its version is theirs (`sameVersion`), the product is the LISTING's
+(`listingProductNames`: the product words joined equal the listing's id or
+name words joined, never the original title, so `Game-1.0-Setup.exe` beside
+`Game-1.0-win64.zip` for a listing titled "Different Title" still competes),
+and each such archive's player for the platform is named literally for that
+product (`programNamesProduct`): the program's file name lowercased, without
+a trailing `.exe`, with every character that is not a letter or digit
+removed, equals the product words joined. Nothing else is dropped: no
+trailing digits, no variant word, no architecture word, so `Game-debug.exe`,
+`Game2.exe`, `Game-2.exe`, `Game64.exe`, `Game-x64.exe`, `game.x86_64` and
+`supergame2.exe` (for `Super-Game`) keep the form a competitor. A shared
+word, a prefix or a containment in either direction never relieves. Versions are equal once trailing zero components are removed
+(`1.0.0` is `1.0`); a Debian revision after the upstream version is
+packaging, not the version (`game_1.0-1_amd64.deb` is `1.0`); an AppImage
+that names no version is the same version as the archive (`Game.AppImage`
+beside `Game-1.0-linux.tar.gz`); two unversioned names are the same version.
+So `Game-1.0-linux.tar.gz` holding `Game` beside `Game-1.0.AppImage`,
+`Game-1.0.deb`, `game_1.0-1_amd64.deb` or `Game-1.0.flatpak`,
+`Game-1.0-win64.zip` holding `Game.exe` beside `Game-1.0-Setup.exe`, and
+`Game-1.0-macos.zip` beside `Game-1.0.dmg` enroll. Another product
+(`GameStudio-1.0-win64.zip` beside `Game-1.0-Setup.exe`), another version
+(`Game-1.1-Setup.exe`, `Game-1.0.1.AppImage`), any other unversioned form
+beside a versioned archive (`Game-Setup.exe`, `Game.7z`), an update or other
+payload (`Game-1.0-update.7z`), empty product words on either side
+(`Setup.exe`), a second offerable archive of other product words, or an
+archive named for the game whose program is another one keep the form a
+competitor: `GameCodegen.exe` or `GameRecomp.exe` in `Game-1.0-win64.zip`
+beside `Game-1.0-Setup.exe` or `Install-Game-1.0.exe`, `game-gen` or
+`gamegen` in `Game-1.0-linux.tar.gz` beside `Game-1.0.AppImage`,
+`the-mapper.exe` in `The-Game-1.0-win64.zip`, and `Table.exe` in
+`TableGame-1.0-win64.zip` beside their installers.
+
+This attribution is a contradiction detector. It does not prove the archive
+is the game: it only stops treating the same product in another package form
+as a competitor, and every player-program rule still decides the archive.
+Names nominate and contradict; they never supply missing product semantics.
+The residual is stated plainly: an archive named for the game whose only
+program is literally named the product but is in fact a tool enrolls beside
+such a form exactly as it would with no competing form at all; the relief
+only removes a contradiction, it adds no risk of its own.
+The route-fit report lists every identity whose forms were attributed this
+way (`registration_queues.same_product_forms`) as a review queue.
+
+The rule's cost is now narrower. A project that ships a portable archive and
+an installer, disk image or other package of other product words or another
+version for the same platform is withheld until a person reviews it, in the
+one grouped `other-package-form-beside-archive` queue. A neutral-named archive
+permits every platform, so `game-1.0.zip` beside `Game.AppImage` (no version)
+or a `.dmg` of another version withholds the whole identity. A reviewed
+`route_facts_v1` enrollment can still offer such a release.
+
+###### Source archives
+
+A source or compliance archive is never the game package. Only an archive
+whose listing shows no executable program (no player and no tool-vetoed
+program) can be one: it is a source archive when Core's filename classifier
+gives it the `source-archive` role, or its name holds `source`, `sources` or
+`src` as a whole separator-delimited word (`Game-1.0-src.tar.gz`,
+`Game-Source-1.0.zip`), or it is a third-party library source dump: at least
+three quarters of its listing's distinct file names are source or build
+files, and its product words share no word with the repository's name
+(`somelib-1.3.zip` in a game's release). The source and build files are a
+closed list of extensions (`.c`, `.h`, `.cc`, `.cpp`, `.cxx`, `.c++`, `.hpp`,
+`.hh`, `.hxx`, `.inl`, `.ipp`, `.m`, `.mm`, `.rs`, `.go`, `.java`, `.kt`,
+`.cs`, `.swift`, `.zig`, `.s`, `.asm`, `.py`, `.js`, `.ts`, `.cmake`, `.mk`,
+`.am`, `.ac`) and names (`makefile`, `cmakelists.txt`, `configure`,
+`meson.build`, `build.gradle`, `cargo.toml`). The worker records only the
+counts (`listing_counts`: `leaves` and `source_leaves` of Core's `leaves`).
+A source archive is never offered, never counts as one of a platform's
+competing archives (`ambiguous-artifact`), never counts for the toolchain
+rule, and offers no platform to another package form. A source-named archive
+that holds programs is an ordinary candidate for every count: its programs
+count for `ambiguous-player`, its bytes for `ambiguous-artifact`, its
+toolchain for `bundled-toolchain`, and it offers its platforms to other
+package forms, so `Game-1.0-win64.zip` holding `Game.exe` beside
+`Game-1.0-win64-source.zip` holding `Other.exe` never enrolls by dropping
+the second. It is still never offered itself, because its own name
+contradicts it (`contradictory-role`). The route-fit report
+lists them per identity (`registration_queues.source_archives`). The gate
+restates the rule with its own code from the recorded names and counts.
+
+Known residuals:
+
+- Ignoring a form on a platform without an offered archive leaves one wrong
+  enrollment possible. A game shipped only as a Windows installer beside a
+  Linux-named tarball whose single program is neither the game nor
+  tool-named enrolls that program on Linux; the mirror case (a Linux-only
+  form beside a Windows-named zip) is the same. It needs four things
+  together: a form only for platforms without an archive, an archive whose
+  name restricts it to the other platforms, exactly one program in it, and
+  that program not being the game while not tool-named. Every generic signal
+  against it would also withhold the common "Windows `Setup.exe` plus a Linux
+  tarball of the same game" release. So the route-fit report lists every
+  enrollment whose recorded other packages include a form on a platform
+  without an offered archive in `registration_queues`
+  (`enrolled_beside_unoffered_forms`) as a review queue, and the facts batch
+  summary prints that list.
+- The facts record the name of every release asset that is neither a recorded
+  artifact nor a refused archive (`asset_names`, within the observer's asset
+  window), and the gate classifies each with its own classifier
+  (`gateFormKind`): a form the gate sees that the worker did not record in
+  `other_packages` competes with an unknown digest on every platform its kind
+  serves (every platform for a container), so a worker classifier mistake
+  that drops an asset refuses the batch instead of enrolling. Reproduction
+  compares `asset_names` with the re-listed release. A recorded container's
+  platforms still come from Core's name verdict as recorded, widened by the
+  gate's own reading of the name, never narrowed. The classifier's tables are
+  pinned by one shared fit-and-gate test table.
+
+##### What the player sees
+
+Upstream text reaches the guide only through a conservative name class. A name
+must be printable ASCII letters, digits, spaces or `._-+()[]`. It has no
+leading or trailing space and at most 120 characters. Format and bidi controls,
+zero-width and look-alike characters never pass. The selection step names the
+program only when the facts name exactly one player per platform, the same
+name everywhere, and that name passes the class. It uses the archive's own
+letter case, such as `Game.x86_64`, not Core's lowercase comparison key.
+Otherwise it says "Select the game program in your prepared copy." It also
+says that when the one program's name contains `launcher`, `settings` or
+`config` anywhere: such a program never enrolls as a whole word
+(`launcher-entry`, [one program per platform](#one-program-per-platform)),
+and the guide never calls one the game as a second guard. The working
+folder is the program's folder. The provenance reference names the repository,
+the release tag and release file when they pass the class, and the date facts
+were checked. It names at most three programs, then "and N more". Full paths,
+machines and digests stay in the facts table and the enrollment table. Generic
+copy states what stays unknown, such as which original game files upstream
+needs. An authored listing guide stays first. The selection step, a warning
+that no title-specific review happened and the ownership reference follow it.
+The provenance reference and review step follow too when the bound leaves room.
+
+##### Enrollment table and gate
+
+`generated-registration.generated.json` records each enrollment's facts digest,
+repository and repository id, release, artifacts and players, plus blocked
+counts by reason. `blocked_exclusions` lists every name-based veto, grouped by
+reason and token, most frequent first. Each group has the number of identities
+and up to five examples with port id, vetoed name and outcome. The reasons are
+`asset-tool-name`, `asset-system-token`, `asset-role-name`,
+`asset-system-name`, `asset-architecture-name` and `player-tool-name`.
+`ambiguous-player` groups the identities whose players are not one program,
+with token `several-programs` or `several-directories` and the program names
+as the example. `bundled-toolchain` groups archives by the helper they bundle. A group of real games
+excluded by one token means the rule needs fixing, not a single game.
+`facts_provenance` carries the facts table's provenance, or `null`. Generation is pure: when a fact stops holding, the next run
+omits that route. The delta records the withdrawal reason. Withdrawal removes
+the offer to register new copies. It never touches external files. Core's
+existing [retained registration rules](ARCHITECTURE.md) keep a registered
+copy's listing identity. Generated routes are bookkept by this table rather
+than the curated `catalog-legacy-additions-fixture.json`.
+`catalog-route-fit.mts` and `maintenance-program-view.mts` count them as
+enrolled with no title-specific authority.
+
+The owner reads exceptions as grouped queues. The table keeps only counts and
+examples; `node scripts/catalog-route-fit.mts --json` adds
+`registration_queues` with complete identity lists in port_id order, computed
+from the committed catalog and facts, so any checkout reproduces them:
+`reasons` (every blocked reason with its identities), `unread_forms` (every
+release package form the worker does not read with the identities whose
+release has it, also beside a supported archive), `exclusions` (every
+name-based veto as `reason:token`), `refusals` (every refusal class of a
+refused archive with the identities that have one), `shared_repositories`
+and `enrolled_beside_unoffered_forms` (every enrolled identity whose release
+also records another package form for a platform it offers no archive for:
+a review queue, see [Other package forms](#other-package-forms)). The text summary prints
+the counts. The identity-level reasons are distinct and machine-readable.
+Upstream and release: `no-stable-release`, `no-release-archive` (no package
+file at all), `unsupported-archive-format` (only desktop forms the worker does
+not read, such as `.7z`, `.rar`, a bare `.exe`, `.msi`, `.dmg` or `.AppImage`;
+the forms are in the detail and `unread_forms`), `non-desktop-platform`,
+`no-digest`,
+`repeated-inspection-failure`, `invalid-facts` and `upstream-unavailable`
+(the listing's availability says so, or every archive of the offered release
+answered 404 Not Found: upstream's own statement that the packages are gone,
+re-evaluated when the release or its asset list changes; a single 404 among
+reachable archives is that archive's `asset-not-found` refusal, and 5xx
+responses, rate limits and timeouts stay transient `network` failures).
+Product binding: `shared-repository` and `ambiguous-release-line`. Release
+text: `release-text-unobserved` and `worded-prerelease-skipped` (see
+[release text statements](#release-text-statements)). Reproduction:
+`reproduction-refused` (the facts batch job's own reproduction refused the
+identity's entry; see [reproduction refusals of one identity](#reproduction-refusals-of-one-identity)).
+Fit: `no-player`, `tool-not-game` (only tool-named programs or a tool or
+tool-role archive name), `contradictory-role` (also a source-named archive
+holding the only programs), `non-desktop-platform`, `unknown-platform`,
+`wrong-host`, `ambiguous-player`, `ambiguous-artifact`, `core-refused` (a
+refused archive's name allows the platform) and `guide-bound`. Release
+content, each for the whole identity: `other-package-form-beside-archive`,
+`bundled-toolchain` (reconsider when the release ships an archive without the
+toolchain, or a reviewed `route_facts_v1` enrollment covers the first-start
+build), `launcher-entry` (reconsider when listing data or release-bound
+metadata declares the launcher as the game's runtime entry), `role-program`
+(a program or its folder named for a debug, server, tools, editor, SDK, demo,
+trial or test role), `non-ascii-name` (an archive or program name outside
+ASCII), `archive-names-another-listing` (a relieved archive product spells
+another catalog listing's complete name), `name-not-unique-in-catalog` (a
+relieved archive or program name that a listing in another repository would
+accept too), `archive-name-unaccounted` (the
+offered archive's name holds a token that is neither the listing's or
+repository's name, a version, a neutral word nor a measured relief),
+`split-package` (another archive without programs whose name allows
+the platform may hold the rest of the game) and `program-name-unaccounted`
+(the offered program is not that name,
+or sits in a folder of unaccounted words). When no platform fits, the reason is the first of
+`ambiguous-player`, `ambiguous-artifact`, `core-refused`, `wrong-host`,
+`unknown-platform`, `non-desktop-platform`, `contradictory-role`,
+`tool-not-game`, `no-authorizing-source` and `no-player` that any platform
+gave. `bundled-toolchain` follows `core-refused` in that order.
+`registration_queues` also holds `reason_evidence` (per reason among
+`role-program`, `launcher-entry`, `non-ascii-name`,
+`archive-names-another-listing`, `name-not-unique-in-catalog`,
+`archive-name-unaccounted`, `program-name-unaccounted` and
+`split-package`, per withheld
+identity, the matched word with the program path, or the platform with the
+archive name and program path), `accepted_by_repository_name_only` and
+`numbered_products` (enrolled identities accepted only by the repository's
+name, or by counting a number as a product word), `integer_as_version` and
+`unstated_status_words` (the hand-check queues above),
+`worded_prerelease_skipped` (per identity withheld as
+`worded-prerelease-skipped`, the newer releases skipped by their words
+alone), `enrollment_reliefs` and
+`relieved_enrollments` (each enrolled identity's [name reliefs](#measured-name-reliefs),
+and the relieved identities by relief), `franchise_only_partial` (per
+enrolled identity, its findings: a partial name, or an initialism by its
+run's words, shared as a prefix by two or more listings, and every relieved
+archive, program or folder name that drops a later title segment, named),
+`subtitle_dropped_by_repository_name` (per enrolled identity, each archive
+or program name equal to the repository or id name that drops a later title
+segment of the listing's name, named),
+`unaccounted_tokens` (per closed-vocabulary
+reason, each unaccounted token with the number of identities it withholds and
+those identities, most frequent first: the evidence a person reads before a
+token joins a neutral list), `bundled_toolchains` (each withheld
+identity's helper names), `inspection_failures` (the
+`repeated-inspection-failure` identities by typed cause),
+`same_product_forms` (per identity, the other package forms attributed to
+the listing's product: a review queue), `source_archives` (per identity, its
+source archives), `release_statements` (per identity, every observed release
+whose text states a prerelease, as `<tag>: <field> <token>`) and
+`release_text_unobserved` (identities whose offered release text the
+observer did not report).
+
+The gate compares the generation with a baseline. The baseline is the
+committed table at the merge base, never the working tree, so repeated runs and
+hand edits cannot widen one change. On a pull request or merge group it is the
+first parent of the checked-out merge commit, else the merge base with
+`origin/$GITHUB_BASE_REF`. On a push or scheduled run it is the previous
+commit. Locally it is the merge base with `origin/main`. A revision without the
+table is an empty baseline. Outside a git repository the baseline is empty.
+Inside one, an unresolvable baseline is an error, so CI's catalog jobs check
+out two commits. The delta has no size bound: every enrollment that passes
+the checks below may land in one change, and so may every withdrawal. What
+holds a mass withdrawal a bug could cause is the facts batch job's
+`withdrawal-held` stop ([stop and wait](#stop-and-wait)), not a count. The
+gate re-checks every enrollment against its facts
+entry with its own code, independent of the fit rule. It checks the facts
+digest, complete eligible coverage, the bound repository id and release, the
+age and retention bounds, the exact archive binding, the veto, tool and system tokens,
+the name's operating system and architecture, that each player exists in the
+facts with a machine that runs on the platform and was not excluded by the
+tool veto, that every player of the artifact running there is named, and the
+one-program rule, including each such artifact's players under one top-level
+directory, for every non-contradictory desktop-runtime artifact whose name
+permits the platform, as the generator checks. It also
+restates, from the facts and the listings alone, the release-line and
+shared-repository rules, the other-package-form rule for every platform the
+release offers an archive for, whichever platforms the enrollment names
+(naming each form's platforms itself, widened but never narrowed by the
+recorded ones, and a container's or split volume's by its recorded name
+verdict), that the archives whose names permit
+the platform are one package, and that no refused archive is offered or
+could hold the platform's game. It restates the #8569 cohort rules with its
+own code too: the release text statements (the title's re-derived from the
+recorded title), product-word attribution with its player check
+(`gateProduct`), source archives, the identity-wide toolchain rule and the
+launcher words. It restates the listing-level withholds from the authored
+records the generation decided, before any generated route was added: no
+authored integration or `route_facts_v1` enrollment (one runtime owner), not
+the ScummVM engine, availability neither `source-only` nor `unavailable`, the
+facts' repository equal (case-insensitive) to the one the listing's provider
+identity names (`gateProviderRepository`, restating `listingProviderIdentity`
+exactly: the release URL first, else the project URL; HTTPS on `github.com`
+only, with no user, password, port, query or fragment; `/<owner>/<name>`, an
+optional `.git`, an optional `/releases` subpath and an optional trailing
+slash), and facts from the current parser version. Every fit
+withholding reason has a gate restatement except two, each exempted with its
+reason (`gateExemptions`): `route-held`, because Core evaluates the listing's
+acquisition restrictions itself for every registration and launch, and
+`guide-bound`, because Core's listing validation refuses a guide over eight
+entries. A test enumerates every reason with several scenarios each, forces
+every one past the fit, and requires the gate to refuse it. The facts
+table's `generated_at` may not be earlier than the baseline facts table's,
+because facts age is measured against that time. `--check` also requires the
+committed table to equal the generator output, so a hand-edited table is
+refused.
+
+Raising `GENERATOR_VERSION` changes every enrollment, because each records the
+version; it lands in the reviewed change that raises it, with no bound to
+raise. Raise `GENERATOR_VERSION` when the fit rule or the generated route
+changes, `FACTS_PARSER_VERSION` when the worker's output for the same
+upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
+changes. A parser or generator behavior change requires its version bump:
+the bump is what marks the withdrawals it causes as `rule-version` and holds
+them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
+generator version from 5 to 27, the facts parser version from 5 to 23 and
+the facts table format from 4 to 17 (generator 23: the measured name
+reliefs, `archive-names-another-listing` and the `enrollment_reliefs` and
+`relieved_enrollments` queues; generator 24: title segments for partial names
+and initialisms, title descriptors kept, only `p` as a patch letter, the
+first-segment and number-suffix cross-listing checks and the
+`franchise_only_partial` queue; generator 25: truncated initialisms across
+the listing's names, so a repository name without the sequel number never
+accounts for a numbered entry; generator 26: uniqueness of relieved names
+(`name-not-unique-in-catalog`), initialisms only where the partial name of
+the same words is accepted and of three letters unless numbered, no omitted
+segment with a sequel number, only articles or a possessive run before kept
+words, annotations alone never accounting for a name, and `&`, `+` and `,`
+linking words; generator 27: spelled and four-digit numbers in a later
+title segment as sequel numbers, every dropped title segment in the
+`franchise_only_partial` queue, numbers compared by value in uniqueness and
+the cross-listing check, no initial from an author handle, and relieved
+folder names unique; generator 28: every digit run (dotted too), roman
+numeral of any size and spelled number beyond twenty in a later title
+segment as sequel numbers, numbers compared by value from 1 to 3999 with
+`1` and a lone `I` only after a title's product words, and the
+`subtitle_dropped_by_repository_name` queue; generator 29: a carried number
+compared by value with a roman number of two or more letters, an
+annotation's architecture word read as no sequel number, and a title
+segment queued as dropped only when every accepted spelling that keeps the
+first title segment omits it;
+generator 22 and parser 23: the
+ordered archive grammar, folder numbers by the same grammar, relief only for
+recognised forms and the listing's own names, a `.wad` as a competing
+container, `release` before a status word's number, and the
+`year_as_version` and `tool_only_archives_beside` queues; generator 21 and
+parser 22: dotted
+digit runs as versions only, integers only at the name's own number,
+no `b<N>` versions and no neutral `bin`, `split-package`, no original title
+as an accepted name, exactly one player per platform, the
+`accepted_by_repository_name_only` and `numbered_products` queues, and
+status words standing before only connector words; generator 20, parser 21
+and format 17:
+closed-vocabulary archive and program names (`archive-name-unaccounted`,
+`program-name-unaccounted`) replacing the shared-word relation, the
+`unaccounted_tokens` queue, the gate's exact repository identity, and
+`preview`, `canary`, `demo`, `debug-build`, `test-release`, `prototype`,
+`playtest`, `daily-build` and `not-for-production` release text statements;
+generator 19, parser 20 and format 16:
+identifying words and joined names for archive relation,
+`program-product-unrelated`, `non-ascii-name`, glued and abbreviated role
+words, the gate's listing-level restatements and exemptions, the
+`reason_evidence` queue, and `nightly`, `preview`, `experimental`,
+`test-build`, `development-snapshot`, `wip` and `dev` release text
+statements; generator 18, parser 19 and format 15:
+product-form relief only for a program named literally for the product and
+only for the listing's product, `role-program`, `archive-product-unrelated`,
+`dedicated`, `headless` and `demo` archive role words, `launch`, `start`,
+`install`, `cfg`, `configure` and `loader` launcher words, qualified,
+`early-access` and `unstable` release text statements, and reproduction
+refusing unobserved text that now states a prerelease; generator 17, parser 18 and format 14:
+release text judged only where a status stands, with the listing's own
+words recorded per entry (`listing_words`), an identity-wide launcher
+refusal in the gate, product-form relief only for a program named exactly
+for the product, Debian revisions, unversioned AppImages and trailing zero
+version components, source-named archives holding programs counted as
+ordinary candidates, and `.rtz`, `.vbmod`, `.pk4`, `.py` and `.aot` back
+off the non-program list; generator 16, parser 17 and format 13:
+release text statements in the title or first body line, an identity-wide
+`bundled-toolchain`, `launcher-entry`, product-word attribution of the same
+product in another package form, source archives with recorded listing
+counts, system and checksum words before the bare-binary and `.pkg` forms,
+`.rtz`, `.vbmod`, `.pk4`, `.py` and `.aot` on the non-program list,
+containers serving no platform recorded with none, and an all-404 release
+recorded as `upstream-unavailable`; generator 15: the own-name role-word
+exemption is removed and every role word vetoes; generator 14 and parser 16:
+a role word was exempt only inside a run of a product name's words and
+camel-case archive names are split into words, `.appinstaller` is a Windows package form,
+versioned or renamed compiler and interpreter file leaves are toolchain
+helpers, and a hash-only tag is a channel build; generator 13, parser 15 and
+format 12: no explicit-system exception for several archives, role words with digits
+and without the product's own name words, `x86-64` as one word in both copies,
+real date shapes in channel-only tags, first-word hex words as product words,
+`test` as a conditional channel word, the wider non-program list, file-only
+short toolchain helpers with recorded `toolchain_names`, and recorded
+`asset_names` for the gate's own classifier; earlier: iOS shape at any depth, glued numbers in program names, the gate's directory
+check, unreadable asset records, ARM64EC, release lines, shared
+repositories, one package per platform, per-archive Core refusals,
+per-platform archive counts, new tool tokens, the other-package-form rule
+excluding the identity where another form competes with an offered archive,
+split-file volumes, unread compressed and disk-image forms, the
+non-program file list, the inverted default that makes every unlisted
+form compete, archive role words, one package by archive bytes, bundled
+toolchains, channel-only tags, stable-only release lines and typed
+inspection failure causes; parser 13 removed the size and count
+exclusions). It landed with an empty facts table and no enrollment. A
+curated change that adds integrations to generated identities withdraws
+their generated routes in that same change.
+
+A portcove-core test re-runs Core's own rules on every fact of the committed
+facts table, without network access. For each artifact it reclassifies the
+recorded release file name and each program name, and it recomputes the role,
+system, architecture and contradiction flags from each player's platform-true
+machine. A macOS machine recorded for an iOS-shaped path is refused. It checks that each player path
+is a player candidate by Core's path rule. Each machine must be one Core's
+header reader can produce, and a `.exe` program must have a PE machine and
+only a `.exe` may. The release tag must not be a prerelease by Core's rule. The
+same test checks the worker's pinned sample output
+(`scripts/fixtures/listing-package-facts-sample.json`), and forged variants of
+it fail. A classifier or tool-token change therefore needs a refreshed facts
+table in the same change.
+
+The facts table may carry a table-level `provenance` object with
+`workflow_run_id`, the 40-digit `source_commit`, the CLI binary's `cli_sha256`
+and the run's `inputs_sha256`. A local run omits it. When present, its shape is
+checked and it is carried into the enrollment table. The checks above cannot
+tell real upstream bytes from facts someone wrote by hand, so pull-request CI
+reproduces facts from the bytes
+([reproducible facts](#reproducible-facts-and-the-path-allowlist)).
+
+##### Facts worker
+
+`scripts/listing-package-facts.mts derive` writes the facts from a listing
+observer report. It reads only digest-bound archives of the latest stable
+release. The latest stable release follows Core's reviewed prerelease rule: the
+provider flag, or a tag such as `-alpha`, `-rc`, `-preview` or `-nightly`. It
+verifies each archive's size and SHA-256, runs
+`portcove --json catalog inspect-listing-artifact` ([CLI](CLI.md#listing-artifact-inspection))
+and then deletes the bytes. From the archive's listing (Core's `names`) it
+records only the bundled toolchain helpers. Core's temporary workspace is inside the worker's
+own scratch directory, and a timed-out run is killed, so nothing leaks. Each
+archive becomes an `exact-release-structured` fact with the player candidates
+Core found outside any tool, installer or server location. A listing whose
+`release_url` names a tag is read on that tag's [release line](#release-lines)
+only. Each entry also records the observed releases and the release's
+[other package forms](#other-package-forms) with the provider's size and
+digest and the platforms each serves (never their bytes), for the
+release-line and other-package-form rules.
+
+A download that answers 404 Not Found refuses that archive permanently with
+the refusal class `asset-not-found`; when every archive of the release does,
+the entry is completed ineligible as `upstream-unavailable`. Other failed
+downloads (5xx, rate limits, timeouts, interruptions) stay transient
+`network` failures. From each archive's listing the worker also records the
+counts of distinct file names and of source or build file names
+(`listing_counts`, [source archives](#source-archives)), and from each
+observed release the observer's release text verdict
+([release text statements](#release-text-statements)).
+
+The worker's candidates are the authored listing-only GitHub identities, read
+before catalog generation adds generated routes (`workerRecords`). An identity
+the generated route already offers is therefore still a candidate: its facts
+are kept and refreshed, and its withdrawal is classified like any other
+(`withdrawal-held`). Every generated enrollment must name such an authored identity, or the
+run fails.
+
+Core's filename classifier (`portcove --json catalog classify-listing-names`)
+can only veto. When an archive's name suggests a role other than a desktop game
+runtime, the archive is contradictory. Such roles include a server, installer,
+builder, compiler, development tool, importer, mobile package, console output,
+documentation, debug symbols or a source archive. A name suggesting an
+operating system or architecture that none of the players' machines has is
+contradictory too, and so is a listing-only `system_token`: a whole
+separator-delimited word or two adjacent words joined naming a system with no
+desktop route (`android`, `androidtv`, `ios`, `iphone`, `ipad`, `ipados`,
+`tvos`, `watchos`, `visionos`, `freebsd`, `openbsd`, `netbsd`, `haiku`,
+`switch`, `wii`, `wiiu`, `vita`, `psvita`, `ps3`, `ps4`, `ps5`, `psp`, `xbox`,
+`3ds`, `nds`, `portmaster`). It never matches a camel-case part or substring,
+so `HaikuQuest` and `Switchblade` are not vetoed. A filename never authorizes a
+runtime. A release whose native archives are all vetoed does not enroll.
+
+##### Listing-only tool veto
+
+The shared classifier types only some tool names, and only as whole words.
+Managed routes depend on it, so it stays unchanged. Core adds a listing-only
+veto to the same command. It reports a `tool_token` for each release file name
+and for each player program's file name. A token in the release file name
+vetoes the whole archive. A token in a program's name excludes only that
+player candidate, so another plausible player in the same archive still
+counts. Excluded players stay in the facts as `excluded_players` with their
+token. When several players remain, the guide names none. When exactly one
+remains, it may name that one.
+
+A token matches case-insensitively as a whole word between separators, as a
+camel-case or letter/digit part (`GamePatcher`, `UnityCrashHandler64`), or as
+two adjacent words joined (`Mod-Manager`, `Crash` `Handler`). The tokens and
+why each is vetoed:
+
+| Tokens                                                                    | Why                                                                               |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `patcher`, `randomizer`                                                   | Patch or randomize the player's own input; not the game.                          |
+| `recompiler`, `decompiler`, `disassembler`, `n64recomp`                   | Recompilation and reverse-engineering tools, such as the N64Recomp tool itself.   |
+| `setup`, `installer`, `uninstall`, `uninstaller`                          | Install or remove; registering them would start the wrong program.                |
+| `updater`, `autoupdater`                                                  | Update programs beside the game.                                                  |
+| `crashhandler`, `crashreporter`, `crashpad`, `crashsender`                | Crash handling helpers shipped beside engines.                                    |
+| `builder`, `compiler`, `importer`, `extractor`, `unpacker`, `converter`   | Asset preparation and build tools.                                                |
+| `editor`, `viewer`, `debugger`, `benchmark`, `configurator`, `modmanager` | Development, inspection and configuration tools.                                  |
+| `sdk`, `devkit`, `tool`, `tools`, `toolkit`                               | Development kits and generic tools.                                               |
+| `server`                                                                  | A server is not the player's program.                                             |
+| `patch` (whole word only)                                                 | A patch archive; as a camel-case part it also starts titles such as `PatchQuest`. |
+| `studio`, `authoring`, `workbench` (whole word only)                      | Authoring suites shipped beside the game; `StudioTown` and `LevelStudio` pass.    |
+| `codegen`, `glue`, `toolchain` (whole word only)                          | Code generators and toolchains; `code-glue.exe` is vetoed, `codeglue.exe` is not. |
+
+These words stay allowed, because they also name real game programs:
+`recomp`, `recompiled` and `psxrecomp` (game ports are often named
+`…Recomp` or `…Recompiled`), `launcher` (often the documented entry point)
+and `demo` (a demo is still a game). A missed tool still needs a native
+program outside every tool, installer or server location to enroll. A name
+written as one lowercase word, such as `gamepatcher`, is not split and is not
+vetoed. Such a program is still caught by its release when the release also
+ships another package form for a platform it offers an archive for that is
+not the archive's player (`other-package-form-beside-archive`). `engine` is not a tool word: engine
+reimplementations are real game ports, also as a whole word in an archive
+name.
+
+Programs inside nested build trees (`target/release`, `build/`, toolchain
+directories) are not treated as tools by path. A package can ship its only
+game program there (a Cargo or CMake build directory), so such a rule could
+hide a second real game or leave the wrong program as the only player; the
+one-program rule keeps judging them.
+
+The worker binds facts to the listing's repository and the observed numeric
+repository id. A rename that keeps the id continues. A different id withdraws
+the route as `repository-identity-changed` and keeps the bound id; a listing
+that names another repository rebinds. A non-complete observation, such as a
+rate limit, a missing repository or a partial listing, keeps the last-good
+complete facts. After 14 days of consecutive non-complete attempts it
+withdraws them as `observation-unavailable`. Only a complete observation that
+no longer fits withdraws immediately, for example one with no stable release.
+
+The worker never stalls on one identity. Every observed identity is evaluated
+each run. An unchanged release is reconfirmed from the facts already held,
+without reading bytes. These permanent cases complete as ineligible and are
+re-evaluated only when the release or its asset list changes:
+
+- `no-stable-release`, `no-release-archive` (no package file at all);
+- `unsupported-archive-format`: no ZIP, TAR.GZ or TAR.XZ archive, but desktop
+  package forms the worker does not read;
+- `non-desktop-platform`: only mobile or console package forms (`.ipa`,
+  `.apk`, `.aab`, `.vpk`, `.nro`, `.nsp`, `.3dsx`, `.cia`, `.wad`);
+- `no-digest`: an archive without a provider SHA-256. This is a correctness
+  rule, not a limit: without the provider's digest the bytes the worker reads
+  cannot be bound to the release, and reproduction could not prove them;
+- no identity-level Core refusal: a permanent refusal is scoped to its
+  archive. The entry records the archive in `refused_archives` with a bounded
+  class: Core's typed error code (`core-source-invalid`, `core-unsupported`,
+  `core-verification` and so on, never Core's message text), or the worker's
+  own `digest-mismatch`, `size-exceeded` or `not-digest-bound`. A refused
+  archive is never offered; it blocks only the platforms its name allows, and
+  `core-refused` becomes the identity's reason only when no platform fits. An
+  unchanged refused archive is not read again;
+- `repeated-inspection-failure`: a transient failure that recurred on every
+  run for longer than the last-good retention bound (14 days, the same bound
+  that keeps an unavailable upstream's facts). No attempt count settles it:
+  a failure is retried every run until then. The entry records the last failure's typed `cause` (`network` for a download,
+  `over-budget` for a timeout or deadline, `unreadable-archive` when Core read
+  the bytes but returned nothing usable, `runner-time` for an identity over
+  the per-identity budget CI can reproduce in (settled at its second
+  consecutive occurrence, see [inspection order](#inspection-order-and-backlog)),
+  `runner-disk` for a Core run that ran out of runner disk, or a refusal
+  class such as `digest-mismatch` or `core-source-invalid`); every other
+  reason records a null cause;
+- `invalid-facts`: the identity's facts failed validation, such as a path with
+  a control character, `:` or `\`, a release file or program name Core could
+  not classify, a release record the worker cannot read, an asset record it
+  cannot read in the offered release or a newer one, a newest release (highest
+  id) without a parseable publication time, a newer release whose tag Core
+  could not classify, or any other unexpected failure while evaluating it. An
+  unreadable record is never dropped silently.
+
+Every entry also records `unread_forms`: the sorted package forms of its
+release that the worker does not read, also when a supported archive sits
+beside them.
+
+These count in the enrollment table's blocked reasons. Each identity is
+evaluated and validated alone, so one bad identity never fails the run. The
+worker never sends Core a name Core refuses: a tag or name over 1,024 bytes or
+with malformed Unicode stays unclassified. An unclassified tag is never
+skipped as a prerelease: when it is newer than every stable release, the
+identity is `invalid-facts` for that release rather than silently falling back
+to an older one. An unclassified release file or program name makes its identity
+`invalid-facts` before any bytes are read. Requests are split at Core's own
+request bounds (50,000 names and the CLI's 8 MiB input). If Core still refuses a request, it is
+split until the refused name is isolated. Only a refused known-good probe,
+meaning an unusable CLI, fails the whole run.
+
+##### Inspection order and backlog
+
+A run has no identity, byte, archive-size or archive-count bound: it reads
+every identity that needs bytes, one archive at a time, verifying and then
+deleting each archive's bytes before the next, so disk never accumulates.
+The provider's own per-asset maximum (2 GiB for a GitHub release asset)
+bounds an archive. Several archives for one platform are judged by the fit
+rule (`ambiguous-artifact`), never by a count. Every derived entry lands in
+the worker's table in the same run: the worker has no batch bound. The
+scheduled job then lands at most one hour's reproduction share per batch and
+carries the rest ([scheduled facts batch job](#scheduled-facts-batch-job)).
+
+The only limits are the runner's time and disk and the REST quota. Each
+identity's inspection has the time CI can reproduce it in
+(`identityBudgetMinutes`): the CI reproduction shard deadline
+(`reproductionDeadlineMinutes`, 85 minutes), less the quota wait CI must
+expect, divided by the entries one CI shard holds. The worker computes it for
+the entries one batch can land, the candidate count but at most
+`reproductionBatchEntries` (250, one batch's `reproductionBatchRequests` at
+one request per entry; see [reproduction quota](#reproduction-quota)), since a batch lands
+no more and a change can name only authored listing-only identities. That
+batch fits one entry per CI shard, so each identity has the whole 85 minutes
+at about 400 or 1,100 candidates alike. The worker never settles what CI cannot reproduce: an identity over
+its budget is a transient `runner-time` failure, retried in the next run,
+and a second consecutive one settles it as `repeated-inspection-failure`
+with the `runner-time` cause, so an identity that alone cannot finish is
+never retried for ever. That ineligibility lasts until the entry changes: the
+worker reconfirms it without retrying for as long as the offered release and
+its asset list stay the same, and a new offered release or a changed asset
+list makes the next run inspect it again (a facts parser version change
+alone does not). The `repeated-inspection-failure` exception queue groups
+these identities by cause and states that condition; a person may instead
+review one for a curated route. A Core run that runs out of runner disk (about 14 GB on a
+standard Linux runner, below Core's 16 GiB extraction ceiling plus the
+archive) is a transient `runner-disk` failure, never a refusal of the
+archive; it settles only after the 14-day retention bound. A run can also
+be given a deadline (`--deadline`), the real time limit of the job it runs
+in; it is checked before each identity, and every download and Core run is
+cut at it. An identity the deadline cuts is left `pending-inspection`, not
+failed, and its id goes to the worker state's `pending` list. An unsharded
+next run inspects transient failures oldest first, then the rest in port_id
+order, and the identities a deadline cut last, in their order. A sharded run
+does not: its plan reads no bytes and returns `pending: []`, so each shard
+orders a previously cut identity like any other (transient failures oldest
+first, then port_id). There, a slow identity is bounded by its own budget
+(`identityBudgetMinutes`) instead. An identity a deadline left pending in two
+consecutive runs stops the job (`pending-repeated`, grouped by cause).
+Without a deadline nothing is cut.
+
+A sharded run splits the work across a job matrix
+([scheduled facts batch job](#scheduled-facts-batch-job)):
+
+1. Plan (`derive --plan true`): every observed identity is evaluated without
+   reading bytes. Everything that needs no bytes settles; every identity
+   that needs bytes is left pending and listed in `needs`.
+2. Inspect: each shard runs the worker on the plan's table with the plan's
+   clock (`--now`), restricted to its identities (`--only`), with its
+   deadline. Shards are `identityShards`: one identity per shard, identity i
+   in port_id order in shard i mod N, N the number of identities that need
+   bytes but at most 256 (GitHub's matrix job limit).
+3. Combine (`combine`): each shard's identities are taken from that shard
+   and everything else from the plan, so a sharded run lands exactly what one
+   unsharded run would (`combineShards`). Each identity's retry record also
+   comes from its own shard only: every shard starts from the whole plan
+   state, so another shard's copy is stale.
+
+The worker state file (`--state`) holds the `pending` cursor and the retry
+queue (format 3). An offered identity a deadline cut keeps its last-good
+facts with an `attempt` of status `pending-inspection`. That is the worker's
+own backlog, not an upstream attempt. It starts no `observation-unavailable`
+clock, and the entry stays unchanged until the identity is inspected. Only
+`stale-facts` (30 days after the facts were last confirmed) withdraws it.
+
+Each run reports its `backlog` (`enrolled_pending`, `new_pending`,
+`bytes_pending`: what deadlines cut), `needs`, `settled` (the identities it
+settled into the table, newly complete or newly ineligible), `unobserved`
+(candidates the observer report did not cover) and `no_progress`, which is
+true when a deadline left work pending but the run settled nothing. A run
+reconfirming the same verdict for the same release is not progress. Orders
+in the facts and enrollment tables use Unicode code points, never the
+running Node's locale data. `--check` validates the committed table. An
+unattended run records provenance with `--workflow-run-id`,
+`--source-commit` and `--inputs-sha256`; the worker adds the CLI binary's
+SHA-256 itself.
+
+Known coverage limits: a 32-bit Windows player (`pe-x86`) runs on no supported
+platform, so a release with only 32-bit players stays `wrong-host`; a 32-bit
+helper beside a 64-bit game no longer blocks it. A static Linux program with a
+System V OSABI is `unknown-platform`, because nothing in its header names
+Linux. A Linux tarball wrapped inside
+another archive is not unpacked, so its players stay unknown.
+
+##### Scheduled facts batch job
+
+`.github/workflows/listing-facts-batch.yml` runs the worker unattended, with
+its checks and decisions in `scripts/listing-facts-batch.mts`. It is built
+disabled: the schedule does nothing and nothing is written until the owner
+sets the repository variable `PORTCOVE_FACTS_BATCH_ENABLED` to `true`. A
+manual dispatch defaults to a dry run, which may run while disabled: it
+derives, generates and verifies the batch with read-only permissions, reports
+it in the job summary and artifacts, and saves no worker state, branch, pull
+request or issue. Its only credential beyond the built-in workflow token is a
+short-lived token of the job's own GitHub App, minted by the two jobs that
+write ([credentials](#credentials-the-app-token-and-the-built-in-token)); it
+uses no paid runner and no external service other than GitHub and the
+upstream release downloads the worker already reads. The dispatch input
+bypasses nothing: without the variable it can only dry-run, and a dry run
+never reaches the jobs that hold the App's key.
+
+Each run, in one concurrency group (`listing-facts-batch`):
+
+1. Any open issue titled `Listing facts batch stopped: …` stops the run.
+2. An open batch pull request is evaluated instead of starting another. Only
+   a pull request a GitHub App opened from a batch branch of this repository
+   counts, so a fork, a person or another workflow's built-in token cannot
+   hold or stop the job; before it merges, the `merge` job requires the
+   author to be exactly its own App's bot login. When
+   all five required checks (`catalog`, `dependency-review`, `frontend`,
+   `rust`, `rust-quality`) passed on its exact head, the job composes it onto
+   the current `main` tip as the squash will be, requires that composition to
+   keep the allowlist and pass the gate and `generate-catalog.mts --check`
+   against that tip, and merges through the guarded route
+   (`scripts/pr-delivery.mts merge`, exact head, that target and tree checked
+   from local objects with `--verify-local-composition`, since GitHub rebuilds
+   its merge preview lazily, closure intent and merge message). The merge is
+   bound with `--run`/`--attempt` to the head's newest successful
+   `pull_request` CI run, so every required context must be a successful job
+   of that run attempt; without such a run the batch still waits. The merged
+   batch branch is then deleted (a failed deletion changes nothing else). A
+   failed check stops the job. Missing or pending checks wait, and a batch
+   that has waited more than 15 days (`batchWaitDays`) files `batch-waiting`.
+3. Otherwise the job derives one batch from the tip of `main` over the whole
+   candidate set: every listing observation the observer has accumulated
+   ([observations](#accumulated-observations)) and the worker state restored
+   from the Actions cache. `prepare` builds the CLI once, retains the run's inputs (the
+   observations, the prior state and `inputs.json` with their digests) as the
+   `listing-facts-batch-inputs-<run id>` artifact before the worker runs, and
+   plans the run with `--workflow-run-id`, `--source-commit` and
+   `--inputs-sha256`; `inspect` runs one matrix job per shard of the
+   identities that need bytes ([inspection order](#inspection-order-and-backlog)),
+   each with the hosted job's 6-hour limit less its other steps as its
+   deadline; `combine` requires every shard to have finished, merges them,
+   carries what one batch may not land (below), regenerates the catalog,
+   commits locally and checks the paths, the gate, both
+   [catalog capacity](#catalog-capacity) bounds and the batch once;
+   `reproduce` re-reads every added or changed eligible entry of the batch;
+   `decide` withholds each identity its reproduction refused on that
+   identity's own facts (below), regenerates and re-checks the batch when it
+   withheld one, and assesses the stop conditions. A batch
+   it can propose is retained with its outputs record
+   (`listing-facts-batch-outputs-<run id>`: the SHA-256 of the facts table and
+   of the batch patch, and whether the run was a dry run). It refuses
+   its own batch on a path outside the allowlist, a gate refusal, a capacity
+   bound, a reproduction that gave no per-identity outcome, or any stop
+   condition, and proposes
+   nothing when the change is not material: no enrollment changed, no entry
+   appeared, disappeared or changed other than by reconfirmation, and no
+   offered entry was last confirmed more than 15 days before
+   (`refreshAfterDays`). One batch's reproductions spend at most
+   `reproductionBatchRequests` (250) REST requests, one per entry that needs
+   reproduction, so the job's own reproduction and its pull-request CI
+   together never wait for a quota reset ([quota](#reproduction-quota));
+   further such entries are carried (`carryOver`): each keeps its previous
+   entry, or stays absent when new, and is saved in the worker state's
+   `carried` queue with the time it was first carried and the entry it
+   derived. The next deriving run restores the queue, reuses each queued
+   entry's inspection receipts (its artifacts per asset id and SHA-256, for
+   the same repository id and facts parser version; never its refusals, since
+   an ineligible verdict lands without reproduction), so an unchanged release
+   is not downloaded again, and lands the longest-waiting
+   entries first, then the rest in `port_id` order. An identity late in the
+   alphabet is never starved by newer ones: every queued entry lands within
+   its queue position divided by one batch's entries. A receipt grants
+   nothing: a queued entry is reproduced from its bytes when its batch lands.
+   Carried identities are reported as `carried` with `carried_ids` in the
+   worker summary and counted in the pull request body, never as complete or
+   settled. Entries that need no reproduction always land.
+4. A ready batch is pushed as the one-commit branch
+   `automation/listing-facts-batch-<run id>` and opened as a pull request by
+   the job's App, after the deliver job checks, before it mints the token,
+   that the applied patch and facts table are the ones the outputs record
+   names. Its required checks start on their own. Only then is the worker
+   state saved.
+5. Stop conditions and the freshness alert are filed; a deriving run also
+   publishes the exception queues.
+
+###### Accumulated observations
+
+The observer is a rotating, bounded batch: each run attempts a slice of the
+catalog's sources (about 87 of 1,420 per run), and its
+`catalog-upstream-observations-*` handoff holds only that slice. The job
+therefore reads the observer's durable record instead, its checkpoint
+snapshot (`upstream-observer-checkpoint-*`), through the same reader as the
+maintenance inventory and the listing delivery (`readUpstreamObservations`:
+the newest completed schedule or push `main` run of the last 24 hours that
+retains one, each producer event in its own window). The job keeps no copy
+of observer state. `scripts/listing-facts-observations.mts` projects every
+source that has completed to the last complete listing observation of each
+port it serves, so a source observed in any earlier observer run reaches the
+worker. An observation is kept while the current listing still names the
+repository the observer was asked to observe (a rename GitHub redirects
+keeps it; the worker binds the repository id); a re-pointed listing is never
+rebound. The binding is
+the repository, not the listing's whole declaration (the listing delivery's
+rule): the worker reads only the repository's releases and assets, and a
+landed batch rewrites the generated parts of the declarations it enrolls, so
+a declaration binding would hide each newly enrolled identity until the
+observer next completed its source, and the next run would stop with
+`observer-coverage-dropped`. When a source's latest attempt ended for a
+reason that is not the observer's own progress (the checkpoint's stated
+coverage: `failed`, `unavailable`, including a rate limit or transport
+failure, or a `partial` such as a truncated page), its listing carries that
+status, so the worker keeps the last-good facts within
+`lastGoodRetentionDays` rather than reconfirming them. The observer's own
+budget, cancellation and quota stops (`partialProgressRules`) and a
+collection that changed under it (`concurrent-change`) keep the complete
+observation. A listing whose source never completed stays unobserved. The
+snapshot is read against the catalog at the observer run's source commit,
+which the job fetches on demand into its shallow checkout (the repository is
+public), and the snapshot's revision is recorded as the run's
+`observer_run_id`. If no run of the last 24 hours retains a snapshot, the
+run fails and the next scheduled run tries again.
+
+On 2026-11-24 the newest handoff (observer run 45397908546) held 73 of the
+1,146 listing-only identities; that run's checkpoint held completed
+observations for 1,125 of them (1,095 complete, 20 the observer itself
+recorded incomplete and 10 whose latest attempt failed upstream). The
+earlier dry run 45213427510 read only the handoff of observer run
+45202674950: 80 of 1,146.
+
+###### State and cursor
+
+A dry run never saves the worker state, so it cannot move the cursor real
+runs follow. A refused batch saves none either, so the next run derives it
+again. A ready batch's state goes to the deliver job as a one-day artifact
+and is saved there only after its pull request opened, so a failed push or
+pull request leaves the cursor where it was and the next run derives the same
+identities again (a pushed branch whose pull request failed stays behind,
+unused). A batch a person closes unmerged has already moved the cursor: its
+new identities wait for the next pass, and changed releases are offered
+again when the release changes or its facts are next reconfirmed. Its branch
+is not deleted; delete it by hand.
+
+###### Reproducible facts and the path allowlist
+
+A batch may change only `listing-package-facts.generated.json`,
+`generated-registration.generated.json`, `catalog.json` and `listings.json`:
+the facts table and exactly the outputs `scripts/generate-catalog.mts`
+rewrites from it. The allowlist is by name, so each of those paths must also
+stay a regular, non-executable file on both sides (`git diff --raw` modes
+`000000` or `100644`): a symlink, an executable bit or a gitlink at an
+allowed name is a violation. It never changes `GENERATOR_VERSION`, a
+script, a workflow or an authored listing, and `generate-catalog.mts --check`
+still requires every output to equal what the facts produce.
+
+Pull-request CI (`fast-catalog`, and `catalog-full` in qualification) runs
+`listing-facts-batch.mts plan` and the change's checks once
+(`verify --reproduce false`) for every pull request, whoever opened it. The
+plan shards every eligible entry the change adds or changes against the
+gate's baseline (`identityShards`), and the required
+`listing-facts-reproduction` matrix runs one job per shard
+(`verify --shard I`); the `catalog` check passes only when every shard
+succeeded. Before any provider call or download, `plan` and `verify` refuse
+the whole change when any planned entry's `port_id` is not an authored
+listing-only GitHub identity, its `repository` is not the one its listing
+names, or its `repository_id` differs from the id the baseline entry bound
+that repository to (`reproductionScopeProblems`); `reproduceFacts` refuses
+such an entry again with zero calls. The authored listings and release-line
+bindings for that check come from the base revision, never from the change,
+so a listing only the head adds is out of scope. A change that edits
+reproducible facts entries together with any authored listing or catalog
+source under `crates/portcove-core/catalog/` (anything there but the four
+generated batch outputs) is refused whole before any call
+(`authoredSourceProblem`): the authored change lands first, the facts later,
+the same shape as checker separation, and a batch never touches an authored
+file. So the entries an untrusted pull request can make CI read are bounded
+by the authored catalog already on `main`, and none points at a repository
+that catalog does not name. Each reproduction shard first stops when a newer
+head superseded its pull request (`stop-if-superseded`), so repeated pushes
+do not stack matrices. For each entry, CI lists the
+repository's releases by numeric repository id once per shard (one page of
+100, the observer's page size) and reads the offered release from that list:
+one REST request per repository. It requires the list to name the listing's
+own repository, the recorded tag, publication time, Core's stable verdict and
+the asset-list digest, and re-applies the worker's `latestStable` and
+`unreadableReleases` to require the release to be still the newest stable
+one (an older release whose bytes reproduce does not enroll; an unclassified
+newer tag or an unreadable newer release refuses as `not-latest-stable`). A
+full page shows the 100 newest releases, so when it holds the line's newest
+stable release nothing older can displace it; a full page without one, or
+an offered release absent from the page, is refused. It requires the entry
+to record exactly the release's archives and exactly its other asset names, re-downloads each digest-bound archive, re-runs
+`inspect-listing-artifact` and Core's name classification, and requires a
+byte-equal artifact fact. A refused archive must be refused again with the
+same class under the same name verdict. The release's own observed-release
+record (tag, time, stable verdict) and its other package forms (names,
+sizes, digests and platforms, a container's from Core's name verdict) must
+match the provider. The observed releases must equal the observer's window
+of the release list (the newest four by publication time, each with at most
+32 assets), so an entry that leaves out another line's release, or an
+other-form asset, is refused; a release published after the run refuses
+every entry of its repository until the next run. Any change to an eligible entry other than its
+`observed_at` and the worker's `attempt` record is reproduced, including the
+parser version, coverage, repository binding and unread forms. An archive
+whose record is byte-identical to the baseline's (same asset id, SHA-256,
+players, name verdicts or refusal), in an eligible baseline entry of the same
+repository id and facts parser version, is not downloaded again: its bytes
+were reproduced when it landed, so only its provider metadata (name, size,
+digest) and Core's name verdict are re-checked (`reusedArchives`). A new
+release on another line changes only `observed_releases` or
+`other_packages`, so it re-reads no archive; a changed artifact, parser
+version or recorded fact is reproduced in full. A reconfirmation re-reads
+nothing, so whoever can merge can keep a reconfirmation's date moving; an
+ineligible entry offers nothing.
+
+Reproduction has no entry, byte or archive-size bound; it is sized from the
+real runner constraints instead. A shard holds the fewest entries the
+256-job matrix allows (one for up to 256 entries, so a table of 400 new
+entries is two per shard). Each shard reads one archive at a time and
+deletes it, so its disk holds one archive (at most the provider's 2 GiB) and
+Core's extraction of it at a time, inside the hosted runner's free disk
+(about 14 GB on a standard Linux runner). Its deadline is one shared
+constant, `reproductionDeadlineMinutes` (85 minutes: the repository's
+120-minute CI job cap less the shard's other steps), the default of `verify`
+in pull-request CI and in the batch job alike, and the worker's per-identity
+budget is derived from it, so the job never settles or proposes what CI
+cannot reproduce. The deadline is checked before each entry and archive, and
+every download, Core inspection, name classification and quota wait is cut
+to the time left and not started past it, so an item that reaches it is an
+`over-budget` refusal, never a step timeout. An unavailable asset, a changed
+release or a reached deadline refuses the entry: it is never trusted, and
+any refused entry fails its shard and the `catalog` check. A network
+failure, a provider server error (5xx), a rate limit, a quota that does not
+clear before the deadline or the runner's disk running out while Core
+extracts an archive is the provider's or the runner's condition, never a
+verdict on the facts: the entry is refused as `transient` (with
+`over-budget`, the `transientReasons`), and pull-request CI reports such a
+shard as transient, to be re-run, rather than refused.
+
+A facts change may not record
+`generated_at`, or any added or changed `observed_at`, ahead of the clock
+(`clockProblems`): facts age is measured from those times, which all come
+from earlier runs. A push to `main` was verified on its pull request and re-reads
+nothing.
+
+The pull-request check runs the pull request's own code. So `plan` and
+`verify` refuse a change that edits the facts table together with any path
+the check depends on (`checkerPaths`): the two workflows and their Rust
+setup, `Cargo.lock`, the workspace `Cargo.toml` and every workspace member's
+manifest (read from its `members` list), the CLI's `main.rs` and
+`catalog.rs`, the relative
+import closure of `listing-facts-batch.mts`, `listing-package-facts.mts`,
+`catalog-generated-registration.mts`, `generate-catalog.mts` and
+`validation-plan.mts`, and Core's `package_shape` module with its
+submodules and every Core module they name directly. The two must be
+separate changes, checker first. A facts table with no entry on either side
+is not refused: it has nothing to verify, so a table-format change may
+rewrite an empty table with its checker; once either side has an entry the
+refusal holds. The enrollment table alone is not refused:
+a rule change regenerates it in the same change, from facts that change
+cannot edit. This catches accidents only. The list is derived from the
+checked-out code, Core's deeper dependencies are not in it, and a deliberate
+change that loosens the checker and edits the facts in one pull request,
+or that removes this refusal, is held only by review.
+
+A change claims to be a batch when its branch is a batch branch or it
+changes the table's `provenance`. CI then also holds it to the path allowlist
+and checks the provenance against the run it names: that run must be this
+repository's batch workflow, started by the schedule or a dispatch, on `main`
+at the recorded source commit, the pull request branch must be that run's
+batch branch, and the run's retained `inputs.json` must have the recorded
+digest and match the observations and state retained beside it. The
+provenance is also bound to the run's outputs: the run's outputs record must
+name that run, must not be a dry run, and must hold the SHA-256 of exactly
+the facts table under check. The inputs and outputs artifacts are kept 30
+days. CI reads the change's paths from the committed range, so files earlier
+CI steps leave behind do not count. Both artifacts are read with CI's own
+built-in token (`actions: read`, a same-repository run); no credential is
+added. That read is not yet observed live: if GitHub refuses it on a batch
+pull request, the check refuses the batch, never passes it.
+
+###### Reproduction quota
+
+The REST requests of reproduction use the built-in `GITHUB_TOKEN`, in the
+batch job and in the batch pull request's CI alike, whose quota is 1,000
+requests an hour per repository
+(`githubTokenHourlyRequests`), shared by every workflow of the repository.
+The job's App installation has its own quota, at least 5,000 requests an
+hour ([GitHub documentation](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api#primary-rate-limit-for-github-app-installations)),
+which only `deliver` and `merge` spend: per batch one request to open the
+pull request and one to merge it (the two `git push` calls are not REST
+requests), 2 of 5,000. Reproduction cannot use that quota: a token minted in
+a reproduction shard would put the App's key in a job that runs Core over
+downloaded bytes, and GitHub does not pass a token between jobs. Pull-request
+CI runs with its own built-in token whoever opened the pull request. So the
+built-in quota is the real constraint, and reproduction plans only half of it
+(`reproductionHourlyRequests`, 500 an hour): the other workflows spend the
+same quota while reproduction runs (CI's other jobs, the upstream observer,
+discovery, the batch job's own gate and issue calls and the merge's reads),
+and their use is not measured here (UNKNOWN), so no smaller reserve is
+justified. Moving the pull request and merge writes to the App frees two
+built-in requests per batch, too few to change the share. Reproduction
+makes at most one request per entry (one per repository per shard), and the
+downloads are not REST requests.
+
+Every GitHub call goes through one client (`githubRequest`) and ends at its
+step's deadline: a `verify` shard's reproduction deadline, or for other
+steps `--deadline-minutes`, the step's timeout less a minute to start and
+report. It honours `retry-after` (at least a second, so `retry-after: 0`
+never spins) and `x-ratelimit-remaining` with `x-ratelimit-reset`, and
+follows GitHub's guidance for a refusal that states no wait (a secondary
+rate limit, a server error, a network failure): wait at least a minute
+(`githubFirstRetryMs`), then back off exponentially. The deadline is checked
+before every attempt and wait; a wait past it fails with
+`TransientGithubError` naming its cause (the quota's reset time, or the last
+failure). A permission refusal is no rate limit and is not retried. A
+response is read only up to `githubResponseBytes`: reading stops as soon as
+the bound is passed.
+
+The plan sets the matrix's `max-parallel` (`reproductionParallelism`): the
+shards whose requests fit one hour's share, 500 divided by the entries per
+shard. When a change plans more entries than the share, shards started once
+it is spent must wait for the reset, up to an hour
+(`quotaResetWaitMinutes`), inside their 85-minute deadline, so the expected
+wait comes out of the per-identity budget (`expectedQuotaWaitMinutes`,
+`identityBudgetMinutes`). The arithmetic:
+
+- About 400 entries: 400 requests, within one hour's share. A shard holds two
+  entries, 250 of the 256 shards run at once, nothing waits, and each entry
+  has 85 / 2 = 42.5 minutes.
+- About 1,100 entries in one change: 1,100 requests, past the share. A shard
+  holds five entries, 100 shards run at once, the later shards wait for a
+  reset, and each entry has (85 − 60) / 5 = 5 minutes. The batch job never
+  proposes such a change: it lands at most 250 entries that need
+  reproduction per batch (`reproductionBatchRequests`) and carries the
+  rest, longest wait first, so about 1,100 entries land as batches of 250,
+  250, 250, 250 and 100 in consecutive deriving runs, each with 85 minutes
+  per entry and no quota wait. The worker's per-identity
+  budget is computed for that batch size, so it never settles what CI cannot
+  reproduce.
+
+The batch job's own reproduction and the batch's pull-request CI each
+reproduce every entry of the batch, and both can fall in the same hour, so
+both count against one hour's share (`reproductionsPerBatch`, 2): a batch
+lands at most 500 ÷ 2 = 250 entries that need reproduction, the two together
+spend at most 500 requests, and the other half of the quota stays for the
+other workflows. The carry-over is automatic and visible: the worker summary
+reports `carried` with `carried_ids`, and the batch pull request counts them. In the batch job, a reproduction whose every
+shard wrote its refusal file and refused only transiently
+(`reproductionTransient`) proposes nothing, keeps the previous worker state
+and files no stop; the next run retries. Its run history is kept, so a second
+consecutive transient reproduction files `reproduction-transient` with the
+latest causes.
+
+###### Reproduction refusals of one identity
+
+A reproduction shard records every refusal typed (`refusalRecord`). A refusal
+of one identity's facts (`identityRefusal`: `release-unavailable`,
+`release-changed`, `not-latest-stable`, `asset-unavailable`, `core-refused`
+or `mismatch`) is a verdict on that identity, not on the job. A release list
+read counts as `release-unavailable` only when the provider states it
+(404, 410, 451, a 403 whose message says repository access is blocked,
+malformed records or a response over its size bound); an archive inspection
+counts only when it fails with the worker's typed inspection error and Core
+gave a verdict on the archive. Any other failure (another permission refusal,
+a missing or crashed Core CLI, Core output that is not JSON, a Core usage
+refusal, a fault of the job's own code) is `job-fault`, which stops the job
+like `out-of-scope`. A systemic fault can still look like a verdict on each
+identity (a wrong URL template gives every identity a 404), so when more
+than one identity was reproduced and every one is refused for the same
+reason, `decide` withholds
+nothing and stops as `reproduction-unsound`. A single refused identity
+(alone in its batch, or among others that pass) cannot be told apart from a
+systemic fault that touched only it; it is withheld, which is the safe
+direction. For a verdict on one
+identity the shard
+passes, and `decide` withholds the identity (`withholdRefused`). Its entry
+becomes ineligible `reproduction-refused` for the release it was refused
+for, naming the refusal reason and a receipt (`refusalReceipt`: the digest of the
+repository, release, assets fingerprint, observed release text verdicts and
+the parser and generator versions), so a repeated refusal of the same
+release is a reconfirmation rather than a new change; the provider's detail
+is in the job summary and the run's `withheld.json`. The catalog is
+regenerated and the paths, the gate, both capacity bounds and the batch's
+checks run again on the batch as it now stands; the rest of the batch
+proceeds. The identity is listed under `reproduction-refused` in the
+exception queues for a person to hand-check. While the receipt's inputs are
+unchanged the worker reconfirms it without downloading the release again;
+when any of them changes (a new release or asset, a changed text verdict, a
+rule version), the worker derives it again, so it lands without a person once
+reproduction agrees. When a batch must carry entries
+(`carryOver`), an entry refused before for the same release waits behind
+every other, so a recurring refusal never holds another identity's slot. If
+the batch without the withheld identities cannot be regenerated, or its
+exception queues cannot be published, nothing is proposed and the run stops
+as `withheld-batch-unchecked`, naming that step. Measured: `youkaicountry-yknytt`'s release
+list now titles its releases as betas; that refusal used to stop the whole
+job until a person acted, and it now withholds only that identity. A refusal
+that would withdraw a route players already have is held instead
+(`withdrawal-held`, cause `reproduction-refused`). Transient refusals keep
+their own rule (no proposal, retried; `reproduction-transient` on two
+consecutive runs). Pull-request CI, the merge authority, still refuses a
+change with any refusal: a batch whose release changed between the job's
+reproduction and its CI fails its required check (`required-check-failed`).
+
+###### Stop and wait
+
+Each condition files or reuses one issue titled
+`Listing facts batch stopped: <condition>`, opened by the workflow token,
+with the grouped reason and the run. A recurrence after it was closed reopens
+and comments on the same issue; an open issue is not commented again. No
+further run starts while any such issue is open; closing it is how a person
+clears the stop. An unreadable issue list, or more than 1,000 open workflow
+issues, fails the run rather than reading as "not stopped"; past 1,000 closed
+workflow issues and pull requests, a recurrence may open a new issue instead
+of reopening the old one. A `reproduction-unsound` issue names up to five
+of the shards' recorded refusals and why, as inert code text (every one is in
+the run's refusal records). The conditions are `gate-refused`, `catalog-capacity`
+(the batch would exceed a released-reader bound; see
+[catalog capacity](#catalog-capacity)), `reproduction-unsound` (the
+reproduction gave no per-identity outcome: an entry outside the authored
+candidate scope, `out-of-scope`, a change that also edits authored sources,
+a shard that ended without its typed record, a `job-fault` refusal, every
+reproduced identity, of more than one, refused for the same reason, or a batch whose separation, clock or canonical-output checks failed after an
+identity was withheld), `withheld-batch-unchecked` (the batch without the withheld
+identities could not be regenerated or its exception queues published),
+`reproduction-transient` (a reproduction that ended only transiently on two
+consecutive runs), `path-allowlist`, `required-check-failed` (or a job batch that is not a
+well-formed one-commit pull request), `foreign-batch-author` (a batch-shaped
+pull request another GitHub App opened; see
+[credentials](#credentials-the-app-token-and-the-built-in-token)),
+`batch-app-slug-unset` (a batch passed its checks while
+`PORTCOVE_FACTS_BATCH_APP_SLUG` is unset), `batch-waiting` (an open batch whose
+required checks have not all finished more than 15 days after it was opened,
+most likely because its runs wait for approval: a reconfirmation proposed at
+15 days must merge within the rest of the 30-day facts age),
+`no-progress` (the run's deadlines left work pending and it settled nothing:
+with no identity or byte bound, a whole shard could not finish one
+identity), `backlog-growing` (shard deadlines left more identities pending
+than in the previous run), `withdrawal-held` (see below),
+`repository-identity-changed`, `rule-version-changed` (the facts parser,
+generator or Core filename rule version changed since the previous run),
+`observer-coverage-dropped` (an identity the previous run's observer covered
+is a candidate this run's observer report does not cover at all),
+`pending-repeated` (an identity a shard deadline left pending in this run and
+the previous one, grouped by cause) and
+`worker-error` (also any job, the `gate` job and every shard included, that
+failed, timed out or was cancelled).
+
+`withdrawal-held` replaces a numeric withdrawal cap. It protects players
+from a bug that withdraws offered games, without a magic number: each route
+the batch withdraws is classified from the facts on both sides
+(`withdrawalCauses`). Only a definitive upstream statement proceeds: its
+facts entry changed in something other than a reconfirmation through a new
+release or an ineligible verdict from a complete observation (a repository id
+that changed under the listed name included), or its listing is no longer a
+candidate (an authored, reviewed change). It is held, and the whole batch
+with it, when the entry was rewritten by another facts parser version
+(`rule-version`); when upstream stayed incomplete past the 14-day retention
+bound (`observation-unavailable`: an observer or provider outage reads the
+same as a deleted repository, so an outage could otherwise withdraw
+everything); when the worker could not read the bytes or Core could not
+classify a name (`inspection-failure`: `repeated-inspection-failure`,
+including the `runner-time` and `runner-disk` causes, or `invalid-facts`);
+when the job's own reproduction refused the entry (`reproduction-refused`: a
+reproduction fault would otherwise withdraw offered games); or
+when the entry is unchanged but for a reconfirmation (`not-reobserved`: the
+withdrawal comes from a rule change or from facts ageing out because the
+observer did not observe them completely, which is how an observer coverage
+drop shows). A parser or generator behavior change requires its version bump,
+which is what marks the withdrawals it causes as `rule-version`. A person reviews the held routes and
+clears the stop; a rule change that withdraws routes lands as a reviewed
+pull request, never as an unattended batch. Any number of upstream-explained
+withdrawals, additions or changes proceed. A stop condition found while deriving also withholds that run's
+batch. An open batch pull request that still fails stops the job again after
+its issue is closed; close that pull request too.
+
+The freshness watchdog compares the committed facts' `generated_at` with the
+real clock on every enabled run, also while a batch waits or a stop issue is
+open. When the table is more than 15 days old (`freshnessAlertDays`: a quiet
+catalog proposes its reconfirmation batch at 15 days, so older facts have
+not landed one), including the empty table before the first batch lands, or
+records a time ahead of the clock, the job files
+`Listing facts batch: facts are falling behind the clock`. It does not stop
+the job, whose next batch is the remedy. Every job and every step has a
+finite timeout, and each job's timeout is at least the sum of its steps', so
+a slow step fails inside the job and the stop assessment still runs. These
+are harness budgets, not limits on what lands: the plan job 130 minutes (the
+CLI build 30, the plan 30); each `inspect` shard the hosted job's 360-minute
+limit, with the worker's deadline set to that limit less the shard's other
+steps (330 minutes); each `reproduce` shard 125 minutes, the sum of its
+steps, whose reproduction step (90) outlasts the shared
+`reproductionDeadlineMinutes` (85); `combine` 80; `decide` 120; the deliver
+job 45; `merge` 45; `gate` 20; `notify` 30.
+
+When a stop issue cannot be filed (a spent quota, the step's deadline),
+`notify` fails with that cause and keeps the unfiled issues in the Actions
+cache (`listing-facts-batch-unfiled-v1-…`). The next run's `gate` restores
+them and holds the run (`blocked`) until its `notify` files them first, so a
+stop is never lost; an unreadable record holds as `worker-error`.
+
+###### Exception queues
+
+Every deriving run publishes `catalog-route-fit.mts --json` as the
+`registration-queues-<run id>` artifact and a job summary with the count per
+blocked reason, the most frequent unread package forms and the most frequent
+name vetoes. That report stays computed from the committed catalog and facts.
+
+###### Credentials: the App token and the built-in token
+
+The owner decided on [#1422](https://github.com/boburning/portcove/issues/1422#issuecomment-7106469487)
+to deliver and merge batches with a dedicated GitHub App rather than the
+built-in token: events the built-in `GITHUB_TOKEN` causes create no workflow
+run (its pull request's `pull_request` runs wait for a person to approve them,
+and its merge starts no `push` run;
+[GitHub documentation](https://docs.github.com/en/actions/concepts/security/github_token#when-github_token-triggers-workflow-runs)),
+while an App's events start them like a person's. So a batch pull request is
+an ordinary pull request: its required checks and the `pull_request_target`
+`closing-inventory` check start on their own, and a merged batch starts
+`main` CI and the catalog publication that follows a green `main` run. There
+is one CI path, with no second trigger, personal token or recurring dispatch.
+
+- Only `deliver` and `merge` declare the `facts-batch` environment, whose
+  deployment-branch policy admits only `main`, and only they can read its
+  variable `FACTS_BATCH_APP_ID` and secret `FACTS_BATCH_APP_PRIVATE_KEY`. In
+  each, one step (`actions/create-github-app-token`, pinned by commit SHA)
+  references the key and mints a token with only `contents: write` and
+  `pull-requests: write`, after every check that needs no credential and
+  immediately before the first step that uses it. The step sets no `owner` or
+  `repositories` input, so the pinned action scopes the token to the current
+  repository (`GITHUB_REPOSITORY`) on every trigger; an input taken from
+  `github.event.repository` would be empty on `schedule` and widen the token
+  to every repository of the installation. The action revokes the token when
+  the job ends.
+- Neither job ever executes batch or artifact content. `$GITHUB_WORKSPACE`
+  stays the untouched `main` checkout, and every check runs its scripts:
+  `deliver` applies the patch with `git am` in a separate worktree (Git
+  without system or global configuration, hooks, attribute files or
+  fsmonitor, so no filter, diff or merge driver runs) and checks the commit
+  as Git objects with main's `paths` and `outputs-check --revision`, then
+  pushes that commit by id and opens the pull request with main's script.
+  `merge` composes the batch onto the current `main` tip with
+  `git merge-tree` (objects only), checks both diffs with main's `paths`,
+  and runs `generate-catalog.mts --check` in a checkout of the `main` tip
+  that received only the allowlisted data files of the composition, proven
+  equal to it; the guarded merge reads a head worktree that writes no file.
+  `deliver` downloads only data (the patch, its outputs record, the delta,
+  the worker report and the worker state); `merge` downloads nothing.
+- `deliver` pushes the batch branch with it and opens the pull request;
+  `merge` merges through the guarded route and deletes the branch. Each push
+  gets the token as an HTTP header through that one `git` command's
+  environment, never through the git configuration, the remote URL or a
+  persisted checkout credential. The token reaches only the steps that write,
+  through `env:`; it is never echoed, cached or uploaded.
+- In `merge`, the built-in token reads the evidence (check runs, the CI
+  workflow run and its jobs, statuses, the closing inventory) and the App
+  token is used for the merge mutation alone (`scripts/pr-delivery.mts`,
+  `PORTCOVE_MERGE_TOKEN`), since the App has no Checks, Actions or Issues
+  permission. The merge stays bound with `--run`/`--attempt` to the head's
+  CI run and goes through the `Protect main` ruleset (five required contexts,
+  zero approving reviews); the App is on no bypass list.
+- `gate` and `notify` keep the built-in token (`notify` files the stop
+  issues; the App has no Issues permission). `prepare`, `inspect`, `combine`,
+  `reproduce` and `decide` run Core over downloaded bytes and never see the
+  key, the App id or a write token; they declare no environment.
+- The path allowlist is the control on what a batch may change. The App has
+  no Workflows permission, so GitHub would also refuse a batch push touching
+  `.github/workflows`: defense in depth, never relied on.
+
+A dry run never reaches `deliver` or `merge` (both require the variable and
+no dry run), so it works with the environment unset or the App unavailable.
+
+- The owner sets the required, non-secret repository variable
+  `PORTCOVE_FACTS_BATCH_APP_SLUG` to the App's slug before enabling the job;
+  the job never sets it. With it, the keyless `gate` makes another App's
+  batch-shaped pull request the named `foreign-batch-author` stop, so the
+  key-holding `merge` job never processes that pull request's data. Without
+  it (or malformed), `gate` never reports a batch green: a batch whose checks
+  pass is the named `batch-app-slug-unset` stop and is not merged. `merge`
+  still binds the author to the minted App's `app-slug` before any write and
+  raises `foreign-batch-author` on a mismatch.
+
+What the repository cannot show: the App's actual permission set,
+installation scope and absence from every bypass list (UNKNOWN). A
+successful mint does not confirm them: the action requests only the listed
+permissions and the current repository, and a broader App or installation
+grants them just the same. The owner verifies once in the App's settings
+that its permissions are exactly Contents and Pull requests (read and write)
+plus Metadata (read), that it is installed on this repository only and that
+it is on no ruleset bypass list, and records that on
+[#1422](https://github.com/boburning/portcove/issues/1422). The first live
+batch then records these observations:
+
+- the mint step's log names exactly this repository ("Creating token for
+  this repository"), never "all repositories owned by";
+- the pull request's author is the App's bot, and its CI starts without
+  anyone approving it;
+- no unexpected `push` workflow runs on the batch branch: every workflow's
+  `push` trigger names `main` or `v*` tags only, none matches
+  `automation/**`;
+- the merge succeeds only with the five required checks green, and the
+  `Protect main` ruleset's additional approval for unattributed changes does
+  not refuse it (expected inert with zero required approvals; see
+  [Repository settings](REPOSITORY-SETTINGS.md)). The batch commit is
+  authored and committed as `github-actions[bot]` (the patch's author is
+  fixed by `combine` and bound by the outputs record, and the App's bot
+  identity is known only after the mint), while the App pushes it;
+- `main` CI and the catalog publication start on the merge commit;
+- the branch deletion succeeds, and the post-job step revokes each token.
+
+A push to a path outside the allowlist is refused by the job itself, before
+GitHub sees it.
+
+The residual trust, plainly: the App's key, or any step that runs in
+`deliver` or `merge`, is equivalent to unattended write to `main` for
+anything that is not a workflow file, subject only to the five required
+checks, because the ruleset requires no approving review and a merged batch
+is then signed and published automatically. The `facts-batch` environment
+admits only `main`, so anything merged to `main` could use the key.
+
+Two further residual risks:
+
+- `main` may advance between the job's last check of the composition and
+  the merge request. The merge API takes the head SHA but no base-SHA
+  precondition, and the `Protect main` ruleset's status-check policy is not
+  strict, so GitHub merges onto whatever `main` is then. The `main` CI run on
+  the merge commit is the backstop.
+- `contents: write` is broader than the job's use of it. Beyond pushing the
+  batch branch, the token could create other branches, releases and tags.
+  The `Protect release tags` ruleset restricts update and deletion of `v*`
+  tags but not their creation (see
+  [Repository settings](REPOSITORY-SETTINGS.md)), and a `v*` tag push starts
+  `.github/workflows/app-release.yml`.
+
+###### Migration and steady state
+
+There is no drip-feed. The first enabled run is one migration: it plans
+every listing-only GitHub identity, reads every identity that needs bytes
+across the inspect matrix, and opens one pull request that enrolls every
+identity that passes the correctness rules. That pull request's CI
+reproduces every new entry across the reproduction matrix, so a table of
+several hundred new entries is verified in one pull request. Steady state
+afterwards is the same unbounded job: each run proposes one batch with every
+change that fits, whatever its size.
+
+What protects players is not a count: it is the correctness rules (the fit
+rule and the gate, each with its own code), the reproduction of every added
+or changed entry from its exact bytes, and the stop conditions, including
+`withdrawal-held`. The schedule runs every 6 hours: that decides how soon a
+new release is seen, never how much lands. A run derives only while no batch
+is open, so each landed batch costs two runs (the one that derives it and
+the one that merges it) plus its pull request's CI. A quiet catalog proposes
+a reconfirmation batch once an offered entry was last confirmed 15 days
+earlier (`refreshAfterDays`, half the facts age), which leaves the other half
+of the 30-day facts age for its checks and merge.
+
+###### Catalog capacity
+
+Two bounds limit how many generated routes the batch can carry. Neither is
+a cap of this job, and each is guarded at Core's supported share
+(`CATALOG_SUPPORTED_CAPACITY_PERCENT`, 85%):
+
+- `MAX_CATALOG_BYTES` (16 MiB, ceiling 14,260,633 bytes), a bound of
+  released readers. The binding measure is the JSON-escaped retained
+  installed contract (Core's `catalog_growth_stays_within_supported_capacity`):
+  4,529,946 bytes on November 23, 2026, so about 9,730,000 bytes of headroom,
+  or about 1,100 more routes at about 8.7 KB of escaped contract per
+  generated route.
+- `MAX_LISTING_DIRECTORY_TEXT_BYTES` (64 MiB, ceiling 57,042,534 bytes) for
+  the canonical listing directory `listings.json`: Core's text bound, which
+  every tool that reads the canonical text follows (Core's inspection, the
+  listing publisher's canonical read and this job, through
+  `listingDirectoryTextMaximum`, which a test pins to Core). The directory
+  measured 6,449,993 bytes on November 24, 2026. Until then the job also
+  stopped at the publisher's former 8 MiB canonical read (ceiling 7,130,316
+  bytes, 680,323 bytes of headroom); that read now follows Core's bound.
+
+Before it opens a pull request the job checks the regenerated batch against
+both ceilings (`capacity`): the generated, compact and signed-envelope
+catalog measures, the escaped retained contract (estimated as the escaped
+`catalog.json` text plus `retainedContractReserveBytes`, 16 KiB, about four
+times the contract's 3,477 bytes of other fields) and the listing directory
+text, together with every listing delivery row of `catalog-capacity --check`
+(`listingDirectoryMeasures`, with the committed withdrawals: the compact
+carrier's decoded, wire and record bytes, the listing and withdrawal counts
+and the element budget released readers enforce, each with its own margin,
+see [reader generations](SIGNED-CATALOG.md#reader-generations); the frozen
+legacy target row is informational and never stops a batch). On November 24,
+2026 the compact carrier's wire bytes bind first among them (modeled
+3,859,933 of a 6,411,179-byte ceiling, about 36 days of measured growth).
+A batch past any ceiling is not proposed,
+since its required check would fail; the run files the reused stop issue
+`catalog-capacity` with the exact figures. Raising
+a released-reader bound needs a compatibility analysis of released readers and
+is a separate change.
+
+###### Numeric constants
+
+Every number that remains in the worker, the generator, the gate and the job
+is a correctness rule or comes from a real constraint:
+
+| Constant                                                                                 | Value                                                        | Constraint                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxFactsAgeDays`                                                                        | 30 days                                                      | Correctness: how long observed release facts are trusted without a fresh complete observation. The gate restates it as `gateFactsAgeDays`, tested equal.                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `lastGoodRetentionDays`                                                                  | 14 days                                                      | Correctness: how long an upstream fault, or a transient inspection failure, is treated as temporary. The gate restates it as `gateRetentionDays`, tested equal.                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `maxDistinctPrograms`                                                                    | 1                                                            | Correctness: a second program name cannot be told apart from a second title.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `listingReleaseLimit`, `listingPackageLimit` (facts schema bounds)                       | 4 releases, 32 assets                                        | The observer's own window; an entry cannot record more than the observer saw.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `releaseTextWindow`, `releaseTextSourceBytes`                                            | 4 releases, 6,477 bytes per source (32 MiB ÷ 2 ÷ 2 ÷ 1,295)  | Bounded unit derived from the checkpoint's capacity: the listing observation window's releases keep their title and judged first line (the whole body is read to find it); a source whose kept text exceeds its share records a typed overflow with its size, reported in the accumulated read's gaps, and reads as unobserved text: withheld (`release-text-unobserved`), never read as stating nothing.                                                                                                                                                              |
+| `coreInspectedFileBound` (players per archive)                                           | 16,384                                                       | Core's inspected file bound (`MAXIMUM_SHAPE_PATHS`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `maximumNameBytes`, `chunkNames`, `chunkBytes`                                           | 1,024 bytes, 50,000 names, 8 MiB − 1,024 bytes               | Core's classification request bounds, and the CLI's 8 MiB input bound less room for the request's own JSON framing.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `guideBound` (`guide-bound`)                                                             | 8 entries                                                    | Core's catalog guide schema (`catalog.rs`, `listings.rs`): steps plus references, and warnings, at most eight each. A longer guide is refused by every client, and truncating the authored guide would drop title-specific instructions, so the identity is withheld instead.                                                                                                                                                                                                                                                                                          |
+| `displayableName`                                                                        | 120 characters, 3 programs                                   | Player copy: a longer name, or more programs, falls back to generic wording; it withholds nothing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `matrixJobLimit`                                                                         | 256                                                          | GitHub Actions' maximum jobs per matrix.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `reproductionDeadlineMinutes`                                                            | 85 of 120 minutes                                            | The repository's 120-minute CI job cap (`ci-workflow.test.mts`), less the reproduction shard's other steps. One constant for pull-request CI and the batch job's own reproduction.                                                                                                                                                                                                                                                                                                                                                                                     |
+| `identityBudgetMinutes`                                                                  | (85 − expected quota wait) / ceil(entries / 256) minutes     | The CI deadline, less the quota reset CI must expect past one hour's reproduction share (`expectedQuotaWaitMinutes`), shared by the entries one CI shard holds. The worker passes the entries one batch can land (at most 500): 85 up to 256, 42.5 from 257 on. A hand-made change of about 1,100 entries gets (85 − 60) / 5 = 5.                                                                                                                                                                                                                                      |
+| Inspect shard deadline                                                                   | 330 of 360 minutes                                           | The hosted job's 6-hour limit, less the shard's other steps.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Runner disk                                                                              | about 14 GB free                                             | A standard public Linux runner; Core's 16 GiB extraction ceiling plus the archive can exceed it, so running out is a transient `runner-disk` failure, never a refusal.                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `githubTokenHourlyRequests`, `reproductionHourlyRequests`                                | 1,000 and 500 requests an hour                               | The built-in `GITHUB_TOKEN`'s REST quota per repository, shared by all its workflows and used by every reproduction (the batch job's and its pull request's CI); reproduction plans half and leaves half for the other workflows, whose use is not measured (UNKNOWN). Reproduction spends at most one request per entry.                                                                                                                                                                                                                                              |
+| App installation quota                                                                   | at least 5,000 requests an hour                              | The job's GitHub App, used only by `deliver` and `merge`: 2 REST requests per batch (open the pull request, merge it), so 2 of 5,000. It never serves reproduction, which would need the App's key in a job that runs Core over downloaded bytes, so it does not change the reproduction share.                                                                                                                                                                                                                                                                        |
+| `reproductionParallelism`                                                                | 500 / entries per shard                                      | The shards whose requests fit one hour's reproduction share: 250 at about 400 entries, 100 for a hand-made change of about 1,100.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `reproductionsPerBatch`, `reproductionBatchRequests`, `quotaResetWaitMinutes`            | 2 reproductions, 250 requests, 60 minutes                    | The batch job and the batch pull request's CI each reproduce every entry on the built-in token, possibly in one hour, so both count against one hour's share: a batch's reproductions spend at most 500 ÷ 2 = 250 requests, one per entry that needs reproduction (`reproductionBatchEntries`), and the rest is carried (reported as `carried`), longest wait first, with its inspection receipts in the worker state, so neither waits; the App's own quota does not add to this share. GitHub resets the primary quota hourly, so a spent quota waits up to an hour. |
+| `githubFirstRetryMs`, `--deadline-minutes`                                               | 1 minute, then doubling; the step's timeout less 1 minute    | GitHub's retry guidance for a refusal that states no wait; every call ends at its step's deadline with a clear transient cause.                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `githubResponseBytes`, `githubRequestMs`                                                 | 8 MiB, 30 seconds                                            | A page of 100 releases with their assets stays far below 8 MiB; 30 seconds is one request's harness budget.                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Open pull request listing                                                                | 10 pages of 100                                              | The REST page size; past 1,000 open pull requests the batch state is unknown and the run fails closed, like the stop-issue reads.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Observer checkpoint lookup                                                               | 24 newest completed runs per producer event, within 24 hours | The shared reader (`readUpstreamObservations`, DM-20): schedule and push windows are listed separately, and the newest run retaining a checkpoint snapshot is read; none fails the run, retried by the next schedule.                                                                                                                                                                                                                                                                                                                                                  |
+| `MAX_CATALOG_BYTES`, `MAX_LISTING_DIRECTORY_TEXT_BYTES` (`retainedContractReserveBytes`) | 16 MiB and 64 MiB, each at 85% (16 KiB reserve)              | The released readers' catalog bound and Core's listing directory text bound: see [catalog capacity](#catalog-capacity). The job checks both before it opens a pull request.                                                                                                                                                                                                                                                                                                                                                                                            |
+| Provider asset size                                                                      | 2 GiB                                                        | GitHub's per-release-asset maximum; no worker bound of its own.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `releaseListPage`                                                                        | 100                                                          | The REST API's largest page, the observer's page size. A full page without the line's newest stable release (or without the offered release) is refused at reproduction; a full page holding it is not, since nothing on a later page is newer.                                                                                                                                                                                                                                                                                                                        |
+| `refreshAfterDays`, `freshnessAlertDays`                                                 | 15 days                                                      | Half the facts age, leaving the other half for a reconfirmation batch's checks and merge.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `batchWaitDays`                                                                          | 15 days                                                      | The facts age less the refresh point: a waiting reconfirmation past it would let offered routes age out.                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `clockSkewMs`                                                                            | 0                                                            | Every recorded time comes from an earlier run on synchronized hosted runners.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Artifact retention                                                                       | 30 days                                                      | The facts age: provenance stays readable for as long as its facts are trusted.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Retained-artifact ZIP bounds                                                             | 64 MiB compressed, 128 MiB expanded                          | A decompression-bomb guard on artifacts CI reads; exceeding it refuses the batch for a person, never one game.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Stop-issue reads                                                                         | 1,000 issues                                                 | Fail-closed read of the job's own issues; more refuses the run rather than reading as "not stopped".                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+
+The 64 added / 32 withdrawn / 64 changed delta bounds, the 64-entry / 4 GiB /
+512 MiB / 30-minute reproduction budget, the 24-identity / 2 GiB run budget,
+the 10-minute per-download and per-Core-run cap, the 512 MiB archive bound,
+the six-per-platform and sixteen-per-release archive counts, three-failure
+retry count, the 16-route withdrawal stop, the quarter coverage share, the
+three-run and four-run stop counts, the 21-day alert, the 3-day wait, the
+10-minute clock skew, the 4,096-file and 64 MiB handoff bounds, the
+ten-name report cap and the 256-character cut of a release body's first line
+are removed.
+
+###### Switching it on
+
+The job stays disabled until the real cohort, independent review, exact
+gates and an activation decision are in place. Switching it on starts the
+migration: the first run proposes one pull request with every identity
+that fits, possibly hundreds. The path scope: the recorded direction on
+[#1422](https://github.com/boburning/portcove/issues/1422#issuecomment-7090719917)
+names only the facts and enrollment tables, while a batch that enrolls also
+rewrites `catalog.json` and `listings.json`, because catalog generation
+writes each generated route into the operational catalog and keeps only the
+listing's other platforms in the discovery directory. Those two paths are
+never authored by the batch: CI requires each of them, and the enrollment
+table, to be the byte-for-byte output of `generate-catalog.mts` from the
+facts table and the unchanged sources (`derivedBatchPaths`). Without them a
+batch could not offer a route. A hand-written pull request changing both the
+facts checker and the facts table is held only by review (the separation
+refusal above catches accidents); whether the checker paths should need a
+review stays an owner decision.
+
+The App and its `facts-batch` environment already exist
+([credentials](#credentials-the-app-token-and-the-built-in-token)); no
+Actions setting that lets the built-in token create pull requests is needed.
+The owner or lead then:
+
+1. Dispatches the workflow once with the default dry run and reviews its
+   summary and artifacts: the dry run derives the same migration batch and
+   reports its size, its exception queues and its stop conditions. It needs
+   neither the environment nor the App.
+2. Exercises a throwaway pull request of a few facts entries, to see CI's
+   reproduction shards and their aggregate run on real entries before the
+   migration's matrix of up to 256 jobs.
+3. Sets the required repository variable `PORTCOVE_FACTS_BATCH_APP_SLUG` to
+   the job's App's slug; without it no batch is ever merged
+   (`batch-app-slug-unset`).
+4. Sets the repository variable `PORTCOVE_FACTS_BATCH_ENABLED` to `true`
+   (unset or any other value is off).
+
+The first live batch then records the observations that confirm the App's
+scope (above): the token mint succeeds for Contents and Pull requests only,
+the pull request shows the App as author and its CI starts unattended, the
+guarded merge succeeds on green exact-head checks, and `main` CI starts on
+the merged commit and publishes the catalog. No person approves, closes or
+reopens a batch pull request.
+
+Nothing else changes: no ruleset, required check or signing setting. To
+switch it off, delete the variable or set it to anything else.
 
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
@@ -3745,74 +7115,30 @@ can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-
 Optional authoring-only `n64_recomp_persistence_v1` expands the reviewed
 root-level N64Recomp persistence layout for managed GitHub packages. Use `true`
 for the shared mod, save and settings paths with the declared
-`runtime_source_filename`. Dinosaur Planet's `config-directory` adds `config`
-after `saves`. Donkey Kong 64's `technical-settings` adds `technical.json` and
-`technical.json.bak` before the original file. Keep the source profile, ROM
-filename, repository, asset selectors and executable hints in the integration.
-Dinosaur Planet and Donkey Kong 64 require their named variants when using the
-recipe. A nested layout, different provider, optional settings declaration or
-different writer set uses an explicit integration. URL preparation proposes the
-family form when its expanded integration reproduces the reviewed explicit bytes.
+`runtime_source_filename`. A record whose player also writes a `config`
+directory declares `config-directory`, which adds `config` after `saves`; one
+whose player writes technical settings declares `technical-settings`, which
+adds `technical.json` and `technical.json.bak` before the original file. The
+variant is the record's declaration, not its identity. Keep the source profile,
+ROM filename, repository, asset selectors and executable hints in the
+integration. A nested layout, different provider, optional settings
+declaration or different writer set uses an explicit integration, and the
+refusal names the missing precondition. URL preparation proposes the variant
+whose expanded integration reproduces the reviewed explicit bytes.
 
-Optional authoring-only `reflectionhle_portable_paths_v1: true` expands the
-shared portable-root persistence list for the reviewed ReflectionHLE route.
-Keep the original editions, platform packages, launch arguments and reviewed
-package layouts explicit. Preparation proposes the shared form only when it
-can reproduce the exact reviewed integration bytes. A different writer scope
-or additional runtime layout declaration uses explicit paths.
+#### Retired single-upstream shorthands
 
-Optional authoring-only `crispy_doom_windows_persistence_v1: true` expands the
-reviewed Windows persistent paths and filename patterns shared by the Crispy
-Doom, Heretic, Hexen and Strife player routes. Keep each game mode, package
-selector, executable, original edition, launch values and qualification
-explicit. Preparation compacts only integrations that expand byte for byte.
-A fork or a different writer layout uses explicit paths.
-
-Optional authoring-only `chocolate_family_windows_persistence_v1: true`
-expands the reviewed Windows paths for Chocolate Doom, Heretic and Hexen.
-The recipe keeps each title's configuration and screenshots with its saves
-and treats the two engine logs as runtime output. Keep each official package
-selector, executable, original IWAD profile and launch arguments explicit.
-Preparation compacts a route only when expansion reproduces its exact bytes.
-
-The authoring-only `gen2recomp_windows_persistence_v1: true` expands the
-reviewed Windows player data and generated import paths for the Gold, Silver
-and Crystal routes. Each original profile, release selector, executable and
-edition launch value stays explicit. URL preparation uses the recipe when
-expansion reproduces the existing integration byte for byte.
-
-The authoring-only `rsdkv4_portable_data_v1: true` supplies the reviewed
-portable data paths for Sonic the Hedgehog and Sonic the Hedgehog 2 (2013).
-Each game keeps its own identity, original-file instructions, official package
-selector, executable and installed data. URL preparation uses the recipe when
-its expansion reproduces the reviewed integration byte for byte. A different
-writer layout uses explicit paths.
-
-Use the authoring-only `opengoal_setup_v1: true` for the reviewed OpenGOAL
-Jak trilogy setup. The generator supplies the extractor, launcher, and setup
-and portable data paths from the matching game identity. Keep the reviewed
-disc profile, release authority, support and presentation in each record.
-URL preparation compacts an exact match. A reviewed setup that differs uses
-the explicit integration fields.
-
-The authoring-only `openmohaa_portable_v1` generates the official stable
-OpenMoHAA route for Allied Assault (`base`), `spearhead`, or `breakthrough`.
-It supplies the four platform selectors, shared Windows archive layout,
-edition-specific Unix launcher checks, and original-data paths. Keep each
-edition’s original requirements, instructions, support and qualification
-explicit. The engine still owns the external player profile. Preparation
-compacts a route only when the generated integration reproduces it byte for
-byte. A different source, package, launcher or writer layout uses an explicit
-integration.
-
-Set the authoring-only `openx_portable_v1` to the reviewed numeric GitHub repository ID
-(as a string) for portable routes with matching GitHub lineage,
-reviewed Windows and Linux package layouts and the same executable basename. It supplies the stable Windows ZIP and Linux
-TAR.XZ selectors, TAR.XZ handling, and the local `config.yaml` persistence
-path. Each title keeps its original-data picker instructions, executable,
-reviewed package layout, external SDL profile and qualification explicit.
-URL preparation uses the recipe only when it reproduces the full integration
-byte for byte.
+Shorthands must expand by declared fields, never by a repository or identity
+literal, so a new title that fits a mechanism needs data only. Eleven earlier
+shorthands carried the facts of exactly one upstream: Aleph One pinned Windows,
+Chocolate and Crispy Doom Windows persistence, Gen2Recomped persistence, the
+BStone/DevilutionX managed profile, OpenGOAL setup, OpenMoHAA, OpenX, Raze,
+ReflectionHLE and RSDKv4. Their records now author those integration fields
+explicitly, with byte-identical generated output. `checkedAuthoredPort` refuses
+the retired `*_v1` fields so a stale declaration cannot silently drop the
+fields it used to supply. A GitHub-hosted Direct pin must be a canonical
+`<project_url>/releases/download/<tag>/<file>` URL of the record's own project,
+with no query or fragment.
 
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
@@ -3836,15 +7162,12 @@ are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
 its other build-provided files. The existing whole-`mods` forms keep their
 original persistence scope. The split-mods form requires explicit selectors
 with the same title prefix and the platform-specific `-windows-x64.zip` and
-`-linux-x64.zip` suffixes. Use `"split-mods-no-crash-log"` for the reviewed
-single-disc Alexbeav kits with SCPH-1001 BIOS whose mutable paths omit
-`psx_crash.txt`. Their remaining split-mods fields are the same.
-Use `"split-mods-diagnostics"` for the reviewed MediEvil and Mortal Kombat 4
-kits. It retains `diagnostics-location.txt` alongside the standard split-mods
-paths. Keep the exact selectors, executables, discs and retail SCPH-1001 BIOS
-explicit. MediEvil keeps managed Windows and Linux routes with separate Mac
-setup. Mortal Kombat 4 keeps its two declared managed Mac routes and existing
-qualification limits.
+`-linux-x64.zip` suffixes. Use `"split-mods-no-crash-log"` for reviewed
+single-disc kits with SCPH-1001 BIOS whose writer omits `psx_crash.txt`; the
+release repository must be the listing project. Their remaining split-mods
+fields are the same. The MediEvil and Mortal Kombat 4 routes, whose writers
+also keep `diagnostics-location.txt`, author their complete integrations
+explicitly.
 `"split-mods-openbios"` combines those split mod
 paths and selectors with the bundled OpenBIOS argument and refuses a retail
 BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.
@@ -3856,16 +7179,18 @@ split mod rules still apply. For the reviewed retail multidisc split-mods kits,
 keep `runtime-discs`, `psx-settings-selected` and `psx-raw-set` explicit in the
 integration.
 
-Use `"technically-computers"` for the reviewed TechnicallyComputers GitHub
-kits with Windows x64, Intel macOS and Apple silicon macOS selectors. This
+Use `"technically-computers"` for GitHub kits with the TechnicallyComputers
+layout: Windows x64, Intel macOS and Apple silicon macOS platforms in that
+order with the `windows-x64`, `macos-x64` and `macos-arm64` selectors. This
 variant supplies only the `build-portcove` runtime root and eight persistent
 paths. Each record retains its repository, asset selectors, executable hints,
-original disc profile, guide and qualification. A different upstream or writer
-layout uses explicit fields. Bomberman Party Edition and Final Fantasy VII can
-use `"technically-computers-input-files"` for the same eight persistent paths
-plus `input.ini` and `keybinds.ini`. Both keep the runtime root and mutable
-files explicit. Final Fantasy VII also keeps its three-disc source
-materialization and launch arguments explicit.
+original disc profile, guide and qualification. A different writer layout uses
+explicit fields. Kits that declare their `build-portcove` runtime root and
+`runtime_mutable_paths` use `"technically-computers-input-files"` for the same
+eight persistent paths plus `input.ini` and `keybinds.ini`. A raw disc set also
+declares its `runtime-discs` source, `psx-raw-set` materialization and launch
+arguments. No variant depends on the kit's repository or identity; a refusal
+names the missing precondition.
 
 A Linux sibling uses the same generated player basename without `.exe`, its
 own asset selector and artifact-bound source applicability.
@@ -4119,17 +7444,24 @@ URLs, the IGDB image CDN and Wikimedia Commons, with no redirects, URL queries o
 credentials. Cached `.image` originals share the existing disposable 64 MiB
 artwork cache and bounded decoding work; local overrides remain separate.
 
-Both game details and Continue resolve foreground identity as verified IGDB key
-art, then a suitable IGDB game logo, then the existing appropriate Cover choice,
-then a text heading. Each role prefers the exact port over an accurately matched
-original/edition. An offered original edition is not a selected edition: every
+Game details and Continue use a suitable admitted logo, then the existing Cover
+choice, then the game title. For automatic hero logos and backgrounds, Desktop tries exact port artwork
+before artwork specific to the verified edition, then uses reviewed
+edition-neutral artwork as a fallback. An offered original edition is not a selected edition: every
 media role requires actual applicable edition context or explicitly reviewed
 `edition_neutral: true`; absence remains unknown. Backgrounds and screenshots
 resolve independently, and a portrait cover is never stretched into a banner.
-Desktop has no validated binding from Core's source game, variant and
-representation IDs to these descriptive original-edition IDs. Automatic
-original media therefore requires reviewed edition neutrality. Players can use
-**Screenshot source** to view reviewed screenshots for an original release.
+Reviewed format-14 bindings connect an original release to the exact source
+game, variant and representation. Continue and game details can check one
+visible registered source within a bounded read and use its current exact
+match. An active installation uses that match only when its effective launch
+can use the exact default registration. A different setup original, a retained
+release that can use another saved original, or an unresolved release-specific
+input uses the neutral fallback. Prepared runtimes without an exact
+installed-source identity use the same fallback. The full
+saved-file check remains available when the bounded read cannot verify a file
+set. Players can use **Screenshot source** to view reviewed screenshots for
+an original release.
 This choice applies only to the gallery. Exact port media and the Cover and
 text fallbacks remain available. Offered editions and similar ID strings do not
 establish a selected source edition.
@@ -4178,21 +7510,6 @@ platform. Keep the original-file instructions, package preparation, working
 folder, and player or upstream ownership in the authored record. Use explicit
 `user_prepared` entries for accepted packages and per-platform distinctions.
 The CPS2Recomp routes use this shared registration form.
-
-The `alephone_pinned_windows_v1` recipe supplies the reviewed bundled-scenario
-launch arguments, environment, Windows path policy and external profile
-ownership for Marathon, Marathon 2 and Marathon Infinity. Each integration
-keeps its exact Direct archive pin and scenario executable. Each listing keeps
-its game, setup instructions and release-maintenance conditions.
-`prepare-port.mts` compacts only an exact match. The pins offer no automatic
-updates, and Portcove backups exclude the upstream profiles.
-
-The `native_managed_profile_v1` recipe supplies the managed `profile`
-directory, Windows temporary directory and relative-file path policy for the
-reviewed BStone and DevilutionX routes. The official selector, original-file
-contract, launch arguments and package-layout review remain explicit.
-`prepare-port.mts` compacts an exact match. Use the explicit integration when
-the title uses a different writer path or a player-owned profile.
 
 ### Regenerate catalog projections
 
@@ -4250,21 +7567,14 @@ compare Raze's platform, profile and update guide facts and Namco's common upstr
 and platform links. Original-file requirements, canonical issues, identities and
 independently reviewed acquisition restrictions stay local to each record.
 
-For the reviewed stable `ZDoom/Raze` Windows x64 native-portable route,
-`raze_windows_profile_v1: true` expands the shared release asset selector,
-executable, package layout, portable marker and persistent paths. Keep the
-repository, platforms, channels, support tier, qualification and guide explicit.
-A different repository, package or write scope requires an explicit integration.
-Preparation proposes the compact profile when it regenerates the existing
-integration byte for byte. Core receives each complete definition through the
-existing catalog validation.
-
 ```text
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation
 node scripts/prepare-port.mts --project https://github.com/owner/project --id stable-id --name "Project name" --output-dir /path/to/preparation
+node scripts/prepare-port.mts --project https://github.com/owner/project --expected-repository-id 123 --output-dir /path/to/preparation
 node scripts/prepare-port.mts --project https://github.com/owner/project --original-game /path/to/game-identity.json --output-dir /path/to/preparation
 node scripts/prepare-port.mts --record /path/to/stable-id.json --route download --release-tag v1.2 --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/preparation
 node scripts/prepare-port.mts --listing-observations /path/to/catalog-upstream-observations/source.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/observation-preparation
+node scripts/prepare-port.mts --discovery-listings /path/to/discovery-listing-handoff.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/discovery-preparation
 ```
 
 The command accepts a canonical Portcove issue number/URL, a direct public
@@ -4278,6 +7588,69 @@ metadata only. `--route download` collects one 20-release candidate window or th
 explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailable
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
+
+For a discovery candidate with an observed GitHub repository ID, pass
+`--expected-repository-id` and its project URL. Preparation checks the public
+provider record against both values before collecting releases and retains the
+ID in the new listing's lineage. Each run rechecks the project path. Release
+metadata and cache entries use the provider's immutable ID. A new listing points to the ongoing release
+feed even if no release is available yet. Original-game identity and artwork
+can be resolved independently. Preparation still produces reviewable
+catalog inputs for the normal validation and publication path.
+
+The discovery batch preparer takes a handoff with format
+`portcove-discovery-listing-handoff`, format version 1 and a `candidates` array.
+Each candidate carries `id`, `project_url`, the immutable `repository_id`
+and the retained `evidence_sha256`. The preparer rechecks public repository
+metadata and catalog ownership, then assembles the additions together.
+It reports conflicting identities and unavailable provider facts per candidate.
+The handoff supplies evidence references for review. It grants no authority
+to publish, change existing records or decide which package Core can offer.
+
+With `--discovery-automatic-scope true`, the scheduled preparer checks the
+primary repository's bounded `.recomp.json` at its current immutable default
+commit using the stable repository ID. It also supports the original
+`.recomp-board.json` name when the main manifest is absent. A complete root tree
+must identify a single regular manifest. Repositories with companion game
+manifests retain an explicit scope hold. The assessment records its policy,
+commit, tree, blob and content digest. Fork and mirror identity conflicts, unsupported or
+missing manifests and failures retain their own dated outcomes. Projects with
+other scope evidence can still use reviewed discovery admission. An upstream
+manifest supplies descriptive scope. Acquisition still follows its own checks.
+The scheduled invocation uses `--discovery-released-validator true` to acquire
+the official Linux Core reader only when an eligible addition is ready. It
+reuses the protected Preview selection, withdrawal and release attestation
+checks. The completion report binds the reader receipt and the digest of the
+append-only patch. A reader acquisition or validation failure preserves the
+unsigned evidence and records a deferral. A trusted checkout can also use
+`--validator-cli` to prepare the patch. Catalog review and publication remain
+separate steps.
+
+For a reviewed batch, run the same command with
+`--discovery-listing-approval /path/to/approval.json` and the trusted Core
+validator. The approval has format `portcove-discovery-listing-approval`,
+format version 1, the `handoff_sha256` and `source_sha256` from the preview's
+`admission_binding`, and an `approved_ids` array. The approving process
+must verify that the selected evidence establishes a distinct, in-scope
+implementation. The preparer rechecks live repository identity and emits a
+digest-bound patch containing only new authored listing files. The new records
+carry an explicit unresolved original-game review so shared game metadata can
+be resolved separately. A source or
+handoff change requires reconsidering the approval. An unavailable selected
+repository leaves its own outcome for retry. Other selected additions can
+proceed. Add `--discovery-stage-source FULL_GIT_REVISION` to stage the approved
+additions directly in a clean checkout reserved for this operation. The command rechecks the revision and
+stages the same bytes it records in the receipt. Keep preparation outputs
+outside the checkout.
+If preparation stops during staging, the checkpoint retains the exact patch
+and staging intent. Confirm that HEAD still matches the intent. Use
+`git apply --reverse --check --index PATCH` to confirm that the staged additions
+match the retained patch. Review `git diff --cached --name-status` for unrelated
+changes before continuing.
+Regenerate with
+`node scripts/generate-catalog.mts`, and use the ordinary catalog review path.
+Package observations, operational bindings and signing keep their existing
+approval and delivery paths.
 
 The `--original-game` input uses the same reviewed object as
 `listing.original_game` in an authored record. It carries the stable game ID,
@@ -4326,7 +7699,7 @@ read; record/project preparation does not gain a new request or approval gate.
 This feedback does not infer permission, a hold, support or ownership from prose.
 An already published package and technical fit do not resolve an existing named
 condition. Carry a reviewed operation condition through the existing
-`download_block_reason` contract where applicable.
+[acquisition restrictions](#acquisition-restrictions) where applicable.
 
 For a proposed `native-portable` record, the completion receipt also shows literal
 package-hint matches among the supported ZIP/tar.gz/tgz archives for each declared platform, whether each matching asset has
@@ -4886,6 +8259,36 @@ own. Repository activity observations retain their own dates and do not supply
 a catalog declaration. An indexed definition carrying this marker uses entry
 schema 2 and matching catalog projection schema 2. Keep serving schema 1 to
 readers that only support schema 1.
+
+## Frozen artifact readers
+
+Core compiles `historical-artifacts.json` into its offline reader. The table binds
+old DKR-R manifests to their frozen catalog, preserves the four historical
+Direct Windows reader exceptions and selects frozen package and cartridge
+interpretations. Each lookup keeps its creating reader's recorded coordinates.
+For example, an early DKR-R manifest may omit its platform, but must match the
+exact release, asset name, size, digest and executable basename. The Direct
+exception uses the version and digest from the retained Windows definition.
+
+Stored retained definitions and their registered manifests take precedence
+where the reader historically used them. Keep the frozen projections at their
+recorded revisions. The compiled table confers no publisher grant, replacement
+ownership, source approval or upstream package eligibility.
+
+Existing reusable managed profiles can select a new package through their
+ordinary reviewed GitHub rules and independent publisher grant. For single-lane
+Windows profiles that need an exact compatibility list, use
+`managed_runtime_applies_to` rows containing `version`, `size` and `sha256`.
+The list applies to the reusable TFE, Chocolate, RaceWave and GB Recompiled
+behaviors. The ordinary resolver checks the selected official package against
+the list before acquisition. Direct and curated lanes keep their existing
+separate bindings.
+
+Publication requires a schema 4 indexed entry declaring
+`runtime.reviewed-compatibility-artifacts-v1`, a schema 3 catalog projection
+and the independent exact publisher admission. Core reopens a prior install
+using its own captured list. Older definitions without the list retain their
+existing rules. Format-1 output cannot carry the list.
 
 ## Package-only settings defaults
 

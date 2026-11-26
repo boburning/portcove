@@ -5,7 +5,11 @@ use crate::{
     ExternalProfilePolicy, PersistentFilePattern, Platform, PortDefinition, PortcoveError, Result,
 };
 
-const MAX_DIRECTORY_ENTRIES: usize = 4096;
+/// Entries one player-data directory scan reads before refusing. Scans stream
+/// names and keep at most one match, so memory stays constant; the bound only
+/// stops a pathological directory. A directory beyond it is still refused, never
+/// partly inspected, because a missed case alias or save file risks player data.
+const MAX_DIRECTORY_ENTRIES: usize = 1 << 20;
 
 /// Managed PS1 readers that keep an existing installation's retained scope
 /// while a newer definition adds an empty runtime-created directory path.
@@ -50,7 +54,10 @@ pub(crate) fn requires_psx_retained_scope(port: &PortDefinition) -> bool {
             .iter()
             .any(|path| path == PSX_TEXTURE_PACKS)
 }
-const MAX_MATCHING_FILES: usize = 1024;
+/// Persistent files a variable-name pattern may match. Matches are held in
+/// memory for one operation (backup, protection, migration); beyond this the
+/// operation refuses rather than protecting a subset.
+const MAX_MATCHING_FILES: usize = 65_536;
 
 /// Check one newly declared path without following links or scanning a tree.
 pub(crate) fn require_absent_path(root: &Path, relative: &str) -> Result<()> {
@@ -63,6 +70,15 @@ pub(crate) fn require_exact_path(root: &Path, relative: &str) -> Result<()> {
 }
 
 fn require_path(root: &Path, relative: &str, absent: bool) -> Result<()> {
+    require_path_within(root, relative, absent, MAX_DIRECTORY_ENTRIES)
+}
+
+fn require_path_within(
+    root: &Path,
+    relative: &str,
+    absent: bool,
+    entry_limit: usize,
+) -> Result<()> {
     crate::archive::validate_relative_path(relative, false)?;
     for ancestor in root.ancestors() {
         match fs::symlink_metadata(ancestor) {
@@ -93,7 +109,7 @@ fn require_path(root: &Path, relative: &str, absent: bool) -> Result<()> {
         }
         let mut matched = None;
         for (count, entry) in fs::read_dir(&parent)?.enumerate() {
-            if count >= MAX_DIRECTORY_ENTRIES {
+            if count >= entry_limit {
                 return Err(PortcoveError::conflict(
                     "player-data directory exceeds the inspection limit",
                 )
@@ -141,25 +157,9 @@ pub(crate) fn validate_mod_package_policy(port: &PortDefinition) -> Result<()> {
 // Exact historical readers keep their creating contracts. Newer managed
 // recipes for these identities require the same bounded data guard in
 // both independent-definition admission and actual lifecycle operations.
-const LEGACY_PACKAGE: &str = "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99";
-
 pub(crate) fn legacy_direct_reader(port_id: &str) -> Option<(&'static str, &'static str)> {
-    match port_id {
-        "sonic-3-and-knuckles-recomp" => Some(("v0.5.3", LEGACY_PACKAGE)),
-        "sonic-the-hedgehog-recomp" => Some((
-            "v0.6.0",
-            "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
-        )),
-        "mega-man-x2-snes-recomp" => Some((
-            "v0.1.4",
-            "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
-        )),
-        "super-metroid-recomp" => Some((
-            "v0.3.12",
-            "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
-        )),
-        _ => None,
-    }
+    let row = crate::historical_artifacts::legacy_direct(port_id)?;
+    Some((&row.version, &row.sha256))
 }
 
 pub(crate) fn fresh_direct_data_guard_capability(port: &crate::PortDefinition) -> Option<u32> {
@@ -356,6 +356,15 @@ fn disc_source_marker(port: &PortDefinition) -> Result<Option<String>> {
 }
 
 pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<String>> {
+    entries_within(port, roots, MAX_DIRECTORY_ENTRIES, MAX_MATCHING_FILES)
+}
+
+fn entries_within(
+    port: &PortDefinition,
+    roots: &[&Path],
+    entry_limit: usize,
+    match_limit: usize,
+) -> Result<Vec<String>> {
     let mut entries: BTreeSet<String> = local_declared_paths(port)?.iter().cloned().collect();
     if let Some(marker) = disc_source_marker(port)? {
         entries.insert(marker);
@@ -374,7 +383,7 @@ pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<Stri
             result => result?,
         };
         for (index, entry) in directory.enumerate() {
-            if index >= MAX_DIRECTORY_ENTRIES {
+            if index >= entry_limit {
                 return Err(PortcoveError::unsupported(
                     "persistent file scan entry limit reached",
                 ));
@@ -395,7 +404,7 @@ pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<Stri
                 ));
             }
             matches.insert(name.clone());
-            if matches.len() > MAX_MATCHING_FILES {
+            if matches.len() > match_limit {
                 return Err(PortcoveError::unsupported(
                     "persistent file match limit reached",
                 ));
@@ -508,14 +517,25 @@ mod tests {
     #[test]
     fn empty_persistence_checks_bound_directory_inspection_without_changes() {
         let temporary = tempfile::tempdir().unwrap();
-        for index in 0..=MAX_DIRECTORY_ENTRIES {
+        let limit = 64;
+        for index in 0..=limit {
             fs::write(temporary.path().join(format!("entry-{index}")), []).unwrap();
         }
-        assert!(require_absent_path(temporary.path(), "absent.dat").is_err());
-        assert_eq!(
-            fs::read_dir(temporary.path()).unwrap().count(),
-            MAX_DIRECTORY_ENTRIES + 1
-        );
+        assert!(require_path_within(temporary.path(), "absent.dat", true, limit).is_err());
+        assert_eq!(fs::read_dir(temporary.path()).unwrap().count(), limit + 1);
+    }
+
+    #[test]
+    fn directories_beyond_the_former_bounds_are_inspected_completely() {
+        // 4,097 entries refused under the old 4,096 bound; a case alias placed
+        // last must still be found, and an exact absent path still passes.
+        let temporary = tempfile::tempdir().unwrap();
+        for index in 0..4_097 {
+            fs::write(temporary.path().join(format!("entry-{index:05}")), []).unwrap();
+        }
+        require_absent_path(temporary.path(), "absent.dat").unwrap();
+        fs::write(temporary.path().join("ZZ-Save.DAT"), []).unwrap();
+        assert!(require_absent_path(temporary.path(), "zz-save.dat").is_err());
     }
 
     #[test]
@@ -605,6 +625,24 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn variable_name_saves_beyond_the_former_match_bound_are_all_protected() {
+        let catalog = pattern_catalog();
+        let port = &catalog.ports()[0];
+        let temporary = tempfile::tempdir().unwrap();
+        for index in 0..1_100 {
+            fs::write(temporary.path().join(format!("tmc_{index:04}.sav")), []).unwrap();
+        }
+        let found = entries(port, &[temporary.path()]).unwrap();
+        assert_eq!(
+            found.iter().filter(|name| name.starts_with("tmc_")).count(),
+            1_100
+        );
+        // Past its bound the scan still refuses instead of protecting a subset.
+        assert!(entries_within(port, &[temporary.path()], MAX_DIRECTORY_ENTRIES, 64).is_err());
+        assert!(entries_within(port, &[temporary.path()], 64, MAX_MATCHING_FILES).is_err());
+    }
+
     fn pattern_catalog() -> crate::Catalog {
         // These filesystem rules need no production source or release identity.
         // Still pass the private graph through the ordinary catalog parser.
@@ -687,11 +725,12 @@ mod tests {
         fs::create_dir(root.path().join("tmc_directory.sav")).unwrap();
         assert!(entries(&port, &[root.path()]).is_err());
         fs::remove_dir(root.path().join("tmc_directory.sav")).unwrap();
-        for index in 0..MAX_MATCHING_FILES {
+        let match_limit = 32;
+        for index in 0..match_limit {
             fs::write(root.path().join(format!("tmc_{index}.sav")), b"save").unwrap();
         }
         assert!(
-            entries(&port, &[root.path()])
+            entries_within(&port, &[root.path()], MAX_DIRECTORY_ENTRIES, match_limit)
                 .unwrap_err()
                 .message
                 .contains("match limit")

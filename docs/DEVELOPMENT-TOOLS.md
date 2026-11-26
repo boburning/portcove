@@ -382,7 +382,9 @@ to have succeeded, from the GitHub Actions app, in a completed
 `pull_request_target` run of `.github/workflows/closing-inventory.yml` whose
 `pull_requests` lists exactly this pull request
 (`GET /repos/{owner}/{repo}/actions/runs?check_suite_id={suite}&per_page=1`);
-fork pull requests list none and refuse;
+fork pull requests list none and refuse. After a merge GitHub empties that
+list, so the merge readback accepts an empty list only for the exact suite
+verified immediately before the merge;
 see the [closure contract](CONTRIBUTION-CONVENTIONS.md#review-and-merge). Issue bodies and REST issue reads cannot
 establish live Project fields. An unavailable or partial inventory remains
 unknown, with the exact missing observation recorded; do not silently
@@ -1399,6 +1401,12 @@ The maintained report
 publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
 main checkout installs frozen dependencies before the credentialed steps. Existing
 artifact-byte downloads remain staged acquisition work under the same owner.
+GitHub's run artifact list lags a just-finished upload, so the publish step re-reads
+its own uploaded state for up to six waits (60 seconds) while the list or archive
+lookup is 404, the list omits the artifact or it reports a total that differs from
+its items. It publishes only after
+the read-back bytes equal the candidate. Exhaustion names the collection and both
+numbers; the unchanged pointer lets the next publication replay the same receipts.
 
 Eligible reads have at most three total attempts; writes run once and require
 authoritative reconciliation after ambiguity. Reusing a logical request policy
@@ -2348,6 +2356,19 @@ claim, and a ready fixture alone does not satisfy the strict media refusal.
 
 ## Native desktop smoke tests
 
+Run `just desktop-verify --scenario native-library-recovery-bundle --require-clean`
+on Windows to check verified bundle creation, inspection, restore and explicit
+activation in isolated libraries. The scenario also checks source changes after
+creation review, overlapping destinations, and a tampered copy. It records the
+verified receipt, saves, installation and backup identities, and the selected
+library across restart.
+
+Select `native-library-recovery-interruption` for the instrumented Windows
+process-loss check. It stops the owned app after creation has copied files and
+again when restore has recorded its import journal. Resume uses the original
+staging folder or restore destination. The test checks that no unpublished
+bundle verifies, source data stays intact, and the original library stays open.
+
 For the normal Codex and maintainer workflow, start with a non-launching plan and
 then run the smallest useful selection:
 
@@ -2383,7 +2404,11 @@ and a screenshot before reset/resize cleanup; the original assertion still fails
 `native-secondary-panel-presentation` uses a fresh Windows fixture library and
 an owned prepared installation. It inspects DAT editing, metadata export,
 ready notices, mod original-file choice, recipe/provider reviews, retirement,
-file preservation and portable-save feedback in both themes. The retained
+file preservation and portable-save feedback in both themes. The supplied
+provider fixture exercises keyboard Add with an incomplete file list and with
+one eligible file in a complete list. The first opens the chooser. The second
+queues immediately. Both wait for Check files before requesting the exact file
+plan. The retained
 observation identifies supplied replies and controlled refusals. DAT and the
 successful metadata export use actual isolated Core operations. Ordinary
 owned preferences and background setup requests retain their existing paths.
@@ -2484,6 +2509,18 @@ the files, consent and retained identities after another restart. No game starts
 This fixture does not establish SMB reconnect, physical storage, real-game or
 gameplay acceptance. A failed run retains the unavailable original directory
 rather than restoring it while the consented app is still live.
+
+`just desktop-verify --scenario native-game-settings-review --require-clean`
+selects one standalone Windows journey outside routine profiles and hosted
+product groups. Run it as explicit acceptance from an interactive,
+non-elevated (medium-integrity) Windows desktop session. Hosted runners present
+a high-integrity token. Core refuses settings editing there by design, so a
+hosted run can only reproduce that refusal (run 44933173974). The owned install
+fixture declares one inert settings file. Desktop reviews two edits, saves them
+through native IPC and reads both copies back. An outside edit then makes a
+second review stale. Core refuses it before starting. Desktop shows Core's
+explanation, and both outside copies stay byte-identical. The executable is
+inert and no game starts.
 
 `just desktop-verify --scenario native-large-discovery-setup-review --require-clean`
 selects one standalone Windows or Linux review journey outside routine profiles.
@@ -3086,13 +3123,15 @@ wait error. The original timeout and downstream connection failures remain faile
 evidence; only a fresh exact-source run can establish completion.
 
 The opt-in Windows `native-library-switch-recovery` scenario uses only owned
-libraries and saved preferences. Real folder selection and review first commit a
-recognizable SQLite library with a future schema; refusal retains the Core-owned
-summary and exposes the redacted schema reason/version through user-opened technical
-details. It must retain the active workspace, identity, saved choice and fixture
-database/player-marker bytes, with natural trigger focus before disclosure and an
-accessibility capture. A subsequent healthy selection
-and independent host restart must retain the new saved choice. Both process trees
+libraries and saved preferences. A canonical alias of the open saved library
+keeps its generation, identity and preference bytes. The real picker returns
+focus after the player closes the no-change review. A recognizable SQLite
+library with a future schema is then refused. The review retains the Core-owned
+summary, exposes the redacted schema reason and version under technical details,
+and preserves the active workspace, saved choice and fixture bytes. A successful
+switch and independent restart retain the new saved choice. A controlled edit
+to the owned preference file changes the startup choice, and the same open
+library can then be saved explicitly without reopening it. Both process trees
 use the existing identity-bound, root-inclusive positive-exit checks. The scenario
 does not open the real platform-default library, redirect Windows known folders,
 or establish installed-package, physical-input or platform-default-reset evidence.
@@ -3680,8 +3719,12 @@ The Windows normal-package case also reads the actual workspace catalog and
 catalog status, checks the reviewed original-game relationships, and retains
 `normal-package-game-first-catalog.json`. That artifact binds the loaded catalog
 digest, definition/listing provenance, independent relationship fixture, package
-and executable to the executing source revision. The fixture and oracle have
-immutable input custody. Existing packages use their own matching source and
+and executable to the executing source revision. It records the exact generated
+source document digests, checks the complete loaded population and original-game
+identities against those source documents, and checks the historical audit
+relationships among the independently reviewed entries. The isolated test profile
+turns off automatic catalog refresh so this verifies the embedded cohort. The
+source documents, fixture and oracle have immutable input custody. Existing packages use their own matching source and
 fixture; the verifier refuses a different candidate revision. A relationship
 failure fails the scenario and retains the readback. This read-only observation
 grants no source compatibility, installation permission or gameplay acceptance.
@@ -3964,11 +4007,14 @@ outer callers must allow the bounded queue as well as setup and execution.
 Each local source-bound checkout scan has a 30-second default budget. Under
 measured filesystem pressure, a local caller can set
 `PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS` to an integer from 30 through
-120 for one command. The override applies separately to the before-admission
-and after-admission scans. Allow both scans and the existing queue wait in
-the outer command budget. A timeout stops the scan and the payload does not
-start. The existing source identity comparison and reservation limits still
-apply.
+480 for one command. During portable-game qualification on Linux, a complete
+checkout scan under disk contention took 338 seconds. Git commands took
+2.4 seconds of that time. The override applies separately to the full
+before-admission and after-admission scans. Allow both scans, the existing
+queue wait, setup and execution in the outer command budget. The override
+leaves the queue and execution budgets unchanged. A scan timeout prevents
+payload launch. After admission, the guard releases the reservation through
+the existing custody checks.
 
 The initial `pending` mode admits no new heavy payload: requests wait boundedly
 while older work finishes. An unmodified PID-only native guard cannot safely
@@ -4093,7 +4139,9 @@ verifier rather than a mutable worktree.
 The exact Linux supervisor is registered before the host ACK permits the original
 payload gate to open. Release independently checks supervisor exit, cleanup
 receipt and directory identity. Connection loss or uncertain cleanup retains
-custody. While admission is pending, input EOF or error aborts acquisition while
+custody. If the guard cannot confirm cleanup, it closes its bridge connection
+and exits while retaining both reservations and their original evidence. While
+admission is pending, input EOF or error aborts acquisition while
 preserving buffered protocol bytes. A lease that resolves despite cancellation
 retains external custody; connection loss never authorizes its release.
 The host bounds queued raw bytes to 32 KiB; UTF-8 decoding stays inside the

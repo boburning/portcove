@@ -16,7 +16,9 @@ use crate::{
     render_read_success,
 };
 
-const MAX_REQUEST_BYTES: u64 = 256 * 1024;
+/// Plans and revision requests are Core documents of one setup; read them
+/// with the setup contract's document bound so whatever Core wrote reads back.
+const MAX_REQUEST_BYTES: u64 = portcove_core::MAX_SETUP_DOCUMENT_BYTES as u64;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub(crate) enum PolicyArg {
@@ -309,6 +311,50 @@ pub(crate) enum ProfileCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Browse reviewed GitHub mod releases and their upstream import route.
+    GithubMods {
+        /// Catalog port ID with a reviewed GitHub mod source.
+        port_id: String,
+        /// Platform for the upstream import information. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
+    /// Inspect a local intact ZIP against a reviewed GitHub release and asset.
+    GithubModReview {
+        /// Catalog port ID with a reviewed GitHub mod source.
+        port_id: String,
+        /// Numeric GitHub release ID from profile github-mods.
+        release_id: u64,
+        /// Numeric GitHub asset ID of the reviewed ZIP in that release.
+        asset_id: u64,
+        /// Local copy of that exact ZIP. Omit it to download the asset.
+        archive: Option<PathBuf>,
+        /// Platform whose companion layout to inspect. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
+    /// Browse Quaddicted's single-player Quake content, newest first. Reads only.
+    Quaddicted {
+        /// Catalog port ID with a reviewed Quake engine.
+        port_id: String,
+        /// Search the provider's filenames, case-insensitively.
+        #[arg(long)]
+        search: Option<String>,
+        /// Page number, from 1.
+        #[arg(long, default_value_t = 1)]
+        page: u32,
+        /// Carrier platform. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
+    /// Read the reviewed Mod DB files channel for Arcane Dimensions.
+    ModDbNotices {
+        /// Catalog port ID with a reviewed Arcane Dimensions source.
+        port_id: String,
+        /// Carrier platform. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
     /// Browse the opt-in JakMods community catalog for an OpenGOAL game.
     Jakmods {
         /// Catalog port ID with reviewed OpenGOAL setup.
@@ -444,6 +490,10 @@ impl ProfileCommand {
             Self::RecipeDiscard { .. } => "profile.recipe-discard",
             Self::RecipePlan { .. } => "profile.recipe-plan",
             Self::RecipeApply { .. } => "profile.recipe-apply",
+            Self::GithubMods { .. } => "profile.github-mods",
+            Self::GithubModReview { .. } => "profile.github-mod-review",
+            Self::Quaddicted { .. } => "profile.quaddicted",
+            Self::ModDbNotices { .. } => "profile.mod-db-notices",
             Self::Jakmods { .. } => "profile.jakmods",
             Self::ProviderBrowse { .. } => "profile.provider-browse",
             Self::ProviderProject { .. } => "profile.provider-project",
@@ -466,6 +516,10 @@ impl ProfileCommand {
                 | Self::RecipeExport { .. }
                 | Self::RecipeInspect { .. }
                 | Self::RecipePlan { .. }
+                | Self::GithubMods { .. }
+                | Self::GithubModReview { .. }
+                | Self::Quaddicted { .. }
+                | Self::ModDbNotices { .. }
                 | Self::Jakmods { .. }
                 | Self::ProviderBrowse { .. }
                 | Self::ProviderProject { .. }
@@ -595,7 +649,10 @@ fn read_plan<T: serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T> {
         .take(MAX_REQUEST_BYTES + 1)
         .read_to_end(&mut bytes)?;
     if bytes.len() as u64 > MAX_REQUEST_BYTES {
-        return Err(PortcoveError::usage("plan file exceeds 256 KiB"));
+        return Err(PortcoveError::usage(format!(
+            "plan file exceeds {} MiB",
+            MAX_REQUEST_BYTES / (1024 * 1024)
+        )));
     }
     // `data` wrappers from `--json` output are accepted as well as the bare plan.
     let value: serde_json::Value = serde_json::from_slice(&bytes)
@@ -870,10 +927,51 @@ fn read_request(path: &PathBuf) -> Result<ProfileRevisionRequest> {
             .read_to_end(&mut bytes)?;
     }
     if bytes.len() as u64 > MAX_REQUEST_BYTES {
-        return Err(PortcoveError::usage("revision request exceeds 256 KiB"));
+        return Err(PortcoveError::usage(format!(
+            "revision request exceeds {} MiB",
+            MAX_REQUEST_BYTES / (1024 * 1024)
+        )));
     }
     serde_json::from_slice(&bytes)
         .map_err(|error| PortcoveError::usage(format!("invalid revision request: {error}")))
+}
+
+fn github_mod_platform(platform: Option<String>) -> Result<Platform> {
+    match platform {
+        Some(platform) => serde_json::from_value(serde_json::Value::String(platform))
+            .map_err(|_| PortcoveError::usage("unsupported platform")),
+        None => Platform::current(),
+    }
+}
+
+fn github_mods_text(catalog: &portcove_core::GithubModCatalog) -> String {
+    let mut lines = vec![format!("GitHub Releases · {}", clean(&catalog.repository))];
+    if catalog.freshness == portcove_core::ProviderFreshness::Stale {
+        lines.push(format!(
+            "Showing cached releases from {}.",
+            utc_time(catalog.observed_at)
+        ));
+    }
+    if !catalog.complete {
+        lines.push("Some releases or assets could not be listed.".into());
+    }
+    for release in &catalog.releases {
+        lines.push(format!(
+            "{} · {} · View on GitHub: {}",
+            clean(&release.tag),
+            clean(&release.asset.name),
+            clean(&release.release_url)
+        ));
+    }
+    if catalog.native_import_offered {
+        lines.push("Download the intact ZIP from GitHub. Use Install Mods in a separate copy of the game before starting it.".into());
+    } else {
+        lines.push(
+            "Setting up this ZIP needs an installed copy of the game whose build supports it on this platform."
+                .into(),
+        );
+    }
+    lines.join("\n")
 }
 
 fn jakmods_text(catalog: &portcove_core::JakModsCatalog) -> String {
@@ -956,6 +1054,114 @@ pub(crate) async fn execute(
 ) -> Result<()> {
     let name = command.name();
     match command {
+        ProfileCommand::Quaddicted {
+            port_id,
+            search,
+            page,
+            platform,
+        } => {
+            let page = page
+                .checked_sub(1)
+                .ok_or_else(|| PortcoveError::usage("Quaddicted page numbers start at 1"))?;
+            let result = service
+                .quaddicted_catalog(
+                    &port_id,
+                    github_mod_platform(platform)?,
+                    search.as_deref(),
+                    page,
+                )
+                .await?;
+            render_read_success(mode, name, result, |result| {
+                let report = &result.value;
+                let mut rows = vec![format!("{} · {}", report.attribution, report.source_url)];
+                if result.freshness == portcove_core::ProviderFreshness::Stale {
+                    rows.push("Showing previously observed Quaddicted results.".into());
+                }
+                for entry in &report.entries {
+                    rows.push(format!("{} · {}", clean(&entry.title), entry.page_url));
+                }
+                if report.unreadable_rows > 0 {
+                    rows.push(format!(
+                        "{} unreadable rows on this page.",
+                        report.unreadable_rows
+                    ));
+                }
+                if report.may_have_more {
+                    rows.push("Quaddicted may have more results.".into());
+                }
+                rows.push("Check the upstream page for requirements. Use a separate upstream-prepared copy for mods.".into());
+                rows.join(
+                    "
+",
+                )
+            })
+        }
+        ProfileCommand::ModDbNotices { port_id, platform } => {
+            let result = service
+                .moddb_file_notices(&port_id, github_mod_platform(platform)?)
+                .await?;
+            render_read_success(mode, name, result, |result| {
+                let report = &result.value;
+                let mut rows = vec![format!("{} · {}", report.attribution, report.source_url)];
+                if result.freshness == portcove_core::ProviderFreshness::Stale {
+                    rows.push("Showing previously observed Mod DB notices.".into());
+                }
+                for notice in &report.notices {
+                    rows.push(format!("{} · {}", clean(&notice.title), notice.page_url));
+                }
+                rows.push("These file notices may include tutorials and patches.".into());
+                rows.join(
+                    "
+",
+                )
+            })
+        }
+        ProfileCommand::GithubMods { port_id, platform } => {
+            let platform = github_mod_platform(platform)?;
+            let catalog = service.github_mod_catalog(&port_id, platform).await?;
+            render_read_success(mode, name, catalog, github_mods_text)
+        }
+        ProfileCommand::GithubModReview {
+            port_id,
+            release_id,
+            asset_id,
+            archive,
+            platform,
+        } => {
+            let result = service
+                .review_github_mod_archive(
+                    &port_id,
+                    github_mod_platform(platform)?,
+                    release_id,
+                    asset_id,
+                    archive.as_deref(),
+                )
+                .await?;
+            render_read_success(mode, name, result, |report| {
+                let mut lines = vec![format!(
+                    "Inspected {} release {} asset {}",
+                    clean(&report.repository),
+                    report.release_id,
+                    report.asset_id
+                )];
+                lines.push(format!("ZIP SHA-256: {}", report.review.archive_sha256));
+                for file in &report.review.companions {
+                    lines.push(format!(
+                        "Host library {} · SHA-256 {}",
+                        clean(&file.file_name),
+                        file.sha256
+                    ));
+                }
+                lines.push(if report.native_import_offered {
+                    "Open a separate copy of the game and choose the intact ZIP in Install Mods."
+                        .into()
+                } else {
+                    "Setting up this ZIP needs an installed copy of the game whose build meets every mod's runtime requirement on this platform."
+                        .into()
+                });
+                lines.join("\n")
+            })
+        }
         ProfileCommand::Jakmods { port_id, platform } => {
             let platform = match platform {
                 Some(platform) => serde_json::from_value(serde_json::Value::String(platform))
@@ -1433,25 +1639,36 @@ pub(crate) async fn execute(
         ),
         ProfileCommand::Setups { port_id } => {
             render_read_success(mode, name, service.mod_setups(&port_id)?, |view| {
-                if !view.supported {
-                    return "This game has no reviewed mod support.".into();
-                }
-                let Some(inventory) = &view.inventory else {
-                    return "No setups yet; the installed game gets its default setup first."
-                        .into();
-                };
-                let mut lines = inventory
-                    .profiles
+                let mut lines = view
+                    .external_mod_portals
                     .iter()
-                    .map(|entry| {
+                    .map(|portal| {
                         format!(
-                            "{} ({}) revision {}",
-                            clean(&entry.profile.display_name),
-                            clean(&entry.profile.id),
-                            entry.profile.current_revision
+                            "Browse upstream mods: {} (you manage installation and updates)",
+                            portal.url
                         )
                     })
                     .collect::<Vec<_>>();
+                if !view.supported {
+                    if lines.is_empty() {
+                        lines.push("This game has no reviewed mod support.".into());
+                    }
+                    return lines.join("\n");
+                }
+                let Some(inventory) = &view.inventory else {
+                    lines.push(
+                        "No setups yet; the installed game gets its default setup first.".into(),
+                    );
+                    return lines.join("\n");
+                };
+                lines.extend(inventory.profiles.iter().map(|entry| {
+                    format!(
+                        "{} ({}) revision {}",
+                        clean(&entry.profile.display_name),
+                        clean(&entry.profile.id),
+                        entry.profile.current_revision
+                    )
+                }));
                 if let Some(live) = &view.live {
                     lines.push(live_text(live));
                 }
@@ -1480,6 +1697,12 @@ pub(crate) async fn execute(
                         "{subject}, checked {}: {status}",
                         utc_time(check.checked_at)
                     ));
+                }
+                if view.last_automatic_checks_incomplete {
+                    lines.push(
+                        "The results of the last automatic mod update check could not be read in full. The next automatic check records them again."
+                            .to_owned(),
+                    );
                 }
                 for held in &view.held_updates {
                     let setup = inventory
@@ -1548,18 +1771,23 @@ pub(crate) async fn execute(
         ProfileCommand::RecipePlan {
             recipe_file,
             acquisitions,
-        } => render_read_success(
-            mode,
-            name,
-            service.plan_recipe_import_with_acquisitions(
-                &read_recipe(&recipe_file)?,
-                &acquisitions
-                    .iter()
-                    .map(read_plan)
-                    .collect::<Result<Vec<_>>>()?,
-            )?,
-            recipe_plan_text,
-        ),
+        } => {
+            let recipe = read_recipe(&recipe_file)?;
+            // Without explicit acquisitions, resume the steps Core recorded
+            // for this exact recipe.
+            let plan = if acquisitions.is_empty() {
+                service.plan_recipe_import(&recipe)?
+            } else {
+                service.plan_recipe_import_with_acquisitions(
+                    &recipe,
+                    &acquisitions
+                        .iter()
+                        .map(read_plan)
+                        .collect::<Result<Vec<_>>>()?,
+                )?
+            };
+            render_read_success(mode, name, plan, recipe_plan_text)
+        }
         ProfileCommand::RecipeApply {
             recipe_file,
             name: display_name,
@@ -1568,13 +1796,20 @@ pub(crate) async fn execute(
             allow_mod_code,
             yes,
         } => {
-            let plan = service.plan_recipe_import_with_acquisitions(
-                &read_recipe(&recipe_file)?,
-                &acquisitions
-                    .iter()
-                    .map(read_plan)
-                    .collect::<Result<Vec<_>>>()?,
-            )?;
+            let recipe = read_recipe(&recipe_file)?;
+            // The same inputs `recipe-plan` reviewed: recorded steps when no
+            // acquisition files are given.
+            let plan = if acquisitions.is_empty() {
+                service.plan_recipe_import(&recipe)?
+            } else {
+                service.plan_recipe_import_with_acquisitions(
+                    &recipe,
+                    &acquisitions
+                        .iter()
+                        .map(read_plan)
+                        .collect::<Result<Vec<_>>>()?,
+                )?
+            };
             if plan.plan_sha256 != expected_plan {
                 return Err(PortcoveError::conflict(
                     "the local inputs differ from the plan you reviewed; plan again",

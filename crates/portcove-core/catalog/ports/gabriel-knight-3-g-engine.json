@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gabriel-knight-3-g-engine",
+    "project_url": "https://github.com/kromenak/gengine",
+    "name": "Gabriel Knight 3 / G-Engine",
+    "summary": "A 3D game engine capable of parsing and running data files from the classic Sierra Studio's adventure game Gabriel Knight 3",
+    "issue_number": 5671,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gabriel-knight-3",
+      "evidence_urls": ["https://github.com/kromenak/gengine"],
+      "source_editions": []
+    },
+    "original_game_title": "Gabriel Knight 3"
+  }
+}

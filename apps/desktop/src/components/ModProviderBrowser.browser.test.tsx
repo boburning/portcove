@@ -11,7 +11,7 @@ import type {
   ProviderProjectView,
   ProviderUpdateObservation,
 } from "../types";
-import { ModProviderBrowser } from "./ModProviderBrowser";
+import { mergeCatalogReads, ModProviderBrowser } from "./ModProviderBrowser";
 import { PortBrowser } from "./PortBrowser";
 import { portDefinition } from "../test-fixtures";
 import type { ModUpdateControlProps } from "./ModUpdateControl";
@@ -115,7 +115,6 @@ async function render(
     sources?: string[];
     packages?: ModSetupView["revision"]["packages"];
     updates?: Pick<ModUpdateControlProps, "policy" | "setPolicy" | "automaticChecks">;
-    onInstalled?: (message: string) => void;
   } = {},
 ) {
   vi.spyOn(desktopApi, "previewModSetupDraft").mockResolvedValue({
@@ -133,7 +132,7 @@ async function render(
     revision: { packages: options.packages ?? [] },
   } as unknown as ModSetupView;
   const onBusyChange = vi.fn();
-  const onInstalled = options.onInstalled ?? vi.fn();
+  const onInstalled = vi.fn();
   function TestBrowser() {
     const [draft, setDraft] = useState(emptyModDraft);
     const [browsing, setBrowsing] = useState(options.browsing ?? !options.updates);
@@ -223,6 +222,39 @@ it("filters the catalog before paging and preserves a filtered second page when 
   await expect.element(page.getByText("22 mods")).toBeVisible();
   host.style.inlineSize = "320px";
   expect(host.scrollWidth).toBe(host.clientWidth);
+});
+
+it("continues a large catalog past its first bounded read and finds the 601st mod", async () => {
+  const first = Array.from({ length: 600 }, (_, index) =>
+    mod(String(index + 1), `Mod ${index + 1}`),
+  );
+  const read = vi
+    .spyOn(desktopApi, "modProviderCatalog")
+    .mockResolvedValueOnce({
+      ...catalog(first),
+      complete: false,
+      next_page: 13,
+      expected_total: 601,
+    })
+    .mockResolvedValueOnce({
+      ...catalog([mod("601", "Deep match")]),
+      complete: true,
+      expected_total: 601,
+    });
+  await render();
+  await page.getByRole("searchbox", { name: "Search mods" }).fill("Deep match");
+  await expect.element(page.getByRole("button", { name: /Deep match/ })).toBeVisible();
+  expect(read).toHaveBeenNthCalledWith(2, "shipwright", "gamebanana", 7, 13);
+});
+
+it("keeps a continued catalog partial when the provider total changes between reads", () => {
+  const merged = mergeCatalogReads(
+    { ...catalog([mod("1", "One")]), complete: false, next_page: 2, expected_total: 2 },
+    { ...catalog([mod("2", "Two")]), complete: true, expected_total: 3 },
+  );
+  expect(merged.projects).toHaveLength(2);
+  expect(merged.complete).toBe(false);
+  expect(merged.next_page).toBeNull();
 });
 
 it("queues exact identities, undoes one addition and applies the remainder as a single draft", async () => {
@@ -391,14 +423,20 @@ it("shows a file with unconfirmed eligibility without offering Add", async () =>
   expect(planned).not.toHaveBeenCalled();
 });
 
-it("offers Thunderstore's community link when the catalog exceeds Core's limits", async () => {
+it("offers a retry and Thunderstore's community link when the listing read is incomplete", async () => {
   const url = "https://thunderstore.io/c/zelda-64-recompiled/";
   vi.spyOn(desktopApi, "modProviderCatalog").mockRejectedValue({
     presentation: {
-      summary: "The catalog is too large to load.",
-      technical_message: "The community exceeds its package limit.",
+      summary: "The community listing did not finish loading.",
+      technical_message:
+        "the Thunderstore community listing did not finish within the provider request budget; try again to continue it",
       mutation_state: "read_only",
-      technical_context: { provider_browse_url: url },
+      technical_context: {
+        provider_browse_url: url,
+        inventory: "incomplete",
+        chunks_read: "3",
+        chunks_total: "26",
+      },
       recovery_actions: [],
     },
   });

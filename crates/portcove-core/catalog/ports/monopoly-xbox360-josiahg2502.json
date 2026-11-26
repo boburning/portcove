@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "monopoly-xbox360-josiahg2502",
+    "project_url": "https://github.com/josiahg2502-glitch/MonopolyRecompiled",
+    "name": "Monopoly (Xbox 360) / josiahg2502-glitch",
+    "summary": "Statically recompiled PC port of Monopoly (Xbox 360): online play for up to 4 with lobbies, chat and join codes, and a launcher that installs from your own disc. Bring your own disc.",
+    "issue_number": 6617,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "monopoly",
+      "evidence_urls": ["https://github.com/josiahg2502-glitch/MonopolyRecompiled"],
+      "source_editions": [
+        {
+          "id": "monopoly-xbox-360",
+          "title": "Monopoly (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/josiahg2502-glitch/MonopolyRecompiled"]
+        }
+      ]
+    },
+    "original_game_title": "Monopoly"
+  }
+}

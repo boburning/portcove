@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useId, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { desktopApi } from "../api";
 import { useArtworkCache } from "../artwork";
 import { useAppTranslation } from "../localization";
 import type { SteamGridDbKeyStatus, SteamGridDbListingReport } from "../types";
-import { steamGridDbErrorText as errorText } from "./SteamGridDbPicker";
+import { steamGridDbErrorText as errorText } from "../steamgriddb-error";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { SettingsRow } from "./ui/patterns";
@@ -14,6 +14,7 @@ import { ExternalLink } from "./ExternalLink";
  * secure-store entry; the renderer never receives it back, and setting it up
  * starts no lookups on its own.
  */
+let keyWriteInFlight = false;
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
 /**
@@ -124,8 +125,24 @@ export function listingSummary(report: SteamGridDbListingReport): string[] {
   return lines;
 }
 
-export function SteamGridDbSettings({ generation }: { generation: number }) {
+export function SteamGridDbSettings({
+  generation,
+  keySetup,
+}: {
+  generation: number;
+  keySetup?: {
+    onConfigured: (status: SteamGridDbKeyStatus) => void;
+    onCancel: () => void;
+  };
+}) {
   const { t } = useAppTranslation("settings");
+  const contextualInputId = useId();
+  const keyInputId = keySetup ? contextualInputId : "steamgriddb-api-key";
+  const setupHeading = useRef<HTMLHeadingElement>(null);
+  const contextual = keySetup !== undefined;
+  useLayoutEffect(() => {
+    if (contextual) setupHeading.current?.focus();
+  }, [contextual]);
   const [status, setStatus] = useState<SteamGridDbKeyStatus>();
   const [reading, setReading] = useState(true);
   const [statusFailure, setStatusFailure] = useState<string>();
@@ -192,6 +209,11 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
     const scope = owner.current;
     if (!scope.active || scope.pending || status === undefined || statusFailure !== undefined)
       return;
+    if (keyWriteInFlight) {
+      setError("Another SteamGridDB key change is finishing. Try again in a moment.");
+      return;
+    }
+    keyWriteInFlight = true;
     scope.pending = true;
     setBusy(true);
     setMessage(undefined);
@@ -199,6 +221,10 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
     try {
       const next = await action();
       if (!scope.active) return;
+      if (next.configured && keySetup) {
+        keySetup.onConfigured(next);
+        return;
+      }
       focusAfter.current = true;
       setStatus(next);
       setKey("");
@@ -206,6 +232,7 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
     } catch (value) {
       if (scope.active) setError(errorText(value));
     } finally {
+      keyWriteInFlight = false;
       scope.pending = false;
       if (scope.active) setBusy(false);
     }
@@ -233,13 +260,20 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
       if (listingCheck.generation === generation) setListingCheck(next);
     }
   };
+  const visibleError = statusFailure ?? error ?? (keySetup ? undefined : current?.error);
   return (
     <SettingsRow
       className="col-span-full min-w-0 wrap-anywhere"
       data-focus-group
       aria-busy={reading || busy}
     >
-      <h2>SteamGridDB artwork</h2>
+      {keySetup ? (
+        <h3 ref={setupHeading} tabIndex={-1}>
+          Set up your SteamGridDB key
+        </h3>
+      ) : (
+        <h2>SteamGridDB artwork</h2>
+      )}
       <p>
         Find covers and wide images made by the SteamGridDB community. This uses your own free API
         key; Portcove does not provide one.
@@ -257,13 +291,13 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
       </p>
       {status && !status.configured && (
         <div className="mt-2">
-          <label className="block font-semibold" htmlFor="steamgriddb-api-key">
+          <label className="block font-semibold" htmlFor={keyInputId}>
             SteamGridDB API key
           </label>
           <div className="mt-2 flex gap-2">
             <Input
               ref={keyInput}
-              id="steamgriddb-api-key"
+              id={keyInputId}
               data-focusable
               className="min-w-0 flex-1"
               disabled={controlsDisabled}
@@ -279,10 +313,14 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
               size="sm"
               disabled={controlsDisabled || !key.trim()}
               onClick={() =>
-                void run(
-                  () => desktopApi.setSteamGridDbKey(key),
-                  "SteamGridDB key saved. Use Find on SteamGridDB in a game's artwork settings.",
-                )
+                void run(async () => {
+                  if (keySetup) {
+                    const scope = owner.current;
+                    const current = await desktopApi.steamGridDbKeyStatus();
+                    if (current.configured || !scope.active) return current;
+                  }
+                  return desktopApi.setSteamGridDbKey(key);
+                }, "SteamGridDB key saved. Use Find on SteamGridDB in a game's artwork settings.")
               }
             >
               Save key
@@ -297,7 +335,7 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
           </p>
         </div>
       )}
-      {status?.configured && (
+      {status?.configured && !keySetup && (
         <Button
           ref={removeButton}
           data-focusable
@@ -314,7 +352,7 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
           Remove key
         </Button>
       )}
-      {status?.configured && (
+      {status?.configured && !keySetup && (
         <div aria-busy={checking}>
           <Button
             type="button"
@@ -364,10 +402,26 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
         such as your IP address. Your key goes only to SteamGridDB's API, never to its image server.
         Your files, game paths and library stay on this device.
       </p>
-      {message && <p role="status">{message}</p>}
-      {(statusFailure ?? error ?? current?.error) && (
-        <p role="alert">{statusFailure ?? error ?? current?.error}</p>
+      {keySetup && (
+        <div className="flex flex-wrap gap-2">
+          {status?.configured && (
+            <Button data-focusable size="sm" onClick={() => keySetup.onConfigured(status)}>
+              Back to artwork search
+            </Button>
+          )}
+          <Button
+            data-focusable
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => keySetup.onCancel()}
+          >
+            Cancel key setup
+          </Button>
+        </div>
       )}
+      {message && <p role="status">{message}</p>}
+      {visibleError && <p role="alert">{visibleError}</p>}
     </SettingsRow>
   );
 }

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dragon-age-origins-xoreos",
+    "project_url": "https://github.com/xoreos/xoreos",
+    "name": "Dragon Age: Origins / xoreos (xoreos)",
+    "summary": "A reimplementation of BioWare's Aurora engine (and derivatives). Pre-pre-alpha :P",
+    "issue_number": 7313,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-age-origins",
+      "evidence_urls": ["https://github.com/xoreos/xoreos"],
+      "source_editions": []
+    },
+    "original_game_title": "Dragon Age: Origins"
+  }
+}

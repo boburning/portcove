@@ -525,12 +525,13 @@ pub struct RuntimeSourceTarget {
     pub materialization: RuntimeSourceMaterialization,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default, Hash)]
 #[serde(rename_all = "kebab-case")]
 pub enum ReleaseSource {
     #[default]
     Github,
     Gitlab,
+    ReviewedForge,
     DirectManifest,
     UserPrepared,
 }
@@ -748,6 +749,14 @@ pub struct ReviewedPackageChoicesV2 {
     pub choices: BTreeMap<String, String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RuntimePolicyArtifact {
+    pub version: String,
+    pub size: u64,
+    pub sha256: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReleaseSpec {
     /// Core-owned fixed original-driven recipes, distinct from downloaded executables.
@@ -957,6 +966,23 @@ pub struct ModLoaderBinding {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native_game: Option<String>,
     pub platforms: Vec<Platform>,
+    /// Exact retained package identities reviewed for this loader. These facts
+    /// narrow loader use; they do not select, admit or download an artifact.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub reviewed_artifacts: BTreeMap<Platform, ModLoaderArtifact>,
+    /// SHA-256 of the canonical immutable path, size and SHA-256 inventory
+    /// from independently reviewed packages of this loader on each platform.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub reviewed_payload_sha256: BTreeMap<Platform, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reviewed_repository_id: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModLoaderArtifact {
+    pub tag: String,
+    pub identity: ArtifactIdentity,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -1048,6 +1074,9 @@ pub struct PortDefinition {
     /// Reviewed engine save identifier used only to bound managed GB save paths.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managed_shared_preferences_save_id: Option<String>,
+    /// Exact reviewed packages using this existing managed runtime behavior.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_runtime_applies_to: Option<Vec<RuntimePolicyArtifact>>,
     #[serde(default)]
     pub source_environment: Option<String>,
     #[serde(default)]
@@ -1056,6 +1085,8 @@ pub struct PortDefinition {
     pub launch_environment: BTreeMap<String, String>,
     #[serde(default)]
     pub launch_arguments: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reviewed_launch_contract_v1: Option<crate::ReviewedLaunchContractV1>,
     #[serde(default)]
     pub runtime_subdirectory: Option<String>,
     /// Per-platform runtime subdirectories for packages whose wrapper folder is named differently
@@ -1116,6 +1147,11 @@ pub struct PortDefinition {
     #[serde(skip)]
     #[schemars(skip)]
     pub(crate) legacy_mod_provider_held: bool,
+    /// Catalog-declared mod sources and the authority each one carries. None
+    /// of them can install: install authority comes only from
+    /// `mod_provider_bindings`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mod_sources: Vec<crate::ModSource>,
     /// Versioned native loader facts admitted with this exact definition.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_loader: Option<ModLoaderBinding>,
@@ -1128,11 +1164,44 @@ pub struct PortDefinition {
     /// layout is held for review instead of installing as an ordinary update.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub reviewed_package_layouts: BTreeMap<Platform, ReviewedPackageLayout>,
+    /// Alternate full layouts for exact independently resolved GitHub artifacts.
+    /// They never select a package or authorize an acquisition.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub reviewed_predecessor_package_layouts_v1:
+        BTreeMap<Platform, Vec<ReviewedPredecessorPackageLayout>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub presentation: Option<PortPresentation>,
 }
 
 impl PortDefinition {
+    pub(crate) fn reviewed_package_format(
+        &self,
+        platform: Platform,
+    ) -> Option<crate::PackageFormat> {
+        self.reviewed_launch_contract_v1
+            .as_ref()?
+            .package_format
+            .get(&platform)
+            .copied()
+    }
+
+    pub(crate) fn reviewed_asset_rules(&self, platform: Platform) -> Option<&crate::AssetRules> {
+        self.reviewed_launch_contract_v1
+            .as_ref()?
+            .asset_rules
+            .get(&platform)
+    }
+
+    pub(crate) fn reviewed_launch_values(
+        &self,
+        platform: Platform,
+    ) -> Option<&crate::LaunchValues> {
+        self.reviewed_launch_contract_v1
+            .as_ref()?
+            .launch
+            .get(&platform)
+    }
+
     /// Catalog-authored upstream state, independent of repository observations.
     pub fn declared_upstream_status(&self) -> Option<UpstreamStatus> {
         (self.upstream_status != UpstreamStatus::Active || self.upstream_active_reviewed)
@@ -1175,6 +1244,18 @@ pub struct ReviewedPackageLayout {
     /// Lowercase package-relative paths (with `/`) of every program or script at
     /// any depth, sorted.
     pub executables: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewedPredecessorPackageLayout {
+    pub repository_id: u64,
+    pub release_id: u64,
+    pub asset_id: u64,
+    pub tag: String,
+    pub channel: ReleaseChannel,
+    pub artifact: ArtifactIdentity,
+    pub layout: ReviewedPackageLayout,
 }
 
 /// Holds fresh managed acquisition and adoption for one route. Installed copies
@@ -1224,6 +1305,22 @@ where
     D: serde::Deserializer<'de>,
 {
     Vec::<String>::deserialize(deserializer).map(Some)
+}
+
+// An older directory reader rejects the key even when its array is empty.
+fn present_listing_mod_portals<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Vec<crate::ListingModPortal>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let portals = Vec::deserialize(deserializer)?;
+    if portals.is_empty() {
+        return Err(serde::de::Error::custom(
+            "listing mod portals must be omitted when empty",
+        ));
+    }
+    Ok(portals)
 }
 
 fn present_collection_covers<'de, D>(
@@ -1289,15 +1386,25 @@ pub struct PortListing {
         deserialize_with = "present_funding_urls"
     )]
     pub funding_urls: Option<Vec<String>>,
+    /// Reviewed community links for this listing. Requires listing format 16.
+    #[serde(
+        default,
+        skip_serializing_if = "Vec::is_empty",
+        deserialize_with = "present_listing_mod_portals"
+    )]
+    pub mod_portals: Vec<crate::ListingModPortal>,
     /// Empty means unknown; it is not an execution compatibility declaration.
     #[serde(default)]
     pub platforms: Vec<Platform>,
     #[serde(default)]
     pub availability: ListingAvailability,
-    /// A reviewed restriction on fresh self-service downloads only. It grants
-    /// no execution, management or permission over an existing copy.
+    /// Legacy projection of `restrictions` for older readers: the explanation
+    /// of the first hold naming Download. It grants nothing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub download_block_reason: Option<String>,
+    /// Typed acquisition restrictions. Requires listing format 14.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub restrictions: Vec<crate::AcquisitionRestriction>,
     /// Advisory literal filename hints for an upstream-owned download. They do
     /// not authenticate a package or grant installation/execution ownership.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -1594,6 +1701,13 @@ pub struct PortStatus {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_data_root: Option<PathBuf>,
     pub channel: ReleaseChannel,
+    /// User-selected exact release, when this port does not follow its channel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_release: Option<crate::ExactReleaseSelection>,
+    /// A saved pin Core cannot use. Checks and installs for this port stay held
+    /// until the player follows the channel again; other ports are unaffected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_release_hold: Option<crate::ExactReleaseHold>,
     pub update_policy: UpdatePolicy,
     pub active: Option<InstallRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2271,6 +2385,8 @@ pub struct InstallPlan {
     pub channel: ReleaseChannel,
     pub platform: Platform,
     pub release: ResolvedRelease,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_release: Option<crate::ExactReleaseSelection>,
     pub bundled_runtime: Option<BundledRuntime>,
     pub download_bytes: u64,
     /// Required recipe inputs in addition to the primary release and bundled runtime.
@@ -2523,6 +2639,11 @@ pub struct LaunchReadiness {
     /// definition when an external runtime is registered.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub required_source_extension: Option<String>,
+    /// The effective active installation can use the default game-source registration
+    /// for edition artwork after fresh byte verification. Omitted when launch can
+    /// use different bytes or Core cannot establish the default's eligibility.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_game_source_profile: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<SourceHealth>,
     /// The saved game-file folder holding this game's missing or unreadable
@@ -2614,13 +2735,30 @@ pub struct UploaderContinuityRecord {
 /// locally from the persisted conditional-request cache without any network call.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RequestCostForecast {
-    /// Requests budgeted against the provider's primary rate limit. A saved
-    /// GitHub package choice budgets the bounded fresh inventory even when
-    /// cached conditional responses could lower the actual cost.
+    /// Requests expected to count against the provider's primary rate limit under
+    /// the current sign-in. Anonymous GitHub reads count even when a cached
+    /// validator lets GitHub answer `304`; only an authenticated `304` is exempt,
+    /// so a signed-in estimate assumes cached resources are unchanged. A saved
+    /// GitHub package choice budgets a typical fresh inventory (three asset pages
+    /// per release); larger releases, changed resources and cached conditional
+    /// responses can make the actual cost higher or lower. The forecast is advisory.
     pub counted_requests: u32,
-    /// The part of `counted_requests` that signing in would move to a higher limit.
-    /// A managed-definition port deliberately sends no credential, so it never counts here.
+    /// The part of `counted_requests` that signing in would move to a higher limit:
+    /// anonymous ordinary reads, and none once signed in. A managed-definition port
+    /// deliberately sends no credential, so it never counts here.
     pub sign_in_relief_requests: u32,
+}
+
+/// An update check that did not run because a provider allowance or throttle
+/// stopped it (a refusal, a deferral within the same bulk check, or a rate-limited
+/// answer). The game's update state is unknown, never "checked" or "up to date";
+/// the next bulk check after `resets_at` starts with it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpdateCheckDeferral {
+    /// When the allowance is expected to reopen, in Unix seconds, if known.
+    pub resets_at: Option<i64>,
+    /// True when the provider reported `resets_at`; false when Portcove estimated it.
+    pub reset_reported: bool,
 }
 
 /// The expected provider cost of checking a set of games at once.
@@ -2653,6 +2791,11 @@ pub struct UpdateCheck {
     pub required_runtime: Option<RuntimeIdentity>,
     pub update_available: bool,
     pub release: ResolvedRelease,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_release: Option<crate::ExactReleaseSelection>,
+    /// The channel's ordinary candidate when it differs from the exact target.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel_latest_version: Option<String>,
     /// Repository maintenance facts from the provider's most recent observation of
     /// this port. Absent means unknown, never active. It may be older than
     /// `checked_at` when this check did not read the repository itself.
@@ -2804,6 +2947,14 @@ pub struct CapabilityDocument {
     /// Independently negotiated signed-directory transport representations.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub listing_delivery_carriers: Vec<String>,
+    /// Named definition-delivery features, such as `catalog.policy-decision-v2`.
+    /// A publisher emits a newer form only after a released reader lists it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub definition_features: Vec<String>,
+    /// Reader limits for signed descriptive delivery. Absent on older readers,
+    /// which enforce the released bounds documented in `SIGNED-CATALOG.md`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listing_delivery_limits: Option<ListingDeliveryLimits>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port_capability_schema: Option<u32>,
     pub schema_version: u32,
@@ -2825,16 +2976,55 @@ pub struct CapabilityDocument {
     pub port_operation_locking: String,
 }
 
+/// Limits a client applies to signed descriptive delivery. Instead of the
+/// released 10,000-entry count, each listing and withdrawal is charged against
+/// one measured working-memory element budget per admission.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListingDeliveryLimits {
+    /// Largest authenticated listing target body, either carrier.
+    pub target_bytes: u64,
+    /// Largest decoded compact directory admitted and retained.
+    pub decoded_bytes: u64,
+    /// Largest single compact listing record.
+    pub record_bytes: u64,
+    /// Largest signed definition index.
+    pub definition_index_bytes: u64,
+    /// Working-memory element budget of one directory admission.
+    pub element_budget_bytes: u64,
+    /// Charge per listing against the element budget.
+    pub listing_charge_bytes: u64,
+    /// Charge per withdrawal against the element budget.
+    pub withdrawal_charge_bytes: u64,
+}
+
+impl ListingDeliveryLimits {
+    pub fn current() -> Self {
+        use crate::definition_repository::publisher_policy::listing_delivery;
+        Self {
+            target_bytes: listing_delivery::MAX_BYTES as u64,
+            decoded_bytes: listing_delivery::MAX_COMPACT_DECODED_BYTES as u64,
+            record_bytes: portcove_listing_carrier::MAX_COMPACT_RECORD_BYTES as u64,
+            definition_index_bytes: crate::definition_index::MAX_INDEX_BYTES as u64,
+            element_budget_bytes: listing_delivery::ELEMENT_WORKING_BUDGET as u64,
+            listing_charge_bytes: listing_delivery::LISTING_WORKING_BYTES as u64,
+            withdrawal_charge_bytes: listing_delivery::WITHDRAWAL_WORKING_BYTES as u64,
+        }
+    }
+}
+
 impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
             listing_delivery_carriers: vec![
                 "json-v1".into(),
                 crate::definition_repository::publisher_policy::listing_delivery::COMPACT_CARRIER
                     .into(),
             ],
+            definition_features: crate::definition_capabilities::supported_definition_features(),
+            listing_delivery_limits: Some(ListingDeliveryLimits::current()),
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

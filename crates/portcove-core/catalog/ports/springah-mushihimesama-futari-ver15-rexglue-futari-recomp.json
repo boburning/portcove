@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "springah-mushihimesama-futari-ver15-rexglue-futari-recomp",
+    "project_url": "https://github.com/springah/futari_recomp",
+    "name": "Mushihimesama Futari Ver 1.5 (Xbox 360) / springah ReXGlue futari_recomp",
+    "summary": "Mushihimesama Futari (Xbox 360) recompiled to native Windows and macOS on the ReXGlue SDK, with an opt-in Vulkan renderer (Renut). No game data included: build it from a copy you own.",
+    "issue_number": 6782,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mushihimesama-futari-ver-1-5",
+      "evidence_urls": ["https://github.com/springah/futari_recomp"],
+      "source_editions": [
+        {
+          "id": "mushihimesama-futari-ver-1-5-xbox-360",
+          "title": "Mushihimesama Futari Ver 1.5 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/springah/futari_recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Mushihimesama Futari Ver 1.5"
+  }
+}

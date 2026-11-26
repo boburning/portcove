@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wacki-kosmiczna-rozgrywka-wacki-port",
+    "project_url": "https://github.com/mszula/wacki",
+    "name": "Wacki: Kosmiczna rozgrywka / Wacki port",
+    "summary": "A from-scratch C/SDL2 reimplementation of Wacki: Kosmiczna rozgrywka (1998), a cult Polish point-and-click adventure. Reverse-engineered opcode-by-opcode from the original. Plays start to finish on macOS, Linux, Windows, Android, Miyoo and PortMaster handhelds, and the PlayStation 2.",
+    "issue_number": 5692,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wacki-kosmiczna-rozgrywka",
+      "evidence_urls": ["https://github.com/mszula/wacki"],
+      "source_editions": [
+        {
+          "id": "wacki-kosmiczna-rozgrywka-playstation-2",
+          "title": "Wacki: Kosmiczna rozgrywka (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/mszula/wacki"]
+        }
+      ]
+    },
+    "original_game_title": "Wacki: Kosmiczna rozgrywka"
+  }
+}

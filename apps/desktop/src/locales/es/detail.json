@@ -5,6 +5,21 @@
     "project": "Proyecto original",
     "steam": "Acceso directo de Steam"
   },
+  "artwork": {
+    "apply": "Aplicar",
+    "cancel": "Cancelar",
+    "previewFailed": "No se pudo abrir la vista previa. Cancela y elige otra imagen.",
+    "reviewAutomatic": "Usa la ilustración predeterminada para esta función si está disponible.",
+    "reviewChange": "Revisar cambio de ilustración",
+    "reviewHide": "Oculta la ilustración para esta función. Las demás no cambian.",
+    "reviewImage": "Revisar {{role}}",
+    "reviewLocalImage": "Imagen local",
+    "reviewPreviewChanged": "La imagen cambió. Cancela y vuelve a elegirla para revisar la nueva imagen.",
+    "reviewProviderImage": "Imagen de SteamGridDB de {{author}}",
+    "reviewShow": "Vuelve a mostrar esta función con la ilustración que tenía antes de ocultarla.",
+    "reviewStale": "Esta elección de ilustración cambió. Cancela y revisa la elección actual.",
+    "scopeCurrentPort": "Los cambios de ilustración solo se aplican a esta adaptación."
+  },
   "capabilities": {
     "assessment": "Detalles de la evaluación",
     "backupNone": "Última copia de seguridad completada: no hay ninguna registrada. Revisa Partidas y copias de seguridad para ver qué se incluye y qué se excluye.",
@@ -109,6 +124,17 @@
     "toFolder": "Carpeta de la versión activa",
     "toVersion": "Versión activa",
     "unreadable": "No se pudieron leer"
+  },
+  "changeReview": {
+    "mods_one": "Mods · {{count}} cambio",
+    "mods_many": "Mods · {{count}} cambios",
+    "mods_other": "Mods · {{count}} cambios",
+    "open_one": "Revisar {{count}} cambio",
+    "open_many": "Revisar {{count}} cambios",
+    "open_other": "Revisar {{count}} cambios",
+    "settings_one": "Configuración del juego · {{count}} cambio",
+    "settings_many": "Configuración del juego · {{count}} cambios",
+    "settings_other": "Configuración del juego · {{count}} cambios"
   },
   "identity": {
     "label": "Identidad del juego y de la adaptación",

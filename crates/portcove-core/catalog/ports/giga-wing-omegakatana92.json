@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "giga-wing-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Gigawing-Recomp-",
+    "name": "Giga Wing / omegakatana92",
+    "summary": "A native PC port of Giga Wing (Takumi/Capcom, CPS-2), made by static recompilation with cps2recomp — no emulator. Windows, Linux and Steam Deck builds. Bring your own ROM set; no game data included. Not affiliated with Capcom.",
+    "issue_number": 5955,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "giga-wing",
+      "evidence_urls": ["https://github.com/omegakatana92/Gigawing-Recomp-"],
+      "source_editions": []
+    },
+    "original_game_title": "Giga Wing"
+  }
+}

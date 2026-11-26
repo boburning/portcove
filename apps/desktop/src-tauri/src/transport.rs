@@ -1,6 +1,6 @@
 pub(crate) use crate::desktop_contract::{
-    BackupReview, BatchOutcome, BootstrapStatus, CliCommandContext, DesktopLocalePreference,
-    DesktopWorkspaceSnapshot, InstallInput, LaunchResult, SourceBatchOutcome,
+    BackupReview, BootstrapStatus, CliCommandContext, DesktopLocalePreference,
+    DesktopWorkspaceSnapshot, InstallInput, LaunchResult, SourceBatchOutcome, UpdateCheckOutcome,
 };
 
 use serde::Serialize;
@@ -79,7 +79,7 @@ mod tests {
             .unwrap(),
             json!({"processId": null, "sessionId": "session"}),
         );
-        let outcome = BatchOutcome::<portcove_core::UpdateCheck> {
+        let outcome = crate::desktop_contract::BatchOutcome::<portcove_core::UpdateCheck> {
             port_id: "port".into(),
             ok: false,
             result: None,
@@ -88,6 +88,33 @@ mod tests {
         assert_eq!(
             serde_json::to_value(outcome).unwrap(),
             json!({"port_id": "port", "ok": false, "result": null, "error": null})
+        );
+        // An update-check outcome keeps the same fields and adds `deferred` only
+        // when a provider request limit stopped the check.
+        let outcome = |deferred| UpdateCheckOutcome {
+            port_id: "port".into(),
+            ok: false,
+            result: None,
+            error: None,
+            deferred,
+        };
+        assert_eq!(
+            serde_json::to_value(outcome(None)).unwrap(),
+            json!({"port_id": "port", "ok": false, "result": null, "error": null})
+        );
+        assert_eq!(
+            serde_json::to_value(outcome(Some(portcove_core::UpdateCheckDeferral {
+                resets_at: Some(1_800_000_000),
+                reset_reported: true,
+            })))
+            .unwrap(),
+            json!({
+                "port_id": "port",
+                "ok": false,
+                "result": null,
+                "error": null,
+                "deferred": {"resets_at": 1_800_000_000, "reset_reported": true}
+            })
         );
     }
 

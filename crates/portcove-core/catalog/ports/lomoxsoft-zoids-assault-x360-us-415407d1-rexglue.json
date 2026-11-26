@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lomoxsoft-zoids-assault-x360-us-415407d1-rexglue",
+    "project_url": "https://github.com/LomoXSoft/ZoidsAssaultRecomp",
+    "name": "Zoids Assault (Xbox 360 USA 415407D1) / LomoXSoft",
+    "summary": "Unofficial static recompilation of Zoids Assault (Xbox 360) to native Windows x64 with ReXGlue. Source only: bring your own disc.",
+    "issue_number": 5887,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "zoids-assault",
+      "evidence_urls": ["https://github.com/LomoXSoft/ZoidsAssaultRecomp"],
+      "source_editions": [
+        {
+          "id": "zoids-assault-xbox-360",
+          "title": "Zoids Assault (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/LomoXSoft/ZoidsAssaultRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Zoids Assault"
+  }
+}

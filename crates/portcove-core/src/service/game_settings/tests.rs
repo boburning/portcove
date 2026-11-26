@@ -588,18 +588,29 @@ fn stale_bytes_and_replaced_same_bytes_objects_refuse_without_changing_config() 
                 fs::write(&fixture.runtime, &changed).unwrap();
             }
             let before = fs::read(&fixture.canonical).unwrap();
-            assert!(
-                fixture
-                    .service
-                    .apply_game_setting(
-                        port_id,
-                        &fixture.file.id,
-                        &fixture.file.settings[0].id,
-                        change,
-                        &review.review_sha256
-                    )
-                    .is_err()
-            );
+            let refusal = fixture
+                .service
+                .apply_game_setting(
+                    port_id,
+                    &fixture.file.id,
+                    &fixture.file.settings[0].id,
+                    change,
+                    &review.review_sha256,
+                )
+                .unwrap_err()
+                .report();
+            if !replace_identity {
+                assert_eq!(
+                    refusal.presentation.presentation_key,
+                    "settings_review_stale"
+                );
+                assert!(
+                    refusal
+                        .presentation
+                        .summary
+                        .contains("changed after you reviewed it")
+                );
+            }
             assert_eq!(fs::read(&fixture.canonical).unwrap(), before);
             assert!(
                 OperationStore::new(fixture.service.library.clone())

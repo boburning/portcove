@@ -19,7 +19,7 @@ import {
 } from "./ci-workflow-fixture.mts";
 
 // Independently expected contract pin; Renovate updates it with the Action group.
-const reviewedInstallAction = "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"; // v2.90.1
+const reviewedInstallAction = "taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c"; // v2.90.8
 const prepareHostedWebview = "./.github/actions/prepare-hosted-webview";
 
 void test("candidate consumer selects only existing selected, compiled and history jobs", () => {
@@ -288,8 +288,17 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
       "startup-preferences",
       "startup-library",
       "library-switch",
+      "recovery-bundle-create-restore",
+      "recovery-bundle-interruption",
     ],
   );
+  assert.deepEqual(groups.slice(-2), [
+    { selection: "recovery-bundle-create-restore", scenarios: ["native-library-recovery-bundle"] },
+    {
+      selection: "recovery-bundle-interruption",
+      scenarios: ["native-library-recovery-interruption"],
+    },
+  ]);
   const ownedCoverage = new Set<string>();
   for (const group of groups) {
     assert.ok(isRecord(group) && typeof group.selection === "string");
@@ -307,6 +316,17 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
         ownedCoverage.add(scenario);
   }
   assert.deepEqual([...ownedCoverage].sort(), [...DESKTOP_PROFILES["owned-lifecycle"]].sort());
+  // Hosted runners present a high-integrity token, which Core's settings writer
+  // refuses by design (run 44933173974). The native Game settings review is
+  // explicit acceptance on an interactive medium-integrity Windows host instead.
+  assert.ok(
+    groups.every(
+      (group: unknown) =>
+        isRecord(group) &&
+        Array.isArray(group.scenarios) &&
+        !group.scenarios.includes("native-game-settings-review"),
+    ),
+  );
   assert.ok(isRecord(job.env));
   assert.equal(job.env.NATIVE_SCENARIOS, "${{ toJSON(matrix.scenarios) }}");
   assert.equal(

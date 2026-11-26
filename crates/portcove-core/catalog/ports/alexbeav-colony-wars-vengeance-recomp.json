@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-colony-wars-vengeance-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-vengeance-recomp",
+    "name": "Colony Wars: Vengeance / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Colony Wars: Vengeance (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6641,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "colony-wars-vengeance",
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/colony-wars-vengeance-recomp"],
+      "source_editions": [
+        {
+          "id": "colony-wars-vengeance-playstation",
+          "title": "Colony Wars: Vengeance (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/colony-wars-vengeance-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Colony Wars: Vengeance"
+  }
+}

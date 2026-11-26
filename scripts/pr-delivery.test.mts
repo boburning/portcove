@@ -20,7 +20,7 @@ import type {
   WatchState,
   DeliveryJob,
 } from "./pr-delivery.mts";
-import { DeliveryOutcomeError } from "./pr-delivery.mts";
+import { DeliveryOutcomeError, isMergeMutationPath } from "./pr-delivery.mts";
 import { spawnSync as spawnHelp } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -1302,6 +1302,57 @@ void test("check-run pagination follows only this repository's bound numeric-id 
   }
 });
 
+void test("the merge mutation allow-list escapes the repository name", () => {
+  assert.ok(isMergeMutationPath("owner/repo.name", "/repos/owner/repo.name/pulls/7/merge"));
+  // An unescaped `.` would admit any character in its place.
+  assert.ok(!isMergeMutationPath("owner/repo.name", "/repos/owner/repoXname/pulls/7/merge"));
+  assert.ok(!isMergeMutationPath("owner/repo.name", "/repos/owner/repo.name/pulls/0/merge"));
+  assert.ok(!isMergeMutationPath("owner/repo.name", "/repos/owner/repo.name/pulls/7/merge/x"));
+  assert.ok(!isMergeMutationPath("owner/repo.name", "/repos/owner/repo.name/pulls/7"));
+  assert.ok(isMergeMutationPath(repository, `/repos/${repository}/pulls/12/merge`));
+});
+
+void test("a separate merge credential carries the merge mutation alone", async () => {
+  const seen: { method: string; path: string; authorization: string | null }[] = [];
+  const client = await PullRequestDeliveryClient.connect({
+    credential: { kind: "explicit", token: "read-token" },
+    mergeCredential: { kind: "explicit", token: "merge-token" },
+    deadline: performance.now() + 60000,
+    fetch: async (input, init) => {
+      const request = input instanceof Request ? input : new Request(String(input), init);
+      const url = new URL(request.url);
+      seen.push({
+        method: request.method,
+        path: url.pathname,
+        authorization: new Headers(init?.headers ?? request.headers).get("authorization"),
+      });
+      return Response.json({ merged: true });
+    },
+  });
+  const internal = client as unknown as {
+    request(method: "GET" | "PUT", endpoint: string, data?: unknown): Promise<unknown>;
+    mergeSdk: { request(options: { method: string; url: string }): Promise<unknown> };
+  };
+  await internal.request("GET", `repos/${repository}/pulls/7`);
+  await internal.request("PUT", `repos/${repository}/pulls/7/merge`, { sha: head });
+  assert.deepEqual(
+    seen.map(({ method, path }) => `${method} ${path}`),
+    [`GET /repos/${repository}/pulls/7`, `PUT /repos/${repository}/pulls/7/merge`],
+  );
+  assert.match(String(seen[0]!.authorization), /read-token/u);
+  assert.doesNotMatch(String(seen[0]!.authorization), /merge-token/u);
+  assert.match(String(seen[1]!.authorization), /merge-token/u);
+  // The merge credential admits nothing but the merge mutation.
+  await assert.rejects(
+    internal.mergeSdk.request({
+      method: "GET",
+      url: `https://api.github.com/repos/${repository}/pulls/7`,
+    }),
+    /outside the admitted scope/u,
+  );
+  assert.equal(seen.length, 2);
+});
+
 void test("workflow attempt job inventory follows pagination and rejects incomplete totals", async () => {
   let incomplete = false;
   const client = await deliveryFixture(({ endpoint }) => {
@@ -1477,6 +1528,51 @@ void test("REST merge uses the exact SHA and verifies remote completion", async 
     );
     assert.equal(workflowReads, binding ? 2 : 0);
   }
+});
+
+void test("REST-only merge readback survives GitHub clearing the inventory run's pull request", async () => {
+  let merged = false;
+  // The same closing-inventory run, before and after GitHub merges the pull request.
+  const closing = restClosureResponder([[committedHead]]);
+  const cleared = restClosureResponder([[committedHead]], {
+    inventory: { runs: inventoryRun({ pull_requests: [] }) },
+  });
+  const calls: string[] = [];
+  const client = await deliveryFixture((request) => {
+    const { method, endpoint, body: payload } = request;
+    calls.push(`${method} ${endpoint}`);
+    if (endpoint === "repos/boburning/portcove/pulls/7")
+      return Response.json(
+        merged ? pull({ merged: true, state: "closed", merge_commit_sha: merge }) : pull(),
+      );
+    const closingResponse = (merged ? cleared : closing).respond(request);
+    if (closingResponse) return closingResponse;
+    if (endpoint === "repos/boburning/portcove/pulls/7/commits?per_page=100")
+      return Response.json([{ sha: head, commit: { message: squashMessage.title } }]);
+    if (endpoint === `repos/boburning/portcove/git/commits/${merge}`)
+      return Response.json({
+        sha: merge,
+        message: `${squashMessage.title}\n\n${squashMessage.body}`,
+      });
+    if (endpoint.includes("check-runs"))
+      return Response.json({ total_count: required.length, check_runs: successfulRuns() });
+    if (endpoint.includes("/status?")) return Response.json({ total_count: 0, statuses: [] });
+    if (endpoint === "repos/boburning/portcove/pulls/7/merge") {
+      merged = true;
+      assert.equal((payload as { sha?: string }).sha, head);
+      return Response.json({
+        merged: true,
+        sha: merge,
+        message: "Pull Request successfully merged",
+      });
+    }
+    throw new Error(`unexpected endpoint ${endpoint}`);
+  });
+  const result = await client.merge(7, head, required, emptyIntent, squashMessage);
+  assert.equal(result.result.sha, merge);
+  assert.equal(result.closure_readback.closing?.source, "rest");
+  assert.equal(result.closure_readback.closing?.inventory_suite, 91);
+  assert.equal(calls.filter((call) => call.startsWith("PUT")).length, 1);
 });
 
 void test("bound merge refuses stale, pending, failed and invalid workflow identities", async () => {
@@ -1862,6 +1958,32 @@ function restClosureResponder(
 }
 
 const fullPage = () => Array.from({ length: 100 }, () => ({ event: "commented" }));
+
+void test("a merged REST readback accepts only the closing-inventory suite verified before merge", async () => {
+  // GitHub clears a workflow run's pull_requests once its pull request merges.
+  const merged = { runs: inventoryRun({ pull_requests: [] }) };
+  const read = async (options?: { mergedSuite?: number }) =>
+    await readClosingRelationships(
+      await fixtureGitHub(restClosureResponder([[committedHead]], { inventory: merged }).respond),
+      "boburning/portcove",
+      7,
+      options,
+    );
+  const before = await readClosingRelationships(
+    await fixtureGitHub(restClosureResponder([[committedHead]]).respond),
+    "boburning/portcove",
+    7,
+  );
+  assert.equal(before.inventory_suite, 91, "the pre-merge read records its verified suite");
+  const after = await read({ mergedSuite: before.inventory_suite });
+  assert.equal(after.fingerprint, before.fingerprint, "the suite is evidence, not identity");
+  await assert.rejects(read(), /did not run for this pull request/);
+  await assert.rejects(
+    read({ mergedSuite: 92 }),
+    /did not run for this pull request/,
+    "a different suite cannot vouch for the merged pull request",
+  );
+});
 
 void test("REST closure reconstruction replaces refused GraphQL and fails closed on manual links", async () => {
   const read = async (responder: ReturnType<typeof restClosureResponder>) =>

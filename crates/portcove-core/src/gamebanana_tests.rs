@@ -1,8 +1,7 @@
 use super::*;
+use crate::ProviderFreshness;
 use crate::test_http::serve_http;
-use crate::{ProviderFreshness, provider_http::download_deadline};
 use serde_json::json;
-use std::time::Duration;
 
 const WEB: &str = "https://gamebanana.com";
 
@@ -308,23 +307,12 @@ async fn download_refuses_redirects_off_the_provider_and_size_disagreements() {
 }
 
 #[test]
-fn download_deadline_grows_with_size_and_is_capped() {
-    assert!(download_deadline(1) >= Duration::from_secs(120));
-    assert!(download_deadline(1 << 30) > download_deadline(1 << 20));
-    assert_eq!(
-        download_deadline(u64::MAX),
-        Duration::from_secs(6 * 60 * 60)
-    );
-}
-
-#[test]
-fn projects_with_too_many_files_are_refused_instead_of_truncated() {
-    let files = (1..=257u64).map(file).collect::<Vec<_>>();
+fn projects_with_long_file_histories_keep_every_file() {
+    let files = (1..=300u64).map(file).collect::<Vec<_>>();
     let value: Value = serde_json::from_str(&project_json("1.0", files)).unwrap();
-    assert!(parse_project(&value, 1, WEB).is_err());
-    let files = (1..=256u64).map(file).collect::<Vec<_>>();
-    let value: Value = serde_json::from_str(&project_json("1.0", files)).unwrap();
-    assert_eq!(parse_project(&value, 1, WEB).unwrap().files.len(), 256);
+    let project = parse_project(&value, 1, WEB).unwrap();
+    assert_eq!(project.files.len(), 300);
+    assert!(project.files.iter().any(|file| file.file_id == "300"));
 }
 
 #[tokio::test]

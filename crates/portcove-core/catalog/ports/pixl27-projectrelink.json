@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pixl27-projectrelink",
+    "project_url": "https://github.com/pixl27/ProjectReLink",
+    "name": "The Legend of Zelda: Ocarina of Time (Switch 2) / Project ReLink (pixl27)",
+    "summary": "Project ReLink - Zelda OOT Remake Recomp. An unofficial native PC recompilation of Ocarina of Time (the Switch 2 remake), built on your PC from your own copy.",
+    "issue_number": 6525,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-ocarina-of-time",
+      "evidence_urls": ["https://github.com/pixl27/ProjectReLink"],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-ocarina-of-time-nintendo-switch",
+          "title": "The Legend of Zelda: Ocarina of Time (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/pixl27/ProjectReLink"]
+        }
+      ]
+    },
+    "original_game_title": "The Legend of Zelda: Ocarina of Time"
+  }
+}

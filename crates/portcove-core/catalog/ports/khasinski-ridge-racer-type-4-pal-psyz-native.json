@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "khasinski-ridge-racer-type-4-pal-psyz-native",
+    "project_url": "https://github.com/khasinski/ridge-racer-type-4-pc",
+    "name": "Ridge Racer Type 4 / khasinski PsyZ native port",
+    "summary": "Native PC port of Ridge Racer Type 4 (PS1), built on the matching decompilation and PsyZ",
+    "issue_number": 5177,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "r4-ridge-racer-type-4",
+      "evidence_urls": ["https://github.com/khasinski/ridge-racer-type-4-pc"],
+      "source_editions": [
+        {
+          "id": "r4-ridge-racer-type-4-playstation",
+          "title": "R4: Ridge Racer Type 4 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/khasinski/ridge-racer-type-4-pc"]
+        }
+      ]
+    },
+    "original_game_title": "R4: Ridge Racer Type 4"
+  }
+}

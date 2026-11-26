@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mario-kart-ds-mkdsrust",
+    "project_url": "https://github.com/CameronStorer/MKDSrust",
+    "name": "Mario Kart DS / MKDSrust",
+    "summary": "Rust-based build script to convert user-provided MKDS rom to readable rust source code and decompilation.",
+    "issue_number": 6586,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-ds",
+      "evidence_urls": ["https://github.com/CameronStorer/MKDSrust"],
+      "source_editions": []
+    },
+    "original_game_title": "Mario Kart DS"
+  }
+}

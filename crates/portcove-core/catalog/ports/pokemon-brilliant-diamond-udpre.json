@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-brilliant-diamond-udpre",
+    "project_url": "https://github.com/u2-bot/uDPRE",
+    "name": "Pokémon Brilliant Diamond (Nintendo Switch) (uDPRE)",
+    "summary": "Play your own Pokemon Brilliant Diamond dump on native windows: convert it once, then play.",
+    "issue_number": 3027,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-brilliant-diamond",
+      "evidence_urls": ["https://github.com/u2-bot/uDPRE"],
+      "source_editions": [
+        {
+          "id": "pokemon-brilliant-diamond-nintendo-switch",
+          "title": "Pokémon Brilliant Diamond (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/u2-bot/uDPRE"]
+        }
+      ]
+    },
+    "original_game_title": "Pokémon Brilliant Diamond"
+  }
+}

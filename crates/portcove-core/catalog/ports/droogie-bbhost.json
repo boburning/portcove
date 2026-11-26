@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "droogie-bbhost",
+    "project_url": "https://github.com/droogie/bbhost",
+    "name": "Bloodborne / bbhost (droogie)",
+    "summary": "Definitive Bloodborne PC Experience",
+    "issue_number": 6537,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": ["https://github.com/droogie/bbhost"],
+      "source_editions": []
+    },
+    "original_game_title": "Bloodborne"
+  }
+}

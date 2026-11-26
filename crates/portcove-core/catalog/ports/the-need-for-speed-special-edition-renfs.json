@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-need-for-speed-special-edition-renfs",
+    "project_url": "https://github.com/ItsDanik/ReNFS",
+    "name": "The Need for Speed: Special Edition / ReNFS",
+    "summary": "The Need for Speed Special Edition (1996, DOS) written again for Linux and Windows; you need the game's CD",
+    "issue_number": 5858,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-need-for-speed-special-edition",
+      "evidence_urls": ["https://github.com/ItsDanik/ReNFS"],
+      "source_editions": []
+    },
+    "original_game_title": "The Need for Speed: Special Edition"
+  }
+}

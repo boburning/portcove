@@ -11,6 +11,12 @@ import {
   publishedVersionsFromMetadata,
   publishedTargetsFromMetadata,
 } from "./catalog-publish.mts";
+import { artworkCheckpointMax, artworkCheckpointTarget } from "./listing-artwork-checkpoint.mts";
+import {
+  compactListingDeliveryTarget,
+  listingDeliveryMaximum,
+  listingDeliveryTarget,
+} from "./listing-directory-carrier.mts";
 import {
   catalogDefinitionContentBytes,
   catalogDefinitionIndexBytes,
@@ -20,8 +26,6 @@ import { isRecord } from "./runtime-values.mts";
 
 const pages = "https://boburning.github.io/portcove/catalog/";
 const index = "definitions/index.json";
-const listings = "policy/official/catalog.listings.json";
-const compactListings = "policy/official/catalog.listings.compact.json";
 const historyTarget = "policy/official/catalog.history-checkpoint.json";
 const maximumReadbackBytes = 32 * 1024 ** 2;
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -53,7 +57,9 @@ function immutablePath({ target, sha256 }: Identity) {
   return `targets/${sha256}.${target}`;
 }
 function targetLimit(target: string) {
-  if (target === listings || target === compactListings) return 8 * 1024 ** 2;
+  if (target === listingDeliveryTarget || target === compactListingDeliveryTarget)
+    return listingDeliveryMaximum;
+  if (target === artworkCheckpointTarget) return artworkCheckpointMax;
   if (target.startsWith("policy/")) return 65_536;
   return target === index ? catalogDefinitionIndexBytes : catalogDefinitionContentBytes;
 }
@@ -75,6 +81,7 @@ async function readState(site: CatalogSource | null) {
       timestamp: null,
       index: null,
       listings: null,
+      coverCheckpoint: null,
       historyPointer: null,
       definitions: new Map<string, Definition>(),
     };
@@ -196,13 +203,18 @@ async function readState(site: CatalogSource | null) {
       launchScope,
     });
   }
-  const activeListingTarget = Object.hasOwn(targets, compactListings) ? compactListings : listings;
+  const activeListingTarget = Object.hasOwn(targets, compactListingDeliveryTarget)
+    ? compactListingDeliveryTarget
+    : listingDeliveryTarget;
   return {
     versions,
     timestamp,
     index: indexIdentity,
     listings: Object.hasOwn(targets, activeListingTarget)
       ? identity(targets, activeListingTarget)
+      : null,
+    coverCheckpoint: Object.hasOwn(targets, artworkCheckpointTarget)
+      ? identity(targets, artworkCheckpointTarget)
       : null,
     historyPointer: Object.hasOwn(targets, historyTarget) ? identity(targets, historyTarget) : null,
     definitions,
@@ -251,13 +263,21 @@ export async function describeCatalogPublication(prior: CatalogSource | null, ne
     });
   const listingChanged = !isDeepStrictEqual(before.listings, after.listings);
   if (listingChanged) requireReadback(after.listings);
+  const coverChanged = !isDeepStrictEqual(before.coverCheckpoint, after.coverCheckpoint);
+  if (coverChanged) {
+    if (!after.coverCheckpoint || after.listings?.target !== compactListingDeliveryTarget)
+      throw new Error("Published cover checkpoint was dropped or has no active compact target");
+    requireReadback(after.coverCheckpoint);
+    requireReadback(after.listings);
+  }
   if (pending.size > 256 || changes.length > 128)
     throw new Error("publication receipt target count exceeds its bound");
-  const snapshot = ({ versions, timestamp, index, listings }: State) => ({
+  const snapshot = ({ versions, timestamp, index, listings, coverCheckpoint }: State) => ({
     versions,
     timestamp_sha256: timestamp,
     index,
     listings,
+    ...(coverCheckpoint ? { cover_checkpoint: coverCheckpoint } : {}),
   });
   return {
     prior: snapshot(before),

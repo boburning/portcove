@@ -502,8 +502,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let original = library.listing_delivery_status().unwrap().target_sha256;
     let (catalog, _) = library.load_catalog().unwrap();
-    // Embedded typed IGDB scenes require format 13 in the combined directory.
-    assert_eq!(catalog.listing_document().format_version, 13);
+    // Embedded typed acquisition restrictions require format 15 in the combined directory.
+    assert_eq!(catalog.listing_document().format_version, 15);
     assert_eq!(
         catalog
             .listing("new-unmanaged-port")
@@ -524,8 +524,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // The next unknown format follows the verified source edition format 14.
-    candidate["directory"]["format_version"] = json!(15);
+    // Readers reject formats newer than the reviewed mod portal directory.
+    candidate["directory"]["format_version"] = json!(17);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -541,6 +541,152 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
             .format_version,
         catalog.listing_document().format_version
     );
+}
+
+#[tokio::test]
+async fn signed_listing_mod_portals_update_without_installation_or_operational_authority() {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use flate2::{Compression, write::GzEncoder};
+    use sha2::{Digest, Sha256};
+    use std::io::Write as _;
+
+    async fn publish_compact(
+        fixture: &RepositoryFixture,
+        key: &Key,
+        version: u64,
+        document: &Value,
+    ) -> Vec<u8> {
+        let bytes = serde_json::to_vec(document).unwrap();
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&bytes).unwrap();
+        let compact = json!({
+            "carrier": listing_delivery::COMPACT_CARRIER,
+            "decoded_bytes": bytes.len(),
+            "decoded_sha256": hex::encode(Sha256::digest(&bytes)),
+            "gzip_base64": STANDARD.encode(encoder.finish().unwrap()),
+        });
+        fixture
+            .publish_with_policy(
+                &[
+                    (
+                        listing_delivery::TARGET.into(),
+                        serde_json::to_vec(&feed(1)).unwrap(),
+                    ),
+                    (
+                        listing_delivery::COMPACT_TARGET.into(),
+                        serde_json::to_vec(&compact).unwrap(),
+                    ),
+                ],
+                true,
+                &DEFINITION_ROLE_PATHS,
+                later(),
+                Some((key, version)),
+            )
+            .await
+    }
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let mut candidate = feed(1);
+    candidate["directory"]["format_version"] = json!(15);
+    let root = publish_compact(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    refresh(&library, &fixture, &root).await.unwrap();
+    let id = "new-unmanaged-port";
+    assert!(
+        PortcoveService::new_read_only(library.clone())
+            .unwrap()
+            .preview_mod_handoff(id)
+            .is_err()
+    );
+
+    let url = "https://www.nexusmods.com/examplegame";
+    candidate["revision"] = json!(2);
+    candidate["directory"]["format_version"] = json!(16);
+    candidate["directory"]["listings"][0]["mod_portals"] = json!([{
+        "id": "nexus", "site": "nexus_mods", "name": "Nexus Mods", "url": url,
+        "instructions": "Check the community page for mod requirements."
+    }]);
+    let mut incompatible = candidate.clone();
+    incompatible["directory"]["format_version"] = json!(15);
+    assert!(
+        listing_delivery::ListingDeliveryDocument::parse(
+            &serde_json::to_vec(&incompatible).unwrap()
+        )
+        .is_err()
+    );
+    for invalid in [json!([]), Value::Null] {
+        let mut malformed = candidate.clone();
+        malformed["directory"]["listings"][0]["mod_portals"] = invalid;
+        assert!(
+            listing_delivery::ListingDeliveryDocument::parse(
+                &serde_json::to_vec(&malformed).unwrap()
+            )
+            .is_err()
+        );
+    }
+    let root = publish_compact(&fixture, &key, 2, &candidate).await;
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+
+    let service = PortcoveService::new_read_only(library.clone()).unwrap();
+    assert!(service.catalog().port(id).is_err());
+    let view = service.preview_mod_handoff(id).unwrap();
+    assert!(!view.supported);
+    assert!(!view.github_native_import_offered);
+    assert_eq!(view.external_mod_portals.len(), 1);
+    assert!(!view.external_mod_portals[0].browse_available);
+    assert_eq!(
+        service
+            .review_external_mod_source_page(id, "nexus", url)
+            .await
+            .unwrap(),
+        url
+    );
+    assert!(
+        service
+            .review_external_mod_source_page(id, "nexus", "https://www.nexusmods.com/other")
+            .await
+            .is_err()
+    );
+    assert!(
+        service
+            .catalog()
+            .listing_document()
+            .export_format(15)
+            .unwrap()
+            .listings
+            .into_iter()
+            .find(|listing| listing.id == id)
+            .unwrap()
+            .mod_portals
+            .is_empty()
+    );
+
+    candidate["revision"] = json!(3);
+    candidate["directory"]["listings"][0]["mod_portals"][0]["url"] =
+        json!("https://wrong.example.com/");
+    let root = publish_compact(&fixture, &key, 3, &candidate).await;
+    assert!(refresh(&library, &fixture, &root).await.is_err());
+    let service = PortcoveService::new_read_only(library.clone()).unwrap();
+    assert_eq!(
+        service
+            .preview_mod_handoff(id)
+            .unwrap()
+            .external_mod_portals[0]
+            .url,
+        url
+    );
+
+    candidate["revision"] = json!(4);
+    candidate["directory"]["listings"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("mod_portals");
+    let root = publish_compact(&fixture, &key, 4, &candidate).await;
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let service = PortcoveService::new_read_only(library).unwrap();
+    assert!(service.preview_mod_handoff(id).is_err());
 }
 
 #[tokio::test]
@@ -583,7 +729,7 @@ async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_
             .funding_urls
             .is_some()
     );
-    assert_eq!(catalog.listing_document().format_version, 13);
+    assert_eq!(catalog.listing_document().format_version, 15);
 
     // A delivered format-10 snapshot carries links for this reader.
     candidate["revision"] = json!(2);
@@ -1015,7 +1161,7 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     let mut unsupported = current.clone();
     unsupported["carrier"] = json!("unsupported");
     edition_directory["directory"]["format_version"] =
-        json!(crate::catalog::listings::VERIFIED_EDITION_LISTING_FORMAT + 1);
+        json!(crate::catalog::listings::MOD_PORTAL_LISTING_FORMAT + 1);
     let unsupported_format = carrier(&serde_json::to_vec(&edition_directory).unwrap());
     let mut trailing = current.clone();
     let mut concatenated = gzip(&next);
@@ -1079,4 +1225,87 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     let catalog = library.load_catalog().unwrap().0;
     assert!(catalog.listing("new-unmanaged-port").is_ok());
     assert!(catalog.port("new-unmanaged-port").is_err());
+}
+
+#[tokio::test]
+async fn compact_directory_beyond_the_released_entry_count_round_trips_through_reopen() {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use flate2::{Compression, write::GzEncoder};
+    use sha2::{Digest, Sha256};
+    use std::io::Write as _;
+
+    // Past the released readers' 10,000-entry count on both lists, well
+    // within the decoded byte bound this reader generation enforces.
+    let count = portcove_listing_carrier::MAX_LISTING_ENTRIES + 1;
+    let listings = (0..count)
+        .map(|index| {
+            json!({
+                "id": format!("scaled-listing-{index}"),
+                "name": "Scaled listing",
+                "summary": "Descriptive authenticated fixture; no executable authority.",
+                "project_url": "https://example.invalid/project",
+            })
+        })
+        .collect::<Vec<_>>();
+    let withdrawn = (0..count)
+        .map(|index| format!("withdrawn-listing-{index}"))
+        .collect::<Vec<_>>();
+    let decoded = serde_json::to_vec(&json!({
+        "listing_delivery_schema": 1,
+        "revision": 2,
+        "withdrawn_ids": withdrawn,
+        "directory": {"format_version": 15, "listings": listings},
+    }))
+    .unwrap();
+    assert!(decoded.len() <= listing_delivery::MAX_COMPACT_DECODED_BYTES);
+    let mut gzip = GzEncoder::new(Vec::new(), Compression::default());
+    gzip.write_all(&decoded).unwrap();
+    let carrier = serde_json::to_vec(&json!({
+        "carrier": listing_delivery::COMPACT_CARRIER,
+        "decoded_bytes": decoded.len(),
+        "decoded_sha256": hex::encode(Sha256::digest(&decoded)),
+        "gzip_base64": STANDARD.encode(gzip.finish().unwrap()),
+    }))
+    .unwrap();
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (directory, library) = library();
+    let root = publish(&fixture, &key, 1, &feed(1)).await;
+    provision(&library, &root);
+    refresh(&library, &fixture, &root).await.unwrap();
+    let root = fixture
+        .publish_with_policy(
+            &[
+                (
+                    listing_delivery::TARGET.into(),
+                    serde_json::to_vec(&feed(1)).unwrap(),
+                ),
+                (listing_delivery::COMPACT_TARGET.into(), carrier),
+            ],
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 2)),
+        )
+        .await;
+    let admitted = refresh(&library, &fixture, &root).await.unwrap();
+    assert_eq!(admitted.listing_count, count);
+    assert_eq!(admitted.withdrawn_ids.len(), count);
+    drop(library);
+
+    // A fresh open reads the stored row back through the same parser.
+    let reopened = Library::open(directory.path()).unwrap();
+    let status = reopened.listing_delivery_status().unwrap();
+    assert!(status.selected);
+    assert_eq!(status.revision, Some(2));
+    assert_eq!(status.listing_count, count);
+    assert_eq!(status.withdrawn_ids.len(), count);
+    let catalog = reopened.load_catalog().unwrap().0;
+    assert!(catalog.listing("scaled-listing-0").is_ok());
+    assert!(
+        catalog
+            .listing(&format!("scaled-listing-{}", count - 1))
+            .is_ok()
+    );
 }

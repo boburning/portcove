@@ -3,7 +3,7 @@ import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import { pickModRecipePath, saveModRecipePath } from "../file-picker";
 import { useAppTranslation } from "../localization";
-import type { OutputDesktopRecipeImportReview } from "../transport-types.generated";
+import type { RecipeImportReview } from "../transport-types.generated";
 import { errorText } from "../view-model";
 import { providerName } from "./ModProviderBrowser";
 import { Button } from "./ui/button";
@@ -31,11 +31,15 @@ export function ModRecipeControl({
   onImported,
 }: Props) {
   const { t } = useAppTranslation("gameSettings");
-  const [review, setReview] = useState<OutputDesktopRecipeImportReview>();
+  const [review, setReview] = useState<RecipeImportReview>();
   const plan = review?.plan;
   const [allowCode, setAllowCode] = useState(false);
   const [name, setName] = useState("");
   const [pending, setPending] = useState<RecipeAction>();
+  const [pausePending, setPausePending] = useState(false);
+  const pauseAfterStep = useRef(false);
+  const pauseTrigger = useRef<HTMLButtonElement>(null);
+  const returnToRecipe = useRef(false);
   const [notice, setNotice] = useState<string>();
   const [failure, setFailure] = useState<string>();
   const nameId = useId();
@@ -54,10 +58,7 @@ export function ModRecipeControl({
     };
   }, [portId, generation]);
   useEffect(() => () => onBusyChange(false), [onBusyChange]);
-  const showReview = (
-    next?: OutputDesktopRecipeImportReview,
-    trigger: HTMLElement | null = null,
-  ) => {
+  const showReview = (next?: RecipeImportReview, trigger: HTMLElement | null = null) => {
     focusReviewFrom.current = document.activeElement === trigger ? trigger : null;
     setReview(next);
   };
@@ -77,6 +78,12 @@ export function ModRecipeControl({
     if (document.activeElement === document.body) openButton.current?.focus();
   }, [plan, locked]);
 
+  useEffect(() => {
+    if (pending || !returnToRecipe.current) return;
+    returnToRecipe.current = false;
+    if (document.activeElement === document.body) reviewHeading.current?.focus();
+  }, [pending]);
+
   function actionState(action: RecipeAction) {
     const active = pending === action;
     return { disabled: locked, focusableWhenDisabled: active, "aria-busy": active };
@@ -94,6 +101,9 @@ export function ModRecipeControl({
       }
     } finally {
       if (active.current) {
+        if (kind === "provider:all" && document.activeElement === pauseTrigger.current) {
+          returnToRecipe.current = true;
+        }
         setPending(undefined);
         onBusyChange(false);
       }
@@ -119,6 +129,7 @@ export function ModRecipeControl({
     focusOpenOnClose.current = reviewSection.current?.contains(document.activeElement) ?? false;
     showReview();
     setAllowCode(false);
+    setNotice(undefined);
   };
 
   const inspectRecipe = () =>
@@ -151,6 +162,48 @@ export function ModRecipeControl({
       );
       if (!active.current) return;
       showReview(nextReview, trigger);
+    });
+  };
+
+  // Stages every missing package in bounded steps. Each step is recorded by
+  // Core, so a stop or restart keeps what was already checked.
+  const checkAllProviders = (trigger: HTMLButtonElement) => {
+    if (!review || !plan || !profileId) return;
+    void run("provider:all", async () => {
+      setFailure(undefined);
+      setAllowCode(false);
+      setPausePending(false);
+      pauseAfterStep.current = false;
+      const total = plan.provider_checks?.length ?? 0;
+      let current = review;
+      let done = 0;
+      for (;;) {
+        const step = await desktopApi.acquireModRecipePackages(
+          portId,
+          profileId,
+          current,
+          generation,
+        );
+        if (!active.current) return;
+        current = step.review;
+        done += step.acquired.length;
+        showReview(current, trigger);
+        setNotice(t("mods.recipe.checkedSoFar", { done, total }));
+        if (step.failure) {
+          setFailure(
+            t("mods.recipe.checkStopped", {
+              name: step.failure.native_id,
+              reason: step.failure.message,
+            }),
+          );
+          return;
+        }
+        if (step.acquired.length === 0 || !current.plan.provider_checks?.length) return;
+        if (pauseAfterStep.current) {
+          setNotice(t("mods.recipe.checksPaused", { done, total }));
+          return;
+        }
+      }
     });
   };
 
@@ -299,6 +352,30 @@ export function ModRecipeControl({
           </details>
           {!profileId && Boolean(plan.provider_checks?.length) && (
             <p>{t("mods.recipe.providerSetupNeeded")}</p>
+          )}
+          {profileId && (plan.provider_checks?.length ?? 0) > 1 && (
+            <Button
+              variant="outline"
+              {...actionState("provider:all")}
+              onClick={(event) => checkAllProviders(event.currentTarget)}
+            >
+              {t("mods.recipe.checkAllProviders")}
+            </Button>
+          )}
+          {pending === "provider:all" && (
+            <Button
+              ref={pauseTrigger}
+              variant="outline"
+              disabled={pausePending}
+              focusableWhenDisabled
+              onClick={() => {
+                pauseAfterStep.current = true;
+                setPausePending(true);
+                setNotice(t("mods.recipe.finishingStep"));
+              }}
+            >
+              {t("mods.recipe.pauseChecks")}
+            </Button>
           )}
           {profileId &&
             plan.provider_checks?.map((nativeId) => (

@@ -1,4 +1,5 @@
-import type { ExternalRuntimeRecord, InstallRecord, PortStatus } from "../../types";
+import type { ExternalRuntimeRecord, InstallRecord, PortStatus, SourceRecord } from "../../types";
+import { failurePresentation } from "../../view-model";
 
 /** Presentation identities only. None grants a Core lock or execution authority. */
 export type InvocationContext = {
@@ -7,7 +8,13 @@ export type InvocationContext = {
   libraryGeneration: number;
   exclusionScope: "target" | "library" | "application";
   /** Permanently bounded API contracts; event phase strings never grant compatibility. */
-  operation?: "acquire_game_update" | "launch" | "register_external" | undefined;
+  operation?:
+    | "acquire_game_update"
+    | "launch"
+    | "register_external"
+    | "change_managed_route"
+    | "import_source"
+    | undefined;
   /** Only an identity supplied by an owned API/record, never inferred from events. */
   activityId?: string;
 };
@@ -20,9 +27,74 @@ export type InvocationRecord = {
   outcome?: "succeeded" | "failed" | "cancelled";
   failure?: unknown;
   refreshFailure?: unknown;
+  reviewCurrentState?: true;
   installed?: Pick<InstallRecord, "id" | "port_id" | "version">;
   externalRegistration?: ExternalRuntimeRecord;
+  sourceRegistration?: { source: SourceRecord; afterRead: number | undefined };
 };
+
+export const managedRouteReadbackGuidance =
+  "If your previous installation still appears after refreshing, restart Portcove before using it.";
+
+export const sourceImportRecoveryGuidance =
+  "Restart Portcove to check the saved file location and recover any unfinished work before adding it again.";
+
+export function mutationNeedsReadback(error: unknown) {
+  const mutation = failurePresentation(error)?.mutation_state;
+  return mutation !== "not_started" && mutation !== "no_changes";
+}
+
+export function matchingSavedSource(
+  record: InvocationRecord,
+  sources: readonly SourceRecord[],
+  generation: number,
+  readRevision: number | undefined,
+) {
+  const { target, libraryGeneration } = record.context;
+  const receipt = record.sourceRegistration;
+  if (
+    !receipt ||
+    record.phase !== "settled" ||
+    record.outcome !== "succeeded" ||
+    target.kind !== "source" ||
+    libraryGeneration !== generation ||
+    readRevision === undefined ||
+    receipt.afterRead === undefined ||
+    readRevision <= receipt.afterRead
+  )
+    return undefined;
+  return sources.find(
+    (source) =>
+      source.profile_id === target.id && JSON.stringify(source) === JSON.stringify(receipt.source),
+  );
+}
+
+export function canOpenInstalledResult(
+  record: InvocationRecord,
+  status: PortStatus | undefined,
+  generation: number,
+  selectedPortId: string | null | undefined,
+  unreadInstallPorts: ReadonlySet<string>,
+) {
+  const { target, libraryGeneration } = record.context;
+  const active = status?.active;
+  return (
+    record.phase === "settled" &&
+    record.outcome === "succeeded" &&
+    target.kind === "port" &&
+    libraryGeneration === generation &&
+    status?.port_id === target.id &&
+    !status.external_runtime &&
+    selectedPortId !== target.id &&
+    !unreadInstallPorts.has(target.id) &&
+    active != null &&
+    record.installed != null &&
+    active.id === record.installed.id &&
+    active.port_id === target.id &&
+    record.installed.port_id === target.id &&
+    active.version === record.installed.version
+  );
+}
 
 function matchesExternalRegistration(
   receipt: ExternalRuntimeRecord,

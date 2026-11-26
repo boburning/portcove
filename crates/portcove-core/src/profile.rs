@@ -26,14 +26,23 @@ use crate::{
 #[path = "profile_tests.rs"]
 mod tests;
 
-pub(crate) const MAX_PROFILES: usize = 64;
-const MAX_PROFILES_PER_PORT: usize = MAX_PROFILES;
-const MAX_PACKAGES: usize = 512;
-const MAX_SETTINGS: usize = 64;
+/// The shared setup capacity; see `setup_capacity` for the contract.
+const MAX_PACKAGES: usize = crate::setup_capacity::MAX_SETUP_PACKAGES;
+/// Settings per revision, shared by captured mod options and recipes. The
+/// serialized revision byte bound is the binding resource limit; this count only
+/// rejects pathological shapes. It is sized from package capacity so a few
+/// option-rich mods cannot exhaust it (eight options per possible package).
+pub(crate) const MAX_SETTINGS: usize = MAX_PACKAGES * 8;
 const MAX_LIMITS: usize = 64;
-const MAX_TEXT: usize = 1024;
+pub(crate) const MAX_TEXT: usize = 1024;
+/// A profile record holds a name, policy and requested intent; the stored
+/// table's check is this bound. Packages live in revisions, not here.
 const MAX_PROFILE_BYTES: usize = 64 * 1024;
-const MAX_REVISION_BYTES: usize = 256 * 1024;
+const MAX_REVISION_BYTES: usize = crate::setup_capacity::MAX_SETUP_DOCUMENT_BYTES;
+/// The revision bound migration 79 wrote. Frozen: recorded migrations are
+/// re-verified on every open, so a later raise needs its own rebuild.
+pub(crate) const REVISION_BOUND_V79: usize = 16 * 1024 * 1024;
+const _: () = assert!(MAX_REVISION_BYTES <= REVISION_BOUND_V79);
 
 /// How a profile follows newer eligible releases. Stored as intent; unattended
 /// application is owned by the provider/standing-policy work, not this module.
@@ -162,6 +171,14 @@ pub struct ProfileRevision {
     pub loader: Option<LoaderContractRef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub packages: Vec<ResolvedPackage>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::profile_package_files::read_companion_sets"
+    )]
+    /// Reserved on disk behind the custody gate. Publish its machine schema with the writer.
+    #[schemars(skip)]
+    pub recomp_companion_sets_v1: Option<Vec<crate::RecompCompanionSetV1>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub orderings: Vec<TypedOrdering>,
     /// Consequential native settings only; ordinary preferences stay mutable state.
@@ -273,7 +290,7 @@ impl PortcoveService {
                     "the active installation changed; try again",
                 ));
             }
-            follow_active_install(&transaction, &install)?;
+            follow_active_install(&self.library, &transaction, &install)?;
             let updated = profile_from(&transaction, port_id, &existing.id)?;
             transaction.commit()?;
             return Ok(updated);
@@ -333,11 +350,6 @@ impl PortcoveService {
         if clean_revision.is_some_and(|expected| expected != revision.revision) {
             return Err(PortcoveError::conflict(
                 "the source setup changed; review the clean setup again",
-            ));
-        }
-        if profiles_from(&connection, port_id)?.len() >= MAX_PROFILES_PER_PORT {
-            return Err(PortcoveError::state(
-                "this port has the maximum number of profiles",
             ));
         }
         let install_id = if onto_current_build {
@@ -591,6 +603,7 @@ impl PortcoveService {
         let needs_loader = next.packages.iter().any(|package| package.enabled);
         next.loader =
             self.profile_loader_binding(&next.build, next.loader.as_ref(), needs_loader)?;
+        crate::profile_deploy::require_dfu_basename_stability(current, &next)?;
         // A revision the game could not load unambiguously is never recorded.
         if let Some(layout) = self.layout_for_revision(&next)? {
             crate::profile_deploy::require_projectable(&layout, &next)?;
@@ -651,9 +664,26 @@ impl PortcoveService {
     }
 
     pub fn profile_inventory(&self, port_id: &str) -> Result<ProfileInventory> {
+        // Many setups share a few exact builds; verify each build once per
+        // inventory instead of once per setup, so the work follows the number
+        // of installations rather than the number of setups.
+        let verified = std::cell::RefCell::new(BTreeMap::new());
         self.profile_inventory_with(port_id, |profile| {
-            let resolved = self.resolve_retained_build(port_id, &profile.id)?;
-            Ok((resolved.availability, resolved.install))
+            let reference = crate::retained_build::reference_from(
+                &self.library.connection()?,
+                port_id,
+                &profile.id,
+            )?
+            .ok_or_else(|| PortcoveError::not_found("setup has no retained-build reference"))?;
+            let key = serde_json::to_string(&reference.build)?;
+            if let Some(cached) = verified.borrow().get(&key) {
+                return Ok(Clone::clone(cached));
+            }
+            let (availability, install, _) = self.resolve_build_identity(&reference.build)?;
+            verified
+                .borrow_mut()
+                .insert(key, (availability, install.clone()));
+            Ok((availability, install))
         })
     }
 
@@ -745,6 +775,9 @@ impl PortcoveService {
         base: Option<&ProfileRevision>,
         loader: Option<LoaderContractRef>,
     ) -> Result<Profile> {
+        if let Some(base) = base {
+            crate::profile_package_files::require_managed_custody(base)?;
+        }
         let mut revision = ProfileRevision {
             profile_id: profile.id.clone(),
             revision: 1,
@@ -753,6 +786,7 @@ impl PortcoveService {
             originals,
             loader,
             packages: base.map(|b| b.packages.clone()).unwrap_or_default(),
+            recomp_companion_sets_v1: None,
             orderings: base.map(|b| b.orderings.clone()).unwrap_or_default(),
             settings: base.map(|b| b.settings.clone()).unwrap_or_default(),
             save_group: uuid::Uuid::new_v4().to_string(),
@@ -796,7 +830,12 @@ impl PortcoveService {
     }
 }
 
-pub(crate) fn require_default_recovery_capacity(
+/// Refuses an activating publication before its payload moves when Default's
+/// next binding could not apply the retention policy (an interrupted setup
+/// switch must finish first). Otherwise the policy retires an offer inside the
+/// activation transaction and this check passes.
+pub(crate) fn require_default_retention_ready(
+    library: &Library,
     connection: &Connection,
     port_id: &str,
     install_id: &str,
@@ -805,7 +844,9 @@ pub(crate) fn require_default_recovery_capacity(
         && let Some(reference) =
             crate::retained_build::reference_from(connection, port_id, &profile.id)?
     {
-        crate::retained_build::require_binding_history_capacity(&reference, install_id)?;
+        let pins =
+            crate::retained_build::RetentionPins::read(library, connection, port_id, &profile.id)?;
+        crate::retained_build::successor_history(Some(&reference), install_id, 0, &pins)?;
     }
     Ok(())
 }
@@ -842,6 +883,7 @@ pub(crate) fn require_active_default_revision(
 /// change, after the lifecycle has validated the target. Replaying publication
 /// of the same install does not append another revision.
 pub(crate) fn follow_active_install(
+    library: &Library,
     transaction: &rusqlite::Transaction<'_>,
     install: &InstallRecord,
 ) -> Result<()> {
@@ -880,6 +922,7 @@ pub(crate) fn follow_active_install(
     next.created_at = Library::now();
     seal(&mut next)?;
     crate::retained_build::write_successor_reference(
+        library,
         transaction,
         &profile.id,
         next.build.clone(),
@@ -1010,12 +1053,13 @@ pub(crate) fn validate_provider_requirements(
     requirements: &[ProviderRequirement],
     mut contains: impl FnMut(&ProviderPackageRef, &str, &str) -> bool,
 ) -> Result<()> {
-    if requirements.len() > crate::mod_package::MAX_MEMBERS
+    // Direct requirements and their members are packages of the same setup.
+    if requirements.len() > MAX_PACKAGES
         || requirements
             .iter()
             .map(|requirement| requirement.members.len())
             .sum::<usize>()
-            > crate::mod_package::MAX_MEMBERS
+            > MAX_PACKAGES
     {
         return Err(PortcoveError::verification(
             "too many provider requirements",
@@ -1073,6 +1117,7 @@ pub(crate) fn validate_revision(revision: &ProfileRevision) -> Result<()> {
             "profile revision has an invalid or oversized shape",
         ));
     }
+    crate::profile_package_files::require_managed_custody(revision)?;
     text(&revision.save_group, "save group")?;
     let mut native_ids = BTreeSet::new();
     for package in &revision.packages {
@@ -1198,8 +1243,6 @@ pub struct LibraryProfile {
     pub selected_revision: Option<u64>,
 }
 
-pub(crate) const MAX_EXPORTED_PROFILES: usize = 1024;
-
 pub(crate) fn export(connection: &Connection) -> Result<Vec<LibraryProfile>> {
     let mut statement =
         connection.prepare("SELECT DISTINCT port_id FROM profiles ORDER BY port_id")?;
@@ -1227,11 +1270,6 @@ pub(crate) fn export(connection: &Connection) -> Result<Vec<LibraryProfile>> {
             });
         }
     }
-    if exported.len() > MAX_EXPORTED_PROFILES {
-        return Err(PortcoveError::state(
-            "library has more profiles than metadata can carry",
-        ));
-    }
     exported.sort_by(|a, b| {
         (&a.profile.port_id, &a.profile.id).cmp(&(&b.profile.port_id, &b.profile.id))
     });
@@ -1248,13 +1286,10 @@ pub(crate) fn has_retired_history(
     profiles: &[LibraryProfile],
     references: &[crate::RetainedBuildReference],
 ) -> bool {
+    let references = references_by_setup(references);
     profiles.iter().any(|entry| {
         references
-            .iter()
-            .find(|reference| {
-                reference.setup_id == entry.profile.id
-                    && reference.build.port_id == entry.profile.port_id
-            })
+            .get(&(entry.profile.port_id.as_str(), entry.profile.id.as_str()))
             .is_some_and(|reference| {
                 entry.revisions.iter().any(|revision| {
                     !reference
@@ -1265,16 +1300,31 @@ pub(crate) fn has_retired_history(
     })
 }
 
+/// Indexes references by (port, setup) so validation stays linear in library size.
+fn references_by_setup(
+    references: &[crate::RetainedBuildReference],
+) -> BTreeMap<(&str, &str), &crate::RetainedBuildReference> {
+    let mut indexed = BTreeMap::new();
+    for reference in references {
+        indexed
+            .entry((
+                reference.build.port_id.as_str(),
+                reference.setup_id.as_str(),
+            ))
+            .or_insert(reference);
+    }
+    indexed
+}
+
+/// The profile count follows the exporting library: creation has no count
+/// ceiling, so neither does the exchange contract. Each profile and revision
+/// keeps its own byte bound.
 pub(crate) fn validate_export(
     profiles: &[LibraryProfile],
     references: &[crate::RetainedBuildReference],
     allow_retired_history: bool,
 ) -> Result<()> {
-    if profiles.len() > MAX_EXPORTED_PROFILES {
-        return Err(PortcoveError::verification(
-            "library metadata exceeds the profile limit",
-        ));
-    }
+    let indexed = references_by_setup(references);
     let mut ids = BTreeSet::new();
     let mut defaults = BTreeSet::new();
     let mut selected_ports = BTreeSet::new();
@@ -1290,9 +1340,9 @@ pub(crate) fn validate_export(
                 "library metadata has a repeated, malformed or incomplete profile",
             ));
         }
-        let reference = references
-            .iter()
-            .find(|r| r.setup_id == profile.id && r.build.port_id == profile.port_id)
+        let reference = indexed
+            .get(&(profile.port_id.as_str(), profile.id.as_str()))
+            .copied()
             .ok_or_else(|| {
                 PortcoveError::verification("a profile has no retained build reference")
                     .detail("profile_id", &profile.id)
@@ -1448,6 +1498,53 @@ pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
     Ok(())
 }
 
+/// Migration 79: widen the stored revision check from 256 KiB to the setup
+/// contract's revision bound. SQLite cannot alter a CHECK in place; nothing
+/// references `profile_revisions`, so rows are copied unchanged into a rebuilt
+/// table inside the migration transaction.
+pub(crate) fn migrate_revision_bound(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(&format!(
+        "CREATE TABLE profile_revisions_rebuild (
+            profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
+            revision INTEGER NOT NULL,
+            digest TEXT NOT NULL,
+            revision_json TEXT NOT NULL CHECK(length(revision_json) <= {REVISION_BOUND_V79}),
+            PRIMARY KEY(profile_id, revision)
+        );
+        INSERT INTO profile_revisions_rebuild(profile_id, revision, digest, revision_json)
+            SELECT profile_id, revision, digest, revision_json FROM profile_revisions;
+        DROP TABLE profile_revisions;
+        ALTER TABLE profile_revisions_rebuild RENAME TO profile_revisions;"
+    ))?;
+    verify_revision_bound(transaction)
+}
+
+/// Schema 79 holds while the revision check admits at least its bound.
+pub(crate) fn verify_revision_bound(connection: &Connection) -> Result<()> {
+    verify_migration(connection)?;
+    let schema: String = connection.query_row(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='profile_revisions'",
+        [],
+        |row| row.get(0),
+    )?;
+    let prefix = "length(revision_json) <= ";
+    let bound = schema
+        .find(prefix)
+        .map(|start| {
+            schema[start + prefix.len()..]
+                .chars()
+                .take_while(char::is_ascii_digit)
+                .collect::<String>()
+        })
+        .and_then(|digits| digits.parse::<usize>().ok());
+    if bound.is_none_or(|bound| bound < REVISION_BOUND_V79) {
+        return Err(PortcoveError::state(
+            "setup revisions do not admit the schema-79 revision bound",
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn verify_migration(connection: &Connection) -> Result<()> {
     for (table, columns) in [
         (
@@ -1489,7 +1586,20 @@ pub(crate) fn active_install_id(connection: &Connection, port_id: &str) -> Resul
         .flatten())
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Stored setup and revision records decoded on this thread: a
+    /// deterministic measure of per-operation work for scaling tests.
+    pub(crate) static DECODED_RECORDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+fn count_decoded_record() {
+    #[cfg(test)]
+    DECODED_RECORDS.with(|count| count.set(count.get() + 1));
+}
+
 fn read_profile(json: &str, id: &str, port_id: &str, current: u64) -> Result<Profile> {
+    count_decoded_record();
     if json.len() > MAX_PROFILE_BYTES {
         return Err(PortcoveError::state("stored profile exceeds its bound"));
     }
@@ -1505,7 +1615,7 @@ fn read_profile(json: &str, id: &str, port_id: &str, current: u64) -> Result<Pro
 fn profiles_from(connection: &Connection, port_id: &str) -> Result<Vec<Profile>> {
     let mut statement = connection.prepare(
         "SELECT id, port_id, current_revision, profile_json FROM profiles
-         WHERE port_id=?1 ORDER BY is_default DESC, id LIMIT 65",
+         WHERE port_id=?1 ORDER BY is_default DESC, id",
     )?;
     let rows = statement.query_map([port_id], |row| {
         Ok((
@@ -1540,67 +1650,177 @@ pub(crate) fn provider_evidence(
     package: &crate::RecipePackage,
     provider: Option<&ProviderPackageRef>,
 ) -> Result<ProviderEvidence> {
-    let candidates = connection
-        .prepare(
-            "SELECT r.profile_id, r.revision FROM profile_revisions r
-             JOIN profiles p ON p.id = r.profile_id
-             WHERE p.port_id=?1 AND instr(r.revision_json, ?2) > 0
-             ORDER BY r.profile_id, r.revision",
-        )?
-        .query_map(params![port_id, package.sha256], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?))
-        })?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    let mut recorded = false;
-    let mut has_requirements = false;
-    let mut known_requirements = false;
-    for (profile_id, revision) in candidates {
-        let stored = revision_from(connection, &profile_id, revision)?;
-        for member in &stored.packages {
-            if member.sha256 != package.sha256 || member.native_id != package.native_id {
-                continue;
-            }
-            known_requirements |= !member.provider_requires.is_empty();
-            if member.provider.as_ref() != provider {
-                continue;
-            }
-            recorded = true;
-            if !member.provider_requires.is_empty() {
-                has_requirements = true;
-                if member.provider_requires == package.provider_requires {
-                    return Ok(ProviderEvidence::Matches);
+    Ok(
+        ProviderEvidenceIndex::read(connection, port_id, std::iter::once(package))?
+            .evidence(package, provider),
+    )
+}
+
+/// What the port's retained history recorded for a set of exact packages,
+/// read in one pass: each revision that names one of the packages' digests is
+/// parsed once, however many of the packages it holds. Looking each package up
+/// separately parsed the same revisions once per package, which grew with the
+/// square of the setup's size.
+pub(crate) struct ProviderEvidenceIndex {
+    /// (digest, native ID) → each recorded (label, requirements), in history order.
+    recorded: std::collections::HashMap<
+        (String, String),
+        Vec<(Option<ProviderPackageRef>, Vec<ProviderRequirement>)>,
+    >,
+}
+
+impl ProviderEvidenceIndex {
+    pub(crate) fn read<'a>(
+        connection: &Connection,
+        port_id: &str,
+        packages: impl IntoIterator<Item = &'a crate::RecipePackage>,
+    ) -> Result<Self> {
+        let wanted = packages
+            .into_iter()
+            .map(|package| (package.sha256.clone(), package.native_id.clone()))
+            .collect::<std::collections::HashSet<_>>();
+        let digests = wanted
+            .iter()
+            .map(|(sha256, _)| sha256.as_str())
+            .collect::<std::collections::HashSet<_>>();
+        // The same candidates the per-package query selected: revisions of
+        // this port whose stored text contains one of the digests.
+        let mut candidates = Vec::new();
+        {
+            let mut statement = connection.prepare(
+                "SELECT r.profile_id, r.revision, r.revision_json FROM profile_revisions r
+                 JOIN profiles p ON p.id = r.profile_id
+                 WHERE p.port_id=?1
+                 ORDER BY r.profile_id, r.revision",
+            )?;
+            let mut rows = statement.query(params![port_id])?;
+            while let Some(row) = rows.next()? {
+                let json = row.get_ref(2)?.as_str().map_err(rusqlite::Error::from)?;
+                if names_any_digest(json, &digests) {
+                    candidates.push((row.get::<_, String>(0)?, row.get::<_, u64>(1)?));
                 }
             }
         }
+        let mut recorded = std::collections::HashMap::<_, Vec<_>>::new();
+        for (profile_id, revision) in candidates {
+            let stored = revision_from(connection, &profile_id, revision)?;
+            for member in stored.packages {
+                let key = (member.sha256, member.native_id);
+                if wanted.contains(&key) {
+                    recorded
+                        .entry(key)
+                        .or_default()
+                        .push((member.provider, member.provider_requires));
+                }
+            }
+        }
+        Ok(Self { recorded })
     }
-    Ok(if recorded {
-        if has_requirements || !package.provider_requires.is_empty() {
+
+    pub(crate) fn evidence(
+        &self,
+        package: &crate::RecipePackage,
+        provider: Option<&ProviderPackageRef>,
+    ) -> ProviderEvidence {
+        let mut recorded = false;
+        let mut has_requirements = false;
+        let mut known_requirements = false;
+        let members = self
+            .recorded
+            .get(&(package.sha256.clone(), package.native_id.clone()))
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        for (label, requirements) in members {
+            known_requirements |= !requirements.is_empty();
+            if label.as_ref() != provider {
+                continue;
+            }
+            recorded = true;
+            if !requirements.is_empty() {
+                has_requirements = true;
+                if *requirements == package.provider_requires {
+                    return ProviderEvidence::Matches;
+                }
+            }
+        }
+        if recorded {
+            if has_requirements || !package.provider_requires.is_empty() {
+                ProviderEvidence::RequirementsDiffer
+            } else {
+                ProviderEvidence::Matches
+            }
+        } else if known_requirements {
             ProviderEvidence::RequirementsDiffer
         } else {
-            ProviderEvidence::Matches
+            ProviderEvidence::Unrecorded
         }
-    } else if known_requirements {
-        ProviderEvidence::RequirementsDiffer
-    } else {
-        ProviderEvidence::Unrecorded
-    })
+    }
+}
+
+/// Whether `text` contains one of `digests` (64 lowercase hex characters each)
+/// anywhere, as SQLite's `instr` would find it, in one pass over the text.
+pub(crate) fn names_any_digest(text: &str, digests: &std::collections::HashSet<&str>) -> bool {
+    let bytes = text.as_bytes();
+    let hex = |byte: &u8| matches!(byte, b'0'..=b'9' | b'a'..=b'f');
+    let mut start = 0;
+    while start < bytes.len() {
+        if !hex(&bytes[start]) {
+            start += 1;
+            continue;
+        }
+        let end = start + bytes[start..].iter().take_while(|byte| hex(byte)).count();
+        // Every 64-character window of the hex run, as a substring search would.
+        if end - start >= 64 && (start..=end - 64).any(|at| digests.contains(&text[at..at + 64])) {
+            return true;
+        }
+        start = end;
+    }
+    false
 }
 
 fn default_profile(connection: &Connection, port_id: &str) -> Result<Option<Profile>> {
-    Ok(profiles_from(connection, port_id)?
-        .into_iter()
-        .find(|profile| profile.is_default))
+    // `profiles_one_default` keeps at most one row per port.
+    profile_row(
+        connection,
+        "SELECT id, port_id, current_revision, profile_json FROM profiles
+         WHERE port_id=?1 AND is_default=1",
+        params![port_id],
+    )
 }
 
+/// One setup by its primary key. Reads only that row, so operating on one
+/// setup costs the same however many setups the port has.
 pub(crate) fn profile_from(
     connection: &Connection,
     port_id: &str,
     profile_id: &str,
 ) -> Result<Profile> {
-    profiles_from(connection, port_id)?
-        .into_iter()
-        .find(|profile| profile.id == profile_id)
-        .ok_or_else(|| PortcoveError::not_found("profile is not registered for this port"))
+    profile_row(
+        connection,
+        "SELECT id, port_id, current_revision, profile_json FROM profiles
+         WHERE id=?1 AND port_id=?2",
+        params![profile_id, port_id],
+    )?
+    .ok_or_else(|| PortcoveError::not_found("profile is not registered for this port"))
+}
+
+fn profile_row(
+    connection: &Connection,
+    sql: &str,
+    parameters: impl rusqlite::Params,
+) -> Result<Option<Profile>> {
+    connection
+        .query_row(sql, parameters, |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, u64>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .optional()?
+        .map(|(id, port, current, json)| read_profile(&json, &id, &port, current))
+        .transpose()
 }
 
 fn revision_from(
@@ -1616,6 +1836,7 @@ fn revision_from(
         )
         .optional()?
         .ok_or_else(|| PortcoveError::not_found("profile revision is missing"))?;
+    count_decoded_record();
     if json.len() > MAX_REVISION_BYTES {
         return Err(PortcoveError::state(
             "stored profile revision exceeds its bound",
@@ -1703,6 +1924,7 @@ pub(crate) fn current_revision(
     revision_from(connection, profile_id, profile.current_revision)
 }
 
+#[cfg(test)]
 pub(crate) fn profile_count(connection: &Connection, port_id: &str) -> Result<usize> {
     Ok(profiles_from(connection, port_id)?.len())
 }

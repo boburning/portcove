@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-all-stars-tanooki-recomp",
+    "project_url": "https://github.com/TanookiStudios/SuperMarioAllStarsRecomp",
+    "name": "Super Mario All-Stars / Tanooki Studios",
+    "summary": "Super Mario All-Stars (SNES), native for Mac, Windows and Linux. Bring your own ROM.",
+    "issue_number": 5558,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-all-stars",
+      "evidence_urls": ["https://github.com/TanookiStudios/SuperMarioAllStarsRecomp"],
+      "source_editions": [
+        {
+          "id": "super-mario-all-stars-super-nintendo",
+          "title": "Super Mario All-Stars (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/TanookiStudios/SuperMarioAllStarsRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Super Mario All-Stars"
+  }
+}

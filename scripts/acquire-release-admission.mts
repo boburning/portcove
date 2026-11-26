@@ -5,6 +5,7 @@ import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import {
   createReleasePublicationReader,
   createPublicationInventoryWithSdk,
+  mergeVerifiedReceipts,
   peelReleaseReference,
   releasePublicationRefsQuery as refsQuery,
 } from "./release-publication-inventory.mts";
@@ -508,10 +509,13 @@ export async function acquireReleaseAdmission(
                     : []
             ).includes(key),
         ) ||
+        // Collections are page-number based; the publication reader validates
+        // that each page is the provider's own successor. Inventory length is
+        // paced by the admission request and time budget, not a page ceiling.
         (collection &&
           (url.searchParams.get("per_page") !== "100" ||
             (url.searchParams.has("page") &&
-              !/^(?:[1-9]|1[0-6])$/u.test(url.searchParams.get("page") ?? "")))) ||
+              !/^[1-9][0-9]{0,8}$/u.test(url.searchParams.get("page") ?? "")))) ||
         (route.endsWith("/check-runs") && url.searchParams.get("filter") !== "latest") ||
         (tree && keys.length !== 0 && url.searchParams.get("recursive") !== "1") ||
         (contents && !/^[a-f0-9]{40}$/u.test(url.searchParams.get("ref") ?? ""))
@@ -563,6 +567,9 @@ export async function acquireReleaseAdmission(
       selected: AuthenticatedReleaseControlSource,
       opportunity: unknown,
     ) => {
+      // Historical receipts below contribute only their pair identity; that
+      // stands in for their raw commits only under exact receipt protection.
+      selected.receiptProtection(config.namespace);
       if (!scopedControls) return selected.read(api, opportunity);
       checkReadTime();
       const { reserve, elapsed } = archiveLookup();
@@ -640,12 +647,17 @@ export async function acquireReleaseAdmission(
       throw new Error("admission frozen run differs from prepared source");
     const initialTags = await publicationReader.tags();
     const initialReleases = await publicationReader.releases();
-    const { allocations, intents } = await publicationReader.readAllocations(
-      initialTags,
-      config.namespace,
-    );
+    // Only the active receipt's raw commits are decision inputs. Historical
+    // receipts contribute their pair identity (version, source, prepared
+    // commit), which the tag listing establishes without per-version reads.
+    const {
+      receipts,
+      allocations: verified,
+      intents,
+    } = await publicationReader.readAllocations(initialTags, config.namespace, [version]);
+    const allocations = mergeVerifiedReceipts(receipts, verified);
     const activePreparationIntent = intents.get(version) ?? null;
-    const active = allocations.find((a) => a.version === version);
+    const active = verified.find((a) => a.version === version);
     if (
       !active ||
       ["source_commit", "source_tree", "prepared_commit", "prepared_tree", "intent_sha256"].some(
@@ -738,24 +750,31 @@ export async function acquireReleaseAdmission(
     }
     const publishedVersions: string[] = [];
     const publishedSources: string[] = [];
+    // Exact lookups keep the complete-history pass linear in its length.
+    const tagsByName = new Map<string, (typeof initialTags)[number]>();
+    for (const tag of initialTags)
+      if (!tagsByName.has(String(tag.name))) tagsByName.set(String(tag.name), tag);
+    const allocationsByVersion = new Map(allocations.map((a) => [a.version, a]));
+    const publishedSet = new Set<string>();
     for (const release of initialReleases.filter((r) => !r.draft)) {
       if (!release.tag_name.startsWith("v")) {
         holds.add("published-version-identity-unknown");
         continue;
       }
       const published = classifyApplicationVersion(release.tag_name.slice(1)).version;
-      if (publishedVersions.includes(published))
+      if (publishedSet.has(published))
         throw new Error("published version has multiple release identities");
+      publishedSet.add(published);
       publishedVersions.push(published);
-      const ref = initialTags.find((r) => r.name === release.tag_name);
+      const ref = tagsByName.get(release.tag_name);
       if (!ref) {
         holds.add("published-tag-identity-unavailable");
         continue;
       }
       const publishedCommit = peelReleaseReference(ref);
-      const allocation = allocations.find(
-        (a) => a.prepared_commit === publishedCommit && a.version === published,
-      );
+      const candidateAllocation = allocationsByVersion.get(published);
+      const allocation =
+        candidateAllocation?.prepared_commit === publishedCommit ? candidateAllocation : undefined;
       if (!allocation) {
         holds.add("historical-original-source-and-routine-preview-classification-unresolved");
         continue;
@@ -766,7 +785,7 @@ export async function acquireReleaseAdmission(
       holds.add("routine-preview-publication-history-unresolved");
     }
     const reservedVersions = allocations
-      .filter((a) => !publishedVersions.includes(a.version))
+      .filter((a) => !publishedSet.has(a.version))
       .map((a) => a.version)
       .sort();
     if (reservedVersions.length !== 1 || reservedVersions[0] !== version)

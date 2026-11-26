@@ -15,16 +15,9 @@ import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runCheckedGit } from "./checked-git.mts";
 import test from "node:test";
-import { compactOpenGoalSetup, projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
-import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
-import { projectOpenXPortable } from "./catalog-openx-portable.mts";
-import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
-import { projectRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
-import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
-import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
-import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import { projectReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import {
   collectPortFacts,
@@ -33,7 +26,9 @@ import {
 } from "./port-upstream-facts.mts";
 import {
   preparePort,
+  prepareDiscoveryListingAdditions,
   prepareArtworkBatch,
+  prepareSharedCoverBatch,
   prepareListingObservations,
   portablePreparationFeedback,
   downloadPreparationFeedback,
@@ -42,11 +37,10 @@ import {
 } from "./prepare-port.mts";
 import { checkedAuthoredPort, readCatalogSource } from "./catalog-authoring.mts";
 import { observationHash } from "./upstream-observer.mts";
+import { encodeCompactListing } from "./listing-directory-carrier.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
-import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
-import { projectAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
 import { coreProposalInspector, type ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort, CatalogPort } from "./catalog-authoring.mts";
 import { managedSetupReleaseAdvice } from "./catalog-setup-release-advice.mts";
@@ -225,7 +219,15 @@ void test("canonical preparation exposes the exact specification without derivin
       summary: "Fixture",
       project_url: "https://github.com/example/fixture",
       issue_number: 156,
-      download_block_reason: "Retain the reviewed exact acquisition condition.",
+      restrictions: [
+        {
+          id: "download",
+          effect: "hold",
+          operations: ["download"],
+          reason: "package-facts-unresolved",
+          explanation: "Retain the reviewed exact acquisition condition.",
+        },
+      ],
     },
   };
   const before = structuredClone(record);
@@ -245,7 +247,10 @@ void test("canonical preparation exposes the exact specification without derivin
   assert.equal(feedback.specification.body_sha256, createHash("sha256").update(body).digest("hex"));
   assert.equal(feedback.specification.observed_at, "2026-10-25T00:00:00Z");
   assert.match(feedback.specification.location, /files.upstream/);
-  assert.equal(feedback.authored_acquisition_condition, before.listing.download_block_reason);
+  assert.equal(
+    feedback.authored_acquisition_condition,
+    before.listing.restrictions?.[0]?.explanation,
+  );
   assert.match(feedback.next, /complete retained canonical specification/);
   assert.match(feedback.scope, /No prose is classified/);
   assert.deepEqual(record, before);
@@ -394,49 +399,6 @@ void test("portable preparation separates complete hint observations from lifecy
       { assets_complete: true, assets: [] },
     ),
     undefined,
-  );
-});
-
-void test("Raze preparation retains the explicit archive and persistence observations", () => {
-  const record: AuthoredPort = {
-    format_version: 1,
-    listing: {
-      id: "blood-raze",
-      name: "Blood (Raze)",
-      summary: "Fixture",
-      project_url: "https://github.com/ZDoom/Raze",
-    },
-    raze_windows_profile_v1: true,
-    integration: {
-      adapter: "native-portable",
-      platforms: ["windows-x86-64"],
-      channels: ["stable"],
-      release: { repository: "ZDoom/Raze" },
-    },
-  };
-  const explicit = structuredClone(record);
-  delete explicit.raze_windows_profile_v1;
-  explicit.integration!.release = {
-    repository: "ZDoom/Raze",
-    asset_hints: { "windows-x86-64": ["Raze-", "-windows.zip"] },
-  };
-  explicit.integration!.persistent_paths = [
-    "raze_portable.ini",
-    "Save",
-    "Screenshots",
-    "Demos",
-    "autoexec.cfg",
-  ];
-  const facts = {
-    assets_complete: true,
-    assets: [{ name: "Raze-1.9.0-windows.zip" }, { name: "Raze-1.9.0-linux.tar.gz" }],
-  };
-  const feedback = portablePreparationFeedback(record, facts)!;
-  assert.deepEqual(feedback, portablePreparationFeedback(explicit, facts));
-  assert.equal(feedback.platforms[0]?.hint_matches.length, 1);
-  assert.equal(
-    declarativePreparationFeedback(record).projections[0]?.field,
-    "raze_windows_profile_v1",
   );
 });
 
@@ -860,6 +822,666 @@ void test("complete selected-release observations reuse exact assets and do not 
   }
 });
 
+void test("discovery listing batch keeps independent additions and never replaces accepted records", async (context) => {
+  const f = fixture();
+  try {
+    const claim = (id: string, repository: string, repository_id: number) => ({
+      id,
+      project_url: `https://github.com/${repository}`,
+      repository_id,
+      evidence_sha256: "a".repeat(64),
+    });
+    const handoff = {
+      format: "portcove-discovery-listing-handoff",
+      format_version: 1,
+      candidates: [
+        claim("dcs-moved", "moved/crawl", 23038334),
+        claim("dcs-reused", "crawl/crawl", 777),
+        claim("warioland4", "moved/crawl", 23038334),
+        claim("first-new-port", "example/fixture", metadata.id),
+        claim("second-new-port", "example/second", 124),
+        claim("third-new-port", "example/third", 125),
+        claim("overlap-one", "example/overlap", 126),
+        claim("overlap-two", "other/relocated", 126),
+        claim("launcher-as-port", "xander-haj/lawn", 127),
+        claim("release-mirror-as-port", "sonicdcer/DNZHRecomp", 128),
+      ],
+    };
+    const options = {
+      catalogRoot,
+      outputDirectory: join(f.root, "discovery-listings"),
+      handoff,
+      facts: {
+        now: () => Date.parse("2026-11-26T00:00:00Z"),
+        fetcher: f.fetcher((url) => {
+          if (url.endsWith("/example/fixture")) return json({ ...metadata, private: false });
+          if (url.endsWith("/example/second"))
+            return json({ ...metadata, id: 555, full_name: "example/second", private: false });
+          if (url.endsWith("/example/third"))
+            return json({ ...metadata, id: 125, full_name: "example/third", private: false });
+          return new Response(null, { status: 404 });
+        }),
+      },
+    };
+    const { report } = await prepareDiscoveryListingAdditions(options);
+    assert.deepEqual(report.changed_records, ["first-new-port", "third-new-port"]);
+    assert.equal(report.operational_changed, false);
+    assert.deepEqual(
+      report.outcomes.map(({ status }) => status),
+      [
+        "already-cataloged",
+        "held",
+        "held",
+        "prepared",
+        "held",
+        "prepared",
+        "held",
+        "held",
+        "held",
+        "held",
+      ],
+    );
+    assert.equal(f.requests.length, 3);
+    assert.deepEqual(JSON.parse(readFileSync(report.files.records[0]!.path, "utf8")), {
+      format_version: 1,
+      upstream_lineage: {
+        format_version: 1,
+        target_key: "first-new-port",
+        origin: { project_url: project, repository: { host: "github.com", id: "123" } },
+        decisions: [],
+      },
+      original_game_review: {
+        disposition: "unresolved",
+        reason: "Repository evidence does not establish an exact original game or source edition.",
+        evidence_urls: [project],
+      },
+      listing: {
+        id: "first-new-port",
+        name: "fixture",
+        project_url: project,
+        listed_at: "2026-11-26",
+        release_url: `${project}/releases`,
+        summary: metadata.description,
+      },
+    });
+    const accepted = readCatalogSource(catalogRoot);
+    const directory: unknown = JSON.parse(readFileSync(report.files.listings, "utf8"));
+    assert.ok(isRecord(directory) && Array.isArray(directory.listings));
+    assert.equal(directory.listings.length, accepted.directory.listings.length + 2);
+    assert.equal(report.accepted_listings_sha256, observationHash(accepted.directory));
+    assert.equal(report.admission, null);
+    const approval = {
+      format: "portcove-discovery-listing-approval",
+      format_version: 1,
+      ...report.admission_binding,
+      approved_ids: ["third-new-port"],
+    };
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({ ...options, approval: { document: approval } }),
+      /requires a trusted Core validator/u,
+    );
+    const validatorCli = join(f.root, "selected-cli");
+    writeFileSync(validatorCli, "inert listing validator fixture");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        validatorCli,
+        approval: { document: { ...approval, source_sha256: "0".repeat(64) } },
+      }),
+      /does not match the handoff and catalog source/u,
+    );
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        validatorCli,
+        approval: { document: { ...approval, approved_ids: ["unknown-port"] } },
+      }),
+      /must name unique IDs from the exact handoff/u,
+    );
+    let approved;
+    context.mock.method(childProcess, "spawnSync", (artifact: string, args: string[]) => {
+      assert.equal(readFileSync(artifact, "utf8"), "inert listing validator fixture");
+      assert.deepEqual(args.slice(-3, -1), ["inspect-listings", "--path"]);
+      const data: unknown = JSON.parse(readFileSync(args.at(-1)!, "utf8"));
+      return { status: 0, signal: null, stdout: JSON.stringify({ data }), stderr: "" };
+    });
+    syncBuiltinESMExports();
+    try {
+      approved = await prepareDiscoveryListingAdditions({
+        ...options,
+        validatorCli,
+        approval: { document: approval },
+      });
+    } finally {
+      context.mock.restoreAll();
+      syncBuiltinESMExports();
+    }
+    assert.deepEqual(approved.report.changed_records, ["third-new-port"]);
+    assert.equal(
+      (approved.report.listing_validation as ListingReceipt).listings.length,
+      accepted.directory.listings.length + 1,
+    );
+    const admission = approved.report.admission;
+    assert.ok(admission);
+    const patch = readFileSync(admission.path);
+    assert.equal(createHash("sha256").update(patch).digest("hex"), admission.sha256);
+    const apply = childProcess.spawnSync("git", ["apply", "--numstat", admission.path], {
+      cwd: dirname(dirname(dirname(catalogRoot))),
+      encoding: "utf8",
+    });
+    assert.equal(apply.status, 0, apply.stderr);
+    assert.match(
+      apply.stdout.trim(),
+      /^\d+\t0\tcrates\/portcove-core\/catalog\/ports\/third-new-port\.json$/u,
+    );
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        handoff: {
+          ...handoff,
+          candidates: [{ ...handoff.candidates[0], integration: { adapter: "native-portable" } }],
+        },
+      }),
+      /requires a stable ID, public repository and evidence digest/u,
+    );
+    assert.equal(f.requests.length, 4);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("scheduled discovery scope binds first-party manifest bytes and keeps independent results", async (context) => {
+  const f = fixture();
+  try {
+    const sha = "a".repeat(40);
+    const tree = "c".repeat(40);
+    const candidates = [
+      "eligible",
+      "missing",
+      "fork",
+      "wrong-bytes",
+      "scummvm",
+      "legacy",
+      "symlink",
+      "multi",
+      "truncated",
+      "unknown-mirror",
+      "bad-tree",
+      "provider-missing-file",
+    ].map((name, index) => ({
+      id: `github-${80_000 + index}`,
+      project_url: `https://github.com/fixture/${name}`,
+      repository_id: 80_000 + index,
+      evidence_sha256: "b".repeat(64),
+    }));
+    const handoff = { format: "portcove-discovery-listing-handoff", format_version: 1, candidates };
+    const validatorCli = join(f.root, "fixture-cli");
+    writeFileSync(validatorCli, "inert");
+    let refuse = false;
+    context.mock.method(
+      childProcess,
+      "spawnSync",
+      (_artifact: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
+        assert.deepEqual(Object.keys(options.env).sort(), ["HOME", "PATH", "TMPDIR"]);
+        if (refuse)
+          return { status: 1, signal: null, stdout: "", stderr: "fixture refuses this format" };
+        assert.deepEqual(args.slice(-3, -1), ["inspect-listings", "--path"]);
+        const data: unknown = JSON.parse(readFileSync(args.at(-1)!, "utf8"));
+        return { status: 0, signal: null, stdout: JSON.stringify({ data }), stderr: "" };
+      },
+    );
+    syncBuiltinESMExports();
+    let validatorRequests = 0;
+    const options: Parameters<typeof prepareDiscoveryListingAdditions>[0] = {
+      catalogRoot,
+      outputDirectory: join(f.root, "automatic-scope"),
+      handoff,
+      automaticScope: true,
+      acquireValidator: async () => {
+        assert.ok(f.requests.length > 0);
+        validatorRequests++;
+        return {
+          cli: validatorCli,
+          receipt: { version: "fixture" },
+          sha256: createHash("sha256").update("inert").digest("hex"),
+          version: "fixture",
+        };
+      },
+      facts: {
+        now: () => Date.parse("2026-11-26T00:00:00Z"),
+        fetcher: f.fetcher((url) => {
+          const candidate = candidates.find(({ project_url }) =>
+            url.endsWith(project_url.slice("https://github.com".length)),
+          );
+          if (candidate) {
+            return json({
+              id: candidate.repository_id,
+              private: false,
+              fork: candidate.project_url.endsWith("/fork"),
+              ...(candidate.project_url.endsWith("/unknown-mirror") ? {} : { mirror_url: null }),
+              default_branch: "main",
+              full_name: new URL(candidate.project_url).pathname.slice(1),
+            });
+          }
+          const match = /\/repositories\/(\d+)\/(.*)$/u.exec(url);
+          if (!match) assert.fail(`Unexpected provider request ${url}`);
+          const selected = candidates.find(
+            ({ repository_id }) => repository_id === Number(match[1]),
+          );
+          if (!selected || /\/(?:fork|unknown-mirror)$/u.test(selected.project_url))
+            assert.fail("Unbound or fork metadata request");
+          if (match[2] === "commits?per_page=1")
+            return json([{ sha, commit: { tree: { sha: tree } } }]);
+          const name = selected.project_url.split("/").at(-1);
+          const manifestPath = name === "legacy" ? ".recomp-board.json" : ".recomp.json";
+          const bytes = Buffer.from(
+            JSON.stringify({
+              game: "Fixture game",
+              type: "recomp",
+              system: "SNES",
+              ...(selected.project_url.endsWith("/scummvm") ? { toolchain: "ScummVM" } : {}),
+            }),
+          );
+          const digest = createHash("sha1")
+            .update(`blob ${bytes.length}\0`)
+            .update(bytes)
+            .digest("hex");
+          if (match[2] === `git/trees/${tree}`) {
+            const entries =
+              name === "missing"
+                ? []
+                : [
+                    {
+                      path: manifestPath,
+                      type: "blob",
+                      mode: name === "symlink" ? "120000" : "100644",
+                      sha: digest,
+                    },
+                  ];
+            if (name === "multi")
+              entries.push({ path: ".recomp-2.json", type: "blob", mode: "100644", sha: digest });
+            return json({
+              sha: tree,
+              tree: name === "bad-tree" ? [...entries, null] : entries,
+              truncated: name === "truncated",
+            });
+          }
+          assert.ok(!["missing", "symlink", "multi", "truncated", "bad-tree"].includes(name!));
+          assert.equal(match[2], `contents/${manifestPath}?ref=${sha}`);
+          if (name === "provider-missing-file") return new Response(null, { status: 404 });
+          if (name === "wrong-bytes") bytes[10] = bytes[10]! ^ 1;
+          return json({
+            type: "file",
+            path: manifestPath,
+            encoding: "base64",
+            size: bytes.length,
+            content: bytes.toString("base64"),
+            sha: digest,
+          });
+        }),
+      },
+    };
+    const { report } = await prepareDiscoveryListingAdditions(options);
+    assert.deepEqual(report.changed_records, ["github-80000", "github-80005"]);
+    assert.deepEqual(
+      report.outcomes.map(({ status }) => status),
+      [
+        "prepared",
+        "held",
+        "held",
+        "held",
+        "restricted",
+        "prepared",
+        "held",
+        "held",
+        "held",
+        "held",
+        "held",
+        "unavailable",
+      ],
+    );
+    assert.equal(report.automatic_scope_policy, "github-primary-single-game-manifest/1");
+    assert.ok(report.admission);
+    assert.deepEqual(report.released_validation, {
+      status: "validated",
+      receipt: { version: "fixture" },
+    });
+    const held = await prepareDiscoveryListingAdditions({
+      ...options,
+      outputDirectory: join(f.root, "held-only"),
+      handoff: { ...handoff, candidates: [candidates[1]] },
+    });
+    assert.equal(validatorRequests, 1);
+    assert.equal(held.report.released_validation, undefined);
+    assert.equal(held.report.admission, null);
+    context.mock.method(console, "error", () => {});
+    const deferred = await prepareDiscoveryListingAdditions({
+      ...options,
+      outputDirectory: join(f.root, "validator-unavailable"),
+      handoff: { ...handoff, candidates: [candidates[0]] },
+      async acquireValidator() {
+        throw new Error("Fixture reader acquisition failed");
+      },
+    });
+    assert.deepEqual(deferred.report.released_validation, { status: "deferred-unavailable" });
+    assert.deepEqual(deferred.report.changed_records, ["github-80000"]);
+    assert.equal(deferred.report.admission, null);
+    refuse = true;
+    const independent = await prepareDiscoveryListingAdditions({
+      ...options,
+      outputDirectory: join(f.root, "core-refuses-format"),
+      handoff: { ...handoff, candidates: [candidates[0]] },
+    });
+    assert.deepEqual(independent.report.released_validation, {
+      status: "deferred-core-inspection",
+    });
+    assert.deepEqual(independent.report.changed_records, ["github-80000"]);
+    assert.equal(independent.report.admission, null);
+    assert.equal(report.operational_changed, false);
+    const result = checkedAuthoredPort(
+      JSON.parse(readFileSync(report.files.records[0]!.path, "utf8")),
+    );
+    assert.equal(
+      result.original_game_review?.evidence_urls[1],
+      `https://github.com/fixture/eligible/blob/${sha}/.recomp.json`,
+    );
+    assert.equal(result.listing.original_game, undefined);
+    assert.equal(result.integration, undefined);
+  } finally {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
+    f.clean();
+  }
+});
+
+void test("discovery listing staging refuses stale or changed source before reading candidates", async () => {
+  const f = fixture();
+  try {
+    const repository = join(f.root, "checkout");
+    const catalog = join(repository, "crates", "portcove-core", "catalog");
+    mkdirSync(catalog, { recursive: true });
+    const git = (args: string[]) => runCheckedGit(args, { cwd: repository }).trim();
+    git(["init", "--quiet"]);
+    writeFileSync(join(repository, ".gitignore"), "ignored.json\n");
+    git(["add", ".gitignore"]);
+    git([
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "commit",
+      "-qm",
+      "fixture",
+    ]);
+    const revision = git(["rev-parse", "HEAD"]);
+    const validatorCli = join(f.root, "fixture-validator");
+    const options = {
+      catalogRoot: catalog,
+      outputDirectory: join(f.root, "output"),
+      handoff: null,
+      validatorCli,
+      approval: { document: null },
+      stage: { repository, revision },
+    };
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        stage: { repository, revision: "0".repeat(40) },
+      }),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /versioned discovery listing handoff/u,
+    );
+    const inheritedIndex = process.env.GIT_INDEX_FILE;
+    process.env.GIT_INDEX_FILE = join(f.root, "unrelated-index");
+    try {
+      await assert.rejects(
+        prepareDiscoveryListingAdditions(options),
+        /versioned discovery listing handoff/u,
+      );
+      assert.equal(existsSync(process.env.GIT_INDEX_FILE), false);
+    } finally {
+      if (inheritedIndex === undefined) delete process.env.GIT_INDEX_FILE;
+      else process.env.GIT_INDEX_FILE = inheritedIndex;
+    }
+    writeFileSync(join(catalog, "ignored.json"), "{}");
+    assert.equal(git(["status", "--porcelain=v1"]), "");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    rmSync(join(catalog, "ignored.json"));
+    writeFileSync(join(repository, ".gitignore"), "");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    git(["update-index", "--assume-unchanged", ".gitignore"]);
+    assert.equal(git(["status", "--porcelain=v1"]), "");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    assert.equal(existsSync(options.outputDirectory), false);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery listing batch honors provider backoff across repositories", async () => {
+  const f = fixture();
+  try {
+    const { report } = await prepareDiscoveryListingAdditions({
+      catalogRoot,
+      outputDirectory: join(f.root, "discovery-backoff"),
+      handoff: {
+        format: "portcove-discovery-listing-handoff",
+        format_version: 1,
+        candidates: [123, 124, 23038334].map((repository_id) => ({
+          id: `discovery-${repository_id}`,
+          project_url:
+            repository_id === 23038334
+              ? "https://github.com/crawl/crawl"
+              : `https://github.com/example/port-${repository_id}`,
+          repository_id,
+          evidence_sha256: "a".repeat(64),
+        })),
+      },
+      facts: {
+        now: () => Date.parse("2026-11-26T00:00:00Z"),
+        fetcher: f.fetcher(
+          () =>
+            new Response(null, {
+              status: 429,
+              headers: { "Retry-After": "3600" },
+            }),
+        ),
+      },
+    });
+    assert.equal(f.requests.length, 1);
+    assert.deepEqual(report.changed_records, []);
+    assert.deepEqual(
+      report.outcomes.map((row) => [
+        row.status,
+        "retry_after" in row ? row.retry_after : undefined,
+      ]),
+      [
+        ["deferred", "2026-11-26T01:00:00.000Z"],
+        ["deferred", "2026-11-26T01:00:00.000Z"],
+        ["already-cataloged", undefined],
+      ],
+    );
+  } finally {
+    f.clean();
+  }
+});
+
+void test("scheduled discovery preparation retains completed work when the batch deadline arrives", async () => {
+  const f = fixture();
+  try {
+    let clock = Date.parse("2026-11-26T00:00:00Z");
+    const { report } = await prepareDiscoveryListingAdditions({
+      catalogRoot,
+      outputDirectory: join(f.root, "discovery-deadline"),
+      deadline: clock + 10,
+      handoff: {
+        format: "portcove-discovery-listing-handoff",
+        format_version: 1,
+        candidates: [123, 124].map((repository_id) => ({
+          id: `discovery-${repository_id}`,
+          project_url: repository_id === 123 ? project : "https://github.com/example/remaining",
+          repository_id,
+          evidence_sha256: "a".repeat(64),
+        })),
+      },
+      facts: {
+        now: () => clock,
+        fetcher: f.fetcher(() => {
+          clock += 20;
+          return json({ ...metadata, private: false });
+        }),
+      },
+    });
+    assert.deepEqual(report.changed_records, ["discovery-123"]);
+    assert.deepEqual(
+      report.outcomes.map(({ status }) => status),
+      ["prepared", "deferred"],
+    );
+    assert.equal(f.requests.length, 1);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery-bound preparation retains a public repository and its ongoing release feed", async () => {
+  const f = fixture();
+  try {
+    const result = await preparePort({
+      catalogRoot,
+      outputDirectory: join(f.root, "bound"),
+      projectUrl: "https://github.com/Example/Fixture/",
+      expectedRepositoryId: metadata.id,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?") ? json([]) : json({ ...metadata, private: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const record = checkedAuthoredPort(
+      JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+    );
+    assert.equal(record.listing.id, "fixture");
+    assert.equal(record.listing.release_url?.toLowerCase(), `${project}/releases`);
+    assert.deepEqual(record.upstream_lineage?.origin.repository, { host: "github.com", id: "123" });
+    assert.equal(record.listing.original_game, undefined);
+    assert.equal(record.listing.issue_number, undefined);
+    assert.equal(record.listing.availability, undefined);
+    assert.equal(record.listing.artwork, undefined);
+    assert.equal(record.integration, undefined);
+    assert.equal(f.requests.filter((url) => url.includes("/releases?")).length, 1);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery-bound preparation refuses changed or unverified provider identity before release reads", async () => {
+  const f = fixture();
+  try {
+    const mismatches = [
+      { ...metadata, private: false, id: 999 },
+      { ...metadata, private: false, full_name: "different/fixture" },
+      { ...metadata, private: undefined },
+      { ...metadata, private: false, id: undefined },
+    ];
+    for (const [index, provider] of mismatches.entries()) {
+      await assert.rejects(
+        preparePort({
+          catalogRoot,
+          outputDirectory: join(f.root, `mismatch-${index}`),
+          projectUrl: project,
+          expectedRepositoryId: metadata.id,
+          facts: { fetcher: f.fetcher(() => json(provider)) },
+        }),
+        /does not match the observed repository ID and location/u,
+      );
+    }
+    assert.equal(f.requests.length, mismatches.length);
+    assert.equal(
+      f.requests.some((url) => url.includes("/releases")),
+      false,
+    );
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery-bound release reads isolate repository IDs across a warm reused path", async () => {
+  const f = fixture();
+  try {
+    let currentId = metadata.id;
+    const options = {
+      projectUrl: project,
+      route: "download" as const,
+      cacheDirectory: join(f.root, "facts"),
+      fetcher: f.fetcher((url) =>
+        url.includes("/releases?")
+          ? json([{ tag_name: url.includes("/repositories/456/") ? "new-release" : "old-release" }])
+          : json({ ...metadata, id: currentId, private: false }),
+      ),
+    };
+    await collectPortFacts(options);
+    currentId = 456;
+    await assert.rejects(
+      collectPortFacts({ ...options, expectedRepositoryId: metadata.id }),
+      /does not match the observed repository ID and location/u,
+    );
+    assert.equal(f.requests.filter((url) => url.includes("/releases?")).length, 1);
+    const legacy = await collectPortFacts(options);
+    assert.equal(legacy.project?.status, "reused");
+    assert.deepEqual(legacy.project?.body, { ...metadata, private: false });
+    assert.deepEqual(legacy.release_candidates?.body, [{ tag_name: "old-release" }]);
+    const result = await collectPortFacts({ ...options, expectedRepositoryId: 456 });
+    assert.deepEqual(result.release_candidates?.body, [{ tag_name: "new-release" }]);
+    assert.match(result.release_candidates?.endpoint ?? "", /\/repositories\/456\/releases/u);
+    assert.equal(result.release_candidates?.status, "observed");
+    const warm = await collectPortFacts({ ...options, expectedRepositoryId: 456 });
+    assert.equal(warm.project?.status, "observed");
+    assert.equal(warm.release_candidates?.status, "reused");
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery-bound preparation keeps a published external release source", async () => {
+  const f = fixture();
+  try {
+    const result = await preparePort({
+      catalogRoot,
+      outputDirectory: join(f.root, "external-source"),
+      projectUrl: "https://github.com/colobot/colobot",
+      expectedRepositoryId: metadata.id,
+      facts: {
+        fetcher: f.fetcher(() =>
+          json({ ...metadata, private: false, full_name: "colobot/colobot" }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    assert.equal(result.report.port_id, "colobot");
+    assert.deepEqual(result.report.changed_records, []);
+    assert.equal(f.requests.length, 1);
+    const upstream: unknown = JSON.parse(readFileSync(result.report.files.upstream, "utf8"));
+    assert.ok(isRecord(upstream));
+    assert.equal(upstream.release_repository, null);
+    assert.equal(upstream.release_candidates, undefined);
+  } finally {
+    f.clean();
+  }
+});
+
 void test("starts issue-free preparation from an official project and reviewed game identity", async () => {
   const f = fixture();
   try {
@@ -972,6 +1594,25 @@ void test("starts issue-free preparation from an official project and reviewed g
       originalGame: { ...otherGame, source_editions: [...otherGame.source_editions].reverse() },
     });
     assert.equal(reordered.report.port_id, newId);
+    await assert.rejects(
+      preparePort({
+        ...common,
+        expectedRepositoryId: metadata.id,
+        id: "duplicate-reviewed-game",
+        outputDirectory: join(f.root, "bound-duplicate"),
+        originalGame,
+      }),
+      /already have a stable listing/u,
+    );
+    await assert.rejects(
+      preparePort({
+        ...common,
+        expectedRepositoryId: 456,
+        id: record.listing.id,
+        outputDirectory: join(f.root, "bound-reused-source"),
+      }),
+      /contradicts retained lineage/u,
+    );
     await assert.rejects(
       preparePort({
         ...common,
@@ -1439,16 +2080,18 @@ void test("listing inspection binds exact generated bytes and validator identity
     const receipt = first.report.listing_validation as ListingReceipt;
     assert.equal(
       receipt.format_version,
-      12,
-      "the merged directory retains implementation descriptions, so it is listing v12",
+      15,
+      "the merged directory retains typed acquisition restrictions, so it is listing v15",
     );
     const bytes = readFileSync(first.report.files.listings);
+    const directory = JSON.parse(bytes.toString()) as {
+      format_version: number;
+      listings: unknown[];
+    };
+    assert.equal(receipt.format_version, directory.format_version);
     assert.equal(receipt.input_sha256, createHash("sha256").update(bytes).digest("hex"));
     assert.equal(receipt.input_bytes, bytes.length);
-    assert.deepEqual(
-      receipt.listings,
-      (JSON.parse(bytes.toString()) as { listings: unknown[] }).listings,
-    );
+    assert.deepEqual(receipt.listings, directory.listings);
     assert.equal(calls, 1);
     const resumed = await preparePort(options);
     assert.deepEqual(resumed.report.listing_validation, receipt);
@@ -1503,6 +2146,238 @@ function clearFixtureArtwork(directory: string, ids: string[]) {
     writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
   }
 }
+
+void test("shared cover proposals bind exact authored scope to the signed donor", async (context) => {
+  const f = fixture();
+  try {
+    const source = copiedCatalog(join(f.root, "shared-cover-catalog"));
+    const game = {
+      format_version: 1,
+      id: "shared-original-fixture",
+      evidence_urls: ["https://example.org/shared-game"],
+      source_editions: [
+        {
+          id: "exact-edition",
+          title: "Shared Original",
+          evidence_urls: ["https://example.org/shared-edition"],
+        },
+      ],
+    };
+    const artwork = {
+      game_id: 70,
+      cover_id: 71,
+      image_id: "sharedcover",
+      image_sha256: batchImage().sha256,
+      game_slug: "shared-original-fixture",
+      match_kind: "underlying-game",
+    };
+    const donor = "fixture-cover-donor",
+      peer = "fixture-cover-peer",
+      other = "fixture-cover-other";
+    for (const id of [donor, peer, other]) {
+      const record = checkedAuthoredPort({
+        format_version: 1,
+        listing: {
+          id,
+          name: id,
+          project_url: `https://example.org/${id}`,
+          original_game:
+            id === other
+              ? { ...game, source_editions: [{ ...game.source_editions[0], id: "other-edition" }] }
+              : game,
+          summary: "Fixture port.",
+          ...(id === donor ? { artwork } : {}),
+        },
+      });
+      writeFileSync(join(source, "ports", `${id}.json`), JSON.stringify(record));
+    }
+    const validatorCli = join(f.root, "selected-cli");
+    writeFileSync(validatorCli, "inert listing validator fixture");
+    const anchor = readFileSync(join(catalogRoot, "official-definition-root.json"));
+    writeFileSync(join(source, "official-definition-root.json"), anchor);
+    const digest = (value: Buffer) => createHash("sha256").update(value).digest("hex");
+    const accepted = readCatalogSource(source).directory;
+    const rows = accepted.listings.filter((record) => [donor, peer, other].includes(record.id));
+    const target = join(f.root, "compact.json");
+    const status = {
+      selected: true,
+      fallback_reason: null,
+      anchor_sha256: digest(anchor),
+      revision: 1,
+      listing_count: rows.length,
+      expires_at: "2099-01-01T00:00:00Z",
+      target_sha256: "",
+      transport_target_sha256: "",
+    };
+    const setTarget = (listings: typeof rows, authenticated: boolean) => {
+      const decoded = Buffer.from(
+        JSON.stringify({
+          listing_delivery_schema: 1,
+          revision: 1,
+          withdrawn_ids: [],
+          directory: { format_version: accepted.format_version, listings },
+        }),
+      );
+      const wire = encodeCompactListing(decoded);
+      if (authenticated) {
+        status.target_sha256 = digest(decoded);
+        status.transport_target_sha256 = digest(wire);
+        status.listing_count = listings.length;
+      }
+      writeFileSync(target, wire);
+    };
+    setTarget(rows, true);
+    context.mock.method(childProcess, "spawnSync", (_artifact: string, args: string[]) => {
+      if (args.at(-1) === "listing-status")
+        return {
+          status: 0,
+          signal: null,
+          stdout: JSON.stringify({
+            data: status,
+            ok: true,
+            command: "catalog.listing-status",
+          }),
+          stderr: "",
+        };
+      assert.deepEqual(args.slice(-3, -1), ["inspect-listings", "--path"]);
+      const data: unknown = JSON.parse(readFileSync(args.at(-1)!, "utf8"));
+      return { status: 0, signal: null, stdout: JSON.stringify({ data }), stderr: "" };
+    });
+    syncBuiltinESMExports();
+    const options = {
+      catalogRoot: source,
+      outputDirectory: join(f.root, "cover-proposals"),
+      validatorCli,
+      target,
+      library: join(f.root, "verification-library"),
+    };
+    const { report } = await prepareSharedCoverBatch(options);
+    assert.deepEqual(report.changed_records, [peer]);
+    assert.deepEqual(report.record_changes[0]?.listing_fields, ["artwork"]);
+    assert.equal(report.operational_changed, false);
+    assert.deepEqual(
+      report.outcomes.find(({ id }) => id === peer),
+      {
+        id: peer,
+        game_id: game.id,
+        source_edition_id: "exact-edition",
+        status: "prepared",
+        donor_port_id: donor,
+        mapping: artwork,
+      },
+    );
+    assert.equal(report.outcomes.find(({ id }) => id === other)?.status, "no-accepted-donor");
+    setTarget(
+      rows.filter(({ id }) => id === donor),
+      false,
+    );
+    await assert.rejects(
+      prepareSharedCoverBatch(options),
+      /differs from the exact authenticated compact target/u,
+    );
+    setTarget(
+      rows.map((row) =>
+        row.id === donor ? { ...row, artwork: { ...artwork, image_sha256: "e".repeat(64) } } : row,
+      ),
+      true,
+    );
+    const changed = await prepareSharedCoverBatch(options);
+    assert.deepEqual(changed.report.changed_records, []);
+    setTarget(
+      rows.map((row) =>
+        row.id === other ? { ...row, artwork: { ...artwork, image_sha256: "e".repeat(64) } } : row,
+      ),
+      true,
+    );
+    assert.deepEqual((await prepareSharedCoverBatch(options)).report.changed_records, []);
+    setTarget(rows, true);
+    assert.deepEqual(
+      (await prepareSharedCoverBatch({ ...options, identities: { [donor]: null } })).report
+        .changed_records,
+      [],
+    );
+    assert.deepEqual(
+      (await prepareSharedCoverBatch({ ...options, identities: { [peer]: null } })).report
+        .changed_records,
+      [],
+    );
+    const conflicting = { ...artwork, image_sha256: "e".repeat(64) };
+    const retainedResult = {
+      port: { id: other, presentation: { artwork: conflicting } },
+      record: {
+        port_id: other,
+        role: "cover",
+        reason: "exact-original-game-cover",
+        mapping: conflicting,
+        exceptions: [],
+        checks: { content: { ...batchImage(), sha256: conflicting.image_sha256 } },
+      },
+    };
+    const refreshedAt = new Date().toISOString();
+    const retainedPath = join(options.outputDirectory, `artwork-refresh-progress-${other}.json`);
+    writeFileSync(
+      retainedPath,
+      JSON.stringify({
+        format: 1,
+        port_id: other,
+        input_sha256: "a".repeat(64),
+        result_sha256: observationHash(retainedResult),
+        result: retainedResult,
+        complete: true,
+        observed_at: refreshedAt,
+        last_live_observation_at: refreshedAt,
+        retry_at: null,
+      }),
+    );
+    assert.deepEqual((await prepareSharedCoverBatch(options)).report.changed_records, []);
+    for (const reason of ["collection-image-digest-changed", "companion-image-digest-changed"]) {
+      const fallback = {
+        port: { id: other },
+        record: {
+          ...retainedResult.record,
+          mapping: null,
+          checks: null,
+          exceptions: [{ reason, image_id: artwork.image_id }],
+        },
+      };
+      writeFileSync(
+        retainedPath,
+        JSON.stringify({
+          format: 1,
+          port_id: other,
+          input_sha256: "a".repeat(64),
+          result_sha256: observationHash(fallback),
+          result: fallback,
+          complete: false,
+          observed_at: refreshedAt,
+          last_live_observation_at: null,
+          retry_at: null,
+        }),
+      );
+      assert.deepEqual((await prepareSharedCoverBatch(options)).report.changed_records, []);
+    }
+    rmSync(retainedPath);
+    const images = [artwork.image_id];
+    writeFileSync(
+      join(options.outputDirectory, "artwork-gone.json"),
+      JSON.stringify({
+        format: 1,
+        image_ids: images,
+        sha256: observationHash(images),
+      }),
+    );
+    assert.deepEqual((await prepareSharedCoverBatch(options)).report.changed_records, []);
+    assert.equal(
+      readCatalogSource(source).authored.find((entry) => entry.listing.id === peer)?.listing
+        .artwork,
+      undefined,
+    );
+  } finally {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
+    f.clean();
+  }
+});
 
 void test("single-port preparation reuses selected artwork and rebuilds the current composition", async () => {
   const f = fixture();
@@ -1585,6 +2460,14 @@ void test("single-port preparation reuses selected artwork and rebuilds the curr
   }
 });
 
+const hold = (explanation: string) => ({
+  id: "download",
+  effect: "hold" as const,
+  operations: ["download" as const],
+  reason: "third-party-component-terms",
+  explanation,
+});
+
 void test("preparation preserves authored acquisition restrictions despite replacement records and provider facts", async () => {
   const f = fixture();
   try {
@@ -1596,20 +2479,17 @@ void test("preparation preserves authored acquisition restrictions despite repla
         name: "Restricted preparation fixture",
         summary: "An unresolved acquisition condition.",
         project_url: project,
-        download_block_reason: "Resolve the exact bundled-component permission.",
+        restrictions: [hold("Resolve the exact bundled-component permission.")],
       },
     };
     const file = join(source, "ports", `${record.listing.id}.json`);
     const original = `${JSON.stringify(record, null, 2)}\n`;
     writeFileSync(file, original);
-    for (const condition of [
-      undefined,
-      "A package exists now.",
-      record.listing.download_block_reason,
-    ]) {
+    const authoredCondition = record.listing.restrictions?.[0]?.explanation;
+    for (const condition of [undefined, "A package exists now.", authoredCondition]) {
       const proposal = structuredClone(record);
-      if (condition === undefined) delete proposal.listing.download_block_reason;
-      else proposal.listing.download_block_reason = condition;
+      if (condition === undefined) delete proposal.listing.restrictions;
+      else proposal.listing.restrictions = [hold(condition)];
       proposal.listing.availability = "packages";
       proposal.listing.release_url = `${project}/releases`;
       proposal.listing.download_asset_hints = { "windows-x86-64": ["windows", ".zip"] };
@@ -1618,7 +2498,7 @@ void test("preparation preserves authored acquisition restrictions despite repla
           catalogRoot: source,
           outputDirectory: join(
             f.root,
-            `proposal-${condition === undefined ? "removed" : condition === record.listing.download_block_reason ? "retained" : "changed"}`,
+            `proposal-${condition === undefined ? "removed" : condition === authoredCondition ? "retained" : "changed"}`,
           ),
           record: proposal,
           facts: {
@@ -1631,7 +2511,7 @@ void test("preparation preserves authored acquisition restrictions despite repla
           },
           artwork: { inspectGame: () => [] },
         });
-      if (condition !== record.listing.download_block_reason)
+      if (condition !== authoredCondition)
         await assert.rejects(prepare(), /cannot remove or change an authored download restriction/);
       else {
         const result = await prepare();
@@ -1639,7 +2519,9 @@ void test("preparation preserves authored acquisition restrictions despite repla
           JSON.parse(readFileSync(result.report.files.listings, "utf8")) as {
             listings: AuthoredPort["listing"][];
           }
-        ).listings.find((entry) => entry.id === record.listing.id);
+        ).listings.find((entry) => entry.id === record.listing.id) as
+          | Record<string, unknown>
+          | undefined;
         assert.equal(listing?.download_block_reason, condition);
         assert.equal(result.report.operational_changed, false);
       }
@@ -2563,7 +3445,6 @@ void test("prepared observations bind the accepted observation preimage and cann
 
 void test("preparation reports all declared route projections across the current catalog", () => {
   const { records } = readCatalogSource(catalogRoot);
-  assert.ok(records.some((record) => record.alephone_pinned_windows_v1));
   const routeRecords = records.filter((record) => record.route_facts_v1);
   const gbaRecords = records.filter((record) => record.gba_staged_archive_v1);
   assert.ok(routeRecords.some((record) => record.route_facts_v1?.managed_native));
@@ -2572,44 +3453,20 @@ void test("preparation reports all declared route projections across the current
   );
   assert.ok(routeRecords.some((record) => record.integration === undefined));
   assert.ok(gbaRecords.length > 0);
-  assert.ok(records.some((record) => record.reflectionhle_portable_paths_v1));
   assert.ok(records.some((record) => record.psx_managed_windows_v1));
   assert.ok(records.some((record) => record.n64_recomp_persistence_v1));
   assert.ok(records.some((record) => record.reviewed_flat_package_layout_v1));
-  assert.ok(records.some((record) => record.raze_windows_profile_v1));
-  assert.ok(records.some((record) => record.crispy_doom_windows_persistence_v1));
-  assert.ok(records.some((record) => record.chocolate_family_windows_persistence_v1));
-  assert.ok(records.some((record) => record.opengoal_setup_v1));
-  assert.ok(records.some((record) => record.openmohaa_portable_v1));
-  assert.ok(records.some((record) => record.openx_portable_v1));
-  assert.ok(records.some((record) => record.native_managed_profile_v1));
   assert.ok(records.some((record) => record.external_registration_v1));
-  assert.ok(records.some((record) => record.gen2recomp_windows_persistence_v1));
-  assert.ok(records.some((record) => record.rsdkv4_portable_data_v1));
   for (const record of records) {
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
     const expected = [];
-    if (record.alephone_pinned_windows_v1) expected.push("alephone_pinned_windows_v1");
     if (record.reviewed_flat_package_layout_v1) expected.push("reviewed_flat_package_layout_v1");
     if (record.route_facts_v1) expected.push("route_facts_v1");
     if (record.gba_staged_archive_v1) expected.push("gba_staged_archive_v1");
-    if (record.reflectionhle_portable_paths_v1) expected.push("reflectionhle_portable_paths_v1");
     if (record.psx_managed_windows_v1) expected.push("psx_managed_windows_v1");
     if (record.n64_recomp_persistence_v1) expected.push("n64_recomp_persistence_v1");
-    if (record.native_managed_profile_v1) expected.push("native_managed_profile_v1");
     if (record.external_registration_v1) expected.push("external_registration_v1");
-    if (record.opengoal_setup_v1) expected.push("opengoal_setup_v1");
-    if (record.openmohaa_portable_v1) expected.push("openmohaa_portable_v1");
-    if (record.openx_portable_v1) expected.push("openx_portable_v1");
-    if (record.raze_windows_profile_v1) expected.push("raze_windows_profile_v1");
-    if (record.crispy_doom_windows_persistence_v1)
-      expected.push("crispy_doom_windows_persistence_v1");
-    if (record.chocolate_family_windows_persistence_v1)
-      expected.push("chocolate_family_windows_persistence_v1");
-    if (record.gen2recomp_windows_persistence_v1)
-      expected.push("gen2recomp_windows_persistence_v1");
-    if (record.rsdkv4_portable_data_v1) expected.push("rsdkv4_portable_data_v1");
     assert.deepEqual(
       feedback.projections.map(({ field }) => field),
       expected,
@@ -2617,105 +3474,6 @@ void test("preparation reports all declared route projections across the current
     );
     assert.equal(feedback.status, expected.length > 0 ? "declared" : "undeclared", id);
     assert.match(feedback.original_files, /does not establish/, id);
-  }
-});
-
-void test("official URL preparation retains ReflectionHLE portability observations in its compact proposal", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const accepted = readCatalogSource(root);
-    const id = "catacomb-3-d-the-descent-reflectionhle";
-    const selected = accepted.records.find((record) => record.listing.id === id)!;
-    const explicit = projectReflectionHlePortablePaths(selected);
-    delete explicit.reflectionhle_portable_paths_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({
-                ...metadata,
-                id: 24228275,
-                full_name: "ReflectionHLE/ReflectionHLE",
-                archived: false,
-              }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.deepEqual(
-      prepared.report.portable_preparation?.persistence,
-      explicit.integration?.persistent_paths,
-    );
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
-    assert.equal(candidate.reflectionhle_portable_paths_v1, true);
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL preparation retains the exact Aleph One pin and compacts its launch settings", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "marathon-2-durandal-aleph-one";
-    const accepted = readCatalogSource(root);
-    const selected = accepted.records.find((record) => record.listing.id === id)!;
-    const explicit = projectAlephOnePinnedWindows(selected);
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({
-                ...metadata,
-                id: 39701264,
-                full_name: "Aleph-One-Marathon/alephone",
-                archived: false,
-              }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.equal(candidate.alephone_pinned_windows_v1, true);
-    assert.deepEqual(candidate.listing, selected.listing);
-    assert.deepEqual(candidate.integration, selected.integration);
-    assert.deepEqual(candidate.release_maintenance, selected.release_maintenance);
-    assert.deepEqual(
-      JSON.parse(readFileSync(prepared.report.files.catalog, "utf8")),
-      accepted.catalog,
-    );
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
   }
 });
 
@@ -2876,7 +3634,7 @@ void test("official URL preparation compacts the exact TechnicallyComputers PSX 
       );
       assert.ok(advice);
       if (recipe === "technically-computers-input-files") {
-        assert.match(advice.scope, /Bomberman Party Edition and Final Fantasy VII/u);
+        assert.match(advice.scope, /declare their runtime root and mutable files/u);
         assert.match(advice.next, /raw disc set/u);
       }
       assert.deepEqual(candidate.listing.original_game, record.listing.original_game);
@@ -2932,7 +3690,7 @@ void test("official URL preparation compacts the exact Alexbeav PSX layout witho
   }
 });
 
-void test("official URL preparation compacts both exact PSX split-mods diagnostics routes", async () => {
+void test("official URL preparation keeps both explicit PSX diagnostics routes explicit", async () => {
   const f = fixture();
   try {
     const root = copiedCatalog(join(f.root, "catalog"));
@@ -2942,11 +3700,12 @@ void test("official URL preparation compacts both exact PSX split-mods diagnosti
       ["mortal-kombat-4-recompiled", 1352192597],
     ] as const) {
       const record = accepted.records.find((entry) => entry.listing.id === id)!;
-      const explicit = projectPsxManagedWindows(record);
-      delete explicit.psx_managed_windows_v1;
+      assert.equal(record.psx_managed_windows_v1, undefined);
+      assert.ok(
+        (record.integration!.persistent_paths as string[]).includes("diagnostics-location.txt"),
+      );
       const source = join(root, "ports", `${id}.json`);
-      const bytes = JSON.stringify(explicit);
-      writeFileSync(source, bytes);
+      const bytes = readFileSync(source, "utf8");
       const result = await preparePort({
         id,
         catalogRoot: root,
@@ -2967,15 +3726,10 @@ void test("official URL preparation compacts both exact PSX split-mods diagnosti
         },
         artwork: { inspectGame: () => [] },
       });
-      const candidate = checkedAuthoredPort(
-        JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
-      );
-      assert.deepEqual(result.report.changed_records, [id]);
+      // No title-keyed shorthand reproduces these routes, so nothing is compacted.
+      assert.deepEqual(result.report.changed_records, []);
+      assert.deepEqual(result.report.files.records, []);
       assert.equal(result.report.operational_changed, false);
-      assert.equal(candidate.psx_managed_windows_v1, "split-mods-diagnostics");
-      assert.deepEqual(candidate.listing, record.listing);
-      assert.deepEqual(candidate.integration, record.integration);
-      assert.deepEqual(candidate.upstream_lineage, record.upstream_lineage);
       assert.deepEqual(
         JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
         accepted.catalog,
@@ -3040,434 +3794,13 @@ void test("official URL preparation proposes the exact reviewed N64 persistence 
   }
 });
 
-void test("Raze preparation compacts the reviewed Windows profile and preserves explicit writers", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const accepted = readCatalogSource(root);
-    const id = "blood-raze";
-    const selected = accepted.records.find((entry) => entry.listing.id === id)!;
-    const explicit = projectRazeWindowsProfile(selected);
-    delete explicit.raze_windows_profile_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const common = {
-      catalogRoot: root,
-      projectUrl: selected.listing.project_url,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({ ...metadata, id: 230432175, full_name: "ZDoom/Raze", archived: false }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    };
-    const reviewed = await preparePort({
-      ...common,
-      outputDirectory: join(f.root, "reviewed"),
-      originalGame: selected.listing.original_game,
-    });
-    const proposed = checkedAuthoredPort(
-      JSON.parse(readFileSync(reviewed.report.files.records[0]!.path, "utf8")),
-    );
-    assert.equal(reviewed.report.port_id, id);
-    assert.deepEqual(reviewed.report.changed_records, [id]);
-    assert.equal(reviewed.report.operational_changed, false);
-    assert.equal(proposed.raze_windows_profile_v1, true);
-    assert.deepEqual(proposed.listing.original_game, selected.listing.original_game);
-    assert.deepEqual(proposed.listing.issue_number, selected.listing.issue_number);
-    assert.deepEqual(proposed.upstream_lineage, selected.upstream_lineage);
-    assert.deepEqual(
-      JSON.parse(readFileSync(reviewed.report.files.catalog, "utf8")),
-      accepted.catalog,
-    );
-    assert.equal(readFileSync(source, "utf8"), bytes);
-
-    await assert.rejects(
-      preparePort({
-        ...common,
-        outputDirectory: join(f.root, "changed-game-evidence"),
-        originalGame: {
-          ...selected.listing.original_game,
-          evidence_urls: ["https://example.com/different-review"],
-        },
-      }),
-      /change to an existing game or edition identity/u,
-    );
-    await assert.rejects(
-      preparePort({
-        ...common,
-        outputDirectory: join(f.root, "changed-repository-id"),
-        originalGame: selected.listing.original_game,
-        facts: {
-          fetcher: f.fetcher((url) =>
-            url.includes("/releases?")
-              ? json([])
-              : json({ ...metadata, id: 2, full_name: "ZDoom/Raze", archived: false }),
-          ),
-        },
-      }),
-      /reviewed record and provider repository identities differ/u,
-    );
-
-    const alternate = structuredClone(explicit);
-    const persistent = [...(alternate.integration!.persistent_paths as string[]), "custom.cfg"];
-    alternate.integration!.persistent_paths = persistent;
-    const alternateBytes = JSON.stringify(alternate);
-    writeFileSync(source, alternateBytes);
-    const custom = await preparePort({
-      ...common,
-      id,
-      outputDirectory: join(f.root, "custom"),
-      record: alternate,
-    });
-    assert.deepEqual(custom.report.changed_records, []);
-    assert.equal(custom.report.operational_changed, false);
-    assert.deepEqual(custom.report.declarative_authoring.projections, []);
-    assert.deepEqual(custom.report.portable_preparation?.persistence, persistent);
-
-    const otherGame = accepted.records.find((entry) => entry.listing.id === "nam-raze")!;
-    await assert.rejects(
-      preparePort({
-        ...common,
-        id,
-        outputDirectory: join(f.root, "wrong-game"),
-        originalGame: otherGame.listing.original_game,
-      }),
-      /change to an existing game or edition identity/u,
-    );
-    assert.equal(readFileSync(source, "utf8"), alternateBytes);
-
-    const listing = { ...selected.listing, id: "raze-identity-fixture" };
-    delete listing.issue_number;
-    const sibling = join(root, "ports", `${listing.id}.json`);
-    writeFileSync(sibling, JSON.stringify({ format_version: 1, listing }));
-    await assert.rejects(
-      preparePort({
-        ...common,
-        outputDirectory: join(f.root, "identical-siblings"),
-        originalGame: selected.listing.original_game,
-      }),
-      /share this reviewed game and editions/u,
-    );
-    delete listing.original_game;
-    writeFileSync(sibling, JSON.stringify({ format_version: 1, listing }));
-    await assert.rejects(
-      preparePort({
-        ...common,
-        outputDirectory: join(f.root, "ambiguous-legacy"),
-        originalGame: {
-          ...selected.listing.original_game,
-          id: "another-game",
-        },
-      }),
-      /resolve unbound game identity/u,
-    );
-    assert.equal(readFileSync(source, "utf8"), alternateBytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL preparation emits the exact Gen2Recomped Windows edition persistence recipe", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "gen2recomp-gold";
-    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
-    const explicit = projectGen2RecompWindowsPersistence(selected);
-    delete explicit.gen2recomp_windows_persistence_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({ ...metadata, full_name: "UNDERdecoded/Gen2Recomped", archived: false }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.equal(candidate.gen2recomp_windows_persistence_v1, true);
-    assert.deepEqual(candidate.listing, selected.listing);
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL preparation emits the reviewed RSDKv4 portable data recipe", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation";
-    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
-    const explicit = projectRsdkv4PortableData(selected);
-    delete explicit.rsdkv4_portable_data_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({
-                ...metadata,
-                id: 321543928,
-                full_name: "RSDKModding/RSDKv4-Decompilation",
-                archived: false,
-              }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.equal(candidate.rsdkv4_portable_data_v1, true);
-    assert.deepEqual(candidate.listing, selected.listing);
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL preparation emits the exact Chocolate Windows persistence recipe", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "chocolate-heretic";
-    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
-    const explicit = projectChocolateFamilyWindowsPersistence(selected);
-    delete explicit.chocolate_family_windows_persistence_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({ ...metadata, full_name: "chocolate-doom/chocolate-doom", archived: false }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.equal(candidate.chocolate_family_windows_persistence_v1, true);
-    assert.deepEqual(candidate.listing, selected.listing);
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL preparation compacts only the exact Crispy Doom persistence coordinates", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "doom-ii-crispy-doom-family";
-    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
-    const explicit = projectCrispyDoomWindowsPersistence(selected);
-    delete explicit.crispy_doom_windows_persistence_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({
-                ...metadata,
-                id: 17395051,
-                full_name: "fabiangreffrath/crispy-doom",
-                archived: false,
-              }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.deepEqual(
-      prepared.report.portable_preparation?.persistence,
-      explicit.integration?.persistent_paths,
-    );
-    assert.equal(candidate.crispy_doom_windows_persistence_v1, true);
-    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("OpenGOAL setup keeps each disc, launcher and portable profile separate", () => {
-  const { records } = readCatalogSource(catalogRoot);
-  for (const token of ["jak1", "jak2", "jak3"]) {
-    const record = records.find(({ listing }) => listing.id === `opengoal-${token}`)!;
-    assert.equal(record.opengoal_setup_v1, true);
-    const explicit = projectOpenGoalSetup(record);
-    assert.equal(explicit.integration?.source_profile, `opengoal-${token}-disc`);
-    assert.equal(explicit.integration?.setup_marker, `data/out/${token}/iso/0COMMON.TXT`);
-    assert.deepEqual(explicit.integration?.launch_arguments, ["--game", token, "--portable"]);
-    assert.deepEqual(explicit.integration?.persistent_paths, [`OpenGOAL/${token}`]);
-    assert.deepEqual(compactOpenGoalSetup(explicit), record);
-
-    const override = {
-      ...explicit,
-      integration: { ...explicit.integration, launch_arguments: ["--game", token] },
-    };
-    assert.equal(compactOpenGoalSetup(override), override);
-    assert.throws(
-      () => projectOpenGoalSetup({ ...override, opengoal_setup_v1: true }),
-      /already supplies the extractor/u,
-    );
-    assert.throws(
-      () =>
-        projectOpenGoalSetup({
-          ...record,
-          integration: { ...record.integration, source_profile: "unrelated-disc" },
-        }),
-      /reviewed project, game, and disc profile/u,
-    );
-  }
-});
-
-void test("official URL preparation compacts the reviewed OpenGOAL setup", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "opengoal-jak2";
-    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
-    const explicit = projectOpenGoalSetup(selected);
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({
-                ...metadata,
-                id: 289585720,
-                full_name: "open-goal/jak-project",
-                archived: false,
-              }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.equal(candidate.opengoal_setup_v1, true);
-    assert.equal(candidate.listing.issue_number, selected.listing.issue_number);
-    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
-    assert.deepEqual(projectOpenGoalSetup(candidate).integration, explicit.integration);
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL and reviewed Spearhead identity compact the exact OpenMoHAA route", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const id = "medal-of-honor-allied-assault-spearhead-openmohaa";
-    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(projectOpenMohaaPortable(selected));
-    writeFileSync(source, bytes);
-    const prepared = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({ ...metadata, id: 29029846, full_name: "openmoh/openmohaa", archived: false }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(prepared.report.changed_records, [id]);
-    assert.equal(prepared.report.operational_changed, false);
-    assert.equal(candidate.openmohaa_portable_v1, "spearhead");
-    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
-    assert.deepEqual(prepared.report.portable_preparation?.persistence, ["main", "mainta"]);
-    assert.deepEqual(
-      prepared.report.portable_preparation?.platforms.map(({ platform }) => platform),
-      ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
-    );
-    assert.equal(readFileSync(source, "utf8"), bytes);
-  } finally {
-    f.clean();
-  }
-});
-
-void test("reviewed preparation preserves the release origin of a compact OpenMoHAA route", async () => {
+void test("reviewed preparation preserves the release origin of an explicit OpenMoHAA route", async () => {
   const f = fixture();
   try {
     const id = "medal-of-honor-allied-assault-spearhead-openmohaa";
     const { records } = readCatalogSource(catalogRoot);
     const selected = records.find((record) => record.listing.id === id)!;
-    assert.equal(selected.integration?.release, undefined);
-    const explicit = projectOpenMohaaPortable(selected);
+    const explicit = structuredClone(selected);
     const release = explicit.integration!.release;
     assert.ok(release && typeof release === "object");
     explicit.integration!.release = {
@@ -3592,55 +3925,6 @@ void test("settings qualification requests complete exact package facts and limi
       JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
       authored.catalog,
     );
-  } finally {
-    f.clean();
-  }
-});
-
-void test("official URL preparation compacts both exact OpenX portable package routes", async () => {
-  const f = fixture();
-  try {
-    const root = copiedCatalog(join(f.root, "catalog"));
-    const { records } = readCatalogSource(root);
-    for (const [id, repository, repositoryId] of [
-      ["star-wars-x-wing-openxw", "elyosh/OpenXW", 1393268483],
-      ["star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt", "elyosh/OpenXvT", 1367490590],
-    ] as const) {
-      const record = records.find((entry) => entry.listing.id === id)!;
-      const explicit = projectOpenXPortable(record);
-      const source = join(root, "ports", `${id}.json`);
-      const bytes = JSON.stringify(explicit);
-      writeFileSync(source, bytes);
-      const result = await preparePort({
-        id,
-        catalogRoot: root,
-        outputDirectory: join(f.root, id),
-        projectUrl: record.listing.project_url,
-        originalGame: record.listing.original_game,
-        facts: {
-          fetcher: f.fetcher((url) =>
-            url.includes("/releases?")
-              ? json([])
-              : json({ ...metadata, id: repositoryId, full_name: repository, archived: false }),
-          ),
-        },
-        artwork: { inspectGame: () => [] },
-      });
-      const candidate = checkedAuthoredPort(
-        JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
-      );
-      assert.equal(candidate.openx_portable_v1, String(repositoryId));
-      assert.equal(result.report.operational_changed, false);
-      assert.deepEqual(result.report.changed_records, [id]);
-      assert.deepEqual(projectOpenXPortable(candidate).integration, explicit.integration);
-      assert.deepEqual(candidate.upstream_lineage, record.upstream_lineage);
-      assert.ok(
-        result.report.declarative_authoring.projections.some(
-          ({ field }) => field === "openx_portable_v1",
-        ),
-      );
-      assert.equal(readFileSync(source, "utf8"), bytes);
-    }
   } finally {
     f.clean();
   }

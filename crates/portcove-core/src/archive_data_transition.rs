@@ -76,6 +76,7 @@ fn same_coordinates(old: &PortDefinition, new: &PortDefinition) -> bool {
         && old.launch_from_install_root == new.launch_from_install_root
         && same_executable
         && old.launch_arguments == new.launch_arguments
+        && old.reviewed_launch_contract_v1 == new.reviewed_launch_contract_v1
         && old.launch_environment == new.launch_environment
         && old.user_data_environment == new.user_data_environment
         && old.source_profile == new.source_profile
@@ -247,6 +248,38 @@ mod tests {
         assert!(require_predecessor(&install, &creating, &changed).is_err());
         install.artifact.sha256 = "a".repeat(64);
         assert!(require_predecessor(&install, &creating, target).is_err());
+    }
+    #[test]
+    fn a_launch_contract_change_ends_predecessor_eligibility() {
+        let catalog = Catalog::embedded().unwrap();
+        let id = "super-metroid-recomp";
+        let creating = historical(id);
+        let target = catalog.port(id).unwrap();
+        let install: InstallRecord = serde_json::from_value(serde_json::json!({
+            "id":"controlled-install","port_id":id,"version":"v0.4.2","path":"controlled-runtime",
+            "channel":"stable","installed_at":1,"verified":true,"staged":false,
+            "artifact":{"asset_name":"predecessor.zip",
+                "sha256":target.archive_data_transition_v1.as_ref().unwrap().predecessor_archive_sha256,
+                "size":1}
+        }))
+        .unwrap();
+        require_predecessor(&install, &creating, target).unwrap();
+        let mut changed = target.clone();
+        changed.reviewed_launch_contract_v1 = Some(crate::ReviewedLaunchContractV1 {
+            asset_rules: Default::default(),
+            package_format: Default::default(),
+            launch: [(
+                crate::Platform::WindowsX86_64,
+                crate::LaunchValues {
+                    arguments: Some(vec![crate::LaunchValue::Text("--fixture".into())]),
+                    environment: Default::default(),
+                },
+            )]
+            .into(),
+            environment_prefix: None,
+        });
+        assert!(!same_coordinates(target, &changed));
+        assert!(require_predecessor(&install, &creating, &changed).is_err());
     }
     #[test]
     fn historical_predecessor_enters_its_scope_policy_before_appended_settings() {

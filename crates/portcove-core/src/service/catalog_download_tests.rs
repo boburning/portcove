@@ -861,14 +861,177 @@ async fn assert_embedded_download_holds(
     }
 }
 
+/// A held user-prepared listing is refused before any network request. The
+/// listings come from the embedded data: a user-prepared integration whose
+/// listing has a whole download hold and no permit.
 #[tokio::test]
-async fn upstream_registrations_keep_unrestricted_asset_downloads_held() {
-    assert_embedded_download_holds(
-        &["grand-theft-auto-san-andreas-unity", "linewars-ii-sdl3"],
-        true,
-        Some(crate::ReleaseSource::UserPrepared),
-    )
-    .await;
+async fn held_user_prepared_listings_refuse_downloads_before_network() {
+    let catalog = Catalog::embedded().unwrap();
+    let held: Vec<&str> = catalog
+        .listings()
+        .iter()
+        .filter(|listing| {
+            catalog
+                .port(&listing.id)
+                .is_ok_and(|port| port.release.provider == crate::ReleaseSource::UserPrepared)
+                && listing.restrictions.iter().any(|restriction| {
+                    restriction.effect == crate::RestrictionEffect::Hold
+                        && restriction
+                            .operations
+                            .contains(&crate::RestrictedOperation::Download)
+                        && restriction.scope.is_whole()
+                })
+                && !listing
+                    .restrictions
+                    .iter()
+                    .any(|restriction| restriction.effect == crate::RestrictionEffect::Permit)
+        })
+        .map(|listing| listing.id.as_str())
+        .collect();
+    assert!(!held.is_empty());
+    assert_embedded_download_holds(&held, true, Some(crate::ReleaseSource::UserPrepared)).await;
+}
+
+/// Embedded listings that keep a whole download hold but permit their reviewed
+/// files (#8538, #1422): (port, [(host, release tag, SHA-256, asset name)]).
+type ReviewedHostFile = (Platform, &'static str, &'static str, &'static str);
+
+const REVIEWED_EMBEDDED_PERMITS: &[(&str, &[ReviewedHostFile])] = &[
+    (
+        "chameleon-twist-recompiled",
+        &[(
+            Platform::WindowsX86_64,
+            "v0.1",
+            "8e705d3826ab413afac92ea753d7f11dbc93be9ea507a3ef86bb6003019b5c56",
+            "ChameleonTwistJPRecompiled.zip",
+        )],
+    ),
+    (
+        "grand-theft-auto-san-andreas-unity",
+        &[
+            (
+                Platform::WindowsX86_64,
+                "v4.0",
+                "3cf2f15827d154d172fa259117e0699fc344ab5157a1a134288820361fe27eab",
+                "SanAndreasUnity-4.0-windows.zip",
+            ),
+            (
+                Platform::LinuxX86_64,
+                "v4.0",
+                "fb135b7f080517393af0b17d5c1ced9ae44951b31cfdc907eb7ed851df48859a",
+                "SanAndreasUnity-4.0-linux.zip",
+            ),
+        ],
+    ),
+    (
+        "linewars-ii-sdl3",
+        &[
+            (
+                Platform::WindowsX86_64,
+                "v1.0.0",
+                "5bfededd432f529ab84780c07ba1f1a970708a9c7817998a52ef0b5e844b5ef8",
+                "LineWars2-SDL3-v1.0.0-win64.zip",
+            ),
+            (
+                Platform::LinuxX86_64,
+                "v1.0.0",
+                "8166787cd8a76cfa349ea35b59c3ef8b7d6624dcabe4c67097149bb9c077ac20",
+                "LineWars2-SDL3-v1.0.0-linux-x86_64.tar.gz",
+            ),
+        ],
+    ),
+];
+
+/// A reviewed file is offered only when the provider reports its exact
+/// SHA-256; other bytes under the same tag and name stay withheld, and the
+/// downloaded bytes decide the download.
+#[tokio::test]
+async fn reviewed_embedded_permits_offer_only_their_exact_files() {
+    let Ok(host) = Platform::current() else {
+        return;
+    };
+    for (id, files) in REVIEWED_EMBEDDED_PERMITS {
+        let Some((_, tag, reviewed, name)) = files.iter().find(|file| file.0 == host) else {
+            continue;
+        };
+        let catalog = Catalog::embedded().unwrap();
+        let listing = catalog.listing(id).unwrap();
+        let explanation = listing.download_block_reason.clone().unwrap();
+        let repository = crate::release::catalog_download_repository(
+            listing
+                .release_url
+                .as_deref()
+                .unwrap_or(&listing.project_url),
+        )
+        .unwrap();
+        let bytes = archive();
+        let actual = crate::signed_catalog::digest(&bytes);
+        assert_ne!(actual, *reviewed);
+        // (provider digest, offered, refusal of these non-reviewed bytes)
+        let cases = [
+            (
+                Some(*reviewed),
+                true,
+                "downloaded package failed SHA-256 verification",
+            ),
+            (Some(actual.as_str()), false, ""),
+            (None, true, explanation.as_str()),
+        ];
+        for (digest, offered, refusal) in cases {
+            let (_temporary, mut service, mut request) = fixture();
+            service.catalog = catalog.clone();
+            request.port_id = (*id).into();
+            let github = GithubFixture::for_repository(
+                &repository,
+                bytes.clone(),
+                digest.map(|digest| format!("sha256:{digest}")),
+                None,
+            );
+            github.assets.lock().unwrap()[0]["name"] = json!(name);
+            github.releases.lock().unwrap()[0]["tag_name"] = json!(tag);
+            let options = service
+                .catalog_download_options_with_provider(id, None, None, Some(&github.provider))
+                .await
+                .unwrap();
+            assert!(github.requests.load(Ordering::SeqCst) > 0, "{id}");
+            let names: Vec<_> = options.candidates.iter().map(|c| c.name.as_str()).collect();
+            if !offered {
+                assert!(names.is_empty(), "{id}");
+                assert!(
+                    options
+                        .coverage
+                        .unwrap()
+                        .limitations
+                        .contains(&format!("{name}: {explanation}")),
+                    "{id}"
+                );
+                continue;
+            }
+            assert!(options.allowed, "{id} {:?}", options.reason);
+            assert_eq!(names, [*name], "{id}");
+            // A provider digest decides only the offer; these bytes are not the
+            // reviewed file, so the download is refused before publication.
+            let preview = service
+                .catalog_download_preview_with_provider(&request, &github.provider)
+                .await
+                .unwrap();
+            let error = service
+                .download_catalog_package_with_provider(
+                    &request,
+                    &preview.preview_sha256,
+                    |_| {},
+                    &github.provider,
+                )
+                .await
+                .unwrap_err();
+            assert_eq!(error.message, refusal, "{id}");
+            assert_eq!(
+                fs::read_dir(&request.destination_parent).unwrap().count(),
+                0,
+                "{id}"
+            );
+        }
+    }
 }
 
 #[tokio::test]
@@ -1256,7 +1419,7 @@ async fn selection_inspects_one_release_instead_of_combining_packages_across_his
 
 #[tokio::test]
 async fn discovery_completeness_requires_the_end_of_each_selected_asset_inventory() {
-    for count in [1, 200, 201] {
+    for count in [1, 200, 201, 1_000, 1_001] {
         let github = GithubFixture::new(archive(), None, None);
         let asset = github.assets.lock().unwrap()[0].clone();
         *github.assets.lock().unwrap() = (1..=count)
@@ -1271,12 +1434,13 @@ async fn discovery_completeness_requires_the_end_of_each_selected_asset_inventor
             .provider
             .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None, &[])
             .await;
-        if count > 200 {
+        // GitHub allows at most 1,000 assets per release; more is malformed.
+        if count > 1_000 {
             assert!(
                 result
                     .unwrap_err()
                     .message
-                    .contains("complete 200-asset inventory bound")
+                    .contains("1,000-asset release inventory")
             );
         } else {
             let (candidates, coverage, _, _) = result.unwrap();
@@ -1291,7 +1455,30 @@ async fn discovery_completeness_requires_the_end_of_each_selected_asset_inventor
 
 #[tokio::test]
 async fn download_without_published_digest_retains_honest_provenance_and_non_owning_handoff() {
-    let (_temporary, service, request) = fixture();
+    let (_temporary, mut service, request) = fixture();
+    let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
+    listing.mod_portals.push(crate::ListingModPortal {
+        id: "community".into(),
+        site: crate::ModPortalSite::CommunitySite,
+        name: "Game mods".into(),
+        url: "https://mods.example.com/".into(),
+        instructions: "Read the community instructions.".into(),
+    });
+    service.catalog = service
+        .catalog
+        .with_listing_document(crate::CatalogListingDocument {
+            format_version: 16,
+            listings: vec![listing],
+        })
+        .unwrap();
+    assert_eq!(
+        service
+            .preview_mod_handoff(&request.port_id)
+            .unwrap()
+            .external_mod_portals
+            .len(),
+        1
+    );
     let bytes = archive();
     let expected = crate::signed_catalog::digest(&bytes);
     let github = GithubFixture::new(bytes, None, None);
@@ -1313,6 +1500,29 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     assert_eq!(pending.archive_sha256, expected);
     assert!(pending.artifact.sha256.is_none());
     assert!(pending.path.join("readme.txt").is_file());
+    // Publication stores the format earlier releases read: no record format
+    // field (format 1) and no stage. `artifact-obtained` is the read-time
+    // stage only, so a later rollback to an earlier release keeps working.
+    let raw = service
+        .library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT record_json FROM catalog_downloads WHERE port_id=?1",
+            [&pending.port_id],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap();
+    // The released reader's own parse accepts the real publication row.
+    assert!(super::stage::tests::released_reader_accepts(&raw), "{raw}");
+    let stored: Value = serde_json::from_str(&raw).unwrap();
+    assert!(stored.get("format_version").is_none(), "{stored}");
+    assert!(stored.get("progress").is_none(), "{stored}");
+    assert!(stored["listing"].get("mod_portals").is_none(), "{stored}");
+    assert_eq!(
+        pending.stage_kind(),
+        Some(crate::PendingSetupStageKind::ArtifactObtained)
+    );
     assert_eq!(
         service
             .pending_setup_folder(&pending.port_id, &pending.id)
@@ -1323,6 +1533,7 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     assert!(service.require_no_pending_setup(&pending.port_id).is_err());
     let reopened = PortcoveService::new(service.library.clone()).unwrap();
     assert!(reopened.catalog.listing(&pending.port_id).is_err());
+    assert!(reopened.preview_mod_handoff(&pending.port_id).is_err());
     let snapshot = reopened.workspace_snapshot(10).unwrap();
     assert_eq!(
         snapshot.pending_setups.as_slice(),
@@ -1647,6 +1858,7 @@ fn intent(
         archive_sha256: "a".repeat(64),
         downloaded_at: "2026-10-22T00:00:00Z".into(),
         reason: None,
+        progress: None,
     };
     let review = "b".repeat(64);
     service
@@ -2735,7 +2947,9 @@ async fn mgrayd_fable2pubgames_recomp_upstream_release_download_3995() {
         "mgrayd-fable2pubgames-recomp",
         "v0.1.0",
         "Fable2PubGames-Recomp-v0.1.0-win-x64.zip",
-        None,
+        // User-selected registration is not a managed Install, so the
+        // upstream package download stays offered on every host.
+        Some(crate::AdapterKind::StagedSourcePortable),
         &[],
     )
     .await;
@@ -2999,6 +3213,7 @@ fn install_assessment(
         availability,
         reason,
         definition: None,
+        restriction: None,
     }
 }
 
@@ -3048,21 +3263,31 @@ fn managed_install_hosts_refuse_the_listing_download_and_others_keep_it() {
     let (_temporary, service, _) = embedded_service();
     let host = Platform::current().unwrap();
     let managed = Some(CatalogDownloadRefusal::ManagedRoute);
-    let windows = (host == Platform::WindowsX86_64)
-        .then_some(managed)
-        .flatten();
     let refusal = |id: &str| service.listing_download_refusal(id).unwrap();
-    // Managed only on Windows; every other host keeps the upstream download.
-    assert_eq!(refusal("wave-race-64-recomp"), windows);
-    assert_eq!(refusal("diddy-kong-racing-golden-balloon"), windows);
-    assert_eq!(refusal("road-rash-64-recompiled"), windows);
+    // Operational declarations own managed host coverage; descriptive listings may cover more.
+    for id in [
+        "wave-race-64-recomp",
+        "diddy-kong-racing-golden-balloon",
+        "road-rash-64-recompiled",
+    ] {
+        let port = service.catalog.port(id).expect("managed fixture port");
+        let expected = if port.platforms.contains(&host) {
+            managed
+        } else {
+            None
+        };
+        assert_eq!(refusal(id), expected, "{id} on {host:?}");
+    }
     // Managed on every desktop platform.
     assert_eq!(refusal("sssv-recompiled"), managed);
     // A prepared-player integration offers no Install, so it keeps the download.
     assert_eq!(refusal("dkc2-recomp"), None);
     // A reviewed acquisition hold withdraws Install; its own hold explains the download.
     for held in ["open-nectar-pikmin", "djultra64-blocksphere"] {
-        assert!(crate::managed_runtime_policy::acquisition_hold(&service.catalog, held).is_some());
+        assert!(
+            crate::managed_runtime_policy::acquisition_hold_reason(&service.catalog, held)
+                .is_some()
+        );
         assert_eq!(refusal(held), None);
     }
     // Listing-only titles have no managed route.
@@ -3464,5 +3689,165 @@ async fn fresh_browse_observation_works_offline_but_unknown_release_and_preview_
                 time::OffsetDateTime::now_utc()
             )
             .is_none()
+    );
+}
+
+const SCOPED_HOLD: &str = "Sibling packages bundle original game data.";
+
+/// A whole download hold with one reviewed package permitted through data alone.
+fn permit_reviewed_package(service: &mut PortcoveService, sha256: &str) {
+    let mut document = service.catalog.listing_document().clone();
+    document.format_version = 15;
+    let listing = &mut document.listings[0];
+    listing.download_block_reason = Some(SCOPED_HOLD.into());
+    listing.restrictions = serde_json::from_value(json!([
+        {"id":"download","effect":"hold","operations":["download"],
+         "reason":"bundled-game-data","explanation":SCOPED_HOLD},
+        {"id":"reviewed-package","effect":"permit","operations":["download"],
+         "scope":{"artifacts":[{"version":"v1.0","sha256":sha256,"asset_name":"game.zip"}]}}
+    ]))
+    .unwrap();
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(document)
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_reviewed_package_is_offered_while_its_held_siblings_stay_withheld() {
+    let (_temporary, mut service, request) = fixture();
+    let bytes = archive();
+    let sha256 = crate::signed_catalog::digest(&bytes);
+    let github = GithubFixture::new(bytes, Some(format!("sha256:{sha256}")), None);
+    {
+        let mut assets = github.assets.lock().unwrap();
+        let url = assets[0]["browser_download_url"]
+            .as_str()
+            .unwrap()
+            .replace("game.zip", "other.zip");
+        assets.push(json!({
+            "id":13,"name":"other.zip","size":1,"browser_download_url":url,
+            "digest":format!("sha256:{}", "1".repeat(64))
+        }));
+    }
+    permit_reviewed_package(&mut service, &sha256);
+    let options = service
+        .catalog_download_options_with_provider(
+            &request.port_id,
+            None,
+            None,
+            Some(&github.provider),
+        )
+        .await
+        .unwrap();
+    assert!(options.allowed, "{:?}", options.reason);
+    let names: Vec<_> = options.candidates.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(names, ["game.zip"]);
+    assert!(
+        options
+            .coverage
+            .unwrap()
+            .limitations
+            .contains(&format!("other.zip: {SCOPED_HOLD}"))
+    );
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    assert_eq!(pending.archive_sha256, sha256);
+    // Older readers keep the whole legacy hold.
+    let legacy = service
+        .catalog
+        .listing_document()
+        .export_format(14)
+        .unwrap();
+    assert!(legacy.listings[0].restrictions.is_empty());
+    assert_eq!(
+        legacy.listings[0].download_block_reason.as_deref(),
+        Some(SCOPED_HOLD)
+    );
+}
+
+#[tokio::test]
+async fn a_permitted_package_whose_downloaded_digest_differs_is_refused() {
+    let (_temporary, mut service, request) = fixture();
+    // No published digest: the offer cannot prove the identity, so the actual
+    // bytes decide, and they are not the reviewed package.
+    let github = GithubFixture::new(archive(), None, None);
+    permit_reviewed_package(&mut service, &"2".repeat(64));
+    let options = service
+        .catalog_download_options_with_provider(
+            &request.port_id,
+            None,
+            None,
+            Some(&github.provider),
+        )
+        .await
+        .unwrap();
+    assert!(options.allowed);
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    let error = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, SCOPED_HOLD);
+    assert_eq!(
+        fs::read_dir(&request.destination_parent).unwrap().count(),
+        0
+    );
+    // As for any failed download, nothing is published; the attempt stays
+    // visible as needing attention.
+    assert!(
+        service
+            .pending_setups()
+            .unwrap()
+            .iter()
+            .all(|pending| pending.state != PendingSetupState::Downloaded)
+    );
+}
+
+#[tokio::test]
+async fn a_release_whose_packages_are_all_held_still_lists_the_reachable_releases() {
+    let (_temporary, mut service, request) = fixture();
+    // The selected release's only package is held; a permitted package may be
+    // in another release, so the release list stays reachable.
+    let github = GithubFixture::new(archive(), Some(format!("sha256:{}", "3".repeat(64))), None);
+    permit_reviewed_package(&mut service, &"2".repeat(64));
+    let options = service
+        .catalog_download_options_with_provider(
+            &request.port_id,
+            None,
+            None,
+            Some(&github.provider),
+        )
+        .await
+        .unwrap();
+    assert!(options.candidates.is_empty());
+    assert!(!options.releases.is_empty());
+    assert!(options.selected_release_id.is_some());
+    assert!(
+        options
+            .coverage
+            .unwrap()
+            .limitations
+            .contains(&format!("game.zip: {SCOPED_HOLD}"))
     );
 }

@@ -2,11 +2,17 @@ import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  overlayLocalResearch,
+  skipBackfillWindow,
+  acceptBackfillPage,
+  backfillEpoch,
+  nextBackfillPage,
   acceptLeadPage,
   retainLeadResults,
   nextLeadPage,
   parseLeadState,
   pendingLeads,
+  selectLeadReleaseChecks,
   restartLeadSlice,
   LeadSearchChanged,
   leadSearchFamilyCount,
@@ -15,6 +21,12 @@ import {
   resolveExternalHint,
 } from "./discovery-leads.mts";
 import {
+  parseExternalLeadState,
+  parseDecompFunProjects,
+  parseOsgcGames,
+  parsePortMasterIndex,
+  parseUnbakedAdditions,
+  externalListIds,
   externalHintSummary,
   externalListDue,
   leadPaths,
@@ -24,15 +36,40 @@ import {
   parseFindsFeed,
   parsePortsdrPage,
   selectExternalResolutions,
+  externalListValidators,
+  externalWebLocation,
+  externalRepository,
+  markExternalListUnchanged,
+  sourceEntry,
+  progressBand,
 } from "./discovery-external-lists.mts";
 import type { ExternalLeadState } from "./discovery-external-lists.mts";
 import { DiscoverySession } from "./daily-discovery-session.mts";
+import { collectLeadReleaseHints, type DiscoveryCollectionHost } from "./discovery-collection.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from "node:fs";
 import type { RoadmapConfig } from "./roadmap.mts";
 import path from "node:path";
 import os from "node:os";
+/** Lists added after a test was written are attempted, so it keeps exercising its own lists. */
+// Lists added after the original four curated lists.
+const newerLists = externalListIds.filter(
+  (id) => !["decomp-buddy-finds", "portsdr", "alexbeav-psx", "recompsoftware"].includes(id),
+);
+function withNewListsAttempted<T extends { external?: ExternalLeadState }>(
+  leads: T,
+  at: string,
+): T {
+  leads.external ??= { lists: {}, hints: {} };
+  leads.external.attempts = {
+    ...leads.external.attempts,
+    ...Object.fromEntries(
+      newerLists.map((id) => [id, { attempted_at: at, outcome: "partial" as const }]),
+    ),
+  };
+  return leads;
+}
 const now = "2026-10-23T12:56:46.011Z";
 const item = (id: number, full_name = `ports/game-${id}`) => ({
   id,
@@ -520,6 +557,109 @@ void test("changed search index can restart on a later run without dropping coll
   state = acceptLeadPage(state, nextLeadPage(state, now), page([item(52)]), now, "replacement");
   assert.equal(Object.keys(state.records).length, 51);
 });
+void test("early release probes share the existing budget and preserve failed observations", async () => {
+  const later = "2026-11-01T12:56:46.011Z";
+  const state = retainLeadResults(
+    parseLeadState(undefined),
+    [item(1), item(2), item(3), item(4), item(5)],
+    now,
+    "first",
+  );
+  for (const lead of Object.values(state.records))
+    lead.release_hint = { assets_observed: true, observed_at: now, evidence: "prior.json" };
+  const budget = new DiscoveryBudget(
+    "ordinary",
+    () => {},
+    () => Date.parse(later),
+    later,
+    {
+      requests: 8,
+      bytes: 1024 * 1024,
+      milliseconds: 60000,
+    },
+  );
+  const calls: string[] = [];
+  const sdk = await fixtureGitHub(({ endpoint }) => {
+    calls.push(endpoint);
+    budget.charge("GET", endpoint, 1, 100, "200");
+    if (endpoint.startsWith("repositories/1/"))
+      return new Response(JSON.stringify({ message: "Not Found" }), {
+        status: 404,
+        headers: { "content-type": "application/json" },
+      });
+    if (endpoint.startsWith("repositories/2/")) return [{ draft: false, assets: null }];
+    if (endpoint.startsWith("repositories/3/"))
+      return new Response(new Uint8Array([0xc3, 0x28]), {
+        headers: { "content-type": "application/json" },
+      });
+    return [{ draft: false, assets: [{ state: "uploaded", name: "native.zip" }] }];
+  });
+  const host = {
+    leads: state,
+    budget,
+    source: { sdk },
+    unattended: true,
+    journal: { started_at: later, notes: [] },
+    runDir: "fixture",
+    save() {},
+    persist() {},
+    knownLeadUrls: () => new Set<string>(),
+  } as unknown as DiscoveryCollectionHost;
+  assert.deepEqual(await collectLeadReleaseHints(host, true), {
+    attempted: 2,
+    unavailable: 1,
+    malformed: 1,
+  });
+  assert.equal(calls.length, 2, "early phase leaves capacity for other source families");
+  assert.equal(state.records["1"]?.release_hint?.observed_at, now);
+  assert.equal(state.records["1"]?.release_probe?.outcome, "unavailable");
+  assert.equal(state.records["2"]?.release_hint?.assets_observed, true);
+  assert.equal(state.records["2"]?.release_probe?.outcome, "invalid-response");
+  // The intervening repository search may replace the records after a push,
+  // relocation or weekly review. Their dated release evidence must survive.
+  state.records["2"].checked_at = now;
+  state.records["2"].status = "held";
+  const refreshed = retainLeadResults(
+    state,
+    [{ ...item(1, "renamed/game-1"), pushed_at: later }, item(2)],
+    later,
+    "refreshed",
+  );
+  host.leads = refreshed;
+  assert.equal(refreshed.records["1"]?.repository, "renamed/game-1");
+  assert.equal(refreshed.records["2"]?.status, "pending");
+  for (const id of ["1", "2"]) {
+    assert.deepEqual(refreshed.records[id]?.release_hint, state.records[id]?.release_hint);
+    assert.deepEqual(refreshed.records[id]?.release_probe, state.records[id]?.release_probe);
+  }
+  assert.deepEqual(
+    selectLeadReleaseChecks(refreshed, new Set(), later, true).map(({ id }) => id),
+    [3, 4, 5],
+  );
+  assert.deepEqual(await collectLeadReleaseHints(host), {
+    attempted: 3,
+    unavailable: 0,
+    malformed: 1,
+  });
+  assert.deepEqual(
+    calls,
+    [1, 2, 3, 4, 5].map((id) => `repositories/${id}/releases?per_page=100`),
+    "a malformed response cannot starve later leads and a recycled path cannot supply evidence",
+  );
+  assert.equal(refreshed.records["3"]?.release_probe?.outcome, "invalid-response");
+  assert.equal(refreshed.records["3"]?.release_hint?.observed_at, now);
+  assert.equal(refreshed.records["4"]?.release_hint?.observed_at, later);
+  assert.deepEqual(
+    parseLeadState(refreshed).records["1"]?.release_probe,
+    refreshed.records["1"]?.release_probe,
+  );
+  const next = "2026-11-02T12:56:46.011Z";
+  assert.deepEqual(
+    selectLeadReleaseChecks(refreshed, new Set(), next, true).map(({ id }) => id),
+    [1, 2, 3, 4, 5],
+  );
+});
+
 void test("weekly held-lead refresh catches release-only changes without a source push", () => {
   let state = parseLeadState(undefined);
   state = acceptLeadPage(state, nextLeadPage(state, now), page([item(1)]), now, "first");
@@ -1100,7 +1240,7 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
     inventory: { issues: [] },
     intakeRecords: [],
     journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
-    leads: parseLeadState(undefined),
+    leads: withNewListsAttempted(parseLeadState(undefined), now),
     budget,
     leadPages: 0,
     searches: 0,
@@ -1230,9 +1370,11 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
   portsdrFails = false;
   const hints = structuredClone(session.leads.external?.hints);
   const findsClock = structuredClone(session.leads.external?.lists["decomp-buddy-finds"]);
+  withNewListsAttempted(session.leads, "2026-10-26T12:56:46.011Z");
   await rerun("2026-10-26T12:56:46.011Z", 150);
   assert.deepEqual(
     fetched.slice(4).map((u) => new URL(u).hostname),
+    // The finds fixture sends no validators, so it is read weekly, not daily.
     ["portsdr.com", "alexbeavs-ps1-ports.github.io", "raw.githubusercontent.com"],
   );
   assert.deepEqual(session.leads.external?.lists["decomp-buddy-finds"], findsClock);
@@ -1260,7 +1402,7 @@ void test("provider-wide refusals stop hint resolution without blaming any hint"
       now,
       "finds.json",
     );
-    for (const list of ["portsdr", "alexbeav-psx", "recompsoftware"])
+    for (const list of externalListIds.filter((id) => id !== "decomp-buddy-finds"))
       leads.external.attempts![list] = { attempted_at: now, outcome: "partial" };
     leads = parseLeadState(JSON.parse(JSON.stringify(leads)));
     const reads: string[] = [];
@@ -1374,4 +1516,736 @@ void test("a list read ended by the run deadline or cancellation stays due witho
       assert.deepEqual(attempts, {}, `${code} must not back off any list`);
     }
   }
+});
+
+void test("new structured sources yield repository hints and apply their own scope", () => {
+  const decomp = parseDecompFunProjects(
+    JSON.stringify({
+      projects: [
+        { repository: "https://github.com/one/ty-decomp", game_title: "Ty the Tasmanian Tiger" },
+        { name: "No repository" },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    decomp.entries.map((e) => [e.url, e.title]),
+    [["https://github.com/one/ty-decomp", "Ty the Tasmanian Tiger"]],
+  );
+  assert.equal(decomp.unlinked, 1);
+
+  const unbaked = parseUnbakedAdditions(
+    JSON.stringify({
+      weeks: [
+        {
+          games: [
+            {
+              title: "Frontier: First Encounters",
+              projects: [
+                { url: "https://github.com/louisvarley/ffers", name: "ffe-rs" },
+                { url: "https://sourceforge.net/projects/other", name: "other" },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    unbaked.entries.map((e) => [e.key, e.host]),
+    [
+      ["https://github.com/louisvarley/ffers", "github"],
+      ["https://sourceforge.net/projects/other", "web"],
+    ],
+    "an official URL on a host Portcove cannot resolve is kept as an unresolved web hint",
+  );
+  assert.equal(unbaked.unlinked, 0);
+
+  const portmaster = parsePortMasterIndex(
+    JSON.stringify({
+      ports: {
+        "a.zip": {
+          attr: {
+            title: "Engine Port",
+            desc: "Built from https://github.com/upstream/engine. See https://github.com/PortsMaster/PortMaster-New",
+          },
+        },
+        "b.zip": { attr: { title: "Paid game", desc: "Buy it on Steam." } },
+      },
+    }),
+  );
+  assert.deepEqual(
+    portmaster.entries.map((e) => e.key),
+    ["https://github.com/upstream/engine"],
+    "sentence punctuation is not part of the path, and PortMaster's own repositories are not upstreams",
+  );
+  assert.equal(portmaster.unlinked, 1);
+
+  const yaml = [
+    "- name: Remake One",
+    "  originals: [Original Game]",
+    "  type: remake",
+    "  repo: 'https://github.com/remake/one'",
+    "- name: Clone Two",
+    "  originals: [Original Game]",
+    "  type: clone",
+    "  repo: 'https://github.com/clone/two'",
+    "- name: A Tool",
+    "  originals: [Original Game]",
+    "  type: tool",
+    "  repo: 'https://github.com/tool/three'",
+    "- name: Official Four",
+    "  originals: [Another Game]",
+    "  type: official",
+  ].join("\n");
+  const osgc = parseOsgcGames(JSON.stringify({ files: { "a.yaml": yaml } }));
+  assert.deepEqual(
+    osgc.entries.map((e) => [e.key, e.title]),
+    [["https://github.com/remake/one", "Original Game"]],
+  );
+  assert.equal(osgc.excluded, 2, "clones and tools are out of native-port scope");
+  assert.equal(osgc.unlinked, 1);
+  assert.throws(
+    () => parseOsgcGames(JSON.stringify({ files: { "b.yaml": "- &x {type: remake}\n- *x" } })),
+    /Malformed Open Source Game Clones YAML/u,
+    "aliases are refused",
+  );
+  assert.throws(
+    () => parseOsgcGames(JSON.stringify({ files: { "../x.yaml": "[]" } })),
+    /Malformed/u,
+  );
+});
+
+void test("a directory source pins its repository identity on the first complete read", async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-osgc-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+  const budget = new DiscoveryBudget("ordinary");
+  const leads = parseLeadState(undefined);
+  leads.external = {
+    lists: {},
+    hints: {},
+    attempts: Object.fromEntries(
+      externalListIds
+        .filter((id) => id !== "osgc")
+        .map((id) => [id, { attempted_at: now, outcome: "partial" as const }]),
+    ),
+  };
+  Object.assign(session, {
+    stateDir: root,
+    runDir: root,
+    journalFile: path.join(root, "journal.json"),
+    checkpoint: {},
+    checkpointPreimage: "fixture",
+    inventory: { issues: [] },
+    intakeRecords: [],
+    journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
+    leads,
+    budget,
+    leadPages: 0,
+    searches: 0,
+    leadCollectionAttempted: true,
+    researchedLeads: new Set<number>(),
+  });
+  session.knownLeadUrls = () => new Set();
+  let repositoryId = 72310;
+  const revision = "c".repeat(40);
+  const source = {
+    budget,
+    http: {
+      request: async (_method: string, url: string) => {
+        budget.charge("GET", url, 1, 100, "200");
+        assert.equal(
+          url,
+          `https://raw.githubusercontent.com/opengaming/osgameclones/${revision}/games/a.yaml`,
+        );
+        return {
+          requests: 1,
+          bytes: 1,
+          status: 200,
+          headers: {},
+          text: "- name: Remake One\n  originals: [Original Game]\n  type: remake\n  repo: 'https://github.com/remake/one'\n",
+        };
+      },
+    },
+    sdk: await fixtureGitHub(({ endpoint }) => {
+      budget.charge("GET", endpoint, 1, 100, "200");
+      if (endpoint === "repos/opengaming/osgameclones")
+        return { id: repositoryId, full_name: "opengaming/osgameclones", default_branch: "master" };
+      if (endpoint === "repos/opengaming/osgameclones/git/ref/heads/master")
+        return { object: { sha: revision } };
+      if (endpoint === `repos/opengaming/osgameclones/contents/games?ref=${revision}`)
+        return [
+          { type: "file", name: "a.yaml" },
+          { type: "file", name: "README.md" },
+          { type: "dir", name: "nested" },
+        ];
+      // Primary repository metadata for the resolved hint.
+      return {
+        id: 9,
+        full_name: "remake/one",
+        html_url: "https://github.com/remake/one",
+        description: "",
+      };
+    }),
+  };
+  Object.defineProperty(session, "source", { configurable: true, value: source });
+  await session.collectExternalLists();
+  const clock = session.leads.external?.lists.osgc;
+  assert.equal(clock?.entries, 1);
+  assert.equal(clock?.source?.repository_id, 72310, "the first complete read pins the repository");
+  assert.equal(clock?.source?.revision, revision);
+  assert.ok(session.leads.external?.hints["https://github.com/remake/one"]);
+
+  // The same path later names a different repository: refused, the list keeps its last good read.
+  repositoryId = 99999;
+  session.externalCollectionAttempted = false;
+  Object.assign(session, {
+    journal: { ...session.journal, started_at: "2026-11-01T00:00:00.000Z", notes: [] },
+  });
+  await session.collectExternalLists();
+  assert.equal(session.leads.external?.lists.osgc?.source?.repository_id, 72310);
+  assert.equal(session.leads.external?.attempts?.osgc?.outcome, "partial");
+});
+
+void test("retained list sources must name that list's own immutable location", () => {
+  const revision = "d".repeat(40);
+  const state = (url: string) => ({
+    lists: {
+      osgc: {
+        completed_at: "2026-11-01T00:00:00.000Z",
+        evidence: "x",
+        entries: 0,
+        unlinked: 0,
+        fingerprint: "f",
+        source: { url, revision, content_sha256: "e".repeat(64), repository_id: 7 },
+      },
+    },
+    hints: {},
+  });
+  assert.ok(
+    parseExternalLeadState(
+      state(`https://github.com/opengaming/osgameclones/tree/${revision}/games`),
+    ),
+  );
+  assert.throws(
+    () =>
+      parseExternalLeadState(
+        state(`https://raw.githubusercontent.com/other/repo/${revision}/games`),
+      ),
+    /immutable external source/u,
+  );
+});
+
+void test("a directory source too large for the remaining budget stops as a budget boundary", async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-osgc-budget-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+  const budget = new DiscoveryBudget("ordinary");
+  const leads = parseLeadState(undefined);
+  leads.external = {
+    lists: {},
+    hints: {},
+    attempts: Object.fromEntries(
+      externalListIds
+        .filter((id) => id !== "osgc")
+        .map((id) => [id, { attempted_at: now, outcome: "partial" as const }]),
+    ),
+  };
+  Object.assign(session, {
+    stateDir: root,
+    runDir: root,
+    journalFile: path.join(root, "journal.json"),
+    checkpoint: {},
+    checkpointPreimage: "fixture",
+    inventory: { issues: [] },
+    intakeRecords: [],
+    journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
+    leads,
+    budget,
+    leadPages: 0,
+    searches: 0,
+    leadCollectionAttempted: true,
+    researchedLeads: new Set<number>(),
+  });
+  session.knownLeadUrls = () => new Set();
+  const revision = "c".repeat(40);
+  const reads: string[] = [];
+  Object.defineProperty(session, "source", {
+    configurable: true,
+    value: {
+      budget,
+      http: {
+        request: async (_m: string, url: string) => {
+          reads.push(url);
+          budget.charge("GET", url, 1, 100, "200");
+          return { requests: 1, bytes: 1, status: 200, headers: {}, text: "[]" };
+        },
+      },
+      sdk: await fixtureGitHub(({ endpoint }) => {
+        budget.charge("GET", endpoint, 1, 100, "200");
+        if (endpoint === "repos/opengaming/osgameclones")
+          return { id: 5, full_name: "opengaming/osgameclones", default_branch: "master" };
+        if (endpoint === "repos/opengaming/osgameclones/git/ref/heads/master")
+          return { object: { sha: revision } };
+        // Far more files than the ordinary profile can read beside its reserve.
+        return Array.from({ length: 400 }, (_, i) => ({ type: "file", name: `f${i}.yaml` }));
+      }),
+    },
+  });
+  await session.collectExternalLists();
+  assert.ok(reads.length > 0 && reads.length < 400, "reading stopped before the reserve");
+  assert.equal(session.leads.external?.lists.osgc, undefined);
+  assert.equal(
+    session.leads.external?.attempts?.osgc,
+    undefined,
+    "a budget stop records no failed attempt, so the list stays due",
+  );
+  assert.ok(budget.remaining().requests >= 22, "the research reserve is intact");
+});
+
+void test("backfill walks each family back to the epoch, then repairs from the top in a later run", () => {
+  const runA = "2026-11-24T05:00:00.000Z";
+  let state = parseLeadState(undefined);
+  const complete = (items: ReturnType<typeof item>[]) => ({
+    total_count: items.length,
+    incomplete_results: false,
+    items,
+  });
+  const first = nextBackfillPage(state, runA)!;
+  assert.equal(first.family, leadFamilyIds[0]);
+  // Without forward coverage yet, backfill starts below the forward baseline.
+  assert.equal(first.slice.until, "2026-11-10T05:00:00.000Z");
+  assert.match(
+    first.query,
+    / created:2025-11-09T05:00:00\.000Z\.\.2026-11-10T05:00:00\.000Z fork:false$/u,
+  );
+
+  // Walk one family to the epoch; an old repository is found along the way.
+  const family = first.family;
+  let windows = 0;
+  for (;;) {
+    const plan = nextBackfillPage({ ...state, backfill_next: 0 }, runA);
+    if (!plan) break;
+    assert.equal(plan.family, family);
+    const old =
+      Date.parse(plan.slice.since) <= Date.parse("2014-06-01T00:00:00Z") &&
+      Date.parse(plan.slice.until) > Date.parse("2014-06-01T00:00:00Z");
+    state = acceptBackfillPage(
+      { ...state, backfill_next: 0 },
+      plan,
+      complete(old ? [item(4242, "classic/old-port")] : []),
+      runA,
+      `backfill-${++windows}.json`,
+    );
+    assert.ok(windows < 40, "the sweep terminates");
+  }
+  assert.equal(state.backfill?.[family]?.slice.since, backfillEpoch, "the sweep reaches the epoch");
+  assert.deepEqual(state.records["4242"]?.search_families, [family], "found only by backfill");
+  assert.equal(
+    nextBackfillPage({ ...state, backfill_next: 0 }, runA),
+    undefined,
+    "no second sweep in the same run",
+  );
+
+  // A later run starts a repair sweep from the top.
+  const repair = nextBackfillPage({ ...state, backfill_next: 0 }, "2026-11-25T05:00:00.000Z")!;
+  assert.equal(repair.backfill.sweeps_completed, 1);
+  assert.equal(repair.slice.page, 1);
+  assert.ok(Date.parse(repair.slice.until) > Date.parse("2026-01-01T00:00:00Z"));
+
+  // Retained backfill state round-trips; malformed state is refused.
+  assert.deepEqual(parseLeadState(JSON.parse(JSON.stringify(state))).backfill, state.backfill);
+  assert.throws(
+    () =>
+      parseLeadState({
+        ...state,
+        backfill: { [family]: { slice: {}, sweep_started_at: runA, sweeps_completed: 0 } },
+      }),
+    /Invalid retained backfill window/u,
+  );
+  assert.throws(() => parseLeadState({ ...state, backfill_next: 999 }), /backfill rotation/u);
+});
+
+void test("a halved backfill window steps back from its original start and skips a capped piece forward", () => {
+  const run = "2026-11-24T05:00:00.000Z";
+  const plan = nextBackfillPage(parseLeadState(undefined), run)!;
+  const windowSince = plan.slice.since;
+  // Past the provider ceiling: the window halves into two pieces.
+  let state = acceptBackfillPage(
+    parseLeadState(undefined),
+    plan,
+    {
+      total_count: 1500,
+      incomplete_results: false,
+      items: Array.from({ length: 50 }, (_, i) => item(1 + i)),
+    },
+    run,
+    "halve.json",
+  );
+  const pieces = (s: typeof state) => s.backfill![plan.family]!;
+  assert.equal(pieces(state).slice.remaining?.length, 1);
+  // Both pieces complete empty.
+  for (let i = 0; i < 2; i++) {
+    const piece = nextBackfillPage({ ...state, backfill_next: 0 }, run)!;
+    state = acceptBackfillPage(
+      { ...state, backfill_next: 0 },
+      piece,
+      { total_count: 0, incomplete_results: false, items: [] },
+      run,
+      `piece-${i}.json`,
+    );
+  }
+  assert.ok(pieces(state).slice.completed_at);
+  const following = nextBackfillPage({ ...state, backfill_next: 0 }, run)!;
+  assert.equal(
+    following.slice.until,
+    windowSince,
+    "the next window starts where the original began",
+  );
+
+  // A capped piece with pieces remaining moves to the next piece; it never completes the window.
+  const capped = {
+    ...following,
+    slice: {
+      ...following.slice,
+      capped: true as const,
+      remaining: [{ since: "2024-01-01T00:00:00.000Z", until: "2024-06-01T00:00:00.000Z" }],
+    },
+  };
+  const moved = skipBackfillWindow({ ...state, backfill_next: 0 }, capped, "capped", false, run);
+  const movedSlice = moved.backfill![plan.family]!.slice;
+  assert.equal(movedSlice.since, "2024-01-01T00:00:00.000Z");
+  assert.equal(movedSlice.completed_at, undefined);
+  assert.equal(movedSlice.capped, undefined);
+});
+
+void test("a capped window at the epoch finishes the sweep for this run", () => {
+  const run = "2026-11-24T05:00:00.000Z";
+  const base = parseLeadState(undefined);
+  const plan = nextBackfillPage(base, run)!;
+  const atEpoch = {
+    ...plan,
+    backfill: { ...plan.backfill, window_since: backfillEpoch },
+    slice: { ...plan.slice, since: backfillEpoch, capped: true as const },
+  };
+  const state = skipBackfillWindow(base, atEpoch, "capped", false, run);
+  assert.equal(state.backfill![plan.family]!.finished_run, run);
+  assert.equal(
+    nextBackfillPage({ ...state, backfill_next: 0 }, run),
+    undefined,
+    "no second sweep this run",
+  );
+  assert.ok(nextBackfillPage({ ...state, backfill_next: 0 }, "2026-11-25T05:00:00.000Z"));
+});
+
+void test("local research survives only on the same repository and revision as the stored lead", () => {
+  const lead = (id: number, repository: string, revision: string) => ({
+    id,
+    repository,
+    url: `https://github.com/${repository}`,
+    description: "",
+    revision,
+    observed_at: "2026-11-01T00:00:00.000Z",
+    evidence: "lead-search-1.json",
+    status: "pending" as const,
+  });
+  const researched = { evidence_id: "e", file: "local.json", material: "m" };
+  const stored = {
+    format: 1 as const,
+    next_family: 4,
+    slices: {},
+    records: {
+      "1": lead(1, "ports/one", "a"),
+      "2": lead(2, "ports/two-renamed", "b"),
+      "3": { ...lead(3, "ports/three", "c"), external_lists: ["decomp-fun"] },
+    },
+  };
+  const local = {
+    format: 1 as const,
+    next_family: 0,
+    slices: {},
+    records: {
+      "1": { ...lead(1, "Ports/One", "a"), status: "canonical" as const, research: researched },
+      "2": { ...lead(2, "ports/two", "b"), status: "researched" as const, research: researched },
+      "3": { ...lead(3, "ports/three", "c"), status: "pending" as const },
+    },
+  };
+  const merged = overlayLocalResearch(stored, local);
+  assert.equal(merged.records["1"]!.status, "canonical", "path case does not matter");
+  assert.deepEqual(merged.records["1"]!.research, researched);
+  assert.equal(merged.records["2"]!.status, "pending", "a relocated repository is reviewed again");
+  assert.equal(merged.records["2"]!.repository, "ports/two-renamed");
+  assert.deepEqual(merged.records["3"]!.external_lists, ["decomp-fun"], "stored facts stay");
+  assert.equal(merged.next_family, 4, "the store owns the continuation");
+  assert.equal(stored.records["1"].status, "pending", "the stored copy is not changed");
+});
+
+void test("a local lead whose path the store holds under another provider ID is left out", () => {
+  const lead = (id: number, repository: string) => ({
+    id,
+    repository,
+    url: `https://github.com/${repository}`,
+    description: "",
+    revision: "r",
+    observed_at: "2026-11-01T00:00:00.000Z",
+    evidence: "lead-search-1.json",
+    status: "pending" as const,
+  });
+  const merged = overlayLocalResearch(
+    { format: 1, next_family: 0, slices: {}, records: { "9": lead(9, "ports/recreated") } },
+    {
+      format: 1,
+      next_family: 0,
+      slices: {},
+      records: { "5": lead(5, "Ports/Recreated"), "6": lead(6, "ports/local-only") },
+    },
+  );
+  assert.deepEqual(Object.keys(merged.records).sort(), ["6", "9"]);
+});
+
+void test("official URLs on unsupported hosts are retained as unresolved web hints", () => {
+  assert.deepEqual(externalWebLocation("https://sourceforge.net/p/openlara/code/ci/master/tree/"), {
+    key: "https://sourceforge.net/projects/openlara",
+    url: "https://sourceforge.net/projects/openlara",
+    host: "web",
+  });
+  assert.equal(
+    externalWebLocation("https://git.example.dev/team/engine.git?tab=readme#top")?.key,
+    "https://git.example.dev/team/engine.git?tab=readme",
+    "the query names the page; the fragment does not",
+  );
+  assert.equal(
+    externalWebLocation("http://Example.org/Game/")?.key,
+    externalWebLocation("https://example.org/game")?.key,
+    "one site over HTTP and HTTPS is one location",
+  );
+  assert.equal(
+    externalWebLocation("https://openlara.sourceforge.net/docs/")?.key,
+    "https://sourceforge.net/projects/openlara",
+    "a SourceForge project site is its project",
+  );
+  for (const [mirror, project] of [
+    ["https://downloads.sourceforge.net/project/foo/foo-1.0.tar.gz", "foo"],
+    ["https://prdownloads.sourceforge.net/bar/bar-2.zip", "bar"],
+    ["https://master.dl.sourceforge.net/project/baz/x.zip", "baz"],
+  ] as const)
+    assert.equal(
+      externalWebLocation(mirror)?.key,
+      `https://sourceforge.net/projects/${project}`,
+      "a mirror names its project only in its path",
+    );
+  assert.equal(externalWebLocation("https://downloads.sourceforge.net/"), null);
+  assert.equal(
+    externalWebLocation("https://voidpoint.io/terminx/eduke32/-/archive/r1")?.key,
+    externalWebLocation("https://voidpoint.io/terminx/eduke32")?.key,
+    "a self-hosted GitLab route belongs to its project",
+  );
+  for (const forge of [
+    "https://gist.github.com/owner/abc",
+    "https://codeload.github.com/owner/repo/zip/main",
+  ])
+    assert.equal(externalWebLocation(forge), null, forge);
+  assert.equal(
+    externalRepository("https://www.github.com/Owner/Repo")?.key,
+    "https://github.com/owner/repo",
+  );
+  for (const rejected of [
+    "https://www.youtube.com/watch?v=x",
+    "https://store.steampowered.com/app/1",
+    "https://github.com/owner/repo",
+    "https://user:pass@example.org/p",
+    "https://example.org:8443/p",
+    "https://192.168.0.1/p",
+    "ftp://example.org/p",
+    "https://decomp.fun/owner/repo/",
+  ])
+    assert.equal(externalWebLocation(rejected), null, rejected);
+  const parsed = parseUnbakedAdditions(
+    JSON.stringify({
+      weeks: [
+        {
+          games: [
+            {
+              title: "Doom",
+              projects: [{ url: "https://git.example.dev/team/engine", name: "engine" }],
+            },
+          ],
+        },
+      ],
+    }),
+  );
+  const state = mergeExternalList(undefined, "unbaked-additions", parsed, now, "evidence.json");
+  assert.deepEqual(parseExternalLeadState(state), state, "web hints round-trip");
+  const summary = externalHintSummary(state, new Set(), new Map(), now);
+  assert.equal(summary["unsupported-host"], 1);
+  assert.deepEqual(summary.unsupported_hosts, { "git.example.dev": 1 });
+  assert.match(summary.unsupported_host_reconsideration, /provider adapter/u);
+  assert.deepEqual(
+    selectExternalResolutions(state, new Set(), new Map(), now, Infinity, "fair"),
+    [],
+    "a web hint is never researched as a GitHub repository",
+  );
+});
+
+void test("a claim several aggregators repeat counts once for its originating source", () => {
+  const claim = (id: string, origin: string[]) =>
+    sourceEntry({
+      id,
+      subject: "Game",
+      category: "gc",
+      method: "",
+      status: "latest",
+      targets: ["Windows", "Linux"],
+      needs_original: null,
+      latest_release: "v1",
+      relation: "implementation",
+      games: ["game"],
+      origin,
+    });
+  const entry = (origin: string[]) => ({
+    key: "https://github.com/ports/game",
+    url: "https://github.com/ports/game",
+    host: "github" as const,
+    title: "Game",
+    source_entries: [claim("github:ports/game", origin)],
+  });
+  let state = mergeExternalList(
+    undefined,
+    "portsdr",
+    parsePortsdrPage(
+      '<article class="port-card"><h3>Game</h3><a href="https://github.com/ports/game">Repository</a></article>',
+    ),
+    now,
+    "portsdr.json",
+  );
+  state = mergeExternalList(
+    state,
+    "decomp-buddy-finds",
+    { entries: [entry(["portsdr", "decomp-buddy-finds"])], unlinked: 0 },
+    now,
+    "finds.json",
+  );
+  assert.deepEqual(parseExternalLeadState(state), state);
+  const summary = externalHintSummary(state, new Set(), new Map(), now);
+  assert.equal(summary.hints, 1, "one upstream identity");
+  assert.equal(summary.lists.portsdr?.contribution?.discovered, 1);
+  assert.equal(summary.lists["decomp-buddy-finds"]?.contribution?.discovered, 0);
+  assert.equal(summary.lists.portsdr?.contribution?.originated, 1);
+  assert.equal(summary.lists["decomp-buddy-finds"]?.contribution?.platform_claims, 1);
+  assert.deepEqual(state.hints["https://github.com/ports/game"]?.lists, [
+    "decomp-buddy-finds",
+    "portsdr",
+  ]);
+  // A small progress move stays in one band; crossing a band is a research change.
+  assert.equal(progressBand(41.2), progressBand(48.9));
+  assert.notEqual(progressBand(48.9), progressBand(51));
+  assert.equal(progressBand(100), 10);
+  assert.equal(progressBand(0.99), 0, "values are percentages: 0.99 is under one percent");
+  assert.equal(progressBand(0.99), progressBand(1.05));
+  assert.equal(progressBand(101), null);
+  assert.equal(progressBand(null), null);
+});
+
+void test("a conditional list read keeps its retained copy until the source changes", async (t) => {
+  const first = mergeExternalList(
+    undefined,
+    "decomp-buddy-finds",
+    parseFindsFeed(finds(["ports/game-1"])),
+    now,
+    "finds.json",
+    { bytes: 120, etag: '"v1"' },
+  );
+  assert.equal(first.lists["decomp-buddy-finds"]?.parser, 1);
+  assert.deepEqual(externalListValidators(first, "decomp-buddy-finds"), { etag: '"v1"' });
+  assert.equal(externalListValidators(first, "portsdr"), undefined, "no conditional support");
+  const stale = structuredClone(first);
+  stale.lists["decomp-buddy-finds"]!.parser = 0;
+  assert.equal(
+    externalListValidators(stale, "decomp-buddy-finds"),
+    undefined,
+    "a copy parsed by another parser version is read in full",
+  );
+  const later = new Date(Date.parse(now) + 2 * 86400000).toISOString();
+  assert.ok(externalListDue(first, "decomp-buddy-finds", later), "daily list is due");
+  const unchanged = markExternalListUnchanged(first, "decomp-buddy-finds", later, 0);
+  assert.equal(unchanged.lists["decomp-buddy-finds"]?.completed_at, now);
+  assert.equal(unchanged.lists["decomp-buddy-finds"]?.unchanged_at, later);
+  assert.deepEqual(unchanged.hints, first.hints);
+  assert.ok(!externalListDue(unchanged, "decomp-buddy-finds", later));
+  assert.deepEqual(parseExternalLeadState(unchanged), unchanged);
+  assert.throws(() => markExternalListUnchanged(undefined, "decomp-buddy-finds", later, 0));
+
+  // The collector sends the retained validators and keeps the copy on 304.
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-conditional-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+  const budget = new DiscoveryBudget("ordinary");
+  const leads = parseLeadState(undefined);
+  leads.external = structuredClone(first);
+  leads.external.attempts = Object.fromEntries(
+    externalListIds
+      .filter((id) => id !== "decomp-buddy-finds")
+      .map((id) => [id, { attempted_at: later, outcome: "partial" as const }]),
+  );
+  Object.assign(session, {
+    stateDir: root,
+    runDir: root,
+    journalFile: path.join(root, "journal.json"),
+    checkpoint: {},
+    checkpointPreimage: "fixture",
+    inventory: { issues: [] },
+    intakeRecords: [],
+    journal: { format: 1, started_at: later, notes: [], candidates: {}, evidence: {} },
+    leads,
+    budget,
+    leadPages: 0,
+    searches: 0,
+    leadCollectionAttempted: true,
+    researchedLeads: new Set<number>(),
+  });
+  session.knownLeadUrls = () => new Set();
+  const sent: unknown[] = [];
+  Object.defineProperty(session, "source", {
+    configurable: true,
+    value: {
+      budget,
+      http: {
+        request: async (
+          _method: string,
+          url: string,
+          _body?: string,
+          _binary?: boolean,
+          _cap?: number,
+          options?: { conditional?: unknown },
+        ) => {
+          assert.match(url, /finds\.json/u);
+          sent.push(options?.conditional);
+          return { requests: 1, bytes: 0, status: 304, headers: {}, text: "" };
+        },
+      },
+      sdk: await fixtureGitHub(() => assert.fail("no hint is due")),
+    },
+  });
+  await session.collectExternalLists();
+  assert.deepEqual(sent, [{ etag: '"v1"' }]);
+  assert.equal(session.leads.external?.lists["decomp-buddy-finds"]?.unchanged_at, later);
+  assert.deepEqual(session.leads.external?.hints, first.hints);
+
+  // A 304 that arrives after a redirect does not describe the retained copy.
+  const redirected = new Date(Date.parse(later) + 2 * 86400000).toISOString();
+  session.externalCollectionAttempted = false;
+  Object.assign(session, { journal: { ...session.journal, started_at: redirected, notes: [] } });
+  Object.defineProperty(session, "source", {
+    configurable: true,
+    value: {
+      budget,
+      http: {
+        request: async () => ({ requests: 2, bytes: 0, status: 304, headers: {}, text: "" }),
+      },
+      sdk: await fixtureGitHub(() => assert.fail("no hint is due")),
+    },
+  });
+  await session.collectExternalLists();
+  assert.equal(session.leads.external?.lists["decomp-buddy-finds"]?.unchanged_at, later);
+  assert.equal(session.leads.external?.attempts?.["decomp-buddy-finds"]?.outcome, "partial");
 });

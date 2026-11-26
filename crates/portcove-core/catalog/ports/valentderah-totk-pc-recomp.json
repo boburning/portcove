@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "valentderah-totk-pc-recomp",
+    "project_url": "https://github.com/valentderah/totk-pc-recomp",
+    "name": "The Legend of Zelda: Tears of the Kingdom (Switch) / TotK Recomp (valentderah)",
+    "summary": "Static recompilation of The Legend of Zelda: Tears of the Kingdom to native Windows and Linux x86-64, with a Vulkan renderer. Game files not included.",
+    "issue_number": 4068,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-tears-of-the-kingdom",
+      "evidence_urls": ["https://github.com/valentderah/totk-pc-recomp"],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-tears-of-the-kingdom-nintendo-switch",
+          "title": "The Legend of Zelda: Tears of the Kingdom (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/valentderah/totk-pc-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "The Legend of Zelda: Tears of the Kingdom"
+  }
+}

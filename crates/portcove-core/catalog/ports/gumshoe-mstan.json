@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gumshoe-mstan",
+    "project_url": "https://github.com/mstan/GumshoeNESRecomp",
+    "name": "Gumshoe / mstan",
+    "summary": "Gumshoe recompiled for the NES using nesrecomp · Part of the R.A.I.D. community",
+    "issue_number": 6612,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gumshoe",
+      "evidence_urls": ["https://github.com/mstan/GumshoeNESRecomp"],
+      "source_editions": [
+        {
+          "id": "gumshoe-nes",
+          "title": "Gumshoe (NES)",
+          "system": "nes",
+          "evidence_urls": ["https://github.com/mstan/GumshoeNESRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Gumshoe"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "x-men-legends-openxml1xbox-gtteancum",
+    "project_url": "https://github.com/GTTeancum/XML1-recomp",
+    "name": "X-Men Legends / OpenXML1xbox (GTTeancum)",
+    "summary": "X-Men Legends original Xbox to Windows recompilation feasibility project targeting Direct3D 8",
+    "issue_number": 5490,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "x-men-legends",
+      "evidence_urls": ["https://github.com/GTTeancum/XML1-recomp"],
+      "source_editions": [
+        {
+          "id": "x-men-legends-xbox",
+          "title": "X-Men Legends (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/GTTeancum/XML1-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "X-Men Legends"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "eye-of-the-beholder-iii-thirdeye",
+    "project_url": "https://github.com/psi29a/thirdeye",
+    "name": "Eye of the Beholder III / Thirdeye",
+    "summary": "ThirdEye is an open source AESOP replacement to play Eye of the Beholder 3 and Dungeon Hack",
+    "issue_number": 5819,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "eye-of-the-beholder-iii",
+      "evidence_urls": ["https://github.com/psi29a/thirdeye"],
+      "source_editions": []
+    },
+    "original_game_title": "Eye of the Beholder III"
+  }
+}

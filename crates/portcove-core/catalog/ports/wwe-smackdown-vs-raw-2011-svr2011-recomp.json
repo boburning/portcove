@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wwe-smackdown-vs-raw-2011-svr2011-recomp",
+    "project_url": "https://github.com/shaneomac1337/SVR2011-Recomp",
+    "name": "WWE SmackDown vs. Raw 2011 / SVR2011 Recomp (shaneomac1337)",
+    "summary": "Unofficial Windows version of WWE SmackDown vs. Raw 2011 (Xbox 360), recompiled with ReXGlue. Bring your own disc image.",
+    "issue_number": 7070,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-smackdown-vs-raw-2011",
+      "evidence_urls": ["https://github.com/shaneomac1337/SVR2011-Recomp"],
+      "source_editions": [
+        {
+          "id": "wwe-smackdown-vs-raw-2011-xbox-360",
+          "title": "WWE SmackDown vs. Raw 2011 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/shaneomac1337/SVR2011-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "WWE SmackDown vs. Raw 2011"
+  }
+}

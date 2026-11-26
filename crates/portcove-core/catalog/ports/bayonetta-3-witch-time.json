@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bayonetta-3-witch-time",
+    "project_url": "https://github.com/Zexyen/Witch-Time",
+    "name": "Bayonetta 3 / Witch Time (Zexyen)",
+    "summary": "Unofficial static recompilation of Bayonetta 3. Builds the game on your PC from your own legally dumped copy. No game files, keys or SDK code included.",
+    "issue_number": 7211,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "bayonetta-3",
+      "evidence_urls": ["https://github.com/Zexyen/Witch-Time"],
+      "source_editions": []
+    },
+    "original_game_title": "Bayonetta 3"
+  }
+}

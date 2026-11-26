@@ -3,6 +3,7 @@ import test from "node:test";
 import type { DiscoverySession as Session } from "./daily-discovery-session.mts";
 import {
   parseRecompSoftwareCatalog,
+  externalListIds,
   bindExternalListSource,
   mergeExternalList,
   parseExternalLeadState,
@@ -123,11 +124,11 @@ void test("scheduled collection compares the consumed baseline before handing ch
   leads.external = {
     lists: {},
     hints: {},
+    // Every other configured list waits out a recent failed attempt.
     attempts: Object.fromEntries(
-      ["decomp-buddy-finds", "portsdr", "alexbeav-psx"].map((id) => [
-        id,
-        { attempted_at: at, outcome: "partial" as const },
-      ]),
+      externalListIds
+        .filter((id) => id !== "recompsoftware")
+        .map((id) => [id, { attempted_at: at, outcome: "partial" as const }]),
     ),
   };
   const budget = new DiscoveryBudget("ordinary");

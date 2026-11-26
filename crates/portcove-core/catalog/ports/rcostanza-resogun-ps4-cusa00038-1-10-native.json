@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rcostanza-resogun-ps4-cusa00038-1-10-native",
+    "project_url": "https://github.com/rcostanza/resogun-recomp",
+    "name": "Resogun (PS4 CUSA00038 update 1.10) / rcostanza native x86 compatibility",
+    "summary": "Resogun (PS4) - Recompiled to PC",
+    "issue_number": 4761,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "resogun",
+      "evidence_urls": ["https://github.com/rcostanza/resogun-recomp"],
+      "source_editions": [
+        {
+          "id": "resogun-playstation-4",
+          "title": "Resogun (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": ["https://github.com/rcostanza/resogun-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Resogun"
+  }
+}

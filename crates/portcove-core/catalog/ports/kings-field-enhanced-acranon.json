@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kings-field-enhanced-acranon",
+    "project_url": "https://github.com/Acranon/kf1-enhanced",
+    "name": "King's Field Enhanced / Acranon",
+    "summary": "King's Field (Japan, 1994) for Windows: English, widescreen, high frame rates, lighting, automap, quick saves and Lua mods. Built on sushi-shi's source port.",
+    "issue_number": 5533,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "kings-field-enhanced",
+      "evidence_urls": ["https://github.com/Acranon/kf1-enhanced"],
+      "source_editions": []
+    },
+    "original_game_title": "King's Field (Japan)"
+  }
+}

@@ -1,3 +1,5 @@
+import { isCurrentSavedScanResult } from "../features/game-file-discovery/use-game-file-scan";
+import { NextAttemptTime, waitingRetry } from "../features/game-file-discovery/next-attempt";
 import type { TFunction } from "i18next";
 import { useEffect, useId, useRef, useState } from "react";
 import { Trans } from "react-i18next";
@@ -52,6 +54,8 @@ export function FolderSetupChoice({
   ports,
   candidates,
   scanKey,
+  expectedScan,
+  onScanChanged,
   disabled,
 }: {
   root: GameFileRoot;
@@ -62,12 +66,19 @@ export function FolderSetupChoice({
   candidates: SourceRecord[];
   /** Identity of the saved scan, so a new scan rereads this folder's matches. */
   scanKey?: string | undefined;
+  expectedScan?: string | undefined;
+  onScanChanged?: (() => void) | undefined;
   disabled?: boolean | undefined;
 }) {
   const name = useId();
   const { t } = useAppTranslation("gameFiles");
   const [consent, setConsent] = useState<RootSetupConsent | null>();
-  const [matched, setMatched] = useState<{ rootId: string; profiles: string[] }>();
+  const [matched, setMatched] = useState<{
+    rootId: string;
+    scanKey: string | undefined;
+    expectedScan: string | undefined;
+    profiles: string[];
+  }>();
   const [matchError, setMatchError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -98,9 +109,14 @@ export function FolderSetupChoice({
     let current = true;
     desktopApi
       .gameFileRootMatchProfiles(root.id, generation)
-      .then((profiles) => {
+      .then(async (profiles) => {
         if (!current) return;
-        setMatched({ rootId: root.id, profiles });
+        if (expectedScan && !(await isCurrentSavedScanResult(expectedScan, generation))) {
+          if (current) onScanChanged?.();
+          return;
+        }
+        if (!current) return;
+        setMatched({ rootId: root.id, profiles, scanKey, expectedScan });
         setMatchError(undefined);
       })
       .catch((value: unknown) => {
@@ -109,7 +125,7 @@ export function FolderSetupChoice({
     return () => {
       current = false;
     };
-  }, [generation, root.id, scanKey]);
+  }, [generation, root.id, scanKey, expectedScan, onScanChanged]);
 
   const save = async (change: () => Promise<RootSetupConsent | null>) => {
     const expected = generation;
@@ -131,7 +147,11 @@ export function FolderSetupChoice({
   const shared = [
     ...new Set([
       ...candidates.map((candidate) => candidate.profile_id),
-      ...(matched?.rootId === root.id ? matched.profiles : []),
+      ...(matched?.rootId === root.id &&
+      matched.scanKey === scanKey &&
+      matched.expectedScan === expectedScan
+        ? matched.profiles
+        : []),
     ]),
   ]
     .sort()
@@ -240,6 +260,28 @@ export function FolderSetupChoice({
                   </bdi>
                 ),
                 reason: <bdi>{failure.reason}</bdi>,
+              }}
+            />
+          </p>
+        ))}
+      {consent?.failures
+        ?.filter(
+          (failure) => failure.attempts < maxAttempts && waitingRetry(failure.temporary_retry),
+        )
+        .map((failure) => (
+          <p key={`${failure.port_id}-waiting`}>
+            {/* The game name and Core's reason are exact values, never interpolated. */}
+            <Trans
+              t={t}
+              i18nKey="folderSetup.waiting"
+              components={{
+                game: (
+                  <bdi>
+                    {ports.find((port) => port.id === failure.port_id)?.name ?? failure.port_id}
+                  </bdi>
+                ),
+                reason: <bdi>{failure.reason}</bdi>,
+                time: <NextAttemptTime at={failure.temporary_retry?.retry_after ?? 0} />,
               }}
             />
           </p>

@@ -1,3 +1,4 @@
+import { ExternalModPortals, useExternalModPortals } from "./ExternalModPortals";
 import type { useFavorites } from "../features/favorites/use-favorites";
 import { releaseKey } from "../features/browsing/download-identity";
 import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
@@ -16,8 +17,14 @@ import {
 import { initialDetailSection, type DetailOpening } from "../features/game-details/detail-sections";
 import type { Perform } from "../features/operations/use-operation-state";
 import type { PortStatus } from "../types";
-import { platformLabel } from "../view-model";
+import { continueActionPresentation, platformLabel } from "../view-model";
 import { ArtworkControls } from "./Artwork";
+import { GameHeroFramingPreview } from "./GameHero";
+import {
+  presentPortAction,
+  useOperationPresentation,
+} from "../features/operations/operation-presentation";
+import { useAppTranslation } from "../localization";
 import { DetailLayout } from "./DetailLayout";
 import { SetupStatement, type DetailOrganization } from "./DetailChoices";
 import { RuntimeLaunchFacts } from "./ExternalRuntime";
@@ -158,14 +165,29 @@ export function ListingDetailPanel({
   openSupport?: (() => void) | undefined;
   organization?: DetailOrganization | undefined;
 }) {
+  const { t } = useAppTranslation("installation");
   const listing = entry.listing;
+  const modPortals = useExternalModPortals(entry.id, generation);
   const platforms = listing?.platforms ?? (entry.definition ? [] : entry.platforms);
   const updates = listing && upstreamUpdatesDestination(listing.project_url, listing.release_url);
   const registered = status?.external_runtime;
   const launch = listingActionAssessment(entry.listingStatus, "launch");
+  const launchReadiness = presentPortAction(
+    useOperationPresentation(),
+    entry.id,
+    status,
+    "launch",
+  ).readiness;
+  const continueAction = continueActionPresentation(entry, status, launchReadiness.blocked);
   const readinessUnknown =
     registered && !launch.allowed && typeof status?.readiness?.launchable !== "boolean";
   const needsFiles = !registered || !launch.allowed;
+  const setupActionLabel = registered
+    ? "Review launch details"
+    : entry.pendingSetup
+      ? "Continue setup"
+      : "Set up game";
+
   const links = listing && (
     <div className="flex flex-wrap gap-4 text-sm">
       <ExternalLink href={listing.project_url}>Project website</ExternalLink>
@@ -296,11 +318,7 @@ export function ListingDetailPanel({
                 size="lg"
                 onClick={() => reveal("files", "detail-self-service-setup")}
               >
-                {registered
-                  ? "Review launch details"
-                  : entry.pendingSetup
-                    ? "Continue setup"
-                    : "Set up game"}
+                {setupActionLabel}
                 <Icon glyph={ArrowRight} />
               </Button>
             )
@@ -323,6 +341,17 @@ export function ListingDetailPanel({
           }
         >
           {(reveal) => ({
+            ...(modPortals.length
+              ? {
+                  mods: (
+                    <ExternalModPortals
+                      portals={modPortals}
+                      port={entry.id}
+                      generation={generation}
+                    />
+                  ),
+                }
+              : {}),
             overview: (
               <>
                 <section className="detail-about" aria-label="About this port">
@@ -446,9 +475,17 @@ export function ListingDetailPanel({
                 <ManagementRow
                   title="Artwork"
                   targetId="detail-artwork"
-                  description="Choose a cover or background image for this game."
+                  description="Choose a cover, background, wide cover, or logo for this game."
                 >
-                  <ArtworkControls key={entry.id + ":" + generation} port={entry} />
+                  <ArtworkControls
+                    key={entry.id + ":" + generation}
+                    port={entry}
+                    Preview={GameHeroFramingPreview}
+                    previewActions={{
+                      wide: play && launch.allowed ? t("selfService.play") : setupActionLabel,
+                      narrow: continueAction.label,
+                    }}
+                  />
                 </ManagementRow>
               </>
             ),

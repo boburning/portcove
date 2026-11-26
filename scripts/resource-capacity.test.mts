@@ -1074,6 +1074,51 @@ void test(
   },
 );
 
+void test(
+  "retained bridge custody closes the real helper without releasing either reservation",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const host = await mockHost(t, "none");
+    let released = 0;
+    const cleanup = path.join(host.root, "containment-cleanup.json");
+    const lease = await acquireBridgedCapacity(
+      host.config,
+      "analysis",
+      {},
+      { waitMs: 1000 },
+      async () => ({
+        inherited: false,
+        queueMs: 0,
+        childEnvironment: {},
+        registerChild: async () => ({
+          pid: process.pid,
+          identity: readProcessIdentity(process.pid)!,
+          containment: "unix-watchdog",
+          cleanup_receipt: cleanup,
+        }),
+        release: async () => {
+          released++;
+        },
+      }),
+    );
+    await lease.registerChild({ pid: process.pid });
+    assert.ok(lease.disconnectRetained);
+    lease.disconnectRetained();
+    const messages = await host.close();
+    assert.deepEqual(
+      messages.map((message) => (isRecord(message) ? message.action : undefined)),
+      ["acquire", "register"],
+    );
+    const [acquire] = messages;
+    assert.ok(isRecord(acquire) && typeof acquire.custodyFile === "string");
+    const { custodyFile } = acquire;
+    const custody = record(JSON.parse(await readFile(custodyFile, "utf8")));
+    assert.equal(record(custody.owner).pid, process.pid);
+    assert.equal(record(custody.child).cleanup_receipt, cleanup);
+    assert.equal(released, 0);
+  },
+);
+
 void test("host identity ignores worktree and writable tool-cache overrides", async (t) => {
   const root = await fixture(t);
   const domains = [];
@@ -1326,6 +1371,7 @@ void test("a local command can extend both checkout scans within a finite bound"
   for (const [override, budget] of [
     [undefined, 30_000],
     ["120", 120_000],
+    ["480", 480_000],
   ] as const) {
     logs.length = 0;
     const lease = await acquireSourceBoundCapacity(
@@ -1343,17 +1389,35 @@ void test("a local command can extend both checkout scans within a finite bound"
     );
   }
   logs.length = 0;
-  for (const invalid of ["", "29", "121", "1e2", "120.0"]) {
+  for (const invalid of ["", "29", "481", "600", "1e2", "480.0"]) {
     await assert.rejects(
       acquireSourceBoundCapacity(
         "analysis",
         { workspace },
         { ...options, environment: { ...options.environment, [key]: invalid } },
       ),
-      /must be an integer from 30 to 120/u,
+      /must be an integer from 30 to 480/u,
     );
   }
-  assert.deepEqual(logs, []);
+  assert.equal(logs.length, 0);
+
+  const occupied = await acquireResourceCapacity("maintenance", {}, options);
+  try {
+    await assert.rejects(
+      acquireSourceBoundCapacity(
+        "analysis",
+        { workspace },
+        { ...options, waitMs: 0, environment: { ...options.environment, [key]: "480" } },
+      ),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+    assert.deepEqual(
+      logs.filter((line) => line.startsWith("Resource checkout scan started")),
+      ["Resource checkout scan started (before admission); budget 480000 ms"],
+    );
+  } finally {
+    await occupied.release();
+  }
   assert.equal((await observeCapacity({ root })).running.length, 0);
 });
 

@@ -9,7 +9,12 @@ use crate::{
     ReleaseSource, Result, RuntimeSourceMaterialization, SourceKind, SourceProfile,
 };
 
+mod identity_index;
 pub(crate) mod listings;
+pub use listings::MAX_LISTING_DIRECTORY_TEXT_BYTES;
+
+pub(crate) use identity_index::DocumentDigest;
+use identity_index::Indexed;
 
 pub(crate) fn validate_cover_collection(
     covers: Option<&[crate::IgdbArtwork]>,
@@ -88,8 +93,9 @@ struct RetainedDefinition {
 
 #[derive(Debug, Clone)]
 pub struct Catalog {
-    document: Arc<CatalogDocument>,
-    listings: Arc<crate::CatalogListingDocument>,
+    /// Each document carries its own identity index; see `identity_index`.
+    document: Arc<Indexed<CatalogDocument>>,
+    listings: Arc<Indexed<crate::CatalogListingDocument>>,
     /// A retained execution-intent envelope, never an operational definition.
     user_selected_listing: bool,
     retained_definitions: Arc<BTreeMap<String, RetainedDefinition>>,
@@ -218,18 +224,13 @@ impl Catalog {
     }
 
     pub fn embedded() -> Result<Self> {
+        #[cfg(test)]
+        if let Some(catalog) = crate::scaling_profile_tests::embedded_override() {
+            return Ok(catalog);
+        }
         #[cfg(feature = "qualification-fixtures")]
         if let Some(path) = std::env::var_os("PORTCOVE_QUALIFICATION_CATALOG") {
-            let path = Path::new(&path);
-            if !path.is_absolute() {
-                return Err(PortcoveError::usage(
-                    "qualification catalog path must be absolute",
-                ));
-            }
-            let bytes = crate::path::read_bounded_regular(path, 4 * 1024 * 1024)?;
-            let value = std::str::from_utf8(&bytes)
-                .map_err(|_| PortcoveError::usage("qualification catalog must be valid UTF-8"))?;
-            return Self::from_json(value);
+            return Self::read_qualification_catalog(Path::new(&path));
         }
         // The bundled bytes never change within a process, and `Catalog` shares
         // its documents behind `Arc`, so parse and validate them once. A
@@ -242,6 +243,24 @@ impl Catalog {
         }
     }
 
+    /// Qualification catalogs extend the complete generated catalog, so they
+    /// share its supported read bound rather than a smaller fixed one.
+    #[cfg(feature = "qualification-fixtures")]
+    fn read_qualification_catalog(path: &Path) -> Result<Self> {
+        if !path.is_absolute() {
+            return Err(PortcoveError::usage(
+                "qualification catalog path must be absolute",
+            ));
+        }
+        let bytes = crate::path::read_bounded_regular(
+            path,
+            crate::signed_catalog::MAX_CATALOG_BYTES as u64,
+        )?;
+        let value = std::str::from_utf8(&bytes)
+            .map_err(|_| PortcoveError::usage("qualification catalog must be valid UTF-8"))?;
+        Self::from_json(value)
+    }
+
     fn parse_embedded() -> Result<Self> {
         Self::from_json(EMBEDDED_CATALOG)?.with_embedded_listings()
     }
@@ -250,7 +269,68 @@ impl Catalog {
         Self::from_document(serde_json::from_str(value)?)
     }
 
-    pub(crate) fn from_document(mut document: CatalogDocument) -> Result<Self> {
+    pub(crate) fn from_document(document: CatalogDocument) -> Result<Self> {
+        Self::from_indexed_document(document, None, None)
+    }
+
+    pub(crate) fn from_indexed_document(
+        mut document: CatalogDocument,
+        selected: Option<&str>,
+        retained: Option<&Catalog>,
+    ) -> Result<Self> {
+        for port in document
+            .ports
+            .iter()
+            .filter(|port| port.release.provider == ReleaseSource::ReviewedForge)
+        {
+            let retained_selection = retained.is_some_and(|baseline| {
+                baseline.definition_snapshot(&port.id).is_some()
+                    && baseline.port(&port.id).is_ok_and(|previous| {
+                        serde_json::to_vec(previous).ok().is_some_and(|bytes| {
+                            serde_json::to_vec(port).is_ok_and(|candidate| candidate == bytes)
+                        })
+                    })
+            });
+            if selected != Some(port.id.as_str()) && !retained_selection {
+                return Err(crate::reviewed_forge::independent_admission_required());
+            }
+        }
+        for port in document
+            .ports
+            .iter()
+            .filter(|port| port.reviewed_launch_contract_v1.is_some())
+        {
+            let already_scoped = retained.is_some_and(|baseline| {
+                baseline.definition_snapshot(&port.id).is_some()
+                    && baseline.port(&port.id).is_ok_and(|previous| {
+                        previous.reviewed_launch_contract_v1 == port.reviewed_launch_contract_v1
+                    })
+            });
+            if selected != Some(port.id.as_str()) && !already_scoped {
+                return Err(PortcoveError::unsupported(
+                    "named package and launch declarations require a scoped indexed entry",
+                ));
+            }
+            crate::reviewed_launch_contract::validate(port)?;
+        }
+        for port in document
+            .ports
+            .iter()
+            .filter(|port| port.managed_runtime_applies_to.is_some())
+        {
+            let already_retained = retained.is_some_and(|baseline| {
+                baseline.definition_snapshot(&port.id).is_some()
+                    && baseline.port(&port.id).is_ok_and(|previous| {
+                        previous.managed_runtime_applies_to == port.managed_runtime_applies_to
+                    })
+            });
+            if selected != Some(port.id.as_str()) && !already_retained {
+                return Err(PortcoveError::unsupported(
+                    "reviewed runtime compatibility artifacts require a scoped indexed entry",
+                ));
+            }
+            crate::managed_runtime_policy::validate_applies_to(port)?;
+        }
         match document.schema_version {
             1 => {
                 if document.source_catalog.is_some() {
@@ -351,9 +431,9 @@ impl Catalog {
         };
         listings.promote_projected_format();
         let catalog = Self {
-            listings: Arc::new(listings),
+            listings: Arc::new(Indexed::new(listings)),
             user_selected_listing: false,
-            document: Arc::new(document),
+            document: Arc::new(Indexed::new(document)),
             retained_definitions: Arc::default(),
         };
         catalog.validate()?;
@@ -366,12 +446,30 @@ impl Catalog {
 
     /// Export the requested catalog shape without discarding guide reference text.
     pub fn export_document(&self, schema_version: u32) -> Result<CatalogDocument> {
+        if self
+            .ports()
+            .iter()
+            .any(|port| port.reviewed_launch_contract_v1.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "legacy catalog export cannot represent named package and launch declarations",
+            ));
+        }
+        if self
+            .ports()
+            .iter()
+            .any(|port| port.managed_runtime_applies_to.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "legacy catalog export cannot represent reviewed runtime compatibility artifacts",
+            ));
+        }
         if !matches!(schema_version, 1..=3) {
             return Err(PortcoveError::unsupported(
                 "unsupported catalog export schema",
             ));
         }
-        let mut document = self.document.as_ref().clone();
+        let mut document = CatalogDocument::clone(&self.document);
         document.schema_version = schema_version;
         if schema_version < 3 {
             for port in &mut document.ports {
@@ -424,6 +522,7 @@ impl Catalog {
                 ));
             }
             let Some(port) = Arc::make_mut(&mut self.document)
+                .make_mut()
                 .ports
                 .iter_mut()
                 .find(|port| port.id == compiled.id)
@@ -444,7 +543,7 @@ impl Catalog {
     }
 
     pub(crate) fn retain_unrelated_upstream_reviews(&mut self, baseline: &Self, selected: &str) {
-        for port in &mut Arc::make_mut(&mut self.document).ports {
+        for port in &mut Arc::make_mut(&mut self.document).make_mut().ports {
             if port.id != selected
                 && let Ok(original) = baseline.port(&port.id)
             {
@@ -456,7 +555,7 @@ impl Catalog {
     /// Legacy full projections carry graph rows for unrelated ports without
     /// their loader bindings. Keep the bindings already present in the baseline.
     pub(crate) fn retain_unrelated_mod_loaders(&mut self, baseline: &Self, selected: &str) {
-        for port in &mut Arc::make_mut(&mut self.document).ports {
+        for port in &mut Arc::make_mut(&mut self.document).make_mut().ports {
             if port.id != selected
                 && let Ok(original) = baseline.port(&port.id)
             {
@@ -465,9 +564,22 @@ impl Catalog {
         }
     }
 
+    /// A definition's mod sources apply only to its own port. A projection
+    /// cannot appoint, change or withdraw another port's sources, including
+    /// a projection published before sources were catalog data.
+    pub(crate) fn retain_unrelated_mod_sources(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).make_mut().ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+            {
+                port.mod_sources.clone_from(&original.mod_sources);
+            }
+        }
+    }
+
     /// A sibling projection cannot appoint or remove package-only settings.
     pub(crate) fn retain_unrelated_package_settings(&mut self, baseline: &Self, selected: &str) {
-        for port in &mut Arc::make_mut(&mut self.document).ports {
+        for port in &mut Arc::make_mut(&mut self.document).make_mut().ports {
             if port.id != selected
                 && let Ok(original) = baseline.port(&port.id)
                 && original
@@ -481,7 +593,7 @@ impl Catalog {
     }
 
     pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
-        let Some(index) = self.ports().iter().position(|port| port.id == port_id) else {
+        let Some(index) = self.document.position(port_id) else {
             return;
         };
         // The floor fences both bundled and legacy scopes. Only the currently
@@ -489,7 +601,8 @@ impl Catalog {
         let has_admitted_scope = self.ports()[index].mod_provider_bindings.is_some()
             && self.definition_selection(port_id).is_some();
         if !has_admitted_scope {
-            Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;
+            Arc::make_mut(&mut self.document).make_mut().ports[index].legacy_mod_provider_held =
+                true;
         }
     }
 
@@ -541,8 +654,74 @@ impl Catalog {
         self.retained_definitions = Arc::clone(&effective.retained_definitions);
     }
 
+    /// The authoritative document's exact serialization without cloning it:
+    /// schema-2 catalogs omit the derived schema-1 `source_profiles` projection.
+    pub(crate) fn authoritative_view(&self) -> impl serde::Serialize + '_ {
+        #[derive(serde::Serialize)]
+        struct AuthoritativeView<'a> {
+            schema_version: u32,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            source_catalog: Option<&'a crate::SourceCatalog>,
+            #[serde(skip_serializing_if = "<[_]>::is_empty")]
+            source_profiles: &'a [SourceProfile],
+            ports: &'a [PortDefinition],
+        }
+        // Exhaustive: a new document field must be placed in the view (and so
+        // in the digest) before this compiles.
+        let CatalogDocument {
+            schema_version,
+            source_catalog,
+            source_profiles,
+            ports,
+        } = &**self.document;
+        AuthoritativeView {
+            schema_version: *schema_version,
+            source_catalog: source_catalog.as_ref(),
+            source_profiles: if source_catalog.is_some() {
+                &[]
+            } else {
+                source_profiles
+            },
+            ports,
+        }
+    }
+
+    /// SHA-256 and lengths of this revision's canonical serialization, computed
+    /// once per document value and discarded with any change to it.
+    pub(crate) fn document_digest(&self) -> Result<&DocumentDigest> {
+        self.document.digest(|document| {
+            use sha2::{Digest, Sha256};
+            struct Writer(Sha256, usize);
+            impl std::io::Write for Writer {
+                fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                    self.0.update(bytes);
+                    self.1 += bytes.len();
+                    Ok(bytes.len())
+                }
+                fn flush(&mut self) -> std::io::Result<()> {
+                    Ok(())
+                }
+            }
+            let mut canonical = Writer(Sha256::new(), 0);
+            serde_json::to_writer(&mut canonical, &self.authoritative_view())?;
+            let document_bytes =
+                if document.source_catalog.is_some() && !document.source_profiles.is_empty() {
+                    let mut whole = Writer(Sha256::new(), 0);
+                    serde_json::to_writer(&mut whole, document)?;
+                    whole.1
+                } else {
+                    canonical.1
+                };
+            Ok(DocumentDigest {
+                sha256: hex::encode(canonical.0.finalize()),
+                canonical_bytes: canonical.1,
+                document_bytes,
+            })
+        })
+    }
+
     pub(crate) fn authoritative_document(&self) -> CatalogDocument {
-        let mut document = self.document.as_ref().clone();
+        let mut document = CatalogDocument::clone(&self.document);
         if document.source_catalog.is_some() {
             document.source_profiles.clear();
         }
@@ -576,10 +755,11 @@ impl Catalog {
     }
 
     pub fn port(&self, id: &str) -> Result<&PortDefinition> {
+        #[cfg(test)]
+        crate::scaling_profile_tests::count_lookup(crate::scaling_profile_tests::Lookup::Port);
         self.document
-            .ports
-            .iter()
-            .find(|port| port.id == id)
+            .position(id)
+            .map(|index| &self.document.ports[index])
             .ok_or_else(|| PortcoveError::not_found(format!("unknown port id: {id}")))
     }
 
@@ -839,6 +1019,7 @@ impl Catalog {
             }
             crate::profile_loader::validate(port)?;
             crate::provider_binding::validate(port)?;
+            crate::mod_source::validate(port)?;
             crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
@@ -866,16 +1047,19 @@ impl Catalog {
             if let Some(settings) = &port.game_settings {
                 settings.validate_port(port)?;
             }
-            let native_archive_release = port.release.provider == ReleaseSource::Github
-                || (port.release.provider == ReleaseSource::DirectManifest
-                    && port.release.direct.values().all(|release| {
-                        reqwest::Url::parse(&release.url).is_ok_and(|url| {
-                            let path = url.path().to_ascii_lowercase();
-                            [".zip", ".tar.gz", ".tgz"]
-                                .iter()
-                                .any(|suffix| path.ends_with(suffix))
-                        })
-                    }));
+            let native_archive_release = matches!(
+                port.release.provider,
+                ReleaseSource::Github | ReleaseSource::ReviewedForge
+            ) || (port.release.provider
+                == ReleaseSource::DirectManifest
+                && port.release.direct.values().all(|release| {
+                    reqwest::Url::parse(&release.url).is_ok_and(|url| {
+                        let path = url.path().to_ascii_lowercase();
+                        [".zip", ".tar.gz", ".tgz"]
+                            .iter()
+                            .any(|suffix| path.ends_with(suffix))
+                    })
+                }));
             if port.adapter == AdapterKind::NativePortable
                 && (!native_archive_release
                     || port.bios_source_profile.is_some()
@@ -1232,9 +1416,7 @@ impl Catalog {
                     || !environment_names.insert(variable.as_str())
                     || value.is_empty()
                     || value.len() > 4096
-                    || value
-                        .chars()
-                        .any(|character| matches!(character, '\0' | '\r' | '\n'))
+                    || !crate::launch_paths::is_contained_launch_text(value)
                 {
                     return Err(PortcoveError::usage(format!(
                         "{} has an unsafe built-in launch environment",
@@ -1247,11 +1429,7 @@ impl Catalog {
                 .iter()
                 .chain(port.setup_arguments.iter())
             {
-                if argument.is_empty()
-                    || argument
-                        .chars()
-                        .any(|character| matches!(character, '\0' | '\r' | '\n'))
-                {
+                if argument.is_empty() || !crate::launch_paths::is_contained_launch_text(argument) {
                     return Err(PortcoveError::usage(format!(
                         "{} has unsafe built-in launch argument",
                         port.id
@@ -1297,6 +1475,21 @@ impl Catalog {
                             "{} must resolve from its game upstream, not the RetComM launcher",
                             port.id
                         )));
+                    }
+                }
+                ReleaseSource::ReviewedForge => {
+                    if !valid_repository_path(&port.release.repository)
+                        || port.channels != [ReleaseChannel::Stable]
+                        || port.release.rolling_tag.is_some()
+                        || !port.release.direct.is_empty()
+                        || !port.release.user_prepared.is_empty()
+                        || !port.release.curated.is_empty()
+                        || !port.release.managed_build.is_empty()
+                        || !port.bundled_runtime.is_empty()
+                    {
+                        return Err(PortcoveError::verification(
+                            "reviewed forge requires one exact independently admitted stable acquisition",
+                        ));
                     }
                 }
                 ReleaseSource::DirectManifest => {
@@ -2269,7 +2462,7 @@ fn valid_direct_release_url(value: &str) -> bool {
     false
 }
 
-fn is_safe_environment_name(value: &str) -> bool {
+pub(crate) fn is_safe_environment_name(value: &str) -> bool {
     let mut characters = value.chars();
     characters
         .next()
@@ -2280,6 +2473,7 @@ fn is_safe_environment_name(value: &str) -> bool {
         && !value.starts_with("PORTCOVE_")
         && !crate::process::is_credential_name(value)
         && !crate::process::is_reviewed_session_variable(value)
+        && !crate::process::is_loader_injection_variable(value)
 }
 
 fn is_safe_basename(value: &str) -> bool {
@@ -3095,22 +3289,68 @@ mod tests {
             std::fs::write(&path, bytes).unwrap();
             assert!(Catalog::inspect_proposal(&path).is_err());
         }
+        // The generated catalog may outgrow the legacy 4 MiB client floor:
+        // local inspection follows the supported generated-catalog bound.
+        let bound = crate::signed_catalog::MAX_CATALOG_BYTES;
+        for length in [above_legacy_catalog_floor(), bound] {
+            std::fs::write(&path, padded_catalog(length)).unwrap();
+            Catalog::inspect_proposal(&path).unwrap_or_else(|error| panic!("{length}: {error:?}"));
+        }
         // Past the catalog read bound the file is refused before it is read
         // whole, never truncated to a parsable prefix.
-        let padded = |length: usize| {
-            let mut bytes = EMBEDDED_CATALOG.to_owned();
-            bytes.push_str(&" ".repeat(length - bytes.len()));
-            bytes
-        };
-        std::fs::write(
-            &path,
-            padded(crate::signed_catalog::LEGACY_MAX_CATALOG_BYTES + 1),
-        )
-        .unwrap();
-        Catalog::inspect_proposal(&path).unwrap();
-        std::fs::write(&path, padded(crate::signed_catalog::MAX_CATALOG_BYTES + 1)).unwrap();
+        std::fs::write(&path, padded_catalog(bound + 1)).unwrap();
         let error = Catalog::inspect_proposal(&path).unwrap_err();
         assert!(error.message.contains("bounded regular file"), "{error:?}");
+    }
+
+    /// The complete generated catalog padded with insignificant whitespace to
+    /// exactly `length` bytes, so a size bound is probed with an otherwise
+    /// valid catalog however far the embedded catalog grows.
+    fn padded_catalog(length: usize) -> String {
+        let bound = crate::signed_catalog::MAX_CATALOG_BYTES;
+        assert!(
+            EMBEDDED_CATALOG.len() <= bound,
+            "generated catalog is {} bytes, above its supported {bound}-byte bound",
+            EMBEDDED_CATALOG.len()
+        );
+        let padding = length
+            .checked_sub(EMBEDDED_CATALOG.len())
+            .unwrap_or_else(|| {
+                panic!(
+                    "generated catalog is {} bytes, already above the {length}-byte probe",
+                    EMBEDDED_CATALOG.len()
+                )
+            });
+        let mut bytes = EMBEDDED_CATALOG.to_owned();
+        bytes.push_str(&" ".repeat(padding));
+        bytes
+    }
+
+    /// A probe length strictly above the legacy floor, never below the
+    /// generated catalog itself.
+    fn above_legacy_catalog_floor() -> usize {
+        EMBEDDED_CATALOG
+            .len()
+            .max(crate::signed_catalog::LEGACY_MAX_CATALOG_BYTES + 1)
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn qualification_catalog_follows_the_generated_catalog_bound() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("qualification-catalog.json");
+        let bound = crate::signed_catalog::MAX_CATALOG_BYTES;
+        for length in [above_legacy_catalog_floor(), bound] {
+            std::fs::write(&path, padded_catalog(length)).unwrap();
+            Catalog::read_qualification_catalog(&path)
+                .unwrap_or_else(|error| panic!("{length}: {error:?}"));
+        }
+        std::fs::write(&path, padded_catalog(bound + 1)).unwrap();
+        let error = Catalog::read_qualification_catalog(&path).unwrap_err();
+        assert!(error.message.contains("bounded regular file"), "{error:?}");
+        let error = Catalog::read_qualification_catalog(Path::new("qualification-catalog.json"))
+            .unwrap_err();
+        assert!(error.message.contains("must be absolute"), "{error:?}");
     }
 
     const SCHEMA_1_ADMISSION_BASELINE: &str =
@@ -4828,11 +5068,23 @@ mod tests {
                 "data/out".into(),
             ];
         }
+        // Generated user-selected registration routes are bookkept by their
+        // generated, delta-gated table, not the curated additions fixture.
+        let generated: serde_json::Value = serde_json::from_str(include_str!(
+            "../catalog/generated-registration.generated.json"
+        ))
+        .unwrap();
+        let generated = generated["enrollments"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row["port_id"].as_str().unwrap().to_owned())
+            .collect::<HashSet<_>>();
         let mut migrated_legacy_ports = migrated
             .document()
             .ports
             .iter()
-            .filter(|port| !additions.port_ids.contains(&port.id))
+            .filter(|port| !additions.port_ids.contains(&port.id) && !generated.contains(&port.id))
             .cloned()
             .collect::<Vec<_>>();
         // Presentation and concise summaries are additive schema-2 client
@@ -4851,6 +5103,7 @@ mod tests {
             assert!(legacy.mod_loader.is_none() && legacy.mod_provider_bindings.is_none());
             port.mod_loader = None;
             port.mod_provider_bindings = None;
+            port.mod_sources.clear();
             // Archive file links are a later additive release declaration.
             assert!(!legacy.release.archive_file_links);
             port.release.archive_file_links = false;
@@ -9254,6 +9507,7 @@ mod tests {
     fn psx_bin_cue_runtime_identity_requires_the_cue_and_first_track() {
         let mut catalog = Catalog::embedded().expect("catalog should load");
         let port = Arc::make_mut(&mut catalog.document)
+            .make_mut()
             .ports
             .iter_mut()
             .find(|port| port.id == "ape-escape-recompiled")
@@ -9602,20 +9856,20 @@ mod tests {
             .iter()
             .position(|port| port.id == "project-picori")
             .unwrap();
-        Arc::make_mut(&mut catalog.document).ports[index]
+        Arc::make_mut(&mut catalog.document).make_mut().ports[index]
             .persistent_paths
             .retain(|path| path != "baserom.gba");
         assert!(catalog.validate().is_err());
 
         // A declared parent directory owns the staged file, but a similarly
         // named sibling does not.
-        Arc::make_mut(&mut catalog.document).ports[index].runtime_source_filename =
+        Arc::make_mut(&mut catalog.document).make_mut().ports[index].runtime_source_filename =
             Some("rom/baserom.gba".into());
-        Arc::make_mut(&mut catalog.document).ports[index]
+        Arc::make_mut(&mut catalog.document).make_mut().ports[index]
             .persistent_paths
             .push("rom-other".into());
         assert!(catalog.validate().is_err());
-        Arc::make_mut(&mut catalog.document).ports[index]
+        Arc::make_mut(&mut catalog.document).make_mut().ports[index]
             .persistent_paths
             .push("rom".into());
         catalog.validate().unwrap();
@@ -9666,6 +9920,7 @@ mod tests {
         for (id, breakage) in broken {
             let mut catalog = Catalog::embedded().unwrap();
             let port = Arc::make_mut(&mut catalog.document)
+                .make_mut()
                 .ports
                 .iter_mut()
                 .find(|port| port.id == id)
@@ -9718,6 +9973,7 @@ mod tests {
         ] {
             let mut catalog = Catalog::embedded().unwrap();
             let profile = Arc::make_mut(&mut catalog.document)
+                .make_mut()
                 .source_profiles
                 .iter_mut()
                 .find(|profile| profile.id == profile_id)
@@ -9731,6 +9987,7 @@ mod tests {
     fn single_file_runtime_hashes_bind_the_exact_destination() {
         let mut catalog = Catalog::embedded().unwrap();
         let port = Arc::make_mut(&mut catalog.document)
+            .make_mut()
             .ports
             .iter_mut()
             .find(|port| port.id == "dr-mario-64-recomp")

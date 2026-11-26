@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "omegakatana92-samurai-shodown-recomp",
+    "project_url": "https://github.com/omegakatana92/Samurai-Shodown-Recomp",
+    "name": "Samurai Shodown (Neo Geo, original) / Samurai-Shodown-Recomp (omegakatana92)",
+    "summary": "Native recompilation of Samurai Shodown (Neo Geo MVS/AES) built with NeoGeoRecomp. The 68000 program runs as generated C, not an emulator wrapper. Includes Windows x64 and Steam Deck AppImage builds, real MVS BIOS boot, SDL2 video/audio/gamepad support, 100% measured native coverage, and verification with 0 CPU mismatches. ROMs/BIOS not included.",
+    "issue_number": 4005,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "samurai-shodown",
+      "evidence_urls": ["https://github.com/omegakatana92/Samurai-Shodown-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Samurai Shodown"
+  }
+}

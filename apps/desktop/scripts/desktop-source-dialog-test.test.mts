@@ -33,6 +33,7 @@ function offscreenReviewControl(mode: "normal" | "hidden" | "disabled" | "occlud
     enabledChecks: 0,
     hits: 0,
     actions: [] as unknown[],
+    deliverySamples: 0,
     moved: false,
   };
   const control = {
@@ -71,11 +72,12 @@ function offscreenReviewControl(mode: "normal" | "hidden" | "disabled" | "occlud
           const parameters: unknown = command.getParameters();
           assert.ok(isRecord(parameters) && typeof parameters.script === "string");
           assert.ok(Array.isArray(parameters.args) && isRecord(parameters.args[0]));
-          const options = parameters.args.slice(1);
-          assert.deepEqual(
-            options,
-            parameters.script.includes("nativePoint") ? [{ x: 644, y: 160 }, 4] : [],
-          );
+          const options: unknown[] = parameters.args.slice(1);
+          if (options.length > 0) {
+            assert.ok(gtk, "Only GTK delivery checks receive pointer and viewport arguments");
+            assert.deepEqual(options, [{ x: 644, y: 160 }, 4, { width: 240, height: 160 }]);
+            state.deliverySamples++;
+          }
           // Execute the helper's actual serialized callbacks against the recorded
           // offscreen shape; do not replace scrolling/hit testing with a stub true.
           const result: unknown = runInNewContext(
@@ -137,6 +139,7 @@ it("serializes one viewport pointer action sequence at the verified center", asy
       observe: () => {},
     });
     assert.equal(state.clicks, 0);
+    assert.equal(state.deliverySamples, 1);
     assert.ok(state.visibilityChecks > 0 && state.enabledChecks > 0 && state.hits > 0);
     assert.equal(state.actions.length, 2);
     for (const [index, devices] of state.actions.entries()) {

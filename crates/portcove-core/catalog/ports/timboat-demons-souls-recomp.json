@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "timboat-demons-souls-recomp",
+    "project_url": "https://github.com/timboat/demons-souls-recomp",
+    "name": "Demon's Souls (PS3 USA BLUS-30443) / timboat ps3recomp native Windows",
+    "summary": "Native Windows port of Demon's Souls (PS3, BLUS-30443) via ps3recomp static recompilation. Bring your own disc image; no game files included.",
+    "issue_number": 4176,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "demon-s-souls",
+      "evidence_urls": ["https://github.com/timboat/demons-souls-recomp"],
+      "source_editions": [
+        {
+          "id": "demon-s-souls-playstation-3",
+          "title": "Demon's Souls (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": ["https://github.com/timboat/demons-souls-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Demon's Souls"
+  }
+}

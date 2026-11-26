@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sled-storm-pal-periblu",
+    "project_url": "https://github.com/PeriBluGaming/SledStormPSXRecomp",
+    "name": "Sled Storm PAL / PeriBluGaming",
+    "summary": "SledStormPSXRecomp is an unofficial, noncommercial static recompilation of the PlayStation game Sled Storm, built on psxrecomp and recomp-ui. It runs the game as a native executable. You need your own legally obtained copy of the game to play.",
+    "issue_number": 5602,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sled-storm-pal",
+      "evidence_urls": ["https://github.com/PeriBluGaming/SledStormPSXRecomp"],
+      "source_editions": [
+        {
+          "id": "sled-storm-pal-playstation",
+          "title": "Sled Storm PAL (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/PeriBluGaming/SledStormPSXRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Sled Storm PAL"
+  }
+}

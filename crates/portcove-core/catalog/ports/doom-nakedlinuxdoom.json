@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-nakedlinuxdoom",
+    "project_url": "https://github.com/atsb/NakedLinuxDoom",
+    "name": "Doom / NakedLinuxDoom",
+    "summary": "Linux Doom converted to SDL3, nothing more, nothing less",
+    "issue_number": 6075,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom",
+      "evidence_urls": ["https://github.com/atsb/NakedLinuxDoom"],
+      "source_editions": []
+    },
+    "original_game_title": "Doom"
+  }
+}

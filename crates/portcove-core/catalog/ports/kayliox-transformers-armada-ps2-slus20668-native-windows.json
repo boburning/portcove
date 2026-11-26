@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kayliox-transformers-armada-ps2-slus20668-native-windows",
+    "project_url": "https://github.com/kayliox/transformers-armada-recomp",
+    "name": "Transformers (2004 PS2 NTSC-U) / kayliox native PS2 port",
+    "summary": "Transformers (PS2, 2004) as a native PC game: static recompilation from your own disc, native Direct3D 12 renderer, up to 4K / 240 fps / ultrawide. Bring your own disc.",
+    "issue_number": 4946,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "transformers",
+      "evidence_urls": ["https://github.com/kayliox/transformers-armada-recomp"],
+      "source_editions": [
+        {
+          "id": "transformers-playstation-2",
+          "title": "Transformers (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/kayliox/transformers-armada-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Transformers"
+  }
+}

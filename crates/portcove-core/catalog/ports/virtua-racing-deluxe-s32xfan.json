@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "virtua-racing-deluxe-s32xfan",
+    "project_url": "https://github.com/s32xfan/virtuaracing",
+    "name": "Virtua Racing Deluxe / s32xfan",
+    "summary": "Unofficial native runtime for Sega 32X Virtua Racing Deluxe (AOT recompiler). No ROM or assets included.",
+    "issue_number": 5701,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "virtua-racing-deluxe",
+      "evidence_urls": ["https://github.com/s32xfan/virtuaracing"],
+      "source_editions": []
+    },
+    "original_game_title": "Virtua Racing Deluxe"
+  }
+}

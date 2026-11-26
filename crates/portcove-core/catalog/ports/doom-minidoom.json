@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-minidoom",
+    "project_url": "https://github.com/MiniLangProject/MiniDoom",
+    "name": "Doom / MiniDoom",
+    "summary": "Full MiniLang port of DOOM with classic and OpenGL renderers, multiplayer, and native Windows/Linux x64 builds.",
+    "issue_number": 5767,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom",
+      "evidence_urls": ["https://github.com/MiniLangProject/MiniDoom"],
+      "source_editions": []
+    },
+    "original_game_title": "Doom"
+  }
+}

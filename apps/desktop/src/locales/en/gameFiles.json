@@ -105,7 +105,8 @@
       "detail": "Portcove only shows what it finds here.",
       "label": "Don't set up games from this folder automatically"
     },
-    "sharedFiles": "More than one game can use some files here. Choose which one to set up; until you do, Portcove waits."
+    "sharedFiles": "More than one game can use some files here. Choose which one to set up; until you do, Portcove waits.",
+    "waiting": "<game/> didn't finish setting up: <reason/>. Portcove will try again automatically. Next attempt: <time/>"
   },
   "intent": {
     "discoverOnly": {
@@ -113,6 +114,8 @@
       "label": "Only show it in discovery"
     },
     "failed": "The last automatic setup didn't finish: <reason/>. Portcove tries again when the game's files, catalog or requirements change.",
+    "failedTemporary": "The last automatic setup didn't finish: <reason/>. Portcove will try again automatically.",
+    "failedTemporaryNext": "The last automatic setup didn't finish: <reason/>. Portcove will try again automatically. Next attempt: <time/>",
     "ignored": {
       "detail": "Portcove doesn't suggest, notify about or set up this game.",
       "label": "Ignore this game"
@@ -210,6 +213,20 @@
     "externalRegistration": "Existing installation setup",
     "managedInstall": "Managed setup",
     "managedLaunch": "Managed launch"
+  },
+  "savedScan": {
+    "checking": "Checking the saved scan…",
+    "dismiss": "Dismiss scan result",
+    "failed": "Portcove could not check this scan.",
+    "heading": "Saved folder scan",
+    "label": "Saved folder scan result",
+    "partial": "Partial scan results saved.",
+    "progress": "Saved scan progress.",
+    "retry": "Retry checking this scan",
+    "review": "Review saved scan",
+    "saved": "Saved folder scan results.",
+    "showCurrent": "Show current folder results",
+    "unavailable": "This scan is no longer available with its original results and settings."
   },
   "setupReviews": {
     "add": "Add {{total}} selected to Library",

@@ -18,14 +18,20 @@ use std::{
 use tough::schema::{Root, Signed, Targets};
 
 mod bundle;
+mod history_checkpoint;
 mod io;
 mod key_inventory;
+mod listing_floor_ledger;
 mod policy;
 mod public_history;
 mod repository;
 mod signing;
 pub use key_inventory::{CatalogKeyInventory, inspect_catalog_key_inventory};
-pub use repository::{assemble_definition_repository, verify_definition_repository};
+pub use listing_floor_ledger::{LedgerReport, PATH as LISTING_FLOOR_LEDGER_PATH};
+pub use repository::{
+    DefinitionHistoryReport, assemble_definition_repository, verify_definition_history,
+    verify_definition_repository,
+};
 pub use signing::{sign_definition_role, sign_offline_definition_targets};
 
 type Result<T> = std::result::Result<T, TufRepositoryError>;
@@ -127,6 +133,9 @@ pub struct DefinitionRepositoryReport {
     pub versions: BTreeMap<String, String>,
     pub expires: BTreeMap<String, String>,
     pub index_sha256: String,
+    /// Present only when the run maintains the listing-floor ledger (#1422).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub listing_floor_ledger: Option<LedgerReport>,
     pub authority: &'static str,
 }
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -165,9 +174,22 @@ struct ContextConfig {
     prepared_bundle: String,
     inspection: String,
     inspection_sha256: String,
+    #[serde(default)]
+    bootstrap_history: bool,
+    #[serde(default)]
+    history_store: Option<String>,
+    /// Maintain the listing-floor ledger (#1422). `prior` is the published
+    /// ledger, or null for the one-time backfill from every retained body.
+    #[serde(default)]
+    listing_floor_ledger: Option<ListingFloorLedgerConfig>,
     previous_repository: serde_json::Value,
     versions: Four<u64>,
     expires: Four<String>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ListingFloorLedgerConfig {
+    prior: Option<String>,
 }
 #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -189,11 +211,20 @@ struct Context {
     expires: [Timestamp; 4],
     at: Timestamp,
     inputs: Vec<PathBuf>,
+    thin_history: bool,
+    history_store: Option<PathBuf>,
+    bootstrap_history: bool,
+    history: Option<history_checkpoint::PreparedHistory>,
+    listing_ledger: Option<listing_floor_ledger::State>,
     prior: public_history::PublicHistory,
     readback: Vec<(PathBuf, u64, String)>,
     trees: Vec<(PathBuf, usize, u64, String)>,
 }
 async fn load_context(path: &Path) -> Result<Context> {
+    load_context_mode(path, false).await
+}
+
+async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
     let config_raw = io::read(path, CONFIG_MAX)?;
     let config: ContextConfig = serde_json::from_slice(&config_raw)?;
     let online_targets =
@@ -271,6 +302,41 @@ async fn load_context(path: &Path) -> Result<Context> {
         bundle_path,
         inspection_path,
     ];
+    let history_store = config
+        .history_store
+        .as_deref()
+        .map(|value| io::resolve(base, value))
+        .transpose()?;
+    if let Some(store) = &history_store {
+        inputs.push(store.clone());
+    }
+    let mut readback = readback;
+    let listing_ledger = match &config.listing_floor_ledger {
+        None => None,
+        Some(_)
+            if config.bootstrap_history
+                || history_store.is_some()
+                || !config.previous_repository.is_string() =>
+        {
+            return invalid(
+                "catalog listing-floor ledger needs a complete retained prior and no history checkpoint",
+            );
+        }
+        Some(ListingFloorLedgerConfig { prior: None }) => {
+            Some(listing_floor_ledger::State::default())
+        }
+        Some(ListingFloorLedgerConfig { prior: Some(prior) }) => {
+            let path = io::resolve(base, prior)?;
+            let bytes = io::read(&path, listing_floor_ledger::MAX_BYTES)?;
+            let ledger = listing_floor_ledger::Ledger::parse(&bytes)?;
+            readback.push((path.clone(), listing_floor_ledger::MAX_BYTES, sha(&bytes)));
+            inputs.push(path);
+            Some(listing_floor_ledger::State {
+                prior: Some(ledger),
+                next: None,
+            })
+        }
+    };
     let mut context = Context {
         root_bytes,
         root,
@@ -284,21 +350,59 @@ async fn load_context(path: &Path) -> Result<Context> {
         expires,
         at,
         inputs: vec![],
+        thin_history,
+        history_store,
+        bootstrap_history: config.bootstrap_history,
+        history: None,
+        listing_ledger,
         prior: public_history::PublicHistory::default(),
         readback,
         trees: vec![],
     };
     if let Some(previous) = config.previous_repository.as_str() {
         let previous = io::resolve(base, previous)?;
-        context.prior = repository::inspect_prior(&context, &previous).await?;
+        let (prior, history, ledger) = repository::inspect_prior(&context, &previous).await?;
+        context.prior = prior;
+        if let Some(state) = context.listing_ledger.as_mut() {
+            state.next = ledger;
+        }
+        if let Some(prepared) = history {
+            if context
+                .targets
+                .insert(
+                    history_checkpoint::TARGET.into(),
+                    prepared.pointer_bytes.clone(),
+                )
+                .is_some()
+            {
+                return invalid("catalog bundle cannot appoint its own history checkpoint");
+            }
+            context.readback.extend(prepared.readback.iter().cloned());
+            context.history = Some(prepared);
+        }
         repository::check_proposed_target_capacity(&context.prior, &context.targets)?;
+        let (files, bytes) = if context.thin_history && context.history_store.is_some() {
+            (
+                history_checkpoint::THIN_MAX_FILES,
+                history_checkpoint::THIN_MAX_BYTES,
+            )
+        } else {
+            (PUBLIC_REPOSITORY_MAX_FILES, PUBLIC_REPOSITORY_MAX_BYTES)
+        };
         trees.push((
             previous.clone(),
-            PUBLIC_REPOSITORY_MAX_FILES,
-            PUBLIC_REPOSITORY_MAX_BYTES,
+            files,
+            bytes,
             sha(&serde_json::to_vec(&context.prior.identities())?),
         ));
         inputs.push(previous);
+    } else if context
+        .targets
+        .contains_key(portcove_listing_carrier::COVER_CHECKPOINT_TARGET)
+    {
+        return invalid("cover observations require an authenticated predecessor");
+    } else if context.bootstrap_history || context.history_store.is_some() {
+        return invalid("catalog history requires an authenticated predecessor");
     } else if !config.previous_repository.is_null() {
         return invalid("catalog prior repository must be an explicit path or null");
     } else if context.versions.iter().any(|v| v.get() != 1)

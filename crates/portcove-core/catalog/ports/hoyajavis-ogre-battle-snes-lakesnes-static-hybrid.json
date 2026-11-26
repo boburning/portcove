@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hoyajavis-ogre-battle-snes-lakesnes-static-hybrid",
+    "project_url": "https://github.com/hoyajavis/ogre-battle-pc",
+    "name": "Ogre Battle: March of the Black Queen / hoyajavis SNES static recomp",
+    "summary": "1:1 Native PC port of Ogre Battle: The March of the Black Queen (SNES) via 65816 static recompilation and LakeSnes runtime.",
+    "issue_number": 5199,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ogre-battle-march-of-the-black-queen",
+      "evidence_urls": ["https://github.com/hoyajavis/ogre-battle-pc"],
+      "source_editions": [
+        {
+          "id": "ogre-battle-march-of-the-black-queen-super-nintendo",
+          "title": "Ogre Battle: March of the Black Queen (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/hoyajavis/ogre-battle-pc"]
+        }
+      ]
+    },
+    "original_game_title": "Ogre Battle: March of the Black Queen"
+  }
+}

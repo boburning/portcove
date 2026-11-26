@@ -18,22 +18,17 @@ import type {
 } from "./settings-qualification.mts";
 import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
-import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
+import {
+  enrollmentTableName,
+  factsTableName,
+  generateRegistrations,
+} from "./catalog-generated-registration.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
-import { projectNativeManagedProfile } from "./catalog-native-managed-profile.mts";
-import { projectAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
-import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
-import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
-import { projectRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
-import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
-import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
-import { projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
-import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
-import { projectOpenXPortable } from "./catalog-openx-portable.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
+import type { ModPortalSite } from "../apps/desktop/src/transport-types.generated.d.ts";
 import { createHash } from "node:crypto";
-import { lstatSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -43,6 +38,18 @@ import {
   type IgdbRegionalCover,
 } from "./catalog-cover-mapping.mts";
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
+import {
+  checkAcquisitionRestrictions,
+  listingDownloadBlockReason,
+  projectListingRestrictions,
+  projectManagedRestrictions,
+  replaceKey,
+  restrictionsFromManagedHold,
+} from "./catalog-acquisition-restrictions.mts";
+import type {
+  AcquisitionRestriction,
+  LegacyManagedHold,
+} from "./catalog-acquisition-restrictions.mts";
 import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineage.mts";
 import type { UpstreamLineage } from "./upstream-lineage.mts";
 
@@ -64,7 +71,8 @@ export interface AuthoredListing extends NamedRecord {
   project_url: string;
   platforms?: string[];
   availability?: "unknown" | "packages" | "source-only" | "unavailable";
-  download_block_reason?: string;
+  /** Typed listing restrictions; the generator derives the legacy download string. */
+  restrictions?: AcquisitionRestriction[];
   download_asset_hints?: Record<string, string[]>;
   recommended_download_channel?: "stable" | "beta";
   implementation?: ImplementationMetadata;
@@ -78,7 +86,11 @@ export interface AuthoredListing extends NamedRecord {
       title: string;
       system?: string;
       evidence_urls: string[];
-      verified_sources?: { game_id: string; variant_id: string; representation_id: string }[];
+      verified_sources?: {
+        game_id: string;
+        variant_id: string;
+        representation_id: string;
+      }[];
     }[];
   };
   variant_label?: string;
@@ -87,6 +99,13 @@ export interface AuthoredListing extends NamedRecord {
   listed_at?: string;
   /** Reviewed upstream support pages. Descriptive only; requires listing format 10. */
   funding_urls?: string[];
+  mod_portals?: {
+    id: string;
+    site: ModPortalSite;
+    name: string;
+    url: string;
+    instructions: string;
+  }[];
   release_url?: string;
   setup_url?: string;
   manual_setup?: unknown;
@@ -97,15 +116,7 @@ export interface AuthoredListing extends NamedRecord {
 export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
-  /** Shared Portcove-owned profile directory and Windows path policy. */
-  native_managed_profile_v1?: true;
   route_facts_v1?: RouteFactsV1;
-  /** Reviewed bundled scenario launch and externally owned player profiles. */
-  alephone_pinned_windows_v1?: true;
-  /** Shared extractor, launcher and portable data for reviewed OpenGOAL discs. */
-  opengoal_setup_v1?: true;
-  /** Shared official Raze Windows package and portable-profile layout. */
-  raze_windows_profile_v1?: true;
   igdb_regional_cover?: IgdbRegionalCover;
   /** Ordered platforms with an independently reviewed flat, single-program archive. */
   reviewed_flat_package_layout_v1?: string[];
@@ -117,7 +128,6 @@ export interface AuthoredPort extends Record<string, unknown> {
     | true
     | "bundled-openbios"
     | "split-mods"
-    | "split-mods-diagnostics"
     | "split-mods-no-crash-log"
     | "split-mods-openbios"
     | "split-mods-overlay-directory"
@@ -125,22 +135,8 @@ export interface AuthoredPort extends Record<string, unknown> {
     | "technically-computers-input-files";
   /** Shared root-level persistence for reviewed N64Recomp packages. */
   n64_recomp_persistence_v1?: true | "config-directory" | "technical-settings";
-  /** Shared persistent paths for ReflectionHLE's reviewed portable root. */
-  reflectionhle_portable_paths_v1?: true;
-  /** Shared persistent files for the reviewed Crispy Doom Windows player. */
-  crispy_doom_windows_persistence_v1?: true;
   /** Registration-only user-selected runtime on the declared platforms. */
   external_registration_v1?: true;
-  /** Shared persistent and mutable paths for the reviewed Chocolate Windows players. */
-  chocolate_family_windows_persistence_v1?: true;
-  /** Shared Windows player data paths for the reviewed Gen2Recomped editions. */
-  gen2recomp_windows_persistence_v1?: true;
-  /** Reviewed portable data paths for the two distinct RSDKv4 game routes. */
-  rsdkv4_portable_data_v1?: true;
-  /** Shared official OpenMoHAA package and per-edition portable layout. */
-  openmohaa_portable_v1?: "base" | "spearhead" | "breakthrough";
-  /** Shared Windows ZIP, Linux TAR.XZ and local config.yaml for matching reviewed routes. */
-  openx_portable_v1?: true | string;
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
@@ -162,6 +158,8 @@ export const catalogSourceNames = {
   ports: "ports",
   embedded: "catalog.json",
   listings: "listings.json",
+  listingPackageFacts: factsTableName,
+  generatedRegistration: enrollmentTableName,
 } as const;
 const listingPresentationFields = [
   "implementation",
@@ -174,7 +172,7 @@ const listingPresentationFields = [
   "media",
 ] as const;
 
-function typedIgdbScene(asset: unknown) {
+export function typedIgdbScene(asset: unknown) {
   return (
     isRecord(asset) &&
     (asset.role === "header" || asset.role === "screenshot") &&
@@ -190,12 +188,13 @@ const listingFields = new Set([
   "availability",
   "upstream_observation",
   "availability_override_reason",
-  "download_block_reason",
+  "restrictions",
   "download_asset_hints",
   "recommended_download_channel",
   "issue_number",
   "listed_at",
   "funding_urls",
+  "mod_portals",
   "release_url",
   "setup_url",
 ]);
@@ -241,6 +240,55 @@ function publicUrl(value: unknown, field: string) {
   }
   if (url.protocol !== "https:" || url.username || url.password)
     throw new Error(`Listing ${field} requires a credential-free HTTPS URL.`);
+}
+
+function checkListingModPortals(value: unknown) {
+  const hosts = new Map<string, string | null>([
+    ["community_site", null],
+    ["mod_db", "www.moddb.com"],
+    ["mod_io", "mod.io"],
+    ["nexus_mods", "www.nexusmods.com"],
+  ]);
+  const ids = new Set<string>();
+  if (!Array.isArray(value) || value.length === 0 || value.length > 8)
+    throw new Error("Listing mod_portals requires one to eight reviewed community links.");
+  for (const portal of value as unknown[]) {
+    if (
+      !isRecord(portal) ||
+      Object.keys(portal).length !== 5 ||
+      !boundedText(portal.id, 64) ||
+      !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(portal.id) ||
+      ids.has(portal.id) ||
+      typeof portal.site !== "string" ||
+      !hosts.has(portal.site) ||
+      !boundedText(portal.name, 80) ||
+      !boundedText(portal.instructions, 400) ||
+      /[<>]/u.test(portal.name + portal.instructions) ||
+      !boundedText(portal.url, 256)
+    )
+      throw new Error("Invalid listing mod portal declaration.");
+    publicUrl(portal.url, "mod_portals");
+    const url = new URL(portal.url);
+    const host = hosts.get(portal.site);
+    if (
+      url.href !== portal.url ||
+      url.port ||
+      url.search ||
+      url.hash ||
+      portal.url.includes("?") ||
+      portal.url.includes("#") ||
+      /[\\%]/u.test(portal.url) ||
+      !url.hostname.includes(".") ||
+      /(?:\.localhost|\.local|\.internal)$/u.test(url.hostname) ||
+      /^\d+(?:\.\d+){3}$/u.test(url.hostname) ||
+      !url.hostname
+        .split(".")
+        .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(label)) ||
+      (host && url.hostname !== host)
+    )
+      throw new Error("Invalid listing mod portal URL.");
+    ids.add(portal.id);
+  }
 }
 
 function checkPlayerCopy(id: string, field: string, text: unknown) {
@@ -449,7 +497,7 @@ export function listingDownloadAssetHints(record: AuthoredPort) {
   const inherit = record.listing_inherit_asset_hints;
   if (inherit === undefined) return authored;
   const listing = record.listing;
-  const integration = projectOpenXPortable(projectOpenMohaaPortable(record)).integration;
+  const integration = record.integration;
   const release = integration?.release;
   const invalid = () =>
     new Error(
@@ -460,7 +508,7 @@ export function listingDownloadAssetHints(record: AuthoredPort) {
     !inherit.length ||
     new Set(inherit).size !== inherit.length ||
     listing.availability !== "packages" ||
-    listing.download_block_reason !== undefined ||
+    listingDownloadBlockReason(listing) !== undefined ||
     !Array.isArray(integration?.platforms) ||
     !Array.isArray(integration.channels) ||
     !integration.channels.includes(listing.recommended_download_channel ?? "stable") ||
@@ -547,12 +595,65 @@ function projectExternalRegistration(record: AuthoredPort): AuthoredPort {
       },
     ]),
   );
-  return { ...record, integration: { ...integration, release: { ...release, user_prepared } } };
+  return {
+    ...record,
+    integration: { ...integration, release: { ...release, user_prepared } },
+  };
+}
+
+/**
+ * Retired authoring shorthands. Each carried one upstream's facts, so its
+ * fields are now authored explicitly in the integration. Refuse them rather
+ * than retaining them as unknown metadata, which would silently drop the
+ * fields they used to supply.
+ */
+const retiredShorthands = [
+  "alephone_pinned_windows_v1",
+  "chocolate_family_windows_persistence_v1",
+  "crispy_doom_windows_persistence_v1",
+  "gen2recomp_windows_persistence_v1",
+  "native_managed_profile_v1",
+  "opengoal_setup_v1",
+  "openmohaa_portable_v1",
+  "openx_portable_v1",
+  "raze_windows_profile_v1",
+  "reflectionhle_portable_paths_v1",
+  "rsdkv4_portable_data_v1",
+];
+
+/**
+ * A Direct pin hosted on GitHub must be a canonical release download of the
+ * record's own project: `<project_url>/releases/download/<tag>/<file>`, with
+ * literal unreserved segments and no query or fragment.
+ */
+function checkGithubDirectPins(projectUrl: unknown, release: unknown) {
+  if (!isRecord(release) || !isRecord(release.direct)) return;
+  for (const [platform, pin] of Object.entries(release.direct)) {
+    const value = isRecord(pin) ? pin.url : undefined;
+    const url = typeof value === "string" ? URL.parse(value) : null;
+    if (url?.hostname !== "github.com") continue;
+    const project = typeof projectUrl === "string" ? URL.parse(projectUrl) : null;
+    const prefix = `${project?.pathname.replace(/\/$/u, "")}/releases/download/`;
+    const segments = url.pathname.slice(prefix.length).split("/");
+    if (
+      project?.origin !== url.origin ||
+      value !== `${url.origin}${url.pathname}` ||
+      !url.pathname.startsWith(prefix) ||
+      segments.length !== 2 ||
+      !segments.every((segment) => /^[A-Za-z0-9._-]+$/u.test(segment))
+    )
+      throw new Error(
+        `A GitHub Direct pin for ${platform} must be a canonical release download of the listing project_url.`,
+      );
+  }
 }
 
 export function checkedAuthoredPort(value: unknown, expectedId?: string): AuthoredPort {
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.listing))
     throw new Error("An authored port requires format_version 1 and a listing.");
+  const retired = retiredShorthands.find((field) => Object.hasOwn(value, field));
+  if (retired !== undefined)
+    throw new Error(`${retired} is retired; author the integration fields it supplied explicitly.`);
   if (value.original_game_review !== undefined) checkOriginalGameReview(value.original_game_review);
   const listing = value.listing;
   if (
@@ -578,6 +679,10 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Authored artwork does not match its IGDB regional cover selection.");
   }
   if (listing.compatibility !== undefined) checkCatalogAdvisories(listing.compatibility, platforms);
+  if (Object.hasOwn(listing, "download_block_reason"))
+    throw new Error(
+      `${String(listing.id)} listing.download_block_reason is derived; author listing.restrictions instead.`,
+    );
   if (Object.keys(listing).some((field) => !listingFields.has(field)))
     throw new Error(
       "Listing contains unknown descriptive fields; operational fields belong to its integration.",
@@ -645,11 +750,11 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
         "Pin maintenance requires reason, reconsideration condition and an exact direct contract",
       );
   }
-  if (
-    listing.download_block_reason !== undefined &&
-    !boundedText(listing.download_block_reason, 4096)
-  )
-    throw new Error("Listing download restriction requires bounded nonempty text.");
+  if (listing.restrictions !== undefined)
+    checkAcquisitionRestrictions(String(listing.id), listing.restrictions, "listing", {
+      hasReleaseRoute:
+        listing.release_url !== undefined || listing.download_asset_hints !== undefined,
+    });
   if (listing.download_asset_hints !== undefined) {
     if (
       !isRecord(listing.download_asset_hints) ||
@@ -685,6 +790,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     throw new Error("Listing issue_number must be a positive integer.");
   if (listing.listed_at !== undefined && !isCalendarDate(listing.listed_at))
     throw new Error("Listing listed_at must be a real calendar date written YYYY-MM-DD.");
+  if (listing.mod_portals !== undefined) checkListingModPortals(listing.mod_portals);
   if (listing.funding_urls !== undefined) {
     const urls: unknown = listing.funding_urls;
     // Core treats an empty list as absent; authored files omit the field instead.
@@ -776,11 +882,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     );
   if (value.integration !== undefined && !isRecord(value.integration))
     throw new Error("Integration must be a strict object.");
-  const integration = projectExternalRegistration(
-    projectOpenXPortable(
-      projectOpenMohaaPortable(projectAlephOnePinnedWindows(value as AuthoredPort)),
-    ),
-  ).integration;
+  const integration = projectExternalRegistration(value as AuthoredPort).integration;
   if (integration !== undefined) {
     if (
       integration.upstream_active_reviewed !== undefined &&
@@ -792,8 +894,18 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Invalid reviewed active upstream status.");
     }
 
+    checkGithubDirectPins(listing.project_url, integration.release);
+    if (Object.hasOwn(integration, "managed_acquisition_hold"))
+      throw new Error(
+        `${listing.id} integration.managed_acquisition_hold is derived; author integration.acquisition_restrictions instead.`,
+      );
+    if (integration.acquisition_restrictions !== undefined) {
+      checkAcquisitionRestrictions(listing.id, integration.acquisition_restrictions, "integration");
+      // Typed managed data is delivered only in the existing legacy form.
+      projectManagedRestrictions(listing.id, integration);
+    }
     if (
-      listing.download_block_reason !== undefined &&
+      listingDownloadBlockReason(listing) !== undefined &&
       (!isRecord(integration.release) || integration.release.provider !== "user-prepared")
     )
       throw new Error(
@@ -840,18 +952,10 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Shared presentation fields belong to the listing.");
   }
   const record = value as AuthoredPort;
-  projectNativeManagedProfile(record);
   projectReviewedFlatPackageLayout(record);
-  projectOpenGoalSetup(record);
-  projectRazeWindowsProfile(record);
   projectGbaArchive(record);
   projectPsxManagedWindows(record);
   projectN64RecompPersistence(record);
-  projectReflectionHlePortablePaths(record);
-  projectCrispyDoomWindowsPersistence(record);
-  projectChocolateFamilyWindowsPersistence(record);
-  projectGen2RecompWindowsPersistence(record);
-  projectRsdkv4PortableData(record);
   if (record.route_facts_v1 !== undefined)
     checkRouteFacts(record.route_facts_v1, record.integration);
   if (record.package_observation_v1 !== undefined) {
@@ -870,7 +974,16 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
 /** Mechanical split; no support, source, package or artwork observations are added. */
 export function authoringRecordFromPort(port: CatalogPort, order?: number): AuthoredPort {
   const listing: Record<string, unknown> = {};
-  const integration = structuredClone(port);
+  let integration = structuredClone(port);
+  if (isRecord(integration.managed_acquisition_hold))
+    integration = replaceKey(integration, "managed_acquisition_hold", [
+      [
+        "acquisition_restrictions",
+        restrictionsFromManagedHold(
+          integration.managed_acquisition_hold as unknown as LegacyManagedHold,
+        ),
+      ],
+    ]) as CatalogPort;
   for (const field of sharedPortFields) {
     listing[field] = integration[field];
     delete integration[field];
@@ -890,13 +1003,7 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 }
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
-  const declared = projectReviewedFlatPackageLayout(
-    projectRazeWindowsProfile(
-      projectOpenGoalSetup(
-        projectNativeManagedProfile(projectAlephOnePinnedWindows(projectOpenXPortable(input))),
-      ),
-    ),
-  );
+  const declared = projectReviewedFlatPackageLayout(input);
   const record = projectSettingsQualification(
     projectPackagePlayerFacts(
       projectRouteFacts(
@@ -904,16 +1011,9 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
       ),
     ),
   );
-  const portable = projectChocolateFamilyWindowsPersistence(
-    projectCrispyDoomWindowsPersistence(projectReflectionHlePortablePaths(record)),
-  );
-  const operational = projectExternalRegistration(
-    projectGen2RecompWindowsPersistence(
-      projectOpenMohaaPortable(projectRsdkv4PortableData(portable)),
-    ),
-  ).integration;
+  const operational = projectExternalRegistration(record).integration;
   if (!operational) return undefined;
-  const integration = structuredClone(operational);
+  const integration = projectManagedRestrictions(record.listing.id, structuredClone(operational));
   const presentation = isRecord(integration.presentation) ? integration.presentation : {};
   const managedGuide = presentation.manual_setup;
   delete presentation.manual_setup;
@@ -945,13 +1045,21 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
   return { ...common, ...integration, id: record.listing.id };
 }
 
-export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown[]) {
+export function assembleCatalogRecords(
+  shared: unknown,
+  inputs: readonly unknown[],
+  listingPackageFacts?: unknown,
+) {
   if (!isRecord(shared) || Object.hasOwn(shared, "ports") || Object.hasOwn(shared, "listings"))
     throw new Error("Shared catalog source must not contain a second port/listing authority.");
   if (inputs.length > 10000) throw new Error("Catalog source exceeds its bounded record count.");
-  const records = inputs.map((record) => checkedAuthoredPort(record));
-  if (new Set(records.map((record) => record.listing.id)).size !== records.length)
+  const authored = inputs.map((record) => checkedAuthoredPort(record));
+  if (new Set(authored.map((record) => record.listing.id)).size !== authored.length)
     throw new Error("Catalog source has duplicate stable listing IDs.");
+  // Data-derived user-selected registration routes. Each generated record then
+  // passes exactly the validation a hand-authored record does.
+  const generation = generateRegistrations(authored, listingPackageFacts);
+  const records = generation.records.map((record) => checkedAuthoredPort(record));
   checkLineageIdentities(records);
   checkOriginalGameConsistency(records);
   records.sort(
@@ -979,13 +1087,11 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   });
   const listings = records
     .map(projectRouteFacts)
-    .map(projectOpenMohaaPortable)
-    .map(projectOpenXPortable)
     .map(projectPackagePlayerFacts)
     .map((record) => {
       const hints = listingDownloadAssetHints(record);
       return {
-        ...structuredClone(record.listing),
+        ...projectListingRestrictions(structuredClone(record.listing)),
         ...(hints === undefined ? {} : { download_asset_hints: hints }),
         platforms: [
           ...(Array.isArray(record.integration?.platforms)
@@ -1041,46 +1147,61 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   const hasIgdbScenes = listings.some(
     ({ media }) => Array.isArray(media) && media.some(typedIgdbScene),
   );
+  const typedRestrictions = listings.some((listing) => listing.restrictions !== undefined);
   const hasVerifiedEditions = listings.some((listing) =>
     listing.original_game?.source_editions.some((edition) => edition.verified_sources?.length),
   );
-  const format_version = hasVerifiedEditions
-    ? 14
-    : hasIgdbScenes
-      ? 13
-      : listings.some((listing) => listing.implementation !== undefined)
-        ? 12
-        : coverCollections
-          ? 11
-          : fundingLinks
-            ? 10
-            : listedDates
-              ? 9
-              : gitlabObservations
-                ? 8
-                : listings.some((listing) => listing.compatibility !== undefined)
-                  ? 7
-                  : guideReferences
-                    ? 6
-                    : extendedMedia
-                      ? 5
-                      : listings.some(
-                            (listing) =>
-                              listing.upstream_observation !== undefined ||
-                              listing.availability_override_reason !== undefined ||
-                              "release_maintenance" in listing,
-                          )
-                        ? 4
+  const precedingFormat = typedRestrictions
+    ? 15
+    : hasVerifiedEditions
+      ? 14
+      : hasIgdbScenes
+        ? 13
+        : listings.some((listing) => listing.implementation !== undefined)
+          ? 12
+          : coverCollections
+            ? 11
+            : fundingLinks
+              ? 10
+              : listedDates
+                ? 9
+                : gitlabObservations
+                  ? 8
+                  : listings.some((listing) => listing.compatibility !== undefined)
+                    ? 7
+                    : guideReferences
+                      ? 6
+                      : extendedMedia
+                        ? 5
                         : listings.some(
                               (listing) =>
-                                listing.original_game !== undefined ||
-                                (Array.isArray(listing.media) && listing.media.length > 0),
+                                listing.upstream_observation !== undefined ||
+                                listing.availability_override_reason !== undefined ||
+                                "release_maintenance" in listing,
                             )
-                          ? 3
-                          : listings.some((listing) => listing.download_block_reason !== undefined)
-                            ? 2
-                            : 1;
-  return { records, catalog, directory: { format_version, listings } };
+                          ? 4
+                          : listings.some(
+                                (listing) =>
+                                  listing.original_game !== undefined ||
+                                  (Array.isArray(listing.media) && listing.media.length > 0),
+                              )
+                            ? 3
+                            : listings.some(
+                                  (listing) => listingDownloadBlockReason(listing) !== undefined,
+                                )
+                              ? 2
+                              : 1;
+  const format_version = listings.some((listing) => listing.mod_portals?.length)
+    ? 16
+    : precedingFormat;
+  return {
+    records,
+    /** The checked authored records before generated registration routes were added. */
+    authored,
+    catalog,
+    directory: { format_version, listings },
+    generation,
+  };
 }
 
 function readRegularJson(file: string, maximum: number) {
@@ -1133,9 +1254,11 @@ export function readCatalogSource(catalogRoot: string) {
       file.slice(0, -5),
     );
   });
+  const factsPath = join(catalogRoot, catalogSourceNames.listingPackageFacts);
   return assembleCatalogRecords(
     readRegularJson(join(catalogRoot, catalogSourceNames.shared), 8 * 1024 * 1024),
     records,
+    existsSync(factsPath) ? readRegularJson(factsPath, 32 * 1024 * 1024) : undefined,
   );
 }
 export interface CurrentCatalog extends Record<string, unknown> {
@@ -1191,7 +1314,11 @@ export function reviewCompatibilityFixture(
   const legacyPorts = namedRecords(legacy.ports, "legacy.ports");
   const collections: Record<
     string,
-    { expected_count: number; unreviewed_ids: string[]; missing_expected_ids: string[] }
+    {
+      expected_count: number;
+      unreviewed_ids: string[];
+      missing_expected_ids: string[];
+    }
   > = {};
   for (const [name, baseline, actual] of [
     [

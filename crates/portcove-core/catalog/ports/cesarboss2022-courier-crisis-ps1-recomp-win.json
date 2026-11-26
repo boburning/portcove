@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cesarboss2022-courier-crisis-ps1-recomp-win",
+    "project_url": "https://github.com/cesarboss2022/CourierCrisisRecomp",
+    "name": "Courier Crisis / cesarboss2022 PS1 recomp",
+    "summary": "Courier Crisis (PlayStation, 1997) recompiled for Windows: widescreen, 60 FPS, increased resolution and gamepad support",
+    "issue_number": 5202,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "courier-crisis",
+      "evidence_urls": ["https://github.com/cesarboss2022/CourierCrisisRecomp"],
+      "source_editions": [
+        {
+          "id": "courier-crisis-playstation",
+          "title": "Courier Crisis (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/cesarboss2022/CourierCrisisRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Courier Crisis"
+  }
+}

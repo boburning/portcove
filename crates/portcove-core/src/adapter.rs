@@ -25,6 +25,8 @@ const MANAGED_PSX_RUNTIME_CONFIG: &str = ".portcove-psx-runtime.toml";
 #[path = "admitted_zip_source.rs"]
 mod admitted_zip_source;
 
+use crate::launch_paths::{LaunchPath, LaunchPaths};
+
 #[derive(Debug, Clone, Copy)]
 pub struct LaunchSpecRequest<'a> {
     pub library: &'a Library,
@@ -276,7 +278,8 @@ impl Adapter for StandardAdapter {
         let user_data = library.user_dir(&port.id);
         crate::runtime_path_policy::check_user_data_root(port, platform, &user_data)?;
         let library_path = crate::path::unicode(library.root(), "library root")?;
-        let user_data_path = crate::path::unicode(&user_data, "user data")?;
+        let launch_paths = LaunchPaths::new(install_root, &user_data, source);
+        let user_data_path = launch_paths.expand(LaunchPath::UserData)?;
         let mut environment = BTreeMap::from([
             ("PORTCOVE_LIBRARY".into(), library_path),
             ("PORTCOVE_PORT_ID".into(), port.id.clone()),
@@ -293,24 +296,25 @@ impl Adapter for StandardAdapter {
                 .eq_ignore_ascii_case("CorsixTH/CorsixTH")
         {
             // CorsixTH's blank player name expects USER or USERNAME before its own PLAYER fallback.
+            // Title-bound, not part of its external-profile policy: policies forbid
+            // launch environment, so moving this to data needs a catalog contract change.
             environment.insert("USER".into(), "PLAYER".into());
         }
         crate::native_temp::environment(port, platform, &mut environment)?;
         if let Some(variable) = &port.user_data_environment {
             environment.insert(variable.clone(), user_data_path.clone());
         }
-        if let Some(source) = source {
-            let source_path = crate::path::unicode(source, "source")?;
+        if source.is_some() {
+            let source_path = launch_paths.expand(LaunchPath::Source)?;
             environment.insert("PORTCOVE_SOURCE".into(), source_path.clone());
             if let Some(variable) = &port.source_environment {
                 environment.insert(variable.clone(), source_path);
             }
         }
         if self.0 == AdapterKind::GeneratedCache {
-            let cache = user_data.join("cache");
             environment.insert(
                 "PORTCOVE_CACHE".into(),
-                crate::path::unicode(&cache, "cache")?,
+                launch_paths.expand(LaunchPath::Cache)?,
             );
         }
         let working_directory =
@@ -336,6 +340,12 @@ impl Adapter for StandardAdapter {
                     variable.clone(),
                     crate::path::unicode(&path, "materialized source")?,
                 );
+            }
+        }
+        let reviewed_launch = port.reviewed_launch_values(platform);
+        if let Some(values) = reviewed_launch {
+            for (name, value) in &values.environment {
+                environment.insert(name.clone(), value.resolve(&launch_paths)?);
             }
         }
         let managed_psx_runtime_config = if self.0 == AdapterKind::PsxRecompManaged {
@@ -395,6 +405,11 @@ impl Adapter for StandardAdapter {
         };
         let mut arguments = if crate::managed_chocolate::applies(port) {
             crate::managed_chocolate::arguments(port, &working_directory, checkpoint)?
+        } else if let Some(values) = reviewed_launch.and_then(|values| values.arguments.as_ref()) {
+            values
+                .iter()
+                .map(|value| value.resolve(&launch_paths))
+                .collect::<Result<Vec<_>>>()?
         } else {
             port.launch_arguments.clone()
         };
@@ -422,7 +437,15 @@ impl Adapter for StandardAdapter {
             recipe.require_runtime_environment()?;
         }
         Ok(LaunchSpec {
-            fixed_arguments_only: port.managed_initialization.is_some()
+            // Literal text arguments only change how the former static list is
+            // represented, so they keep the previous computation. A typed path or
+            // an environment declaration is new behavior and forbids forwarding.
+            fixed_arguments_only: reviewed_launch.is_some_and(|values| {
+                !values.environment.is_empty()
+                    || values.arguments.iter().flatten().any(|value| {
+                        matches!(value, crate::reviewed_launch_contract::LaunchValue::Path(_))
+                    })
+            }) || port.managed_initialization.is_some()
                 // A portable player's alternate game-folder mode can change where it writes.
                 || (self.0 == AdapterKind::NativePortable && port.user_data_environment.is_some())
                 || port.managed_shared_preferences.is_some()
@@ -6293,6 +6316,15 @@ mod tests {
         assert_eq!(std::fs::read(&destination).unwrap(), content);
     }
 
+    fn set_modified_time(path: &std::path::Path, modified: std::time::SystemTime) {
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(modified))
+            .unwrap();
+    }
+
     #[test]
     fn copied_runtime_sources_are_replaced_when_bytes_change_at_the_same_path_and_timestamp() {
         let temporary = tempfile::tempdir().unwrap();
@@ -6300,8 +6332,7 @@ mod tests {
         let destination = temporary.path().join("runtime/baserom.gba");
         std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
         std::fs::write(&source, b"first source").unwrap();
-        let original_mtime =
-            filetime::FileTime::from_last_modification_time(&std::fs::metadata(&source).unwrap());
+        let original_mtime = std::fs::metadata(&source).unwrap().modified().unwrap();
 
         prepare_runtime_source(
             &source,
@@ -6314,7 +6345,7 @@ mod tests {
         assert_eq!(std::fs::read(&destination).unwrap(), b"first source");
 
         std::fs::write(&source, b"other source").unwrap();
-        filetime::set_file_mtime(&source, original_mtime).unwrap();
+        set_modified_time(&source, original_mtime);
         prepare_runtime_source(
             &source,
             &destination,
@@ -6333,8 +6364,8 @@ mod tests {
             source_storage_identity(&source).unwrap().0
         );
 
-        let reuse_sentinel = filetime::FileTime::from_unix_time(1_700_000_000, 0);
-        filetime::set_file_mtime(&destination, reuse_sentinel).unwrap();
+        let reuse_sentinel = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        set_modified_time(&destination, reuse_sentinel);
         prepare_runtime_source(
             &source,
             &destination,
@@ -6343,9 +6374,7 @@ mod tests {
             &|| Ok(()),
         )
         .unwrap();
-        let reused_mtime = filetime::FileTime::from_last_modification_time(
-            &std::fs::metadata(&destination).unwrap(),
-        );
+        let reused_mtime = std::fs::metadata(&destination).unwrap().modified().unwrap();
         assert_eq!(reused_mtime, reuse_sentinel);
     }
 
@@ -6370,15 +6399,13 @@ mod tests {
         let mut bytes = std::fs::read(&marker).unwrap();
         bytes.resize(16 * 1024 + 1, b' ');
         std::fs::write(&marker, bytes).unwrap();
-        let sentinel = filetime::FileTime::from_unix_time(1_700_000_000, 0);
-        filetime::set_file_mtime(&destination, sentinel).unwrap();
+        let sentinel = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        set_modified_time(&destination, sentinel);
 
         prepare().unwrap();
 
         assert_ne!(
-            filetime::FileTime::from_last_modification_time(
-                &std::fs::metadata(&destination).unwrap()
-            ),
+            std::fs::metadata(&destination).unwrap().modified().unwrap(),
             sentinel
         );
         assert!(std::fs::metadata(marker).unwrap().len() < 16 * 1024);
@@ -6408,15 +6435,13 @@ mod tests {
         std::fs::rename(&marker, &external_marker).unwrap();
         let original = std::fs::read(&external_marker).unwrap();
         std::os::unix::fs::symlink(&external_marker, &marker).unwrap();
-        let sentinel = filetime::FileTime::from_unix_time(1_700_000_000, 0);
-        filetime::set_file_mtime(&destination, sentinel).unwrap();
+        let sentinel = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        set_modified_time(&destination, sentinel);
 
         prepare().unwrap();
 
         assert_ne!(
-            filetime::FileTime::from_last_modification_time(
-                &std::fs::metadata(&destination).unwrap()
-            ),
+            std::fs::metadata(&destination).unwrap().modified().unwrap(),
             sentinel
         );
         assert_eq!(std::fs::read(external_marker).unwrap(), original);
@@ -7095,5 +7120,107 @@ mod tests {
             std::fs::read(install.join("data/pd.ntsc-final.z64")).unwrap(),
             canonical
         );
+    }
+
+    /// Moving an existing literal argument list into a reviewed launch
+    /// contract changes only its representation: the same arguments start the
+    /// player and player-forwarded arguments remain accepted.
+    #[test]
+    fn literal_launch_contract_move_keeps_forwarded_arguments() {
+        use crate::reviewed_launch_contract::{
+            LaunchValue, LaunchValues, ReviewedLaunchContractV1,
+        };
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("version");
+        std::fs::create_dir_all(&install).unwrap();
+        let executable = install.join("player.exe");
+        std::fs::write(&executable, b"player").unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let before = catalog.port("blacklabelhq-medievilrecomp").unwrap().clone();
+        let platform = Platform::WindowsX86_64;
+        assert!(!before.launch_arguments.is_empty());
+        let mut moved = before.clone();
+        let literal = std::mem::take(&mut moved.launch_arguments);
+        moved.reviewed_launch_contract_v1 = Some(ReviewedLaunchContractV1 {
+            asset_rules: BTreeMap::new(),
+            package_format: BTreeMap::new(),
+            launch: [(
+                platform,
+                LaunchValues {
+                    arguments: Some(literal.iter().cloned().map(LaunchValue::Text).collect()),
+                    environment: BTreeMap::new(),
+                },
+            )]
+            .into(),
+            environment_prefix: None,
+        });
+        crate::reviewed_launch_contract::validate(&moved).unwrap();
+        let spec = |port: &PortDefinition| {
+            AdapterRegistry
+                .get(AdapterKind::NativePortable)
+                .prepare_launch_with_executable(
+                    LaunchSpecRequest {
+                        library: &library,
+                        port,
+                        platform,
+                        install_root: &install,
+                        selected_executable: &executable,
+                        source: None,
+                        source_record: None,
+                        disc_progress: None,
+                    },
+                    &|| Ok(()),
+                )
+                .unwrap()
+        };
+        let (before, after) = (spec(&before), spec(&moved));
+        assert_eq!(after.arguments, before.arguments);
+        assert_eq!(after.arguments, literal);
+        assert_eq!(after.environment, before.environment);
+        assert!(!before.fixed_arguments_only);
+        assert!(!after.fixed_arguments_only);
+        let forwarded = ["--fixture-forwarded".to_owned()];
+        for spec in [&before, &after] {
+            let command =
+                crate::process::ChildProcessPolicy::game_command(&spec.process_spec(), &forwarded)
+                    .unwrap();
+            let arguments = command
+                .get_args()
+                .map(|arg| arg.to_owned())
+                .collect::<Vec<_>>();
+            assert_eq!(arguments.last().unwrap(), "--fixture-forwarded");
+        }
+
+        // A typed path or an environment declaration is new launch behavior
+        // and still offers only the fixed launch.
+        for change in [
+            |values: &mut LaunchValues| {
+                values.arguments.as_mut().unwrap().push(LaunchValue::Path(
+                    crate::reviewed_launch_contract::LaunchPathValue {
+                        path: crate::launch_paths::LaunchPath::UserData,
+                    },
+                ));
+            },
+            |values: &mut LaunchValues| {
+                values.environment.insert(
+                    "BLACKLABELHQMEDIEVILRECOMP_SETTING".into(),
+                    LaunchValue::Text("1".into()),
+                );
+            },
+        ] {
+            let mut typed = moved.clone();
+            change(
+                typed
+                    .reviewed_launch_contract_v1
+                    .as_mut()
+                    .unwrap()
+                    .launch
+                    .get_mut(&platform)
+                    .unwrap(),
+            );
+            crate::reviewed_launch_contract::validate(&typed).unwrap();
+            assert!(spec(&typed).fixed_arguments_only);
+        }
     }
 }

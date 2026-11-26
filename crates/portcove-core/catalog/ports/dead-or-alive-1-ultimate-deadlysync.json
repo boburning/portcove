@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dead-or-alive-1-ultimate-deadlysync",
+    "project_url": "https://github.com/DeadlySync/doa1u",
+    "name": "Dead or Alive 1 Ultimate / DeadlySync",
+    "summary": "Recompilation for Dead or Alive 1 - ULTIMATE from the OG XBOX",
+    "issue_number": 5937,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-or-alive-1-ultimate",
+      "evidence_urls": ["https://github.com/DeadlySync/doa1u"],
+      "source_editions": [
+        {
+          "id": "dead-or-alive-1-ultimate-xbox",
+          "title": "Dead or Alive 1 Ultimate (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/DeadlySync/doa1u"]
+        }
+      ]
+    },
+    "original_game_title": "Dead or Alive 1 Ultimate"
+  }
+}

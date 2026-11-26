@@ -21,6 +21,26 @@ use crate::{
     database,
 };
 
+/// The files recognized during a read-only library selection check.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum LibrarySelectionContents {
+    EmptyDirectory,
+    ExistingDatabase,
+    RecoveryRecords,
+    NewDefaultDirectory,
+}
+
+/// Read-only evidence about a candidate. Compatibility is checked when it opens.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LibrarySelectionTarget {
+    pub root: PathBuf,
+    pub contents: LibrarySelectionContents,
+    pub relocated_to: Option<PathBuf>,
+}
+
 struct StoredSourceRow {
     profile_id: String,
     path: String,
@@ -80,6 +100,7 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // Implementation explanations are directory-only too. Keep earlier strict
         // retained-listing readers compatible without changing their launch contract.
         listing.implementation = None;
+        listing.mod_portals.clear();
         listing.media.retain(|asset| !asset.is_typed_igdb_scene());
         crate::catalog::listings::strip_verified_sources(&mut listing);
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
@@ -146,6 +167,7 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
                 .iter()
                 .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
             || crate::catalog::listings::has_verified_source_editions(&retained.listing)
+            || !retained.listing.mod_portals.is_empty()
             || retained.listing.id != port_id
         {
             return Err(PortcoveError::verification(
@@ -307,7 +329,11 @@ pub struct Library {
     authorizations: AuthorizationStore,
     pub(crate) artwork_catalog:
         std::sync::Arc<std::sync::Mutex<Option<crate::catalog_store::ArtworkCatalogCache>>>,
+    pub(crate) github_mod_backoff: crate::provider_http::ProviderBackoff,
+    pub(crate) quaddicted_backoff: crate::provider_http::ProviderBackoff,
+    pub(crate) moddb_backoff: crate::provider_http::ProviderBackoff,
     pub(crate) jakmods: crate::jakmods::JakModsProviderState,
+    pub(crate) thunderstore_listings: crate::thunderstore::ListingSnapshots,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
@@ -561,6 +587,16 @@ const HTTP_CACHE_RECORD_RESERVE_BYTES: u64 = 4096;
 const HTTP_CACHE_MAX_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
 const HTTP_CACHE_RECORD_BYTES_SQL: &str = "length(CAST(body AS BLOB)) + 2 * length(CAST(url AS BLOB)) + COALESCE(length(CAST(etag AS BLOB)), 0) + COALESCE(length(CAST(last_modified AS BLOB)), 0) + ?1";
 
+/// Keys of saved walk progress (such as a GitLab release-history walk) kept
+/// in the conditional-request table. They are tiny, are removed when their
+/// walk finishes, and are not responses: response traffic never evicts them,
+/// so a long walk's continuation does not depend on the 64 MiB response
+/// budget. Age pruning still removes abandoned progress after seven days, and
+/// at most [`CONTINUATION_MAX_ROWS`] (newest first) are kept.
+pub(crate) const CONTINUATION_KEY_PREFIX: &str = "portcove-continuation:";
+const CONTINUATION_MAX_ROWS: i64 = 1024;
+const NOT_CONTINUATION_SQL: &str = "substr(url, 1, 22) <> 'portcove-continuation:'";
+
 fn prune_http_cache(connection: &Connection) -> Result<()> {
     prune_http_cache_with_limits(
         connection,
@@ -578,8 +614,19 @@ fn prune_http_cache_with_limits(
         "DELETE FROM github_http_cache WHERE updated_at < unixepoch() - ?1",
         [max_age_seconds],
     )?;
+    connection.execute(
+        &format!(
+            "DELETE FROM github_http_cache WHERE NOT ({NOT_CONTINUATION_SQL}) AND rowid NOT IN (
+                SELECT rowid FROM github_http_cache WHERE NOT ({NOT_CONTINUATION_SQL})
+                ORDER BY updated_at DESC, rowid DESC LIMIT ?1
+            )"
+        ),
+        [CONTINUATION_MAX_ROWS],
+    )?;
     let retained_bytes: u64 = connection.query_row(
-        &format!("SELECT COALESCE(SUM({HTTP_CACHE_RECORD_BYTES_SQL}), 0) FROM github_http_cache"),
+        &format!(
+            "SELECT COALESCE(SUM({HTTP_CACHE_RECORD_BYTES_SQL}), 0) FROM github_http_cache WHERE {NOT_CONTINUATION_SQL}"
+        ),
         [HTTP_CACHE_RECORD_RESERVE_BYTES],
         |row| row.get(0),
     )?;
@@ -588,7 +635,9 @@ fn prune_http_cache_with_limits(
     }
     // A single uncacheable response must not evict smaller useful responses.
     connection.execute(
-        &format!("DELETE FROM github_http_cache WHERE {HTTP_CACHE_RECORD_BYTES_SQL} > ?2"),
+        &format!(
+            "DELETE FROM github_http_cache WHERE {NOT_CONTINUATION_SQL} AND {HTTP_CACHE_RECORD_BYTES_SQL} > ?2"
+        ),
         params![HTTP_CACHE_RECORD_RESERVE_BYTES, max_record_bytes],
     )?;
     connection.execute(
@@ -597,7 +646,7 @@ fn prune_http_cache_with_limits(
             SELECT rowid FROM (
                 SELECT rowid, SUM({HTTP_CACHE_RECORD_BYTES_SQL}) OVER (
                     ORDER BY updated_at DESC, rowid DESC ROWS UNBOUNDED PRECEDING
-                ) AS retained_bytes FROM github_http_cache
+                ) AS retained_bytes FROM github_http_cache WHERE {NOT_CONTINUATION_SQL}
             ) WHERE retained_bytes > ?2
         )"
         ),
@@ -642,6 +691,12 @@ impl Library {
     /// Empty directories and recognizable Portcove roots are accepted; unrelated
     /// nonempty directories are left untouched.
     pub fn validate_selection_target(root: &Path) -> Result<PathBuf> {
+        Ok(Self::inspect_selection_target(root)?.root)
+    }
+
+    /// Read the same bounded directory evidence used by validation, without
+    /// opening or initializing a library.
+    pub fn inspect_selection_target(root: &Path) -> Result<LibrarySelectionTarget> {
         crate::path::unicode(root, "library root")?;
         if !root.is_absolute() {
             return Err(PortcoveError::usage("library root must be absolute"));
@@ -686,19 +741,29 @@ impl Library {
         let recovery_present = [".portcove-authority.json", ".portcove-import.json"]
             .iter()
             .any(|name| canonical.join(name).exists());
-        let recovery_recognized = if recovery_present {
-            crate::library_authority::open_target(&canonical)?;
-            true
+        let relocated_to = if recovery_present {
+            crate::library_authority::open_target(&canonical)?
         } else {
-            false
+            None
         };
-        if nonempty && !database_recognized && !recovery_recognized {
+        if nonempty && !database_recognized && !recovery_present {
             return Err(PortcoveError::conflict(
                 "selected directory is nonempty and is not a recognizable Portcove library",
             )
             .detail("library_root", canonical.display().to_string()));
         }
-        Ok(canonical)
+        let contents = if recovery_present {
+            LibrarySelectionContents::RecoveryRecords
+        } else if database_recognized {
+            LibrarySelectionContents::ExistingDatabase
+        } else {
+            LibrarySelectionContents::EmptyDirectory
+        };
+        Ok(LibrarySelectionTarget {
+            root: canonical,
+            contents,
+            relocated_to,
+        })
     }
 
     /// After the adapter drops its current state, an exclusive lease proves that
@@ -712,11 +777,30 @@ impl Library {
     }
 
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
-        let mut root = root.into();
+        Self::open_with_relocation(root.into(), true)
+    }
+
+    /// Open the selected directory without following a relocation discovered
+    /// after the player reviewed the target.
+    pub fn open_reviewed_selection(root: impl Into<PathBuf>) -> Result<Self> {
+        Self::open_with_relocation(root.into(), false)
+    }
+
+    fn open_with_relocation(mut root: PathBuf, follow_relocation: bool) -> Result<Self> {
+        let target = |root: &Path| -> Result<Option<PathBuf>> {
+            let destination = crate::library_authority::open_target(root)?;
+            if !follow_relocation && let Some(moved) = &destination {
+                return Err(PortcoveError::conflict(
+                    "the selected library moved after review; choose its current folder",
+                )
+                .detail("current_library_root", moved.display().to_string()));
+            }
+            Ok(destination)
+        };
         for _ in 0..8 {
             crate::path::unicode(&root, "library root")?;
             let lease = std::sync::Arc::new(crate::library_access::LibraryLease::acquire(&root)?);
-            if let Some(destination) = crate::library_authority::open_target(&root)? {
+            if let Some(destination) = target(&root)? {
                 root = destination;
             } else if database::requires_migration(&root)? {
                 // A previously opened client holds a shared lease for its whole
@@ -727,7 +811,7 @@ impl Library {
                         &root,
                         crate::library_access::LibraryAccess::Exclusive,
                     )?);
-                if let Some(destination) = crate::library_authority::open_target(&root)? {
+                if let Some(destination) = target(&root)? {
                     root = destination;
                 } else {
                     drop(Self::initialize(root.clone(), exclusive)?);
@@ -787,7 +871,11 @@ impl Library {
             root: root.to_path_buf(),
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            github_mod_backoff: Default::default(),
+            quaddicted_backoff: Default::default(),
+            moddb_backoff: Default::default(),
             jakmods: Default::default(),
+            thunderstore_listings: Default::default(),
             _lease: lease,
         })
     }
@@ -801,7 +889,11 @@ impl Library {
             root,
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            github_mod_backoff: Default::default(),
+            quaddicted_backoff: Default::default(),
+            moddb_backoff: Default::default(),
             jakmods: Default::default(),
+            thunderstore_listings: Default::default(),
             _lease: lease,
         };
         library.create_layout()?;
@@ -1684,13 +1776,25 @@ impl Library {
                     a.started_at, a.finished_at, a.cancellation_phase, a.cancel_requested,
                     a.failure_json,
                     a.status = 'running' AS is_current,
-                    a.status = 'failed' AS needs_attention,
+                    -- A check a provider rate limit stopped is not checked: it
+                    -- resumes after the reset and needs nothing from the player.
+                    a.status = 'failed' AND NOT (
+                      a.operation = 'check_update'
+                      AND CASE WHEN json_valid(a.failure_json)
+                        THEN json_extract(a.failure_json, '$.presentation.presentation_key') END
+                        = 'provider_rate_limited'
+                    ) AS needs_attention,
                     EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id
                       AND (lifecycle.kind <> 'acquire_update' OR json_extract(lifecycle.update_acquisition_json,'$.view.phase') <> 'acquired'))
                       AS recovery_required
              FROM activity_history AS a
              WHERE a.status = 'running'
-                OR a.status = 'failed'
+                OR (a.status = 'failed' AND NOT (
+                      a.operation = 'check_update'
+                      AND CASE WHEN json_valid(a.failure_json)
+                        THEN json_extract(a.failure_json, '$.presentation.presentation_key') END
+                        = 'provider_rate_limited'
+                    ))
                 OR EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id)
                 OR a.rowid IN (SELECT rowid FROM terminal_history)
              ORDER BY a.started_at DESC, a.rowid DESC",
@@ -1854,19 +1958,87 @@ impl Library {
             checked_at: Self::now(),
             check: check.clone(),
         };
-        connection.execute(
+        let encoded_pin = check
+            .exact_release
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+        let changed = connection.execute(
             "INSERT INTO update_snapshots(port_id, check_json, checked_at)
-             VALUES (?1, ?2, ?3)
+             SELECT ?1, ?2, ?3
+             WHERE (SELECT exact_release_json FROM port_settings WHERE port_id=?1) IS ?4
              ON CONFLICT(port_id) DO UPDATE SET
                check_json=excluded.check_json,
                checked_at=excluded.checked_at",
             params![
                 check.port_id,
                 serde_json::to_string(check)?,
-                snapshot.checked_at
+                snapshot.checked_at,
+                encoded_pin,
             ],
         )?;
+        if changed != 1 {
+            return Err(PortcoveError::conflict(
+                "the saved release changed while checking for updates",
+            ));
+        }
         Ok(snapshot)
+    }
+
+    /// When each port's update check last succeeded, from the durable snapshots.
+    pub(crate) fn update_checked_at(&self) -> Result<HashMap<String, i64>> {
+        let connection = self.connection()?;
+        let mut statement =
+            connection.prepare("SELECT port_id, checked_at FROM update_snapshots")?;
+        let rows = statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<rusqlite::Result<_>>().map_err(Into::into)
+    }
+
+    /// When each port's update check last reached a verdict (it succeeded, or failed
+    /// for a reason other than a provider rate limit), from the retained activity
+    /// history. A rate-limited or deferred attempt, a listing read only in part, a
+    /// cancellation and an interruption learned nothing, so they do not move the
+    /// game back in the order.
+    pub(crate) fn update_check_attempted_at(&self) -> Result<HashMap<String, i64>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT target_id, started_at, failure_json FROM activity_history
+             WHERE operation='check_update' AND status IN ('succeeded', 'failed')
+               AND target_id IS NOT NULL",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })?;
+        let mut attempted = HashMap::<String, i64>::new();
+        for row in rows {
+            let (port_id, started_at, failure) = row?;
+            let no_verdict = failure
+                .as_deref()
+                .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
+                .is_some_and(|failure| {
+                    failure
+                        .get("presentation")
+                        .and_then(|presentation| presentation.get("presentation_key"))
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|key| {
+                            matches!(
+                                key,
+                                "provider_rate_limited"
+                                    | "inventory_incomplete"
+                                    | "operation_interrupted"
+                            )
+                        })
+                });
+            if !no_verdict {
+                let latest = attempted.entry(port_id).or_insert(started_at);
+                *latest = (*latest).max(started_at);
+            }
+        }
+        Ok(attempted)
     }
 
     pub fn update_snapshot(&self, port_id: &str) -> Result<Option<UpdateSnapshot>> {
@@ -2179,6 +2351,12 @@ impl Library {
         Ok(cached)
     }
 
+    pub(crate) fn remove_http_cache(&self, url: &str) -> Result<()> {
+        self.connection()?
+            .execute("DELETE FROM github_http_cache WHERE url=?1", [url])?;
+        Ok(())
+    }
+
     pub(crate) fn store_http_cache(
         &self,
         url: &str,
@@ -2324,9 +2502,41 @@ impl Library {
     pub fn set_channel(&self, port_id: &str, channel: ReleaseChannel) -> Result<()> {
         self.ensure_settings(port_id, channel)?;
         self.connection()?.execute(
-            "UPDATE port_settings SET channel=?2 WHERE port_id=?1",
+            "UPDATE port_settings SET
+                 exact_release_json=CASE WHEN channel=?2 THEN exact_release_json ELSE NULL END,
+                 channel=?2
+             WHERE port_id=?1",
             params![port_id, channel.to_string()],
         )?;
+        Ok(())
+    }
+
+    pub(crate) fn set_exact_release(
+        &self,
+        port_id: &str,
+        channel: ReleaseChannel,
+        pin: Option<&crate::ExactReleaseSelection>,
+    ) -> Result<()> {
+        if let Some(pin) = pin {
+            pin.require_persisted(port_id, channel)?;
+        }
+        let encoded = pin.map(serde_json::to_string).transpose()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let changed = transaction.execute(
+            "INSERT INTO port_settings(port_id, channel, update_policy, exact_release_json)
+             VALUES (?1, ?2, 'notify', ?3)
+             ON CONFLICT(port_id) DO UPDATE SET exact_release_json=excluded.exact_release_json
+             WHERE port_settings.channel=excluded.channel",
+            params![port_id, channel.to_string(), encoded],
+        )?;
+        if changed != 1 {
+            return Err(PortcoveError::conflict(
+                "the release channel changed; review the release preference again",
+            ));
+        }
+        transaction.execute("DELETE FROM update_snapshots WHERE port_id=?1", [port_id])?;
+        transaction.commit()?;
         Ok(())
     }
 
@@ -2610,11 +2820,14 @@ impl Library {
             params![install.port_id, install.channel.to_string()],
         )?;
         if activate {
-            crate::profile::follow_active_install(&transaction, install)?;
+            crate::profile::follow_active_install(self, &transaction, install)?;
             transaction.execute(
+                // A pin is bound to its channel; activation that changes the
+                // channel ends it, exactly as choosing another channel does.
                 "UPDATE port_settings SET
                    previous_install_id = CASE WHEN active_install_id = ?2 THEN previous_install_id ELSE active_install_id END,
                    active_install_id = ?2,
+                   exact_release_json = CASE WHEN channel = ?3 THEN exact_release_json ELSE NULL END,
                    channel = ?3
                  WHERE port_id = ?1",
                 params![install.port_id, install.id, install.channel.to_string()],
@@ -2671,10 +2884,18 @@ impl Library {
     }
 
     /// Publish a prepared derivative without discarding a separately staged update.
+    ///
+    /// Rollback must keep reaching the last working version. When the replaced
+    /// active installation is the preparation's own unprepared source
+    /// (`source_unprepared`) and a rollback version already exists, that version
+    /// stays the rollback target: the unprepared source is superseded by its own
+    /// prepared copy and stays tracked like any other superseded installation.
+    /// With no earlier version, the source becomes the rollback target as before.
     pub(crate) fn register_prepared_install(
         &self,
         install: &InstallRecord,
         original_id: &str,
+        source_unprepared: bool,
     ) -> Result<()> {
         crate::profile_file_preservation::require_idle(self, &install.port_id)?;
         let mut connection = self.connection()?;
@@ -2693,12 +2914,16 @@ impl Library {
             ));
         }
         Self::write_install(&transaction, install, false)?;
-        crate::profile::follow_active_install(&transaction, install)?;
+        crate::profile::follow_active_install(self, &transaction, install)?;
         transaction.execute(
             "UPDATE port_settings SET
-               previous_install_id=CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,
+               previous_install_id=CASE
+                 WHEN active_install_id=?2 THEN previous_install_id
+                 WHEN ?4 AND active_install_id=?3 AND previous_install_id IS NOT NULL
+                   THEN previous_install_id
+                 ELSE active_install_id END,
                active_install_id=?2 WHERE port_id=?1",
-            params![install.port_id, install.id],
+            params![install.port_id, install.id, original_id, source_unprepared],
         )?;
         transaction.commit()?;
         Ok(())
@@ -3253,7 +3478,7 @@ impl Library {
             metrics.record_query();
             let sql = format!(
                 "SELECT s.port_id, s.channel, s.update_policy, s.active_install_id,
-                        s.previous_install_id, c.from_install_id, c.outcome
+                        s.previous_install_id, s.exact_release_json, c.from_install_id, c.outcome
                  FROM port_settings s
                  LEFT JOIN carried_file_outcomes c ON c.port_id=s.port_id
                     AND c.to_install_id=s.active_install_id AND c.format={}
@@ -3274,9 +3499,10 @@ impl Library {
                         row.get::<_, String>(2)?,
                         row.get::<_, Option<String>>(3)?,
                         row.get::<_, Option<String>>(4)?,
+                        row.get::<_, Option<String>>(5)?,
                     ),
-                    row.get::<_, Option<String>>(5)?,
                     row.get::<_, Option<String>>(6)?,
+                    row.get::<_, Option<String>>(7)?,
                 ))
             })?;
             for row in rows {
@@ -3447,12 +3673,24 @@ impl Library {
                         outcome: outcome.clone(),
                     })
                 });
+                // One unusable pin holds only its own port.
+                let (exact_release, exact_release_hold) =
+                    match crate::ExactReleaseSelection::decode_or_hold(
+                        port_id,
+                        channel,
+                        stored.and_then(|settings| settings.4.as_deref()),
+                    ) {
+                        Ok(pin) => (pin, None),
+                        Err(hold) => (None, Some(hold)),
+                    };
                 Ok(PortStatus {
                     carried_files,
                     acquisition: acquisitions.get(port_id).cloned(),
                     port_id: port_id.clone(),
                     user_data_root: Some(self.user_dir(port_id)),
                     channel,
+                    exact_release,
+                    exact_release_hold,
                     update_policy,
                     active,
                     external_runtime: external_runtimes.get(port_id).cloned(),
@@ -3567,7 +3805,13 @@ impl Library {
     }
 
     pub(crate) fn installs_for_port(&self, port_id: &str) -> Result<Vec<InstallRecord>> {
-        let connection = self.connection()?;
+        Self::installs_for_port_from(&self.connection()?, port_id)
+    }
+
+    pub(crate) fn installs_for_port_from(
+        connection: &Connection,
+        port_id: &str,
+    ) -> Result<Vec<InstallRecord>> {
         let mut statement = connection.prepare(
             "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
                     artifact_name, artifact_sha256, artifact_size, manifest_sha256,
@@ -3611,7 +3855,7 @@ impl Library {
         })?;
         let previous = Self::install_by_id(&transaction, Some(&previous_id))?
             .ok_or_else(|| PortcoveError::state("rollback target disappeared"))?;
-        crate::profile::follow_active_install(&transaction, &previous)?;
+        crate::profile::follow_active_install(self, &transaction, &previous)?;
         transaction.execute(
             "UPDATE port_settings SET active_install_id=?2, previous_install_id=?3 WHERE port_id=?1",
             params![port_id, previous_id, active_id],
@@ -3668,7 +3912,7 @@ impl Library {
                 ));
             }
         }
-        crate::profile::follow_active_install(&transaction, &staged)?;
+        crate::profile::follow_active_install(self, &transaction, &staged)?;
         transaction.execute(
             "UPDATE port_settings SET
                previous_install_id = CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,
@@ -3843,6 +4087,29 @@ mod tests {
                 .funding_urls
                 .is_none()
         );
+    }
+
+    #[test]
+    fn a_retained_selection_does_not_carry_current_mod_portals() {
+        let id = "mod-portal-project";
+        let links = serde_json::json!([{
+            "id":"community", "site":"community_site", "name":"Game mods",
+            "url":"https://mods.example.com/", "instructions":"Read the community instructions."
+        }]);
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":id, "name":"Mod portal project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream", "mod_portals":links.clone()
+        }))
+        .unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, id).unwrap();
+        assert!(!content.contains("mod_portals"), "{content}");
+        let retained = decode_external_catalog(&content, id).unwrap();
+        assert!(retained.listing(id).unwrap().mod_portals.is_empty());
+
+        let mut invalid: serde_json::Value = serde_json::from_str(&content).unwrap();
+        invalid["listing"]["mod_portals"] = links;
+        assert!(decode_external_catalog(&invalid.to_string(), id).is_err());
     }
 
     #[test]
@@ -4191,6 +4458,97 @@ mod tests {
     }
 
     #[test]
+    fn a_rate_limited_update_check_is_not_checked_rather_than_needing_attention() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let finish = |operation, port: &str, error: PortcoveError| {
+            let activity = library
+                .begin_activity(operation, ActivityTargetKind::Port, Some(port))
+                .unwrap();
+            library
+                .finish_activity_report(
+                    &activity.id,
+                    ActivityStatus::Failed,
+                    Some(&error.message),
+                    Some(&error.report()),
+                )
+                .unwrap();
+            activity.id
+        };
+        let limited = || {
+            PortcoveError::network("GitHub API returned 403").with_known_cause(
+                crate::failure::KnownFailureCause::ProviderRequest {
+                    provider: crate::failure::FailureProvider::Github,
+                    status: 403,
+                    rate_limited: true,
+                    resets_at: Some(1_900_000_000),
+                },
+            )
+        };
+        let rate_limited_check = finish(ActivityOperation::CheckUpdate, "limited", limited());
+        // A listing a rate limit cut short reads as that rate limit.
+        let limited_listing = finish(
+            ActivityOperation::CheckUpdate,
+            "limited-listing",
+            crate::failure::inventory_incomplete_after(
+                crate::failure::FailureProvider::Gitlab,
+                "release history",
+                1,
+                None,
+                limited(),
+            ),
+        );
+        // A listing that stopped for another reason (a list that never ends)
+        // stays visible: it may keep happening and needs a look.
+        let incomplete = finish(
+            ActivityOperation::CheckUpdate,
+            "incomplete",
+            crate::failure::inventory_incomplete(
+                crate::failure::FailureProvider::Gitlab,
+                "release history",
+                3,
+                Some(2),
+            ),
+        );
+        let ordinary_failure = finish(
+            ActivityOperation::CheckUpdate,
+            "gone",
+            PortcoveError::network("the repository is gone"),
+        );
+        // The same rate limit on another operation is still that operation's failure.
+        let limited_install = finish(ActivityOperation::Install, "install", limited());
+
+        let feed = library.activity_feed(50).unwrap();
+        for not_attention in [&rate_limited_check, &limited_listing] {
+            assert!(
+                !feed.attention_required_activity_ids.contains(not_attention),
+                "{not_attention}"
+            );
+            // Still in the history, presented as the rate limit.
+            let record = feed
+                .records
+                .iter()
+                .find(|record| &record.id == not_attention)
+                .unwrap();
+            assert_eq!(
+                record
+                    .failure
+                    .as_ref()
+                    .unwrap()
+                    .presentation
+                    .presentation_key,
+                "provider_rate_limited"
+            );
+        }
+        for attention in [&incomplete, &ordinary_failure, &limited_install] {
+            assert!(
+                feed.attention_required_activity_ids.contains(attention),
+                "{attention}"
+            );
+        }
+    }
+
+    #[test]
     fn activity_feed_keeps_old_current_attention_and_recovery_rows_beyond_history() {
         let temporary = tempdir().unwrap();
         let library = Library::open(temporary.path()).unwrap();
@@ -4435,6 +4793,41 @@ mod tests {
                 "https://example.test/c".to_owned(),
             ]
         );
+    }
+
+    #[test]
+    fn saved_walk_progress_survives_response_pressure_but_not_age() {
+        // A walk's continuation must not depend on the response budget: newer
+        // responses filling the budget evict older responses, never progress.
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let connection = library.connection().unwrap();
+        let progress = format!("{CONTINUATION_KEY_PREFIX}v1:walk");
+        let abandoned = format!("{CONTINUATION_KEY_PREFIX}v1:abandoned");
+        for (url, body, updated_at) in [
+            (abandoned.as_str(), "{}", 1_i64),
+            (progress.as_str(), "{\"next_page\":7}", 2_000_000_000_i64),
+            ("https://example.test/a", "aaaa", 2_000_000_001_i64),
+            ("https://example.test/b", "bbbb", 2_000_000_002_i64),
+        ] {
+            connection
+                .execute(
+                    "INSERT INTO github_http_cache(url, body, updated_at) VALUES (?1, ?2, ?3)",
+                    params![url, body, updated_at],
+                )
+                .unwrap();
+        }
+        let one_record =
+            HTTP_CACHE_RECORD_RESERVE_BYTES + 2 * "https://example.test/b".len() as u64 + 4;
+        prune_http_cache_with_limits(&connection, one_record, 1_000_000_000).unwrap();
+        let urls = connection
+            .prepare("SELECT url FROM github_http_cache ORDER BY url")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(urls, vec!["https://example.test/b".to_owned(), progress]);
     }
 
     #[test]
@@ -4923,6 +5316,8 @@ mod tests {
             .unwrap();
         library
             .store_update_snapshot(&UpdateCheck {
+                exact_release: None,
+                channel_latest_version: None,
                 port_id: "target-port".into(),
                 channel: ReleaseChannel::Stable,
                 installed_version: Some("1.0.0".into()),

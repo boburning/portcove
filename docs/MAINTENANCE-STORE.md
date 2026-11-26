@@ -47,6 +47,98 @@ unconfirmed writes. The schema owner can then set the singleton
 `portcove_maintenance_meta.discovery_intake_activation.active` to true. An
 executor login has read-only access to that flag.
 
+### Discovery collection
+
+Migration `0007` stores [unattended discovery collection](DAILY-PORT-DISCOVERY.md#unattended-collection).
+It adds the concepts the history tables cannot represent:
+
+- `discovery_collection_state`: one fenced collector state per scope (`primary`),
+  with its revision, the digest of the source and query definitions that wrote
+  it, and the current lease.
+- `discovery_collection_attempts`: each run's acquisition ticket (from
+  `acquire_collection()`), activation generation, Portcove revision, runner,
+  committed pages, outcome and bounded result. A run whose lease is taken over
+  closes as `expired`; its committed pages remain.
+- `discovery_observations` (append-only): positive provider evidence keyed by
+  provider, provider-issued repository ID, parser version and normalized content
+  digest. An observation exists before any canonical identity. The path at the
+  time is retained, and a reused path never inherits another repository's ID.
+- `discovery_watches` and `discovery_watch_transitions` (append-only): the
+  current typed waiting condition per provider subject and one row per episode.
+  Changed evidence or status opens a new generation, so A to B to A remains three
+  episodes; unchanged evidence is quiet.
+- `discovery_lead_records` (migration `0009`): the collector's lead records,
+  one row per provider repository ID in a scope. The state document keeps the
+  rest of the continuation. A commit upserts only records that changed and
+  rewrites no unchanged row. Hydration requires each lead ID to be a unique,
+  positive, safe JSON integer. A malformed ID fails the shared read. The
+  collector records the failure and closes its owned lease before querying
+  providers or committing any collection state.
+
+Writes go only through `discovery_acquire`, `discovery_commit` and
+`discovery_finish`. They check collection activation, the lease token and the
+lease generation; commits also check expiry and the expected revision. They then commit state, observations
+and watch changes in one transaction. The collector role may execute them; the
+report role reads.
+
+Stored state has no fixed size bound; migration `0008` removed the original
+8 MiB check. The worker sizes its transfer admission from the stored state and
+recent runs, so reads and commits stay inside an admitted, measured allowance.
+`definition_sha256` records the collector definitions (state format,
+parser version, search families and curated lists). A worker whose definitions
+differ resends its observations; cursor compatibility itself comes from each
+search slice's recorded query contract. Discovery tables are ordinary backup tables. A complete table whose digest and
+row count match the verified local seed is reused without sending its rows over
+the network. Changed lead and discovery observation tables compare full-row
+fingerprints by their existing primary keys; only changed or new rows cross the
+network, while removed rows are omitted from local reconstruction. Migration `0011` separates curated-list external hints into keyed rows under
+the existing collector revision. The migration preserves all hint values and
+recomputes the compact continuation digest. Complete logical acquire and
+commit wrappers retain the existing caller contract, while the old compact
+functions are private to the wrappers. Current collector and read-only consumers
+hydrate the normalized hints separately in bounded pages, including cold reads
+without a seed and invalidated warm reads. The complete legacy wrapper still
+reassembles hints on the server; older direct state readers must upgrade.
+The final pending migration and role contract commit together. A failed role
+contract cannot leave the latest migration ledger entry committed without its
+callable permissions. The new hint table participates in
+whole-table and row-delta recovery. The maintained collector submits changed
+hint rows and explicitly removed keys against its confirmed lease and revision,
+using a compact continuation and the existing atomic commit fence. When no
+confirmed client baseline is available, it submits the complete logical state
+instead. An exact retained revision reacquire omits the state without rebuilding
+the hint document on the server. For cold hosted reads, the discovery job can reuse the existing independently
+verified recovery artifact. It restores the seed in a separate local PostgreSQL
+instance without production credentials and reads bounded primary-key pages
+containing actual restored hint and lead payloads with their fingerprints.
+After fenced compact acquisition, the
+production database compares those fingerprints and returns changed/new rows
+and removed keys. The current continuation always comes from production.
+An unavailable seed, a seed row beyond the local client response limit, or an
+oversized delta falls back to the complete read when admission permits it;
+no additional public cache or artifact is published. Initial admission can instead use a measured seed plan: a single read-only
+statement returns the exact delta JSON sizes and the production revision,
+activation generation and definition. The collector uses the same frozen seed
+fingerprints and acquires only that revision. Each response is capped at its
+measured size; a moved or oversized plan defers rather than falling back to an
+unadmitted complete read. If no usable plan exists, the complete-read admission
+remains the fallback. For the revision-fenced initial discovery read, the
+measured response envelope plus acknowledgement and protocol headroom replaces
+the 16 MB bootstrap estimate. The provider ceiling and recovery reserve do not
+change. Later passes retain complete-read admission; other operation estimates
+remain conservative defaults until their readers prove equivalent bounds.
+Admission evidence identifies the reservation basis. Discovery pass
+admission uses the larger of the measured previous receive payload and the
+current cold-read estimate, plus acknowledgement and protocol headroom, rather
+than counting the same acquire twice. The provider ceiling is unchanged.
+
+Collection has its own activation (`collection_active`) and
+`collection_generation` on the activation singleton. Portable restore clears
+both activation flags and advances the generation, so a lease taken before the
+backup cannot commit after reactivation. Reactivate collection only after
+deciding that the restored store is the single active writer; the worker resumes
+from the restored revision.
+
 ## Canonical identities
 
 `subject_key` is `<kind>:<identity>` using an existing canonical identity:
@@ -164,13 +256,13 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   transaction runs at `READ COMMITTED`, so its checks see every run committed
   while it waited for its locks.
 
-- **Reassessment.** Every complete collection re-reads Core for every authored
-  port; with unchanged inputs that only re-verifies (`verified_run_id`,
-  `verified_at`). A new assessment is recorded only when the subject's catalog
+- **Reassessment.** A full collection re-reads Core for every authored port,
+  and a selective one for every port the store selects; with unchanged inputs
+  a read only re-verifies (`verified_run_id`, `verified_at`). A new assessment is recorded only when the subject's catalog
   fact changes (authored record, operational definition or scoped
   qualification at the pinned revision), Core's output for the port changes
-  (embedded catalog and listings, Core code, catalog-wide hold policy, the
-  platform, or recommendation observations Core filters by the current time),
+  (embedded catalog and listings, Core code, the port's holds and listing
+  restrictions, the platform, or recommendation observations Core filters by the current time),
   or the assessment policy changes (API schema or projection version). Only a
   changed result records a transition. A rebuild with the same output, a failed
   run, or a port Core could not read in a partial run records neither. The
@@ -180,37 +272,96 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   latest of those and the assessment time, because assessments are deduplicated
   by input and a return to earlier inputs reuses the older assessment) and when
   it was last re-verified.
-  - **Selective reassessment (opt-in, migration 0004).** `collect --all
+  - **Selective reassessment (migrations 0004 and 0010).** `collect --all
     --targets --reassess changed` reuses a subject's stored Core result
-    without calling Core. Every condition must hold, otherwise the run is full
-    and `collect` reports why:
+    without calling Core. The daily workflow uses it. Every run-level
+    condition must hold, otherwise the run is full and `collect` reports why:
     - The Core build's source binding is verified: its recorded source
       revision is this checkout's, every keyed path is clean at collection
-      time, and it uses the compiled catalog with no features. The binding
-      trusts the build's recorded revision; the hosted workflow builds from the
-      checked-out commit. Build profile, flags and toolchain settings outside
-      the keyed files are assumed fixed.
-    - The reuse key matches the latest Core run of the source, which is
-      complete. The key is a digest of the Git object IDs of `crates`,
-      `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` and `vendor`, the
-      producer's compiled catalog and listings digests and features, the API
-      schema, projection, platform and isolation; the binary digest is
-      excluded because every rebuild changes it.
-    - A full read under that key completed within 7 days (the latest full
-      read by store order, not by a runner's clock).
-    - No catalog `observed_at` falls between that full read and now: Core
-      shows clock-dated observations only once their time has passed.
-    - The subject's catalog fact and stored Core result are unchanged members
-      of the baselines the decision read; if another collection finishes in
-      between, the run is refused whole.
+      time, it uses the compiled catalog with no features, and its embedded
+      catalog and listings digests equal the reviewed files. The binding
+      trusts the build's recorded revision; the hosted workflow builds from
+      the checked-out commit. Build profile and flags outside the keyed
+      files are assumed fixed.
+    - The latest Core run of the source is complete, and the latest
+      complete full read is less than 7 days old. The store picks that read
+      by acquisition order; its age is its `started_at`, written by the
+      runner that took it, compared with the collecting runner's clock, so
+      clock skew between runners shifts the window by that skew. That weekly
+      full read is the periodic reconciliation: it re-reads every subject
+      under one build, so a dependency the model below missed cannot
+      persist for more than about a week.
+    - The binary's catalog inspection succeeded in the same run. Core
+      validates the whole embedded catalog on load and refuses every port
+      when it fails, so a selective run never reuses results across a
+      catalog that no longer loads.
+  - **Each subject's dependencies** (`scripts/maintenance-assessment-scope.mts`).
+    A fresh-library `port-capabilities` report depends on:
+    - the mechanism: each repository file in the binary's Cargo dep-info
+      (`target/<profile>/portcove.d`) by Git object ID, every package
+      manifest, `Cargo.lock`, `rust-toolchain.toml`, `vendor`, other
+      out-of-tree build inputs by content. Cargo's binary dep-info does not
+      record build environment values, so every variable compiled sources
+      read with `env!` or `option_env!` (other than Cargo's manifest-derived
+      `CARGO_*`) is declared with its readers and why it cannot change a
+      capability report: `PORTCOVE_SOURCE_REVISION` only labels the producer
+      in target inspection, and `PORTCOVE_GITHUB_CLIENT_ID` only serves
+      sign-in. A test fails when a source reads an undeclared variable or a
+      declared one elsewhere. Test-only modules, other crates and data that
+      the binary does not embed are not mechanism.
+    - the shared data: everything in the embedded `catalog.json` and
+      `listings.json` that is not partitioned to one port, including fields
+      or `source_catalog` arrays the module does not declare and records that
+      no port reaches;
+    - the subject's partition: its `ports[]` and `listings[]` entries and the
+      `source_catalog` records it reaches. A record is reached when it names
+      the port in `port_id` or `scope.port_id`, or when its `id` equals any
+      string already in the partition, repeated to a fixpoint. Another port's
+      or listing's entries join in both directions when either names the
+      other's ID in any field (today `original_game.id` and
+      `artwork.game_slug`), whether or not Core follows that field;
+    - the policy: API schema, projection, platform identity, compiled
+      features and isolation, and the Git blob IDs of the collector's own
+      code (`scripts/maintenance-inventory.mts` and
+      `scripts/maintenance-assessment-scope.mts`), so any edit to either
+      re-assesses every subject once even without a version bump;
+    - time: Core compares numeric `observed_at` values with its clock.
+  - The subject's scoped key digests the mechanism, shared data, policy and
+    its own partition. Doubt never narrows it. Missing, stale, unparseable or
+    foreign dep-info, or a dep-info input that is missing or dirty at the
+    revision, keys the mechanism by the whole Core tree as before; that tree
+    contains the catalog, so any change then reassesses everything.
+  - **Bindings (migration 0010).** `core_reuse_bindings` holds one row per
+    source and subject: the scoped key, catalog fact digest and Core result
+    digest of its last real read, the run and the run's start. Only an
+    in-progress run of the same source may write a row, and never over a row
+    from a newer acquisition; rows are never deleted. A read rewrites its row
+    only when the key, fact, result or newest visible clock value changed.
+    The row keeps the clock value its read saw (`visible_until`), or -1 when
+    a value became visible while Core read, so the next run reads it again.
+  - **Store-side selection.** `core_reassessment_due(source, desired)` takes
+    each subject's key, fact digest and newest `observed_at` visible now. It
+    returns only the subjects that need Core, with the first reason that
+    applies: `unbound`, `scope-changed`, `catalog-changed`, `result-changed`
+    (the binding's result is no longer the source's latest member) or `clock`
+    (the newest `observed_at` visible now differs from the one the read saw,
+    so a later value, or a runner whose clock is behind the reader's, both
+    force a read). The collector reads
+    those subjects and reuses the rest. Time-dependent inputs therefore stay
+    in the decision through each subject's read time; they are never cached.
   - A reused subject is an unchanged member: no observation, assessment,
     transition or verification, so its `verified_at` stays at the last real
     Core read. The run records `reassessment` (`full` or `selective`),
-    `reuse_key` and `reused_count`, all fixed when it starts; full runs record
-    their key too, as later anchors. The report's Sources table shows a
-    selective run's reused count. Because the key covers the whole `crates`
-    tree, reuse applies only while no Core code or catalog file changed; at
-    today's commit rate most runs are full. The daily workflow stays full.
+    `reuse_key` (the shared base key) and `reused_count`, all fixed when it
+    starts. `collect` also reports the mechanism mode, the selection's
+    reasons and the Core read's process count and duration. The report's
+    Sources table shows a selective run's reused count.
+  - Measured on `main` from 2026-11-17 to 2026-11-23 (550 first-parent
+    commits): 98 commits changed only catalog data and would reassess 1,495
+    subjects in total instead of 155,880; 35 changed only Core files outside
+    the binary and reassess none instead of 57,315. Every day in that window
+    also changed compiled Core code, which reassesses every subject, so the
+    daily scheduled run remained a full read.
 - **Reconsiderations.** Typed as `technical_hold`, `intentional_deferral`,
   `upstream_change` or `evidence_refresh`, each with the owner or policy reference
   required to revisit it. Conditions are immutable, and an intentional deferral is
@@ -232,11 +383,11 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
 `scripts/maintenance-store/roles.sql` is idempotent and is applied after every
 migration and every restore. It defines three `NOLOGIN` group roles:
 
-| Role                             | May write                                                                            |
-| -------------------------------- | ------------------------------------------------------------------------------------ |
-| `portcove_maintenance_collector` | Runs, observations, assessments, transitions, reconsiderations and new notifications |
-| `portcove_maintenance_executor`  | Operations, intake checkpoints and notification delivery state                       |
-| `portcove_maintenance_report`    | Nothing; read-only                                                                   |
+| Role                             | May write                                                                                                                               |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `portcove_maintenance_collector` | Runs, observations, assessments, transitions, reconsiderations and new notifications; discovery collection through its fenced functions |
+| `portcove_maintenance_executor`  | Operations, intake checkpoints and notification delivery state                                                                          |
+| `portcove_maintenance_report`    | Nothing; read-only                                                                                                                      |
 
 All three can read. None owns or alters the schema. Operators grant membership
 to their own login roles outside the repository; the migrating role owns the
@@ -298,7 +449,8 @@ PORTCOVE_MAINTENANCE_DATABASE_URL="$RESTORE_TARGET_URL" node scripts/maintenance
   with the manifest in one transaction, so any difference rolls the whole restore
   back and the target stays empty for a retry. Verification uses the backup's
   own schema. Any newer migrations of the checkout, and the role contract, then
-  apply in that same transaction.
+  apply in that same transaction. The restore proof records the original schema
+  and its verified manifest separately from the current schema and its digests.
 - Use `psql`, `pg_dump` and `pg_restore` from one PostgreSQL client
   installation whose major version matches the server (set
   `PORTCOVE_POSTGRES_BIN` when `PATH` mixes versions). Restore renders the dump
@@ -416,7 +568,28 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
 ```
 
 - `--all` covers every authored record committed at `HEAD`, not a sample.
-  - Core is called for each port with bounded concurrency (`--concurrency`, default 4).
+  - Core is read with bounded concurrency (`--concurrency`, default 4). A CLI
+    that advertises `port-capabilities-batch` reads up to 200 ports (and
+    24,000 argument characters) per process with one catalog load; each
+    port's report, or refusal code and message, is what the single-port
+    command returns. A batch that exceeds its 120-second or 16 MiB budget is
+    split in half, down to single ports; a single port that still exceeds it
+    is a gap (`batch-time-budget` or `batch-output-budget`), so the run is
+    partial and the next one reads everything. `collect` reports the largest
+    batch output and the number of splits. Splitting alone could run up to
+    2n-1 processes for an n-port chunk (399 for 200 ports, about 13 hours at
+    120 seconds each), so the whole Core read also has a 15-minute deadline:
+    no process starts after it, each process's time budget is cut to what
+    remains, and every port not yet read is a gap (`core-read-deadline`).
+    The worst case is therefore the 15-minute read plus the 15-minute
+    collection transaction, inside the hosted step's 40 minutes; the run is
+    then partial and the next one is full. The one-process-per-port fallback
+    starts no process after the deadline either. A batch process whose output is
+    otherwise not a valid envelope stops the collection, which then records
+    nothing. On the 1,649-port catalog (debug build,
+    Linux x86-64) that is 9 processes and about 16 seconds instead of 1,649
+    processes and about 410 seconds. An older CLI is read one port per
+    process.
   - The Core source is per host platform, for example
     `core-port-capabilities-linux-x86-64`. Assessments, transitions and
     notifications use the platform-qualified subject `port:<id>@<platform>`, so
@@ -1033,6 +1206,25 @@ nothing.
   roadmap identity no issue condition changes.
 - The condition records the source, the Project status or hold reason, and the
   issue's explicit blocker and resume condition when recorded (`null` otherwise).
+  For a Blocked issue without an explicit resume condition, existing GitHub
+  blocking relationships supply a sorted set of dependency issue references
+  with immutable node IDs and repository-qualified URLs. The report matches
+  each dependency's node ID, issue number, URL, and state against the complete
+  issue facts for the owner's repository. Legacy facts without identity and
+  dependencies outside that repository remain unknown. The report derives a wake signal:
+  `waiting` while a dependency is open, `review-ready` when every recorded
+  dependency is observed closed, and `unknown` when coverage or identity
+  disagrees. A dependency closing does not lift the hold, rewrite Project
+  fields, or replace an explicit owner condition. Deferred work never uses
+  dependency closure to change its authority.
+- The collection receipt includes a derived `backlog_lifecycle` summary when
+  the configured Project identity is known. The report uses complete repository
+  issue coverage and their memberships in that Project. It distinguishes neutral
+  Inbox and Triage Watchlist inventory, positive planning signals, missing
+  planning fields, active work, other dispositions, and unavailable membership.
+  Closed issues and known archived-only memberships are excluded.
+  Missing or ambiguous membership is reported, not interpreted as unassigned
+  work.
 - A complete read that no longer records a pending condition resolves it under
   its recorded authority, naming the observing run: `satisfied`
   (`condition-lifted`) when the Status or hold is gone, or `withdrawn`
@@ -1237,6 +1429,123 @@ handoffs daily and hands verified pending final audits to the native intake
 worker on the same run. Other work continues through its recorded resume
 condition and existing executor.
 
+**Executor contract.** `handoffContracts` in the same module gives every kind a
+typed contract. It is pure data and a pure reducer, `applyHandoffEvent`. It
+reads no store, makes no network call, uses no credential and dispatches
+nothing. Dispatch stays `disabled` for all six kinds, and a test asserts it.
+That includes the three routine kinds: their dispatch also stays disabled
+until the owner explicitly decides how executor credentials are delegated.
+
+- **Deciding facts:** the source, the stored facts, the condition fields covered
+  by the assessment's `input_digest` and the excluded fields. They match the
+  recording rules above.
+- **Finding key and operation identity:** the finding key is
+  `handoff.<kind>.k<40 hex>`, the SHA-256 of the JSON array of contract
+  version, kind, handoff subject, deciding `input_digest` and policy
+  generation. The same finding always yields the same key, so a replay is
+  recognized and the records of one finding are related. The source generation
+  is a fence, not identity. Each operation record has its own `operation_id`:
+  the finding key for the finding's first record, then `.<n>` for the n-th, as
+  the store numbers a plan needed again. A finding that wakes after completion
+  or reappears after abandonment gets a new record. The reducer derives the
+  ordinal from the retained records, with no clock or randomness. No finding
+  key or contract operation ID has been persisted yet.
+- **Generation fence:** sequence, applicable assessment, source generation (the
+  subject's `verified_run_id`) and policy generation (the assessment's policy
+  version). An executor event whose fence differs from the operation's is
+  refused as `stale-fence`. A newer verification of the same finding re-fences
+  the open operation under the same key, so a holder must re-read. A changed
+  finding abandons the open operation and plans a new one. Claim, checkpoint
+  and complete events name the `operation_id` they act on. An event for an
+  earlier record of the handoff is refused as `superseded-operation`. A new
+  completion event for the same record must still match its fence before it
+  can acknowledge an identical receipt. The adapter must serialize fresh
+  current-store observations and their application per subject. The opaque
+  run identifier alone cannot order delayed observations.
+- **Lease and checkpoint:** routine kinds have a 30-minute lease. A live lease
+  has one holder; another claim is refused. The first claim after expiry
+  reclaims it once, counts the reclaim and resumes after the last completed
+  step. Steps are checkpointed in order and are idempotent, so a reclaim never
+  repeats an effect. Owner-only kinds have no lease.
+- **Receipt:** the store's receipt shape, a reference of at most 500 characters
+  with an optional SHA-256, plus evidence references. A routine receipt is the
+  scheduled report that shows the subject cleared. A completed receipt is
+  immutable.
+- **Wake condition:** routine kinds and relocation use `reappears-after-clear`:
+  any return to `needs-attention` after the clearing receipt. Hosted intake uses
+  `input-digest-changed`: a new receipt comment, reconciliation, blocker or held
+  candidate. A policy generation change wakes any kind. Otherwise a completed
+  operation stays completed.
+- **Replay and effects:** an event ID already applied is a duplicate with no
+  effect. The reducer returns effects only as descriptions of store writes.
+  Each effect addresses one record by `operation_id` and carries its
+  `finding_key`. `applyHandoffEffect` models the guard a store adapter must
+  apply: an effect acts only on the record it names, and only while that record
+  is planned or leased. A delayed abandon, lease, checkpoint, re-fence or
+  receipt for an abandoned or completed record is refused, never applied to a
+  newer record of the same finding. A replayed plan or identical receipt
+  changes nothing.
+
+Under the registry's policy every claim, checkpoint and completion is refused
+(`dispatch-disabled`; `owner-only` for owner kinds). Tests use a `modelled`
+policy only to show the lease rules.
+
+| Kind                          | Plan         | Wake                    | Receipt                                     |
+| ----------------------------- | ------------ | ----------------------- | ------------------------------------------- |
+| `release-health-relocation`   | Owner intake | `reappears-after-clear` | Scheduled main upstream-health report       |
+| `release-health-condition`    | Routine      | `reappears-after-clear` | Scheduled main upstream-health report       |
+| `upstream-observer-exception` | Routine      | `reappears-after-clear` | Next completed observer checkpoint snapshot |
+| `hosted-intake-blocked`       | Owner intake | `input-digest-changed`  | New bot receipt on #177                     |
+| `hosted-intake-holds`         | Owner intake | `input-digest-changed`  | New bot receipt on #177                     |
+| `release-content-finding`     | Routine      | `reappears-after-clear` | Scheduled main release-content scan report  |
+
+**Routine executor plans.** The three routine kinds carry the plan a
+deterministic, non-AI GitHub Actions job would follow. It would run as a step
+of the existing scheduled `maintenance-inventory.yml` job; no workflow,
+schedule or dispatch exists for it.
+
+1. `read-handoff`: read the handoff, assessment and operation with the report
+   role.
+2. `check-fence`: stop when the sequence, assessment, source generation or
+   policy generation moved.
+3. `take-lease`: claim, or reclaim an expired lease, and resume after the last
+   checkpoint.
+4. `gather-evidence`: from the stored condition only, list the release-health
+   conditions with their recorded resume conditions, the observer exceptions,
+   or the flagged and unreadable packages for a person to confirm.
+5. `publish-evidence`: the job summary and a retained artifact named by the
+   operation identity.
+6. `await-receipt`: a later scheduled main report or completed observer
+   checkpoint. Dispatched and pull-request runs never count.
+7. `record-receipt`: the run URL and report SHA-256, then complete and release.
+
+Permissions: `GITHUB_TOKEN` `contents: read` and `actions: read`, and the
+existing store executor role. A role grants table access, not one row. What
+would bound the job to its own record is a requirement on the future store
+adapter: change rows only through a guarded function that addresses one
+operation record by its identity and fence, as `applyHandoffEffect` models.
+No such function exists yet. The job must never write
+repository contents, push, or open, approve or merge a pull request. It must
+never comment on or edit issues or Project fields, or dispatch any workflow. It
+must never use the Project, signing or publication credentials or any delegated
+token. It must never publish, call an AI service, choose a remedy or act on a
+moved fence. The release-content plan also never confirms game data, writes a
+hold or accounting entry, or starts relocation evidence.
+
+The owner-only kinds (`release-health-relocation`, `hosted-intake-blocked`,
+`hosted-intake-holds`) stay inert owner intake. Their executors need owner
+authority, which has not been granted.
+
+**Persistence not yet added.** The `operations` table holds the fence sequence
+and assessment, executor, state, revision and receipt reference and SHA-256.
+Persisting the contract needs a store migration that adds the finding key,
+deciding `input_digest`, source and policy generation, lease holder, expiry and
+reclaim count, the last checkpoint and the completing sequence. Its guard would
+need to refuse a stale fence on every lease or checkpoint update, refuse any
+write to a closed record, keep one live holder, and allow a reclaim only after
+expiry. Until then the contract is a
+tested model only.
+
 ## Hosted operation
 
 [`maintenance-inventory.yml`](../.github/workflows/maintenance-inventory.yml)
@@ -1246,9 +1555,11 @@ checkpoint 5 and is recorded there.
 
 The daily 04:47 UTC run collects every declared source, records eligible
 handoffs, takes a portable recovery point and renders inventory and digest files
-from that recovery point on a local PostgreSQL server. Existing Core input
-digests let unchanged assessments be reused. A full Core pass still runs when
-inputs change or the last compatible full pass reaches seven days. A failed
+from that recovery point on a local PostgreSQL server. Core results whose
+[scoped dependencies](#storage-contract) are unchanged are reused; the store
+selects the subjects whose inputs changed or whose clock-dated facts became
+visible. A full Core pass still runs when no complete full pass finished in
+the last seven days. A failed
 source preserves its last verified data. The backup checks the committed store
 independently of the collection exit status.
 
@@ -1290,7 +1601,14 @@ record their own outcomes. The metered steps also require
 project. A personal token from a dedicated Neon Collaborator with only this
 project's Viewer grant can supply that access. Project-scoped organization keys
 have Editor rights. The application checks effective Viewer access before using
-the metadata response. See [Neon API keys](https://neon.com/docs/manage/api-keys)
+the metadata response. The meter makes three reads (project, production branch
+and endpoints). A failed reading names each read that failed, with its HTTP
+status and Neon's own error message, in the deferred admission's
+`resource.jsonl` evidence; the credential is never retained. When every read
+reports the project as not found, the reading also names the credential's
+identity by opaque ids only: the Neon user it belongs to and whether that user is
+a member of the owning organization (other memberships are not recorded), or
+that it is not a personal key. See [Neon API keys](https://neon.com/docs/manage/api-keys)
 and [Neon user permissions](https://neon.com/docs/manage/user-permissions).
 
 During local PostgreSQL replay, pass the existing `--database-env` or
@@ -1318,9 +1636,21 @@ When a prefix matches, only newer rows cross the network. A mismatch requires
 that table's full payload to fit the admission. The schedule requests a larger
 envelope when the retained recovery point is more than 30 hours old. Beyond 54
 hours, a live meter can admit a full recovery envelope. Incomplete GitHub
-inventory never implies that the prior backup is missing. All smaller tables, including
-mutable state and the migration ledger, come from the same snapshot. The
-independent reconstruction loads current schema and data, preserves sequence
+inventory never implies that the prior backup is missing. The export compares
+all other protected tables with the actual restored local seed under the same
+production snapshot. Identical complete tables are copied locally; changed or
+unavailable tables are exported normally. The transfer ceiling excludes only
+the proven local copies. For the row-delta discovery tables, the source
+returns only changed or removed keys under the same exported snapshot; the
+export transfers current rows for those keys and loads matching rows from the
+local seed. If the key plan cannot fit admission or is not cheaper than the
+full export, the original table path applies. The receipt accounts for both
+key-plan and delta-row transfer and lists the reused tables. Full-table digest
+verification still covers every reconstructed row before a standalone backup
+is written. The
+activation singleton is always exported from production, and portable restore
+still deactivates writers. The independent reconstruction loads current schema
+and data, preserves sequence
 values and verifies all protected table hashes before writing a new standalone
 ordinary PostgreSQL dump. The new dump has no runtime dependency on its seed
 artifact. Portable restore still clears discovery intake activation.
@@ -1349,9 +1679,20 @@ run, attempt where needed, source revision and trigger. A successful delivery
 with a saved output can satisfy an equivalent request. Cancellation or an
 uncertain outcome leaves its full reservation charged for the period. A completed
 operation records a logical PostgreSQL response estimate with a protocol margin.
-It stays provisionally charged alongside the project meter until period reset
-because a rise in the meter can belong to another client. This deliberately
-overcounts overlap instead of treating an immediate API delta as command bytes.
+A recovery explicitly deferred before starting any file export also records its
+measured SQL response bytes, including exported-snapshot queries, with a
+conservative protocol allowance. Only that known preflight outcome can settle
+on its measured estimate; unknown and partially executed failures keep their
+full reservation. The measurement stays charged alongside the project meter until the meter has settled past it:
+once a sample is taken at least two hours after the operation finished, the
+cumulative counter already includes that transfer, whichever client caused it,
+and the estimate is no longer added on top. Neon refreshes usage roughly every
+15 minutes. A recent completion is still charged in full, because a rise in the
+meter can belong to another client and an immediate API delta is never treated
+as command bytes. Running, cancelled and uncertain operations keep their full
+reservation for the period. The window assumes Neon's counter has not stalled for more than
+two hours. With the November cutover reading, whose sample time is fixed, an
+operation that finished after that sample never settles and stays charged.
 Evidence shows the difference that can be attributed only as a lower bound
 and leaves exact unattributed transfer unknown.
 
@@ -1371,9 +1712,12 @@ defers work. The next scheduled maintenance
 run, or the next existing discovery intake event, retries from its durable source
 or receipt. Retained-artifact reports and restore checks remain available offline.
 A repeated deferral stays visible as the age of the last verified recovery point
-and with its remaining allowance. If a large export cannot fit its reservation,
-work waits for a separately admissible baseline export. Normal collection
-failure does not grant permission for a full export.
+and with its remaining allowance. If a recovery's preflight finds that the conservative export estimate exceeds
+its admitted reservation, the same invocation can make one newly admitted
+attempt sized to that estimate. It reuses the verified local seed but replans
+against a new production snapshot. The normal provider meter, recovery reserve
+and hard ceiling still apply; a denied initial admission or denied retry defers
+work. Normal collection failure does not grant permission for a full export.
 
 ### Workload model
 
@@ -1540,3 +1884,102 @@ older research evidence, while private immutable recovery history remains.
 
 The owning adapter, scope, precision, failure and opt-out contract is
 [Optional research-progress observations](UPSTREAM-OBSERVATIONS.md#optional-research-progress-observations).
+
+## Program cutover view
+
+`node scripts/maintenance-program-view.mts` derives a read-only operator view of
+the dynamic native ports program (#1422). It is a projection, not a backlog or
+status authority: GitHub Projects and the canonical issues keep planning,
+priority and status, and `catalog.json` keeps support. The script reads no
+network, writes no store rows and edits no catalog data. It calls
+`routeFitReport` from `catalog-route-fit.mts` rather than classifying the
+catalog again, reads the handoff registry from `maintenance-handoffs.mts` and
+scans repository code for title-specific authorities. Output is deterministic
+JSON (`--json`, `--output FILE`) or a summary; it carries no timestamps.
+`--check` also verifies that two runs are byte-identical and that the authority
+inventory has not rotted. `--observations FILE` passes listing updates to route
+fit; `--observer-report FILE` reads a catalog upstream observer report.
+
+Each catalog identity is one subject with its product scope (`in-scope`, or
+`deferred-scummvm` when route fit reports `excluded-scummvm`), route-fit
+disposition and reason, family, declared restrictions and held operations, the
+title-specific authority kinds that still serve it, and one remaining action:
+`none`, `retire-title-authority`, `resolve-authority-inventory` (retirement is
+unknown because an authority kind cannot derive whom it serves),
+`data-enrollment`, `observation`, `bytes-worker`, `admission`,
+`missing-capability`, `upstream-condition` or `owner-decision` (deferred product
+scope).
+
+**Coverage gates.** Each gate is a ratio over a versioned denominator with a
+`state` of `passed`, `failed` or `unknown`, and lists the identities failing it
+and those whose result is unknown. Deferred ScummVM identities are in neither
+denominator.
+
+| Gate                | Denominator (version)                                               | Passing identity                                                           |
+| ------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `fitting`           | in-scope identities (`program-view/in-scope/1`)                     | a determined disposition other than `unobserved`                           |
+| `retired-authority` | in-scope `enrolled` identities (`program-view/in-scope-enrolled/1`) | no known title-specific authority detector matched it, and none is unknown |
+
+Passing the retired-authority gate means only that no detector in the inventory
+matched the identity; it is not proof that its behavior is data-declared. The
+gate is conservative: unknown never counts as retired. A kind that cannot
+derive the identities it serves takes them from its declared `covered_through`
+kind only when that kind derives them fully; a kind with no covering kind, with
+a covering kind that cannot derive identities, or with matched entries it cannot
+attribute (for example a `native_external_profile` module that is not keyed on
+`ExternalProfilePolicy`) is listed in `unknown_kinds`. Every enrolled identity
+it does not already fail is then `unknown`, outside the numerator, and the gate
+cannot pass.
+
+**Authority kinds.** The retired-authority gate is derived from code, not a
+hand list. `authorityKinds` declares each kind of title-specific authority with
+a detector over code shape: catalog generator scripts that select records by a
+literal identity or upstream repository; production Core Rust that names a
+literal identity; Core Rust compiled only under a Cargo feature (such as
+`#[cfg(any(test, feature = "qualification-fixtures"))]` items and modules) that
+names one, as the separate `qualification-fixture-title-code` kind; Core enum
+variants and module files whose names spell a catalog identity, listing name,
+GitHub repository name or family key, with the catalog as the dictionary
+(`title-named-core-item`); closed per-runtime contract enums
+(`ExternalProfilePolicy`, `ManagedInitialization`, `RuntimeDataPolicy` and the
+prepared runtime contracts) matched against definition values; the
+`native_external_profile` modules, covered through `ExternalProfilePolicy`;
+compiled provider binding tables; the bundled frozen artifact registries
+(`historical-artifact-registry`); and the retired `github_mods.rs` source
+table and `external-mod-portals.json`, which #8567 replaced with catalog
+`mod_sources` data and which must stay absent. The registry kind reads every
+section of Core's `historical-artifacts.json` and the reviewed
+`tool-artifacts.json` builder packs as declared members. A historical row covers its `port_id` or
+`projection`, the catalog definition whose release repository equals its
+`repository`, or the identity whose definition or port-scoped `source_catalog`
+record declares its exact `sha256`; otherwise the catalog title keys its text
+spells. A historical row that names no subject this way is an unattributed
+entry, so the gate turns unknown instead of passing. A builder pack is chosen
+only through a definition's admitted projection and names no title, so an
+unmatched tool row is counted and rot-checked but covers no identity. Only `#[test]` functions, items gated on a
+predicate that requires `test` (`cfg(test)`, `cfg(all(test, windows))`, nested
+`all`), and test-named files are excluded; platform gates such as
+`cfg(any(test, windows))` and `cfg(not(test))` are production code. Each kind reports its count,
+files, covered identities where derivable and any entries it cannot attribute,
+and is `retired` when its detector finds nothing.
+
+The view and its test fail on the detector rot they can see: a kind that finds
+nothing but is not declared retired, or matches while declared retired; an
+active kind that derives identities but covers none, unless it declares why it
+has no catalog consumer (`no_catalog_consumer`, as for
+`PreparedRuntimeSettingsContract`, which Core selects for a player-prepared
+runtime); and, for enum and table detectors, each declared enum, table or file
+that is missing, read without rows or found undeclared, unless that member is
+individually declared retired. The enum reader fails loudly on a `rename_all`
+other than kebab-case, a variant with fields or a discriminant, or a serde
+attribute it cannot read, rather than skipping variants. Rot outside these
+checks (a new title-specific shape no detector searches) stays possible; the
+detectors bound what the gate can claim.
+
+**Metrics.** Counts per disposition and family over all identities
+(`program-view/identities/1`), listing-only GitHub candidates with Windows
+packages, restricted identities and held operations, handoff classes with their
+dispatch state (`program-view/handoff-classes/1`) and, only when a report is
+supplied, observer source coverage by state (`program-view/observer-sources/1`).
+Without a report, observer coverage is `unknown`, never zero. A change in a
+denominator's meaning bumps its version.

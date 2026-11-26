@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "pins": [
+    {
+      "name": "last-good-before-body-window",
+      "pages_commit": "c912fc37b87a34da26a5944c7aa656e8a70eb92c",
+      "policy_version": 60,
+      "reason": "Last catalog publication measured before the listing-body window (#1422, 2026-11-23): restore point if a later window run or the compact cutover must be undone."
+    }
+  ]
+}

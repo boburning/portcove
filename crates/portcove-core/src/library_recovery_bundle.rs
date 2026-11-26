@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 mod execution;
-pub use execution::{LibraryRecoveryBundle, LibraryRecoveryRestorePlan};
+pub(crate) use execution::verify_bundle;
+pub use execution::{LibraryRecoveryBundle, LibraryRecoveryProgress, LibraryRecoveryRestorePlan};
 
 use crate::{
     LibraryContentKind, LibraryMetadata, LibraryTreePlan, PortcoveError, PortcoveService, Result,
@@ -61,15 +62,27 @@ impl PortcoveService {
         &self,
         destination: &Path,
     ) -> Result<LibraryRecoveryBundlePlan> {
-        let (plan, _, _) = prepare(self, destination)?;
+        let (plan, _, _) = prepare(self, destination, Creation::New).map_err(|error| {
+            if error.code == crate::ErrorCode::Conflict {
+                execution::published_creation_readback(self, destination).unwrap_or(error)
+            } else {
+                error
+            }
+        })?;
         require_capacity(&plan)?;
         Ok(plan)
     }
 }
 
+enum Creation {
+    New,
+    Continuing,
+}
+
 fn prepare(
     service: &PortcoveService,
     destination: &Path,
+    creation: Creation,
 ) -> Result<(
     LibraryRecoveryBundlePlan,
     LibraryMetadata,
@@ -81,6 +94,13 @@ fn prepare(
     execution::refuse_staging_path(&destination_root)?;
     require_transfer_idle(service.library(), LibraryTransferPurpose::RecoveryBundle)?;
     let source_library_id = service.library().identity()?;
+    if matches!(creation, Creation::New) {
+        execution::require_no_interrupted_creation(
+            &source_root,
+            &source_library_id,
+            &destination_root,
+        )?;
+    }
     let metadata = service.export_library_metadata()?;
     let catalogs = PortabilityCatalogs::from_root(&metadata, &source_root)?;
     validate_metadata(&metadata, &catalogs)?;
@@ -102,16 +122,17 @@ fn prepare(
         LibraryRecoveryExclusion::UnknownSaveLocations,
         LibraryRecoveryExclusion::HostCredentials,
     ];
-    let metadata_bytes = serde_json::to_vec_pretty(&metadata)?.len() as u64;
-    if metadata_bytes > execution::MAX_METADATA_BYTES {
-        return Err(PortcoveError::unsupported(
-            "recovery bundle metadata exceeds the supported import size",
-        ));
-    }
+    let metadata_bytes = crate::library_metadata_document::digest(&metadata)?.size;
+    crate::library_metadata_document::require_admitted(metadata_bytes, "library metadata")?;
+    // The receipt lists every reviewed content file; refuse at review, not
+    // after the copy, when this machine could not read it back.
+    let receipt_reserve = crate::library_metadata_document::encoded_size(&content)?;
+    crate::library_metadata_document::require_admitted(receipt_reserve, "recovery bundle receipt")?;
     let required_bytes = coverage
         .iter()
         .try_fold(metadata_bytes, |sum, root| sum.checked_add(root.bytes))
-        .and_then(|bytes| bytes.checked_add(64 * 1024 * 1024))
+        .and_then(|bytes| bytes.checked_add(receipt_reserve))
+        .and_then(|bytes| bytes.checked_add(1024 * 1024))
         .ok_or_else(|| PortcoveError::state("recovery bundle capacity estimate overflowed"))?;
     let parent = destination_root
         .parent()

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "aces-of-the-pacific-sdl3",
+    "project_url": "https://github.com/kylofon/aces-of-the-pacific-sdl3",
+    "name": "Aces of the Pacific / SDL3",
+    "summary": "Reverse engineering and SDL3 port of Aces of the Pacific (1992, DOS/VGA). Requires the CD-ROM version 1.2.",
+    "issue_number": 5898,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "aces-of-the-pacific",
+      "evidence_urls": ["https://github.com/kylofon/aces-of-the-pacific-sdl3"],
+      "source_editions": []
+    },
+    "original_game_title": "Aces of the Pacific"
+  }
+}

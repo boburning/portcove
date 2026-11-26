@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "james-pond-2-codename-robocod-jamespond2robocodrecomp",
+    "project_url": "https://github.com/griches/JamesPond2RobocodRecomp",
+    "name": "James Pond 2: Codename RoboCod / JamesPond2RobocodRecomp",
+    "summary": "Static recompilation of James Pond 2: Codename RoboCod (Amiga) to C++ with SDL3: widescreen, smooth motion, Amiga 500 sound, pause menu. Bring your own disk image.",
+    "issue_number": 5488,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "james-pond-2-codename-robocod",
+      "evidence_urls": ["https://github.com/griches/JamesPond2RobocodRecomp"],
+      "source_editions": []
+    },
+    "original_game_title": "James Pond 2: Codename RoboCod"
+  }
+}

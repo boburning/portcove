@@ -89,6 +89,28 @@ export type DefinitionEligibilityReason =
   | "source_identity_mismatch"
   | "required_source_missing";
 export type DefinitionOperation = "availability" | "install" | "register_external" | "prepare" | "launch" | "update";
+export type ExactReleaseIdentity =
+  | {
+      asset_id: number;
+      commit_sha1: string;
+      provider: "github";
+      release_id: number;
+      repository_id: number;
+    }
+  | {
+      commit_sha1: string;
+      link_id: number;
+      package_file_id: number;
+      project_id: number;
+      provider: "gitlab";
+    }
+  | {
+      provider: "direct-manifest";
+    };
+/**
+ * Why Core cannot use a port's saved release pin as written.
+ */
+export type ExactReleaseHoldReason = "unreadable" | "channel-mismatch";
 export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
 export type CatalogForeignAssetId = {
   file_id: number;
@@ -151,6 +173,23 @@ export type PortActionReason =
   | "unsafe_data"
   | "recovery_required"
   | "assessment_incomplete";
+/**
+ * Descriptive classification of why a hold exists. Never evaluated.
+ */
+export type RestrictionReason =
+  | (
+      | "bundled-game-data"
+      | "upstream-owned-route"
+      | "package-facts-unresolved"
+      | "legacy-rights-review"
+      | "no-useful-route"
+      | "upstream-prohibition"
+      | "safety-evidence-mismatch"
+      | "third-party-component-terms"
+      | "known-defective-artifact"
+      | "upstream-transition-unreviewed"
+    )
+  | "legacy-unclassified";
 /**
  * Current relationship between a registered source path and its saved storage identity.
  * `Current` means the bytes are unchanged since registration; it does not strengthen the
@@ -276,9 +315,20 @@ export type OutputArtworkAssets = LocalArtworkAsset[];
  * A remote provider an image was chosen from; a local import has none.
  */
 export type ArtworkProvider = "steamgriddb";
-export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
+/**
+ * Artwork categories accepted by the optional SteamGridDB provider client.
+ */
+export type SteamGridDbArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner" | "logo";
 export type ArtworkAvailability = "fallback" | "available" | "unavailable";
-export type ArtworkSlot = ("cover" | "detail") | "landscape";
+/**
+ * Presentation data for wide and narrow consumers of the same background.
+ */
+export type ArtworkFraming = {
+  narrow: ArtworkFocalPoint;
+  version: "v1";
+  wide: ArtworkFocalPoint;
+};
+export type ArtworkSlot = ("cover" | "detail" | "logo") | "landscape";
 /**
  * Whether SteamGridDB's own listing still includes a stored image.
  */
@@ -444,6 +494,48 @@ export type ModProviderBinding =
       community: string;
       provider: "thunderstore";
     };
+/**
+ * The most a declared source may do. The order is meaningful: each level
+ * includes the levels before it.
+ */
+export type ModSourceAuthority = "link_out" | "browse" | "inspect";
+/**
+ * The typed kinds of mod source. A new kind needs a new named definition
+ * feature, so older readers refuse only the definition that uses it.
+ */
+export type ModSourceKind =
+  | {
+      kind: "external_portal";
+      site: ModPortalSite;
+      url: string;
+    }
+  | {
+      engine: QuakeEngine;
+      kind: "quaddicted";
+    }
+  | {
+      kind: "mod_db_feed";
+      url: string;
+    }
+  | {
+      /**
+       * The exact release asset name.
+       */
+      asset_name: string;
+      /**
+       * Reviewed per-platform companion files. Required for `inspect`.
+       */
+      companions?: ModCompanionLayout[];
+      kind: "github_release";
+      repository: string;
+      repository_id: number;
+    };
+/**
+ * Community mod sites that a link-out portal may point to. The host for each
+ * site is fixed in Core; a definition cannot choose another host.
+ */
+export type ModPortalSite = ("nexus_mods" | "mod_io" | "mod_db") | "community_site";
+export type QuakeEngine = "vk_quake" | "ironwail";
 export type IgdbGameImageKind = "logo" | "artwork" | "screenshot";
 export type CatalogMediaRole = "header" | "screenshot" | "logo" | "key_art";
 export type CatalogMediaSubject =
@@ -474,6 +566,10 @@ export type PreparedRuntimeSettingsContract = "tfe-dark-forces-v1.22.420";
  * never curated package authenticity or ownership of the selected files.
  */
 export type ExternalRuntimeTrust = "accepted-package" | "user-selected";
+export type PrereleaseRule = "flag" | "markers" | "never";
+export type LaunchValue = string | LaunchPathValue;
+export type LaunchPath = "install_root" | "user_data" | "source" | "cache";
+export type PackageFormat = "zip" | "tar.gz" | "tar.xz" | "7z";
 /**
  * Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.
  */
@@ -608,6 +704,33 @@ export type StfsPackageType = "live" | "pirs";
  * existing-installation registration and every installed copy unchanged.
  */
 export type CatalogDownloadRefusal = "managed-route";
+export type RestrictionEffect = "hold" | "permit";
+/**
+ * Removal, rollback and backup are deliberately absent: a restriction never
+ * blocks removing or recovering the player's own state.
+ */
+export type RestrictedOperation =
+  "download" | "install" | "update" | "adopt" | "activate" | "prepare" | "register-external" | "launch";
+/**
+ * Descriptive condition for reconsidering a decision. Never evaluated.
+ */
+export type ReconsiderCondition =
+  | "attributable-grant"
+  | "clean-upstream-package"
+  | "owned-input-preparation"
+  | "publisher-checksum"
+  | "reviewed-successor-release"
+  | "upstream-route-change"
+  | "owner-review";
+export type RestrictedComponent =
+  | {
+      kind: "bundled-runtime";
+      platform: Platform;
+    }
+  | {
+      id: string;
+      kind: "tool-artifact";
+    };
 export type ListingObservationStatus = "complete" | "incomplete" | "unavailable" | "failed";
 export type CatalogFallbackCode =
   | "unknown"
@@ -632,6 +755,8 @@ export type CatalogUpdateSource =
 export type DatReferenceState = ("missing" | "unreadable") | "ready" | "changed";
 export type DefinitionCapabilityOutcome = "supported" | "unsupported_template" | "unsupported_version";
 export type DefinitionRefreshDisposition = "revoked" | "selected" | "ineligible";
+export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
+export type DestinationArtworkSlot = "cover" | "detail" | "landscape";
 export type DestinationArtworkContent =
   | {
       asset: LocalArtworkAsset;
@@ -782,6 +907,16 @@ export type UpdateReleaseNotesCoverage =
   "complete" | "shortened" | "installed_not_listed" | "installed_newer" | "rolling_release" | "unavailable";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 export type GithubDeviceLoginState = "pending" | "complete";
+/**
+ * How current an observation is. A confirmed empty result is `Fresh`; an outage
+ * that falls back to earlier data is `Stale`, never an empty list.
+ */
+export type ProviderFreshness = "fresh" | "revalidated" | "stale";
+/**
+ * What the package would run on the player's machine if enabled.
+ */
+export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
+export type RecompModHold = "other_game" | "executable_content" | "host_executable_files";
 export type HostToolProbeState =
   | "missing"
   | "invalid"
@@ -792,11 +927,6 @@ export type HostToolProbeState =
   | "incompatible_version"
   | "cancelled"
   | "success";
-/**
- * How current an observation is. A confirmed empty result is `Fresh`; an outage
- * that falls back to earlier data is `Stale`, never an empty list.
- */
-export type ProviderFreshness = "fresh" | "revalidated" | "stale";
 export type JakModsBuildStatus = "available" | "unavailable" | "unknown" | "external";
 export type JakModsProjectKind = "open_goal_build" | "external";
 export type OutputLaunchRequest = LaunchSessionView | null;
@@ -830,6 +960,12 @@ export type LibraryMembershipOrigin = "game_file_discovery" | "manual";
  * application is owned by the provider/standing-policy work, not this module.
  */
 export type ProfileUpdatePolicy = "keep_current" | "review_updates" | "automatic_eligible";
+export type LibraryRecoveryExclusion =
+  | "external_installations"
+  | "external_originals_and_bios"
+  | "external_saves"
+  | "unknown_save_locations"
+  | "host_credentials";
 export type LibrarySelectionSource = "invocation" | "saved" | "platform_default";
 export type ListingAction = "attach-existing" | "relink-existing" | "launch" | "remove-registration";
 export type AdvisoryApplicability = "current-route" | "historical" | "context-required";
@@ -852,11 +988,17 @@ export type CapabilityFeature =
  */
 export type LaunchEntryBehavior = "starts-game-directly" | "opens-project-launcher" | "asks-for-game-files" | "unknown";
 export type PendingSetupState = "downloaded" | "attention-required";
+export type PendingSetupStageKind =
+  "artifact-obtained" | "upstream-setup-opened" | "final-selected" | "registration-reviewed" | "invalidated";
 export type OutputListingStatuses = PortListingStatus[];
 /**
- * What the package would run on the player's machine if enabled.
+ * A read-only provider browser Core can run for a portal.
  */
-export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
+export type ExternalModBrowser = "quaddicted" | "mod_db_feed";
+/**
+ * The site family a portal belongs to, for its link label.
+ */
+export type ExternalModSite = "nexus_mods" | "mod_io" | "mod_db" | "quaddicted" | "community_site";
 /**
  * `Present` is limited to ordinary setup metadata previews; it does not
  * establish current immutable payload integrity. Strict inspection uses `Verified`.
@@ -956,6 +1098,129 @@ export type OutputDestinationOwnership =
   | "unrelated_content"
   | "invalid"
   | "unknown";
+/**
+ * Verified bytes the setup folder retains.
+ */
+export type RetainedSetupBytes =
+  | {
+      file: string;
+      kind: "package";
+      sha256: string;
+      size: number;
+    }
+  | {
+      archive_sha256: string;
+      kind: "extracted";
+    };
+/**
+ * Where a fact came from, highest precedence first.
+ */
+export type FactSource =
+  | {
+      document: string;
+      kind: "release-metadata";
+    }
+  | {
+      archive_sha256: string;
+      kind: "exact-release-structured";
+      shape_version: number;
+    }
+  | {
+      kind: "provider-cross-reference";
+      provider: string;
+      reference: string;
+    }
+  | {
+      extractor: string;
+      kind: "family-extractor";
+      version: number;
+    }
+  | {
+      kind: "stable-declaration";
+    }
+  | {
+      kind: "filename-suggestion";
+      rule_version: number;
+    };
+export type PendingSetupStage =
+  | {
+      stage: "artifact-obtained";
+    }
+  | {
+      handoff: UpstreamSetupHandoff;
+      opened_at: string;
+      stage: "upstream-setup-opened";
+    }
+  | {
+      selection: SelectedSetupResult;
+      stage: "final-selected";
+    }
+  | {
+      preview_sha256: string;
+      selection: SelectedSetupResult;
+      stage: "registration-reviewed";
+    }
+  | {
+      previous: PendingSetupStageKind;
+      reason: PendingSetupInvalidation;
+      stage: "invalidated";
+    };
+/**
+ * What the player opened. Portcove never runs the upstream installer itself
+ * from a pending setup.
+ */
+export type UpstreamSetupHandoff =
+  | {
+      kind: "folder";
+    }
+  | {
+      kind: "guide";
+      url: string;
+    };
+/**
+ * A fact that makes this setup route itself invalid. A newer upstream
+ * release is not one; Core reports it as a notice instead.
+ */
+export type PendingSetupInvalidation =
+  | {
+      current_source_url: string;
+      kind: "source-changed";
+    }
+  | {
+      kind: "definition-changed";
+    }
+  | {
+      explanation: string;
+      kind: "restriction-holds";
+    }
+  | {
+      current_role: ArtifactRole;
+      kind: "artifact-role-changed";
+    }
+  | {
+      kind: "retained-bytes-changed";
+    };
+/**
+ * What an artifact is. Only [`ArtifactRole::DesktopGameRuntime`] may become a
+ * launch target.
+ */
+export type ArtifactRole =
+  | "desktop-game-runtime"
+  | "desktop-game-data"
+  | "dedicated-server"
+  | "builder"
+  | "installer"
+  | "importer"
+  | "compiler"
+  | "dev-tool"
+  | "original-game-input"
+  | "mobile-package"
+  | "console-output"
+  | "documentation"
+  | "source-archive"
+  | "integrity-metadata"
+  | "debug-symbols"
+  | "unknown";
 export type OutputPendingSetups = PendingSetupRecord[];
 /**
  * Why an export or import cannot proceed as reviewed.
@@ -995,6 +1260,7 @@ export type ProfileRecoveryProgress = "keep_current";
  */
 export type ProviderStatusUnknown = "omitted" | "null" | "malformed";
 export type ProviderUpdateState = "current" | "newer_files" | "installed_file_removed" | "unavailable";
+export type QuaddictedEngineCompatibility = "unverified" | "declares_another_required_engine";
 export type RecipeInputStatus = "available" | "acquirable" | "unavailable";
 /**
  * One documented outcome in the assessed scope, not a universal judgment about a project.
@@ -1075,6 +1341,10 @@ export type MaintenanceOutcome =
   | "demonstrated-regression-handling"
   | "demonstrated-continuity-and-succession";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
+/**
+ * Why an offered recovery build stopped being offered.
+ */
+export type RetainedBuildRetirementReason = "retention_policy" | "player";
 export type OutputRuntimePrerequisiteReport = RuntimePrerequisiteReport | null;
 /**
  * What the player can usefully do next with a selected save folder.
@@ -1114,6 +1384,26 @@ export type SteamGridDbCheckStop =
       reason: "cancelled";
     };
 export type GameStore = "steam" | "gog" | "epic";
+export type Coverage =
+  | {
+      kind: "complete";
+    }
+  | {
+      kind: "partial";
+      next_cursor: string | null;
+    }
+  | {
+      kind: "unavailable";
+    }
+  | {
+      kind: "failed";
+    };
+/**
+ * Typed reasons a route holds an artifact or release.
+ */
+export type RouteHold = "wrong-role" | "wrong-host" | "contradictory-role" | "incomplete-coverage";
+export type TargetArch = "x86-64" | "aarch64" | "x86" | "universal" | "unknown";
+export type TargetOs = "windows" | "linux" | "macos" | "android" | "ios" | "console" | "web" | "unknown";
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
 /**
  * The application release feed a player follows. Beta is the default; Preview
@@ -1134,6 +1424,20 @@ export type OutputDesktopApplicationUpdateProgress =
 export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
 export type OutputDesktopDatReferenceStatuses = DatReferenceStatus[];
 export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelled") | "ready" | "held" | "interrupted";
+/**
+ * Why unattended work stopped for now.
+ */
+export type TemporaryCause =
+  | "network"
+  | "rate_limited"
+  | "server_unavailable"
+  | "storage_full"
+  | "game_busy"
+  | "file_in_use"
+  | "time_budget"
+  | "inventory_incomplete"
+  | "interrupted"
+  | "clean_stop";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
 export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
 export type OutputDesktopLibraryMembershipOutcomes = LibraryMembershipOutcome[];
@@ -1147,6 +1451,12 @@ export type InstallationContext =
       installation_id: string;
       kind: "external";
     };
+/**
+ * The files recognized during a read-only library selection check.
+ */
+export type LibrarySelectionContents =
+  "empty_directory" | "existing_database" | "recovery_records" | "new_default_directory";
+export type LibrarySelectionEffect = "keep" | "change_startup" | "open";
 export type PortIntentMode = "discover_only" | "notify" | "set_up_when_ready" | "ignored";
 export type PortReadiness =
   | {
@@ -1296,6 +1606,7 @@ export interface TransportOutputs {
   destination_artwork_bytes: OutputDestinationArtworkBytes;
   destination_artwork_handoff: DestinationArtworkHandoff;
   doctor: OutputDoctor;
+  exact_release_review: OutputExactReleaseReview;
   external_runtime_preview: ExternalRuntimePreview;
   external_runtime_record: ExternalRuntimeRecord;
   external_runtime_relink_preview: OutputExternalRuntimeRelinkPreview;
@@ -1311,7 +1622,10 @@ export interface TransportOutputs {
   game_install_plan: GameInstallPlan;
   game_setting_change: GameSettingChange;
   game_setting_review: OutputGameSettingReview;
+  game_settings_change_set_review: OutputGameSettingsChangeSetReview;
+  game_settings_change_set_view: OutputGameSettingsChangeSetView;
   game_settings_contract: GameSettingsContract;
+  game_settings_edit: GameSettingsEdit;
   game_settings_view: GameSettingsView;
   game_update_acquisition: GameUpdateAcquisition;
   game_update_plan: OutputGameUpdatePlan;
@@ -1320,6 +1634,8 @@ export interface TransportOutputs {
   github_auth_status: GithubAuthStatus;
   github_device_login: OutputGithubDeviceLogin;
   github_device_login_result: OutputGithubDeviceLoginResult;
+  github_mod_catalog: OutputGithubModCatalog;
+  github_mod_compound_review: OutputGithubModCompoundReview;
   host_tool_probe_result: OutputHostToolProbeResult;
   host_tool_status: HostToolStatus;
   install_plan: InstallPlan;
@@ -1333,6 +1649,9 @@ export interface TransportOutputs {
   library_metadata_file: LibraryMetadataFile;
   library_move_plan: OutputLibraryMovePlan;
   library_move_result: OutputLibraryMoveResult;
+  library_recovery_bundle: LibraryRecoveryBundle;
+  library_recovery_bundle_plan: OutputLibraryRecoveryBundlePlan;
+  library_recovery_restore_plan: OutputLibraryRecoveryRestorePlan;
   library_selection: LibrarySelection;
   listing_delivery_status: ListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
@@ -1345,6 +1664,7 @@ export interface TransportOutputs {
   mod_file_preservation_result: OutputModFilePreservationResult;
   mod_setup_draft_preview: OutputModSetupDraftPreview;
   mod_setups_view: OutputModSetupsView;
+  moddb_file_notices: OutputModdbFileNotices;
   official_catalog_automatic_refresh: OutputOfficialCatalogAutomaticRefresh;
   official_catalog_review: OfficialCatalogReview;
   official_catalog_setup: OutputOfficialCatalogSetup;
@@ -1377,7 +1697,8 @@ export interface TransportOutputs {
   provider_install_plan: ProviderInstallPlan;
   provider_project_view: OutputProviderProjectView;
   provider_update_observation: OutputProviderUpdateObservation;
-  recipe_acquisition_plan: RecipeAcquisitionPlan;
+  quaddicted_catalog: OutputQuaddictedCatalog;
+  recipe_acquisition_plan: OutputRecipeAcquisitionPlan;
   recipe_import_plan: RecipeImportPlan;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
@@ -1432,6 +1753,7 @@ export interface TransportOutputs {
   desktop_application_update_preferences: OutputDesktopApplicationUpdatePreferences;
   desktop_application_update_progress: OutputDesktopApplicationUpdateProgress;
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
+  desktop_artwork_selection_preview: OutputDesktopArtworkSelectionPreview;
   desktop_automatic_snapshots_enabled: OutputDesktopAutomaticSnapshotsEnabled;
   desktop_backup_review: OutputDesktopBackupReview;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
@@ -1460,6 +1782,7 @@ export interface TransportOutputs {
   desktop_library_membership_outcomes: OutputDesktopLibraryMembershipOutcomes;
   desktop_library_memberships: OutputDesktopLibraryMemberships;
   desktop_library_organization: OutputDesktopLibraryOrganization;
+  desktop_library_selection_review: OutputDesktopLibrarySelectionReview;
   desktop_locale_preference: OutputDesktopLocalePreference;
   desktop_managed_route_change_preview: OutputManagedRouteChangePreview;
   desktop_managed_route_change_result: OutputManagedRouteChangeResult;
@@ -1469,8 +1792,9 @@ export interface TransportOutputs {
   desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_ready_notices_enabled: OutputDesktopAutomaticSnapshotsEnabled;
-  desktop_recipe_import_review: OutputDesktopRecipeImportReview;
-  desktop_reconcile_outcome: OutputReconcileBatchOutcome;
+  desktop_recipe_acquisition_step: OutputDesktopRecipeAcquisitionStep;
+  desktop_recipe_import_review: RecipeImportReview;
+  desktop_reconcile_outcome: OutputDesktopReconcileOutcome;
   desktop_root_setup_consent: OutputDesktopRootSetupConsent;
   desktop_root_setup_consents: OutputDesktopRootSetupConsents;
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
@@ -1486,7 +1810,7 @@ export interface TransportOutputs {
   desktop_store_game_installs: OutputStoreGameInstalls;
   desktop_submitted_report: OutputDesktopSubmittedReport;
   desktop_support_bundle_export: OutputDesktopSupportBundleExport;
-  desktop_update_check_outcome: OutputCheckBatchOutcome;
+  desktop_update_check_outcome: OutputDesktopUpdateCheckOutcome;
   desktop_workspace_snapshot: OutputDesktopWorkspaceSnapshot;
 }
 export interface OutputAbout {
@@ -1719,6 +2043,15 @@ export interface PortStatus {
    * Successor-definition policy decisions. Legacy catalog ports retain an empty list.
    */
   definition_operations?: DefinitionOperationAssessment[];
+  /**
+   * User-selected exact release, when this port does not follow its channel.
+   */
+  exact_release?: ExactReleaseSelection | null;
+  /**
+   * A saved pin Core cannot use. Checks and installs for this port stay held
+   * until the player follows the channel again; other ports are unaffected.
+   */
+  exact_release_hold?: ExactReleaseHold | null;
   external_runtime?: ExternalRuntimeRecord | null;
   last_launched_at: number | null;
   last_update_check?: UpdateSnapshot | null;
@@ -1827,6 +2160,35 @@ export interface DefinitionEligibility {
   reason: DefinitionEligibilityReason;
   [k: string]: unknown;
 }
+/**
+ * An exact release and package chosen for one port, channel and platform.
+ * Only the configured provider can supply their current metadata and download URL.
+ */
+export interface ExactReleaseSelection {
+  channel: ReleaseChannel;
+  filename: string;
+  identity: ExactReleaseIdentity;
+  platform: Platform;
+  port_id: string;
+  sha256: string;
+  size: number;
+  /**
+   * Exact upstream tag or declared direct-manifest version.
+   */
+  version: string;
+}
+/**
+ * A saved release pin Core cannot use. Update checks and installs for this
+ * port stay held instead of silently following the channel; choosing Follow
+ * clears it. Other ports are unaffected.
+ */
+export interface ExactReleaseHold {
+  /**
+   * Technical cause for diagnosis; never player copy.
+   */
+  detail: string;
+  reason: ExactReleaseHoldReason;
+}
 export interface ExternalRuntimeRecord {
   archive_sha256: string;
   executable: string;
@@ -1908,6 +2270,11 @@ export interface UpdateSnapshot {
 }
 export interface UpdateCheck {
   channel: ReleaseChannel;
+  /**
+   * The channel's ordinary candidate when it differs from the exact target.
+   */
+  channel_latest_version?: string | null;
+  exact_release?: ExactReleaseSelection | null;
   installed_artifact: ArtifactIdentity1 | null;
   installed_runtime: RuntimeIdentity | null;
   installed_version: string | null;
@@ -1958,9 +2325,19 @@ export interface PortActionAssessment {
    */
   definition?: DefinitionEligibility | null;
   reason: PortActionReason;
+  /**
+   * The descriptive reason of the acquisition restriction that holds this action.
+   */
+  restriction?: RestrictionReason | null;
   [k: string]: unknown;
 }
 export interface LaunchReadiness {
+  /**
+   * The effective active installation can use the default game-source registration
+   * for edition artwork after fresh byte verification. Omitted when launch can
+   * use different bytes or Core cannot establish the default's eligibility.
+   */
+  active_game_source_profile?: string | null;
   bios?: SourceHealth | null;
   bios_assessment?: SourceAssessment | null;
   blockers: LaunchBlocker[];
@@ -2158,14 +2535,23 @@ export interface ArtworkAttribution {
    */
   game_id: number;
   provider: ArtworkProvider;
-  role: DestinationArtworkRole;
+  role: SteamGridDbArtworkRole;
   source_url: string;
 }
 export interface ArtworkChoice {
   asset_sha256: string | null;
+  framing?: ArtworkFraming | null;
   port_id: string;
   revision: number;
   slot: ArtworkSlot;
+  suppressed?: boolean;
+}
+/**
+ * A focal point on the orientation-corrected image, in ten-thousandths.
+ */
+export interface ArtworkFocalPoint {
+  x: number;
+  y: number;
 }
 export interface GeneratedArtworkFallback {
   identity: string;
@@ -2255,6 +2641,10 @@ export interface BackupActionPreview {
   backup: BackupRecord;
   current_user_data_exists: boolean;
   preview_sha256: string;
+  /**
+   * The library, installation scope and materialized setup reviewed for a restore.
+   */
+  restore_target_sha256?: string | null;
   retained_runtime_copy_will_be_deleted: boolean;
   safety_backup_will_be_created: boolean;
   [k: string]: unknown;
@@ -2283,6 +2673,10 @@ export interface PortActionAssessment1 {
    */
   definition?: DefinitionEligibility | null;
   reason: PortActionReason;
+  /**
+   * The descriptive reason of the acquisition restriction that holds this action.
+   */
+  restriction?: RestrictionReason | null;
   [k: string]: unknown;
 }
 export interface BackupProblem {
@@ -2358,6 +2752,10 @@ export interface PortActionAssessment2 {
    */
   definition?: DefinitionEligibility | null;
   reason: PortActionReason;
+  /**
+   * The descriptive reason of the acquisition restriction that holds this action.
+   */
+  restriction?: RestrictionReason | null;
   [k: string]: unknown;
 }
 export interface OutputCapabilities {
@@ -2368,6 +2766,11 @@ export interface OutputCapabilities {
   artwork_handoff_schema?: number | null;
   commands: string[];
   /**
+   * Named definition-delivery features, such as `catalog.policy-decision-v2`.
+   * A publisher emits a newer form only after a released reader lists it.
+   */
+  definition_features?: string[];
+  /**
    * Installed engine contracts; these do not grant definition admission.
    */
   engine_templates: EngineTemplateCapability[];
@@ -2376,6 +2779,11 @@ export interface OutputCapabilities {
    * Independently negotiated signed-directory transport representations.
    */
   listing_delivery_carriers?: string[];
+  /**
+   * Reader limits for signed descriptive delivery. Absent on older readers,
+   * which enforce the released bounds documented in `SIGNED-CATALOG.md`.
+   */
+  listing_delivery_limits?: ListingDeliveryLimits | null;
   listing_formats?: number[];
   machine_formats: string[];
   /**
@@ -2394,6 +2802,41 @@ export interface OutputCapabilities {
 export interface EngineTemplateCapability {
   contract_version: number;
   template: AdapterKind;
+}
+/**
+ * Limits a client applies to signed descriptive delivery. Instead of the
+ * released 10,000-entry count, each listing and withdrawal is charged against
+ * one measured working-memory element budget per admission.
+ */
+export interface ListingDeliveryLimits {
+  /**
+   * Largest decoded compact directory admitted and retained.
+   */
+  decoded_bytes: number;
+  /**
+   * Largest signed definition index.
+   */
+  definition_index_bytes: number;
+  /**
+   * Working-memory element budget of one directory admission.
+   */
+  element_budget_bytes: number;
+  /**
+   * Charge per listing against the element budget.
+   */
+  listing_charge_bytes: number;
+  /**
+   * Largest single compact listing record.
+   */
+  record_bytes: number;
+  /**
+   * Largest authenticated listing target body, either carrier.
+   */
+  target_bytes: number;
+  /**
+   * Charge per withdrawal against the element budget.
+   */
+  withdrawal_charge_bytes: number;
 }
 export interface CatalogDocument {
   ports: PortDefinition[];
@@ -2460,6 +2903,10 @@ export interface PortDefinition {
    */
   managed_acquisition_hold?: ManagedAcquisitionHold | null;
   managed_initialization?: ManagedInitialization | null;
+  /**
+   * Exact reviewed packages using this existing managed runtime behavior.
+   */
+  managed_runtime_applies_to?: RuntimePolicyArtifact[] | null;
   managed_shared_preferences?: PreparedSharedPreferencesContract | null;
   /**
    * Reviewed engine save identifier used only to bound managed GB save paths.
@@ -2475,6 +2922,12 @@ export interface PortDefinition {
    * Provider coordinates reviewed alongside the existing mod loader contract.
    */
   mod_provider_bindings?: ModProviderBinding[] | null;
+  /**
+   * Catalog-declared mod sources and the authority each one carries. None
+   * of them can install: install authority comes only from
+   * `mod_provider_bindings`.
+   */
+  mod_sources?: ModSource[];
   /**
    * Keep a reviewed N64 package's runtime and data beside its selected player,
    * including when upstream changes the outer archive wrapper name.
@@ -2505,6 +2958,7 @@ export interface PortDefinition {
   presentation?: PortPresentation | null;
   project_url: string;
   release: ReleaseSpec;
+  reviewed_launch_contract_v1?: ReviewedLaunchContractV1 | null;
   /**
    * Bounded fingerprint of the reviewed package layout for each platform. A
    * release that still matches the asset selector but extracts to a different
@@ -2515,6 +2969,16 @@ export interface PortDefinition {
     "macos-aarch64"?: ReviewedPackageLayout;
     "macos-x86-64"?: ReviewedPackageLayout;
     "windows-x86-64"?: ReviewedPackageLayout;
+  };
+  /**
+   * Alternate full layouts for exact independently resolved GitHub artifacts.
+   * They never select a package or authorize an acquisition.
+   */
+  reviewed_predecessor_package_layouts_v1?: {
+    "linux-x86-64"?: ReviewedPredecessorPackageLayout[];
+    "macos-aarch64"?: ReviewedPredecessorPackageLayout[];
+    "macos-x86-64"?: ReviewedPredecessorPackageLayout[];
+    "windows-x86-64"?: ReviewedPredecessorPackageLayout[];
   };
   runtime_data_policy?: RuntimeDataPolicy | null;
   /**
@@ -2688,6 +3152,11 @@ export interface ReviewedHoldArtifact {
   sha256: string;
   version: string;
 }
+export interface RuntimePolicyArtifact {
+  sha256: string;
+  size: number;
+  version: string;
+}
 /**
  * Native mod admission bound to a reviewed upstream runtime and platform.
  */
@@ -2697,11 +3166,70 @@ export interface ModLoaderBinding {
   native_game?: string | null;
   platforms: Platform[];
   repository: string;
+  /**
+   * Exact retained package identities reviewed for this loader. These facts
+   * narrow loader use; they do not select, admit or download an artifact.
+   */
+  reviewed_artifacts?: {
+    "linux-x86-64"?: ModLoaderArtifact;
+    "macos-aarch64"?: ModLoaderArtifact;
+    "macos-x86-64"?: ModLoaderArtifact;
+    "windows-x86-64"?: ModLoaderArtifact;
+  };
+  /**
+   * SHA-256 of the canonical immutable path, size and SHA-256 inventory
+   * from independently reviewed packages of this loader on each platform.
+   */
+  reviewed_payload_sha256?: {
+    "linux-x86-64"?: string;
+    "macos-aarch64"?: string;
+    "macos-x86-64"?: string;
+    "windows-x86-64"?: string;
+  };
+  reviewed_repository_id?: number | null;
   settings_file: string;
 }
 export interface LoaderContractRef {
   id: string;
   version: string;
+}
+export interface ModLoaderArtifact {
+  identity: ArtifactIdentity1;
+  tag: string;
+}
+/**
+ * One catalog-declared mod source for a port.
+ */
+export interface ModSource {
+  authority: ModSourceAuthority;
+  /**
+   * Stable within the port. Clients address the source by this ID.
+   */
+  id: string;
+  /**
+   * Catalog-authored setup guide shown beside the link. Not used for GitHub releases.
+   */
+  instructions?: string | null;
+  /**
+   * Player-facing name of the site or collection. Not used for GitHub releases.
+   */
+  name?: string | null;
+  /**
+   * Host platforms the source is offered on, in sorted order.
+   */
+  platforms: Platform[];
+  source: ModSourceKind;
+}
+/**
+ * Exact companion files one reviewed platform loads beside a Recomp mod.
+ */
+export interface ModCompanionLayout {
+  /**
+   * Manifest-declared library stem and its exact same-folder dependencies.
+   */
+  declared_library: string;
+  files: string[];
+  platform: Platform;
 }
 /**
  * Additive catalog-owned facts intended for user-facing clients. Older catalog
@@ -2875,7 +3403,7 @@ export interface ReleaseSpec {
     "macos-x86-64"?: CartridgeBuildRecipe;
     "windows-x86-64"?: CartridgeBuildRecipe;
   };
-  provider: "github" | "gitlab" | "direct-manifest" | "user-prepared";
+  provider: "github" | "gitlab" | "reviewed-forge" | "direct-manifest" | "user-prepared";
   repository: string;
   reviewed_package_choices_v2?: ReviewedPackageChoicesV2 | null;
   rolling_tag: string | null;
@@ -2986,6 +3514,55 @@ export interface UserPreparedRuntimeSpec {
   version: string;
   [k: string]: unknown;
 }
+export interface ReviewedLaunchContractV1 {
+  asset_rules?: {
+    "linux-x86-64"?: AssetRules;
+    "macos-aarch64"?: AssetRules;
+    "macos-x86-64"?: AssetRules;
+    "windows-x86-64"?: AssetRules;
+  };
+  /**
+   * Optional restatement of the environment name prefix derived from the
+   * port ID: its ASCII letters and digits, uppercased, followed by `_`. A
+   * stem over 32 characters keeps its first 24 characters followed by the
+   * first 8 uppercase hexadecimal digits of the SHA-256 of the port ID. Any
+   * other value is refused.
+   */
+  environment_prefix?: string | null;
+  launch?: {
+    "linux-x86-64"?: LaunchValues;
+    "macos-aarch64"?: LaunchValues;
+    "macos-x86-64"?: LaunchValues;
+    "windows-x86-64"?: LaunchValues;
+  };
+  package_format?: {
+    "linux-x86-64"?: PackageFormat;
+    "macos-aarch64"?: PackageFormat;
+    "macos-x86-64"?: PackageFormat;
+    "windows-x86-64"?: PackageFormat;
+  };
+}
+export interface AssetRules {
+  exclude?: string[];
+  include?: string[];
+  prerelease?: PrereleaseRule | null;
+  /**
+   * An exact tag or a literal tag prefix ending in a single asterisk.
+   */
+  tag_pattern?: string | null;
+}
+export interface LaunchValues {
+  /**
+   * Replaces the declaration's static argument list before adapter arguments.
+   */
+  arguments?: LaunchValue[] | null;
+  environment?: {
+    [k: string]: LaunchValue;
+  };
+}
+export interface LaunchPathValue {
+  path: LaunchPath;
+}
 /**
  * The parts of an extracted package whose change signals changed runtime
  * behavior: its top-level directories and every program or script (`.exe`,
@@ -3014,6 +3591,15 @@ export interface ReviewedPackageLayout {
    * Exclude verified macOS shared libraries from this fingerprint.
    */
   ignore_verified_macos_libraries?: boolean;
+}
+export interface ReviewedPredecessorPackageLayout {
+  artifact: ArtifactIdentity1;
+  asset_id: number;
+  channel: ReleaseChannel;
+  layout: ReviewedPackageLayout;
+  release_id: number;
+  repository_id: number;
+  tag: string;
 }
 /**
  * Port declaration for a disc image that Portcove unpacks into a runtime
@@ -3378,8 +3964,8 @@ export interface PortListing {
     "windows-x86-64"?: string[];
   };
   /**
-   * A reviewed restriction on fresh self-service downloads only. It grants
-   * no execution, management or permission over an existing copy.
+   * Legacy projection of `restrictions` for older readers: the explanation
+   * of the first hold naming Download. It grants nothing.
    */
   download_block_reason?: string | null;
   /**
@@ -3404,6 +3990,10 @@ export interface PortListing {
   listed_at?: string | null;
   manual_setup?: ManualSetupGuide | null;
   media?: CatalogMediaAsset[];
+  /**
+   * Reviewed community links for this listing. Requires listing format 16.
+   */
+  mod_portals?: ListingModPortal[];
   name: string;
   original_game?: OriginalGameIdentity | null;
   original_game_title?: string | null;
@@ -3418,6 +4008,10 @@ export interface PortListing {
   recommended_download_channel?: ReleaseChannel | null;
   release_maintenance?: ListingReleaseMaintenance | null;
   release_url?: string | null;
+  /**
+   * Typed acquisition restrictions. Requires listing format 14.
+   */
+  restrictions?: AcquisitionRestriction[];
   setup_url?: string | null;
   summary: string;
   /**
@@ -3425,6 +4019,16 @@ export interface PortListing {
    */
   upstream_observation?: ListingUpstreamObservation | null;
   variant_label?: string | null;
+}
+/**
+ * A reviewed link to a mod community for this exact listing.
+ */
+export interface ListingModPortal {
+  id: string;
+  instructions: string;
+  name: string;
+  site: ModPortalSite;
+  url: string;
 }
 export interface ListingReleaseMaintenance {
   /**
@@ -3437,6 +4041,46 @@ export interface ListingReleaseMaintenance {
 export interface ListingPinnedRelease {
   platform: Platform;
   published_at: string | null;
+  version: string;
+}
+export interface AcquisitionRestriction {
+  effect: RestrictionEffect;
+  /**
+   * Player-facing explanation; required for a hold and refused for a permit.
+   */
+  explanation?: string | null;
+  /**
+   * Stable within its carrier; the key for review and transition checks.
+   */
+  id: string;
+  operations: RestrictedOperation[];
+  /**
+   * Descriptive; required for a hold and refused for a permit.
+   */
+  reason?: RestrictionReason | null;
+  reconsider_when?: ReconsiderCondition[];
+  scope?: RestrictionScope;
+  tracking_issue?: number | null;
+}
+/**
+ * Each empty list leaves that dimension unconstrained.
+ */
+export interface RestrictionScope {
+  artifacts?: RestrictedArtifact[];
+  components?: RestrictedComponent[];
+  /**
+   * Source catalog identity or profile ids.
+   */
+  inputs?: string[];
+  platforms?: Platform[];
+  /**
+   * Exact release versions or tags.
+   */
+  releases?: string[];
+}
+export interface RestrictedArtifact {
+  asset_name?: string | null;
+  sha256: string;
   version: string;
 }
 export interface ListingUpstreamObservation {
@@ -3521,10 +4165,32 @@ export interface CatalogChangedPort {
   [k: string]: unknown;
 }
 export interface OutputCheckBatchOutcome {
+  /**
+   * An update check a provider request limit stopped: not checked, update state
+   * unknown; the next check starts with it.
+   */
+  deferred?: UpdateCheckDeferral | null;
   error: FailureReport | null;
   ok: boolean;
   port_id: string;
   result: UpdateCheck | null;
+  [k: string]: unknown;
+}
+/**
+ * An update check that did not run because a provider allowance or throttle
+ * stopped it (a refusal, a deferral within the same bulk check, or a rate-limited
+ * answer). The game's update state is unknown, never "checked" or "up to date";
+ * the next bulk check after `resets_at` starts with it.
+ */
+export interface UpdateCheckDeferral {
+  /**
+   * True when the provider reported `resets_at`; false when Portcove estimated it.
+   */
+  reset_reported: boolean;
+  /**
+   * When the allowance is expected to reopen, in Unix seconds, if known.
+   */
+  resets_at: number | null;
   [k: string]: unknown;
 }
 export interface DatReferenceStatus {
@@ -3634,8 +4300,8 @@ export interface DestinationArtworkHandoff {
    * Provider credits for the selected local image, shown by a destination that
    * presents the image; empty for a purely local import and every other source.
    */
-  attribution: ArtworkAttribution[];
-  choice: ArtworkChoice | null;
+  attribution: DestinationArtworkAttribution[];
+  choice: DestinationArtworkChoice | null;
   content: DestinationArtworkContent;
   handoff_schema: number;
   library: LibraryIdentity;
@@ -3643,6 +4309,22 @@ export interface DestinationArtworkHandoff {
   role: DestinationArtworkRole;
   selected_asset_sha256: string | null;
   source: DestinationArtworkSource;
+}
+export interface DestinationArtworkAttribution {
+  asset_id: number;
+  author_name: string;
+  author_steam64: string | null;
+  fetched_at: number;
+  game_id: number;
+  provider: ArtworkProvider;
+  role: DestinationArtworkRole;
+  source_url: string;
+}
+export interface DestinationArtworkChoice {
+  asset_sha256: string | null;
+  port_id: string;
+  revision: number;
+  slot: DestinationArtworkSlot;
 }
 /**
  * Durable library identity and its current effective location.
@@ -3736,6 +4418,14 @@ export interface JournalRowProblem {
    */
   rowid: number;
   stage: JournalValidationStage;
+  [k: string]: unknown;
+}
+/**
+ * A read-only preview of saving one release as this port's maintenance target.
+ */
+export interface OutputExactReleaseReview {
+  review_sha256: string;
+  selection: ExactReleaseSelection;
   [k: string]: unknown;
 }
 export interface ExternalRuntimePreview {
@@ -4289,6 +4979,7 @@ export interface InstallPlan {
   bundled_runtime: BundledRuntime | null;
   channel: ReleaseChannel;
   download_bytes: number;
+  exact_release?: ExactReleaseSelection | null;
   output_location: PortOutputLocation;
   platform: Platform;
   port_id: string;
@@ -4351,6 +5042,48 @@ export interface OutputGameSettingReview {
   proposed_value: unknown;
   review_sha256: string;
   setting_id: string;
+  [k: string]: unknown;
+}
+/**
+ * A complete review of one logical managed file and any runtime projection.
+ * A materialized setup is a fence on the view, not a second configuration store.
+ */
+export interface OutputGameSettingsChangeSetReview {
+  configuration_sha256: string;
+  edits: ReviewedGameSettingsEdit[];
+  file_id: string;
+  install_id: string;
+  library_id: string;
+  path: string;
+  port_id: string;
+  review_sha256: string;
+  setup: GameSettingsSetupIdentity | null;
+}
+export interface ReviewedGameSettingsEdit {
+  edit: GameSettingsEdit;
+  label: string;
+  previous_value: unknown;
+  proposed_value: unknown;
+}
+/**
+ * An edit to one declared key within the change-set's single configuration file.
+ */
+export interface GameSettingsEdit {
+  change: GameSettingChange;
+  setting_id: string;
+}
+export interface GameSettingsSetupIdentity {
+  id: string;
+  revision: number;
+}
+/**
+ * Settings observed for the exact installation used by the materialized setup.
+ */
+export interface OutputGameSettingsChangeSetView {
+  installed_version: string | null;
+  settings: GameSettingsView;
+  setup: GameSettingsSetupIdentity | null;
+  setup_name: string | null;
   [k: string]: unknown;
 }
 /**
@@ -4421,6 +5154,10 @@ export interface PortActionAssessment3 {
    */
   definition?: DefinitionEligibility | null;
   reason: PortActionReason;
+  /**
+   * The descriptive reason of the acquisition restriction that holds this action.
+   */
+  restriction?: RestrictionReason | null;
   [k: string]: unknown;
 }
 export interface ArchiveDataTransitionReview {
@@ -4521,6 +5258,102 @@ export interface OutputGithubDeviceLogin {
 export interface OutputGithubDeviceLoginResult {
   state: GithubDeviceLoginState;
   status: GithubAuthStatus | null;
+  [k: string]: unknown;
+}
+export interface OutputGithubModCatalog {
+  complete: boolean;
+  freshness: ProviderFreshness;
+  /**
+   * The active installed build admits native companion import on this
+   * platform. False when the game is not installed or its installed build
+   * predates the reviewed loader; the releases remain a link-out.
+   */
+  native_import_offered: boolean;
+  observed_at: number;
+  platform: Platform;
+  port_id: string;
+  releases: GithubModRelease[];
+  repository: string;
+  repository_id: number;
+  source_url: string;
+  [k: string]: unknown;
+}
+export interface GithubModRelease {
+  asset: GithubModAsset;
+  published_at: number | null;
+  release_id: number;
+  release_url: string;
+  tag: string;
+  [k: string]: unknown;
+}
+export interface GithubModAsset {
+  asset_id: number;
+  bytes: number;
+  name: string;
+  published_sha256: string | null;
+  [k: string]: unknown;
+}
+export interface OutputGithubModCompoundReview {
+  asset_id: number;
+  /**
+   * The active installed build admits native import on the reviewed
+   * platform and its runtime meets every mod's minimum runtime version.
+   */
+  native_import_offered: boolean;
+  port_id: string;
+  release_id: number;
+  repository: string;
+  repository_id: number;
+  review: RecompCompoundReview;
+  [k: string]: unknown;
+}
+export interface RecompCompoundReview {
+  archive_bytes: number;
+  archive_sha256: string;
+  companions: ReviewedRecompCompanion[];
+  mods: RecompModInspection[];
+  platform: Platform;
+  [k: string]: unknown;
+}
+export interface ReviewedRecompCompanion {
+  bytes: number;
+  file_name: string;
+  sha256: string;
+  [k: string]: unknown;
+}
+export interface RecompModInspection {
+  authors: string[];
+  dependencies: RecompDependency[];
+  display_name: string;
+  enabled_by_default: boolean;
+  execution: RecompExecution[];
+  file_name: string;
+  game_id: string;
+  has_settings: boolean;
+  holds: RecompModHold[];
+  minimum_runtime_version: string;
+  /**
+   * The runtime's identity for the mod (from `mod.json`).
+   */
+  native_id: string;
+  /**
+   * Library name → exported functions the manifest declares.
+   */
+  native_libraries: {
+    [k: string]: string[];
+  };
+  native_version: string;
+  optional_dependencies: RecompDependency[];
+  sha256: string;
+  size: number;
+  [k: string]: unknown;
+}
+/**
+ * A dependency on another native mod, with an optional minimum version.
+ */
+export interface RecompDependency {
+  id: string;
+  minimum_version: string | null;
   [k: string]: unknown;
 }
 export interface OutputHostToolProbeResult {
@@ -4892,6 +5725,16 @@ export interface LibraryMembershipSource {
 export interface LibraryPortSettings {
   active_install_id: string | null;
   channel: ReleaseChannel;
+  /**
+   * Version 13 binds user release preferences without admitting artifacts.
+   */
+  exact_release?: ExactReleaseSelection | null;
+  /**
+   * Version 13: the stored text of a saved pin Core cannot use, carried
+   * unchanged so the destination keeps the same hold instead of silently
+   * following the channel. Following the channel there clears it.
+   */
+  held_exact_release?: string | null;
   output_directory?: string | null;
   port_id: string;
   previous_install_id: string | null;
@@ -5109,6 +5952,48 @@ export interface OutputLibraryMoveResult {
   transfer_id: string;
   [k: string]: unknown;
 }
+export interface LibraryRecoveryBundle {
+  bundle_id: string;
+  coverage: LibraryRecoveryCoverage[];
+  created_at: number;
+  exclusions: LibraryRecoveryExclusion[];
+  format_version: number;
+  path: string;
+  receipt_sha256: string;
+  source_library_id: string;
+}
+/**
+ * Content in one verified managed root. This count does not claim that an
+ * unmanaged game writes its saves into the library.
+ */
+export interface LibraryRecoveryCoverage {
+  bytes: number;
+  directories: number;
+  files: number;
+  kind: LibraryContentKind;
+  relative_path: string;
+}
+/**
+ * A read-only observation. A creator must acquire the exclusive source lease
+ * and recompute this binding before copying the identified trees.
+ */
+export interface OutputLibraryRecoveryBundlePlan {
+  available_bytes: number;
+  coverage: LibraryRecoveryCoverage[];
+  destination_root: string;
+  exclusions: LibraryRecoveryExclusion[];
+  plan_sha256: string;
+  required_bytes: number;
+  source_library_id: string;
+  source_root: string;
+}
+export interface OutputLibraryRecoveryRestorePlan {
+  available_bytes: number;
+  bundle: LibraryRecoveryBundle;
+  destination_root: string;
+  plan_sha256: string;
+  required_bytes: number;
+}
 export interface LibrarySelection {
   root: string;
   source: LibrarySelectionSource;
@@ -5165,6 +6050,11 @@ export interface PortCapabilityReport {
    */
   observations: RecommendationEvidence[];
   pending_setup: PendingSetupState | null;
+  /**
+   * The setup stage the player reached; absent while a download is not
+   * finished or no setup is pending.
+   */
+  pending_setup_stage?: PendingSetupStageKind | null;
   port_id: string;
   protection: PlayerDataProtection | null;
   routes: PortCapabilityRoute[];
@@ -5394,6 +6284,20 @@ export interface OutputModSetupsView {
    */
   current_install_id?: string | null;
   /**
+   * Reviewed upstream browser routes for this port and host.
+   */
+  external_mod_portals?: ExternalModPortal[];
+  /**
+   * The active installed build admits native companion import for the
+   * upstream ZIP on this host. Not installed, or installed before the
+   * reviewed loader, leaves only the releases link.
+   */
+  github_native_import_offered?: boolean;
+  /**
+   * Reviewed upstream GitHub Releases page for browsing and native setup.
+   */
+  github_release_url?: string | null;
+  /**
    * Unattended provider updates waiting for the player's review, for each
    * setup's current revision.
    */
@@ -5406,6 +6310,11 @@ export interface OutputModSetupsView {
    * Results of the last automatic check, even after reopening the library.
    */
   last_automatic_checks?: ProviderAutoUpdateCheck[];
+  /**
+   * The last automatic pass recorded results that cannot be shown whole, so
+   * `last_automatic_checks` is not a complete report of that pass.
+   */
+  last_automatic_checks_incomplete?: boolean;
   /**
    * True when reviewed loader source shows that the later of two mods changing
    * the same asset wins. False when the order is kept but which mod wins is not
@@ -5433,10 +6342,34 @@ export interface OutputModSetupsView {
    */
   providers?: string[];
   /**
-   * False when the game has no reviewed mod package contract; nothing else is
-   * offered then.
+   * False when the game has no reviewed managed mod package contract.
    */
   supported: boolean;
+  [k: string]: unknown;
+}
+export interface ExternalModPortal {
+  /**
+   * The current port and platform qualify for the optional read-only provider browser.
+   */
+  browse_available?: boolean;
+  /**
+   * The read-only browser this source can use, when it has one.
+   */
+  browser?: ExternalModBrowser | null;
+  /**
+   * Catalog-authored setup guide for files from this source.
+   */
+  instructions: string;
+  /**
+   * Player-facing site or collection name from the catalog.
+   */
+  name: string;
+  site: ExternalModSite;
+  /**
+   * The declared source ID. Clients pass it back to open a page.
+   */
+  source: string;
+  url: string;
   [k: string]: unknown;
 }
 /**
@@ -5488,6 +6421,38 @@ export interface ProviderAutoUpdateCheck {
    * None means a current observation offered no update.
    */
   result: ProviderAutoUpdateOutcome | null;
+  [k: string]: unknown;
+}
+export interface OutputModdbFileNotices {
+  freshness: ProviderFreshness;
+  /**
+   * Unix seconds when the provider data was last confirmed.
+   */
+  observed_at: number;
+  value: ModDbFileNotices;
+  [k: string]: unknown;
+}
+/**
+ * Provider-attributed file notices from one declared Mod DB collection,
+ * including nonrelease notices.
+ */
+export interface ModDbFileNotices {
+  attribution: string;
+  notices: FileNotice[];
+  platform: Platform;
+  port_id: string;
+  source_url: string;
+  [k: string]: unknown;
+}
+/**
+ * Mod DB's Files channel also contains tutorials and patches. A notice
+ * identifies a page to open, without classifying it as an installable release.
+ */
+export interface FileNotice {
+  page_url: string;
+  published_at: string | null;
+  source_id: string;
+  title: string;
   [k: string]: unknown;
 }
 /**
@@ -5610,8 +6575,82 @@ export interface PendingSetupRecord {
   listing: PortListing;
   path: string;
   port_id: string;
+  /**
+   * Where the player is in the upstream setup that follows the download.
+   * Publication writes format 1 or 2 without it, which earlier releases
+   * read; Core maps a finished download to `artifact-obtained` on read
+   * without writing it back. Format 3 persists it only once the player
+   * moves the setup past that stage.
+   */
+  progress?: PendingSetupProgress | null;
   reason: string | null;
   state: PendingSetupState;
+}
+/**
+ * Where the player is in an upstream setup, and what that place is bound to.
+ */
+export interface PendingSetupProgress {
+  /**
+   * Absent only on the read-time mapping of a format 1 or 2 record. Core
+   * binds it to the current facts when the player first moves the setup
+   * past `artifact-obtained`.
+   */
+  binding?: PendingSetupBinding | null;
+  stage: PendingSetupStage;
+  updated_at: string;
+}
+/**
+ * The exact facts a stage belongs to. A change invalidates the stage.
+ */
+export interface PendingSetupBinding {
+  /**
+   * Typed route fact for the downloaded artifact. A filename suggestion
+   * describes it; it never authorizes a runtime.
+   */
+  artifact_role:
+    | "desktop-game-runtime"
+    | "desktop-game-data"
+    | "dedicated-server"
+    | "builder"
+    | "installer"
+    | "importer"
+    | "compiler"
+    | "dev-tool"
+    | "original-game-input"
+    | "mobile-package"
+    | "console-output"
+    | "documentation"
+    | "source-archive"
+    | "integrity-metadata"
+    | "debug-symbols"
+    | "unknown";
+  /**
+   * Digest of the catalog content this setup depends on: the retained
+   * signed definition entry and its contracts when one is selected, else
+   * the documented setup fields of the embedded definition, else their
+   * absence for a listing-only project. It never covers Portcove's own
+   * serialization of a definition, so an application update alone keeps
+   * the binding.
+   */
+  definition_sha256: string;
+  retained: RetainedSetupBytes;
+  role_source: FactSource;
+  /**
+   * Upstream project or release address of the retained listing.
+   */
+  source_url: string;
+}
+/**
+ * Identity facts of the program the player chose, as Core checked them.
+ */
+export interface SelectedSetupResult {
+  arguments: string[];
+  executable: string;
+  executable_sha256: string;
+  executable_size: number;
+  selected_at: string;
+  version: string;
+  working_directory: string;
 }
 export interface OutputPortPaths {
   active_install_root: string | null;
@@ -6249,11 +7288,20 @@ export interface OutputProviderCatalog {
    * False when additional or unreadable records may exist.
    */
   complete: boolean;
+  /**
+   * Records the provider reports for the whole listing, when it reports one.
+   */
+  expected_total?: number | null;
   freshness: ProviderFreshness;
   /**
    * Scope of older unscoped package references, when they belong to this catalog.
    */
   legacy_game_id?: string | null;
+  /**
+   * Provider page to continue from when this read stopped at its request
+   * bound. Absent when the listing ended or could not be read consistently.
+   */
+  next_page?: number | null;
   observed_at: number;
   projects: ProviderProject[];
   [k: string]: unknown;
@@ -6391,17 +7439,83 @@ export interface OutputProviderUpdateObservation {
   version_changed: boolean;
   [k: string]: unknown;
 }
+export interface OutputQuaddictedCatalog {
+  freshness: ProviderFreshness;
+  /**
+   * Unix seconds when the provider data was last confirmed.
+   */
+  observed_at: number;
+  value: QuaddictedPage;
+  [k: string]: unknown;
+}
+export interface QuaddictedPage {
+  attribution: string;
+  engine: QuakeEngine;
+  entries: QuaddictedEntry[];
+  /**
+   * The provider returned a row beyond this page, so another page exists.
+   * False means the provider listed no further row for this query.
+   */
+  may_have_more: boolean;
+  page: number;
+  source_url: string;
+  unreadable_rows: number;
+  [k: string]: unknown;
+}
+export interface QuaddictedEntry {
+  authors: string[];
+  claimed_bytes: number | null;
+  /**
+   * Publisher metadata claim. This adapter never verifies or downloads bytes.
+   */
+  claimed_sha256: string;
+  content_kind: string[];
+  engine_compatibility: QuaddictedEngineCompatibility;
+  engine_requirements: string[];
+  filename: string | null;
+  install_notes: QuaddictedInstallNotes;
+  page_url: string;
+  /**
+   * Provider notes, for text rendering only. May contain markup as literal text.
+   */
+  provider_notes: string[];
+  release_date: string | null;
+  /**
+   * Exact provider-declared locations. These are display data.
+   */
+  source_urls: string[];
+  title: string;
+  [k: string]: unknown;
+}
+/**
+ * Inert extraction/launch descriptions. Never interpreted by this adapter.
+ */
+export interface QuaddictedInstallNotes {
+  command_line: string[];
+  dependencies: string[];
+  extract: string | null;
+  extract_mapping: {
+    [k: string]: string;
+  };
+  start_maps: string[];
+  [k: string]: unknown;
+}
 /**
  * Private provider staging bound to one exact recipe and expected package.
  */
-export interface RecipeAcquisitionPlan {
+export interface OutputRecipeAcquisitionPlan {
   native_id: string;
   provider_plan: ProviderInstallPlan;
   recipe_identity_sha256: string;
   [k: string]: unknown;
 }
+/**
+ * The provider files a recipe review has staged. Each provider plan is held
+ * once, however many of its members the recipe uses, so a shared closure
+ * costs its plan once in the review, its records and IPC.
+ */
 export interface RecipeImportPlan {
-  acquisitions?: RecipeAcquisitionPlan[];
+  acquisitions?: RecipeAcquisitionRef[];
   can_apply: boolean;
   code_approval?: RecipeCodeApproval[];
   /**
@@ -6419,6 +7533,7 @@ export interface RecipeImportPlan {
    * Missing packages with an exact coordinate that the player can check.
    */
   provider_checks?: string[];
+  provider_plans?: ProviderInstallPlan[];
   recipe: ProfileRecipe;
   runtime: RecipeInputPlan;
   /**
@@ -6426,6 +7541,13 @@ export interface RecipeImportPlan {
    */
   verified_originals?: OriginalBinding[];
   [k: string]: unknown;
+}
+/**
+ * One staged recipe package and the provider plan (by digest) that holds it.
+ */
+export interface RecipeAcquisitionRef {
+  native_id: string;
+  plan_sha256: string;
 }
 export interface RecipeCodeApproval {
   native_id: string;
@@ -6469,6 +7591,11 @@ export interface RecommendationObservation {
   supersedes: string[];
 }
 export interface OutputReconcileBatchOutcome {
+  /**
+   * An update check a provider request limit stopped: not checked, update state
+   * unknown; the next check starts with it.
+   */
+  deferred?: UpdateCheckDeferral | null;
   error: FailureReport | null;
   ok: boolean;
   port_id: string;
@@ -6492,6 +7619,11 @@ export interface OutputRetainedBuildBindingPreview {
   build: RetainedBuildIdentity;
   preview_sha256: string;
   previous: RetainedBuildReference | null;
+  /**
+   * Offered recovery builds this binding retires under the retention policy.
+   * The installations stay registered; only the offer ends.
+   */
+  retires?: RetainedBuildRevision[];
   setup_id: string;
   [k: string]: unknown;
 }
@@ -6525,6 +7657,10 @@ export interface RetainedBuildResolution {
   history: RetainedBuildHistoryResolution[];
   install: InstallRecord | null;
   reference: RetainedBuildReference;
+  /**
+   * Offers this setup no longer makes, newest first.
+   */
+  retired?: RetainedBuildRetirement[];
   [k: string]: unknown;
 }
 /**
@@ -6536,6 +7672,19 @@ export interface RetainedBuildHistoryResolution {
   install: InstallRecord | null;
   revision: RetainedBuildRevision;
   [k: string]: unknown;
+}
+/**
+ * Durable record of one retirement (library schema 78). The installation was
+ * not removed; only the offer ended.
+ */
+export interface RetainedBuildRetirement {
+  /**
+   * The reference revision that no longer offers the build.
+   */
+  binding_revision: number;
+  reason: RetainedBuildRetirementReason;
+  retired: RetainedBuildRevision;
+  retired_at: number;
 }
 export interface OutputRetainedBuildRemovalPreview {
   preview_sha256: string;
@@ -6829,7 +7978,7 @@ export interface SteamGridDbCandidate {
   height: number;
   id: number;
   mime: string;
-  role: DestinationArtworkRole;
+  role: SteamGridDbArtworkRole;
   score: number;
   style: string;
   thumb: string;
@@ -7011,6 +8160,11 @@ export interface SupportCoordinates {
   [k: string]: unknown;
 }
 export interface OutputUpdateBatchOutcome {
+  /**
+   * An update check a provider request limit stopped: not checked, update state
+   * unknown; the next check starts with it.
+   */
+  deferred?: UpdateCheckDeferral | null;
   error: FailureReport | null;
   ok: boolean;
   port_id: string;
@@ -7032,11 +8186,19 @@ export interface OutputUpstreamObservationReport {
   eligibility_scope: string;
   engine_api_schema_version: number;
   evidence: ObservationEvidence;
+  fact_provenance: FactProvenance;
   facts_sha256: string;
   format: number;
   observed_at: string;
   port_id: string;
   projections: ChannelObservation[];
+  /**
+   * Typed role and host facts for each release a projection observed
+   * (latest observed, channel candidate, reviewed fallback or eligible), in
+   * provider order. A consumer checks each fact's `source` before treating
+   * its role as authorized.
+   */
+  release_facts?: ObservedReleaseFacts[];
   repository_id: number;
   [k: string]: unknown;
 }
@@ -7045,6 +8207,26 @@ export interface ObservationEvidence {
   catalog_admission_assessed: boolean;
   provider_authenticated: boolean;
   [k: string]: unknown;
+}
+export interface FactProvenance {
+  catalog_definition_sha256: string;
+  coverage: Coverage;
+  facts_sha256: string;
+  /**
+   * Freshness is owned by the observer configuration; Core reports none.
+   */
+  fresh_until: string | null;
+  /**
+   * Core interprets one observation; the observer retains last-good facts.
+   */
+  last_good: LastGood | null;
+  observed_at: string;
+  parser: string;
+  parser_version: number;
+}
+export interface LastGood {
+  facts_sha256: string;
+  observed_at: string;
 }
 export interface ChannelObservation {
   channel: ReleaseChannel;
@@ -7057,6 +8239,19 @@ export interface ChannelObservation {
   latest_eligible: ObservedResolution | null;
   latest_observed: ObservedReleaseIdentity | null;
   platform: Platform;
+  /**
+   * The reviewed release that replaces an excluded channel candidate. Its
+   * assets are needed to project it, like the candidate's.
+   */
+  reviewed_fallback?: ObservedReleaseIdentity | null;
+  /**
+   * Typed holds beside the stable `hold_reasons` strings.
+   */
+  route_holds?: RouteHold[];
+  /**
+   * The typed fact for the eligible or role-held artifact.
+   */
+  selected_artifact?: ArtifactFact | null;
   [k: string]: unknown;
 }
 export interface ObservedReleaseIdentity {
@@ -7076,6 +8271,47 @@ export interface ObservedResolution {
   release: ResolvedRelease;
   release_id: number;
   [k: string]: unknown;
+}
+export interface ArtifactFact {
+  arch: TargetArch;
+  asset_id: number;
+  /**
+   * Set when two authorizing sources disagreed about the role.
+   */
+  contradictory?: boolean;
+  name: string;
+  os: TargetOs;
+  players?: PlayerCandidate[];
+  role: ArtifactRole;
+  sha256: string | null;
+  size: number;
+  source: FactSource;
+}
+/**
+ * One package-relative program that may be the game's player.
+ */
+export interface PlayerCandidate {
+  /**
+   * The machine its PE, ELF or Mach-O header names, for example
+   * `pe-x86-64`, `elf64-x86-64`, `macho-arm64` or
+   * `macho-universal-arm64+x86-64`; an unnamed machine keeps its raw
+   * number, for example `pe-0x01c2`. Absent when the source recorded only
+   * a path.
+   */
+  machine?: string | null;
+  path: string;
+  sha256?: string | null;
+}
+export interface ObservedReleaseFacts {
+  artifacts: ArtifactFact[];
+  /**
+   * False means the asset list is UNKNOWN, never "no player".
+   */
+  assets_complete: boolean;
+  provider_prerelease: boolean;
+  published_at: string | null;
+  release_id: number;
+  tag: string;
 }
 export interface OutputDesktopApplicationUpdatePreferences {
   /**
@@ -7104,6 +8340,11 @@ export interface ApplicationUpdateAvailable {
   date: string | null;
   notes: string | null;
   version: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopArtworkSelectionPreview {
+  original_sha256: string;
+  png_base64: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopBackupReview {
@@ -7174,6 +8415,12 @@ export interface OutputDesktopGameFileScanRegisteredMatches {
 }
 export interface InstallBatchRecord {
   cancel_requested: boolean;
+  /**
+   * Unix seconds Portcove recorded that it was closing, restarting or told
+   * to stop while this unattended batch ran. An item the process then left
+   * unsettled was stopped cleanly, which never counts as a crash.
+   */
+  clean_stop_at?: number | null;
   created_at: number;
   format_version: number;
   id: string;
@@ -7182,10 +8429,31 @@ export interface InstallBatchRecord {
 }
 export interface InstallBatchItem {
   detail?: string | null;
+  /**
+   * For an unattended run: the partial-download entries its plan uses.
+   * An unclean stop compares only these, so another game's download
+   * progress never resets this game's crash-loop count.
+   */
+  download_keys?: string[];
   expected_plan_sha256: string;
   install_id?: string | null;
   port_id: string;
   state: InstallBatchItemState;
+  /**
+   * Set on a failed item whose failure came from a passing condition, so
+   * unattended setup retries it later instead of counting a lasting failure.
+   */
+  temporary?: TemporaryFailure | null;
+}
+/**
+ * What a temporary failure was, as recorded where it happened.
+ */
+export interface TemporaryFailure {
+  cause: TemporaryCause;
+  /**
+   * Unix seconds the provider said its limit resets, when it said.
+   */
+  stated_reset?: number | null;
 }
 export interface OutputDesktopInstallBatchReview {
   capacity: InstallBatchCapacity;
@@ -7297,6 +8565,15 @@ export interface UpdateNoticeRelease {
   artifact_sha256: string;
   version: string;
 }
+export interface OutputDesktopLibrarySelectionReview {
+  contents: LibrarySelectionContents;
+  effect: LibrarySelectionEffect;
+  path: string;
+  resets_preferences: boolean;
+  review_sha256: string;
+  source: LibrarySelectionSource;
+  [k: string]: unknown;
+}
 export interface OutputDesktopLocalePreference {
   locale: string | null;
   [k: string]: unknown;
@@ -7320,11 +8597,20 @@ export interface PortIntent {
   failed_attempts?: number;
   /**
    * The plan whose standing setup last failed, and how many times it has
-   * failed. It is retried on later passes up to a small limit, then waits
-   * until the plan changes, so a permanent failure does not recur.
+   * failed for a lasting reason. It is retried on later passes up to a
+   * small limit, then waits until the plan changes, so a permanent failure
+   * does not recur. Temporary failures never count here; see
+   * `temporary_retry`.
    */
   failed_plan_sha256?: string | null;
   failure?: string | null;
+  /**
+   * Set when `failed_attempts` was counted by a Portcove that separates
+   * temporary from lasting failures. A record that reached the limit
+   * before that (it may have counted network outages) gets one more
+   * attempt after upgrade; its next failure is classified normally.
+   */
+  failure_classified?: boolean;
   format_version: number;
   mode: PortIntentMode;
   port_id: string;
@@ -7335,6 +8621,12 @@ export interface PortIntent {
    * files that arrive are used.
    */
   sources?: PortIntentSource[];
+  /**
+   * Set when the last failure of `failed_plan_sha256` came from a passing
+   * condition (network, provider limit or outage, full disk, interruption).
+   * The same plan runs again after its back-off, without an upstream change.
+   */
+  temporary_retry?: TemporaryRetry | null;
   updated_at: number;
 }
 /**
@@ -7343,6 +8635,34 @@ export interface PortIntent {
 export interface PortIntentSource {
   profile_id: string;
   sha256: string;
+}
+/**
+ * A temporary failure's retry schedule. Clears when the work succeeds, its
+ * plan changes or the player chooses again.
+ */
+export interface TemporaryRetry {
+  /**
+   * Unix seconds this failure was recorded. Unattended passes take games
+   * with a pending retry after the others, oldest attempt first. Zero for
+   * records written before it was kept.
+   */
+  attempted_at?: number;
+  /**
+   * Consecutive temporary failures of the same plan with the same cause;
+   * sets the back-off. A different cause starts the count again.
+   */
+  attempts: number;
+  cause: TemporaryCause;
+  /**
+   * For an unclean stop: the kept download bytes when it was recorded.
+   */
+  kept_downloads?: {
+    [k: string]: number;
+  };
+  /**
+   * Unix seconds before which the work is not tried again.
+   */
+  retry_after: number;
 }
 export interface OutputDesktopPortIntentAssessments {
   assessments: PortIntentAssessment[];
@@ -7365,6 +8685,11 @@ export interface PortIntentAssessment {
    * been told about yet.
    */
   newly_ready: boolean;
+  /**
+   * While a temporary failure waits: the Unix-second instant of the next
+   * automatic attempt. Each surface shows it in its own form.
+   */
+  next_attempt_at?: number | null;
   port_id: string;
   readiness: PortReadiness;
   /**
@@ -7410,17 +8735,48 @@ export interface PortMaintenance {
   [k: string]: unknown;
 }
 /**
+ * One bounded step of staging a recipe's missing packages.
+ */
+export interface OutputDesktopRecipeAcquisitionStep {
+  /**
+   * Packages this step staged, in order.
+   */
+  acquired: string[];
+  /**
+   * Set when the step stopped at a package it could not stage; earlier
+   * steps stay staged and are resumed by the next review of this recipe.
+   */
+  failure?: RecipeAcquisitionFailure | null;
+  review: RecipeImportReview;
+  [k: string]: unknown;
+}
+/**
+ * The package an acquisition batch stopped at, and why.
+ */
+export interface RecipeAcquisitionFailure {
+  message: string;
+  native_id: string;
+  [k: string]: unknown;
+}
+/**
  * A recipe review's display data and its exact Core-owned import plan.
  * JavaScript numbers cannot preserve every JSON number representation, so
  * only the unchanged serialized plan is sent back for Core to verify and use.
  */
-export interface OutputDesktopRecipeImportReview {
+export interface RecipeImportReview {
   plan: RecipeImportPlan;
   serialized_plan: string;
   /**
    * Exact native text in the same order as `plan.recipe.settings`.
    */
   setting_values: string[];
+  [k: string]: unknown;
+}
+export interface OutputDesktopReconcileOutcome {
+  error: FailureReport | null;
+  ok: boolean;
+  port_id: string;
+  result: ReconcileResult | null;
   [k: string]: unknown;
 }
 export interface RootSetupConsent {
@@ -7450,13 +8806,26 @@ export interface RootSetupConsent {
   [k: string]: unknown;
 }
 export interface RootSetupFailure {
+  /**
+   * Lasting failures of this plan; temporary ones never count here.
+   */
   attempts: number;
+  /**
+   * Set when `attempts` was counted by a Portcove that separates temporary
+   * from lasting failures; an older record at the limit gets one more try.
+   */
+  failure_classified?: boolean;
   /**
    * The install plan, or `source:` and the file, that failed.
    */
   plan_sha256: string;
   port_id: string;
   reason: string;
+  /**
+   * Set when the last failure came from a passing condition; the same plan
+   * runs again after its back-off, without an upstream change.
+   */
+  temporary_retry?: TemporaryRetry | null;
   [k: string]: unknown;
 }
 /**
@@ -7510,6 +8879,11 @@ export interface StandingSetupFailure {
  * or a requirement.
  */
 export interface RootSetupWaiting {
+  /**
+   * While a temporary failure waits: the Unix-second instant of the next
+   * automatic attempt.
+   */
+  next_attempt_at?: number | null;
   port_id?: string | null;
   profile_id: string;
   reason: string;
@@ -7739,6 +9113,19 @@ export interface SupportBundleSection {
   reasons: SupportBundleReason[];
   records: number | null;
   status: SupportBundleSectionStatus;
+  [k: string]: unknown;
+}
+/**
+ * One game's result in a bulk update check. A `deferred` item was not checked:
+ * a provider allowance or throttle stopped it, its update state is unknown, and
+ * the next bulk check after `deferred.resets_at` starts with it.
+ */
+export interface OutputDesktopUpdateCheckOutcome {
+  deferred?: UpdateCheckDeferral | null;
+  error: FailureReport | null;
+  ok: boolean;
+  port_id: string;
+  result: UpdateCheck | null;
   [k: string]: unknown;
 }
 export interface OutputDesktopWorkspaceSnapshot {

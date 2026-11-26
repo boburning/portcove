@@ -17,6 +17,7 @@
  * stays two entries in history.
  */
 import { createHash } from "node:crypto";
+import { isRecord } from "./runtime-values.mts";
 
 export type ReconsiderationSource = "issues-project" | "core-target-routes";
 
@@ -55,9 +56,187 @@ function desired(
 
 interface IssueReconsiderationFact {
   number?: number;
+  node_id?: string;
+  url?: string;
   state?: string;
   project?: { project_id?: string; archived?: boolean; fields?: Record<string, string> }[];
   reconsideration?: { blocker: string | null; resume_condition: string } | null;
+  blocked_by?: { number?: number; node_id?: string; url?: string; state?: string }[];
+}
+
+function dependencyIssues(fact: IssueReconsiderationFact): number[] {
+  return [
+    ...new Set(
+      (fact.blocked_by ?? [])
+        .filter(
+          ({ number }) => typeof number === "number" && Number.isSafeInteger(number) && number > 0,
+        )
+        .map(({ number }) => number!),
+    ),
+  ].sort((a, b) => a - b);
+}
+
+type DependencyRef = { number: number; node_id: string; url: string };
+
+function issueRepository(url: string | undefined, number: number | undefined): string | undefined {
+  const match =
+    typeof url === "string"
+      ? /^https:\/\/github\.com\/([a-z0-9_.-]+\/[a-z0-9_.-]+)\/issues\/([0-9]+)$/iu.exec(url)
+      : null;
+  return match?.[2] === String(number) ? match[1]?.toLowerCase() : undefined;
+}
+
+function dependencyRefs(fact: IssueReconsiderationFact): DependencyRef[] | undefined {
+  const edges = fact.blocked_by ?? [];
+  const refs: DependencyRef[] = [];
+  for (const edge of edges) {
+    if (
+      typeof edge.number !== "number" ||
+      !Number.isSafeInteger(edge.number) ||
+      edge.number <= 0 ||
+      typeof edge.node_id !== "string" ||
+      !edge.node_id ||
+      edge.node_id === fact.node_id ||
+      typeof edge.url !== "string" ||
+      !issueRepository(edge.url, edge.number) ||
+      refs.some((ref) => ref.node_id === edge.node_id)
+    )
+      return undefined;
+    refs.push({ number: edge.number, node_id: edge.node_id, url: edge.url });
+  }
+  return refs.sort((a, b) => a.number - b.number || a.node_id.localeCompare(b.node_id, "en"));
+}
+
+/** A complete owner read may identify a review opportunity, never lift a hold.
+ * A missing or contradictory dependency is unknown, not closed. */
+export function dependencyWake(
+  condition: Record<string, unknown>,
+  issue: unknown,
+  issues: ReadonlyMap<string, unknown>,
+  complete: boolean,
+): "waiting" | "review-ready" | "unknown" | null {
+  if (
+    condition.source !== "issues-project" ||
+    condition.project_status !== "Blocked" ||
+    !Array.isArray(condition.dependency_issues) ||
+    !condition.dependency_issues.length
+  )
+    return null;
+  if (!complete || !issue || typeof issue !== "object") return "unknown";
+  const fact = issue as IssueReconsiderationFact;
+  if (fact.state !== "OPEN") return "unknown";
+  const ids = dependencyIssues(fact);
+  if (JSON.stringify(ids) !== JSON.stringify(condition.dependency_issues)) return "unknown";
+  const refs = dependencyRefs(fact);
+  if (
+    !refs?.length ||
+    !Array.isArray(condition.dependency_refs) ||
+    condition.dependency_refs.length !== refs.length
+  )
+    return "unknown";
+  const repository = issueRepository(fact.url, fact.number);
+  if (!repository) return "unknown";
+  // JSONB may reorder object keys; compare individual identity fields.
+  for (const [index, ref] of refs.entries()) {
+    const prior: unknown = condition.dependency_refs[index];
+    if (
+      !isRecord(prior) ||
+      prior.number !== ref.number ||
+      prior.node_id !== ref.node_id ||
+      prior.url !== ref.url
+    )
+      return "unknown";
+  }
+  const states = refs.map((ref) => {
+    const linked = issues.get(`issue:${ref.number}`) as IssueReconsiderationFact | undefined;
+    const edge = fact.blocked_by?.find(({ node_id }) => node_id === ref.node_id);
+    if (
+      linked?.number !== ref.number ||
+      linked.node_id !== ref.node_id ||
+      issueRepository(ref.url, ref.number) !== repository ||
+      typeof linked.url !== "string" ||
+      linked.url.toLowerCase() !== ref.url.toLowerCase() ||
+      !edge ||
+      edge.state !== linked.state
+    )
+      return "unknown";
+    return linked.state === "OPEN" || linked.state === "CLOSED" ? linked.state : "unknown";
+  });
+  return states.includes("unknown")
+    ? "unknown"
+    : states.includes("OPEN")
+      ? "waiting"
+      : "review-ready";
+}
+
+/** Derived queue cohorts from the exact configured Project, not a second planning
+ * status. Neutral Watchlist is inventory, not an automatic engineering assignment. */
+export function backlogLifecycleReview(
+  issues: ReadonlyMap<string, unknown>,
+  roadmapProjectId: string,
+) {
+  const counts = {
+    neutral_watchlist: 0,
+    watchlist_with_planning: 0,
+    watchlist_unknown_planning: 0,
+    watchlist_active: 0,
+    watchlist_other: 0,
+    other_ports: 0,
+    unknown_membership: 0,
+  };
+  const statusStage = new Map<string, { status: string; stage: string; count: number }>();
+  for (const payload of issues.values()) {
+    if (!payload || typeof payload !== "object") continue;
+    const fact = payload as IssueReconsiderationFact;
+    if (fact.state !== "OPEN") continue;
+    const configured = (fact.project ?? []).filter(
+      ({ project_id }) => project_id === roadmapProjectId,
+    );
+    if (configured.length && configured.every(({ archived }) => archived === true)) continue;
+    const active = configured.filter(({ archived }) => archived === false);
+    if (active.length !== 1 || configured.some(({ archived }) => archived === undefined)) {
+      counts.unknown_membership++;
+      continue;
+    }
+    const fields = active[0]?.fields ?? {};
+    if (!fields["Work type"]) {
+      counts.unknown_membership++;
+      continue;
+    }
+    if (fields["Work type"] !== "Port") continue;
+    const status = fields.Status ?? "Unknown";
+    const stage = fields["Port stage"] ?? "Unknown";
+    const key = JSON.stringify([status, stage]);
+    const group = statusStage.get(key) ?? { status, stage, count: 0 };
+    group.count++;
+    statusStage.set(key, group);
+    if (stage !== "Watchlist") counts.other_ports++;
+    else if (status === "In progress" || status === "Validating" || status === "Ready")
+      counts.watchlist_active++;
+    else if (status !== "Inbox" && status !== "Triage") counts.watchlist_other++;
+    else {
+      const planning = [
+        [fields.Priority, "None"],
+        [fields.Horizon, "Someday"],
+        [fields["Target release"], "Unscheduled"],
+      ] as const;
+      if (
+        planning.some(([value, neutral]) => value && value !== neutral) ||
+        fields["Release commitment"] ||
+        dependencyIssues(fact).length
+      )
+        counts.watchlist_with_planning++;
+      else if (planning.every(([value]) => value)) counts.neutral_watchlist++;
+      else counts.watchlist_unknown_planning++;
+    }
+  }
+  return {
+    scope: "Repository issues and their memberships in the configured Project",
+    ...counts,
+    status_stage: [...statusStage.values()].sort(
+      (a, b) => a.status.localeCompare(b.status, "en") || a.stage.localeCompare(b.stage, "en"),
+    ),
+  };
 }
 
 /**
@@ -98,12 +277,19 @@ export function issueReconsiderations(
           { source: "issues-project", project_status: "Deferred", ...recorded },
         ),
       );
+    const refs = dependencyRefs(fact);
     if (statuses.has("Blocked"))
       result.push(
         desired("technical_hold", key, `Project owner of issue #${fact.number} (Status: Blocked)`, {
           source: "issues-project",
           project_status: "Blocked",
           ...recorded,
+          ...(!recorded.resume_condition?.trim() && dependencyIssues(fact).length
+            ? {
+                dependency_issues: dependencyIssues(fact),
+                ...(refs ? { dependency_refs: refs } : {}),
+              }
+            : {}),
         }),
       );
   }

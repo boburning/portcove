@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "efm-games-scarface-the-world-is-yours-xbox-xbe-recomp",
+    "project_url": "https://github.com/efm-games/scarface-recomp",
+    "name": "Scarface: The World Is Yours (original Xbox) / efm-games Xbox XBE Recomp",
+    "summary": "Static recompilation of Scarface: The World Is Yours for Windows. Requires your own copy of the original game.",
+    "issue_number": 6271,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "scarface-the-world-is-yours",
+      "evidence_urls": ["https://github.com/efm-games/scarface-recomp"],
+      "source_editions": [
+        {
+          "id": "scarface-the-world-is-yours-xbox",
+          "title": "Scarface: The World Is Yours (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/efm-games/scarface-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Scarface: The World Is Yours"
+  }
+}

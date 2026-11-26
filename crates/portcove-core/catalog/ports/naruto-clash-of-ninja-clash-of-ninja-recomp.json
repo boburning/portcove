@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "naruto-clash-of-ninja-clash-of-ninja-recomp",
+    "project_url": "https://github.com/mapleleafjack/ClashOfNinja-recomp",
+    "name": "Naruto: Clash of Ninja / Naruto: Clash of Ninja recomp (mapleleafjack)",
+    "summary": "A recompilation of Naruto: Clash of Ninja (Gamecube)",
+    "issue_number": 7198,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "naruto-clash-of-ninja",
+      "evidence_urls": ["https://github.com/mapleleafjack/ClashOfNinja-recomp"],
+      "source_editions": [
+        {
+          "id": "naruto-clash-of-ninja-nintendo-gamecube",
+          "title": "Naruto: Clash of Ninja (Nintendo GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": ["https://github.com/mapleleafjack/ClashOfNinja-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Naruto: Clash of Ninja"
+  }
+}

@@ -4434,37 +4434,57 @@ mod tests {
         .unwrap()
     }
 
-    fn compatible_archive_fixture_catalog(mut port: PortDefinition, original: &[u8]) -> Catalog {
-        // Controlled original bytes replace only this consumer's original identity.
-        // The real schema-3 source-policy gate and all other declarations remain,
-        // except a route-wide acquisition hold: these fixtures install controlled
-        // loopback releases, and the hold's own policy tests cover its refusal.
+    fn compatible_archive_fixture_catalog(
+        embedded: &Catalog,
+        mut port: PortDefinition,
+        original: &[u8],
+    ) -> Catalog {
+        // Keep the selected port's authored policy and complete source graph.
+        // An unindexed runtime retains this document in its installed contract.
+        // Unrelated titles only make each backup and restore reprocess that data.
+        let mut document = embedded.authoritative_document();
+        let sources = document.source_catalog.as_mut().unwrap();
+        sources
+            .contracts
+            .retain(|contract| contract.port_id == port.id);
+        sources
+            .qualification
+            .retain(|record| record.scope.port_id == port.id);
+        sources.identities.retain(|identity| {
+            port.source_profile.as_ref() == Some(&identity.id)
+                || port.bios_source_profile.as_ref() == Some(&identity.id)
+                || sources
+                    .contracts
+                    .iter()
+                    .any(|contract| contract.profile_id == identity.id)
+        });
+
+        let Some(profile) = port.source_profile.clone() else {
+            document.ports = vec![port];
+            return Catalog::from_document(document).unwrap();
+        };
+        // The fixture uses a checked loopback release and controlled original
+        // bytes. Keep the route's ordinary schema-3 source-policy gate.
         port.managed_acquisition_hold = None;
-        let embedded = Catalog::embedded().unwrap();
-        let mut document = serde_json::to_value(embedded.authoritative_document()).unwrap();
         let hash = hex::encode(Sha256::digest(original));
         port.runtime_source_hashes
             .insert(port.runtime_source_filename.clone().unwrap(), hash.clone());
-        let profile = port.source_profile.as_ref().unwrap();
-        let identity = document["source_catalog"]["identities"]
+        document.ports = vec![port];
+        let mut json = serde_json::to_value(document).unwrap();
+        let identity = json["source_catalog"]["identities"]
             .as_array_mut()
             .unwrap()
             .iter_mut()
-            .find(|p| p["id"] == *profile)
+            .find(|identity| identity["id"] == profile)
             .unwrap();
         for variant in identity["variants"].as_array_mut().unwrap() {
             for representation in variant["representations"].as_array_mut().unwrap() {
-                representation["identities"] = serde_json::json!([{ "scope":"original-file", "sha1":null, "sha256":hash, "crc32":null }]);
+                representation["identities"] = serde_json::json!([
+                    {"scope": "original-file", "sha1": null, "sha256": hash, "crc32": null}
+                ]);
             }
         }
-        let index = document["ports"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .position(|p| p["id"] == port.id)
-            .unwrap();
-        document["ports"][index] = serde_json::to_value(port).unwrap();
-        Catalog::from_json(&document.to_string()).unwrap()
+        Catalog::from_json(&json.to_string()).unwrap()
     }
 
     #[tokio::test]
@@ -4553,6 +4573,7 @@ mod tests {
         sram: Option<&'static str>,
         added: &'static [&'static str],
     ) {
+        let started = std::time::Instant::now();
         let client_path = std::env::current_exe().unwrap();
         let client_sha256 =
             crate::external_runtime::hash_stable_regular(&client_path, 1024 * 1024 * 1024, &|| {
@@ -4560,7 +4581,6 @@ mod tests {
             })
             .unwrap()
             .0;
-        let started = std::time::Instant::now();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let server = Server::new();
@@ -4573,12 +4593,13 @@ mod tests {
             [executable]
         );
         let original = b"lawful fixed first-party original fixture";
-        let fixed = if declared.source_profile.is_some() {
-            compatible_archive_fixture_catalog(declared.clone(), original)
-        } else {
-            embedded
-        };
+        let fixed = compatible_archive_fixture_catalog(&embedded, declared.clone(), original);
         let definition = serde_json::to_vec(&fixed.authoritative_document()).unwrap();
+        eprintln!(
+            "compatible release fixture {id}: {} retained definition bytes at {:?}",
+            definition.len(),
+            started.elapsed()
+        );
         let definition_sha256 = hex::encode(Sha256::digest(&definition));
         // The structural predecessor an existing installation was created with.
         let predecessor = (!added.is_empty()).then(|| {
@@ -4963,6 +4984,10 @@ mod tests {
         service
             .restore_backup(id, &backup.id, &consent.token)
             .unwrap();
+        eprintln!(
+            "compatible release final restore complete at {:?}",
+            started.elapsed()
+        );
         let mut restarted = PortcoveService::with_provider(library.clone(), provider).unwrap();
         restarted.replace_catalog_for_test(fixed);
         assert_eq!(restarted.status(id).unwrap().active.unwrap().id, first.id);
@@ -5043,6 +5068,10 @@ mod tests {
                 "opaque preservation must not grant fresh runtime data-compatibility authority"
             );
         }
+        eprintln!(
+            "compatible release client and definition verified at {:?}",
+            started.elapsed()
+        );
         api_server.join().unwrap();
         let requests = api_requests.try_iter().collect::<Vec<_>>();
         assert!(

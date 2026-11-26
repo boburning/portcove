@@ -34,7 +34,16 @@ import {
   AccountDriverView,
 } from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, readdir, writeFile, lstat, rename } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  readFile,
+  readdir,
+  writeFile,
+  lstat,
+  realpath,
+  rename,
+} from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -89,6 +98,7 @@ import {
   prepareBootstrapRecoveryFixture,
 } from "./desktop-bootstrap-recovery-test.mts";
 import { preparationScenarios } from "./desktop-preparation-test.mts";
+import { prepareLibraryRecoveryBundleFixture } from "./desktop-library-handoff-test.mts";
 import { seedSelectedSetup, selectedSetupScenario } from "./desktop-source-dialog-test.mts";
 import { selectedSetupCompletionScenario } from "./desktop-selected-setup-completion-test.mts";
 import { setupBatchScenario, largeSetupReviewScenario } from "./desktop-setup-batch-test.mts";
@@ -116,6 +126,7 @@ import {
   selectPrimaryNavigation,
   reviewControls,
   selectCatalogPort,
+  openCatalogFilters,
   openMoreCatalogFilters,
   clearCatalogFilters,
   catalogResultPortIds,
@@ -152,12 +163,14 @@ import type { AcquisitionGameObserver } from "./desktop-install-test.mts";
 import { hostPublicationScenario } from "./desktop-host-publication-test.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
-import { catalogUpdateScenario } from "./desktop-catalog-update-test.mts";
+import { activityOutsideCatalog, catalogUpdateScenario } from "./desktop-catalog-update-test.mts";
 import { createImageRefusal } from "./desktop-cover-observations.mts";
 import { defaultCoverScenario, reviewedScreenshotScenario } from "./desktop-default-cover-test.mts";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
+  hostPublicationScenarios,
+  usesHostPublicationHarness,
 } from "../../../scripts/desktop-scenarios.mts";
 import { acquireNativeSessionLock } from "../../../scripts/native-session-lock.mts";
 import { observeStartup } from "./desktop-startup-observation.mts";
@@ -314,9 +327,8 @@ const interruptedPreparationSession =
   selection.selected_scenarios.includes("native-interrupted-preparation-recovery");
 const savedLibraryRecoverySession =
   bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
-const hostPublicationSession = selection.selected_scenarios.includes(
-  "native-host-publication-recovery",
-);
+let bundleRestartUsesSavedSelection = false;
+const hostPublicationSession = usesHostPublicationHarness(selection.selected_scenarios);
 if (selection.prerequisites.includes("owned-fixture") && !values["preparation-cli"])
   throw new Error("Selected fixture scenarios require the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
@@ -1790,6 +1802,23 @@ async function restartApplication(
   prepareWhileStopped?: () => Promise<void>,
   childEnvironment: NodeJS.ProcessEnv = {},
 ) {
+  if (name === "restored-library-explicitly-opened") {
+    assert.deepEqual(selection.selected_scenarios, ["native-library-recovery-bundle"]);
+    assert.equal(prepareWhileStopped, undefined);
+    const preferences: unknown = JSON.parse(
+      await readFile(path.join(runtimeRoot, "preferences.json"), "utf8"),
+    );
+    assert.ok(
+      typeof preferences === "object" &&
+        preferences &&
+        "library_root" in preferences &&
+        typeof preferences.library_root === "string",
+    );
+    const expected = path.join(output, "restored-library");
+    assert.equal(await realpath(preferences.library_root), await realpath(expected));
+    assert.equal(await realpath(expected), path.join(await realpath(output), "restored-library"));
+    bundleRestartUsesSavedSelection = true;
+  }
   const selectedSetupRestart = name === "selected-setup-inputs";
   if (linuxSelectedSession) {
     assert.equal(name, "selected-setup-inputs");
@@ -2318,7 +2347,9 @@ function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
     delete environment.CHROME_CONFIG_HOME;
     delete environment.CHROME_USER_DATA_DIR;
   }
-  return savedLibraryRecoverySession ? bootstrapRecoveryEnvironment(environment) : environment;
+  return savedLibraryRecoverySession || bundleRestartUsesSavedSelection
+    ? bootstrapRecoveryEnvironment(environment)
+    : environment;
 }
 
 async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
@@ -2671,6 +2702,8 @@ try {
       completionJourney: executionPlan.fixtures.completionJourney,
       acquisitionJourney: Boolean(executionPlan.fixtures.acquisitionJourney),
       updateReviewJourney: Boolean(executionPlan.fixtures.updateReviewJourney),
+      gameSettingsJourney: Boolean(executionPlan.fixtures.gameSettingsJourney),
+      managedCopyJourney: Boolean(executionPlan.fixtures.managedCopyJourney),
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
@@ -2702,6 +2735,41 @@ try {
           output,
           fixture: installFixture,
         });
+    }
+    if (installFixture.managedCopyJourney) {
+      // This CLI registration seeds owned pre-state. The native case observes
+      // the reviewed transition from that registration and never runs it.
+      const directory = path.join(output, "managed-copy-external");
+      await mkdir(directory);
+      const executable = path.join(directory, "external-fixture.exe");
+      const save = path.join(directory, "external-save.txt");
+      await copyFile(required(values["preparation-tool"]), executable);
+      await writeFile(save, "owned external save to preserve", { flag: "wx" });
+      inputs.push(await fileIdentity(executable), await fileIdentity(save));
+      const command = ownedFixtureCommand({
+        cli: required(values["preparation-cli"]),
+        library,
+        output,
+        catalogPath: installFixture.catalogPath,
+      });
+      const args = [installFixture.port.id, executable, "--working-directory", directory];
+      const preview = transportValue(
+        "external_runtime_preview",
+        command(["external", "select-preview", ...args]),
+      );
+      const registered = transportValue(
+        "external_runtime_record",
+        command([
+          "external",
+          "select",
+          ...args,
+          "--expected-preview",
+          preview.preview_sha256,
+          "--yes",
+        ]),
+      );
+      assert.equal(registered.port_id, installFixture.port.id);
+      assert.equal(registered.executable, preview.executable);
     }
     inputs.push(await fileIdentity(installFixture.artifactPath));
     if (
@@ -2843,6 +2911,31 @@ try {
     selection.selected_scenarios[0] === "native-default-cover-cache-conditions"
   )
     firstOfflineCover = await createImageRefusal();
+  const libraryRecoveryBundleFixture = selection.selected_scenarios.includes(
+    "native-library-recovery-bundle",
+  )
+    ? await prepareLibraryRecoveryBundleFixture({
+        library,
+        output,
+        command: ownedFixtureCommand({ cli: required(values["preparation-cli"]), library, output }),
+        tool: required(values["preparation-tool"]),
+      })
+    : undefined;
+  if (
+    normalPackageSession ||
+    selection.selected_scenarios.includes("native-game-first-choice-and-restart")
+  ) {
+    // These two isolated qualification cases observe the candidate's embedded catalog.
+    await writeFile(
+      path.join(runtimeRoot, "preferences.json"),
+      JSON.stringify({
+        format_version: 1,
+        library_root: null,
+        official_catalog_automatic_updates: false,
+      }),
+      { flag: "wx" },
+    );
+  }
   await startDriver(firstOfflineCover?.environment);
   await connect();
   if (runnerMetadata.acceptance_bindings) {
@@ -2941,31 +3034,33 @@ try {
     await writeFile(record, JSON.stringify(historyInventory, null, 2), { flag: "wx" });
     artifacts.push(record);
   }
-  await scenario("native-host-publication-recovery", async () => {
-    const fixture = required(installFixture);
-    await hostPublicationScenario({
-      browser: driverBrowser(),
-      output,
-      library,
-      artifacts,
-      fixture,
-      command: ownedFixtureCommand({
-        cli: required(values["preparation-cli"]),
+  for (const publicationScenario of hostPublicationScenarios)
+    await scenario(publicationScenario, async () => {
+      const fixture = required(installFixture);
+      await hostPublicationScenario({
+        browser: driverBrowser(),
+        output,
         library,
-        output,
-        catalogPath: fixture.catalogPath,
-      }),
-      invoke,
-      confirmNative: nativeConfirmation({
-        application,
-        getDriverPid: () => required(required(driver).pid),
-        output,
         artifacts,
-      }),
-      restartApplication,
-      interruptHost: interruptCheckpointHost,
+        fixture,
+        command: ownedFixtureCommand({
+          cli: required(values["preparation-cli"]),
+          library,
+          output,
+          catalogPath: fixture.catalogPath,
+        }),
+        invoke,
+        confirmNative: nativeConfirmation({
+          application,
+          getDriverPid: () => required(required(driver).pid),
+          output,
+          artifacts,
+        }),
+        restartApplication,
+        interruptHost: interruptCheckpointHost,
+        bundleOnly: publicationScenario === "native-library-recovery-interruption",
+      });
     });
-  });
   if (selection.selected_scenarios.includes("native-registered-source-reuse")) {
     await registeredSourceReuseScenario({
       browser: driverBrowser(),
@@ -3191,7 +3286,9 @@ try {
     const {
       readGameFirstCatalogObservation,
       readGameFirstRelationships,
+      readGameFirstSourcePopulation,
       inspectGameFirstRelationships,
+      assertEmbeddedGameFirstCatalog,
     } = await import("./desktop-game-first-test.mts");
     const readbacks: unknown[] = [];
     const report: Record<string, unknown> = {
@@ -3205,20 +3302,26 @@ try {
     };
     try {
       const relationships = await readGameFirstRelationships();
+      const source = await readGameFirstSourcePopulation(inputs);
       report.expected_baseline_sha256 = relationships.sha256;
+      report.source_definitions_sha256 = source.definitions.sha256;
+      report.source_listings_sha256 = source.listings.sha256;
       report.audited_revision = relationships.expected.audited_revision;
       const observation = await readGameFirstCatalogObservation(invoke, readbacks);
       report.catalog_digest = observation.workspace.catalog_digest ?? null;
       report.catalog_status = observation.catalog_status;
       report.listing_delivery_status = observation.listing_delivery_status;
       report.generation = observation.bootstrap.generation;
+      assertEmbeddedGameFirstCatalog(observation);
       const production = inspectGameFirstRelationships(
         observation.workspace,
         relationships.expected,
         observation.catalog_status.provenance,
+        source,
       );
       report.families = production.reviewed_families;
-      report.audited_records = production.provenance.length;
+      report.audited_records = production.audited_records;
+      report.loaded_records = production.provenance.length;
       report.provenance = production.provenance;
       report.outcome = "passed";
     } catch (error) {
@@ -3548,9 +3651,29 @@ try {
     const browser = driverBrowser();
     const before = await invoke("get_bootstrap_status");
     assert.ok(before.ok);
-    const defaultRoot = await invoke("get_default_library_root");
-    assert.ok(defaultRoot.ok);
-    assert.ok(defaultRoot.value);
+    const generation = before.value.generation;
+    const preferenceReview = async () =>
+      transportValue(
+        "desktop_library_selection_review",
+        success(
+          await invoke("review_library_selection", {
+            path: null,
+            generation: generation,
+          }),
+        ),
+      );
+
+    const expected = await preferenceReview();
+    assert.equal(expected.source, "platform_default");
+    assert.equal(expected.effect, "open");
+    assert.match(expected.review_sha256, /^[0-9a-f]{64}$/);
+    const contents = {
+      empty_directory: "This folder is empty. Portcove will start a new library here.",
+      new_default_directory: "Portcove will create the default library folder.",
+      existing_database:
+        "This folder contains a library database. Portcove checks it when opening.",
+      recovery_records: "This folder contains recovery records. Portcove checks them when opening.",
+    }[expected.contents];
     await selectSettingsCategory("library-storage");
     const card = await browser.wait(
       until.elementLocated(By.xpath('//article[.//h2[normalize-space(.)="Library at startup"]]')),
@@ -3572,7 +3695,8 @@ try {
     );
     const reviewText = await review.getText();
     assert.ok(reviewText.includes("Open the default library?"));
-    assert.ok(reviewText.includes(defaultRoot.value));
+    assert.ok(reviewText.includes(expected.path));
+    assert.ok(reviewText.includes(contents));
     assert.ok(reviewText.includes("Files in the current library will stay where they are"));
     assert.equal(
       success(await invoke("get_bootstrap_status")).library_root,
@@ -3619,6 +3743,7 @@ try {
       "Library selection review trigger did not regain focus after Escape",
     );
     assert.deepEqual(success(await invoke("get_bootstrap_status")), before.value);
+    assert.deepEqual(await preferenceReview(), expected);
   });
   await scenario("native-library-browsing-context", async () => {
     const browser = driverBrowser();
@@ -4298,13 +4423,122 @@ try {
       );
     }
 
+    const shortcut = async (key: string) => {
+      const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+      await browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+    };
+    const palette = By.css('[aria-labelledby="command-palette-title"]');
+    const searchPalette = async (query: string) => {
+      await shortcut("k");
+      const panel = await browser.wait(until.elementLocated(palette), 5_000);
+      const field = await panel.findElement(By.css('[role="combobox"]'));
+      await replaceKeyboardText(browser, field, query);
+      return field;
+    };
+    const choosePalette = async (label: string, optionId: string) => {
+      await searchPalette(label);
+      const option = await browser.wait(until.elementLocated(By.id(optionId)), 5_000);
+      await browser.wait(until.elementIsEnabled(option), 5_000);
+      assert.equal(await option.findElement(By.css("strong")).getText(), label);
+      await option.sendKeys(Key.ENTER);
+      await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
+    };
+    const localFind: string[] = [];
+    for (const [route, destination] of [
+      ["Library", "library"],
+      ["Discover", "catalog"],
+    ] as const) {
+      await selectPrimaryNavigation(browser, route);
+      const searchState = await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (route) => {
+              if (document.querySelector("#port-search")) return "search";
+              const headings = [...document.querySelectorAll("main h2")];
+              return (
+                route === "Library" &&
+                headings.some((item) => item.textContent?.trim() === "Your library is empty") &&
+                "empty-library"
+              );
+            },
+            route,
+          ),
+        30_000,
+        "The current collection did not finish opening",
+      );
+      const focused = await browser.switchTo().activeElement();
+      assert.notEqual(
+        await focused.getAttribute("id"),
+        "port-search",
+        "The current search must start unfocused",
+      );
+      await shortcut("f");
+      if (searchState === "search") {
+        await browser.wait(
+          () => executeBrowserScript(browser, () => document.activeElement?.id === "port-search"),
+          5_000,
+          "Find did not focus the current " + route + " search",
+        );
+        localFind.push(destination);
+      } else {
+        assert.equal(
+          await (await browser.switchTo().activeElement()).getId(),
+          await focused.getId(),
+          "Find without a search must preserve focus",
+        );
+        assert.equal(searchState, "empty-library");
+        localFind.push("empty-library");
+      }
+      assert.equal((await browser.findElements(palette)).length, 0);
+      const selected = await executeBrowserScript(browser, () =>
+        document
+          .querySelector('[data-navigation-destination][aria-current="page"]')
+          ?.getAttribute("data-navigation-destination"),
+      );
+      assert.equal(selected, destination, "Find must preserve the current catalog route");
+    }
+    const categories = [
+      ["appearance", "Appearance"],
+      ["library-storage", "Library and storage"],
+      ["game-files", "Game files"],
+      ["updates", "Updates"],
+      ["integrations", "Integrations"],
+      ["controls", "Keyboard and controller"],
+      ["advanced", "Advanced"],
+      ["about", "About"],
+    ] as const;
+    for (const [id, label] of categories) {
+      await choosePalette(`Open ${label} settings`, `command-settings-${id}`);
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (heading) => document.activeElement?.id === heading,
+            `settings-${id}-heading`,
+          ),
+        5_000,
+        `The palette did not focus the ${label} settings heading`,
+      );
+    }
+
     await selectPrimaryNavigation(browser, "Discover");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await clearCatalogFilters(browser);
-    const filters = await openMoreCatalogFilters(browser);
-    const channelChoices = await filters.findElement(
+    const filters = await openCatalogFilters(browser);
+    const moreFilters = await filters.findElement(By.css("details.catalog-filter-advanced"));
+    const summary = await moreFilters.findElement(By.css("summary"));
+    const channelChoices = await moreFilters.findElement(
       By.css('button[aria-label="Update channels: All"]'),
     );
+    if ((await moreFilters.getAttribute("open")) !== null) await summary.sendKeys(Key.ENTER);
+    await browser.wait(until.elementIsNotVisible(channelChoices), 5_000);
+    const routine = await filters.findElement(
+      By.css('button[aria-label="Device eligibility: All"]'),
+    );
+    assert.ok(await routine.isDisplayed(), "Routine device eligibility must stay visible");
+    await summary.sendKeys(Key.ENTER);
+    await browser.wait(until.elementIsVisible(channelChoices), 5_000);
     await clickVisible(browser, channelChoices);
     const selectedFilter = await browser.wait(
       until.elementLocated(
@@ -4490,6 +4724,44 @@ try {
         { title: "Folder for a future install", open: false, visible: false },
       ]);
     };
+    await verifyDetailActionHierarchy();
+    const unavailablePlay = await searchPalette("Play this game");
+    assert.equal(
+      (await browser.findElements(By.id("command-current-game-play"))).length,
+      0,
+      "A game without the required files must have no palette Play command",
+    );
+    await unavailablePlay.sendKeys(Key.ESCAPE);
+    await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
+    await revealDetailSection(browser, "Manage");
+    await choosePalette("Open Game files for this game", "command-current-game-files");
+    await browser.wait(
+      () =>
+        executeBrowserScript(browser, () => {
+          const detail = document.querySelector('[data-detail-port-id="ghostship"]');
+          const selected = detail?.querySelector('[role="tab"][aria-selected="true"]');
+          return selected?.textContent?.trim() === "Game files";
+        }),
+      5_000,
+      "The contextual palette must keep Ghostship selected and open Game files",
+    );
+    const commandEvidence = path.join(output, "keyboard-layout-contextual-commands.json");
+    await writeFile(
+      commandEvidence,
+      JSON.stringify(
+        {
+          local_find: localFind,
+          focused_settings_headings: categories.map(([id]) => id),
+          contextual_port: "ghostship",
+          contextual_tab: "Game files",
+          blocked_play_command_absent: true,
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(commandEvidence);
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-workspace");
     await browser.manage().window().setRect({ width: 960, height: 640 });
@@ -4745,8 +5017,12 @@ try {
     assert.equal(initialStatus.checking, false);
     assert.equal(initialStatus.installing, false);
     assert.equal(initialStatus.available, null);
-    const activities = await invoke("get_activities");
-    assert.ok(activities.ok);
+    const activity = async () => activityOutsideCatalog(success(await invoke("get_activities")));
+    const activitiesBefore = await activity();
+    const assertNoApplicationUpdate = async () => {
+      assert.deepEqual(await activity(), activitiesBefore);
+      assert.deepEqual(success(await invoke("get_application_update_status")), initialStatus);
+    };
 
     await selectSettingsCategory("updates");
     const channel = By.xpath(
@@ -4787,8 +5063,7 @@ try {
       15_000,
       "turning off automatic checks was not saved",
     );
-    assert.deepEqual(success(await invoke("get_activities")), activities.value);
-    assert.equal(success(await invoke("get_application_update_status")).available, null);
+    await assertNoApplicationUpdate();
 
     await refreshSettings("updates");
     await browser.wait(until.elementLocated(channel), 15_000);
@@ -4814,7 +5089,7 @@ try {
       channel: "beta",
       automatic_checks: true,
     });
-    assert.deepEqual(success(await invoke("get_activities")), activities.value);
+    await assertNoApplicationUpdate();
     await browser.wait(
       () =>
         executeBrowserScript(browser, () => {
@@ -5157,7 +5432,13 @@ try {
         },
       },
       {
-        install: installScenarios,
+        install: (context) =>
+          installScenarios({
+            ...context,
+            ...(executionPlan.fixtures.gameSettingsJourney
+              ? { cli: required(values["preparation-cli"]) }
+              : {}),
+          }),
         selectedSetup: (context) =>
           selectedFixtureFamilies.has("selected-setup")
             ? selection.selected_scenarios.includes("native-standing-setup-source-return")
@@ -5189,12 +5470,14 @@ try {
           selectedFixtureFamilies.has("preparation")
             ? preparationScenarios({
                 ...context,
+                sourcePopulationInputs: inputs,
                 interruptApplication:
                   process.platform === "linux"
                     ? interruptLinuxPreparation
                     : context.interruptApplication,
                 cli: required(context.cli),
                 tool: required(context.tool),
+                ...(libraryRecoveryBundleFixture ? { libraryRecoveryBundleFixture } : {}),
                 ...(executionPlan.fixtures.updateReviewJourney
                   ? { catalogPath: required(installFixture).catalogPath }
                   : {}),

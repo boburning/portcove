@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    ActivityOperation, ActivityStatus, ActivityTargetKind, DestructiveAuthorization,
+    ActivityOperation, ActivityStatus, ActivityTargetKind, DestructiveAuthorization, MutationState,
     OperationCoordinator, OperationEvent, OperationResult, PortcoveError, PortcoveService, Result,
     SourceAdmission, SourceAdmissionMode, SourceComponentKind, SourceDiscoveryLimits, SourceRecord,
     operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
@@ -381,6 +381,7 @@ impl PortcoveService {
         )?;
         emit(coordinator.started());
         let store = OperationStore::new(self.library().clone());
+        let mut publishing = false;
         let result = (|| {
             let _guards = self.lock_source_dependents(profile_id, None)?;
             coordinator.checkpoint()?;
@@ -412,6 +413,7 @@ impl PortcoveService {
                         coordinator.checkpoint()
                     })?;
                 coordinator.begin_publication()?;
+                publishing = true;
                 self.library().register_source(&registered)?;
                 return Ok(SourceImportResult {
                     import_id: activity.id.clone(),
@@ -450,6 +452,7 @@ impl PortcoveService {
             operation.paths.final_path = Some(plan.destination.clone());
             operation.original_paths = vec![plan.source.path.clone()];
             operation.source_import = Some(plan);
+            publishing = true;
             store.put(&mut operation)?;
             self.check_lifecycle_fault(
                 crate::operation::LifecycleFaultPoint::SourceImportJournaled,
@@ -459,17 +462,22 @@ impl PortcoveService {
 
         match result {
             Ok(result) => {
-                self.library().finish_activity(
-                    &activity.id,
-                    ActivityStatus::Succeeded,
-                    Some(import_message(result.outcome)),
-                )?;
+                self.library()
+                    .finish_activity(
+                        &activity.id,
+                        ActivityStatus::Succeeded,
+                        Some(import_message(result.outcome)),
+                    )
+                    .map_err(|error| error.with_mutation_state(MutationState::Committed))?;
                 emit(coordinator.finished(OperationResult::Succeeded));
                 Ok(result)
             }
             Err(error) if error.code == crate::ErrorCode::Cancelled => {
                 cleanup_cancelled_import(&store, &activity.id)?;
-                let result = self.finish_activity(activity, Err(error));
+                let result = self.finish_activity(
+                    activity,
+                    Err(error.with_mutation_state(MutationState::NoChanges)),
+                );
                 emit(coordinator.finished(OperationResult::from_result(&result)));
                 result
             }
@@ -483,11 +491,19 @@ impl PortcoveService {
                         "error",
                         "Adding game files paused. Recovery information has been kept.",
                     ));
-                    Err(error.detail("import_id", &activity.id).detail(
-                        "recovery_action",
-                        "restart Portcove to resume source import",
-                    ))
+                    Err(error
+                        .with_mutation_state(MutationState::RecoveryRequired)
+                        .detail("import_id", &activity.id)
+                        .detail(
+                            "recovery_action",
+                            "restart Portcove to resume source import",
+                        ))
                 } else {
+                    let error = if publishing {
+                        error
+                    } else {
+                        error.with_mutation_state(MutationState::NoChanges)
+                    };
                     let result = self.finish_activity(activity, Err(error));
                     emit(coordinator.finished(OperationResult::from_result(&result)));
                     result
@@ -1081,7 +1097,12 @@ fn cleanup_original(
         return Ok(Some(quarantine));
     }
     if source_exists {
-        if let Err(error) = revalidate_source(service, plan, source) {
+        if let Err(error) = revalidate_source(service, plan, source)
+            .and_then(|_| service.refuse_store_install_move(&plan.profile_id, source))
+        {
+            // Store ownership is checked again from current records: a store
+            // may have installed here since the plan, or its records may now
+            // be unreadable. Either way the original is kept.
             operation.last_error = Some(error.message);
             store.put(operation)?;
             return Ok(Some(source.clone()));
@@ -1103,6 +1124,19 @@ fn cleanup_original(
         && inspect_admitted_source(service, plan, &quarantine)
             .is_ok_and(|record| cleanup_source_equivalent(&quarantine, &plan.source, &record));
     if !identity_matches {
+        return Ok(Some(quarantine));
+    }
+    if let Err(error) = service.refuse_store_install_move(&plan.profile_id, &quarantine) {
+        // Put the original back under its own name so a store game that
+        // uses it keeps working; keep the quarantine name only if that fails.
+        operation.last_error = Some(error.message);
+        store.put(operation)?;
+        // An unknown original name keeps the earlier, safe outcome.
+        if !source.try_exists().unwrap_or(true)
+            && crate::durability::rename_noreplace(&quarantine, source).is_ok()
+        {
+            return Ok(Some(source.clone()));
+        }
         return Ok(Some(quarantine));
     }
     if let Err(error) = service

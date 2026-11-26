@@ -11,14 +11,17 @@ import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import {
   changeModEdit,
+  draftHasRoom,
   draftSize,
   emptyModDraft,
+  MOD_SETUP_CAPACITY,
   type LocalModSelection,
   type ModDraft,
 } from "../features/mod-setups/mod-draft";
 import { useAppTranslation } from "../localization";
 import type {
   ModSetupDraftPreview,
+  ModSetupRevision,
   ModSetupView,
   ProviderCatalog,
   ProviderInstallPlan,
@@ -33,6 +36,8 @@ import { ActionRow, Notice } from "./ui/patterns";
 
 type Project = ProviderProjectView["project"];
 type File = Project["files"][number];
+export type ModDraftReviewState = { headingId: string; open: boolean };
+
 type Props = {
   portId: string;
   generation: number;
@@ -47,13 +52,44 @@ type Props = {
   undoLocal?: (digest: string) => void;
   setDraft: Dispatch<SetStateAction<ModDraft>>;
   onBusyChange: (busy: boolean) => void;
-  onInstalled: (message: string) => void;
+  onReviewChange?: (state: ModDraftReviewState | undefined) => void;
+  onInstalled: (receipt: ModSetupRevision) => void;
   onRefresh?: () => void;
   onApplying?: (applying: boolean) => void;
   reviewFromPlay?: number | undefined;
   onAppliedFromPlay?: (() => void) | undefined;
-  updates?: Pick<ModUpdateControlProps, "policy" | "setPolicy" | "automaticChecks">;
+  updates?: Pick<
+    ModUpdateControlProps,
+    "policy" | "setPolicy" | "automaticChecks" | "automaticChecksIncomplete"
+  >;
 };
+
+/**
+ * Joins a continuation read onto the catalog read so far. The merged snapshot is
+ * complete only when the provider total stayed the same, the listing ended and
+ * the merged count matches that total; otherwise it stays labeled partial.
+ */
+export function mergeCatalogReads(
+  previous: ProviderCatalog,
+  next: ProviderCatalog,
+): ProviderCatalog {
+  const known = new Set(previous.projects.map((project) => project.project_id));
+  const projects = [
+    ...previous.projects,
+    ...next.projects.filter((project) => !known.has(project.project_id)),
+  ];
+  const sameTotal = previous.expected_total === next.expected_total;
+  const ended = next.next_page === undefined || next.next_page === null;
+  return {
+    ...previous,
+    projects,
+    next_page: sameTotal ? (next.next_page ?? null) : null,
+    complete:
+      sameTotal && ended && next.complete && projects.length === Number(next.expected_total),
+    observed_at: Math.min(previous.observed_at, next.observed_at),
+    freshness: previous.freshness === "stale" ? "stale" : next.freshness,
+  };
+}
 
 export function providerName(provider: string) {
   if (provider === "gamebanana") return "GameBanana";
@@ -75,6 +111,7 @@ export function ModProviderBrowser({
   undoLocal,
   setDraft,
   onBusyChange,
+  onReviewChange,
   onInstalled,
   onRefresh,
   onApplying,
@@ -125,6 +162,7 @@ export function ModProviderBrowser({
   const [working, setWorking] = useState<"files" | "review" | "apply">();
   const [failure, setFailure] = useState<string>();
   const reviewId = useId();
+  const reviewHeadingId = `${reviewId}-heading`;
   const detailHeading = useRef<HTMLHeadingElement>(null);
   const reviewHeading = useRef<HTMLHeadingElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -161,6 +199,10 @@ export function ModProviderBrowser({
   }, [busy, onBusyChange]);
   useEffect(() => () => onBusyChange(false), [onBusyChange]);
   useEffect(() => {
+    onReviewChange?.({ headingId: reviewHeadingId, open: review });
+  }, [onReviewChange, review, reviewHeadingId]);
+  useEffect(() => () => onReviewChange?.(undefined), [onReviewChange]);
+  useEffect(() => {
     if (review) reviewHeading.current?.focus();
   }, [review]);
   useEffect(() => {
@@ -174,8 +216,30 @@ export function ModProviderBrowser({
     setCatalogFailures((current) => ({ ...current, [provider]: undefined }));
     void desktopApi
       .modProviderCatalog(portId, provider, generation)
-      .then((result) => {
-        if (alive.current) setCatalogs((current) => ({ ...current, [provider]: result }));
+      .then(async (result) => {
+        if (!alive.current) return;
+        setCatalogs((current) => ({ ...current, [provider]: result }));
+        // A large catalog arrives in bounded reads. Keep showing what is known,
+        // labeled partial, while later reads continue from the provider page.
+        let merged = result;
+        while (merged.next_page !== undefined && merged.next_page !== null) {
+          let next: ProviderCatalog;
+          try {
+            next = await desktopApi.modProviderCatalog(
+              portId,
+              provider,
+              generation,
+              merged.next_page,
+            );
+          } catch {
+            merged = { ...merged, next_page: null, complete: false };
+            if (alive.current) setCatalogs((current) => ({ ...current, [provider]: merged }));
+            return;
+          }
+          if (!alive.current) return;
+          merged = mergeCatalogReads(merged, next);
+          setCatalogs((current) => ({ ...current, [provider]: merged }));
+        }
       })
       .catch((error: unknown) => {
         if (!alive.current) return;
@@ -229,8 +293,8 @@ export function ModProviderBrowser({
   const queue = (item: Project, file: File) => {
     if (!item.game_id) return;
     const gameId = item.game_id;
-    if (draft.additions.length + localFiles.length >= 16) {
-      setFailure(t("mods.workspace.draftLimit"));
+    if (!draftHasRoom(draft.additions.length + localFiles.length)) {
+      setFailure(t("mods.workspace.draftLimit", { limit: MOD_SETUP_CAPACITY }));
       return;
     }
     setDraft((current) => ({
@@ -382,13 +446,13 @@ export function ModProviderBrowser({
     }
   };
   const apply = async (allowCode: boolean) => {
-    if (!plans) return;
+    if (!plans || applying.current) return;
     setFailure(undefined);
     setWorking("apply");
     applying.current = true;
     onApplying?.(true);
     try {
-      await desktopApi.applyModSetupDraft(
+      const receipt = await desktopApi.applyModSetupDraft(
         portId,
         profileId,
         revision,
@@ -401,7 +465,7 @@ export function ModProviderBrowser({
       if (alive.current) {
         staged.current = [];
         closeReview();
-        onInstalled(t("mods.workspace.applied"));
+        onInstalled(receipt);
         if (playOrigin) onAppliedFromPlay?.();
       }
     } catch (error) {
@@ -704,7 +768,7 @@ export function ModProviderBrowser({
       {review && (
         <Notice intent="info">
           <div id={reviewId} data-slot="notice-body" className="grid gap-3">
-            <h4 ref={reviewHeading} tabIndex={-1} className="font-semibold">
+            <h4 id={reviewHeadingId} ref={reviewHeading} tabIndex={-1} className="font-semibold">
               {t("mods.workspace.review")}
             </h4>
             <p>

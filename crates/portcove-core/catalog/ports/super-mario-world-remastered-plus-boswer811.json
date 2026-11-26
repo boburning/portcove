@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-world-remastered-plus-boswer811",
+    "project_url": "https://github.com/Boswer811/Super-Mario-World-Remastered-Plus",
+    "name": "Super Mario World Remastered Plus (Boswer811)",
+    "summary": "A Remake / Remaster of the original Super Mario World, in Godot. Adds new features / improvements!",
+    "issue_number": 8269,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-world-remastered-plus",
+      "evidence_urls": ["https://github.com/Boswer811/Super-Mario-World-Remastered-Plus"],
+      "source_editions": []
+    },
+    "original_game_title": "Super Mario World Remastered Plus"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tekken-tag-tournament-adanft",
+    "project_url": "https://github.com/adanft/TekkenTagDecomp",
+    "name": "Tekken Tag Tournament / adanft native PS2 decomp",
+    "summary": "Matching decompilation and native PC port of Tekken Tag Tournament (PS2). Contains no game data.",
+    "issue_number": 5605,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-tag-tournament",
+      "evidence_urls": ["https://github.com/adanft/TekkenTagDecomp"],
+      "source_editions": [
+        {
+          "id": "tekken-tag-tournament-playstation-2",
+          "title": "Tekken Tag Tournament (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/adanft/TekkenTagDecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Tekken Tag Tournament"
+  }
+}

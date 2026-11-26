@@ -198,6 +198,15 @@ pub(crate) fn unavailable_report(
             "Portcove can’t find these files at their saved location.",
             "Reconnect the drive or choose an unchanged copy at its new location. To use different files, add them again so Portcove can check them.",
         ),
+        SourceHealth::NotChecked
+            if problem.details.get("scan_limit").map(String::as_str) == Some("time") =>
+        {
+            (
+                "source_not_checked_yet",
+                "Portcove hasn’t finished checking these files yet.",
+                "Portcove ran out of time before checking these files. Check them again.",
+            )
+        }
         _ => (
             "source_could_not_be_checked",
             "Portcove couldn’t check the selected files.",
@@ -781,7 +790,7 @@ mod tests {
     {
         let embedded = Catalog::embedded().unwrap();
         let mut listings = embedded.listing_document().clone();
-        listings.format_version = 14;
+        listings.format_version = listings.format_version.max(14);
         let listing = listings
             .listings
             .iter_mut()

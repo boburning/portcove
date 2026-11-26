@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "unreal-tournament-ut99-recomp",
+    "project_url": "https://github.com/sp00nznet/ut99-recomp",
+    "name": "Unreal Tournament / UT99 Recomp",
+    "summary": "Static recompilation of Unreal Tournament (Epic, 1999; Steam v436) to native C, headed for a modern makeover: its own presenter, widescreen, a modern render device. Built on pcrecomp.",
+    "issue_number": 5747,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "unreal-tournament",
+      "evidence_urls": ["https://github.com/sp00nznet/ut99-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Unreal Tournament"
+  }
+}

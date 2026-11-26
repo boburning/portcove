@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "screamer-and-screamer-2-openscreamer",
+    "project_url": "https://github.com/ItsDanik/openscreamer",
+    "name": "Screamer and Screamer 2 / OpenScreamer",
+    "summary": "Screamer (1995, MS-DOS) reimplemented for Linux from the original program. Needs your own copy of the game.",
+    "issue_number": 5633,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One reimplementation runs Screamer and Screamer 2.",
+    "evidence_urls": ["https://github.com/ItsDanik/openscreamer"]
+  }
+}

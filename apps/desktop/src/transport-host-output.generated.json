@@ -768,6 +768,23 @@
     "title": "ApplicationUpdateStatus",
     "type": "object"
   },
+  "artwork_selection_preview": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "original_sha256": {
+        "type": "string"
+      },
+      "png_base64": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "original_sha256",
+      "png_base64"
+    ],
+    "title": "DesktopArtworkSelectionPreview",
+    "type": "object"
+  },
   "automatic_snapshots_enabled": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "boolean",
@@ -819,6 +836,13 @@
           },
           "preview_sha256": {
             "type": "string"
+          },
+          "restore_target_sha256": {
+            "description": "The library, installation scope and materialized setup reviewed for a restore.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "retained_runtime_copy_will_be_deleted": {
             "type": "boolean"
@@ -6768,6 +6792,13 @@
               "null"
             ]
           },
+          "download_keys": {
+            "description": "For an unattended run: the partial-download entries its plan uses.\nAn unclean stop compares only these, so another game's download\nprogress never resets this game's crash-loop count.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "expected_plan_sha256": {
             "type": "string"
           },
@@ -6782,6 +6813,17 @@
           },
           "state": {
             "$ref": "#/$defs/InstallBatchItemState"
+          },
+          "temporary": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set on a failed item whose failure came from a passing condition, so\nunattended setup retries it later instead of counting a lasting failure."
           }
         },
         "required": [
@@ -6818,6 +6860,82 @@
             "type": "string"
           }
         ]
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryFailure": {
+        "additionalProperties": false,
+        "description": "What a temporary failure was, as recorded where it happened.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "stated_reset": {
+            "description": "Unix seconds the provider said its limit resets, when it said.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cause"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6825,6 +6943,14 @@
     "properties": {
       "cancel_requested": {
         "type": "boolean"
+      },
+      "clean_stop_at": {
+        "description": "Unix seconds Portcove recorded that it was closing, restarting or told\nto stop while this unattended batch ran. An item the process then left\nunsettled was stopped cleanly, which never counts as a crash.",
+        "format": "int64",
+        "type": [
+          "integer",
+          "null"
+        ]
       },
       "created_at": {
         "format": "int64",
@@ -6925,6 +7051,137 @@
           "archive_root",
           "target_directory",
           "executable"
+        ],
+        "type": "object"
+      },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
         ],
         "type": "object"
       },
@@ -7096,6 +7353,16 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "output_location": {
             "$ref": "#/$defs/PortOutputLocation"
@@ -7611,6 +7878,13 @@
               "null"
             ]
           },
+          "download_keys": {
+            "description": "For an unattended run: the partial-download entries its plan uses.\nAn unclean stop compares only these, so another game's download\nprogress never resets this game's crash-loop count.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "expected_plan_sha256": {
             "type": "string"
           },
@@ -7625,6 +7899,17 @@
           },
           "state": {
             "$ref": "#/$defs/InstallBatchItemState"
+          },
+          "temporary": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set on a failed item whose failure came from a passing condition, so\nunattended setup retries it later instead of counting a lasting failure."
           }
         },
         "required": [
@@ -7668,6 +7953,14 @@
           "cancel_requested": {
             "type": "boolean"
           },
+          "clean_stop_at": {
+            "description": "Unix seconds Portcove recorded that it was closing, restarting or told\nto stop while this unattended batch ran. An item the process then left\nunsettled was stopped cleanly, which never counts as a crash.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "created_at": {
             "format": "int64",
             "type": "integer"
@@ -7699,6 +7992,82 @@
           "updated_at",
           "cancel_requested",
           "items"
+        ],
+        "type": "object"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryFailure": {
+        "additionalProperties": false,
+        "description": "What a temporary failure was, as recorded where it happened.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "stated_reset": {
+            "description": "Unix seconds the provider said its limit resets, when it said.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cause"
         ],
         "type": "object"
       }
@@ -8058,6 +8427,67 @@
     "title": "LibraryOrganization",
     "type": "object"
   },
+  "library_selection_review": {
+    "$defs": {
+      "LibrarySelectionContents": {
+        "description": "The files recognized during a read-only library selection check.",
+        "enum": [
+          "empty_directory",
+          "existing_database",
+          "recovery_records",
+          "new_default_directory"
+        ],
+        "type": "string"
+      },
+      "LibrarySelectionEffect": {
+        "enum": [
+          "keep",
+          "change_startup",
+          "open"
+        ],
+        "type": "string"
+      },
+      "LibrarySelectionSource": {
+        "enum": [
+          "invocation",
+          "saved",
+          "platform_default"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "contents": {
+        "$ref": "#/$defs/LibrarySelectionContents"
+      },
+      "effect": {
+        "$ref": "#/$defs/LibrarySelectionEffect"
+      },
+      "path": {
+        "type": "string"
+      },
+      "resets_preferences": {
+        "type": "boolean"
+      },
+      "review_sha256": {
+        "type": "string"
+      },
+      "source": {
+        "$ref": "#/$defs/LibrarySelectionSource"
+      }
+    },
+    "required": [
+      "path",
+      "source",
+      "effect",
+      "contents",
+      "resets_preferences",
+      "review_sha256"
+    ],
+    "title": "LibrarySelectionReview",
+    "type": "object"
+  },
   "locale_preference": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
@@ -8317,6 +8747,137 @@
         ],
         "type": "object"
       },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ExternalRuntimeRecord": {
         "properties": {
           "archive_sha256": {
@@ -8431,6 +8992,16 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "output_location": {
             "$ref": "#/$defs/PortOutputLocation"
@@ -9439,6 +10010,88 @@
   },
   "pending_setup_record": {
     "$defs": {
+      "AcquisitionRestriction": {
+        "additionalProperties": false,
+        "properties": {
+          "effect": {
+            "$ref": "#/$defs/RestrictionEffect"
+          },
+          "explanation": {
+            "description": "Player-facing explanation; required for a hold and refused for a permit.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "Stable within its carrier; the key for review and transition checks.",
+            "type": "string"
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/$defs/RestrictedOperation"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RestrictionReason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Descriptive; required for a hold and refused for a permit."
+          },
+          "reconsider_when": {
+            "items": {
+              "$ref": "#/$defs/ReconsiderCondition"
+            },
+            "type": "array"
+          },
+          "scope": {
+            "$ref": "#/$defs/RestrictionScope"
+          },
+          "tracking_issue": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "effect",
+          "operations"
+        ],
+        "type": "object"
+      },
+      "ArtifactRole": {
+        "description": "What an artifact is. Only [`ArtifactRole::DesktopGameRuntime`] may become a\nlaunch target.",
+        "enum": [
+          "desktop-game-runtime",
+          "desktop-game-data",
+          "dedicated-server",
+          "builder",
+          "installer",
+          "importer",
+          "compiler",
+          "dev-tool",
+          "original-game-input",
+          "mobile-package",
+          "console-output",
+          "documentation",
+          "source-archive",
+          "integrity-metadata",
+          "debug-symbols",
+          "unknown"
+        ],
+        "type": "string"
+      },
       "CatalogDownloadAssetId": {
         "anyOf": [
           {
@@ -9705,6 +10358,133 @@
           }
         ]
       },
+      "FactSource": {
+        "description": "Where a fact came from, highest precedence first.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "Machine-readable metadata the release itself publishes.",
+            "properties": {
+              "document": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "release-metadata",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "document"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A reviewed structural observation of these exact archive bytes.",
+            "properties": {
+              "archive_sha256": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "exact-release-structured",
+                "type": "string"
+              },
+              "shape_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "shape_version",
+              "archive_sha256"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Another provider's reviewed record for the same artifact.",
+            "properties": {
+              "kind": {
+                "const": "provider-cross-reference",
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "reference": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "provider",
+              "reference"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A bounded, versioned extractor for one family of releases.",
+            "properties": {
+              "extractor": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "family-extractor",
+                "type": "string"
+              },
+              "version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "extractor",
+              "version"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The catalog's reviewed release selectors for this route.",
+            "properties": {
+              "kind": {
+                "const": "stable-declaration",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Filename tokens only; never authorizing.",
+            "properties": {
+              "kind": {
+                "const": "filename-suggestion",
+                "type": "string"
+              },
+              "rule_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "rule_version"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "IgdbArtwork": {
         "additionalProperties": false,
         "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
@@ -9819,6 +10599,35 @@
           "unavailable"
         ],
         "type": "string"
+      },
+      "ListingModPortal": {
+        "additionalProperties": false,
+        "description": "A reviewed link to a mod community for this exact listing.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "site": {
+            "$ref": "#/$defs/ModPortalSite"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "site",
+          "name",
+          "url",
+          "instructions"
+        ],
+        "type": "object"
       },
       "ListingObservationStatus": {
         "enum": [
@@ -10078,6 +10887,24 @@
         ],
         "type": "object"
       },
+      "ModPortalSite": {
+        "description": "Community mod sites that a link-out portal may point to. The host for each\nsite is fixed in Core; a definition cannot choose another host.",
+        "oneOf": [
+          {
+            "enum": [
+              "nexus_mods",
+              "mod_io",
+              "mod_db"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "community_site",
+            "description": "A site run for one game's community. Any public HTTPS host.",
+            "type": "string"
+          }
+        ]
+      },
       "OriginalEditionSourceBinding": {
         "additionalProperties": false,
         "description": "Exact correspondence to an identity in the reviewed source graph.",
@@ -10132,6 +10959,265 @@
           "source_editions"
         ],
         "type": "object"
+      },
+      "PendingSetupBinding": {
+        "additionalProperties": false,
+        "description": "The exact facts a stage belongs to. A change invalidates the stage.",
+        "properties": {
+          "artifact_role": {
+            "$ref": "#/$defs/ArtifactRole",
+            "description": "Typed route fact for the downloaded artifact. A filename suggestion\ndescribes it; it never authorizes a runtime."
+          },
+          "definition_sha256": {
+            "description": "Digest of the catalog content this setup depends on: the retained\nsigned definition entry and its contracts when one is selected, else\nthe documented setup fields of the embedded definition, else their\nabsence for a listing-only project. It never covers Portcove's own\nserialization of a definition, so an application update alone keeps\nthe binding.",
+            "type": "string"
+          },
+          "retained": {
+            "$ref": "#/$defs/RetainedSetupBytes"
+          },
+          "role_source": {
+            "$ref": "#/$defs/FactSource"
+          },
+          "source_url": {
+            "description": "Upstream project or release address of the retained listing.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_url",
+          "definition_sha256",
+          "artifact_role",
+          "role_source",
+          "retained"
+        ],
+        "type": "object"
+      },
+      "PendingSetupInvalidation": {
+        "description": "A fact that makes this setup route itself invalid. A newer upstream\nrelease is not one; Core reports it as a notice instead.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The current listing names another upstream source.",
+            "properties": {
+              "current_source_url": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "source-changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "current_source_url"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The catalog content this setup depends on changed.",
+            "properties": {
+              "kind": {
+                "const": "definition-changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A download restriction now holds for these exact bytes.",
+            "properties": {
+              "explanation": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "restriction-holds",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "explanation"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Typed route facts now give the artifact a different role.",
+            "properties": {
+              "current_role": {
+                "$ref": "#/$defs/ArtifactRole"
+              },
+              "kind": {
+                "const": "artifact-role-changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "current_role"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The retained package or its receipt changed or is missing.",
+            "properties": {
+              "kind": {
+                "const": "retained-bytes-changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PendingSetupProgress": {
+        "additionalProperties": false,
+        "description": "Where the player is in an upstream setup, and what that place is bound to.",
+        "properties": {
+          "binding": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PendingSetupBinding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Absent only on the read-time mapping of a format 1 or 2 record. Core\nbinds it to the current facts when the player first moves the setup\npast `artifact-obtained`."
+          },
+          "stage": {
+            "$ref": "#/$defs/PendingSetupStage"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "PendingSetupStage": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The verified package is retained; nothing has been run. Never stored:\nit is the read-time stage of a format 1 or 2 record.",
+            "properties": {
+              "stage": {
+                "const": "artifact-obtained",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The player opened the setup folder or the retained setup guide.",
+            "properties": {
+              "handoff": {
+                "$ref": "#/$defs/UpstreamSetupHandoff"
+              },
+              "opened_at": {
+                "type": "string"
+              },
+              "stage": {
+                "const": "upstream-setup-opened",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "handoff",
+              "opened_at"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The player chose the resulting program and Core checked it.",
+            "properties": {
+              "selection": {
+                "$ref": "#/$defs/SelectedSetupResult"
+              },
+              "stage": {
+                "const": "final-selected",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "selection"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The player confirmed this registration plan.",
+            "properties": {
+              "preview_sha256": {
+                "type": "string"
+              },
+              "selection": {
+                "$ref": "#/$defs/SelectedSetupResult"
+              },
+              "stage": {
+                "const": "registration-reviewed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "selection",
+              "preview_sha256"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A bound fact changed; the earlier stage cannot continue.",
+            "properties": {
+              "previous": {
+                "$ref": "#/$defs/PendingSetupStageKind"
+              },
+              "reason": {
+                "$ref": "#/$defs/PendingSetupInvalidation"
+              },
+              "stage": {
+                "const": "invalidated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "previous",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PendingSetupStageKind": {
+        "enum": [
+          "artifact-obtained",
+          "upstream-setup-opened",
+          "final-selected",
+          "registration-reviewed",
+          "invalidated"
+        ],
+        "type": "string"
       },
       "PendingSetupState": {
         "enum": [
@@ -10219,7 +11305,7 @@
             "type": "object"
           },
           "download_block_reason": {
-            "description": "A reviewed restriction on fresh self-service downloads only. It grants\nno execution, management or permission over an existing copy.",
+            "description": "Legacy projection of `restrictions` for older readers: the explanation\nof the first hold naming Download. It grants nothing.",
             "type": [
               "string",
               "null"
@@ -10269,6 +11355,13 @@
           "media": {
             "items": {
               "$ref": "#/$defs/CatalogMediaAsset"
+            },
+            "type": "array"
+          },
+          "mod_portals": {
+            "description": "Reviewed community links for this listing. Requires listing format 16.",
+            "items": {
+              "$ref": "#/$defs/ListingModPortal"
             },
             "type": "array"
           },
@@ -10329,6 +11422,13 @@
               "null"
             ]
           },
+          "restrictions": {
+            "description": "Typed acquisition restrictions. Requires listing format 14.",
+            "items": {
+              "$ref": "#/$defs/AcquisitionRestriction"
+            },
+            "type": "array"
+          },
           "setup_url": {
             "type": [
               "string",
@@ -10366,6 +11466,19 @@
         ],
         "type": "object"
       },
+      "ReconsiderCondition": {
+        "description": "Descriptive condition for reconsidering a decision. Never evaluated.",
+        "enum": [
+          "attributable-grant",
+          "clean-upstream-package",
+          "owned-input-preparation",
+          "publisher-checksum",
+          "reviewed-successor-release",
+          "upstream-route-change",
+          "owner-review"
+        ],
+        "type": "string"
+      },
       "ReleaseChannel": {
         "enum": [
           "stable",
@@ -10373,6 +11486,244 @@
           "rolling"
         ],
         "type": "string"
+      },
+      "RestrictedArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "RestrictedComponent": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "bundled-runtime",
+                "type": "string"
+              },
+              "platform": {
+                "$ref": "#/$defs/Platform"
+              }
+            },
+            "required": [
+              "kind",
+              "platform"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "tool-artifact",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RestrictedOperation": {
+        "description": "Removal, rollback and backup are deliberately absent: a restriction never\nblocks removing or recovering the player's own state.",
+        "enum": [
+          "download",
+          "install",
+          "update",
+          "adopt",
+          "activate",
+          "prepare",
+          "register-external",
+          "launch"
+        ],
+        "type": "string"
+      },
+      "RestrictionEffect": {
+        "enum": [
+          "hold",
+          "permit"
+        ],
+        "type": "string"
+      },
+      "RestrictionReason": {
+        "description": "Descriptive classification of why a hold exists. Never evaluated.",
+        "oneOf": [
+          {
+            "enum": [
+              "bundled-game-data",
+              "upstream-owned-route",
+              "package-facts-unresolved",
+              "legacy-rights-review",
+              "no-useful-route",
+              "upstream-prohibition",
+              "safety-evidence-mismatch",
+              "third-party-component-terms",
+              "known-defective-artifact",
+              "upstream-transition-unreviewed"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "legacy-unclassified",
+            "description": "Reader-only normalization of an untyped legacy restriction.",
+            "type": "string"
+          }
+        ]
+      },
+      "RestrictionScope": {
+        "additionalProperties": false,
+        "description": "Each empty list leaves that dimension unconstrained.",
+        "properties": {
+          "artifacts": {
+            "items": {
+              "$ref": "#/$defs/RestrictedArtifact"
+            },
+            "type": "array"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/$defs/RestrictedComponent"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "description": "Source catalog identity or profile ids.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "releases": {
+            "description": "Exact release versions or tags.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "RetainedSetupBytes": {
+        "description": "Verified bytes the setup folder retains.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The downloaded package itself, kept unextracted in the setup folder.",
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "package",
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "size": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "file",
+              "sha256",
+              "size"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Files extracted from the package; the publication receipt binds them\nto the downloaded archive digest.",
+            "properties": {
+              "archive_sha256": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "extracted",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "archive_sha256"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SelectedSetupResult": {
+        "additionalProperties": false,
+        "description": "Identity facts of the program the player chose, as Core checked them.",
+        "properties": {
+          "arguments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "executable_sha256": {
+            "type": "string"
+          },
+          "executable_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "selected_at": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "working_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "executable",
+          "working_directory",
+          "arguments",
+          "executable_sha256",
+          "executable_size",
+          "version",
+          "selected_at"
+        ],
+        "type": "object"
       },
       "SourceEdition": {
         "additionalProperties": false,
@@ -10410,6 +11761,43 @@
           "evidence_urls"
         ],
         "type": "object"
+      },
+      "UpstreamSetupHandoff": {
+        "description": "What the player opened. Portcove never runs the upstream installer itself\nfrom a pending setup.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The retained setup folder was opened.",
+            "properties": {
+              "kind": {
+                "const": "folder",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The retained upstream setup guide was opened.",
+            "properties": {
+              "kind": {
+                "const": "guide",
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "url"
+            ],
+            "type": "object"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -10442,6 +11830,17 @@
       },
       "port_id": {
         "type": "string"
+      },
+      "progress": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PendingSetupProgress"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Where the player is in the upstream setup that follows the download.\nPublication writes format 1 or 2 without it, which earlier releases\nread; Core maps a finished download to `artifact-obtained` on read\nwithout writing it back. Format 3 persists it only once the player\nmoves the setup past that stage."
       },
       "reason": {
         "type": [
@@ -10517,6 +11916,101 @@
           "rolling"
         ],
         "type": "string"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryRetry": {
+        "additionalProperties": false,
+        "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
+        "properties": {
+          "attempted_at": {
+            "description": "Unix seconds this failure was recorded. Unattended passes take games\nwith a pending retry after the others, oldest attempt first. Zero for\nrecords written before it was kept.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "attempts": {
+            "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "kept_downloads": {
+            "additionalProperties": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "For an unclean stop: the kept download bytes when it was recorded.",
+            "type": "object"
+          },
+          "retry_after": {
+            "description": "Unix seconds before which the work is not tried again.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cause",
+          "attempts",
+          "retry_after"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -10554,7 +12048,7 @@
         "type": "integer"
       },
       "failed_plan_sha256": {
-        "description": "The plan whose standing setup last failed, and how many times it has\nfailed. It is retried on later passes up to a small limit, then waits\nuntil the plan changes, so a permanent failure does not recur.",
+        "description": "The plan whose standing setup last failed, and how many times it has\nfailed for a lasting reason. It is retried on later passes up to a\nsmall limit, then waits until the plan changes, so a permanent failure\ndoes not recur. Temporary failures never count here; see\n`temporary_retry`.",
         "type": [
           "string",
           "null"
@@ -10565,6 +12059,10 @@
           "string",
           "null"
         ]
+      },
+      "failure_classified": {
+        "description": "Set when `failed_attempts` was counted by a Portcove that separates\ntemporary from lasting failures. A record that reached the limit\nbefore that (it may have counted network outages) gets one more\nattempt after upgrade; its next failure is classified normally.",
+        "type": "boolean"
       },
       "format_version": {
         "format": "uint8",
@@ -10584,6 +12082,17 @@
           "$ref": "#/$defs/PortIntentSource"
         },
         "type": "array"
+      },
+      "temporary_retry": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/TemporaryRetry"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Set when the last failure of `failed_plan_sha256` came from a passing\ncondition (network, provider limit or outage, full disk, interruption).\nThe same plan runs again after its back-off, without an upstream change."
       },
       "updated_at": {
         "format": "int64",
@@ -10609,6 +12118,14 @@
           "newly_ready": {
             "description": "Ready with a plan, or installed with an update, the player has not\nbeen told about yet.",
             "type": "boolean"
+          },
+          "next_attempt_at": {
+            "description": "While a temporary failure waits: the Unix-second instant of the next\nautomatic attempt. Each surface shows it in its own form.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "port_id": {
             "type": "string"
@@ -10867,7 +12384,7 @@
             "type": "integer"
           },
           "failed_plan_sha256": {
-            "description": "The plan whose standing setup last failed, and how many times it has\nfailed. It is retried on later passes up to a small limit, then waits\nuntil the plan changes, so a permanent failure does not recur.",
+            "description": "The plan whose standing setup last failed, and how many times it has\nfailed for a lasting reason. It is retried on later passes up to a\nsmall limit, then waits until the plan changes, so a permanent failure\ndoes not recur. Temporary failures never count here; see\n`temporary_retry`.",
             "type": [
               "string",
               "null"
@@ -10878,6 +12395,10 @@
               "string",
               "null"
             ]
+          },
+          "failure_classified": {
+            "description": "Set when `failed_attempts` was counted by a Portcove that separates\ntemporary from lasting failures. A record that reached the limit\nbefore that (it may have counted network outages) gets one more\nattempt after upgrade; its next failure is classified normally.",
+            "type": "boolean"
           },
           "format_version": {
             "format": "uint8",
@@ -10897,6 +12418,17 @@
               "$ref": "#/$defs/PortIntentSource"
             },
             "type": "array"
+          },
+          "temporary_retry": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryRetry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the last failure of `failed_plan_sha256` came from a passing\ncondition (network, provider limit or outage, full disk, interruption).\nThe same plan runs again after its back-off, without an upstream change."
           },
           "updated_at": {
             "format": "int64",
@@ -10959,6 +12491,101 @@
           "rolling"
         ],
         "type": "string"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryRetry": {
+        "additionalProperties": false,
+        "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
+        "properties": {
+          "attempted_at": {
+            "description": "Unix seconds this failure was recorded. Unattended passes take games\nwith a pending retry after the others, oldest attempt first. Zero for\nrecords written before it was kept.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "attempts": {
+            "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "kept_downloads": {
+            "additionalProperties": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "For an unclean stop: the kept download bytes when it was recorded.",
+            "type": "object"
+          },
+          "retry_after": {
+            "description": "Unix seconds before which the work is not tried again.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cause",
+          "attempts",
+          "retry_after"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -11108,6 +12735,1175 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "boolean",
     "type": "boolean"
+  },
+  "recipe_acquisition_step": {
+    "$defs": {
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "AssetConflict": {
+        "description": "Several packages claim the same asset path.",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "providers": {
+            "description": "Packages providing the path, in the supplied precedence order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "winner": {
+            "description": "The provider that takes effect under that order.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "providers",
+          "winner"
+        ],
+        "type": "object"
+      },
+      "AuthenticatedDefinitionProvenance": {
+        "additionalProperties": false,
+        "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
+        "properties": {
+          "definitions_sha256": {
+            "type": "string"
+          },
+          "definitions_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "earliest_expiration": {
+            "type": "string"
+          },
+          "index_sha256": {
+            "type": "string"
+          },
+          "root_sha256": {
+            "type": "string"
+          },
+          "root_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "type": "string"
+          },
+          "snapshot_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets_sha256": {
+            "type": "string"
+          },
+          "targets_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamp_sha256": {
+            "type": "string"
+          },
+          "timestamp_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "root_version",
+          "root_sha256",
+          "timestamp_version",
+          "timestamp_sha256",
+          "snapshot_version",
+          "snapshot_sha256",
+          "targets_version",
+          "targets_sha256",
+          "definitions_version",
+          "definitions_sha256",
+          "earliest_expiration",
+          "index_sha256"
+        ],
+        "type": "object"
+      },
+      "DefinitionSelectionIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grant_id": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "policy_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/$defs/AuthenticatedDefinitionProvenance"
+          },
+          "repository_root_sha256": {
+            "type": "string"
+          },
+          "stable_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "stable_id",
+          "definition_revision",
+          "repository_root_sha256",
+          "grant_id",
+          "policy_revision",
+          "provenance"
+        ],
+        "type": "object"
+      },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
+      "ModProviderBinding": {
+        "description": "Exact provider-side scope from a reviewed definition.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "game_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gamebanana",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "game_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "community": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "thunderstore",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "community"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "OriginalBinding": {
+        "additionalProperties": false,
+        "description": "One required original, bound by observed content and storage identity rather\nthan by path, so relocation and rescans cannot silently change which original\na profile means.",
+        "properties": {
+          "observed_identity_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requirement_id": {
+            "description": "The catalog source requirement this original satisfies.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "storage_sha256": {
+            "type": "string"
+          },
+          "storage_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "sha256",
+          "size",
+          "storage_sha256",
+          "storage_size"
+        ],
+        "type": "object"
+      },
+      "PlanMember": {
+        "properties": {
+          "asset_count": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "runs_code": {
+            "description": "What the package runs if installed (Recomp code); empty for asset mods.",
+            "items": {
+              "$ref": "#/$defs/RecompExecution"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_name",
+          "sha256",
+          "size",
+          "asset_count"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ProfileRecipe": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "identity_sha256": {
+            "description": "SHA-256 of the recipe's canonical content with this field empty.",
+            "type": "string"
+          },
+          "loader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LoaderContractRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orderings": {
+            "items": {
+              "$ref": "#/$defs/TypedOrdering"
+            },
+            "type": "array"
+          },
+          "originals": {
+            "items": {
+              "$ref": "#/$defs/RecipeOriginal"
+            },
+            "type": "array"
+          },
+          "packages": {
+            "items": {
+              "$ref": "#/$defs/RecipePackage"
+            },
+            "type": "array"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "$ref": "#/$defs/RecipeRuntime"
+          },
+          "settings": {
+            "description": "Portable, exact-package settings. Omitted by format 1.",
+            "items": {
+              "$ref": "#/$defs/RecipeModSetting"
+            },
+            "type": "array"
+          },
+          "uncaptured": {
+            "description": "Inputs this recipe cannot reproduce; always stated, never implied.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format",
+          "port_id",
+          "runtime",
+          "loader",
+          "originals",
+          "packages",
+          "orderings",
+          "uncaptured",
+          "identity_sha256"
+        ],
+        "type": "object"
+      },
+      "ProviderFileCandidate": {
+        "description": "A provider's own claims about one downloadable file. The checksum is the\nprovider's claim; an MD5 or any provider-supplied digest never authenticates\na publisher.",
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "claimed_md5": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claimed_scan": {
+            "description": "Provider scan outcomes, as claimed (\"clean\", \"infected\", ...). Not an assurance.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "download_url": {
+            "description": "Canonical download location derived from `file_id`, never a provider-supplied URL.",
+            "type": "string"
+          },
+          "file_id": {
+            "description": "Provider file identity; distinct from the project and from any version label.",
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
+          "thunderstore_dependencies": {
+            "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
+            "items": {
+              "$ref": "#/$defs/ThunderstoreDependency"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "file_id",
+          "file_name",
+          "size",
+          "added_at",
+          "download_url",
+          "claimed_md5",
+          "archived",
+          "claimed_scan"
+        ],
+        "type": "object"
+      },
+      "ProviderInstallPlan": {
+        "properties": {
+          "conflicts": {
+            "items": {
+              "$ref": "#/$defs/AssetConflict"
+            },
+            "type": "array"
+          },
+          "conflicts_truncated": {
+            "type": "boolean"
+          },
+          "download_sha256": {
+            "description": "Computed from the actual downloaded bytes.",
+            "type": "string"
+          },
+          "download_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "expected_revision": {
+            "description": "Profile revision this plan was reviewed against.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "file": {
+            "$ref": "#/$defs/ProviderFileCandidate"
+          },
+          "ignored_entries": {
+            "description": "Entries of the provider's wrapper that are not packages and were not read.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/$defs/PlanMember"
+            },
+            "type": "array"
+          },
+          "plan_sha256": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "project_name": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/$defs/ProviderPackageRef"
+          },
+          "replaces": {
+            "description": "Installed packages this plan replaces: the same native ID with different\nbytes, or a package the game loads as the same mod under another extension.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "review_nonce": {
+            "description": "Private workspace reviews use distinct staging even for the same file.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unverified_claims": {
+            "description": "What this plan relies on without verifying.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "wrappers": {
+            "description": "Exact Thunderstore wrapper closure in dependency-first order.",
+            "items": {
+              "$ref": "#/$defs/ProviderWrapper"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "port_id",
+          "profile_id",
+          "expected_revision",
+          "provider",
+          "project_name",
+          "file",
+          "download_sha256",
+          "download_size",
+          "members",
+          "ignored_entries",
+          "replaces",
+          "conflicts",
+          "conflicts_truncated",
+          "unverified_claims",
+          "plan_sha256"
+        ],
+        "type": "object"
+      },
+      "ProviderPackageRef": {
+        "additionalProperties": false,
+        "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
+        "properties": {
+          "binding": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModProviderBinding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required for coordinates that differ from the historical compiled binding."
+          },
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project"
+        ],
+        "type": "object"
+      },
+      "ProviderRequirement": {
+        "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
+        "properties": {
+          "members": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "provider": {
+            "$ref": "#/$defs/ProviderPackageRef"
+          }
+        },
+        "required": [
+          "provider",
+          "members"
+        ],
+        "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
+      },
+      "ProviderWrapper": {
+        "properties": {
+          "download_sha256": {
+            "type": "string"
+          },
+          "download_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "file": {
+            "$ref": "#/$defs/ProviderFileCandidate"
+          },
+          "members": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "provider": {
+            "$ref": "#/$defs/ProviderPackageRef"
+          }
+        },
+        "required": [
+          "provider",
+          "file",
+          "download_sha256",
+          "download_size",
+          "members"
+        ],
+        "type": "object"
+      },
+      "RecipeAcquisitionFailure": {
+        "description": "The package an acquisition batch stopped at, and why.",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "native_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "native_id",
+          "message"
+        ],
+        "type": "object"
+      },
+      "RecipeAcquisitionRef": {
+        "additionalProperties": false,
+        "description": "One staged recipe package and the provider plan (by digest) that holds it.",
+        "properties": {
+          "native_id": {
+            "type": "string"
+          },
+          "plan_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "native_id",
+          "plan_sha256"
+        ],
+        "type": "object"
+      },
+      "RecipeCodeApproval": {
+        "properties": {
+          "native_id": {
+            "type": "string"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/$defs/RecompExecution"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "native_id",
+          "sha256",
+          "runs"
+        ],
+        "type": "object"
+      },
+      "RecipeImportPlan": {
+        "description": "The provider files a recipe review has staged. Each provider plan is held\nonce, however many of its members the recipe uses, so a shared closure\ncosts its plan once in the review, its records and IPC.",
+        "properties": {
+          "acquisitions": {
+            "items": {
+              "$ref": "#/$defs/RecipeAcquisitionRef"
+            },
+            "type": "array"
+          },
+          "can_apply": {
+            "type": "boolean"
+          },
+          "code_approval": {
+            "items": {
+              "$ref": "#/$defs/RecipeCodeApproval"
+            },
+            "type": "array"
+          },
+          "holds": {
+            "description": "Why applying is not possible yet; empty when every input is present.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "install_id": {
+            "description": "The exact installation the new profile would bind, when one matches.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "originals": {
+            "items": {
+              "$ref": "#/$defs/RecipeInputPlan"
+            },
+            "type": "array"
+          },
+          "packages": {
+            "items": {
+              "$ref": "#/$defs/RecipeInputPlan"
+            },
+            "type": "array"
+          },
+          "plan_sha256": {
+            "type": "string"
+          },
+          "provider_checks": {
+            "description": "Missing packages with an exact coordinate that the player can check.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "provider_plans": {
+            "items": {
+              "$ref": "#/$defs/ProviderInstallPlan"
+            },
+            "type": "array"
+          },
+          "recipe": {
+            "$ref": "#/$defs/ProfileRecipe"
+          },
+          "runtime": {
+            "$ref": "#/$defs/RecipeInputPlan"
+          },
+          "verified_originals": {
+            "description": "Exact, path-free local resolutions consumed by the reviewed import.",
+            "items": {
+              "$ref": "#/$defs/OriginalBinding"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "recipe",
+          "runtime",
+          "install_id",
+          "originals",
+          "packages",
+          "holds",
+          "can_apply",
+          "plan_sha256"
+        ],
+        "type": "object"
+      },
+      "RecipeImportReview": {
+        "description": "A recipe review's display data and its exact Core-owned import plan.\nJavaScript numbers cannot preserve every JSON number representation, so\nonly the unchanged serialized plan is sent back for Core to verify and use.",
+        "properties": {
+          "plan": {
+            "$ref": "#/$defs/RecipeImportPlan"
+          },
+          "serialized_plan": {
+            "type": "string"
+          },
+          "setting_values": {
+            "description": "Exact native text in the same order as `plan.recipe.settings`.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan",
+          "serialized_plan",
+          "setting_values"
+        ],
+        "type": "object"
+      },
+      "RecipeInputPlan": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/RecipeInputStatus"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "RecipeInputStatus": {
+        "oneOf": [
+          {
+            "const": "available",
+            "description": "Present locally with the exact identity the recipe names.",
+            "type": "string"
+          },
+          {
+            "const": "acquirable",
+            "description": "Not present; ordinary acquisition could supply it.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "Present but different, or absent with no way to acquire it from the recipe.",
+            "type": "string"
+          }
+        ]
+      },
+      "RecipeModSetting": {
+        "additionalProperties": false,
+        "description": "Exactly one reviewed, manifest-declared option in a shareable recipe.",
+        "properties": {
+          "native_id": {
+            "type": "string"
+          },
+          "option_id": {
+            "type": "string"
+          },
+          "package_sha256": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/$defs/RecipeModSettingValue"
+          }
+        },
+        "required": [
+          "native_id",
+          "package_sha256",
+          "option_id",
+          "value"
+        ],
+        "type": "object"
+      },
+      "RecipeModSettingValue": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "RecipeOriginal": {
+        "additionalProperties": false,
+        "description": "Local original identity, without its path or payload.",
+        "properties": {
+          "requirement_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "storage": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RecipeOriginalStorage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Earlier recipes identified content only. Format 3 also binds its saved representation."
+          }
+        },
+        "required": [
+          "requirement_id",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "RecipeOriginalStorage": {
+        "additionalProperties": false,
+        "properties": {
+          "observed_identity_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "RecipePackage": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "native_id": {
+            "type": "string"
+          },
+          "native_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderPackageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider_requires": {
+            "items": {
+              "$ref": "#/$defs/ProviderRequirement"
+            },
+            "type": "array"
+          },
+          "requires": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "native_id",
+          "native_version",
+          "provider",
+          "sha256",
+          "size",
+          "enabled",
+          "requires"
+        ],
+        "type": "object"
+      },
+      "RecipeRuntime": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installed_contract_sha256": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "artifact",
+          "runtime",
+          "definition",
+          "installed_contract_sha256",
+          "platform"
+        ],
+        "type": "object"
+      },
+      "RecompExecution": {
+        "description": "What the package would run on the player's machine if enabled.",
+        "oneOf": [
+          {
+            "const": "recompiled_code",
+            "description": "Recompiled game code (`mod_binary.bin`/`mod_syms.bin`).",
+            "type": "string"
+          },
+          {
+            "const": "native_libraries",
+            "description": "Host libraries named in `native_libraries`, loaded from the mods folder.",
+            "type": "string"
+          },
+          {
+            "const": "external_code",
+            "description": "An offline package whose code comes from a sibling library file.",
+            "type": "string"
+          }
+        ]
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      },
+      "ThunderstoreDependency": {
+        "description": "One exact Thunderstore dependency coordinate from a version listing.",
+        "properties": {
+          "namespace": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "package",
+          "version"
+        ],
+        "type": "object"
+      },
+      "TypedOrdering": {
+        "additionalProperties": false,
+        "description": "One precedence domain. A loader may need several; no universal number exists.",
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "native_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "domain",
+          "native_ids"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "One bounded step of staging a recipe's missing packages.",
+    "properties": {
+      "acquired": {
+        "description": "Packages this step staged, in order.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "failure": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/RecipeAcquisitionFailure"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Set when the step stopped at a package it could not stage; earlier\nsteps stay staged and are resumed by the next review of this recipe."
+      },
+      "review": {
+        "$ref": "#/$defs/RecipeImportReview"
+      }
+    },
+    "required": [
+      "review",
+      "acquired"
+    ],
+    "title": "RecipeAcquisitionStep",
+    "type": "object"
   },
   "recipe_import_review": {
     "$defs": {
@@ -11756,23 +14552,20 @@
         ],
         "type": "object"
       },
-      "RecipeAcquisitionPlan": {
-        "description": "Private provider staging bound to one exact recipe and expected package.",
+      "RecipeAcquisitionRef": {
+        "additionalProperties": false,
+        "description": "One staged recipe package and the provider plan (by digest) that holds it.",
         "properties": {
           "native_id": {
             "type": "string"
           },
-          "provider_plan": {
-            "$ref": "#/$defs/ProviderInstallPlan"
-          },
-          "recipe_identity_sha256": {
+          "plan_sha256": {
             "type": "string"
           }
         },
         "required": [
-          "recipe_identity_sha256",
           "native_id",
-          "provider_plan"
+          "plan_sha256"
         ],
         "type": "object"
       },
@@ -11799,10 +14592,11 @@
         "type": "object"
       },
       "RecipeImportPlan": {
+        "description": "The provider files a recipe review has staged. Each provider plan is held\nonce, however many of its members the recipe uses, so a shared closure\ncosts its plan once in the review, its records and IPC.",
         "properties": {
           "acquisitions": {
             "items": {
-              "$ref": "#/$defs/RecipeAcquisitionPlan"
+              "$ref": "#/$defs/RecipeAcquisitionRef"
             },
             "type": "array"
           },
@@ -11848,6 +14642,12 @@
             "description": "Missing packages with an exact coordinate that the player can check.",
             "items": {
               "type": "string"
+            },
+            "type": "array"
+          },
+          "provider_plans": {
+            "items": {
+              "$ref": "#/$defs/ProviderInstallPlan"
             },
             "type": "array"
           },
@@ -12266,6 +15066,137 @@
         ],
         "type": "string"
       },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "FailurePresentation": {
         "properties": {
           "mutation_state": {
@@ -12459,6 +15390,15 @@
         ],
         "type": "string"
       },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
       "ReconcileAction": {
         "enum": [
           "up_to_date",
@@ -12617,6 +15557,23 @@
         "properties": {
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
+          },
+          "channel_latest_version": {
+            "description": "The channel's ordinary candidate when it differs from the exact target.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "installed_artifact": {
             "anyOf": [
@@ -12882,9 +15839,14 @@
       "RootSetupFailure": {
         "properties": {
           "attempts": {
+            "description": "Lasting failures of this plan; temporary ones never count here.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
+          },
+          "failure_classified": {
+            "description": "Set when `attempts` was counted by a Portcove that separates temporary\nfrom lasting failures; an older record at the limit gets one more try.",
+            "type": "boolean"
           },
           "plan_sha256": {
             "description": "The install plan, or `source:` and the file, that failed.",
@@ -12895,6 +15857,17 @@
           },
           "reason": {
             "type": "string"
+          },
+          "temporary_retry": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryRetry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the last failure came from a passing condition; the same plan\nruns again after its back-off, without an upstream change."
           }
         },
         "required": [
@@ -12918,6 +15891,101 @@
         "required": [
           "profile_id",
           "port_id"
+        ],
+        "type": "object"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryRetry": {
+        "additionalProperties": false,
+        "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
+        "properties": {
+          "attempted_at": {
+            "description": "Unix seconds this failure was recorded. Unattended passes take games\nwith a pending retry after the others, oldest attempt first. Zero for\nrecords written before it was kept.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "attempts": {
+            "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "kept_downloads": {
+            "additionalProperties": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "For an unclean stop: the kept download bytes when it was recorded.",
+            "type": "object"
+          },
+          "retry_after": {
+            "description": "Unix seconds before which the work is not tried again.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cause",
+          "attempts",
+          "retry_after"
         ],
         "type": "object"
       }
@@ -13009,9 +16077,14 @@
       "RootSetupFailure": {
         "properties": {
           "attempts": {
+            "description": "Lasting failures of this plan; temporary ones never count here.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
+          },
+          "failure_classified": {
+            "description": "Set when `attempts` was counted by a Portcove that separates temporary\nfrom lasting failures; an older record at the limit gets one more try.",
+            "type": "boolean"
           },
           "plan_sha256": {
             "description": "The install plan, or `source:` and the file, that failed.",
@@ -13022,6 +16095,17 @@
           },
           "reason": {
             "type": "string"
+          },
+          "temporary_retry": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryRetry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the last failure came from a passing condition; the same plan\nruns again after its back-off, without an upstream change."
           }
         },
         "required": [
@@ -13045,6 +16129,101 @@
         "required": [
           "profile_id",
           "port_id"
+        ],
+        "type": "object"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryRetry": {
+        "additionalProperties": false,
+        "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
+        "properties": {
+          "attempted_at": {
+            "description": "Unix seconds this failure was recorded. Unattended passes take games\nwith a pending retry after the others, oldest attempt first. Zero for\nrecords written before it was kept.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "attempts": {
+            "description": "Consecutive temporary failures of the same plan with the same cause;\nsets the back-off. A different cause starts the count again.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "kept_downloads": {
+            "additionalProperties": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "For an unclean stop: the kept download bytes when it was recorded.",
+            "type": "object"
+          },
+          "retry_after": {
+            "description": "Unix seconds before which the work is not tried again.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cause",
+          "attempts",
+          "retry_after"
         ],
         "type": "object"
       }
@@ -17591,6 +20770,13 @@
               "null"
             ]
           },
+          "download_keys": {
+            "description": "For an unattended run: the partial-download entries its plan uses.\nAn unclean stop compares only these, so another game's download\nprogress never resets this game's crash-loop count.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "expected_plan_sha256": {
             "type": "string"
           },
@@ -17605,6 +20791,17 @@
           },
           "state": {
             "$ref": "#/$defs/InstallBatchItemState"
+          },
+          "temporary": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set on a failed item whose failure came from a passing condition, so\nunattended setup retries it later instead of counting a lasting failure."
           }
         },
         "required": [
@@ -17648,6 +20845,14 @@
           "cancel_requested": {
             "type": "boolean"
           },
+          "clean_stop_at": {
+            "description": "Unix seconds Portcove recorded that it was closing, restarting or told\nto stop while this unattended batch ran. An item the process then left\nunsettled was stopped cleanly, which never counts as a crash.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "created_at": {
             "format": "int64",
             "type": "integer"
@@ -17690,6 +20895,14 @@
           "newly_ready": {
             "description": "Ready with a plan, or installed with an update, the player has not\nbeen told about yet.",
             "type": "boolean"
+          },
+          "next_attempt_at": {
+            "description": "While a temporary failure waits: the Unix-second instant of the next\nautomatic attempt. Each surface shows it in its own form.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "port_id": {
             "type": "string"
@@ -17981,6 +21194,14 @@
       "RootSetupWaiting": {
         "description": "An eligible-looking file in a consented folder that is waiting for a person\nor a requirement.",
         "properties": {
+          "next_attempt_at": {
+            "description": "While a temporary failure waits: the Unix-second instant of the next\nautomatic attempt.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "port_id": {
             "type": [
               "string",
@@ -18016,6 +21237,82 @@
         "required": [
           "port_id",
           "reason"
+        ],
+        "type": "object"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "game_busy",
+            "description": "Another task was using the game.",
+            "type": "string"
+          },
+          {
+            "const": "file_in_use",
+            "description": "Another program had a file Portcove needed open.",
+            "type": "string"
+          },
+          {
+            "const": "time_budget",
+            "description": "One unattended pass gave this game its whole time budget and moved on\nso other games get a turn; kept bytes continue on the next pass.",
+            "type": "string"
+          },
+          {
+            "const": "inventory_incomplete",
+            "description": "A list Portcove needed (releases, assets, packages) could not be read\ncompletely yet. Incomplete is never treated as absent.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove ended without settling the run (a crash, a forced end or a\npower loss). Consecutive ones of an unchanged plan that made no\ndownload progress become lasting; see [`MAX_CONSECUTIVE_UNCLEAN_STOPS`].",
+            "type": "string"
+          },
+          {
+            "const": "clean_stop",
+            "description": "Portcove was closed, restarted or told to stop, and settled the run\nfirst. Says nothing about the plan: it never counts toward any limit,\nends a run of unclean stops, and continues on the next pass.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryFailure": {
+        "additionalProperties": false,
+        "description": "What a temporary failure was, as recorded where it happened.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "stated_reset": {
+            "description": "Unix seconds the provider said its limit resets, when it said.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cause"
         ],
         "type": "object"
       },
@@ -19731,6 +23028,137 @@
         ],
         "type": "string"
       },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "FailurePresentation": {
         "properties": {
           "mutation_state": {
@@ -19853,6 +23281,15 @@
         ],
         "type": "string"
       },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
       "RecoveryAction": {
         "enum": [
           "review_current_state",
@@ -19969,6 +23406,23 @@
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
           },
+          "channel_latest_version": {
+            "description": "The channel's ordinary candidate when it differs from the exact target.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "installed_artifact": {
             "anyOf": [
               {
@@ -20038,6 +23492,28 @@
           "required_runtime",
           "update_available",
           "release"
+        ],
+        "type": "object"
+      },
+      "UpdateCheckDeferral": {
+        "description": "An update check that did not run because a provider allowance or throttle\nstopped it (a refusal, a deferral within the same bulk check, or a rate-limited\nanswer). The game's update state is unknown, never \"checked\" or \"up to date\";\nthe next bulk check after `resets_at` starts with it.",
+        "properties": {
+          "reset_reported": {
+            "description": "True when the provider reported `resets_at`; false when Portcove estimated it.",
+            "type": "boolean"
+          },
+          "resets_at": {
+            "description": "When the allowance is expected to reopen, in Unix seconds, if known.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "resets_at",
+          "reset_reported"
         ],
         "type": "object"
       },
@@ -20112,7 +23588,18 @@
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "One game's result in a bulk update check. A `deferred` item was not checked:\na provider allowance or throttle stopped it, its update state is unknown, and\nthe next bulk check after `deferred.resets_at` starts with it.",
     "properties": {
+      "deferred": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UpdateCheckDeferral"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "error": {
         "anyOf": [
           {
@@ -20146,7 +23633,7 @@
       "result",
       "error"
     ],
-    "title": "BatchOutcome",
+    "title": "UpdateCheckOutcome",
     "type": "object"
   },
   "workspace_snapshot": {
@@ -20188,6 +23675,66 @@
         "required": [
           "id",
           "login"
+        ],
+        "type": "object"
+      },
+      "AcquisitionRestriction": {
+        "additionalProperties": false,
+        "properties": {
+          "effect": {
+            "$ref": "#/$defs/RestrictionEffect"
+          },
+          "explanation": {
+            "description": "Player-facing explanation; required for a hold and refused for a permit.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "Stable within its carrier; the key for review and transition checks.",
+            "type": "string"
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/$defs/RestrictedOperation"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RestrictionReason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Descriptive; required for a hold and refused for a permit."
+          },
+          "reconsider_when": {
+            "items": {
+              "$ref": "#/$defs/ReconsiderCondition"
+            },
+            "type": "array"
+          },
+          "scope": {
+            "$ref": "#/$defs/RestrictionScope"
+          },
+          "tracking_issue": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "effect",
+          "operations"
         ],
         "type": "object"
       },
@@ -20482,6 +24029,63 @@
           "sha256",
           "size"
         ],
+        "type": "object"
+      },
+      "ArtifactRole": {
+        "description": "What an artifact is. Only [`ArtifactRole::DesktopGameRuntime`] may become a\nlaunch target.",
+        "enum": [
+          "desktop-game-runtime",
+          "desktop-game-data",
+          "dedicated-server",
+          "builder",
+          "installer",
+          "importer",
+          "compiler",
+          "dev-tool",
+          "original-game-input",
+          "mobile-package",
+          "console-output",
+          "documentation",
+          "source-archive",
+          "integrity-metadata",
+          "debug-symbols",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "AssetRules": {
+        "additionalProperties": false,
+        "properties": {
+          "exclude": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "include": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "prerelease": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PrereleaseRule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tag_pattern": {
+            "description": "An exact tag or a literal tag prefix ending in a single asterisk.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
         "type": "object"
       },
       "AuthenticatedDefinitionProvenance": {
@@ -21943,6 +25547,170 @@
         ],
         "type": "string"
       },
+      "ExactReleaseHold": {
+        "additionalProperties": false,
+        "description": "A saved release pin Core cannot use. Update checks and installs for this\nport stay held instead of silently following the channel; choosing Follow\nclears it. Other ports are unaffected.",
+        "properties": {
+          "detail": {
+            "description": "Technical cause for diagnosis; never player copy.",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/$defs/ExactReleaseHoldReason"
+          }
+        },
+        "required": [
+          "reason",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "ExactReleaseHoldReason": {
+        "description": "Why Core cannot use a port's saved release pin as written.",
+        "oneOf": [
+          {
+            "const": "unreadable",
+            "description": "The saved pin cannot be read or lacks a valid package identity.",
+            "type": "string"
+          },
+          {
+            "const": "channel-mismatch",
+            "description": "The saved pin was made for a different channel than the port follows.",
+            "type": "string"
+          }
+        ]
+      },
+      "ExactReleaseIdentity": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "commit_sha1": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "github",
+                "type": "string"
+              },
+              "release_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "provider",
+              "repository_id",
+              "release_id",
+              "asset_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "commit_sha1": {
+                "type": "string"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "package_file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "link_id",
+              "package_file_id",
+              "commit_sha1"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "const": "direct-manifest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExactReleaseSelection": {
+        "additionalProperties": false,
+        "description": "An exact release and package chosen for one port, channel and platform.\nOnly the configured provider can supply their current metadata and download URL.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/$defs/ExactReleaseIdentity"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "description": "Exact upstream tag or declared direct-manifest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "version",
+          "filename",
+          "size",
+          "sha256",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ExternalProfilePolicy": {
         "description": "Closed upstream profile resolution for managed portable players.",
         "enum": [
@@ -22059,6 +25827,133 @@
           "user-selected"
         ],
         "type": "string"
+      },
+      "FactSource": {
+        "description": "Where a fact came from, highest precedence first.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "Machine-readable metadata the release itself publishes.",
+            "properties": {
+              "document": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "release-metadata",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "document"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A reviewed structural observation of these exact archive bytes.",
+            "properties": {
+              "archive_sha256": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "exact-release-structured",
+                "type": "string"
+              },
+              "shape_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "shape_version",
+              "archive_sha256"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Another provider's reviewed record for the same artifact.",
+            "properties": {
+              "kind": {
+                "const": "provider-cross-reference",
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "reference": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "provider",
+              "reference"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A bounded, versioned extractor for one family of releases.",
+            "properties": {
+              "extractor": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "family-extractor",
+                "type": "string"
+              },
+              "version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "extractor",
+              "version"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The catalog's reviewed release selectors for this route.",
+            "properties": {
+              "kind": {
+                "const": "stable-declaration",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Filename tokens only; never authorizing.",
+            "properties": {
+              "kind": {
+                "const": "filename-suggestion",
+                "type": "string"
+              },
+              "rule_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "rule_version"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "FailurePresentation": {
         "properties": {
@@ -22923,8 +26818,36 @@
         ],
         "type": "string"
       },
+      "LaunchPath": {
+        "enum": [
+          "install_root",
+          "user_data",
+          "source",
+          "cache"
+        ],
+        "type": "string"
+      },
+      "LaunchPathValue": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/LaunchPath"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation can use the default game-source registration\nfor edition artwork after fresh byte verification. Omitted when launch can\nuse different bytes or Core cannot establish the default's eligibility.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {
@@ -23029,6 +26952,38 @@
           "blockers",
           "pending_setup"
         ],
+        "type": "object"
+      },
+      "LaunchValue": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/LaunchPathValue"
+          }
+        ]
+      },
+      "LaunchValues": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "description": "Replaces the declaration's static argument list before adapter arguments.",
+            "items": {
+              "$ref": "#/$defs/LaunchValue"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "environment": {
+            "additionalProperties": {
+              "$ref": "#/$defs/LaunchValue"
+            },
+            "type": "object"
+          }
+        },
         "type": "object"
       },
       "LibraryIdentity": {
@@ -23153,6 +27108,35 @@
           "unavailable"
         ],
         "type": "string"
+      },
+      "ListingModPortal": {
+        "additionalProperties": false,
+        "description": "A reviewed link to a mod community for this exact listing.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "site": {
+            "$ref": "#/$defs/ModPortalSite"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "site",
+          "name",
+          "url",
+          "instructions"
+        ],
+        "type": "object"
       },
       "ListingObservationStatus": {
         "enum": [
@@ -23470,6 +27454,47 @@
         ],
         "type": "object"
       },
+      "ModCompanionLayout": {
+        "additionalProperties": false,
+        "description": "Exact companion files one reviewed platform loads beside a Recomp mod.",
+        "properties": {
+          "declared_library": {
+            "description": "Manifest-declared library stem and its exact same-folder dependencies.",
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          }
+        },
+        "required": [
+          "platform",
+          "declared_library",
+          "files"
+        ],
+        "type": "object"
+      },
+      "ModLoaderArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "identity": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "identity"
+        ],
+        "type": "object"
+      },
       "ModLoaderBinding": {
         "additionalProperties": false,
         "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
@@ -23495,6 +27520,52 @@
           "repository": {
             "type": "string"
           },
+          "reviewed_artifacts": {
+            "additionalProperties": false,
+            "description": "Exact retained package identities reviewed for this loader. These facts\nnarrow loader use; they do not select, admit or download an artifact.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/ModLoaderArtifact"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_payload_sha256": {
+            "additionalProperties": false,
+            "description": "SHA-256 of the canonical immutable path, size and SHA-256 inventory\nfrom independently reviewed packages of this loader on each platform.",
+            "properties": {
+              "linux-x86-64": {
+                "type": "string"
+              },
+              "macos-aarch64": {
+                "type": "string"
+              },
+              "macos-x86-64": {
+                "type": "string"
+              },
+              "windows-x86-64": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "settings_file": {
             "type": "string"
           }
@@ -23514,6 +27585,24 @@
           "versioned-packages-v1"
         ],
         "type": "string"
+      },
+      "ModPortalSite": {
+        "description": "Community mod sites that a link-out portal may point to. The host for each\nsite is fixed in Core; a definition cannot choose another host.",
+        "oneOf": [
+          {
+            "enum": [
+              "nexus_mods",
+              "mod_io",
+              "mod_db"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "community_site",
+            "description": "A site run for one game's community. Any public HTTPS host.",
+            "type": "string"
+          }
+        ]
       },
       "ModProviderBinding": {
         "description": "Exact provider-side scope from a reviewed definition.",
@@ -23551,6 +27640,169 @@
             "required": [
               "provider",
               "community"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ModSource": {
+        "additionalProperties": false,
+        "description": "One catalog-declared mod source for a port.",
+        "properties": {
+          "authority": {
+            "$ref": "#/$defs/ModSourceAuthority"
+          },
+          "id": {
+            "description": "Stable within the port. Clients address the source by this ID.",
+            "type": "string"
+          },
+          "instructions": {
+            "description": "Catalog-authored setup guide shown beside the link. Not used for GitHub releases.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "Player-facing name of the site or collection. Not used for GitHub releases.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "description": "Host platforms the source is offered on, in sorted order.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "source": {
+            "$ref": "#/$defs/ModSourceKind"
+          }
+        },
+        "required": [
+          "id",
+          "authority",
+          "platforms",
+          "source"
+        ],
+        "type": "object"
+      },
+      "ModSourceAuthority": {
+        "description": "The most a declared source may do. The order is meaningful: each level\nincludes the levels before it.",
+        "oneOf": [
+          {
+            "const": "link_out",
+            "description": "Open the source's own page in the player's browser.",
+            "type": "string"
+          },
+          {
+            "const": "browse",
+            "description": "Also read a bounded, attributed listing from the provider.",
+            "type": "string"
+          },
+          {
+            "const": "inspect",
+            "description": "Also download one exact file privately and inspect it. Inspection is\nnever an install plan.",
+            "type": "string"
+          }
+        ]
+      },
+      "ModSourceKind": {
+        "description": "The typed kinds of mod source. A new kind needs a new named definition\nfeature, so older readers refuse only the definition that uses it.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "A page on a community mod site. Link-out only.",
+            "properties": {
+              "kind": {
+                "const": "external_portal",
+                "type": "string"
+              },
+              "site": {
+                "$ref": "#/$defs/ModPortalSite"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "site",
+              "url"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The Quaddicted database, read through its public API.",
+            "properties": {
+              "engine": {
+                "$ref": "#/$defs/QuakeEngine"
+              },
+              "kind": {
+                "const": "quaddicted",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "engine"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "One Mod DB files collection and its RSS feed.",
+            "properties": {
+              "kind": {
+                "const": "mod_db_feed",
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "url"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Releases of one public GitHub repository, identified by its numeric ID.",
+            "properties": {
+              "asset_name": {
+                "description": "The exact release asset name.",
+                "type": "string"
+              },
+              "companions": {
+                "description": "Reviewed per-platform companion files. Required for `inspect`.",
+                "items": {
+                  "$ref": "#/$defs/ModCompanionLayout"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "github_release",
+                "type": "string"
+              },
+              "repository": {
+                "type": "string"
+              },
+              "repository_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "repository",
+              "repository_id",
+              "asset_name"
             ],
             "type": "object"
           }
@@ -23787,6 +28039,162 @@
         ],
         "type": "object"
       },
+      "PackageFormat": {
+        "enum": [
+          "zip",
+          "tar.gz",
+          "tar.xz",
+          "7z"
+        ],
+        "type": "string"
+      },
+      "PendingSetupBinding": {
+        "additionalProperties": false,
+        "description": "The exact facts a stage belongs to. A change invalidates the stage.",
+        "properties": {
+          "artifact_role": {
+            "$ref": "#/$defs/ArtifactRole",
+            "description": "Typed route fact for the downloaded artifact. A filename suggestion\ndescribes it; it never authorizes a runtime."
+          },
+          "definition_sha256": {
+            "description": "Digest of the catalog content this setup depends on: the retained\nsigned definition entry and its contracts when one is selected, else\nthe documented setup fields of the embedded definition, else their\nabsence for a listing-only project. It never covers Portcove's own\nserialization of a definition, so an application update alone keeps\nthe binding.",
+            "type": "string"
+          },
+          "retained": {
+            "$ref": "#/$defs/RetainedSetupBytes"
+          },
+          "role_source": {
+            "$ref": "#/$defs/FactSource"
+          },
+          "source_url": {
+            "description": "Upstream project or release address of the retained listing.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_url",
+          "definition_sha256",
+          "artifact_role",
+          "role_source",
+          "retained"
+        ],
+        "type": "object"
+      },
+      "PendingSetupInvalidation": {
+        "description": "A fact that makes this setup route itself invalid. A newer upstream\nrelease is not one; Core reports it as a notice instead.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The current listing names another upstream source.",
+            "properties": {
+              "current_source_url": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "source-changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "current_source_url"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The catalog content this setup depends on changed.",
+            "properties": {
+              "kind": {
+                "const": "definition-changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A download restriction now holds for these exact bytes.",
+            "properties": {
+              "explanation": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "restriction-holds",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "explanation"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Typed route facts now give the artifact a different role.",
+            "properties": {
+              "current_role": {
+                "$ref": "#/$defs/ArtifactRole"
+              },
+              "kind": {
+                "const": "artifact-role-changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "current_role"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The retained package or its receipt changed or is missing.",
+            "properties": {
+              "kind": {
+                "const": "retained-bytes-changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PendingSetupProgress": {
+        "additionalProperties": false,
+        "description": "Where the player is in an upstream setup, and what that place is bound to.",
+        "properties": {
+          "binding": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PendingSetupBinding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Absent only on the read-time mapping of a format 1 or 2 record. Core\nbinds it to the current facts when the player first moves the setup\npast `artifact-obtained`."
+          },
+          "stage": {
+            "$ref": "#/$defs/PendingSetupStage"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "updated_at"
+        ],
+        "type": "object"
+      },
       "PendingSetupRecord": {
         "additionalProperties": false,
         "properties": {
@@ -23818,6 +28226,17 @@
           "port_id": {
             "type": "string"
           },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PendingSetupProgress"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the player is in the upstream setup that follows the download.\nPublication writes format 1 or 2 without it, which earlier releases\nread; Core maps a finished download to `artifact-obtained` on read\nwithout writing it back. Format 3 persists it only once the player\nmoves the setup past that stage."
+          },
           "reason": {
             "type": [
               "string",
@@ -23840,6 +28259,118 @@
           "reason"
         ],
         "type": "object"
+      },
+      "PendingSetupStage": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The verified package is retained; nothing has been run. Never stored:\nit is the read-time stage of a format 1 or 2 record.",
+            "properties": {
+              "stage": {
+                "const": "artifact-obtained",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The player opened the setup folder or the retained setup guide.",
+            "properties": {
+              "handoff": {
+                "$ref": "#/$defs/UpstreamSetupHandoff"
+              },
+              "opened_at": {
+                "type": "string"
+              },
+              "stage": {
+                "const": "upstream-setup-opened",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "handoff",
+              "opened_at"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The player chose the resulting program and Core checked it.",
+            "properties": {
+              "selection": {
+                "$ref": "#/$defs/SelectedSetupResult"
+              },
+              "stage": {
+                "const": "final-selected",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "selection"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The player confirmed this registration plan.",
+            "properties": {
+              "preview_sha256": {
+                "type": "string"
+              },
+              "selection": {
+                "$ref": "#/$defs/SelectedSetupResult"
+              },
+              "stage": {
+                "const": "registration-reviewed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "selection",
+              "preview_sha256"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A bound fact changed; the earlier stage cannot continue.",
+            "properties": {
+              "previous": {
+                "$ref": "#/$defs/PendingSetupStageKind"
+              },
+              "reason": {
+                "$ref": "#/$defs/PendingSetupInvalidation"
+              },
+              "stage": {
+                "const": "invalidated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "previous",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PendingSetupStageKind": {
+        "enum": [
+          "artifact-obtained",
+          "upstream-setup-opened",
+          "final-selected",
+          "registration-reviewed",
+          "invalidated"
+        ],
+        "type": "string"
       },
       "PendingSetupState": {
         "enum": [
@@ -23964,6 +28495,17 @@
           },
           "reason": {
             "$ref": "#/$defs/PortActionReason"
+          },
+          "restriction": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RestrictionReason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The descriptive reason of the acquisition restriction that holds this action."
           }
         },
         "required": [
@@ -24113,6 +28655,17 @@
                 "type": "null"
               }
             ]
+          },
+          "pending_setup_stage": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PendingSetupStageKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The setup stage the player reached; absent while a download is not\nfinished or no setup is pending."
           },
           "port_id": {
             "type": "string"
@@ -24389,6 +28942,16 @@
               }
             ]
           },
+          "managed_runtime_applies_to": {
+            "description": "Exact reviewed packages using this existing managed runtime behavior.",
+            "items": {
+              "$ref": "#/$defs/RuntimePolicyArtifact"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "managed_shared_preferences": {
             "anyOf": [
               {
@@ -24443,6 +29006,13 @@
               "array",
               "null"
             ]
+          },
+          "mod_sources": {
+            "description": "Catalog-declared mod sources and the authority each one carries. None\nof them can install: install authority comes only from\n`mod_provider_bindings`.",
+            "items": {
+              "$ref": "#/$defs/ModSource"
+            },
+            "type": "array"
           },
           "n64_runtime_at_executable_parent": {
             "description": "Keep a reviewed N64 package's runtime and data beside its selected player,\nincluding when upstream changes the outer archive wrapper name.",
@@ -24506,6 +29076,16 @@
           "release": {
             "$ref": "#/$defs/ReleaseSpec"
           },
+          "reviewed_launch_contract_v1": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReviewedLaunchContractV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reviewed_package_layouts": {
             "additionalProperties": false,
             "description": "Bounded fingerprint of the reviewed package layout for each platform. A\nrelease that still matches the asset selector but extracts to a different\nlayout is held for review instead of installing as an ordinary update.",
@@ -24521,6 +29101,37 @@
               },
               "windows-x86-64": {
                 "$ref": "#/$defs/ReviewedPackageLayout"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_predecessor_package_layouts_v1": {
+            "additionalProperties": false,
+            "description": "Alternate full layouts for exact independently resolved GitHub artifacts.\nThey never select a package or authorize an acquisition.",
+            "properties": {
+              "linux-x86-64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              },
+              "macos-aarch64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              },
+              "macos-x86-64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              },
+              "windows-x86-64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
               }
             },
             "type": "object"
@@ -24860,7 +29471,7 @@
             "type": "object"
           },
           "download_block_reason": {
-            "description": "A reviewed restriction on fresh self-service downloads only. It grants\nno execution, management or permission over an existing copy.",
+            "description": "Legacy projection of `restrictions` for older readers: the explanation\nof the first hold naming Download. It grants nothing.",
             "type": [
               "string",
               "null"
@@ -24910,6 +29521,13 @@
           "media": {
             "items": {
               "$ref": "#/$defs/CatalogMediaAsset"
+            },
+            "type": "array"
+          },
+          "mod_portals": {
+            "description": "Reviewed community links for this listing. Requires listing format 16.",
+            "items": {
+              "$ref": "#/$defs/ListingModPortal"
             },
             "type": "array"
           },
@@ -24969,6 +29587,13 @@
               "string",
               "null"
             ]
+          },
+          "restrictions": {
+            "description": "Typed acquisition restrictions. Requires listing format 14.",
+            "items": {
+              "$ref": "#/$defs/AcquisitionRestriction"
+            },
+            "type": "array"
           },
           "setup_url": {
             "type": [
@@ -25334,6 +29959,28 @@
             },
             "type": "array"
           },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "User-selected exact release, when this port does not follow its channel."
+          },
+          "exact_release_hold": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseHold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A saved pin Core cannot use. Checks and installs for this port stay held\nuntil the player follows the channel again; other ports are unaffected."
+          },
           "external_runtime": {
             "anyOf": [
               {
@@ -25475,6 +30122,14 @@
           }
         ]
       },
+      "PrereleaseRule": {
+        "enum": [
+          "flag",
+          "markers",
+          "never"
+        ],
+        "type": "string"
+      },
       "ProtectionCollectionState": {
         "oneOf": [
           {
@@ -25561,6 +30216,13 @@
           "missing",
           "unsafe",
           "unreadable"
+        ],
+        "type": "string"
+      },
+      "QuakeEngine": {
+        "enum": [
+          "vk_quake",
+          "ironwail"
         ],
         "type": "string"
       },
@@ -25731,6 +30393,19 @@
         ],
         "type": "object"
       },
+      "ReconsiderCondition": {
+        "description": "Descriptive condition for reconsidering a decision. Never evaluated.",
+        "enum": [
+          "attributable-grant",
+          "clean-upstream-package",
+          "owned-input-preparation",
+          "publisher-checksum",
+          "reviewed-successor-release",
+          "upstream-route-change",
+          "owner-review"
+        ],
+        "type": "string"
+      },
       "RecoveryAction": {
         "enum": [
           "review_current_state",
@@ -25803,6 +30478,7 @@
         "enum": [
           "github",
           "gitlab",
+          "reviewed-forge",
           "direct-manifest",
           "user-prepared"
         ],
@@ -26046,6 +30722,202 @@
         ],
         "type": "object"
       },
+      "RestrictedArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "RestrictedComponent": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "bundled-runtime",
+                "type": "string"
+              },
+              "platform": {
+                "$ref": "#/$defs/Platform"
+              }
+            },
+            "required": [
+              "kind",
+              "platform"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "tool-artifact",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RestrictedOperation": {
+        "description": "Removal, rollback and backup are deliberately absent: a restriction never\nblocks removing or recovering the player's own state.",
+        "enum": [
+          "download",
+          "install",
+          "update",
+          "adopt",
+          "activate",
+          "prepare",
+          "register-external",
+          "launch"
+        ],
+        "type": "string"
+      },
+      "RestrictionEffect": {
+        "enum": [
+          "hold",
+          "permit"
+        ],
+        "type": "string"
+      },
+      "RestrictionReason": {
+        "description": "Descriptive classification of why a hold exists. Never evaluated.",
+        "oneOf": [
+          {
+            "enum": [
+              "bundled-game-data",
+              "upstream-owned-route",
+              "package-facts-unresolved",
+              "legacy-rights-review",
+              "no-useful-route",
+              "upstream-prohibition",
+              "safety-evidence-mismatch",
+              "third-party-component-terms",
+              "known-defective-artifact",
+              "upstream-transition-unreviewed"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "legacy-unclassified",
+            "description": "Reader-only normalization of an untyped legacy restriction.",
+            "type": "string"
+          }
+        ]
+      },
+      "RestrictionScope": {
+        "additionalProperties": false,
+        "description": "Each empty list leaves that dimension unconstrained.",
+        "properties": {
+          "artifacts": {
+            "items": {
+              "$ref": "#/$defs/RestrictedArtifact"
+            },
+            "type": "array"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/$defs/RestrictedComponent"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "description": "Source catalog identity or profile ids.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "releases": {
+            "description": "Exact release versions or tags.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "RetainedSetupBytes": {
+        "description": "Verified bytes the setup folder retains.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The downloaded package itself, kept unextracted in the setup folder.",
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "package",
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "size": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "file",
+              "sha256",
+              "size"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Files extracted from the package; the publication receipt binds them\nto the downloaded archive digest.",
+            "properties": {
+              "archive_sha256": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "extracted",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "archive_sha256"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "ReviewedHoldArtifact": {
         "additionalProperties": false,
         "properties": {
@@ -26060,6 +30932,73 @@
           "version",
           "sha256"
         ],
+        "type": "object"
+      },
+      "ReviewedLaunchContractV1": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_rules": {
+            "additionalProperties": false,
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/AssetRules"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/AssetRules"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/AssetRules"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/AssetRules"
+              }
+            },
+            "type": "object"
+          },
+          "environment_prefix": {
+            "description": "Optional restatement of the environment name prefix derived from the\nport ID: its ASCII letters and digits, uppercased, followed by `_`. A\nstem over 32 characters keeps its first 24 characters followed by the\nfirst 8 uppercase hexadecimal digits of the SHA-256 of the port ID. Any\nother value is refused.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "launch": {
+            "additionalProperties": false,
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/LaunchValues"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/LaunchValues"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/LaunchValues"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/LaunchValues"
+              }
+            },
+            "type": "object"
+          },
+          "package_format": {
+            "additionalProperties": false,
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/PackageFormat"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/PackageFormat"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/PackageFormat"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/PackageFormat"
+              }
+            },
+            "type": "object"
+          }
+        },
         "type": "object"
       },
       "ReviewedPackageChoicesV2": {
@@ -26118,6 +31057,48 @@
         "required": [
           "directories",
           "executables"
+        ],
+        "type": "object"
+      },
+      "ReviewedPredecessorPackageLayout": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "layout": {
+            "$ref": "#/$defs/ReviewedPackageLayout"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository_id",
+          "release_id",
+          "asset_id",
+          "tag",
+          "channel",
+          "artifact",
+          "layout"
         ],
         "type": "object"
       },
@@ -26211,6 +31192,28 @@
         ],
         "type": "string"
       },
+      "RuntimePolicyArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "RuntimeSourceMaterialization": {
         "oneOf": [
           {
@@ -26280,6 +31283,48 @@
           "external-user-owned"
         ],
         "type": "string"
+      },
+      "SelectedSetupResult": {
+        "additionalProperties": false,
+        "description": "Identity facts of the program the player chose, as Core checked them.",
+        "properties": {
+          "arguments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "executable_sha256": {
+            "type": "string"
+          },
+          "executable_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "selected_at": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "working_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "executable",
+          "working_directory",
+          "arguments",
+          "executable_sha256",
+          "executable_size",
+          "version",
+          "selected_at"
+        ],
+        "type": "object"
       },
       "SetupDownloadSelection": {
         "description": "The exact download reviewed during a user-selected setup or replacement.",
@@ -27793,6 +32838,23 @@
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
           },
+          "channel_latest_version": {
+            "description": "The channel's ordinary candidate when it differs from the exact target.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exact_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "installed_artifact": {
             "anyOf": [
               {
@@ -27957,6 +33019,43 @@
           "archived"
         ],
         "type": "object"
+      },
+      "UpstreamSetupHandoff": {
+        "description": "What the player opened. Portcove never runs the upstream installer itself\nfrom a pending setup.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The retained setup folder was opened.",
+            "properties": {
+              "kind": {
+                "const": "folder",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The retained upstream setup guide was opened.",
+            "properties": {
+              "kind": {
+                "const": "guide",
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "url"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "UpstreamStatus": {
         "enum": [

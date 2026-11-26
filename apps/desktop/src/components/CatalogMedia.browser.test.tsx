@@ -7,7 +7,8 @@ import { desktopApi, type DesktopArtworkThumbnail } from "../api";
 import type { ArtworkSlot, ArtworkState, CatalogMediaAsset, PortListing } from "../types";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { artworkState, portDefinition } from "../test-fixtures";
-import { GameHero } from "./GameHero";
+import { GameHero, GameHeroFramingPreview } from "./GameHero";
+import { ArtworkControls } from "./Artwork";
 import { CatalogMediaGallery } from "./CatalogMedia";
 import { DetailLayout } from "./DetailLayout";
 import "../styles/index.css";
@@ -105,6 +106,7 @@ it("reserves no gallery for absent media", async () => {
   expect(read).not.toHaveBeenCalled();
 });
 
+// The hosted shard reached the first enabled thumbnail near its 15 s deadline.
 it("lets players browse reviewed releases without an applicable installed edition", async () => {
   const release = (id: string, title: string) => ({
     id,
@@ -151,13 +153,14 @@ it("lets players browse reviewed releases without an applicable installed editio
   const viewport = { width: window.innerWidth, height: window.innerHeight };
   await page.viewport(390, 844);
   try {
-    const view = (images: CatalogMediaAsset[], id = port.id) => (
+    const view = (images: CatalogMediaAsset[], id = port.id, originalEditionId?: string) => (
       <ArtworkProvider generation={7} listings={directory(images)}>
         <button type="button" id="gallery-detail-back">
           Back to game details
         </button>
         <CatalogMediaGallery
           port={{ ...port, id, presentation: { ...port.presentation, media: images } }}
+          context={{ originalEditionId }}
           fallbackFocus={() => document.getElementById("gallery-detail-back")}
         />
       </ArtworkProvider>
@@ -169,6 +172,14 @@ it("lets players browse reviewed releases without an applicable installed editio
       .element(picker)
       .toHaveAccessibleName("Screenshot source Choose an original release");
     expect(read).not.toHaveBeenCalled();
+    await galleryView.rerender(view(media, port.id, "us"));
+    const automaticallyMatched = gallery.getByRole("button", {
+      name: /Enlarge screenshot 1: North American/,
+    });
+    await expect.element(automaticallyMatched).toBeEnabled();
+    await expect.element(picker).toHaveAccessibleName("Screenshot source Available screenshots");
+    await galleryView.rerender(view(media));
+    await expect.element(automaticallyMatched).not.toBeInTheDocument();
     await picker.click();
     await expect.poll(() => page.getByRole("option").elements()).toHaveLength(3);
     await page.getByRole("option", { name: usTitle, exact: true }).click();
@@ -190,6 +201,10 @@ it("lets players browse reviewed releases without an applicable installed editio
     await expect.element(european).toBeEnabled();
     await expect.element(thumbnail).not.toBeInTheDocument();
     expect(read.mock.calls.map(([, id]) => id)).toEqual(["us-scene", "eu-scene"]);
+    await galleryView.rerender(view(media, port.id, "us"));
+    await expect.element(european).toBeEnabled();
+    await expect.element(thumbnail).not.toBeInTheDocument();
+    await expect.element(picker).toHaveAccessibleName(`Screenshot source ${euTitle}`);
 
     await european.click();
     const europeanViewer = page.getByRole("dialog", { name: "European scene" });
@@ -256,7 +271,7 @@ it("lets players browse reviewed releases without an applicable installed editio
   } finally {
     await page.viewport(viewport.width, viewport.height);
   }
-});
+}, 45_000);
 
 for (const theme of ["dark", "light"] as const) {
   for (const width of [320, 740, 1440]) {
@@ -585,6 +600,59 @@ it("prefers the admitted header over automatic artwork and credits only the imag
   expect(document.querySelector(".media-credit")).toBeNull();
 });
 
+it("uses the saved Background crop for each hero's available width", async () => {
+  const port = portDefinition();
+  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) => {
+    if (slot !== "detail") return artworkState(id, slot);
+    const selected = artworkState(id, slot, 3, true);
+    return {
+      ...selected,
+      choice: {
+        ...selected.choice,
+        framing: { version: "v1", wide: { x: 2000, y: 6500 }, narrow: { x: 9000, y: 4300 } },
+      },
+    };
+  });
+  vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async (_id, _slot, revision) => ({
+    asset_sha256: "a".repeat(64),
+    choice_revision: revision,
+    png_base64: headerPng,
+  }));
+
+  await page.viewport(1200, 900);
+  await render(
+    <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
+      <div style={{ width: 640 }}>
+        <GameHero port={port} variant="detail">
+          <h1>{port.name}</h1>
+        </GameHero>
+      </div>
+      <div style={{ width: 400 }}>
+        <GameHero port={port} variant="continue">
+          <button>Continue Sample</button>
+        </GameHero>
+      </div>
+    </ArtworkProvider>,
+  );
+  const background = (variant: "detail" | "continue") =>
+    document.querySelector<HTMLImageElement>(`.game-hero-${variant} .game-hero-background img`);
+  const position = (variant: "detail" | "continue") => {
+    const image = background(variant);
+    return image ? getComputedStyle(image).objectPosition : undefined;
+  };
+  await expect.poll(() => position("detail")).toBe("20% 65%");
+  await expect.poll(() => position("continue")).toBe("90% 43%");
+
+  const detail = background("detail")?.closest(".game-hero")?.parentElement;
+  const continuation = background("continue")?.closest(".game-hero")?.parentElement;
+  if (!detail || !continuation) throw new Error("Hero containers did not render");
+  detail.style.width = "400px";
+  continuation.style.width = "640px";
+  await expect.poll(() => position("detail")).toBe("90% 43%");
+  await expect.poll(() => position("continue")).toBe("20% 65%");
+  await expect.element(page.getByRole("button", { name: "Continue Sample" })).toBeVisible();
+});
+
 it("keeps a selected local header ahead of an admitted remote header and the automatic portrait", async () => {
   const header = { ...image("header"), role: "header" as const };
   const read = vi.spyOn(desktopApi, "catalogMediaThumbnail");
@@ -613,6 +681,120 @@ it("keeps a selected local header ahead of an admitted remote header and the aut
   expect(thumbnail).toHaveBeenCalledWith("sample", "detail", 3, 7);
   expect(read).not.toHaveBeenCalled();
   expect(document.querySelector(".media-credit")).toBeNull();
+});
+
+it("returns to the admitted catalog logo after resetting the explicit Logo choice", async () => {
+  const { port, logo, logoBytes } = controlledHeroMedia();
+  const chosenLogoBytes = controlledHeroMedia(true).logoBytes;
+  let chosen = artworkState(port.id, "logo", 5, true);
+  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
+    slot === "logo" ? chosen : artworkState(id, slot),
+  );
+  vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async () => ({
+    asset_sha256: chosen.choice.asset_sha256!,
+    choice_revision: 5,
+    png_base64: chosenLogoBytes,
+  }));
+  const catalog = vi.spyOn(desktopApi, "catalogMediaThumbnail").mockImplementation(async () => ({
+    asset_sha256: logo.sha256,
+    choice_revision: 0,
+    png_base64: logoBytes,
+  }));
+  const reset = vi.spyOn(desktopApi, "resetArtwork").mockImplementation(async (id, slot) => {
+    chosen = artworkState(id, slot, 6);
+    return chosen;
+  });
+  await page.viewport(1200, 900);
+  await render(
+    <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
+      <GameHero port={port} variant="detail">
+        <h1>{port.name}</h1>
+      </GameHero>
+      <ArtworkControls port={port} Preview={GameHeroFramingPreview} />
+    </ArtworkProvider>,
+  );
+  const foreground = () => document.querySelector<HTMLImageElement>(".game-hero-image")?.src;
+  await expect.poll(foreground).toBe(`data:image/png;base64,${chosenLogoBytes}`);
+  expect(catalog).not.toHaveBeenCalled();
+  await page.getByRole("button", { name: "Change artwork", exact: true }).click();
+  await page.getByRole("tab", { name: "Logo", exact: true }).click();
+  await page.getByRole("button", { name: "Use automatic", exact: true }).click();
+  expect(reset).not.toHaveBeenCalled();
+  await page
+    .getByRole("form", { name: "Review artwork change", exact: true })
+    .getByRole("button", { name: "Apply", exact: true })
+    .click();
+  expect(reset).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 5, 7);
+  await expect.poll(foreground).toBe(`data:image/png;base64,${logoBytes}`);
+  expect(catalog).toHaveBeenCalledExactlyOnceWith(port.id, logo.id, logo.sha256, 7);
+});
+
+it("hides a cached catalog logo without hiding the background and restores it on request", async () => {
+  const { port, logo, logoBytes } = controlledHeroMedia();
+  let preference = artworkState(port.id, "logo");
+  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
+    slot === "logo" ? preference : artworkState(id, slot, 1, slot === "detail"),
+  );
+  vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async (id, slot, revision) => ({
+    asset_sha256: artworkState(id, slot, revision, true).choice.asset_sha256!,
+    choice_revision: revision,
+    png_base64: png,
+  }));
+  vi.spyOn(desktopApi, "catalogMediaThumbnail").mockImplementation(async () => ({
+    asset_sha256: logo.sha256,
+    choice_revision: 0,
+    png_base64: logoBytes,
+  }));
+  const hide = vi.spyOn(desktopApi, "suppressArtwork").mockImplementation(async (id, slot) => {
+    preference = artworkState(id, slot, 1);
+    preference.choice.suppressed = true;
+    return preference;
+  });
+  const restore = vi.spyOn(desktopApi, "unhideArtwork").mockImplementation(async (id, slot) => {
+    preference = artworkState(id, slot, 2);
+    return preference;
+  });
+  const reset = vi.spyOn(desktopApi, "resetArtwork");
+  await page.viewport(1200, 900);
+  await render(
+    <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
+      <GameHero port={port} variant="detail">
+        <h1>{port.name}</h1>
+      </GameHero>
+      <ArtworkControls port={port} Preview={GameHeroFramingPreview} />
+    </ArtworkProvider>,
+  );
+  const foreground = () => document.querySelector<HTMLImageElement>(".game-hero-image")?.src;
+  const background = () =>
+    document.querySelector<HTMLImageElement>(".game-hero-background img")?.src;
+  await expect.poll(foreground).toBe(`data:image/png;base64,${logoBytes}`);
+  await expect.poll(background).toBe(`data:image/png;base64,${png}`);
+  await page.getByRole("button", { name: "Change artwork", exact: true }).click();
+  await page.getByRole("tab", { name: "Logo", exact: true }).click();
+  const hideControl = page.getByRole("button", { name: "Hide artwork", exact: true });
+  const automatic = page.getByRole("button", { name: "Use automatic", exact: true });
+  await expect.element(automatic).toBeDisabled();
+  const apply = page
+    .getByRole("form", { name: "Review artwork change", exact: true })
+    .getByRole("button", { name: "Apply", exact: true });
+  await hideControl.click();
+  expect(hide).not.toHaveBeenCalled();
+  expect(foreground()).toBe(`data:image/png;base64,${logoBytes}`);
+  await apply.click();
+  expect(hide).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 0, 7);
+  await expect.poll(foreground).toBeUndefined();
+  expect(background()).toBe(`data:image/png;base64,${png}`);
+  expect(document.querySelector(".game-hero-credits .media-credit")).toBeNull();
+  const showControl = page.getByRole("button", { name: "Show artwork", exact: true });
+  await expect.element(showControl).toHaveFocus();
+  await expect.element(automatic).toBeEnabled();
+  await userEvent.keyboard("{Enter}");
+  expect(restore).not.toHaveBeenCalled();
+  await apply.click();
+  expect(restore).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 1, 7);
+  await expect.poll(foreground).toBe(`data:image/png;base64,${logoBytes}`);
+  await expect.element(hideControl).toHaveFocus();
+  expect(reset).not.toHaveBeenCalled();
 });
 
 function controlledHeroMedia(compactLogo = false) {

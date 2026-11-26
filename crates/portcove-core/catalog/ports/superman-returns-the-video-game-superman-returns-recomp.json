@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "superman-returns-the-video-game-superman-returns-recomp",
+    "project_url": "https://github.com/MrPowerUp82/superman_returns_recomp",
+    "name": "Superman Returns: The Video Game / Superman Returns Recomp (MrPowerUp82)",
+    "summary": "Projeto experimental de recompilação estática da versão Xbox 360 de Superman Returns para PC com ReXGlue",
+    "issue_number": 7239,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "superman-returns-the-video-game",
+      "evidence_urls": ["https://github.com/MrPowerUp82/superman_returns_recomp"],
+      "source_editions": [
+        {
+          "id": "superman-returns-the-video-game-xbox-360",
+          "title": "Superman Returns: The Video Game (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/MrPowerUp82/superman_returns_recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Superman Returns: The Video Game"
+  }
+}

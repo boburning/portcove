@@ -4,9 +4,14 @@
 use super::catalog_download_provider::{CatalogDownloadProvider, CatalogDownloadRepository};
 use super::user_selected::managed_overlap_key;
 use super::*;
+
 #[cfg(test)]
 use crate::GithubReleaseProvider;
 use crate::PortListing;
+use crate::acquisition_restriction::{
+    EffectiveRestrictions, Knowledge, Phase, RestrictedOperation, RestrictionSubject,
+    SubjectArtifact,
+};
 use rusqlite::{TransactionBehavior, params};
 
 const RECORD_LIMIT: usize = 64 * 1024;
@@ -14,9 +19,41 @@ const RECORDS_LIMIT: usize = 10_000;
 const TOTAL_RECORD_BYTES: usize = 8 * 1024 * 1024;
 const RECEIPT_NAME: &str = ".portcove-download.json";
 
+/// One upstream package as a download restriction subject. An offer may judge
+/// a provider-reported digest; only the final check on downloaded bytes can
+/// let a permit decide.
+fn download_artifact_subject<'a>(
+    release_tag: &'a str,
+    asset_name: &'a str,
+    sha256: Option<&'a str>,
+    phase: Phase,
+) -> RestrictionSubject<'a> {
+    let mut subject = RestrictionSubject::deferred(RestrictedOperation::Download).on_current_host();
+    subject.release = Knowledge::Known(release_tag);
+    if let Some(sha256) = sha256 {
+        subject = subject.artifact(SubjectArtifact {
+            version: release_tag,
+            sha256,
+            asset_name: Some(asset_name),
+        });
+    }
+    if phase == Phase::Final {
+        subject = subject.final_check();
+    }
+    subject
+}
+
 #[cfg(test)]
 #[path = "catalog_download_tests.rs"]
 mod tests;
+
+#[path = "pending_setup_stage.rs"]
+mod stage;
+pub use stage::{
+    PendingSetupBinding, PendingSetupInvalidation, PendingSetupMessage, PendingSetupProgress,
+    PendingSetupStage, PendingSetupStageKind, RetainedSetupBytes, SelectedSetupResult,
+    UpstreamSetupHandoff, pending_setup_message,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -199,6 +236,13 @@ pub struct PendingSetupRecord {
     pub archive_sha256: String,
     pub downloaded_at: String,
     pub reason: Option<String>,
+    /// Where the player is in the upstream setup that follows the download.
+    /// Publication writes format 1 or 2 without it, which earlier releases
+    /// read; Core maps a finished download to `artifact-obtained` on read
+    /// without writing it back. Format 3 persists it only once the player
+    /// moves the setup past that stage.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub progress: Option<PendingSetupProgress>,
 }
 
 impl PendingSetupRecord {
@@ -255,13 +299,18 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
         .artifact
         .release_id
         .require_tag(&record.artifact.release_tag)?;
-    let expected_format = if record.artifact.release_id.github_id().is_some() {
+    // Format 3 carries a bound setup stage for either provider; the typed
+    // release identity names the provider. Formats 1 and 2 have no stage.
+    let expected_format = if record.progress.is_some() {
+        stage::STAGED_RECORD_FORMAT
+    } else if record.artifact.release_id.github_id().is_some() {
         1
     } else {
         2
     };
     if record.format_version != expected_format
         || crate::catalog::listings::has_verified_source_editions(&record.listing)
+        || !record.listing.mod_portals.is_empty()
     {
         return Err(PortcoveError::unsupported(
             "pending setup record format does not match its provider or listing fields",
@@ -276,6 +325,7 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     {
         validate_retained_gitlab_source(record, *project_id, tag, *file_id)?;
     }
+    stage::validate_progress(record)?;
     if record.port_id != record.listing.id
         || Uuid::parse_str(&record.id).is_err()
         || !record.path.is_absolute()
@@ -387,8 +437,9 @@ fn validate_retained_gitlab_source(
 }
 
 fn encoded_download_record(record: &PendingSetupRecord) -> Result<String> {
-    validate_record(record)?;
-    let json = serde_json::to_string(record)?;
+    let record = stage::storage_form(record);
+    validate_record(&record)?;
+    let json = serde_json::to_string(&*record)?;
     if json.len() > RECORD_LIMIT {
         return Err(PortcoveError::conflict(
             "pending setup record exceeds its UTF-8 byte limit",
@@ -452,8 +503,9 @@ fn stored_downloads_from(connection: &rusqlite::Connection) -> Result<Vec<Stored
         }
         let _: crate::definition_entry::strict_json::UniqueValue =
             serde_json::from_str(&record_json)?;
-        let record: PendingSetupRecord = serde_json::from_str(&record_json)?;
+        let mut record: PendingSetupRecord = serde_json::from_str(&record_json)?;
         validate_record(&record)?;
+        stage::map_legacy_stage(&mut record);
         if record.port_id != port_id
             || record.id != id
             || !is_digest(&preview_sha256)
@@ -503,6 +555,21 @@ impl PortcoveService {
             .map(|stored| (stored.record, stored.record_json)))
     }
 
+    /// Ports that have a pending manual setup row, optionally for one port.
+    /// A read observation only; mutations recheck inside their transactions.
+    pub(crate) fn pending_download_port_ids_from(
+        connection: &rusqlite::Connection,
+        port_id: Option<&str>,
+    ) -> Result<std::collections::HashSet<String>> {
+        let mut statement = connection.prepare(
+            "SELECT DISTINCT port_id FROM catalog_downloads WHERE ?1 IS NULL OR port_id=?1",
+        )?;
+        let ports = statement
+            .query_map([port_id], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        Ok(ports)
+    }
+
     pub(crate) fn require_no_pending_setup(&self, port_id: &str) -> Result<()> {
         let exists: bool = self.library.connection()?.query_row(
             "SELECT EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
@@ -539,11 +606,77 @@ impl PortcoveService {
         Ok(managed_route_refusal(&status.port_actions))
     }
 
-    fn require_download_available(&self, port_id: &str) -> Result<()> {
-        crate::managed_runtime_policy::require_acquisition_available(&self.catalog, port_id)?;
-        if let Some(reason) = &self.catalog.listing(port_id)?.download_block_reason {
-            return Err(PortcoveError::unsupported(reason.clone()));
+    fn require_download_artifact(
+        &self,
+        port_id: &str,
+        release_tag: &str,
+        asset_name: &str,
+        sha256: Option<&str>,
+        phase: Phase,
+    ) -> Result<()> {
+        EffectiveRestrictions::of(&self.catalog, port_id).require(&download_artifact_subject(
+            release_tag,
+            asset_name,
+            sha256,
+            phase,
+        ))
+    }
+
+    /// Held sibling assets leave the offer and are explained as limitations. A
+    /// provider-reported digest decides the offer only; the downloaded bytes
+    /// are checked again before anything is moved into place. The offer is
+    /// refused outright only when no release or package of this listing could
+    /// be permitted, so a permitted older release stays reachable.
+    fn withhold_restricted_candidates(
+        &self,
+        port_id: &str,
+        candidates: Vec<CatalogDownloadCandidate>,
+        mut coverage: CatalogDownloadCoverage,
+    ) -> (
+        Vec<CatalogDownloadCandidate>,
+        CatalogDownloadCoverage,
+        Option<String>,
+    ) {
+        let restrictions = EffectiveRestrictions::of(&self.catalog, port_id);
+        let mut kept = Vec::with_capacity(candidates.len());
+        let mut first = None;
+        let mut scoped = false;
+        for candidate in candidates {
+            let subject = download_artifact_subject(
+                &candidate.release_tag,
+                &candidate.name,
+                candidate.sha256.as_deref(),
+                Phase::Offer,
+            );
+            let outcome = restrictions.evaluate(&subject);
+            match outcome.explanation() {
+                Some(explanation) => {
+                    coverage
+                        .limitations
+                        .push(format!("{}: {explanation}", candidate.name));
+                    scoped |= outcome.artifact_scoped() || outcome.release_scoped();
+                    if first.is_none() {
+                        first = Some(explanation);
+                    }
+                }
+                None => kept.push(candidate),
+            }
         }
+        let refused = kept.is_empty()
+            && !scoped
+            && !restrictions.has_scoped_permit(RestrictedOperation::Download);
+        (kept, coverage, if refused { first } else { None })
+    }
+
+    fn require_download_available(&self, port_id: &str) -> Result<()> {
+        self.catalog.listing(port_id)?;
+        // Both carriers; a hold that a scoped permit may still cancel is
+        // decided per artifact in the offer and again on the actual bytes.
+        crate::acquisition_restriction::require(
+            &self.catalog,
+            port_id,
+            &RestrictionSubject::deferred(RestrictedOperation::Download).on_current_host(),
+        )?;
         if let Some(refusal) = self.listing_download_refusal(port_id)? {
             return Err(PortcoveError::unsupported(refusal.message())
                 .detail("refusal", enum_value(refusal)?));
@@ -622,7 +755,7 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<CatalogDownloadCandidates> {
-        self.catalog_download_options_inner(port_id, None, None, None)
+        self.catalog_download_options_inner(port_id, None, None, None, None)
             .await
     }
 
@@ -640,8 +773,27 @@ impl PortcoveService {
         selected_release_id: Option<CatalogDownloadReleaseId>,
         channel: ReleaseChannel,
     ) -> Result<CatalogDownloadCandidates> {
-        self.catalog_download_options_inner(port_id, selected_release_id, Some(channel), None)
+        self.catalog_download_options_inner(port_id, selected_release_id, Some(channel), None, None)
             .await
+    }
+
+    /// As `catalog_download_options`, listing the newest `release_window`
+    /// releases (10 to 1,000) so older releases can be chosen in the workflow.
+    pub async fn catalog_download_options_window(
+        &self,
+        port_id: &str,
+        selected_release_id: Option<CatalogDownloadReleaseId>,
+        channel: ReleaseChannel,
+        release_window: usize,
+    ) -> Result<CatalogDownloadCandidates> {
+        self.catalog_download_options_inner(
+            port_id,
+            selected_release_id,
+            Some(channel),
+            None,
+            Some(release_window),
+        )
+        .await
     }
 
     #[cfg(test)]
@@ -658,6 +810,7 @@ impl PortcoveService {
             selected_release_id.map(Into::into),
             channel,
             provider.as_ref(),
+            None,
         )
         .await
     }
@@ -668,6 +821,7 @@ impl PortcoveService {
         selected_release_id: Option<CatalogDownloadReleaseId>,
         channel: Option<ReleaseChannel>,
         provider: Option<&CatalogDownloadProvider>,
+        release_window: Option<usize>,
     ) -> Result<CatalogDownloadCandidates> {
         let channel = channel.unwrap_or(self.catalog_download_channel(port_id)?);
         let listing = self.catalog.listing(port_id)?;
@@ -729,7 +883,9 @@ impl PortcoveService {
         // Shared observations only serve the non-managed browse window. They never
         // enter the managed release resolver or the exact preview/download path.
         let observed = match provider {
-            CatalogDownloadProvider::Github(provider) if self.catalog.port(port_id).is_err() => {
+            CatalogDownloadProvider::Github(provider)
+                if self.catalog.port(port_id).is_err() && release_window.is_none() =>
+            {
                 provider
                     .observed_catalog_download_options(
                         listing,
@@ -755,10 +911,17 @@ impl PortcoveService {
                         channel,
                         rolling_tag,
                         github_other_stream_prefixes,
+                        release_window,
                     )
                     .await?
             }
         };
+        let (candidates, coverage, refused) =
+            self.withhold_restricted_candidates(port_id, candidates, coverage);
+        if let Some(reason) = refused {
+            result.reason = Some(reason);
+            return Ok(result);
+        }
         result.releases = releases;
         result.selected_release_id = selected.clone();
         let hints = definition
@@ -766,7 +929,7 @@ impl PortcoveService {
             .or_else(|| listing.download_asset_hints.get(&platform))
             .map(Vec::as_slice)
             .unwrap_or_default();
-        let (packages, recommended) = super::package_selection::recommend_packages(
+        let (packages, recommended, any_suitable) = super::package_selection::recommend_packages(
             &candidates,
             platform,
             hints,
@@ -781,11 +944,7 @@ impl PortcoveService {
                 .into()
         } else if !coverage.candidates_complete {
             "Some upstream files could not be assessed. Review the available downloads or open upstream setup.".into()
-        } else if result
-            .packages
-            .iter()
-            .any(|package| package.suitability == "suitable")
-        {
+        } else if any_suitable {
             "Several plausible packages remain. Choose the build you want from this release.".into()
         } else {
             "No native package could be recommended. Check other downloads or follow upstream setup instructions.".into()
@@ -927,14 +1086,13 @@ impl PortcoveService {
                 "upstream digest conflicts with this exact artifact's known checksum; self-service cannot bypass that failure",
             ));
         }
-        if let Some(digest) = artifact.sha256.as_deref().or(expected.as_deref()) {
-            crate::managed_runtime_policy::require_artifact_available(
-                &self.catalog,
-                &request.port_id,
-                &artifact.release_tag,
-                digest,
-            )?;
-        }
+        self.require_download_artifact(
+            &request.port_id,
+            &artifact.release_tag,
+            &artifact.name,
+            artifact.sha256.as_deref().or(expected.as_deref()),
+            Phase::Offer,
+        )?;
         let preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
             1_u32,
             request,
@@ -1115,6 +1273,8 @@ impl PortcoveService {
             }
             self.require_download_destination(stage.path())?;
             let mut listing = self.catalog.listing(&request.port_id)?.clone();
+            // The current directory supplies these links, including any withdrawal.
+            listing.mod_portals.clear();
             listing.media.retain(|asset| !asset.is_typed_igdb_scene());
             crate::catalog::listings::strip_verified_sources(&mut listing);
             let mut record = PendingSetupRecord {
@@ -1132,6 +1292,7 @@ impl PortcoveService {
                 archive_sha256: String::new(),
                 downloaded_at: String::new(),
                 reason: Some("Package download is in progress.".into()),
+                progress: None,
             };
             self.insert_catalog_download(
                 &record,
@@ -1178,11 +1339,13 @@ impl PortcoveService {
                         .detail("actual", &archive_sha256));
                     }
                 }
-                crate::managed_runtime_policy::require_artifact_available(
-                    &self.catalog,
+                // The downloaded bytes, not the provider report, decide a permit.
+                self.require_download_artifact(
                     &request.port_id,
                     &record.artifact.release_tag,
-                    &archive_sha256,
+                    &record.artifact.name,
+                    Some(&archive_sha256),
+                    Phase::Final,
                 )?;
                 record.archive_sha256 = archive_sha256;
                 record.downloaded_at = time::OffsetDateTime::now_utc()
@@ -1385,6 +1548,9 @@ impl PortcoveService {
         }
         record.state = PendingSetupState::Downloaded;
         record.reason = None;
+        // Publication keeps the format earlier releases read; its stage is
+        // `artifact-obtained` on read. Format 3 waits for a later stage.
+        record.progress = None;
         let json = encoded_download_record(&record)?;
         require_download_record_capacity(&transaction, &record.port_id, &json)?;
         crate::durability::rename_noreplace(payload, &record.path)?;
@@ -1406,6 +1572,8 @@ impl PortcoveService {
         }
         transaction.commit()?;
         drop(stage);
+        // Report the stage a reader of the stored record sees.
+        stage::map_legacy_stage(&mut record);
         Ok(record)
     }
 
@@ -1441,18 +1609,30 @@ impl PortcoveService {
             Ok(bytes) => bytes,
             Err(_) => return Ok(false),
         };
-        let receipt: PublicationReceipt = match serde_json::from_slice(&bytes) {
-            Ok(receipt) => receipt,
-            Err(_) => return Ok(false),
+        Ok(receipt_bytes_match(stored, &bytes))
+    }
+
+    /// Whether the published folder still holds this attempt's receipt. Only
+    /// a missing, non-file, oversized, unreadable-as-a-receipt or different
+    /// receipt is `false`; a failure to read an existing receipt is returned
+    /// so the caller can retry instead of treating it as changed.
+    fn publication_receipt_still_matches(&self, stored: &StoredDownload) -> Result<bool> {
+        self.require_download_destination(&stored.record.path)?;
+        let path = stored.record.path.join(RECEIPT_NAME);
+        refuse_symlink_ancestors(&path)?;
+        match stage::retained_metadata(&path) {
+            Ok(metadata) if metadata.is_file() && metadata.len() <= 4096 => {}
+            Ok(_) => return Ok(false),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(error.into()),
+        }
+        let bytes = match crate::path::read_bounded_regular(&path, 4096) {
+            Ok(bytes) => bytes,
+            // The bounded reader refuses a non-file or grown receipt.
+            Err(error) if error.code == crate::ErrorCode::Verification => return Ok(false),
+            Err(error) => return Err(error),
         };
-        Ok(receipt
-            == PublicationReceipt {
-                format_version: 1,
-                pending_id: stored.record.id.clone(),
-                port_id: stored.record.port_id.clone(),
-                preview_sha256: stored.preview_sha256.clone(),
-                archive_sha256: stored.record.archive_sha256.clone(),
-            })
+        Ok(receipt_bytes_match(stored, &bytes))
     }
 
     pub(super) fn recover_catalog_downloads(&self) -> Result<()> {
@@ -1600,4 +1780,17 @@ impl PortcoveService {
             "This link does not belong to the saved setup.",
         ))
     }
+}
+
+fn receipt_bytes_match(stored: &StoredDownload, bytes: &[u8]) -> bool {
+    serde_json::from_slice::<PublicationReceipt>(bytes).is_ok_and(|receipt| {
+        receipt
+            == PublicationReceipt {
+                format_version: 1,
+                pending_id: stored.record.id.clone(),
+                port_id: stored.record.port_id.clone(),
+                preview_sha256: stored.preview_sha256.clone(),
+                archive_sha256: stored.record.archive_sha256.clone(),
+            }
+    })
 }

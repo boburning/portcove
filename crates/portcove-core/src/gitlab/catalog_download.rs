@@ -7,8 +7,10 @@ use crate::{
     CatalogForeignReleaseId,
 };
 
+/// Recent releases one browse response summarizes. A presentation window: the
+/// selected release is read exactly, the channel choice reads older history as
+/// far as it needs, and `release_history_complete` says when older releases exist.
 const RELEASE_LIMIT: usize = 10;
-const ASSET_LIMIT: usize = 200;
 
 #[derive(Clone)]
 enum RegistryReference {
@@ -69,7 +71,174 @@ fn validate_file(file: &GitlabPackageFile) -> Result<()> {
     Ok(())
 }
 
+/// The managed-package rules for the exact registry file behind a release
+/// link. The link label passed the typed-role gate, but a neutral label can
+/// name a wrong-role registry file, so the final filename is gated again
+/// (#8602).
+fn exact_registry_file_admitted(
+    port: &PortDefinition,
+    platform: Platform,
+    file_name: &str,
+) -> Result<()> {
+    let name = file_name.to_ascii_lowercase();
+    let hints = port
+        .release
+        .asset_hints
+        .get(&platform)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    if conflicts_with_platform(&name, platform)
+        || crate::service::package_selection::is_server_package(file_name)
+        || (port.n64_runtime_at_executable_parent
+            && native_archive_score(&name, platform, hints).is_none())
+    {
+        return Err(PortcoveError::verification(
+            "the exact GitLab registry file is outside the reviewed package rules",
+        ));
+    }
+    if link_role_hold(port.adapter, &name, hints).is_some() {
+        return Err(PortcoveError::verification(
+            "the exact GitLab registry file is an installer, tool, debug build or source archive, not the game package",
+        )
+        .detail(
+            "route_hold",
+            crate::route_facts::RouteHold::WrongRole.as_str(),
+        ));
+    }
+    Ok(())
+}
+
 impl GitlabReleaseProvider {
+    pub(super) async fn resolve_exact_bounded(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        query: ExactReleaseQuery<'_>,
+    ) -> Result<(ResolvedRelease, ExactReleaseSelection)> {
+        tokio::time::timeout(
+            self.network_bounds.request,
+            self.resolve_exact_observed(port, channel, platform, query),
+        )
+        .await
+        .map_err(|_| {
+            PortcoveError::network("the exact GitLab release exceeded the provider request budget")
+        })?
+    }
+
+    pub(super) async fn resolve_exact_observed(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        query: ExactReleaseQuery<'_>,
+    ) -> Result<(ResolvedRelease, ExactReleaseSelection)> {
+        let tag = query.version();
+        let expected = query.expected();
+        let (project_url, project_id, canonical) =
+            self.catalog_project(&port.release.repository).await?;
+        if expected.is_some_and(|pin| !matches!(&pin.identity,
+            crate::ExactReleaseIdentity::Gitlab { project_id: previous, .. } if *previous == project_id
+        )) {
+            return Err(PortcoveError::verification(
+                "the exact selection's GitLab project identity changed",
+            ));
+        }
+        let release = self.catalog_release(&project_url, project_id, tag).await?;
+        if crate::release::select_channel_candidate(
+            std::slice::from_ref(&release),
+            channel,
+            port.release.rolling_tag.as_deref(),
+            |release| crate::release::is_exact_release_published(release.released_at.as_deref()),
+            |candidate| is_beta_tag(&candidate.tag_name),
+            |candidate| candidate.tag_name.as_str(),
+        )
+        .is_none()
+        {
+            return Err(crate::release::ExactReleaseRefusal::OutsideChannel.attach(
+                PortcoveError::unsupported(
+                    "the exact GitLab release is not published in this channel",
+                ),
+            ));
+        }
+        let mut tag_url = reqwest::Url::parse(&project_url)
+            .map_err(|_| PortcoveError::state("invalid GitLab project URL"))?;
+        tag_url
+            .path_segments_mut()
+            .map_err(|_| PortcoveError::state("invalid GitLab tag URL"))?
+            .extend(["repository", "tags", tag]);
+        let reference: GitlabTag = self.get_json(tag_url.as_str()).await?;
+        let commit_sha1 = reference.commit.id.to_ascii_lowercase();
+        if reference.name != tag || expected.is_some_and(|pin| !matches!(&pin.identity,
+            crate::ExactReleaseIdentity::Gitlab { commit_sha1: previous, .. } if *previous == commit_sha1
+        )) {
+            return Err(PortcoveError::verification(
+                "the exact selection's GitLab tag points to a different commit",
+            ));
+        }
+        let links = self.catalog_links(&project_url, tag).await?;
+        let mut identities = HashSet::new();
+        for link in &links {
+            if !identities.insert(link_id(link)?) {
+                return Err(PortcoveError::verification(
+                    "GitLab release repeats an exact link identity",
+                ));
+            }
+        }
+        let link = choose_link(port, platform, &links)?;
+        let selected_link = link_id(link)?;
+        if expected.is_some_and(|pin| !matches!(&pin.identity,
+            crate::ExactReleaseIdentity::Gitlab { link_id: previous, .. } if *previous == selected_link
+        )) {
+            return Err(PortcoveError::verification(
+                "the exact selection's GitLab release link identity changed",
+            ));
+        }
+        let index = self
+            .catalog_registry_index(
+                &project_url,
+                &canonical,
+                project_id,
+                &release,
+                std::slice::from_ref(link),
+            )
+            .await?;
+        let reference = index.references.get(&selected_link).ok_or_else(|| {
+            PortcoveError::unsupported("the exact GitLab package requires a project registry file")
+        })?;
+        let file = self
+            .catalog_registry_file(reference, &index.files)
+            .await?
+            .ok_or_else(|| PortcoveError::verification("the exact GitLab registry file changed"))?;
+        validate_file(file)?;
+        exact_registry_file_admitted(port, platform, &file.file_name)?;
+        let selected = ResolvedRelease {
+            version: release.tag_name,
+            channel,
+            published_at: release.released_at,
+            asset: ReleaseAsset {
+                name: file.file_name.clone(),
+                size: file.size,
+                sha256: file.file_sha256.to_ascii_lowercase(),
+                // The join above verifies this is the project's registry path.
+                url: link.url.clone(),
+            },
+            uploader_continuity: None,
+        };
+        let candidate = query.bind(
+            port,
+            platform,
+            &selected,
+            crate::ExactReleaseIdentity::Gitlab {
+                project_id,
+                link_id: selected_link,
+                package_file_id: file.id,
+                commit_sha1,
+            },
+        )?;
+        Ok((selected, candidate))
+    }
+
     async fn catalog_project(&self, repository: &str) -> Result<(String, u64, String)> {
         let project_url = self.project_url(repository)?;
         let project: GitlabProject = self.get_json(&project_url).await?;
@@ -131,6 +300,8 @@ impl GitlabReleaseProvider {
         )
     }
 
+    /// Every link of one release (`GET /projects/:id/releases/:tag_name/assets/links`),
+    /// read to the end.
     async fn catalog_links(&self, project_url: &str, tag: &str) -> Result<Vec<GitlabReleaseLink>> {
         let mut base = reqwest::Url::parse(project_url)
             .map_err(|_| PortcoveError::state("invalid GitLab project URL"))?;
@@ -138,24 +309,18 @@ impl GitlabReleaseProvider {
             .map_err(|_| PortcoveError::state("invalid GitLab project URL"))?
             .extend(["releases", tag, "assets"]);
         let mut links = Vec::new();
-        // The final empty/short page proves completeness at the200-link boundary.
-        for page in 1..=3 {
-            let url = paginated_url(base.as_str(), "links", page, 100)?;
-            let current: Vec<GitlabReleaseLink> = self.get_json(&url).await?;
-            if current.len() > 100 || links.len() + current.len() > ASSET_LIMIT {
-                return Err(PortcoveError::verification(
-                    "GitLab release exceeds the200-link bound",
-                ));
-            }
-            let complete = current.len() < 100;
+        let mut pages = GitlabPages::new("release links");
+        while let Some(current) = self
+            .next_page::<GitlabReleaseLink>(
+                &mut pages,
+                |page| paginated_url(base.as_str(), "links", page, PROVIDER_PAGE_SIZE),
+                |link| format!("{:?}\n{}\n{}", link.id, link.name, link.url),
+            )
+            .await?
+        {
             links.extend(current);
-            if complete {
-                return Ok(links);
-            }
         }
-        Err(PortcoveError::verification(
-            "GitLab release link coverage is incomplete",
-        ))
+        Ok(links)
     }
 
     async fn catalog_release(
@@ -214,21 +379,9 @@ impl GitlabReleaseProvider {
         if index.references.is_empty() {
             return Ok(index);
         }
-        let normalized = release
-            .tag_name
-            .strip_prefix('v')
-            .unwrap_or(&release.tag_name);
         let packages = self
-            .packages(project_url)
-            .await?
-            .into_iter()
-            .filter(|package| package.version == release.tag_name || package.version == normalized)
-            .collect::<Vec<_>>();
-        if packages.len() > GITLAB_MAX_MATCHING_PACKAGES {
-            return Err(PortcoveError::verification(
-                "GitLab release exceeds the matching-package bound",
-            ));
-        }
+            .release_packages(project_url, &release.tag_name)
+            .await?;
         let mut package_ids = HashSet::new();
         let mut file_ids = HashSet::new();
         let mut retained_bytes = 0usize;
@@ -246,16 +399,15 @@ impl GitlabReleaseProvider {
                 "{}/projects/{project_id}/packages/{}",
                 self.api_root, package.id
             );
-            let mut complete = false;
-            for page in 1..=GITLAB_MAX_PACKAGE_FILE_PAGES {
-                let url = paginated_url(&base, "package_files", page, PROVIDER_PAGE_SIZE)?;
-                let files: Vec<GitlabPackageFile> = self.get_json(&url).await?;
-                if files.len() > PROVIDER_PAGE_SIZE {
-                    return Err(PortcoveError::verification(
-                        "GitLab package-file page exceeds its bound",
-                    ));
-                }
-                complete = files.len() < PROVIDER_PAGE_SIZE;
+            let mut pages = GitlabPages::new("package files");
+            while let Some(files) = self
+                .next_page::<GitlabPackageFile>(
+                    &mut pages,
+                    |page| paginated_url(&base, "package_files", page, PROVIDER_PAGE_SIZE),
+                    |file| file.id.to_string(),
+                )
+                .await?
+            {
                 for file in files {
                     if file.id == 0 || !file_ids.insert(file.id) {
                         return Err(PortcoveError::verification(
@@ -305,14 +457,6 @@ impl GitlabReleaseProvider {
                     }
                     index.files.push(RegistryFile { file, generic_urls });
                 }
-                if complete {
-                    break;
-                }
-            }
-            if !complete {
-                return Err(PortcoveError::verification(
-                    "GitLab package-file coverage exceeds its bound",
-                ));
             }
         }
         Ok(index)
@@ -480,20 +624,24 @@ impl GitlabReleaseProvider {
             if !releases.iter().any(|release| release.tag_name == *tag) {
                 releases.push(self.catalog_release(&project_url, project_id, tag).await?);
             }
-        } else if !history_complete {
-            let preferred = crate::release::select_channel_candidate(
-                &releases,
-                channel,
-                rolling_tag,
-                |release| !release.upcoming_release,
-                |release| is_beta_tag(&release.tag_name),
-                |release| release.tag_name.as_str(),
-            );
-            if preferred.is_none()
-                || (channel == ReleaseChannel::Beta
-                    && preferred.is_some_and(|release| !is_beta_tag(&release.tag_name)))
+        } else {
+            // The recent window decides Stable and Beta when it holds a match,
+            // or when it is the whole history; a rolling tag is looked up
+            // exactly. Otherwise the channel's release is found by the same
+            // resumable history walk as resolution.
+            let mut fallback = None;
+            let decided = channel != ReleaseChannel::Rolling
+                && (consider_releases(&releases, channel, rolling_tag, &mut fallback).is_some()
+                    || history_complete);
+            if !decided
+                && let Some(release) = self
+                    .channel_release(&project_url, channel, rolling_tag)
+                    .await?
+                && !releases
+                    .iter()
+                    .any(|known| known.tag_name == release.tag_name)
             {
-                releases = self.releases(&project_url).await?;
+                releases.push(release);
             }
         }
         let mut tags = HashSet::new();
@@ -526,8 +674,12 @@ impl GitlabReleaseProvider {
             };
         let mut candidates = Vec::new();
         let mut limitations = Vec::new();
+        // Every link of the chosen release is inventoried, so the reported
+        // file limit is the release's own link count rather than a ceiling.
+        let mut candidate_count = 0;
         if let Some(release) = chosen {
             let links = self.catalog_links(&project_url, &release.tag_name).await?;
+            candidate_count = links.len();
             let index = self
                 .catalog_registry_index(&project_url, &canonical, project_id, release, &links)
                 .await?;
@@ -570,7 +722,7 @@ impl GitlabReleaseProvider {
             candidates,
             CatalogDownloadCoverage {
                 release_limit: RELEASE_LIMIT,
-                candidate_limit: ASSET_LIMIT,
+                candidate_limit: candidate_count,
                 releases_checked: usize::from(chosen.is_some()),
                 release_history_complete: history_complete,
                 candidates_complete: limitations.is_empty(),

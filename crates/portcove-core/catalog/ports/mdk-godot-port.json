@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mdk-godot-port",
+    "project_url": "https://github.com/nautilusbits/mdk-godot",
+    "name": "MDK / Godot port",
+    "summary": "Port of MDK (Shiny Entertainment, 1997) to the Godot engine, based on reverse engineering - work in progress",
+    "issue_number": 5730,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mdk",
+      "evidence_urls": ["https://github.com/nautilusbits/mdk-godot"],
+      "source_editions": []
+    },
+    "original_game_title": "MDK"
+  }
+}

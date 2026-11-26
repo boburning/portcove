@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "street-rod-2-sdl3-port",
+    "project_url": "https://github.com/kylofon/street-rod-2-sdl3",
+    "name": "Street Rod 2 / SDL3 port",
+    "summary": "Reverse engineering and SDL3 port of Street Rod 2: The Next Generation (1991, DOS)",
+    "issue_number": 5724,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "street-rod-2",
+      "evidence_urls": ["https://github.com/kylofon/street-rod-2-sdl3"],
+      "source_editions": []
+    },
+    "original_game_title": "Street Rod 2"
+  }
+}

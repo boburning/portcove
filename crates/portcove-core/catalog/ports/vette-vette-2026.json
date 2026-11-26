@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "vette-vette-2026",
+    "project_url": "https://github.com/PlasticCog/Vette2026",
+    "name": "Vette! / Vette! 2026",
+    "summary": "Vette! Source Port",
+    "issue_number": 5588,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "vette",
+      "evidence_urls": ["https://github.com/PlasticCog/Vette2026"],
+      "source_editions": []
+    },
+    "original_game_title": "Vette!"
+  }
+}

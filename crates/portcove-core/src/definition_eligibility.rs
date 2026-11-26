@@ -148,6 +148,9 @@ pub struct PortActionAssessment {
     /// The authoritative signed-definition reason, when it limits this action.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub definition: Option<DefinitionEligibility>,
+    /// The descriptive reason of the acquisition restriction that holds this action.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restriction: Option<crate::RestrictionReason>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -192,7 +195,7 @@ impl DefinitionEligibility {
         }
     }
 
-    const fn escalate(reason: DefinitionEligibilityReason) -> Self {
+    pub(crate) const fn escalate(reason: DefinitionEligibilityReason) -> Self {
         Self {
             outcome: DefinitionEligibilityOutcome::Escalate,
             reason,

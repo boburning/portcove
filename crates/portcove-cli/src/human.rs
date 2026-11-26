@@ -1109,6 +1109,9 @@ fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> Stri
     if let Some(suppressed) = &assessment.suppressed {
         line.push_str(&format!("; on hold: {}", clean(suppressed)));
     }
+    if let Some(next) = assessment.next_attempt_at {
+        line.push_str(&format!("; Next attempt: {}", utc_time(next)));
+    }
     line
 }
 
@@ -1181,6 +1184,9 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
                 .unwrap_or_default(),
             clean(&waiting.reason)
         ));
+        if let Some(next) = waiting.next_attempt_at {
+            lines.push(format!("  Next attempt: {}", utc_time(next)));
+        }
     }
     for update in &value.mod_updates {
         let subject = if update.native_ids.is_empty() {
@@ -1825,6 +1831,21 @@ fn platform_list(platforms: &[Platform]) -> String {
     }
 }
 
+pub(crate) fn exact_release_review(review: &portcove_core::ExactReleaseReview) -> String {
+    let selection = &review.selection;
+    format!(
+        "Review exact release {} for {} ({}, {})\nPackage  {}\nBytes    {}\nSHA-256  {}\nReview   {}",
+        clean(&selection.version),
+        clean(&selection.port_id),
+        release_channel(selection.channel),
+        platform_name(selection.platform),
+        clean(&selection.filename),
+        selection.size,
+        selection.sha256,
+        review.review_sha256,
+    )
+}
+
 pub(crate) fn status(status: &PortStatus, catalog: &portcove_core::Catalog) -> String {
     statuses(std::slice::from_ref(status), catalog)
 }
@@ -1895,6 +1916,36 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         format!("{summary}\nActions:\n{actions}")
     };
     for status in statuses {
+        if let Some(hold) = &status.exact_release_hold {
+            let cause = match hold.reason {
+                portcove_core::ExactReleaseHoldReason::Unreadable => {
+                    "Portcove can't read its saved release pin"
+                }
+                portcove_core::ExactReleaseHoldReason::ChannelMismatch => {
+                    "its saved release pin belongs to a different channel"
+                }
+            };
+            output.push_str(&format!(
+                "\n{}: updates are paused because {cause}. To follow the channel again: portcove channel follow {}",
+                port_name(catalog, &status.port_id),
+                clean(&status.port_id),
+            ));
+        }
+        if let Some(pin) = &status.exact_release {
+            output.push_str(&format!(
+                "\n{} follows exact release {} on {}.",
+                port_name(catalog, &status.port_id),
+                clean(&pin.version),
+                platform_name(pin.platform),
+            ));
+            if let Some(latest) = status
+                .last_update_check
+                .as_ref()
+                .and_then(|reported| reported.check.channel_latest_version.as_deref())
+            {
+                output.push_str(&format!(" The channel currently offers {}.", clean(latest)));
+            }
+        }
         for assessment in &status.definition_operations {
             if assessment.operation != portcove_core::DefinitionOperation::Install
                 || assessment.eligibility.reason
@@ -2246,6 +2297,28 @@ pub(crate) fn activities(
     )
 }
 
+/// An update check Core stopped for a provider rate limit learned nothing: it is
+/// not checked, never a failure. An incomplete list is its own state.
+fn activity_status(record: &ActivityRecord) -> &'static str {
+    use portcove_core::{ActivityOperation, ActivityStatus};
+    let key = record
+        .failure
+        .as_ref()
+        .map(|failure| failure.presentation.presentation_key.as_str());
+    match (record.status, record.operation, key) {
+        (ActivityStatus::Failed, ActivityOperation::CheckUpdate, Some("provider_rate_limited")) => {
+            "Not checked: request limit"
+        }
+        (ActivityStatus::Failed, ActivityOperation::CheckUpdate, Some("inventory_incomplete")) => {
+            "Check incomplete"
+        }
+        (ActivityStatus::Running, ..) => "Running",
+        (ActivityStatus::Succeeded, ..) => "Succeeded",
+        (ActivityStatus::Failed, ..) => "Failed",
+        (ActivityStatus::Cancelled, ..) => "Cancelled",
+    }
+}
+
 fn activity(record: &ActivityRecord, catalog: &portcove_core::Catalog, technical: bool) -> String {
     use portcove_core::{ActivityStatus, ActivityTargetKind, redact_diagnostic_text};
     // Failed requests can record arbitrary input as a target. Only catalog-owned
@@ -2264,12 +2337,7 @@ fn activity(record: &ActivityRecord, catalog: &portcove_core::Catalog, technical
     let mut output = format!(
         "Activity: {}\nStatus: {}\nOperation: {}\nTarget: {}\nStarted (UTC): {}",
         clean(&record.id),
-        match record.status {
-            ActivityStatus::Running => "Running",
-            ActivityStatus::Succeeded => "Succeeded",
-            ActivityStatus::Failed => "Failed",
-            ActivityStatus::Cancelled => "Cancelled",
-        },
+        activity_status(record),
         operation_name(record.operation),
         target.as_deref().unwrap_or(match record.target_kind {
             ActivityTargetKind::Port => "port (not in current catalog)",
@@ -4311,6 +4379,34 @@ mod tests {
     }
 
     #[test]
+    fn a_rate_limited_update_check_activity_reads_not_checked_rather_than_failed() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let mut record = failed_activity(std::path::Path::new("owned-fixture"));
+        let status = |record: &portcove_core::ActivityRecord| {
+            super::activities(&activity_feed(record.clone()), &catalog, false)
+                .lines()
+                .find_map(|line| line.strip_prefix("Status: ").map(str::to_owned))
+                .unwrap()
+        };
+        let with_key = |key: &str| {
+            let mut report = portcove_core::PortcoveError::network("limited").report();
+            report.presentation.presentation_key = key.into();
+            Some(report)
+        };
+        record.operation = portcove_core::ActivityOperation::CheckUpdate;
+        record.failure = with_key("provider_rate_limited");
+        assert_eq!(status(&record), "Not checked: request limit");
+        record.failure = with_key("inventory_incomplete");
+        assert_eq!(status(&record), "Check incomplete");
+        record.failure = with_key("provider_request_rejected");
+        assert_eq!(status(&record), "Failed");
+        // The rate limit stopping another operation is still that operation's failure.
+        record.operation = portcove_core::ActivityOperation::Install;
+        record.failure = with_key("provider_rate_limited");
+        assert_eq!(status(&record), "Failed");
+    }
+
+    #[test]
     fn activity_does_not_promote_incomplete_coverage_and_shows_finished_time() {
         let catalog = portcove_core::Catalog::embedded().unwrap();
         let mut record = failed_activity(std::path::Path::new("owned-fixture"));
@@ -4432,6 +4528,7 @@ mod tests {
             safety_backup_will_be_created: true,
             retained_runtime_copy_will_be_deleted: false,
             preview_sha256: "b".repeat(64),
+            restore_target_sha256: None,
         }
     }
 
@@ -4501,6 +4598,7 @@ mod tests {
             availability: portcove_core::PortActionAvailability::Waiting,
             reason: portcove_core::PortActionReason::MissingData,
             definition: None,
+            restriction: None,
         }
     }
 
@@ -4510,6 +4608,7 @@ mod tests {
             availability: portcove_core::PortActionAvailability::Waiting,
             reason: portcove_core::PortActionReason::MissingBackup,
             definition: None,
+            restriction: None,
         }
     }
 
@@ -4525,6 +4624,7 @@ mod tests {
                 availability,
                 reason,
                 definition: None,
+                restriction: None,
             })
         };
         assert!(
@@ -4814,6 +4914,7 @@ mod tests {
                     availability: state,
                     reason,
                     definition: None,
+                    restriction: None,
                 };
                 let before = serde_json::to_value(assessment).unwrap();
                 let rendered = super::status_action(&assessment);
@@ -4876,6 +4977,7 @@ mod tests {
                     outcome: DefinitionEligibilityOutcome::Hold,
                     reason,
                 }),
+                restriction: None,
             };
             let value = serde_json::to_value(assessment).unwrap();
             let rendered = super::status_action(&assessment);
@@ -4943,6 +5045,7 @@ mod tests {
                 availability: portcove_core::PortActionAvailability::Waiting,
                 reason: portcove_core::PortActionReason::ReviewRequired,
                 definition: None,
+                restriction: None,
             });
         let output = super::statuses(
             &[empty, assessed.clone()],

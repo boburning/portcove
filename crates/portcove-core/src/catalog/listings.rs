@@ -1,6 +1,7 @@
 //! The broad directory is descriptive. Strict managed definitions retain their
 //! original validator and are never synthesized from an incomplete listing.
 use super::*;
+use crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT;
 use crate::catalog_media::IGDB_SCENE_LISTING_FORMAT;
 use crate::{CatalogListingDocument, ListingAvailability, Platform, PortListing};
 use std::{collections::BTreeMap, sync::LazyLock};
@@ -13,10 +14,19 @@ pub(crate) fn embedded_listings_sha256() -> String {
     use sha2::Digest;
     hex::encode(sha2::Sha256::digest(EMBEDDED_LISTINGS.as_bytes()))
 }
-const MAX_LISTING_BYTES: usize = 8 * 1024 * 1024;
+/// Working-memory bound for listing directory text from outside this binary
+/// (`catalog inspect-listings`). Twice the largest decoded directory any
+/// supported reader admits, so authoring formatting (1.20x for the committed
+/// file) never binds before delivery does. Measured basis: SIGNED-CATALOG.md
+/// "Size bounds and older clients". The embedded directory has no byte bound.
+pub const MAX_LISTING_DIRECTORY_TEXT_BYTES: usize = 64 * 1024 * 1024;
+const _: () = assert!(
+    MAX_LISTING_DIRECTORY_TEXT_BYTES == 2 * portcove_listing_carrier::MAX_COMPACT_DECODED_BYTES
+);
 /// Upper bound on a listing's funding links; GitHub's `FUNDING.yml` allows four custom ones.
 const MAX_FUNDING_URLS: usize = 12;
 pub(crate) const VERIFIED_EDITION_LISTING_FORMAT: u32 = 14;
+pub(crate) const MOD_PORTAL_LISTING_FORMAT: u32 = 16;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -49,9 +59,11 @@ impl From<&PortDefinition> for PortListing {
             issue_number: None,
             listed_at: None,
             funding_urls: None,
+            mod_portals: Vec::new(),
             platforms: port.platforms.clone(),
             availability: ListingAvailability::Unknown,
             download_block_reason: None,
+            restrictions: Vec::new(),
             download_asset_hints: BTreeMap::new(),
             recommended_download_channel: None,
             release_url: None,
@@ -173,13 +185,24 @@ pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=VERIFIED_EDITION_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=MOD_PORTAL_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 14",
+                "listing export supports formats 5 through 16",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < MOD_PORTAL_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                listing.mod_portals.clear();
+            }
+        }
+        if format_version < RESTRICTION_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                // The validated legacy string remains the older readers' hold.
+                listing.restrictions.clear();
+            }
+        }
         if format_version < VERIFIED_EDITION_LISTING_FORMAT {
             for listing in &mut document.listings {
                 strip_verified_sources(listing);
@@ -232,6 +255,31 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self
+            .listings
+            .iter()
+            .any(|listing| !listing.mod_portals.is_empty())
+        {
+            self.format_version = self.format_version.max(MOD_PORTAL_LISTING_FORMAT);
+        }
+        if self
+            .listings
+            .iter()
+            .any(|listing| !listing.restrictions.is_empty())
+        {
+            self.format_version = self.format_version.max(RESTRICTION_LISTING_FORMAT);
+        }
+        if self.format_version >= RESTRICTION_LISTING_FORMAT {
+            // Retained or delivered older listings keep their legacy hold as a
+            // whole-listing download hold; nothing is narrowed or cleared.
+            for listing in &mut self.listings {
+                if listing.restrictions.is_empty() {
+                    listing.restrictions = crate::acquisition_restriction::normalize_legacy_listing(
+                        listing.download_block_reason.as_deref(),
+                    );
+                }
+            }
+        }
         if self.listings.iter().any(has_verified_source_editions) {
             self.format_version = self.format_version.max(VERIFIED_EDITION_LISTING_FORMAT);
         }
@@ -327,12 +375,20 @@ impl CatalogListingDocument {
         })
     }
 
+    /// Parse listing text from outside this binary under its working-memory bound.
     pub fn from_json(content: &str) -> Result<Self> {
-        if content.len() > MAX_LISTING_BYTES {
+        if content.len() > MAX_LISTING_DIRECTORY_TEXT_BYTES {
             return Err(PortcoveError::usage(
                 "listing document exceeds its byte limit",
             ));
         }
+        Self::from_trusted_text(content)
+    }
+
+    /// The directory compiled into this binary is already resident and trusted
+    /// with the binary itself, so no byte ceiling applies to it. Strict
+    /// duplicate-key parsing and record validation still do.
+    fn from_trusted_text(content: &str) -> Result<Self> {
         let _: crate::definition_entry::strict_json::UniqueValue = serde_json::from_str(content)?;
         let document: Self = serde_json::from_str(content)?;
         document.validate()?;
@@ -348,11 +404,43 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=VERIFIED_EDITION_LISTING_FORMAT) {
+        if !matches!(self.format_version, 1..=MOD_PORTAL_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        if self.format_version < MOD_PORTAL_LISTING_FORMAT
+            && self
+                .listings
+                .iter()
+                .any(|listing| !listing.mod_portals.is_empty())
+        {
+            return Err(PortcoveError::unsupported(
+                "reviewed mod portals require listing format 16",
+            ));
+        }
+        if self.format_version < RESTRICTION_LISTING_FORMAT
+            && self
+                .listings
+                .iter()
+                .any(|listing| !listing.restrictions.is_empty())
+        {
+            return Err(PortcoveError::unsupported(
+                "typed acquisition restrictions require listing format 15",
+            ));
+        }
+        if self.format_version >= RESTRICTION_LISTING_FORMAT
+            && self.listings.iter().any(|listing| {
+                listing.download_block_reason.as_deref()
+                    != crate::acquisition_restriction::legacy_download_projection(
+                        &listing.restrictions,
+                    )
+            })
+        {
+            return Err(PortcoveError::unsupported(
+                "a listing download restriction must equal the projection of its typed restrictions",
+            ));
         }
         if self.format_version < VERIFIED_EDITION_LISTING_FORMAT
             && self.listings.iter().any(has_verified_source_editions)
@@ -465,11 +553,8 @@ impl CatalogListingDocument {
                 "setup references require listing format 6",
             ));
         }
-        if self.listings.len() > 10_000 {
-            return Err(PortcoveError::usage(
-                "listing document exceeds its entry limit",
-            ));
-        }
+        // No lifetime count: each input path bounds the directory's bytes, and
+        // the bundled directory is part of this binary.
         let mut ids = HashSet::new();
         for listing in &self.listings {
             if !ids.insert(&listing.id) {
@@ -821,6 +906,7 @@ impl PortListing {
     }
     pub fn validate(&self) -> Result<()> {
         self.validate_observation_metadata()?;
+        crate::mod_source::validate_listing_portals(&self.mod_portals)?;
         if let Some(date) = &self.listed_at
             && !valid_listed_at(date)
         {
@@ -866,6 +952,18 @@ impl PortListing {
             .is_some_and(|reason| !valid_text(reason, 4096))
         {
             return Err(PortcoveError::usage("invalid listing download restriction"));
+        }
+        crate::acquisition_restriction::validate(
+            &self.restrictions,
+            crate::RestrictionCarrier::Listing,
+        )?;
+        if !self.restrictions.is_empty()
+            && self.download_block_reason.as_deref()
+                != crate::acquisition_restriction::legacy_download_projection(&self.restrictions)
+        {
+            return Err(PortcoveError::usage(
+                "listing download restriction differs from its typed projection",
+            ));
         }
         for url in [&self.release_url, &self.setup_url].into_iter().flatten() {
             if !valid_url(url) {
@@ -971,9 +1069,11 @@ impl Catalog {
     }
 
     pub fn listing(&self, id: &str) -> Result<&PortListing> {
-        self.listings()
-            .iter()
-            .find(|listing| listing.id == id)
+        #[cfg(test)]
+        crate::scaling_profile_tests::count_lookup(crate::scaling_profile_tests::Lookup::Listing);
+        self.listings
+            .position(id)
+            .map(|index| &self.listings.listings[index])
             .ok_or_else(|| PortcoveError::not_found(format!("unknown listing id: {id}")))
     }
 
@@ -1062,19 +1162,20 @@ impl Catalog {
                 });
             }
         }
+        let listed = document
+            .listings
+            .iter()
+            .map(|listing| listing.id.as_str())
+            .collect::<HashSet<_>>();
         for port in self.ports() {
-            if !document
-                .listings
-                .iter()
-                .any(|listing| listing.id == port.id)
-            {
+            if !listed.contains(port.id.as_str()) {
                 return Err(PortcoveError::usage(format!(
                     "listing directory omits operational port {}",
                     port.id
                 )));
             }
         }
-        self.listings = Arc::new(document);
+        self.listings = Arc::new(Indexed::new(document));
         Ok(self)
     }
 
@@ -1082,10 +1183,10 @@ impl Catalog {
         // Strict duplicate-key parsing plus validation of the bundled directory
         // is a fixed cost; reuse the validated document and project onto a clone.
         static EMBEDDED_DOCUMENT: LazyLock<Option<CatalogListingDocument>> =
-            LazyLock::new(|| CatalogListingDocument::from_json(EMBEDDED_LISTINGS).ok());
+            LazyLock::new(|| CatalogListingDocument::from_trusted_text(EMBEDDED_LISTINGS).ok());
         let mut document = match EMBEDDED_DOCUMENT.as_ref() {
             Some(document) => document.clone(),
-            None => CatalogListingDocument::from_json(EMBEDDED_LISTINGS)?,
+            None => CatalogListingDocument::from_trusted_text(EMBEDDED_LISTINGS)?,
         };
         let embedded_managed = EMBEDDED_MANAGED_PLATFORMS
             .as_ref()
@@ -1170,21 +1271,28 @@ impl Catalog {
                 let issue_number = listing.issue_number;
                 let availability = listing.availability;
                 let download_block_reason = listing.download_block_reason.clone();
+                let restrictions = listing.restrictions.clone();
                 let download_asset_hints = listing.download_asset_hints.clone();
                 let recommended_download_channel = listing.recommended_download_channel;
                 let release_url = listing.release_url.clone();
                 let setup_url = listing.setup_url.clone().or(projected.setup_url.clone());
-                let implementation = projected.implementation.clone().or_else(|| {
-                    (listing.project_url == projected.project_url
-                        && same_original_description(
-                            listing.original_game.as_ref(),
-                            projected.original_game.as_ref(),
-                        ))
-                    .then(|| listing.implementation.clone())
-                    .flatten()
-                });
+                let same_scope = listing.project_url == projected.project_url
+                    && same_original_description(
+                        listing.original_game.as_ref(),
+                        projected.original_game.as_ref(),
+                    );
+                let implementation = projected
+                    .implementation
+                    .clone()
+                    .or_else(|| same_scope.then(|| listing.implementation.clone()).flatten());
+                let mod_portals = if same_scope {
+                    std::mem::take(&mut listing.mod_portals)
+                } else {
+                    Vec::new()
+                };
                 *listing = PortListing {
                     implementation,
+                    mod_portals,
                     compatibility: listing.compatibility.clone(),
                     upstream_observation: listing.upstream_observation.clone(),
                     availability_override_reason: listing.availability_override_reason.clone(),
@@ -1197,6 +1305,7 @@ impl Catalog {
                     platforms,
                     availability,
                     download_block_reason,
+                    restrictions,
                     download_asset_hints,
                     recommended_download_channel,
                     release_url,
@@ -1217,14 +1326,25 @@ impl Catalog {
         let mut catalog =
             Self::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#)?;
         if has_extended_media(&listing) {
-            Arc::make_mut(&mut catalog.listings).format_version = 5;
+            Arc::make_mut(&mut catalog.listings)
+                .make_mut()
+                .format_version = 5;
         } else if listing.original_game.is_some() || !listing.media.is_empty() {
-            Arc::make_mut(&mut catalog.listings).format_version = 3;
+            Arc::make_mut(&mut catalog.listings)
+                .make_mut()
+                .format_version = 3;
         } else if listing.download_block_reason.is_some() {
-            Arc::make_mut(&mut catalog.listings).format_version = 2;
+            Arc::make_mut(&mut catalog.listings)
+                .make_mut()
+                .format_version = 2;
         }
-        Arc::make_mut(&mut catalog.listings).listings.push(listing);
-        Arc::make_mut(&mut catalog.listings).promote_projected_format();
+        Arc::make_mut(&mut catalog.listings)
+            .make_mut()
+            .listings
+            .push(listing);
+        Arc::make_mut(&mut catalog.listings)
+            .make_mut()
+            .promote_projected_format();
         catalog.user_selected_listing = true;
         Ok(catalog)
     }
@@ -1248,6 +1368,130 @@ mod tests {
             "summary":"Known project; package and platform availability are unknown.",
             "project_url":"https://example.com/project", "availability":"source-only"
         })
+    }
+
+    /// The release-tools signer binds an added legacy row to
+    /// `portcove_listing_carrier::legacy_row_projection` of the compact row;
+    /// preparation binds it to this export. Both must agree on every row.
+    fn assert_signer_projection_matches_export(document: &CatalogListingDocument) {
+        let current = serde_json::to_value(document).unwrap();
+        let legacy = serde_json::to_value(document.export_format(11).unwrap()).unwrap();
+        let (current, legacy) = (
+            current["listings"].as_array().unwrap(),
+            legacy["listings"].as_array().unwrap(),
+        );
+        assert_eq!(current.len(), legacy.len());
+        for (row, exported) in current.iter().zip(legacy) {
+            let mut exported = exported.clone();
+            exported
+                .as_object_mut()
+                .unwrap()
+                .remove("upstream_observation");
+            assert_eq!(
+                portcove_listing_carrier::legacy_row_projection(row),
+                exported,
+                "{}",
+                row["id"]
+            );
+            // A compact row's observation never reaches the legacy row.
+            let mut observed = row.clone();
+            observed["upstream_observation"] = json!({"provider": "github"});
+            assert_eq!(
+                portcove_listing_carrier::legacy_row_projection(&observed),
+                exported
+            );
+        }
+    }
+
+    #[test]
+    fn signer_legacy_row_projection_equals_core_format_eleven_export() {
+        let committed =
+            CatalogListingDocument::from_json(include_str!("../../catalog/listings.json")).unwrap();
+        assert_eq!(committed.format_version, RESTRICTION_LISTING_FORMAT);
+        assert_signer_projection_matches_export(&committed);
+
+        // Fixture rows for every format-12+ fact the export removes, and the
+        // omission of a media list that held only typed scenes.
+        let reason = "Fresh acquisition remains held for the documented permissions.";
+        let scene = json!({
+            "id":"igdb-screen","role":"screenshot",
+            "subject":{"kind":"port","port_id":"held-with-scenes"},
+            "caption":"IGDB shot",
+            "url":"https://images.igdb.com/igdb/image/upload/t_720p/fixture.png",
+            "sha256":"b".repeat(64),"width":1280,"height":720,
+            "attribution":"Fixture author","source_url":"https://www.igdb.com/games/fixture",
+            "license":"LicenseRef-IGDB-Terms",
+            "rights_url":"https://www.twitch.tv/p/en/legal/developer-agreement/",
+            "igdb":{"game_id":11,"record_id":21,"kind":"screenshot","image_id":"fixture","game_slug":"fixture"}
+        });
+        let shot = json!({
+            "id":"legacy","role":"screenshot",
+            "subject":{"kind":"port","port_id":"open-with-media"},
+            "caption":"Legacy shot",
+            "url":format!("https://raw.githubusercontent.com/owner/project/{}/shot.png", "a".repeat(40)),
+            "sha256":"a".repeat(64),"width":400,"height":200,
+            "attribution":"Fixture author","source_url":"https://example.com/source",
+            "license":"CC0-1.0","rights_url":"https://example.com/rights"
+        });
+        let mut mixed_scene = scene.clone();
+        mixed_scene["subject"]["port_id"] = json!("open-with-media");
+        let implementation = committed
+            .listings
+            .iter()
+            .find_map(|listing| listing.implementation.clone())
+            .unwrap();
+        let mut held = listing();
+        held["id"] = json!("held-with-scenes");
+        held["download_block_reason"] = json!(reason);
+        held["restrictions"] = json!([{
+            "id":"download","effect":"hold","operations":["download"],
+            "reason":"bundled-game-data","explanation":reason,"tracking_issue":1
+        }]);
+        held["implementation"] = serde_json::to_value(&implementation).unwrap();
+        held["media"] = json!([scene]);
+        held["original_game"] = json!({
+            "format_version": 1,
+            "id": "original-game",
+            "evidence_urls": ["https://example.com/original"],
+            "source_editions": [{
+                "id": "retail",
+                "title": "Retail edition",
+                "evidence_urls": ["https://example.com/retail"],
+                "verified_sources": [{
+                    "game_id": "original-source",
+                    "variant_id": "first-release",
+                    "representation_id": "retail-file-set",
+                }]
+            }, {
+                "id": "other",
+                "title": "Other edition",
+                "evidence_urls": ["https://example.com/other"]
+            }]
+        });
+        let mut open = listing();
+        open["id"] = json!("open-with-media");
+        open["media"] = json!([shot, mixed_scene]);
+        let fixtures = CatalogListingDocument::from_json(
+            &json!({"format_version": RESTRICTION_LISTING_FORMAT, "listings": [held, open, listing()]})
+                .to_string(),
+        )
+        .unwrap();
+        assert_signer_projection_matches_export(&fixtures);
+        let projected = serde_json::to_value(fixtures.export_format(11).unwrap()).unwrap();
+        let held = &projected["listings"][0];
+        for field in ["restrictions", "implementation", "media"] {
+            assert!(held.get(field).is_none(), "{field}");
+        }
+        assert_eq!(held["download_block_reason"], json!(reason));
+        assert!(
+            held["original_game"]["source_editions"][0]
+                .get("verified_sources")
+                .is_none()
+        );
+        assert_eq!(
+            projected["listings"][1]["media"].as_array().unwrap().len(),
+            1
+        );
     }
 
     #[test]
@@ -1657,7 +1901,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":15,"listings":[listing()]}),
+            json!({"format_version":17,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -1938,7 +2182,7 @@ mod tests {
         let embedded = Catalog::embedded().unwrap();
         let mut authored = embedded.authoritative_document();
         let mut directory = embedded.listing_document().clone();
-        directory.format_version = 13;
+        directory.format_version = directory.format_version.max(13);
         let port = authored
             .ports
             .iter_mut()
@@ -2023,8 +2267,8 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        // Embedded listings include typed IGDB scene records.
-        assert_eq!(projected.listing_document().format_version, 13);
+        // Embedded listings include typed acquisition restrictions.
+        assert_eq!(projected.listing_document().format_version, 15);
     }
 
     #[test]
@@ -2213,11 +2457,11 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         let mut future = document;
-        future.format_version = 15;
+        future.format_version = 17;
         future.promote_projected_format();
-        assert_eq!(future.format_version, 15);
+        assert_eq!(future.format_version, 17);
         assert!(future.validate().is_err());
-        assert!(parse(&value, 15).is_err());
+        assert!(parse(&value, 17).is_err());
     }
 
     #[test]
@@ -2244,7 +2488,8 @@ mod observation_metadata_tests {
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
         let current = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
-        assert_eq!(current.format_version, 13);
+        // Typed acquisition restrictions lift the embedded directory to 15.
+        assert_eq!(current.format_version, 15);
         // Start with format 6 to isolate setup references from later fields.
         let mut document = current.export_format(6).unwrap();
         let legacy = document.export_format(5).unwrap();
@@ -2379,5 +2624,59 @@ mod observation_metadata_tests {
                 "descriptions never create a managed port"
             );
         }
+    }
+
+    #[test]
+    fn directory_text_has_a_byte_bound_and_no_listing_count() {
+        // Past the former 10,000-listing ceiling, within the text bound.
+        let listings = (0..10_001)
+            .map(|index| {
+                json!({
+                    "id": format!("listing-{index}"),
+                    "name": "Listing",
+                    "summary": "Description.",
+                    "project_url": "https://example.org/project",
+                })
+            })
+            .collect::<Vec<_>>();
+        let text = json!({"format_version": 15, "listings": listings}).to_string();
+        assert_eq!(
+            CatalogListingDocument::from_json(&text)
+                .unwrap()
+                .listings
+                .len(),
+            10_001
+        );
+        let oversized = format!("{text}{}", " ".repeat(MAX_LISTING_DIRECTORY_TEXT_BYTES));
+        assert!(
+            CatalogListingDocument::from_json(&oversized)
+                .unwrap_err()
+                .message
+                .contains("exceeds its byte limit")
+        );
+        // The bundled directory is parsed without the external text bound,
+        // including above the former 8 MiB ceiling.
+        assert!(CatalogListingDocument::from_trusted_text(&text).is_ok());
+        let summary = "A descriptive listing summary sentence for scale. ".repeat(18);
+        let large = json!({
+            "format_version": 15,
+            "listings": (0..10_001)
+                .map(|index| json!({
+                    "id": format!("listing-{index}"),
+                    "name": "Listing",
+                    "summary": summary.trim(),
+                    "project_url": "https://example.org/project",
+                }))
+                .collect::<Vec<_>>(),
+        })
+        .to_string();
+        assert!(large.len() > 8 * 1024 * 1024);
+        assert_eq!(
+            CatalogListingDocument::from_trusted_text(&large)
+                .unwrap()
+                .listings
+                .len(),
+            10_001
+        );
     }
 }

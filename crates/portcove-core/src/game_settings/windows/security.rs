@@ -300,7 +300,8 @@ impl SecuritySnapshot {
         if token_integrity_level(&token)? != 0x2000 {
             return Err(PortcoveError::unsupported(
                 "settings editing requires an effective medium-integrity token",
-            ));
+            )
+            .detail("game_settings_access", "medium_integrity_required"));
         }
         let mut needed = 0;
         // SAFETY: the null/zero buffer asks only for the required output size.

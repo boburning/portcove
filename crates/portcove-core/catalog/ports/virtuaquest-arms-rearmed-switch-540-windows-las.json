@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "virtuaquest-arms-rearmed-switch-540-windows-las",
+    "project_url": "https://github.com/VirtuaQuest/Arms-Rearmed",
+    "name": "ARMS / VirtuaQuest ARMS Rearmed",
+    "summary": "a recompilation of Arms for the NS",
+    "issue_number": 5183,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "arms",
+      "evidence_urls": ["https://github.com/VirtuaQuest/Arms-Rearmed"],
+      "source_editions": []
+    },
+    "original_game_title": "ARMS"
+  }
+}

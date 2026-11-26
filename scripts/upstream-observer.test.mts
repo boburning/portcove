@@ -58,7 +58,15 @@ import {
   reusableProviderObservation,
   validateObservationContinuation,
   checksumSourcesFromProjections,
+  releaseListFact,
+  releaseListFacts,
+  releaseTextWindow,
+  catalogCheckpointBytes,
+  modeledCatalogSources,
+  releaseTextSourceBytes,
 } from "./upstream-observer.mts";
+import { listingReleaseLimit } from "./listing-upstream-observation.mts";
+import { catalogCheckpointByteLimit } from "./catalog-upstream-observer.mts";
 import {
   advanceObservation,
   withCheckpointLock,
@@ -777,7 +785,7 @@ void test("unrelated GitHub counters do not invalidate exact observed release fa
           requiredFixture(
             arrayFixture(replies.get(`${root}/releases?per_page=100&page=1`).body)[0],
           ),
-        ).body = "untrusted release prose changed";
+        ).mentions_count = 7;
         objectFixture(
           requiredFixture(
             arrayFixture(replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body)[0],
@@ -793,6 +801,73 @@ void test("unrelated GitHub counters do not invalidate exact observed release fa
   assert.equal(page.representation, "observer-facts-v1");
   assert.equal(page.sha256, observationHash(changing.replies.get(root).body));
   assert.equal(page.facts_sha256, observationHash(page.body));
+  // A release's own text within the kept window is a fact (the generated
+  // registration rule reads it): a changed body is a concurrent change.
+  const changedText = fixture({
+    intercept: (_url, _options, count, replies) => {
+      const row = objectFixture(
+        requiredFixture(arrayFixture(replies.get(`${root}/releases?per_page=100&page=1`).body)[0]),
+      );
+      if (count === 1) {
+        row.name = "v1.0.0";
+        row.body = "Bug fixes";
+      }
+      if (count === 4) row.body = "Beta 2: changed release text";
+    },
+  });
+  const listingWindow = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+    release_text: "listing-window",
+  });
+  const everyRelease = async (observation: ProviderObservation) =>
+    observation.facts.releases.map((release) => release.id);
+  await assert.rejects(
+    observeUpstream(listingWindow, { fetch: changedText.fetch, selectAssetReleases: everyRelease }),
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "concurrent-change",
+  );
+  // A configuration without the listing window keeps no text: a body change
+  // stays unrelated, so managed sources' facts are unchanged.
+  const quietText = fixture({
+    intercept: (_url, _options, count, replies) => {
+      if (count === 4)
+        objectFixture(
+          requiredFixture(
+            arrayFixture(replies.get(`${root}/releases?per_page=100&page=1`).body)[0],
+          ),
+        ).body = "Beta 2: changed release text";
+    },
+  });
+  assert.equal(
+    (await observeUpstream(config, { fetch: quietText.fetch })).observation.facts_sha256,
+    baseline.observation.facts_sha256,
+  );
+  // The listing window keeps the text in the observation's facts.
+  const titled = fixture({
+    intercept: (_url, _options, count, replies) => {
+      if (count === 1)
+        objectFixture(
+          requiredFixture(
+            arrayFixture(replies.get(`${root}/releases?per_page=100&page=1`).body)[0],
+          ),
+        ).name = "v1.0.0 Beta";
+    },
+  });
+  const kept = await observeUpstream(listingWindow, {
+    fetch: titled.fetch,
+    selectAssetReleases: everyRelease,
+  });
+  assert.deepEqual(kept.observation.facts.releases[0]!.text, {
+    title: "v1.0.0 Beta",
+    line: null,
+    line_complete: true,
+  });
+  assert.throws(
+    () => validateObserverConfig({ ...config, release_text: "listing-window" }),
+    /observer configuration|release text/u,
+  );
   const changedAsset = fixture({
     intercept: (_url, _options, count, replies) => {
       if (count === 4)
@@ -1055,6 +1130,76 @@ void test("deferred checkpoints honor retry clocks without requests and mismatch
     advanceObservation(config, { ...good.checkpoint, config_sha256: "wrong" }, options),
     (error: unknown) => error instanceof ObservationFailure && error.rule === "invalid-checkpoint",
   );
+});
+
+void test("stated incomplete Core coverage keeps the cursor and last-good facts", async () => {
+  const { acceptedObservationAdvanced, acceptedObservationPosition } =
+    await import("./catalog-observer-continuation.mts");
+  const options = { fetch: fixture().fetch, project, now: () => Date.parse(time) };
+  const good = await advanceObservation(config, null, {
+    ...options,
+    project: async (observation: { facts_sha256: string }) => ({
+      ...(await project(observation)),
+      fact_provenance: { coverage: { kind: "complete" } },
+    }),
+  });
+  assert.equal(good.report.transition, "initial-baseline");
+  // A selection-scoped asset gap (for example an uncollected reviewed
+  // fallback) is a projection hold on an accepted, complete observation.
+  const held = await advanceObservation(config, null, {
+    ...options,
+    fetch: fixture().fetch,
+    project: async (observation: { facts_sha256: string }) => {
+      const projected = (await project(observation)) as Record<string, unknown>;
+      return {
+        ...projected,
+        projections: [
+          {
+            channel: "stable",
+            channel_candidate: { id: 1 },
+            reviewed_fallback: { id: 2 },
+            latest_eligible: null,
+            hold_reasons: ["reviewed-artifact-excluded", "release-asset-observation-incomplete"],
+            route_holds: ["incomplete-coverage"],
+          },
+        ],
+        fact_provenance: { coverage: { kind: "complete" } },
+      };
+    },
+  });
+  assert.equal(held.report.transition, "initial-baseline");
+  assert.equal(held.checkpoint.completed_runs, 1);
+  for (const coverage of [
+    { kind: "partial", next_cursor: null },
+    { kind: "failed" },
+    { kind: "unavailable" },
+    { kind: "invented" },
+  ]) {
+    const held = await advanceObservation(config, good.checkpoint, {
+      ...options,
+      fetch: fixture().fetch,
+      project: async (observation: { facts_sha256: string }) => ({
+        ...(await project(observation)),
+        fact_provenance: { coverage },
+      }),
+    });
+    assert.equal(held.report.transition, "failed", coverage.kind);
+    assert.equal(requiredFixture(held.report.exception).rule, "incomplete-coverage");
+    // The observer restates Core's coverage for this source (#8569).
+    assert.equal(
+      requiredFixture(held.report.exception).coverage?.kind,
+      coverage.kind === "invented" ? "failed" : coverage.kind,
+    );
+    assert.deepEqual(held.checkpoint.last_complete, good.checkpoint.last_complete);
+    assert.equal(held.checkpoint.completed_runs, good.checkpoint.completed_runs);
+    assert.equal(
+      acceptedObservationAdvanced(
+        acceptedObservationPosition(good.checkpoint),
+        acceptedObservationPosition(held.checkpoint),
+      ),
+      false,
+    );
+  }
 });
 
 void test("unexpected observer failures retain only their error class", async () => {
@@ -2126,6 +2271,7 @@ void test("pure observer hashes load in a clean dependency-free checkout without
     "github-operation.mts",
     "json-values.mts",
     "runtime-values.mts",
+    "release-text.mts",
   ])
     await copyFile(new URL(file, import.meta.url), path.join(root, file));
   const result = execFileSync(
@@ -2944,4 +3090,364 @@ void test("N64 job evidence joins successful checkout and upload steps without p
     );
     assert.equal(found.matches[0]?.artifact_id, 9);
   }
+});
+
+void test("provider outcomes map to stated partial, unavailable or failed coverage", async () => {
+  const { statedSourceCoverage, validStatedSourceCoverage, continuationCursor } =
+    await import("./catalog-observer-continuation.mts");
+  const { providerStatusFailure, partialObservationFailure } =
+    await import("./upstream-observer.mts");
+  const retryAt = "2026-11-22T12:00:00.000Z";
+  const cases: [unknown, string | null, Record<string, unknown>][] = [
+    // Only a truncated page retains progress; malformed, escaping or repeating
+    // pagination under the same rule is an integrity failure.
+    [
+      partialObservationFailure("pagination", "nonterminal page is incomplete"),
+      "collect:2",
+      { kind: "partial", rule: "pagination", next_cursor: "collect:2" },
+    ],
+    [
+      new ObservationFailure("pagination", "pagination link escaped its configured collection"),
+      "collect:2",
+      { kind: "failed", rule: "pagination" },
+    ],
+    [
+      new ObservationFailure("pagination", "collection repeated an identity across pages"),
+      "collect:2",
+      { kind: "failed", rule: "pagination" },
+    ],
+    [
+      partialObservationFailure("provider-pagination", "truncated"),
+      "reads:1:validate:0",
+      { kind: "partial", rule: "provider-pagination", next_cursor: "reads:1:validate:0" },
+    ],
+    [
+      new ObservationFailure("provider-pagination", "GitLab page coverage or cursor is invalid"),
+      "reads:1:validate:0",
+      { kind: "failed", rule: "provider-pagination" },
+    ],
+    [
+      new ObservationFailure("budget", "spent", retryAt),
+      null,
+      { kind: "partial", rule: "budget", next_cursor: null, retry_at: retryAt },
+    ],
+    [
+      new ObservationFailure("rate-limit", "quota", retryAt),
+      null,
+      { kind: "unavailable", rule: "rate-limit", retry_at: retryAt },
+    ],
+    [
+      new ObservationFailure("transport", "timeout"),
+      null,
+      { kind: "unavailable", rule: "transport" },
+    ],
+    [providerStatusFailure(502), null, { kind: "unavailable", rule: "provider-status" }],
+    [providerStatusFailure(408), null, { kind: "unavailable", rule: "provider-status" }],
+    [providerStatusFailure(404), null, { kind: "failed", rule: "provider-status" }],
+    [
+      new ObservationFailure("invalid-metadata", "bad json"),
+      null,
+      { kind: "failed", rule: "invalid-metadata" },
+    ],
+    [new TypeError("unexpected"), null, { kind: "failed", rule: "source-operation-failed" }],
+    [
+      new ObservationFailure("rate-limit", "bad clock", "not a time"),
+      null,
+      { kind: "unavailable", rule: "rate-limit" },
+    ],
+  ];
+  for (const [error, cursor, expected] of cases) {
+    const stated = statedSourceCoverage(error, cursor);
+    assert.deepEqual(stated, expected);
+    assert.ok(validStatedSourceCoverage(stated));
+  }
+  const core = new ObservationFailure("incomplete-coverage", "core");
+  core.statedCoverage = "unavailable";
+  assert.equal(statedSourceCoverage(core).kind, "unavailable");
+  assert.equal(continuationCursor({ phase: "restart", pages: {}, validation_cursor: 0 }), null);
+  assert.equal(continuationCursor({ phase: "collect", pages: { a: {}, b: {} } }), "collect:2");
+  assert.equal(
+    continuationCursor({ phase: "validate", pages: {}, validation_cursor: 3 }),
+    "validate:3",
+  );
+});
+
+void test("provider retry clocks are bounded to the retry horizon", async () => {
+  const { boundedProviderRetryTime, boundedRetainedRetryClock, providerRetryHorizonMs } =
+    await import("./upstream-observer.mts");
+  const now = Date.parse(time);
+  const horizon = now + providerRetryHorizonMs;
+  const cases: [string | number | null, number | null][] = [
+    ["120", now + 120_000],
+    // An absurd delta cannot defer a source for centuries.
+    ["9999999999", horizon],
+    ["9".repeat(400), horizon],
+    // A far-future HTTP-date is clamped; a past one means "now".
+    ["Wed, 21 Oct 2405 07:28:00 GMT", horizon],
+    [new Date(now - 3600_000).toUTCString(), now],
+    [new Date(now + 600_000).toUTCString(), now + 600_000],
+    // Garbage, negative and fractional values are ignored.
+    ["soon", null],
+    ["-5", null],
+    ["1.5", null],
+    ["", null],
+    [null, null],
+    [Number.NaN, null],
+    [Number.POSITIVE_INFINITY, null],
+    [now + 10 * providerRetryHorizonMs, horizon],
+    [now - 1000, now],
+  ];
+  for (const [value, expected] of cases)
+    assert.equal(boundedProviderRetryTime(now, value), expected, String(value).slice(0, 40));
+  assert.equal(boundedRetainedRetryClock(now, null), null);
+  const near = new Date(now + 60_000).toISOString();
+  assert.equal(boundedRetainedRetryClock(now, near), near);
+  assert.equal(
+    boundedRetainedRetryClock(now, new Date(horizon).toISOString()),
+    new Date(horizon).toISOString(),
+  );
+  // Beyond the horizon it predates the bound and is discarded, not re-deferred.
+  assert.equal(boundedRetainedRetryClock(now, "2405-10-21T07:28:00.000Z"), null);
+});
+
+void test("an absurd GitHub Retry-After defers at most the retry horizon", async () => {
+  const { providerRetryHorizonMs } = await import("./upstream-observer.mts");
+  const now = Date.parse(time);
+  for (const retryAfter of ["9999999999", "Wed, 21 Oct 2405 07:28:00 GMT"]) {
+    const limited = await advanceObservation(config, null, {
+      project,
+      now: () => now,
+      sleep: async () => {},
+      fetch: fixture({
+        intercept: () =>
+          new Response("{}", { status: 429, headers: { "retry-after": retryAfter } }),
+      }).fetch,
+    });
+    const exception = requiredFixture(limited.report.exception);
+    assert.equal(exception.rule, "rate-limit");
+    assert.equal(exception.retry_at, new Date(now + providerRetryHorizonMs).toISOString());
+    // The bounded clock expires: the source is attempted after the horizon.
+    const resumed = await advanceObservation(config, limited.checkpoint, {
+      project,
+      now: () => now + providerRetryHorizonMs + 1000,
+      fetch: fixture().fetch,
+    });
+    assert.notEqual(resumed.report.transition, "deferred");
+    // A checkpoint written with an unbounded clock before the horizon existed
+    // is attempted rather than deferred again.
+    const legacy = structuredClone(limited.checkpoint);
+    requiredFixture(legacy.exception).retry_at = "2405-10-21T07:28:00.000Z";
+    const legacyRead = await advanceObservation(config, legacy, {
+      project,
+      now: () => now + 1000,
+      fetch: fixture().fetch,
+    });
+    assert.notEqual(legacyRead.report.transition, "deferred");
+  }
+});
+
+void test("a rate-limited single-port observation states unavailable coverage with its retry time", async () => {
+  const now = Date.parse(time);
+  const good = await advanceObservation(config, null, {
+    fetch: fixture().fetch,
+    project,
+    now: () => now,
+  });
+  const limited = await advanceObservation(config, good.checkpoint, {
+    project,
+    now: () => now + 7 * 3600_000,
+    sleep: async () => {},
+    fetch: fixture({
+      intercept: () => new Response("{}", { status: 429, headers: { "retry-after": "900" } }),
+    }).fetch,
+  });
+  const exception = requiredFixture(limited.report.exception);
+  assert.equal(exception.rule, "rate-limit");
+  assert.deepEqual(exception.coverage, {
+    kind: "unavailable",
+    rule: "rate-limit",
+    retry_at: new Date(now + 7 * 3600_000 + 900_000).toISOString(),
+  });
+  assert.equal(exception.retry_at, exception.coverage?.retry_at);
+  assert.deepEqual(limited.checkpoint.last_complete, good.checkpoint.last_complete);
+  // The retained statement survives a checkpoint round trip; an earlier
+  // checkpoint without it still parses.
+  const roundTrip = await advanceObservation(
+    config,
+    JSON.parse(JSON.stringify(limited.checkpoint)),
+    {
+      project,
+      now: () => now + 7 * 3600_000 + 1000,
+      fetch: fixture().fetch,
+    },
+  );
+  assert.equal(roundTrip.report.transition, "deferred");
+  assert.deepEqual(roundTrip.checkpoint.exception?.coverage, exception.coverage);
+  const legacy = structuredClone(limited.checkpoint);
+  delete requiredFixture(legacy.exception).coverage;
+  const legacyRead = await advanceObservation(config, legacy, {
+    project,
+    now: () => now + 7 * 3600_000 + 1000,
+    fetch: fixture().fetch,
+  });
+  assert.equal(legacyRead.report.transition, "deferred");
+});
+
+void test("release lists keep each newest release's own text, bounded to what the release-text rule reads", () => {
+  // The text window is the listing observation window, and the per-source
+  // text budget is the checkpoint's headroom shared by its modeled sources.
+  assert.equal(releaseTextWindow, listingReleaseLimit);
+  assert.equal(catalogCheckpointBytes, catalogCheckpointByteLimit);
+  assert.equal(
+    releaseTextSourceBytes,
+    Math.floor(catalogCheckpointByteLimit / 2 / 2 / modeledCatalogSources),
+  );
+  // Capacity: every modeled source at its full budget, in both copies,
+  // stays inside the half of the checkpoint the model leaves as headroom.
+  // The measured listing population (#1422 review: about 565 bytes per
+  // repository on average, at most about 4.2 KB, ~1,146 repositories) fits
+  // each source's share with room to spare.
+  assert.ok(releaseTextSourceBytes * modeledCatalogSources * 2 <= catalogCheckpointByteLimit / 2);
+  assert.ok(4_200 < releaseTextSourceBytes);
+  assert.ok(565 * 1_146 * 2 < catalogCheckpointByteLimit / 16);
+  const row = (id: number, published: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    tag_name: `v${id}`,
+    draft: false,
+    prerelease: false,
+    created_at: published,
+    published_at: published,
+    name: `Release ${id}`,
+    body: `Notes ${id}\nMore notes`,
+    ...extra,
+  });
+  const long = "x".repeat(5000);
+  const raw = [
+    row(1, "2026-01-01T00:00:00Z"),
+    row(2, "2026-02-01T00:00:00Z", { body: `<p>${"<b>x</b>".repeat(800)} beta</p>` }),
+    row(3, "2026-03-01T00:00:00Z", { name: null, body: null }),
+    row(4, "2026-04-01T00:00:00Z", {
+      body: '![banner](b.png)\r\n<img src="a"\r\nalt=x>\r\n## Beta 2 is here\r\nDetails',
+    }),
+    row(5, "2026-05-01T00:00:00Z", { draft: true, published_at: null }),
+    row(6, "2026-06-01T00:00:00Z"),
+  ];
+  const facts = releaseListFacts(raw, true);
+  const text = (id: number) => facts.find((fact) => fact.id === id)!.text;
+  // The newest four published releases keep text; a draft and older ones do not.
+  assert.equal(text(1), undefined);
+  assert.equal(text(5), undefined);
+  // Of a body only its judged line is kept: tags (also across lines) and
+  // banners never become it, and a long HTML line is judged whole.
+  assert.deepEqual(text(6), { title: "Release 6", line: "Notes 6", line_complete: true });
+  assert.deepEqual(text(4), { title: "Release 4", line: "Beta 2 is here", line_complete: true });
+  assert.deepEqual(text(3), { title: null, line: null, line_complete: true });
+  assert.match(text(2)!.line!, / beta$/u);
+  // Projection is idempotent: projected rows project to themselves.
+  assert.deepEqual(releaseListFacts(facts, true), facts);
+  // Without the listing window, no text is kept at all.
+  assert.equal("text" in releaseListFact(row(6, "2026-06-01T00:00:00Z"), false), false);
+  // A row stating neither field has no text (UNKNOWN, never empty text).
+  const { name: _name, body: _body, ...bare } = row(7, "2026-07-01T00:00:00Z");
+  assert.equal("text" in releaseListFact(bare), false);
+  // A source over its budget keeps no text: every kept row reads as
+  // unobserved and states how much it had; the outcome is idempotent too.
+  const heavy = releaseListFacts(
+    [1, 2, 3, 4].map((id) => row(id, `2026-0${id}-01T00:00:00Z`, { body: long })),
+    true,
+  );
+  for (const fact of heavy) {
+    assert.equal(fact.text?.line_complete, false);
+    assert.equal(fact.text?.line, null);
+    assert.ok((fact.text?.overflow_bytes ?? 0) > releaseTextSourceBytes);
+  }
+  assert.deepEqual(releaseListFacts(heavy, true), heavy);
+  // An over-long title counts against the same budget.
+  const titled = releaseListFacts(
+    [row(1, "2026-01-01T00:00:00Z", { name: long.repeat(2), body: null })],
+    true,
+  );
+  assert.equal(titled[0]!.text?.title, null);
+  // A projected row whose text is not a judged line or a budget overflow is refused.
+  for (const text of [
+    { title: null, line: "two\nlines", line_complete: true },
+    { title: null, line: null, line_complete: false },
+    { title: 7, line: null, line_complete: true },
+    { title: null, line: null },
+    { title: null, line: null, line_complete: false, overflow_bytes: 10 },
+  ])
+    assert.throws(
+      () => releaseListFact({ ...row(8, "2026-08-01T00:00:00Z"), text }),
+      /bounded projection/u,
+    );
+});
+
+void test("only the first release page keeps text, so a source stores one window of it (#1422)", async () => {
+  const listingWindow = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+    release_text: "listing-window",
+  });
+  const server = fixture();
+  // Page 1 holds one published release behind 99 drafts; the three newest
+  // published releases of the window are on page 2.
+  server.replies.set(`${root}/releases?per_page=100&page=1`, {
+    body: [
+      release(1, { name: "v1 Beta", body: "Notes" }),
+      ...Array.from({ length: 99 }, (_, index) =>
+        release(index + 2, { draft: true, published_at: null }),
+      ),
+    ],
+    link: `<${root}/releases?per_page=100&page=2>; rel="next"`,
+  });
+  server.replies.set(`${root}/releases?per_page=100&page=2`, {
+    body: [101, 102, 103].map((id) => release(id, { name: `v${id} Beta`, body: "Beta notes" })),
+    link: "",
+  });
+  const result = await observeUpstream(listingWindow, {
+    fetch: server.fetch,
+    selectAssetReleases: async () => [],
+  });
+  const texts = new Map(
+    result.observation.facts.releases.map((fact) => [fact.id, fact.text ?? null]),
+  );
+  assert.deepEqual(texts.get(1), { title: "v1 Beta", line: "Notes", line_complete: true });
+  // Inside the window but on page 2: no text, read as unobserved.
+  for (const id of [101, 102, 103]) assert.equal(texts.get(id), null, `release ${id}`);
+  const stored = arrayFixture(
+    requiredFixture(result.cache.pages[`${root}/releases?per_page=100&page=2`]).body,
+  );
+  assert.ok(stored.every((row) => !Object.hasOwn(objectFixture(row), "text")));
+});
+
+void test("release text outside the window is never read", () => {
+  const at = (day: number) => `2026-01-${String(day).padStart(2, "0")}T00:00:00Z`;
+  const rows = Array.from({ length: 6 }, (_, index) => {
+    const row: Record<string, unknown> = {
+      id: index + 1,
+      tag_name: `v${index + 1}`,
+      draft: false,
+      prerelease: false,
+      created_at: at(index + 1),
+      published_at: at(index + 1),
+      name: `Release ${index + 1}`,
+    };
+    // The two oldest rows' bodies fail if anything reads them.
+    Object.defineProperty(row, "body", {
+      enumerable: true,
+      get: () => {
+        if (index < 2) throw new Error(`body ${index + 1} was read`);
+        return "Notes";
+      },
+    });
+    return row;
+  });
+  const facts = releaseListFacts(rows, true);
+  assert.deepEqual(
+    facts.map((fact) => fact.text?.title ?? null),
+    [null, null, "Release 3", "Release 4", "Release 5", "Release 6"],
+  );
+  assert.ok(releaseListFacts(rows, false).every((fact) => !("text" in fact)));
 });

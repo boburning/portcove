@@ -1,4 +1,5 @@
 use super::{
+    listing_floor_ledger::Ledger,
     public_history::{PublicFile, PublicHistory},
     *,
 };
@@ -154,8 +155,10 @@ async fn authenticate(
             {
                 return invalid("catalog prior target outside role scope");
             }
-            let maximum = if name.raw() == "policy/official/catalog.listings.json" {
-                8 * 1024 * 1024
+            let maximum = if portcove_listing_carrier::is_listing_target(name.raw()) {
+                portcove_listing_carrier::MAX_BYTES as u64
+            } else if name.raw() == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+                portcove_listing_carrier::COVER_CHECKPOINT_MAX as u64
             } else if name.raw().starts_with("policy/") {
                 65536
             } else if name.raw() == "definitions/index.json" {
@@ -188,6 +191,8 @@ async fn authenticate(
             }
         }
     }
+    bundle::listing_targets(&logical.files)?;
+    bundle::checked_cover_checkpoint(&logical.files)?;
     Ok(logical)
 }
 fn validate_public_paths(files: &PublicHistory) -> Result<()> {
@@ -230,8 +235,24 @@ fn validate_public_paths(files: &PublicHistory) -> Result<()> {
     }
     Ok(())
 }
-pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<PublicHistory> {
-    let files = PublicHistory::read(path)?;
+pub(super) async fn inspect_prior(
+    context: &Context,
+    path: &Path,
+) -> Result<(
+    PublicHistory,
+    Option<super::history_checkpoint::PreparedHistory>,
+    Option<listing_floor_ledger::Output>,
+)> {
+    let expects_thin = context.thin_history && context.history_store.is_some();
+    let files = if expects_thin {
+        PublicHistory::read_bounded(
+            path,
+            super::history_checkpoint::THIN_MAX_FILES,
+            super::history_checkpoint::THIN_MAX_BYTES,
+        )?
+    } else {
+        PublicHistory::read(path)?
+    };
     validate_public_paths(&files)?;
     let logical = authenticate(
         &context.root_bytes,
@@ -240,10 +261,46 @@ pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<Publ
     )
     .await?;
     let roles = current_roles(&files)?;
-    let mut floors = HistoricalRevisionFloors::default();
-    verify_history(context, &files, |role, targets| {
-        floors.observe(&files, &logical, role, targets)
+    let pointer = logical.files.get(super::history_checkpoint::TARGET);
+    let prior_cover = bundle::checked_cover_checkpoint(&logical.files)?;
+    let next_cover = bundle::checked_cover_checkpoint(&context.targets)?;
+    if pointer.is_none() && (prior_cover.is_some() || next_cover.is_some()) {
+        return invalid("cover observations require authenticated catalog history");
+    }
+    if next_cover.is_some()
+        && !logical
+            .files
+            .contains_key(portcove_listing_carrier::COMPACT_TARGET)
+    {
+        return invalid("cover observations require a previously active compact listing");
+    }
+    portcove_listing_carrier::check_cover_checkpoint_successor(
+        prior_cover
+            .as_ref()
+            .map(|(bytes, sha)| (*bytes, sha.as_str())),
+        next_cover
+            .as_ref()
+            .map(|(bytes, sha)| (*bytes, sha.as_str())),
+    )
+    .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
+    let thin = context.thin_history && pointer.is_some();
+    let mut floors = HistoricalRevisionFloors {
+        ledger: context
+            .listing_ledger
+            .as_ref()
+            .and_then(|state| state.prior.clone()),
+        ..Default::default()
+    };
+    verify_history(&context.into(), &files, |role, version, targets| {
+        floors.observe(&files, &logical, role, version, targets)
     })?;
+    floors.check_cover_presence(&logical.files)?;
+    floors.check_ledger_floors()?;
+    let ledger = context
+        .listing_ledger
+        .as_ref()
+        .map(|state| listing_floor_ledger::next(&floors.recorder, state.prior.as_ref()))
+        .transpose()?;
     let top: Signed<Targets> = serde_json::from_slice(at(&roles, "targets.json")?)?;
     // The prior is history: its offline Targets keeps its key inventory check, but
     // not its lifetime window, so a late offline re-sign can still be published.
@@ -291,7 +348,140 @@ pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<Publ
         }
     }
     floors.check(&context.targets)?;
-    Ok(files)
+    super::history_checkpoint::check_listings(
+        &context.targets,
+        floors
+            .legacy_listing
+            .as_ref()
+            .map(|(floor, body)| (floor, body.as_slice())),
+        floors.compact_listing.as_ref(),
+    )?;
+    let history = if pointer.is_some() || context.bootstrap_history {
+        let timestamp_bytes = at(&roles, "timestamp.json")?;
+        let timestamp: Signed<TufTimestamp> = serde_json::from_slice(timestamp_bytes)?;
+        let policy: Signed<Targets> = serde_json::from_slice(at(&roles, "official-policy.json")?)?;
+        let active_files = current_immutable_inventory(context, &roles, &logical.files, &files)?;
+        let file_inventory = files.identities();
+        if thin && file_inventory.len() != active_files.len() + 1 {
+            return invalid("thin history must carry exactly the current authenticated repository");
+        }
+        let input = super::history_checkpoint::BootstrapInput {
+            timestamp_version: timestamp.signed.version.get(),
+            timestamp_sha256: sha(timestamp_bytes),
+            root_sha256: sha(&context.root_bytes),
+            delegation_sha256: delegation_digest(&context.top.signed)?,
+            definitions: floors
+                .definitions
+                .into_iter()
+                .map(|((namespace, stable_id), entry)| {
+                    Ok(super::history_checkpoint::DefinitionFloor {
+                        namespace,
+                        stable_id,
+                        revision: entry["revision"].as_u64().unwrap(),
+                        entry_sha256: sha(&io::canonical(&serde_json::to_vec(&entry)?)?),
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?,
+            policies: floors
+                .policies
+                .into_iter()
+                .map(
+                    |(target, (revision, target_sha256))| super::history_checkpoint::PolicyFloor {
+                        target,
+                        revision,
+                        target_sha256,
+                    },
+                )
+                .collect(),
+            legacy_listing: floors.legacy_listing.map(|(floor, _)| floor),
+            compact_listing: floors.compact_listing,
+            files: file_inventory
+                .iter()
+                .filter(|file| file.target != "metadata/timestamp.json")
+                .cloned()
+                .collect(),
+            active_files,
+        };
+        let next_timestamp = context.versions[3].get();
+        let next_policy = context.versions[1].get();
+        let checkpoint = if let Some(pointer) = pointer {
+            let store = context.history_store.as_deref().ok_or_else(|| {
+                TufRepositoryError::Invalid("catalog checkpointed history requires its authenticated object store; retain the prior generation".into())
+            })?;
+            let verified = super::history_checkpoint::read_current(
+                pointer,
+                store,
+                &input.root_sha256,
+                &input.delegation_sha256,
+                input.timestamp_version,
+                policy.signed.version.get(),
+            )?;
+            if !thin {
+                verified.verify_archive(store, &file_inventory)?;
+            }
+            verified.check_cover_predecessor(
+                prior_cover
+                    .as_ref()
+                    .map(|(bytes, sha)| (*bytes, sha.as_str())),
+            )?;
+            verified.check_new(&context.targets)?;
+            let readback = verified.readback(store);
+            let mut prepared = verified.advance(input, next_timestamp, next_policy)?;
+            prepared.readback = readback;
+            prepared
+        } else {
+            if context.history_store.is_some() {
+                return invalid(
+                    "catalog history store exists without an authenticated checkpoint pointer",
+                );
+            }
+            super::history_checkpoint::bootstrap(input, next_timestamp, next_policy)?
+        };
+        Some(checkpoint)
+    } else if context.history_store.is_some() {
+        return invalid("catalog history store exists without an authenticated checkpoint pointer");
+    } else {
+        None
+    };
+    Ok((files, history, ledger))
+}
+
+fn current_immutable_inventory(
+    context: &Context,
+    roles: &Files,
+    logical: &Files,
+    history: &PublicHistory,
+) -> Result<Vec<DefinitionFile>> {
+    let mut names = BTreeSet::from([format!(
+        "metadata/{}.root.json",
+        context.root.signed.version
+    )]);
+    for (name, body) in roles {
+        if name == "timestamp.json" {
+            continue;
+        }
+        let envelope: serde_json::Value = serde_json::from_slice(body)?;
+        let version = envelope["signed"]["version"].as_u64().ok_or_else(|| {
+            TufRepositoryError::Invalid("current catalog role version is missing".into())
+        })?;
+        names.insert(format!("metadata/{version}.{name}"));
+    }
+    for (name, bytes) in logical {
+        names.insert(public_target_path(name, bytes)?);
+    }
+    names
+        .into_iter()
+        .map(|name| {
+            let file = history.get(&name).ok_or_else(|| {
+                TufRepositoryError::Invalid(format!("current catalog file missing: {name}"))
+            })?;
+            Ok(DefinitionFile {
+                target: name,
+                bytes: file.bytes(),
+                sha256: file.digest().into(),
+            })
+        })
+        .collect()
 }
 
 fn public_identities(path: &Path) -> Result<Vec<DefinitionFile>> {
@@ -340,7 +530,9 @@ pub(super) fn check_proposed_target_capacity(
     let (count, bytes) = proposed_target_floor(prior, proposed)?;
     check_public_capacity(count, bytes)
 }
-fn indexed_entries(bytes: &[u8]) -> Result<BTreeMap<(String, String), serde_json::Value>> {
+pub(super) fn indexed_entries(
+    bytes: &[u8],
+) -> Result<BTreeMap<(String, String), serde_json::Value>> {
     let index: serde_json::Value = serde_json::from_slice(bytes)?;
     let entries = index["definitions"].as_array().ok_or_else(|| {
         TufRepositoryError::Invalid("catalog historical index definitions absent".into())
@@ -366,11 +558,41 @@ fn indexed_entries(bytes: &[u8]) -> Result<BTreeMap<(String, String), serde_json
     }
     Ok(map)
 }
+pub(super) fn historical_policy_revision(target: &str, value: &serde_json::Value) -> Result<u64> {
+    let field = if target.ends_with(".launch.json") {
+        "revision"
+    } else {
+        "policy_revision"
+    };
+    value[field]
+        .as_u64()
+        .filter(|revision| *revision > 0)
+        .ok_or_else(|| {
+            TufRepositoryError::Invalid("catalog historical policy/launch revision absent".into())
+        })
+}
+
 #[derive(Default)]
 struct HistoricalRevisionFloors {
     definitions: BTreeMap<(String, String), serde_json::Value>,
     policies: BTreeMap<String, (u64, String)>,
     seen: BTreeSet<String>,
+    listing_revisions: BTreeMap<u64, String>,
+    legacy_listing: Option<(super::history_checkpoint::ListingFloor, Vec<u8>)>,
+    compact_listing: Option<super::history_checkpoint::ListingFloor>,
+    cover_checkpoint_seen: bool,
+    /// Published listing-floor ledger, consulted only for a listing body that
+    /// is absent from the retained tree (#1422 body window).
+    ledger: Option<Ledger>,
+    recorder: listing_floor_ledger::Recorder,
+    /// Highest revision per listing target known only from the ledger.
+    ledger_floors: BTreeMap<String, u64>,
+    /// Per listing target, the highest signed `official-policy` version that
+    /// names it and the body path that version names. Signed data alone fixes
+    /// which body is a target's latest; the ledger cannot move it.
+    latest_named: BTreeMap<String, (u64, String)>,
+    /// Listing body paths whose served bytes were measured and parsed.
+    verified_bodies: BTreeSet<String>,
 }
 
 impl HistoricalRevisionFloors {
@@ -379,6 +601,7 @@ impl HistoricalRevisionFloors {
         files: &PublicHistory,
         current: &AuthenticatedTargets,
         role: &str,
+        version: u64,
         targets: &Targets,
     ) -> Result<()> {
         let definition_role = role == "official-definitions.json";
@@ -386,21 +609,41 @@ impl HistoricalRevisionFloors {
             if definition_role && target.raw() != "definitions/index.json" {
                 continue;
             }
+            if target.raw() == super::history_checkpoint::TARGET {
+                continue;
+            }
             if !definition_role && !target.raw().starts_with("policy/official/") {
                 return invalid("catalog historical policy scope differs");
             }
-            let path = format!(
-                "targets/{}.{}",
-                hex::encode(&identity.hashes.sha256),
-                target.raw()
-            );
-            let raw = files.get(&path).ok_or_else(|| {
-                TufRepositoryError::Invalid(format!(
-                    "catalog public repository file missing: {path}"
-                ))
-            })?;
-            let maximum = if target.raw() == "policy/official/catalog.listings.json" {
-                8 * 1024 * 1024
+            let digest = hex::encode(&identity.hashes.sha256);
+            let path = format!("targets/{digest}.{}", target.raw());
+            let listing = portcove_listing_carrier::is_listing_target(target.raw());
+            if listing {
+                let latest = self
+                    .latest_named
+                    .entry(target.raw().to_owned())
+                    .or_insert((version, path.clone()));
+                if version >= latest.0 {
+                    *latest = (version, path.clone());
+                }
+            }
+            let Some(raw) = files.get(&path) else {
+                if listing
+                    && let Some(entry) = self
+                        .ledger
+                        .as_ref()
+                        .and_then(|ledger| ledger.get(target.raw(), &digest))
+                {
+                    let entry = entry.clone();
+                    self.observe_ledger(entry, identity.length, path, version)?;
+                    continue;
+                }
+                return invalid(&format!("catalog public repository file missing: {path}"));
+            };
+            let maximum = if portcove_listing_carrier::is_listing_target(target.raw()) {
+                portcove_listing_carrier::MAX_BYTES
+            } else if target.raw() == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+                portcove_listing_carrier::COVER_CHECKPOINT_MAX
             } else if target.raw() == "definitions/index.json" {
                 DEFINITION_INDEX_MAX as usize
             } else if definition_role {
@@ -414,13 +657,68 @@ impl HistoricalRevisionFloors {
             {
                 return invalid("catalog historical target identity/bound differs");
             }
+            if listing {
+                self.recorder
+                    .reference(target.raw(), &digest, Some(version));
+                self.verified_bodies.insert(path.clone());
+            }
             // The physical body is immutable, but every signed reference must
             // independently agree with its measured length and digest.
             if !self.seen.insert(path) {
                 continue;
             }
+            if target.raw() == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+                self.cover_checkpoint_seen = true;
+                // Checkpoints remain immutable historical policy bodies. Their
+                // active transition is verified against the authenticated prior.
+                continue;
+            }
             let body = current.historical_body(target.raw(), raw)?;
-            if definition_role {
+            if listing {
+                let listing = bundle::listing_revision(target.raw(), &body)?;
+                let floor = super::history_checkpoint::ListingFloor {
+                    revision: listing.revision,
+                    decoded_sha256: listing.decoded_sha256,
+                    withdrawn_ids: listing.withdrawn_ids,
+                };
+                self.recorder.facts(
+                    listing_floor_ledger::Entry {
+                        policy_version: version,
+                        target: target.raw().into(),
+                        sha256: digest.clone(),
+                        length: identity.length,
+                        revision: floor.revision,
+                        decoded_sha256: floor.decoded_sha256.clone(),
+                        withdrawn_ids_count: floor.withdrawn_ids.len() as u64,
+                        withdrawn_ids_sha256: listing_floor_ledger::withdrawn_digest(
+                            &floor.withdrawn_ids,
+                        ),
+                    },
+                    true,
+                );
+                if let Some(prior) = self
+                    .listing_revisions
+                    .insert(floor.revision, floor.decoded_sha256.clone())
+                    && prior != floor.decoded_sha256
+                {
+                    return invalid("catalog retained listing carrier history equivocates");
+                }
+                if target.raw() == portcove_listing_carrier::COMPACT_TARGET {
+                    if self
+                        .compact_listing
+                        .as_ref()
+                        .is_none_or(|prior| prior.revision < floor.revision)
+                    {
+                        self.compact_listing = Some(floor);
+                    }
+                } else if self
+                    .legacy_listing
+                    .as_ref()
+                    .is_none_or(|(prior, _)| prior.revision < floor.revision)
+                {
+                    self.legacy_listing = Some((floor, body.to_vec()));
+                }
+            } else if definition_role {
                 for (id, entry) in indexed_entries(&body)? {
                     if let Some(old) = self.definitions.get(&id) {
                         let old_revision = old["revision"].as_u64().unwrap();
@@ -436,18 +734,7 @@ impl HistoricalRevisionFloors {
                 }
             } else {
                 let policy: serde_json::Value = serde_json::from_slice(&body)?;
-                let field = if target.raw().ends_with(".launch.json")
-                    || target.raw() == "policy/official/catalog.listings.json"
-                {
-                    "revision"
-                } else {
-                    "policy_revision"
-                };
-                let revision = policy[field].as_u64().filter(|v| *v > 0).ok_or_else(|| {
-                    TufRepositoryError::Invalid(
-                        "catalog historical policy/launch revision absent".into(),
-                    )
-                })?;
+                let revision = historical_policy_revision(target.raw(), &policy)?;
                 if let Some((old_revision, old_bytes)) = self.policies.get(target.raw()) {
                     if revision == *old_revision && old_bytes != raw.digest() {
                         return invalid("catalog retained policy/launch history equivocates");
@@ -463,33 +750,96 @@ impl HistoricalRevisionFloors {
         Ok(())
     }
 
-    fn check(self, new: &Files) -> Result<()> {
+    /// A pruned body's ledger entry: its signed descriptor must name exactly
+    /// the recorded bytes, and its revision joins the shared equivocation map.
+    fn observe_ledger(
+        &mut self,
+        entry: listing_floor_ledger::Entry,
+        length: u64,
+        path: String,
+        version: u64,
+    ) -> Result<()> {
+        if entry.length != length {
+            return invalid("catalog historical target identity/bound differs");
+        }
+        self.recorder
+            .reference(&entry.target, &entry.sha256, Some(version));
+        if !self.seen.insert(path) {
+            return Ok(());
+        }
+        if let Some(prior) = self
+            .listing_revisions
+            .insert(entry.revision, entry.decoded_sha256.clone())
+            && prior != entry.decoded_sha256
+        {
+            return invalid("catalog retained listing carrier history equivocates");
+        }
+        let floor = self.ledger_floors.entry(entry.target.clone()).or_default();
+        *floor = (*floor).max(entry.revision);
+        self.recorder.facts(entry, false);
+        Ok(())
+    }
+
+    /// Every successor is checked against the newest body of each listing
+    /// target, so that body must be served: a pruned body above it fails closed.
+    fn check_cover_presence(&self, current: &Files) -> Result<()> {
+        if self.cover_checkpoint_seen
+            && !current.contains_key(portcove_listing_carrier::COVER_CHECKPOINT_TARGET)
+        {
+            return invalid(
+                "catalog current policy omitted an authenticated historical cover checkpoint",
+            );
+        }
+        Ok(())
+    }
+
+    /// The body the latest signed policy version names for each target must be
+    /// served and verified from its bytes, so an unsigned ledger entry can never
+    /// stand in for it (and so never lower that target's floor).
+    fn check_ledger_floors(&self) -> Result<()> {
+        for (target, (_, path)) in &self.latest_named {
+            if !self.verified_bodies.contains(path) {
+                return invalid(&format!(
+                    "catalog latest signed {target} body is outside the served tree; restore it \
+from a pinned publication (docs/RELEASING.md) before publishing"
+                ));
+            }
+        }
+        for (target, revision) in &self.ledger_floors {
+            let served = if target == portcove_listing_carrier::COMPACT_TARGET {
+                self.compact_listing.as_ref().map(|floor| floor.revision)
+            } else {
+                self.legacy_listing
+                    .as_ref()
+                    .map(|(floor, _)| floor.revision)
+            };
+            if served.is_none_or(|served| *revision > served) {
+                return invalid(
+                    "catalog newest listing body is outside the served tree; restore it from a \
+pinned publication (docs/RELEASING.md) before publishing",
+                );
+            }
+        }
+        Ok(())
+    }
+
+    fn check(&self, new: &Files) -> Result<()> {
         let current = indexed_entries(at(new, "definitions/index.json")?)?;
-        for (id, old) in self.definitions {
-            if let Some(next) = current.get(&id) {
+        for (id, old) in &self.definitions {
+            if let Some(next) = current.get(id) {
                 let a = old["revision"].as_u64().unwrap();
                 let b = next["revision"].as_u64().unwrap();
-                if b < a || (b == a && next != &old) {
+                if b < a || (b == a && next != old) {
                     return invalid("catalog historical definition revision rollback/equivocation");
                 }
             }
         }
-        for (name, (revision, bytes)) in self.policies {
-            if let Some(next) = new.get(&name) {
+        for (name, (revision, bytes)) in &self.policies {
+            if let Some(next) = new.get(name) {
                 let value: serde_json::Value = serde_json::from_slice(next)?;
-                let field = if name.ends_with(".launch.json")
-                    || name == "policy/official/catalog.listings.json"
+                let next_revision = historical_policy_revision(name, &value)?;
+                if next_revision < *revision || (next_revision == *revision && &sha(next) != bytes)
                 {
-                    "revision"
-                } else {
-                    "policy_revision"
-                };
-                let next_revision = value[field].as_u64().ok_or_else(|| {
-                    TufRepositoryError::Invalid(
-                        "catalog current policy/launch revision absent".into(),
-                    )
-                })?;
-                if next_revision < revision || (next_revision == revision && sha(next) != bytes) {
                     return invalid(
                         "catalog historical policy/launch rollback or equal-revision replacement",
                     );
@@ -523,6 +873,12 @@ struct AssemblyConfig {
     context: String,
     signed_roles: String,
     output: String,
+    #[serde(default)]
+    history_output: Option<String>,
+    /// Where to write the run's listing-floor ledger; required exactly when
+    /// the context maintains it (#1422).
+    #[serde(default)]
+    listing_floor_ledger_output: Option<String>,
 }
 /// Keyless exact role assembly followed by Tough full target verification, with no network transport.
 pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRepositoryReport> {
@@ -539,6 +895,20 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
     let mut inputs = context.inputs.clone();
     inputs.extend([path.to_path_buf(), roles_path]);
     io::no_overlap(&output, &inputs)?;
+    let history_output = match (&context.history, config.history_output.as_deref()) {
+        (Some(history), Some(path)) => {
+            let directory = io::resolve(base, path)?;
+            io::no_overlap(&directory, &inputs)?;
+            io::no_output_overlap(&directory, &output)?;
+            Some((history, directory))
+        }
+        (None, None) => None,
+        _ => {
+            return invalid(
+                "catalog history assembly output requires an exact checkpoint context and path",
+            );
+        }
+    };
     let mut files = context.prior.clone();
     files.insert(
         format!("metadata/{}.root.json", context.root.signed.version),
@@ -594,7 +964,7 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         files.len(),
         files.iter().map(|(_, file)| file.bytes()).sum(),
     )?;
-    verify_history(&context, &files, |_, _| Ok(()))?;
+    verify_history(&(&context).into(), &files, |_, _, _| Ok(()))?;
     let logical = authenticate(
         &context.root_bytes,
         &files,
@@ -608,46 +978,119 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
     if signing::roles(&context, &inputs[inputs.len() - 1], 4)? != roles {
         return invalid("catalog signed inputs changed during assembly");
     }
-    let changed = if output.try_exists()? {
-        if public_identities(&output)? != files.identities() {
-            return invalid("catalog assembly output exists with different bytes; retain original");
+    let ledger_output = match (
+        context
+            .listing_ledger
+            .as_ref()
+            .and_then(|state| state.next.as_ref()),
+        config.listing_floor_ledger_output.as_deref(),
+    ) {
+        (Some(ledger), Some(path)) => {
+            let path = io::resolve(base, path)?;
+            io::no_overlap(&path, &inputs)?;
+            io::no_output_overlap(&path, &output)?;
+            Some((ledger, path))
         }
-        false
+        (None, None) => None,
+        _ => {
+            return invalid(
+                "catalog listing-floor ledger output requires a ledger context and exact path",
+            );
+        }
+    };
+    let output_exists = io::directory_exists(&output)?;
+    let history_directories = if let Some((history, directory)) = &history_output {
+        let store = directory.join("sha256");
+        let directory_exists = io::directory_exists(directory)?;
+        let store_exists = directory_exists && io::directory_exists(&store)?;
+        if store_exists {
+            for (name, bytes) in &history.objects {
+                io::output_file_exists(&directory.join(name), bytes)?;
+            }
+        }
+        Some((directory_exists, store, store_exists))
     } else {
-        io::ancestry(
-            output.parent().ok_or_else(|| {
-                TufRepositoryError::Invalid("catalog output parent absent".into())
-            })?,
-        )?;
-        #[cfg(unix)]
-        let mut builder = fs::DirBuilder::new();
-        #[cfg(not(unix))]
-        let builder = fs::DirBuilder::new();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::DirBuilderExt;
-            builder.mode(0o700);
+        None
+    };
+    if output_exists && public_identities(&output)? != files.identities() {
+        return invalid("catalog assembly output exists with different bytes; retain original");
+    }
+
+    // Reserve both roots using exclusive directory creation before any file writes.
+    // For example, Windows can allocate a short alias only after creation.
+    let mut reserved = Vec::new();
+    let reserve_result = (|| -> Result<()> {
+        let mut reserve = |directory: &Path| -> Result<()> {
+            reserved.push(io::OutputReservation::create(directory)?);
+            Ok(())
+        };
+        if !output_exists {
+            reserve(&output)?;
         }
-        builder.create(&output)?;
+        io::no_overlap(&output, &inputs)?;
+        if let (Some((_, directory)), Some((directory_exists, store, store_exists))) =
+            (&history_output, &history_directories)
+        {
+            if !directory_exists {
+                reserve(directory)?;
+            }
+            io::no_overlap(directory, &inputs)?;
+            io::no_output_overlap(directory, &output)?;
+            if !store_exists {
+                reserve(store)?;
+            }
+            io::no_overlap(store, &inputs)?;
+            io::no_output_overlap(store, &output)?;
+            for name in ["metadata", "targets"] {
+                let subtree = output.join(name);
+                if io::directory_exists(&subtree)? {
+                    io::no_output_overlap(store, &subtree)?;
+                }
+            }
+        }
+        Ok(())
+    })();
+    if let Err(error) = reserve_result {
+        io::OutputReservation::remove_all_owned(reserved);
+        return Err(error);
+    }
+
+    if !output_exists {
         for (name, file) in files.iter() {
             let destination = output.join(name);
             fs::create_dir_all(destination.parent().unwrap())?;
             io::create_synced(&destination, &file.read()?)?;
         }
-        // This single readback checks all written bytes and the exact file set.
         if public_identities(&output)? != files.identities() {
             return invalid("catalog complete assembly retained readback differs");
         }
-        true
-    };
+    }
+    if let Some((history, directory)) = history_output {
+        for (name, bytes) in &history.objects {
+            io::write_new(&directory.join(name), bytes)?;
+        }
+        super::history_checkpoint::read_current(
+            &history.pointer_bytes,
+            &directory,
+            &sha(&context.root_bytes),
+            &delegation_digest(&context.top.signed)?,
+            context.versions[3].get(),
+            context.versions[1].get(),
+        )?;
+    }
+    if let Some(((bytes, _), path)) = &ledger_output {
+        io::write_new(path, bytes)?;
+    }
     recheck(&context)?;
-    repository_report(
+    let mut report = repository_report(
         &files,
         &context.root_bytes,
         selected_top,
         &context.index_sha256,
-        changed,
-    )
+        !output_exists,
+    )?;
+    report.listing_floor_ledger = ledger_output.map(|((_, ledger), _)| ledger.clone());
+    Ok(report)
 }
 
 fn repository_report(
@@ -701,6 +1144,7 @@ fn repository_report(
         versions,
         expires,
         index_sha256: index_sha256.to_owned(),
+        listing_floor_ledger: None,
         authority: "none",
     })
 }
@@ -716,6 +1160,183 @@ struct VerificationConfig {
     offline_targets: String,
     offline_targets_sha256: String,
     repository: String,
+    #[serde(default)]
+    history_store: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct HistoryVerificationConfig {
+    schema_version: u32,
+    #[serde(default)]
+    initial_root_profile: InitialRootProfile,
+    trusted_root: String,
+    trusted_root_sha256: String,
+    offline_targets: String,
+    offline_targets_sha256: String,
+    repository: String,
+    /// `{"prior": path}` reads the published ledger for bodies outside the
+    /// served tree; `{"prior": null}` derives it from every retained body
+    /// (the one-time backfill).
+    #[serde(default)]
+    listing_floor_ledger: Option<ListingFloorLedgerConfig>,
+    #[serde(default)]
+    listing_floor_ledger_output: Option<String>,
+}
+
+/// One listing carrier's floor as history verification derives it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ListingFloorReport {
+    pub revision: u64,
+    pub decoded_sha256: String,
+    pub withdrawn_ids_count: usize,
+    pub withdrawn_ids_sha256: String,
+}
+
+/// Everything history verification derives from a retained tree. Two trees
+/// verify identically exactly when these reports are equal (ignoring
+/// `listing_floor_ledger`, which also counts how each entry was verified).
+#[derive(Debug, Serialize)]
+pub struct DefinitionHistoryReport {
+    pub schema_version: u32,
+    pub kind: &'static str,
+    pub policy_versions: usize,
+    pub listing_bodies_named: usize,
+    pub listing_bodies_served: usize,
+    /// `[revision, decoded_sha256]` across every listing carrier, ascending.
+    pub listing_revisions: Vec<(u64, String)>,
+    pub legacy_listing: Option<ListingFloorReport>,
+    pub compact_listing: Option<ListingFloorReport>,
+    pub policy_floors: BTreeMap<String, (u64, String)>,
+    pub definition_floors: usize,
+    pub definition_floors_sha256: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub listing_floor_ledger: Option<LedgerReport>,
+    pub authority: &'static str,
+}
+
+fn floor_report(floor: &super::history_checkpoint::ListingFloor) -> ListingFloorReport {
+    ListingFloorReport {
+        revision: floor.revision,
+        decoded_sha256: floor.decoded_sha256.clone(),
+        withdrawn_ids_count: floor.withdrawn_ids.len(),
+        withdrawn_ids_sha256: listing_floor_ledger::withdrawn_digest(&floor.withdrawn_ids),
+    }
+}
+
+/// Keyless, read-only verification of every retained metadata version of a
+/// published tree, exactly as the publisher checks its prior before signing.
+/// Retained history is read with `Unsafe` expiry, like the publisher's prior.
+pub async fn verify_definition_history(path: &Path) -> Result<DefinitionHistoryReport> {
+    let config: HistoryVerificationConfig = io::parse(path, CONFIG_MAX)?;
+    if config.schema_version != 1 {
+        return invalid("catalog history verification schema differs");
+    }
+    let base = path.parent().unwrap_or(Path::new("."));
+    let root_bytes = io::read(&io::resolve(base, &config.trusted_root)?, ROOT_MAX)?;
+    let top_bytes = io::read(&io::resolve(base, &config.offline_targets)?, ROLE_MAX)?;
+    expected(&root_bytes, &config.trusted_root_sha256)?;
+    expected(&top_bytes, &config.offline_targets_sha256)?;
+    let root: Signed<Root> = serde_json::from_slice(&root_bytes)?;
+    let top: Signed<Targets> = serde_json::from_slice(&top_bytes)?;
+    // History is read like the publisher's prior: key inventories, not
+    // lifetime windows; Tough still checks every signature.
+    policy::root_key_inventory(&root, config.initial_root_profile)?;
+    policy::top_key_inventory(&root.signed, &top)?;
+    let repository = io::resolve(base, &config.repository)?;
+    let files = PublicHistory::read(&repository)?.without_served_extras();
+    validate_public_paths(&files)?;
+    if files.file(&format!("metadata/{}.root.json", root.signed.version))? != root_bytes {
+        return invalid("catalog public Root differs from pinned trust anchor");
+    }
+    let logical = authenticate(&root_bytes, &files, tough::ExpirationEnforcement::Unsafe).await?;
+    let roles = current_roles(&files)?;
+    if at(&roles, "targets.json")? != &top_bytes {
+        return invalid("catalog public offline Targets differs from appointed bytes");
+    }
+    let ledger = match &config.listing_floor_ledger {
+        None => None,
+        Some(ListingFloorLedgerConfig { prior: None }) => Some(None),
+        Some(ListingFloorLedgerConfig { prior: Some(prior) }) => Some(Some(Ledger::parse(
+            &io::read(&io::resolve(base, prior)?, listing_floor_ledger::MAX_BYTES)?,
+        )?)),
+    };
+    let mut floors = HistoricalRevisionFloors {
+        ledger: ledger.clone().flatten(),
+        ..Default::default()
+    };
+    let mut policy_versions = 0;
+    let trust = HistoryTrust {
+        root_bytes: &root_bytes,
+        root: &root,
+        top: &top,
+        next_top: None,
+        online_targets: false,
+    };
+    verify_history(&trust, &files, |role, version, targets| {
+        policy_versions += usize::from(role == "official-policy.json");
+        floors.observe(&files, &logical, role, version, targets)
+    })?;
+    floors.check_cover_presence(&logical.files)?;
+    floors.check_ledger_floors()?;
+    let ledger_report = match &ledger {
+        Some(prior) => {
+            let (bytes, report) = listing_floor_ledger::next(&floors.recorder, prior.as_ref())?;
+            if let Some(output) = config.listing_floor_ledger_output.as_deref() {
+                let output = io::resolve(base, output)?;
+                io::no_output_overlap(&output, &repository)?;
+                io::write_new(&output, &bytes)?;
+            }
+            Some(report)
+        }
+        None if config.listing_floor_ledger_output.is_some() => {
+            return invalid("catalog listing-floor ledger output requires a ledger input");
+        }
+        None => None,
+    };
+    let (ledger_view, _) = floors.recorder.ledger()?;
+    let definitions = floors
+        .definitions
+        .iter()
+        .map(|(id, entry)| {
+            Ok((
+                id.clone(),
+                sha(&io::canonical(&serde_json::to_vec(entry)?)?),
+            ))
+        })
+        .collect::<Result<BTreeMap<_, _>>>()?;
+    Ok(DefinitionHistoryReport {
+        schema_version: 1,
+        kind: "catalog-definition-history-verification",
+        policy_versions,
+        listing_bodies_named: ledger_view.len(),
+        listing_bodies_served: ledger_view
+            .entries()
+            .iter()
+            .filter(|entry| {
+                files
+                    .get(&format!("targets/{}.{}", entry.sha256, entry.target))
+                    .is_some()
+            })
+            .count(),
+        listing_revisions: floors.listing_revisions.clone().into_iter().collect(),
+        legacy_listing: floors
+            .legacy_listing
+            .as_ref()
+            .map(|(floor, _)| floor_report(floor)),
+        compact_listing: floors.compact_listing.as_ref().map(floor_report),
+        policy_floors: floors.policies.clone(),
+        definition_floors: definitions.len(),
+        definition_floors_sha256: sha(&serde_json::to_vec(
+            &definitions.iter().collect::<Vec<_>>(),
+        )?),
+        listing_floor_ledger: ledger_report,
+        authority: "none",
+    })
+}
+
+fn delegation_digest(top: &Targets) -> Result<String> {
+    Ok(sha(&io::canonical(&serde_json::to_vec(&top.delegations)?)?))
 }
 
 /// Read-only current Tough verification of already published bytes. No signing
@@ -750,6 +1371,26 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     if at(&roles, "targets.json")? != &top_bytes {
         return invalid("catalog public offline Targets differs from appointed bytes");
     }
+    if let Some(store) = config.history_store.as_deref() {
+        let store = io::resolve(base, store)?;
+        let timestamp: Signed<TufTimestamp> =
+            serde_json::from_slice(at(&roles, "timestamp.json")?)?;
+        let policy: Signed<Targets> = serde_json::from_slice(at(&roles, "official-policy.json")?)?;
+        let delegation_sha256 = delegation_digest(&top.signed)?;
+        super::history_checkpoint::read_current(
+            at(&logical.files, super::history_checkpoint::TARGET)?,
+            &store,
+            &sha(&root_bytes),
+            &delegation_sha256,
+            timestamp.signed.version.get(),
+            policy.signed.version.get(),
+        )?
+        .check_cover_predecessor(
+            bundle::checked_cover_checkpoint(&logical.files)?
+                .as_ref()
+                .map(|(bytes, sha)| (*bytes, sha.as_str())),
+        )?;
+    }
     let index_sha256 = sha(at(&logical.files, "definitions/index.json")?);
     if io::read(path, CONFIG_MAX)? != config_raw
         || io::read(&root_path, ROOT_MAX)? != root_bytes
@@ -761,10 +1402,31 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     repository_report(&files, &root_bytes, &top_bytes, &index_sha256, false)
 }
 
+/// The appointed authority that every retained metadata version must satisfy.
+struct HistoryTrust<'a> {
+    root_bytes: &'a [u8],
+    root: &'a Signed<Root>,
+    top: &'a Signed<Targets>,
+    next_top: Option<&'a Targets>,
+    online_targets: bool,
+}
+
+impl<'a> From<&'a Context> for HistoryTrust<'a> {
+    fn from(context: &'a Context) -> Self {
+        Self {
+            root_bytes: &context.root_bytes,
+            root: &context.root,
+            top: &context.top,
+            next_top: context.next_top.as_ref(),
+            online_targets: context.online_targets,
+        }
+    }
+}
+
 fn verify_history(
-    context: &Context,
+    trust: &HistoryTrust<'_>,
     files: &PublicHistory,
-    mut visit_delegated_targets: impl FnMut(&str, &Targets) -> Result<()>,
+    mut visit_delegated_targets: impl FnMut(&str, u64, &Targets) -> Result<()>,
 ) -> Result<()> {
     for (name, file) in files
         .iter()
@@ -783,38 +1445,34 @@ fn verify_history(
         }
         match role {
             "root.json" => {
-                if bytes != &context.root_bytes {
+                if bytes != trust.root_bytes {
                     return invalid("catalog routine history cannot introduce a different root");
                 }
             }
             "targets.json" => {
                 let signed: Signed<Targets> = serde_json::from_slice(bytes)?;
-                context.root.signed.verify_role(&signed)?;
-                if context.online_targets {
-                    let ceiling = context
-                        .next_top
-                        .as_ref()
-                        .unwrap_or(&context.top.signed)
-                        .version;
+                trust.root.signed.verify_role(&signed)?;
+                if trust.online_targets {
+                    let ceiling = trust.next_top.unwrap_or(&trust.top.signed).version;
                     if signed.signed.version > ceiling {
                         return invalid("catalog historical Targets exceeds current floor");
                     }
                     let mut body = signed.signed;
-                    body.version = context.top.signed.version;
-                    body.expires = context.top.signed.expires;
-                    signing::same(&body, &context.top.signed)?;
-                } else if signed.signed.version > context.top.signed.version
+                    body.version = trust.top.signed.version;
+                    body.expires = trust.top.signed.expires;
+                    signing::same(&body, &trust.top.signed)?;
+                } else if signed.signed.version > trust.top.signed.version
                     || !signed.signed.targets.is_empty()
                     || serde_json::to_value(&signed.signed.delegations)?
-                        != serde_json::to_value(&context.top.signed.delegations)?
+                        != serde_json::to_value(&trust.top.signed.delegations)?
                 {
                     return invalid("catalog history has unappointed offline Targets/delegation");
                 }
             }
             "snapshot.json" => {
                 let signed: Signed<Snapshot> = serde_json::from_slice(bytes)?;
-                context.root.signed.verify_role(&signed)?;
-                if context.online_targets {
+                trust.root.signed.verify_role(&signed)?;
+                if trust.online_targets {
                     if signed
                         .signed
                         .meta
@@ -845,14 +1503,14 @@ fn verify_history(
             }
             "official-definitions.json" | "official-policy.json" => {
                 let signed: Signed<Targets> = serde_json::from_slice(bytes)?;
-                context
+                trust
                     .top
                     .signed
                     .delegations
                     .as_ref()
                     .unwrap()
                     .verify_role(&signed, role.trim_end_matches(".json"))?;
-                visit_delegated_targets(role, &signed.signed)?;
+                visit_delegated_targets(role, expected_version, &signed.signed)?;
             }
             _ => return invalid("catalog historical metadata kind differs"),
         }
@@ -861,13 +1519,16 @@ fn verify_history(
 }
 
 #[cfg(test)]
+mod ledger_simulation;
+
+#[cfg(test)]
 mod capacity_tests {
     use super::*;
 
     #[test]
     fn repeated_historical_target_reference_still_checks_signed_length() {
         let name = "policy/official/catalog.listings.json";
-        let bytes = br#"{"revision":1}"#;
+        let bytes = br#"{"listing_delivery_schema":1,"revision":1,"withdrawn_ids":[],"directory":{"format_version":11,"listings":[]}}"#;
         let path = public_target_path(name, bytes).unwrap();
         let mut files = PublicHistory::default();
         files.insert(path, bytes);
@@ -885,13 +1546,13 @@ mod capacity_tests {
         let role = "official-policy.json";
         let current = AuthenticatedTargets::default();
         floors
-            .observe(&files, &current, role, &descriptor(bytes.len()))
+            .observe(&files, &current, role, 1, &descriptor(bytes.len()))
             .unwrap();
         floors
-            .observe(&files, &current, role, &descriptor(bytes.len()))
+            .observe(&files, &current, role, 1, &descriptor(bytes.len()))
             .unwrap();
         let error = floors
-            .observe(&files, &current, role, &descriptor(bytes.len() + 1))
+            .observe(&files, &current, role, 1, &descriptor(bytes.len() + 1))
             .unwrap_err();
         assert!(
             error

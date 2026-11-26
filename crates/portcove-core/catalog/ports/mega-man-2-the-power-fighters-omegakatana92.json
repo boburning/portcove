@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mega-man-2-the-power-fighters-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Mega-Man-The-Power-Fighters-Recomp",
+    "name": "Mega Man 2: The Power Fighters / omegakatana92",
+    "summary": "Native Windows/Linux recomp port of Mega Man 2: The Power Fighters (CPS-2), made with cps2recomp. You supply your own megaman2 ROM set.",
+    "issue_number": 6578,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-2-the-power-fighters",
+      "evidence_urls": ["https://github.com/omegakatana92/Mega-Man-The-Power-Fighters-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Mega Man 2: The Power Fighters"
+  }
+}

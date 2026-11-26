@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "omegakatana92-power-instinct-matrimelee-recomp",
+    "project_url": "https://github.com/omegakatana92/-Power-Instinct-Matrimelee-Recomp",
+    "name": "Power Instinct Matrimelee (Neo Geo) / Matrimelee-Recomp (omegakatana92)",
+    "summary": "Native static recompilation of Power Instinct Matrimelee (Neo Geo, 2003) for Windows x64 and Steam Deck. Motorola 68000 translated to C with NeoGeoRecomp; no emulator frontend. No ROMs or BIOS included.",
+    "issue_number": 4008,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "power-instinct-matrimelee",
+      "evidence_urls": ["https://github.com/omegakatana92/-Power-Instinct-Matrimelee-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Power Instinct Matrimelee"
+  }
+}

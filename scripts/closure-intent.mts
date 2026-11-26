@@ -78,13 +78,27 @@ function closingObservation(
   binding: { head: string; title: string; body: string },
   relationships: readonly string[],
   source: "graphql" | "rest",
+  inventorySuite?: number,
 ) {
   const observation = { ...binding, relationships: [...relationships].sort() };
   return {
     ...observation,
     source,
     fingerprint: createHash("sha256").update(JSON.stringify(observation)).digest("hex"),
+    // The verified closing-inventory check suite behind a REST reconstruction.
+    // It is evidence, not part of the closing identity, so the fingerprint omits it.
+    ...(inventorySuite === undefined ? {} : { inventory_suite: inventorySuite }),
   };
+}
+
+/** Options for reading closing relationships after the pull request merged. */
+export interface ClosingReadOptions {
+  /**
+   * The closing-inventory check suite verified before the merge. GitHub clears a
+   * workflow run's pull request list once the pull request merges; only this
+   * exact suite may then stand in for the run's pull request binding.
+   */
+  mergedSuite?: number | undefined;
 }
 
 /**
@@ -98,12 +112,13 @@ export async function readClosingRelationships(
   api: ClosingApi,
   repository: string,
   number: number,
+  options: ClosingReadOptions = {},
 ) {
   try {
     return await readClosingRelationshipsGraphql(api, repository, number);
   } catch (error) {
     if (!(error instanceof GitHubApiError) || error.status !== 403) throw error;
-    return readClosingRelationshipsRest(api, repository, number);
+    return readClosingRelationshipsRest(api, repository, number, options);
   }
 }
 
@@ -304,6 +319,7 @@ async function readClosingInventoryEvidence(
   repository: string,
   head: string,
   number: number,
+  options: ClosingReadOptions = {},
 ) {
   const { data: checks } = await api.request({
     method: "GET",
@@ -316,7 +332,7 @@ async function readClosingInventoryEvidence(
     url: `https://api.github.com/repos/${repository}/actions/runs?check_suite_id=${suite}&per_page=1`,
     request: { portcove: { replay: "safe-read", attempts: 0 } },
   });
-  return validateClosingInventoryEvidence(checks, workflowRuns, head, number);
+  return validateClosingInventoryEvidence(checks, workflowRuns, head, number, options);
 }
 
 /** Live REST reconstruction bracketed by unchanged pull request reads. */
@@ -324,6 +340,7 @@ export async function readClosingRelationshipsRest(
   api: ClosingApi,
   repository: string,
   number: number,
+  options: ClosingReadOptions = {},
 ) {
   const readPull = async () => {
     const { data: pull } = await api.request({
@@ -357,10 +374,10 @@ export async function readClosingRelationshipsRest(
     if (nextTimelinePage(link, number) === null) break;
   }
   const relationships = restTimelineRelationships({ number, ...first }, repository, pages);
-  await readClosingInventoryEvidence(api, repository, first.head, number);
+  const evidence = await readClosingInventoryEvidence(api, repository, first.head, number, options);
   if (JSON.stringify(await readPull()) !== JSON.stringify(first))
     throw new Error("Closing relationship inventory changed during pagination");
-  return closingObservation(first, relationships, "rest");
+  return closingObservation(first, relationships, "rest", evidence.suite);
 }
 
 export async function readClosingRelationshipsGraphql(

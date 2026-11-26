@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mario-tennis-ieatzcrayonz-recompiled",
+    "project_url": "https://github.com/Ieatzcrayonz/MarioTennisRecomp",
+    "name": "Mario Tennis",
+    "summary": "Native PC port of Mario Tennis (N64) using N64Recomp and RT64. Bring your own ROM.",
+    "issue_number": 5498,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-tennis",
+      "evidence_urls": ["https://github.com/Ieatzcrayonz/MarioTennisRecomp"],
+      "source_editions": [
+        {
+          "id": "mario-tennis-nintendo-64",
+          "title": "Mario Tennis (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/Ieatzcrayonz/MarioTennisRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Mario Tennis"
+  }
+}

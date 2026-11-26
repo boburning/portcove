@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "snoopy-flying-ace-redbaron",
+    "project_url": "https://github.com/BTr-RJ/RedBaron_Recomp",
+    "name": "Snoopy Flying Ace / RedBaron",
+    "summary": "Native Windows x64 recompilation of Snoopy Flying Ace with a local-build launcher, modern video options and EOS online integration.",
+    "issue_number": 6564,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "snoopy-flying-ace",
+      "evidence_urls": ["https://github.com/BTr-RJ/RedBaron_Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Snoopy Flying Ace"
+  }
+}

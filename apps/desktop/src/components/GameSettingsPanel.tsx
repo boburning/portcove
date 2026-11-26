@@ -1,24 +1,40 @@
 import type { TFunction } from "i18next";
-import { useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useAppTranslation } from "../localization";
 import type {
-  GameSettingReview,
+  GameSettingChange,
+  GameSettingsChangeSetReview,
+  GameSettingsChangeSetView,
+  GameSettingsEdit,
   GameSettingsView,
   GameSettingView,
-  GameSettingChange,
 } from "../types";
+import { errorText, failurePresentation } from "../view-model";
 import { useActionReview } from "../use-action-review";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
-type Change = GameSettingChange;
-type Intent = { fileId: string; settingId: string; change: Change };
+const MAX_CHANGES_PER_REVIEW = 16;
+
+type FileView = GameSettingsView["files"][number];
+type DraftValue = { action: "set"; input: string } | { action: "reset" };
+type FieldError = "tooLarge" | "whole" | "number" | "choose" | "range";
+type Draft = { identity: string; values: Map<string, DraftValue> };
+
+export type SettingsDraftSummary = {
+  formId: string;
+  path: string;
+  count: number;
+  canReview: boolean;
+};
+
+export type ReportSettingsDraft = (formId: string, summary?: SettingsDraftSummary) => void;
 
 export interface GameSettingsActions {
-  review: (fileId: string, settingId: string, change: Change) => Promise<GameSettingReview>;
-  apply: (review: GameSettingReview) => Promise<GameSettingsView>;
+  review: (fileId: string, edits: GameSettingsEdit[]) => Promise<GameSettingsChangeSetReview>;
+  apply: (review: GameSettingsChangeSetReview) => Promise<GameSettingsView>;
 }
 
 /** Presentation and user intent only; Core owns release eligibility and every edit. */
@@ -27,121 +43,301 @@ export function GameSettingsPanel({
   generation,
   actions,
   changed,
+  disabled = false,
+  fileReadRevisions,
+  reportDraft,
 }: {
-  view: GameSettingsView;
+  view: GameSettingsChangeSetView;
   generation: number;
   actions: GameSettingsActions;
   changed: (view: GameSettingsView) => void;
+  disabled?: boolean;
+  fileReadRevisions?: ReadonlyMap<string, number>;
+  reportDraft?: ReportSettingsDraft | undefined;
 }) {
   const { t } = useAppTranslation("gameSettings");
-  const [selection, setSelection] = useState<{ identity: string; intent: Intent }>();
-  const returnFocus = useRef<HTMLHeadingElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const { settings, setup } = view;
   const identity = JSON.stringify([
     generation,
-    view.port_id,
-    view.install_id,
-    view.available,
-    view.files,
+    settings.port_id,
+    settings.install_id,
+    settings.available,
+    setup?.id,
+    setup?.revision,
   ]);
-  if (selection && selection.identity !== identity) setSelection(undefined);
-  const intent = selection?.identity === identity ? selection.intent : undefined;
   return (
     <section aria-label={t("panel.label")} className="grid gap-4">
       <header>
-        <h3 ref={returnFocus} tabIndex={-1} className="m-0 text-sm font-semibold">
+        <h3 ref={heading} tabIndex={-1} className="m-0 text-sm font-semibold">
           {t("panel.heading")}
         </h3>
+        <SettingsTarget view={view} />
         <p className="mt-1 text-xs text-pc-muted-foreground">{t("panel.intro")}</p>
       </header>
-      {!view.available && <p role="status">{view.reason ?? t("panel.unavailable")}</p>}
-      {view.available &&
-        view.files.map((file) => (
-          <div key={file.id} className="grid gap-3">
-            {!file.available && <p role="status">{file.reason ?? t("panel.fileUnavailable")}</p>}
-            {file.available &&
-              file.settings.map((setting) => (
-                <SettingEditor
-                  key={JSON.stringify([identity, file.id, setting.id])}
-                  setting={setting}
-                  review={(change) =>
-                    setSelection({
-                      identity,
-                      intent: { fileId: file.id, settingId: setting.id, change },
-                    })
-                  }
-                />
-              ))}
-          </div>
-        ))}
-      {intent && (
-        <SettingReview
-          key={JSON.stringify([identity, intent])}
+      {!settings.available && <p role="status">{settings.reason ?? t("panel.unavailable")}</p>}
+      {settings.files.map((file) => (
+        <SettingsFileDraft
+          key={file.id}
+          file={file}
+          identity={JSON.stringify([identity, file.id, file.configuration_sha256, file.available])}
           view={view}
-          identity={identity}
-          intent={intent}
           actions={actions}
           changed={changed}
-          close={() => setSelection(undefined)}
-          returnFocus={returnFocus}
+          disabled={disabled || !settings.available}
+          heading={heading}
+          readRevision={fileReadRevisions?.get(file.id) ?? 0}
+          reportDraft={reportDraft}
         />
-      )}
+      ))}
     </section>
   );
 }
 
+function SettingsTarget({ view }: { view: GameSettingsChangeSetView }) {
+  const { t } = useAppTranslation("gameSettings");
+  if (!view.settings.available || !view.installed_version) return null;
+  return (
+    <p className="mt-1 text-xs wrap-anywhere text-pc-muted-foreground [unicode-bidi:plaintext]">
+      {view.setup_name
+        ? t("panel.setupTarget", { setup: view.setup_name, version: view.installed_version })
+        : t("panel.installTarget", { version: view.installed_version })}
+    </p>
+  );
+}
+
+function SettingsFileDraft({
+  file,
+  identity,
+  view,
+  actions,
+  changed,
+  disabled,
+  heading,
+  readRevision,
+  reportDraft,
+}: {
+  file: FileView;
+  identity: string;
+  view: GameSettingsChangeSetView;
+  actions: GameSettingsActions;
+  changed: (view: GameSettingsView) => void;
+  disabled: boolean;
+  heading: RefObject<HTMLHeadingElement | null>;
+  readRevision: number;
+  reportDraft: ReportSettingsDraft | undefined;
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  const [draft, setDraft] = useState<Draft>();
+  const [selected, setSelected] = useState<{ identity: string; edits: GameSettingsEdit[] }>();
+  const [error, setError] = useState<{ id: string; kind: FieldError }>();
+  const [savedAtRead, setSavedAtRead] = useState<number>();
+  // A refusal Core reports as not started keeps its own explanation; an
+  // unconfirmed save keeps the generic readback guidance.
+  const [failed, setFailed] = useState<{ read: number; committed: boolean; refusal?: string }>();
+  const needsRead = failed?.read === readRevision;
+  const reviewButton = useRef<HTMLButtonElement>(null);
+  const held = draft !== undefined && draft.identity !== identity;
+  const available = file.available && Boolean(file.configuration_sha256);
+  const activeReview = selected?.identity === identity && available ? selected : undefined;
+  if (selected && selected.identity !== identity) setSelected(undefined);
+  const values = draft?.values;
+  const count = values?.size ?? 0;
+  const formId = useId();
+  const canReview =
+    !disabled && !needsRead && !held && available && count > 0 && count <= MAX_CHANGES_PER_REVIEW;
+  useEffect(() => {
+    if (!count || !reportDraft) return;
+    reportDraft(formId, { formId, path: file.path, count, canReview });
+    return () => reportDraft(formId);
+  }, [canReview, count, file.path, formId, reportDraft]);
+  const update = (id: string, value?: DraftValue) => {
+    setError(undefined);
+    setSavedAtRead(undefined);
+    setDraft((previous) => {
+      const next = new Map(previous?.values);
+      if (value) next.set(id, value);
+      else next.delete(id);
+      return next.size ? { identity, values: next } : undefined;
+    });
+  };
+  const submit = (form: HTMLFormElement) => {
+    if (!canReview) return;
+    const edits: GameSettingsEdit[] = [];
+    for (const setting of file.settings) {
+      const value = values?.get(setting.id);
+      if (!value) continue;
+      const result = parseChange(setting, value);
+      if (typeof result === "string") {
+        setError({ id: setting.id, kind: result });
+        const element = form.elements.namedItem(setting.id);
+        if (element instanceof HTMLElement) element.focus();
+        return;
+      }
+      edits.push({ setting_id: setting.id, change: result });
+    }
+    setError(undefined);
+    setSelected({ identity, edits });
+  };
+  return (
+    <form
+      id={formId}
+      aria-labelledby={`${formId}-heading`}
+      tabIndex={-1}
+      noValidate
+      className="grid gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit(event.currentTarget);
+      }}
+    >
+      <h4 id={`${formId}-heading`} className="m-0 text-sm font-medium wrap-anywhere">
+        {file.path}
+      </h4>
+      {!available && <p role="status">{file.reason ?? t("panel.fileUnavailable")}</p>}
+      {held && (
+        <div>
+          <p role="status">{t(available ? "panel.held" : "panel.heldUnavailable")}</p>
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => {
+              setDraft(undefined);
+              setError(undefined);
+            }}
+          >
+            {t("panel.discard")}
+          </Button>
+        </div>
+      )}
+      {needsRead && !activeReview && (
+        <p role="status">
+          {failed?.refusal ?? t(failed?.committed ? "review.savedReadback" : "review.failure")}
+        </p>
+      )}
+      {savedAtRead === readRevision && <p role="status">{t("review.saved")}</p>}
+      {(available || held) && (
+        <fieldset
+          disabled={disabled || held || needsRead}
+          className="m-0 grid min-w-0 gap-3 border-0 p-0"
+        >
+          {file.settings.map((setting) => (
+            <SettingEditor
+              key={setting.id}
+              setting={setting}
+              draft={values?.get(setting.id)}
+              error={error?.id === setting.id ? error.kind : undefined}
+              edit={(value) => update(setting.id, value)}
+            />
+          ))}
+          {count > MAX_CHANGES_PER_REVIEW && <p role="status">{t("panel.limit")}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              ref={reviewButton}
+              type="submit"
+              data-settings-file-review
+              variant="primary"
+              disabled={!canReview}
+            >
+              {t("editor.review")}
+            </Button>
+            {count > 0 && !held && (
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => {
+                  setDraft(undefined);
+                  setError(undefined);
+                }}
+              >
+                {t("panel.discard")}
+              </Button>
+            )}
+          </div>
+        </fieldset>
+      )}
+      {activeReview && (
+        <SettingReview
+          key={identity}
+          view={view}
+          file={file}
+          identity={identity}
+          edits={activeReview.edits}
+          actions={actions}
+          changed={(next) => {
+            setDraft(undefined);
+            setSavedAtRead(readRevision);
+            changed(next);
+          }}
+          failed={(failure) => {
+            const state = failurePresentation(failure)?.mutation_state;
+            const committed = state === "committed";
+            setFailed({
+              read: readRevision,
+              committed,
+              ...(state === "not_started" ? { refusal: errorText(failure) } : {}),
+            });
+            if (committed) setDraft(undefined);
+          }}
+          disabled={disabled || needsRead}
+          close={() => setSelected(undefined)}
+          returnFocus={reviewButton}
+          heading={heading}
+        />
+      )}
+    </form>
+  );
+}
+
+function currentInput(setting: GameSettingView, reset = false): string {
+  const type = setting.value_type;
+  const value = reset ? type.default : (setting.value ?? type.default);
+  if (type.kind === "enum")
+    return String(
+      type.choices.findIndex((item) => JSON.stringify(item.value) === JSON.stringify(value)),
+    );
+  return String(value);
+}
+
+function parseChange(setting: GameSettingView, draft: DraftValue): GameSettingChange | FieldError {
+  if (draft.action === "reset") return draft;
+  const type = setting.value_type;
+  if (type.kind === "boolean") return { action: "set", value: draft.input === "true" };
+  if (type.kind === "enum") {
+    const choice = type.choices[Number(draft.input)];
+    return choice ? { action: "set", value: choice.value } : "choose";
+  }
+  const value = draft.input.trim() === "" ? NaN : Number(draft.input);
+  if (Number.isInteger(value) && !Number.isSafeInteger(value)) return "tooLarge";
+  if (type.kind === "integer" && !Number.isInteger(value)) return "whole";
+  if (!Number.isFinite(value)) return "number";
+  if (value < type.minimum || value > type.maximum) return "range";
+  return { action: "set", value };
+}
+
 function SettingEditor({
   setting,
-  review,
+  draft,
+  error,
+  edit,
 }: {
   setting: GameSettingView;
-  review: (change: Change) => void;
+  draft: DraftValue | undefined;
+  error: FieldError | undefined;
+  edit: (value?: DraftValue) => void;
 }) {
   const { t } = useAppTranslation("gameSettings");
   const id = useId();
   const type = setting.value_type;
-  const initial = setting.value ?? type.default;
-  const [text, setText] = useState(typeof initial === "number" ? String(initial) : "");
-  const [checked, setChecked] = useState(initial === true);
-  const [choice, setChoice] = useState(
-    type.kind === "enum"
-      ? String(
-          type.choices.findIndex((item) => JSON.stringify(item.value) === JSON.stringify(initial)),
-        )
-      : "-1",
-  );
-  // App-owned validation codes are translated at render.
-  const [error, setError] = useState<"tooLarge" | "whole" | "number" | "choose">();
-  const submit = () => {
-    let value: unknown;
-    if (type.kind === "boolean") value = checked;
-    else if (type.kind === "enum") value = type.choices[Number(choice)]?.value;
-    else {
-      value = text.trim() === "" ? NaN : Number(text);
-      if (
-        typeof value !== "number" ||
-        !Number.isFinite(value) ||
-        (type.kind === "integer" && !Number.isSafeInteger(value))
-      ) {
-        setError(
-          typeof value === "number" && Number.isInteger(value) && !Number.isSafeInteger(value)
-            ? "tooLarge"
-            : type.kind === "integer"
-              ? "whole"
-              : "number",
-        );
-        return;
-      }
-    }
-    if (value === undefined) {
-      setError("choose");
-      return;
-    }
-    if (typeof value === "number" && Number.isInteger(value) && !Number.isSafeInteger(value)) {
-      setError("tooLarge");
-      return;
-    }
-    setError(undefined);
-    review({ action: "set", value });
+  const input =
+    draft?.action === "set" ? draft.input : currentInput(setting, draft?.action === "reset");
+  const update = (input: string) =>
+    edit(input === currentInput(setting) ? undefined : { action: "set", input });
+  const field = {
+    id,
+    name: setting.id,
+    "aria-invalid": error !== undefined,
+    "aria-describedby": error ? `${id}-error` : undefined,
   };
   return (
     <div className="grid gap-2">
@@ -150,13 +346,13 @@ function SettingEditor({
       </label>
       {type.kind === "boolean" ? (
         <input
-          id={id}
+          {...field}
           type="checkbox"
-          checked={checked}
-          onChange={(event) => setChecked(event.target.checked)}
+          checked={input === "true"}
+          onChange={(event) => update(String(event.target.checked))}
         />
       ) : type.kind === "enum" ? (
-        <select id={id} value={choice} onChange={(event) => setChoice(event.target.value)}>
+        <select {...field} value={input} onChange={(event) => update(event.target.value)}>
           <option value="-1" disabled>
             {t("editor.chooseValue")}
           </option>
@@ -168,21 +364,19 @@ function SettingEditor({
         </select>
       ) : (
         <Input
-          id={id}
+          {...field}
           type="number"
-          value={text}
+          value={input}
           min={type.minimum}
           max={type.maximum}
           step={type.step}
-          aria-invalid={error !== undefined}
-          aria-describedby={error ? `${id}-error` : undefined}
-          onChange={(event) => {
-            setText(event.target.value);
-            setError(undefined);
-          }}
+          onChange={(event) => update(event.target.value)}
         />
       )}
-      {setting.value == null && (
+      {draft?.action === "reset" && (
+        <p className="m-0 text-xs text-pc-muted-foreground">{t("editor.pendingDefault")}</p>
+      )}
+      {setting.value == null && !draft && (
         <p className="m-0 text-xs text-pc-muted-foreground">{t("editor.defaultShown")}</p>
       )}
       {(type.kind === "number" || type.kind === "integer") && (
@@ -202,12 +396,20 @@ function SettingEditor({
               ? t("editor.error.whole")
               : error === "number"
                 ? t("editor.error.number")
-                : t("editor.error.choose")}
+                : error === "range"
+                  ? t("editor.error.range")
+                  : t("editor.error.choose")}
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button onClick={submit}>{t("editor.review")}</Button>
-        <Button onClick={() => review({ action: "reset" })}>{t("editor.reset")}</Button>
+        <Button variant="outline" type="button" onClick={() => edit({ action: "reset" })}>
+          {t("editor.reset")}
+        </Button>
+        {draft && (
+          <Button variant="outline" type="button" onClick={() => edit()}>
+            {t("editor.undo")}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -215,25 +417,33 @@ function SettingEditor({
 
 function SettingReview({
   view,
+  file,
   identity,
-  intent,
+  edits,
   actions,
   changed,
+  failed,
+  disabled,
   close,
   returnFocus,
+  heading,
 }: {
-  view: GameSettingsView;
+  view: GameSettingsChangeSetView;
+  file: FileView;
   identity: string;
-  intent: Intent;
+  edits: GameSettingsEdit[];
   actions: GameSettingsActions;
   changed: (view: GameSettingsView) => void;
+  failed: (error: unknown) => void;
+  disabled: boolean;
   close: () => void;
-  returnFocus: RefObject<HTMLHeadingElement | null>;
+  returnFocus: RefObject<HTMLButtonElement | null>;
+  heading: RefObject<HTMLHeadingElement | null>;
 }) {
   const { t } = useAppTranslation("gameSettings");
   const title = useRef<HTMLHeadingElement>(null);
   const active = useRef(true);
-  const restoreFocus = useRef(false);
+  const focusTarget = useRef<"review" | "heading">(undefined);
   useLayoutEffect(() => {
     active.current = true;
     return () => {
@@ -241,34 +451,51 @@ function SettingReview({
     };
   }, []);
   const description = useId();
-  const setting = view.files
-    .find((file) => file.id === intent.fileId)
-    ?.settings.find((item) => item.id === intent.settingId);
-  const { preview, pending, error, review, execute, dismiss } = useActionReview({
-    identity: JSON.stringify([identity, intent]),
+  const { preview, pending, error, failurePhase, review, execute, dismiss } = useActionReview({
+    identity,
     load: async () => {
-      const result = await actions.review(intent.fileId, intent.settingId, intent.change);
+      const result = await actions.review(file.id, edits);
       if (
-        result.port_id !== view.port_id ||
-        result.install_id !== view.install_id ||
-        result.file_id !== intent.fileId ||
-        result.setting_id !== intent.settingId
-      ) {
-        // Thrown text is read by the shared failure presentation, so it is already translated.
+        result.port_id !== view.settings.port_id ||
+        result.install_id !== view.settings.install_id ||
+        result.file_id !== file.id ||
+        result.path !== file.path ||
+        result.configuration_sha256 !== file.configuration_sha256 ||
+        result.setup?.id !== view.setup?.id ||
+        result.setup?.revision !== view.setup?.revision ||
+        result.edits.length !== edits.length ||
+        edits.some(({ setting_id, change }, index) => {
+          const actual = result.edits[index]?.edit;
+          return (
+            actual?.setting_id !== setting_id ||
+            actual.change.action !== change.action ||
+            (actual.change.action === "set" &&
+              change.action === "set" &&
+              actual.change.value !== change.value)
+          );
+        })
+      )
         throw new Error(t("review.installationChanged"));
-      }
       return result;
     },
     apply: async (result) => {
-      const updated = await actions.apply(result);
-      if (active.current) {
-        restoreFocus.current = true;
-        changed(updated);
+      try {
+        const updated = await actions.apply(result);
+        if (active.current) {
+          focusTarget.current = "heading";
+          changed(updated);
+        }
+        return true;
+      } catch (failure) {
+        if (active.current) {
+          focusTarget.current = "heading";
+          failed(failure);
+        }
+        throw failure;
       }
-      return true;
     },
     close: () => {
-      restoreFocus.current = true;
+      focusTarget.current ??= "review";
       close();
     },
     failureMessage: t("review.failure"),
@@ -282,7 +509,13 @@ function SettingReview({
     >
       <DialogContent
         initialFocus={title}
-        finalFocus={() => (restoreFocus.current ? returnFocus.current : false)}
+        finalFocus={() =>
+          focusTarget.current === "heading"
+            ? heading.current
+            : focusTarget.current === "review"
+              ? returnFocus.current
+              : false
+        }
         showCloseButton={false}
         aria-describedby={description}
       >
@@ -290,43 +523,76 @@ function SettingReview({
           {t("review.title")}
         </DialogTitle>
         <DialogDescription id={description}>{t("review.description")}</DialogDescription>
+        <SettingsTarget view={view} />
         {pending === "review" && <p role="status">{t("review.reading")}</p>}
         {preview && (
-          <dl className="grid gap-2">
-            <dt>{t("review.setting")}</dt>
-            <dd>{preview.label}</dd>
-            <dt>{t("review.current")}</dt>
-            <dd>{settingValueLabel(t, preview.previous_value, setting)}</dd>
-            <dt>{intent.change.action === "reset" ? t("review.default") : t("review.new")}</dt>
-            <dd>{settingValueLabel(t, preview.proposed_value, setting)}</dd>
-          </dl>
+          <div className="grid gap-3">
+            <p className="m-0 text-xs wrap-anywhere">{preview.path}</p>
+            {preview.edits.map((item) => {
+              const setting = file.settings.find(({ id }) => id === item.edit.setting_id);
+              return (
+                <div key={item.edit.setting_id} className="grid gap-1 wrap-anywhere">
+                  <h3 className="m-0 text-sm font-medium">{item.label}</h3>
+                  <dl className="grid grid-cols-2 gap-2">
+                    <div>
+                      <dt>{t("review.current")}</dt>
+                      <dd>{settingValueLabel(t, item.previous_value, setting)}</dd>
+                    </div>
+                    <div>
+                      <dt>
+                        {item.edit.change.action === "reset"
+                          ? t("review.default")
+                          : t("review.new")}
+                      </dt>
+                      <dd>{settingValueLabel(t, item.proposed_value, setting)}</dd>
+                    </div>
+                  </dl>
+                </div>
+              );
+            })}
+          </div>
         )}
         {preview && (
           <details>
             <summary data-focusable>{t("review.technical")}</summary>
             <dl className="grid gap-2 wrap-anywhere">
-              <dt>{t("review.current")}</dt>
-              <dd>
-                <code>{JSON.stringify(preview.previous_value ?? null)}</code>
-              </dd>
-              <dt>{t("review.new")}</dt>
-              <dd>
-                <code>{JSON.stringify(preview.proposed_value)}</code>
-              </dd>
+              {preview.edits.map(({ edit, label, previous_value, proposed_value }) => (
+                <div key={edit.setting_id}>
+                  <dt>{label}</dt>
+                  <dd>
+                    <code>{JSON.stringify(previous_value ?? null)}</code>
+                    {" → "}
+                    <code>{JSON.stringify(proposed_value)}</code>
+                  </dd>
+                </div>
+              ))}
             </dl>
           </details>
         )}
-        <ActionReviewFailure error={error} />
+        <ActionReviewFailure
+          error={error}
+          summary={
+            failurePhase === "review" &&
+            failurePresentation(error)?.technical_context.game_settings_access ===
+              "medium_integrity_required"
+              ? t("review.requiresStandardWindowsSession")
+              : undefined
+          }
+          showMutationSummary={failurePhase !== "review"}
+        />
         <DialogFooter>
-          <Button disabled={pending === "apply"} onClick={dismiss}>
+          <Button type="button" disabled={pending === "apply"} onClick={dismiss}>
             {t("review.cancel")}
           </Button>
-          {!preview && !pending && (
-            <Button onClick={() => void review()}>{t("review.again")}</Button>
+          {!preview && !pending && failurePhase !== "apply" && (
+            <Button type="button" onClick={() => void review()}>
+              {t("review.again")}
+            </Button>
           )}
           <Button
+            type="button"
             variant="primary"
-            disabled={!preview || Boolean(pending)}
+            disabled={disabled || !preview || Boolean(pending)}
             aria-busy={pending === "apply"}
             onClick={() => void execute()}
           >

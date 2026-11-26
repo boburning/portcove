@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "duislingr-cr1-u-chaos-rings",
+    "project_url": "https://github.com/DuIslingr/CR1-U",
+    "name": "Chaos Rings / CR1:U (DuIslingr)",
+    "summary": "CR1:U - a from-scratch reimplementation of Chaos Rings (iPad HD 1.0.1, iPhone 2.2.0, PS Vita). Bring your own copy; no game data included.",
+    "issue_number": 3747,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "chaos-rings",
+      "evidence_urls": ["https://github.com/DuIslingr/CR1-U"],
+      "source_editions": []
+    },
+    "original_game_title": "Chaos Rings"
+  }
+}

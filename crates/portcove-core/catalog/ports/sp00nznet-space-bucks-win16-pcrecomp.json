@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sp00nznet-space-bucks-win16-pcrecomp",
+    "project_url": "https://github.com/sp00nznet/spacebucks-recomp",
+    "name": "Space Bucks (1996 Win3.1 PC) / sp00nznet pcrecomp",
+    "summary": "Static recompilation of Space Bucks (Impressions/Sierra, 1996), a Win16 game, to native C on pcrecomp's Win16 host. Bring your own copy.",
+    "issue_number": 5876,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "space-bucks",
+      "evidence_urls": ["https://github.com/sp00nznet/spacebucks-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Space Bucks"
+  }
+}

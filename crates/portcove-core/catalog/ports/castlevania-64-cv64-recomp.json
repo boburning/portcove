@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "castlevania-64-cv64-recomp",
+    "project_url": "https://github.com/spacefarergames/CV64-Recomp",
+    "name": "Castlevania 64 / CV64 Recomp (spacefarergames)",
+    "summary": "Static Recomp and Remaster of Castlevania 64",
+    "issue_number": 6933,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-64",
+      "evidence_urls": ["https://github.com/spacefarergames/CV64-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Castlevania 64"
+  }
+}

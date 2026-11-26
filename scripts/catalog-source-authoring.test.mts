@@ -1,12 +1,13 @@
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
-import { compactOpenXPortable, projectOpenXPortable } from "./catalog-openx-portable.mts";
 import {
-  compactAlephOnePinnedWindows,
-  projectAlephOnePinnedWindows,
-} from "./catalog-alephone-pinned-windows.mts";
+  managedHoldFromRestrictions,
+  restrictionsFromManagedHold,
+} from "./catalog-acquisition-restrictions.mts";
+import type { LegacyManagedHold } from "./catalog-acquisition-restrictions.mts";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   authoringRecordFromPort,
@@ -32,40 +33,8 @@ import {
   compactPsxManagedWindows,
   projectPsxManagedWindows,
 } from "./catalog-psx-managed-windows.mts";
-import {
-  compactRazeWindowsProfile,
-  projectRazeWindowsProfile,
-} from "./catalog-raze-windows-profile.mts";
-import {
-  compactOpenMohaaPortable,
-  projectOpenMohaaPortable,
-} from "./catalog-openmohaa-portable.mts";
-import {
-  compactGen2RecompWindowsPersistence,
-  projectGen2RecompWindowsPersistence,
-} from "./catalog-gen2recomp-windows-persistence.mts";
-import {
-  compactNativeManagedProfile,
-  projectNativeManagedProfile,
-} from "./catalog-native-managed-profile.mts";
-import {
-  compactRsdkv4PortableData,
-  projectRsdkv4PortableData,
-} from "./catalog-rsdkv4-portable-data.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
-import {
-  compactCrispyDoomWindowsPersistence,
-  projectCrispyDoomWindowsPersistence,
-} from "./catalog-crispy-doom-windows-persistence.mts";
-import {
-  compactChocolateFamilyWindowsPersistence,
-  projectChocolateFamilyWindowsPersistence,
-} from "./catalog-chocolate-family-windows-persistence.mts";
-import {
-  compactReflectionHlePortablePaths,
-  projectReflectionHlePortablePaths,
-} from "./catalog-portable-reflectionhle.mts";
 
 import {
   requiredFixture,
@@ -80,6 +49,54 @@ const schema2Fixture = fixtureJson(
   readFileSync(join(catalogRoot, "catalog-schema2-migration-fixture.json")),
 );
 const schema3Fixture = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
+
+void test("reviewed mod websites promote the directory without an operational definition", () => {
+  const link = {
+    id: "community",
+    site: "nexus_mods",
+    name: "Nexus Mods",
+    url: "https://www.nexusmods.com/fixture",
+    instructions: "Check the community page for mod requirements.",
+  };
+  const listing = {
+    id: "unmanaged-mod-portal",
+    name: "Unmanaged Mod Portal",
+    summary: "A fixture for signed descriptive links.",
+    project_url: "https://github.com/example/fixture",
+  };
+  const record = checkedAuthoredPort({
+    format_version: 1,
+    listing: { ...listing, mod_portals: [link] },
+  });
+  const assembled = assembleCatalogRecords(
+    {
+      schema_version: 3,
+      source_catalog: {
+        identities: [],
+        contracts: [],
+        validators: [],
+        evidence: [],
+        qualification: [],
+      },
+    },
+    [record],
+  );
+  assert.equal(assembled.directory.format_version, 16);
+  assert.deepEqual(assembled.directory.listings[0]?.mod_portals, [link]);
+  assert.deepEqual(assembled.catalog.ports, []);
+  assert.equal(listingDeclarationHash(listing), listingDeclarationHash(record.listing));
+  for (const portals of [
+    [{ ...link, authority: "inspect" }],
+    [{ ...link, url: "https://example.com/fixture" }],
+    [link, { ...link }],
+  ]) {
+    assert.throws(
+      () =>
+        checkedAuthoredPort({ format_version: 1, listing: { ...listing, mod_portals: portals } }),
+      /mod portal/u,
+    );
+  }
+});
 
 void test("managed platform warnings are checked and stay outside definition projections", () => {
   const authored = checkedAuthoredPort(
@@ -101,38 +118,6 @@ void test("managed platform warnings are checked and stay outside definition pro
     assert.throws(
       () => checkedAuthoredPort({ ...authored, managed_setup_platform_warnings }),
       /managed_setup_platform_warnings/u,
-    );
-  }
-});
-
-void test("native managed profiles reproduce four independently reviewed games", () => {
-  const { records, catalog } = readCatalogSource(catalogRoot);
-  const family = records.filter((record) => record.native_managed_profile_v1);
-  assert.equal(family.length, 4);
-  for (const record of family) {
-    const explicit = projectNativeManagedProfile(record);
-    assert.deepEqual(compactNativeManagedProfile(explicit), record);
-    assert.deepEqual(
-      projectAuthoredPort(record),
-      catalog.ports.find((port) => port.id === record.listing.id),
-    );
-    const override = {
-      ...explicit,
-      integration: { ...explicit.integration, windows_temp_directory: "different-profile" },
-    };
-    assert.equal(compactNativeManagedProfile(override), override);
-    assert.throws(
-      () =>
-        checkedAuthoredPort({
-          ...record,
-          integration: {
-            ...record.integration,
-            presentation: {
-              saves_and_settings: "external-user-owned",
-            },
-          },
-        }),
-      /managed profile requires/u,
     );
   }
 });
@@ -169,35 +154,7 @@ void test("external runtime registration reproduces all reviewed CPS2Recomp rout
   }
 });
 
-void test("Aleph One launch settings preserve all three reviewed pinned scenario routes", () => {
-  const accepted = new Map(fixtureCatalog(schema3Fixture).ports.map((port) => [port.id, port]));
-  const family = readCatalogSource(catalogRoot).records.filter(
-    (record) => record.alephone_pinned_windows_v1,
-  );
-  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
-    "marathon-2-durandal-aleph-one",
-    "marathon-aleph-one",
-    "marathon-infinity-aleph-one",
-  ]);
-  for (const record of family) {
-    const { id } = record.listing;
-    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
-    const explicit = projectAlephOnePinnedWindows(record);
-    assert.deepEqual(explicit.integration?.release, record.integration?.release);
-    assert.deepEqual(explicit.integration?.executable_hints, record.integration?.executable_hints);
-    assert.deepEqual(compactAlephOnePinnedWindows(explicit), record);
-
-    const alternate = structuredClone(explicit);
-    requiredFixture(alternate.integration).launch_arguments = ["Scenario"];
-    assert.equal(compactAlephOnePinnedWindows(alternate), alternate);
-    assert.throws(
-      () => checkedAuthoredPort({ ...alternate, alephone_pinned_windows_v1: true }),
-      /already supplies the launch and external profile/u,
-    );
-  }
-});
-
-void test("Aleph One launch settings require the canonical official release URL", () => {
+void test("GitHub Direct pins require the canonical release URL of the listing project", () => {
   const record = requiredFixture(
     readCatalogSource(catalogRoot).records.find((item) => item.listing.id === "marathon-aleph-one"),
   );
@@ -219,7 +176,10 @@ void test("Aleph One launch settings require the canonical official release URL"
     const otherPackage = structuredClone(record);
     const direct = fixtureRecord(fixtureRecord(otherPackage.integration?.release).direct);
     fixtureRecord(direct["windows-x86-64"]).url = url;
-    assert.throws(() => checkedAuthoredPort(otherPackage), /reviewed pinned Windows scenario/u);
+    assert.throws(
+      () => checkedAuthoredPort(otherPackage),
+      /GitHub Direct pin for windows-x86-64 must be a canonical release download/u,
+    );
   }
 });
 
@@ -331,180 +291,11 @@ void test("current authored operational routes remain valid read-only health inv
   assert.doesNotThrow(() => estimateHealthRequests(readCatalogSource(catalogRoot).catalog));
 });
 
-void test("Gen2Recomped persistence preserves all three exact Windows edition routes", () => {
-  const { records } = readCatalogSource(catalogRoot);
-  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
-  const family = records.filter((record) => record.gen2recomp_windows_persistence_v1);
-  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
-    "gen2recomp-crystal",
-    "gen2recomp-gold",
-    "gen2recomp-silver",
-  ]);
-  for (const record of family) {
-    const { id } = record.listing;
-    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
-    const explicit = projectGen2RecompWindowsPersistence(record);
-    delete explicit.gen2recomp_windows_persistence_v1;
-    assert.deepEqual(compactGen2RecompWindowsPersistence(explicit), record);
-
-    const alternate = structuredClone(explicit);
-    alternate.integration!.persistent_paths = ["options.lua"];
-    assert.equal(compactGen2RecompWindowsPersistence(alternate), alternate);
-    assert.throws(
-      () => checkedAuthoredPort({ ...alternate, gen2recomp_windows_persistence_v1: true }),
-      /already owns the persistent and mutable paths/u,
-    );
-    const wrongEdition = structuredClone(record);
-    wrongEdition.integration!.source_profile = "pokemon-red";
-    assert.throws(() => checkedAuthoredPort(wrongEdition), /reviewed Windows package and edition/u);
-  }
-});
-
-void test("RSDKv4 portable data preserves both reviewed Sonic definitions", () => {
-  const { records } = readCatalogSource(catalogRoot);
-  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
-  const family = records.filter((record) => record.rsdkv4_portable_data_v1);
-  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
-    "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation",
-    "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
-  ]);
-  for (const record of family) {
-    const { id } = record.listing;
-    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
-    const explicit = projectRsdkv4PortableData(record);
-    delete explicit.rsdkv4_portable_data_v1;
-    assert.deepEqual(compactRsdkv4PortableData(explicit), record);
-
-    const alternate = structuredClone(explicit);
-    alternate.integration!.persistent_paths = ["Data.rsdk", "other-profile"];
-    assert.equal(compactRsdkv4PortableData(alternate), alternate);
-    assert.throws(
-      () => checkedAuthoredPort({ ...alternate, rsdkv4_portable_data_v1: true }),
-      /already owns the persistent paths/u,
-    );
-    const otherProject = structuredClone(record);
-    otherProject.listing.project_url = "https://github.com/RSDKModding/RSDKv3-Decompilation";
-    assert.throws(
-      () => checkedAuthoredPort(otherProject),
-      /reviewed Sonic route and package source/u,
-    );
-  }
-});
-
-void test("Chocolate persistence preserves the three reviewed Windows definitions", () => {
-  const { records } = readCatalogSource(catalogRoot);
-  const prior = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
-  const family = records.filter((record) => record.chocolate_family_windows_persistence_v1);
-  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
-    "chocolate-doom-family",
-    "chocolate-heretic",
-    "chocolate-hexen",
-  ]);
-  for (const record of family) {
-    assert.equal(
-      JSON.stringify(projectAuthoredPort(record)),
-      JSON.stringify(prior.get(record.listing.id)),
-    );
-    const explicit = projectChocolateFamilyWindowsPersistence(record);
-    delete explicit.chocolate_family_windows_persistence_v1;
-    assert.deepEqual(compactChocolateFamilyWindowsPersistence(explicit), record);
-
-    const alternate = structuredClone(explicit);
-    alternate.integration!.runtime_mutable_paths = ["stdout.txt"];
-    assert.equal(compactChocolateFamilyWindowsPersistence(alternate), alternate);
-    alternate.chocolate_family_windows_persistence_v1 = true;
-    assert.throws(
-      () => checkedAuthoredPort(alternate),
-      /already owns the persistent and mutable paths/u,
-    );
-  }
-  const differentOriginal = structuredClone(requiredFixture(family[0]));
-  differentOriginal.integration!.source_profile = "other-iwad";
-  assert.throws(() => checkedAuthoredPort(differentOriginal), /reviewed staged Windows profile/u);
-});
-
-void test("Crispy Doom persistence preserves all six exact Windows package layouts", () => {
-  const { records } = readCatalogSource(catalogRoot);
-  const prior = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
-  const family = records.filter((record) => record.crispy_doom_windows_persistence_v1);
-  assert.equal(family.length, 6);
-  for (const record of family) {
-    const projected = projectAuthoredPort(record);
-    assert.equal(JSON.stringify(projected), JSON.stringify(prior.get(record.listing.id)));
-    const explicit = projectCrispyDoomWindowsPersistence(record);
-    delete explicit.crispy_doom_windows_persistence_v1;
-    assert.deepEqual(compactCrispyDoomWindowsPersistence(explicit), record);
-    const alternate = structuredClone(explicit);
-    alternate.integration!.persistent_file_patterns = [];
-    assert.equal(compactCrispyDoomWindowsPersistence(alternate), alternate);
-    alternate.crispy_doom_windows_persistence_v1 = true;
-    assert.throws(() => checkedAuthoredPort(alternate), /already owns the persistent paths/u);
-  }
-  const startedWithOtherArguments = structuredClone(requiredFixture(family[0]));
-  startedWithOtherArguments.integration!.launch_arguments = [
-    "-game",
-    "doom",
-    "-savedir",
-    "another-folder",
-  ];
-  assert.throws(
-    () => checkedAuthoredPort(startedWithOtherArguments),
-    /requires the reviewed Windows portable data route/u,
-  );
-});
-
-void test("Raze Windows authoring preserves the exact shared package and profile facts", () => {
-  const { records } = readCatalogSource(catalogRoot);
-  const family = records.filter((record) => record.raze_windows_profile_v1);
-  assert.equal(family.length, 7);
-  for (const record of family) {
-    const projected = requiredFixture(projectAuthoredPort(record));
-    assert.deepEqual(projected.release, {
-      repository: "ZDoom/Raze",
-      asset_hints: { "windows-x86-64": ["Raze-", "-windows.zip"] },
-    });
-    assert.deepEqual(projected.executable_hints, { "windows-x86-64": ["raze.exe"] });
-    assert.deepEqual(projected.persistent_paths, [
-      "raze_portable.ini",
-      "Save",
-      "Screenshots",
-      "Demos",
-      "autoexec.cfg",
-    ]);
-    assert.equal(projected.portable_marker_file, "raze_portable.ini");
-    assert.deepEqual(projected.reviewed_package_layouts, {
-      "windows-x86-64": { directories: ["soundfonts"], executables: ["raze.exe"] },
-    });
-    const explicit = projectRazeWindowsProfile(record);
-    delete explicit.raze_windows_profile_v1;
-    assert.deepEqual(compactRazeWindowsProfile(explicit), record);
-
-    const fork = {
-      ...explicit,
-      listing: { ...explicit.listing, project_url: "https://github.com/example/Raze" },
-    };
-    assert.equal(compactRazeWindowsProfile(fork), fork);
-  }
-
-  const record = requiredFixture(family[0]);
-  const differentPaths = structuredClone(record);
-  differentPaths.integration!.persistent_paths = ["other-profile"];
-  assert.throws(() => checkedAuthoredPort(differentPaths), /supplies its package and data paths/u);
-  const differentRelease = structuredClone(record);
-  differentRelease.integration!.release = { repository: "ZDoom/gzdoom" };
-  assert.throws(() => checkedAuthoredPort(differentRelease), /reviewed stable ZDoom\/Raze route/u);
-
-  const explicit = requiredFixture(records.find((entry) => entry.listing.id === "zdoom-gzdoom"));
-  assert.equal(explicit.raze_windows_profile_v1, undefined);
-  assert.equal(compactRazeWindowsProfile(explicit), explicit);
-  assert.equal(projectAuthoredPort(explicit)?.portable_marker_file, "gzdoom_portable.ini");
-});
-
 void test("reviewed flat package authoring preserves ordered fingerprints and explicit exceptions", () => {
   const { records } = readCatalogSource(catalogRoot);
   const prior = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
   const family = records.filter((record) => record.reviewed_flat_package_layout_v1);
-  assert.equal(family.length, 13);
+  assert.equal(family.length, 12);
   for (const record of family) {
     assert.equal(
       JSON.stringify(projectAuthoredPort(record)),
@@ -532,6 +323,7 @@ void test("reviewed flat package authoring preserves ordered fingerprints and ex
   assert.throws(() => checkedAuthoredPort(duplicate), /already owns reviewed_package_layouts/u);
   for (const id of [
     "mdk-sdl-nemo22",
+    "dethrace-labs-dethrace",
     "blake-stone-aliens-of-gold-bstone",
     "bstoney-yt-mercenaries-2-decompilation",
   ]) {
@@ -638,7 +430,15 @@ void test("shared upstream family facts stay consistent while game and permissio
   for (const { listing } of independent) {
     listing.name += listing.id;
     listing.issue_number = (listing.issue_number ?? 1) + 10000;
-    listing.download_block_reason = `An independently reviewed condition for ${listing.id}.`;
+    listing.restrictions = [
+      {
+        id: "download",
+        effect: "hold",
+        operations: ["download"],
+        reason: "package-facts-unresolved",
+        explanation: `An independently reviewed condition for ${listing.id}.`,
+      },
+    ];
     const guide = fixtureRecord(listing.manual_setup);
     const steps = fixtureRecords(guide.steps);
     requiredFixture(steps[0]).instruction = `Original-file requirements for ${listing.id}.`;
@@ -649,93 +449,6 @@ void test("shared upstream family facts stay consistent while game and permissio
     guide.steps = steps;
   }
   check(independent);
-});
-
-void test("OpenMoHAA shares the official package without mixing edition launchers or data", () => {
-  const { records } = readCatalogSource(catalogRoot);
-  const family = records.filter((record) => record.openmohaa_portable_v1);
-  assert.equal(family.length, 3);
-  for (const [edition, additionalDirectory] of [
-    ["base", undefined],
-    ["spearhead", "mainta"],
-    ["breakthrough", "maintt"],
-  ] as const) {
-    const record = requiredFixture(family.find((port) => port.openmohaa_portable_v1 === edition));
-    const explicit = projectOpenMohaaPortable(record);
-    const integration = fixtureRecord(explicit.integration);
-    const launcher = `launch_openmohaa_${edition}`;
-    assert.deepEqual(compactOpenMohaaPortable(explicit), record);
-    assert.equal(projectOpenMohaaPortable(explicit), explicit);
-    assert.deepEqual(projectAuthoredPort(record), projectAuthoredPort(explicit));
-    assert.deepEqual(explicit.listing.original_game, record.listing.original_game);
-    assert.deepEqual(explicit.listing.manual_setup, record.listing.manual_setup);
-    assert.deepEqual(
-      integration.persistent_paths,
-      additionalDirectory ? ["main", additionalDirectory] : ["main"],
-    );
-    assert.deepEqual(fixtureRecord(integration.executable_hints)["windows-x86-64"], [
-      `${launcher}.exe`,
-    ]);
-    const layouts = fixtureRecord(integration.reviewed_package_layouts);
-    for (const target of ["linux-x86-64", "macos-aarch64", "macos-x86-64"]) {
-      assert.deepEqual(fixtureRecord(integration.executable_hints)[target], [launcher]);
-      assert.deepEqual(layouts[target], { directories: [], executables: [launcher, "openmohaa"] });
-    }
-    assert.deepEqual(fixtureRecord(layouts["windows-x86-64"]).executables, [
-      "launch_openmohaa_base.exe",
-      "launch_openmohaa_breakthrough.exe",
-      "launch_openmohaa_spearhead.exe",
-      "omohaaded.exe",
-      "openmohaa.exe",
-    ]);
-    assert.equal(integration.external_profile_policy, "openmohaa-unix-v1");
-
-    const custom = structuredClone(explicit);
-    custom.integration!.persistent_paths = ["player-custom-root"];
-    assert.equal(compactOpenMohaaPortable(custom), custom);
-    assert.throws(
-      () => checkedAuthoredPort({ ...custom, openmohaa_portable_v1: edition }),
-      /supplies the package, launcher and data layout/u,
-    );
-  }
-  const base = requiredFixture(family.find((record) => record.openmohaa_portable_v1 === "base"));
-  assert.throws(
-    () => checkedAuthoredPort({ ...base, openmohaa_portable_v1: "spearhead" }),
-    /matching game edition/u,
-  );
-  assert.throws(
-    () =>
-      checkedAuthoredPort({ ...base, listing: { ...base.listing, platforms: ["linux-x86-64"] } }),
-    /platform must be declared once/u,
-  );
-});
-
-void test("ReflectionHLE authoring preserves the exact portable data paths for all configured ports", () => {
-  const { records } = readCatalogSource(catalogRoot);
-  const family = records.filter((record) => record.reflectionhle_portable_paths_v1);
-  assert.equal(family.length, 9);
-  for (const record of family) {
-    const explicit = projectReflectionHlePortablePaths(record);
-    delete explicit.reflectionhle_portable_paths_v1;
-    const projected = requiredFixture(projectAuthoredPort(record));
-    const fromCatalog = requiredFixture(
-      fixtureRecords(schema3Fixture.ports).find((port) => port.id === record.listing.id),
-    );
-    assert.deepEqual(projected, fromCatalog);
-    assert.ok(Array.isArray(projected.persistent_paths));
-    const persistentPaths: unknown[] = projected.persistent_paths;
-    assert.equal(persistentPaths.length, 110);
-    assert.deepEqual(compactReflectionHlePortablePaths(explicit), record);
-
-    const alternate = structuredClone(explicit);
-    alternate.integration!.persistent_paths = [...persistentPaths, "custom.cfg"];
-    assert.equal(compactReflectionHlePortablePaths(alternate), alternate);
-    alternate.reflectionhle_portable_paths_v1 = true;
-    assert.throws(() => checkedAuthoredPort(alternate), /already own persistent_paths/u);
-  }
-  const nested = structuredClone(requiredFixture(family[0]));
-  nested.integration!.runtime_subdirectory = "alternate";
-  assert.throws(() => checkedAuthoredPort(nested), /reviewed portable root layout/u);
 });
 
 void test("per-port source projects all accepted operations unchanged and listing-only records stay inert", () => {
@@ -826,6 +539,14 @@ void test("authored JSON refuses duplicate decoded keys while retaining nested d
 void test("download restrictions project through the versioned directory without managed authority", () => {
   const source = readCatalogSource(catalogRoot);
   const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const explanation = "Resolve the exact upstream permission.";
+  const hold = {
+    id: "download",
+    effect: "hold",
+    operations: ["download"],
+    reason: "third-party-component-terms",
+    explanation,
+  };
   const record = checkedAuthoredPort({
     format_version: 1,
     listing: {
@@ -833,15 +554,14 @@ void test("download restrictions project through the versioned directory without
       name: "Restricted fixture",
       summary: "An upstream project.",
       project_url: "https://example.org/project",
-      download_block_reason: "Resolve the exact upstream permission.",
+      restrictions: [hold],
     },
   });
   const projection = assembleCatalogRecords(shared, [record]);
-  assert.equal(projection.directory.format_version, 2);
-  assert.equal(
-    projection.directory.listings[0]?.download_block_reason,
-    record.listing.download_block_reason,
-  );
+  assert.equal(projection.directory.format_version, 15);
+  // Older readers keep enforcing the derived legacy string.
+  assert.equal(projection.directory.listings[0]?.download_block_reason, explanation);
+  assert.deepEqual(projection.directory.listings[0]?.restrictions, [hold]);
   assert.equal(projection.catalog.ports.length, 0);
   assert.throws(
     () => checkedAuthoredPort({ ...record, integration: { adapter: "native-portable" } }),
@@ -851,34 +571,167 @@ void test("download restrictions project through the versioned directory without
   assert.ok(prepared);
   const preparedWithHold = checkedAuthoredPort({
     ...prepared,
-    listing: { ...prepared.listing, download_block_reason: record.listing.download_block_reason },
+    listing: { ...prepared.listing, restrictions: [hold] },
   });
   const preparedWithoutHold = structuredClone(preparedWithHold);
-  delete preparedWithoutHold.listing.download_block_reason;
+  delete preparedWithoutHold.listing.restrictions;
   const heldPrepared = assembleCatalogRecords(shared, [preparedWithHold]);
   const unheldPrepared = assembleCatalogRecords(shared, [preparedWithoutHold]);
-  assert.equal(
-    heldPrepared.directory.listings[0]?.download_block_reason,
-    record.listing.download_block_reason,
-  );
+  assert.equal(heldPrepared.directory.listings[0]?.download_block_reason, explanation);
   assert.deepEqual(heldPrepared.catalog.ports, unheldPrepared.catalog.ports);
   assert.partialDeepStrictEqual(heldPrepared.catalog.ports[0], {
     release: { provider: "user-prepared" },
   });
   const legacy = structuredClone(record);
-  delete legacy.listing.download_block_reason;
+  delete legacy.listing.restrictions;
   assert.equal(assembleCatalogRecords(shared, [legacy]).directory.format_version, 1);
-  for (const reason of ["", " trailing ", "line\nbreak", "x".repeat(4097), { allowed: true }]) {
+  // The legacy keys are derived and can no longer be authored.
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...legacy,
+        listing: { ...legacy.listing, download_block_reason: explanation },
+      }),
+    /download_block_reason/,
+  );
+  const withHold = (change: (restriction: Record<string, unknown>) => void, extra = {}) => {
+    const restriction: Record<string, unknown> = structuredClone(hold);
+    change(restriction);
+    return () =>
+      checkedAuthoredPort({
+        ...record,
+        listing: { ...record.listing, ...extra, restrictions: [restriction] },
+      });
+  };
+  for (const [change, pattern] of [
+    [(r: Record<string, unknown>) => (r.explanation = " trailing "), /player copy/],
+    [(r: Record<string, unknown>) => (r.explanation = "x".repeat(4097)), /player copy/],
+    [(r: Record<string, unknown>) => delete r.reason, /reason code/],
+    [(r: Record<string, unknown>) => (r.reason = "legacy-unclassified"), /reason code/],
+    [(r: Record<string, unknown>) => (r.operations = ["install"]), /outside the listing carrier/],
+    [(r: Record<string, unknown>) => (r.operations = ["remove"]), /outside the listing carrier/],
+    [(r: Record<string, unknown>) => (r.grant = true), /unknown field/],
+    [(r: Record<string, unknown>) => (r.scope = {}), /omitted when whole/],
+    [(r: Record<string, unknown>) => (r.scope = { edition: ["x"] }), /unknown dimension/],
+    [(r: Record<string, unknown>) => (r.scope = { platforms: ["amiga"] }), /platforms/],
+    [
+      (r: Record<string, unknown>) =>
+        (r.scope = { artifacts: [{ version: "v1", sha256: "ab".repeat(32) }] }),
+      /release route/,
+    ],
+    [(r: Record<string, unknown>) => (r.tracking_issue = 0), /tracking issue/],
+  ] as const)
+    assert.throws(withHold(change), pattern);
+  assert.throws(
+    withHold((r) => (r.scope = { artifacts: [{ version: "v1", sha256: "AB".repeat(32) }] }), {
+      release_url: "https://example.org/project/releases",
+    }),
+    /lowercase SHA-256/,
+  );
+  const permit = {
+    id: "reviewed",
+    effect: "permit",
+    operations: ["download"],
+    scope: { artifacts: [{ version: "v1", sha256: "ab".repeat(32), asset_name: "game.zip" }] },
+  };
+  const scoped = checkedAuthoredPort({
+    ...record,
+    listing: {
+      ...record.listing,
+      release_url: "https://example.org/project/releases",
+      restrictions: [hold, permit],
+    },
+  });
+  assert.equal(
+    assembleCatalogRecords(shared, [scoped]).directory.listings[0]?.download_block_reason,
+    explanation,
+  );
+  for (const restrictions of [
+    [permit],
+    [hold, { ...permit, operations: ["launch"] }],
+    [hold, { ...permit, scope: undefined }],
+    [hold, { ...permit, reason: "bundled-game-data" }],
+    [hold, { ...hold }],
+    [hold, { ...permit, scope: { inputs: ["source-profile"] } }],
+    [hold, { ...permit, scope: { components: [{ kind: "tool-artifact", id: "tool" }] } }],
+    [{ ...hold, operations: ["launch"] }],
+    [{ ...hold, operations: ["register-external"] }],
+  ])
+    assert.throws(() =>
+      checkedAuthoredPort({
+        ...record,
+        listing: {
+          ...record.listing,
+          release_url: "https://example.org/project/releases",
+          restrictions: structuredClone(restrictions) as never,
+        },
+      }),
+    );
+  assert.ok(source.records.length > 0);
+});
+
+void test("managed restrictions are authored typed and emitted as the unchanged legacy hold", () => {
+  const source = readCatalogSource(catalogRoot);
+  const embedded = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
+  const ports = fixtureRecords(embedded.ports);
+  let held = 0;
+  for (const record of source.records) {
+    const typed = record.integration?.acquisition_restrictions;
+    if (typed === undefined) continue;
+    held++;
+    const port = ports.find((candidate) => candidate.id === record.listing.id);
+    const hold = port?.managed_acquisition_hold;
+    assert.ok(hold, record.listing.id);
+    assert.deepEqual(restrictionsFromManagedHold(hold as LegacyManagedHold), typed);
+    assert.deepEqual(managedHoldFromRestrictions(record.listing.id, typed as never), hold);
+  }
+  assert.equal(held, 5);
+  const metroid = source.records.find(({ listing }) => listing.id === "super-metroid-recomp");
+  assert.ok(metroid?.integration);
+  const restrictions = structuredClone(metroid.integration.acquisition_restrictions) as Record<
+    string,
+    unknown
+  >[];
+  const unrepresentable = [
+    (r: Record<string, unknown>[]) => (r[0]!.tracking_issue = 164),
+    (r: Record<string, unknown>[]) => (r[0]!.scope = { platforms: ["windows-x86-64"] }),
+    (r: Record<string, unknown>[]) => (r[2]!.operations = ["install", "activate"]),
+    (r: Record<string, unknown>[]) => r.reverse(),
+  ];
+  for (const change of unrepresentable) {
+    const changed = structuredClone(restrictions);
+    change(changed);
     assert.throws(
       () =>
         checkedAuthoredPort({
-          ...record,
-          listing: { ...record.listing, download_block_reason: reason },
+          ...metroid,
+          integration: { ...metroid.integration, acquisition_restrictions: changed },
         }),
-      /download restriction/,
+      /cannot yet be delivered/,
     );
   }
-  assert.ok(source.records.length > 0);
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...metroid,
+        integration: {
+          ...metroid.integration,
+          acquisition_restrictions: [
+            { ...restrictions[0], operations: ["download", "launch"] },
+            ...restrictions.slice(1),
+          ],
+        },
+      }),
+    /outside the integration carrier/,
+  );
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...metroid,
+        integration: { ...metroid.integration, managed_acquisition_hold: {} },
+      }),
+    /managed_acquisition_hold is derived/,
+  );
 });
 
 void test("authoring split preserves unknown metadata and ordered operational arrays", () => {
@@ -1212,7 +1065,7 @@ void test("optional recommendation observations round-trip as inert presentation
 void test("reference guides select strict new formats and retain actions and warnings", () => {
   const source = readCatalogSource(catalogRoot);
   assert.equal(source.catalog.schema_version, 3);
-  assert.equal(source.directory.format_version, 13);
+  assert.equal(source.directory.format_version, 15);
   const syphon = source.directory.listings.find(
     (listing) => listing.id === "syphon-filter-sf-pc-port",
   );
@@ -1521,7 +1374,6 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
     const duplicate = structuredClone(record);
     duplicate.integration!.runtime_subdirectory = "setup-host";
     assert.throws(() => checkedAuthoredPort(duplicate), /already owns runtime_subdirectory/u);
-    if (record.psx_managed_windows_v1 === "split-mods-diagnostics") continue;
     const otherBios = structuredClone(record);
     otherBios.integration!.bios_source_profile = "psx-scph-5501-bios";
     assert.throws(() => checkedAuthoredPort(otherBios), /retail SCPH-1001/u);
@@ -1575,13 +1427,16 @@ void test("TechnicallyComputers PSX persistence preserves the reviewed three-pla
   const incorrectRoute = structuredClone(requiredFixture(family[0]));
   incorrectRoute.integration!.platforms = ["windows-x86-64"];
   delete incorrectRoute.managed_setup_platform_warnings;
-  assert.throws(() => checkedAuthoredPort(incorrectRoute), /reviewed Windows and macOS/u);
+  assert.throws(
+    () => checkedAuthoredPort(incorrectRoute),
+    /persistence requires platforms windows-x86-64, macos-x86-64, macos-aarch64 in that order/u,
+  );
   const tomba = requiredFixture(records.find(({ listing }) => listing.id === "tomba-recompiled"));
   assert.equal(tomba.psx_managed_windows_v1, undefined);
   assert.equal(compactPsxManagedWindows(tomba), tomba);
 });
 
-void test("TechnicallyComputers PSX input files preserve the reviewed kit and raw disc contracts", () => {
+void test("TechnicallyComputers PSX input files expand by declared kit and raw disc facts", () => {
   const { records } = readCatalogSource(catalogRoot);
   const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
   const family = records.filter(
@@ -1622,27 +1477,37 @@ void test("TechnicallyComputers PSX input files preserve the reviewed kit and ra
 
     const downgrade = structuredClone(record);
     downgrade.psx_managed_windows_v1 = "technically-computers";
-    assert.throws(() => projectPsxManagedWindows(downgrade), /reviewed Windows and macOS/u);
+    assert.throws(
+      () => projectPsxManagedWindows(downgrade),
+      /persistence requires no (?:runtime_mutable_paths|multidisc fields)/u,
+    );
     downgrade.psx_managed_windows_v1 = true;
     assert.throws(() => projectPsxManagedWindows(downgrade), /reviewed Windows GitHub kit/u);
 
-    const otherIdentity = structuredClone(record);
-    otherIdentity.listing.id = "other-port";
-    assert.throws(() => projectPsxManagedWindows(otherIdentity), /exact reviewed/u);
-
-    const otherRepository = structuredClone(record);
-    otherRepository.listing.project_url = "https://github.com/TechnicallyComputers/OtherKit";
-    (otherRepository.integration!.release as Record<string, unknown>).repository =
-      "TechnicallyComputers/OtherKit";
-    assert.throws(() => projectPsxManagedWindows(otherRepository), /exact reviewed/u);
-
-    const mismatchedProfile = structuredClone(record);
-    mismatchedProfile.integration!.source_profile = "other-source";
-    assert.throws(() => projectPsxManagedWindows(mismatchedProfile), /exact reviewed/u);
+    // Identity, repository and disc profile are data: another record with the
+    // same declared shape expands to the same layout.
+    const otherKit = structuredClone(record);
+    otherKit.listing.id = "other-port";
+    otherKit.listing.project_url = "https://github.com/other-owner/OtherKit";
+    (otherKit.integration!.release as Record<string, unknown>).repository = "other-owner/OtherKit";
+    otherKit.integration!.source_profile = "other-source";
+    const otherProjected = projectPsxManagedWindows(otherKit).integration!;
+    const ownProjected = projectPsxManagedWindows(record).integration!;
+    assert.deepEqual(otherProjected.persistent_paths, ownProjected.persistent_paths);
+    assert.equal(otherProjected.source_profile, "other-source");
 
     const unexpectedRoot = structuredClone(record);
     unexpectedRoot.integration!.runtime_subdirectory = "other-root";
-    assert.throws(() => projectPsxManagedWindows(unexpectedRoot), /exact reviewed/u);
+    assert.throws(
+      () => projectPsxManagedWindows(unexpectedRoot),
+      /input files require an explicit build-portcove runtime_subdirectory/u,
+    );
+    const missingMutable = structuredClone(record);
+    delete missingMutable.integration!.runtime_mutable_paths;
+    assert.throws(
+      () => projectPsxManagedWindows(missingMutable),
+      /input files require explicit runtime_mutable_paths/u,
+    );
   }
   const finalFantasy = requiredFixture(
     family.find(({ listing }) => listing.id === "final-fantasy-vii-recompiled"),
@@ -1700,7 +1565,7 @@ void test("PSX retail split-mods preparation preserves the reviewed multidisc co
   assert.equal(compactPsxManagedWindows(different), different);
 });
 
-void test("Alexbeav PSX split-mods preserves the reviewed diagnostic paths", () => {
+void test("PSX split-mods without a crash log drops only the crash log", () => {
   const { records } = readCatalogSource(catalogRoot);
   const family = records.filter(
     (record) => record.psx_managed_windows_v1 === "split-mods-no-crash-log",
@@ -1739,7 +1604,19 @@ void test("Alexbeav PSX split-mods preserves the reviewed diagnostic paths", () 
     ...record,
     listing: { ...record.listing, project_url: "https://github.com/fork/port" },
   };
-  assert.throws(() => projectPsxManagedWindows(otherSource), /reviewed Alexbeav project/u);
+  assert.throws(
+    () => projectPsxManagedWindows(otherSource),
+    /release repository that is the listing project_url/u,
+  );
+  const otherUpstream = structuredClone(record);
+  otherUpstream.listing.id = "other-port";
+  otherUpstream.listing.project_url = "https://github.com/other-owner/other-kit";
+  (otherUpstream.integration!.release as Record<string, unknown>).repository =
+    "other-owner/other-kit";
+  assert.deepEqual(
+    projectPsxManagedWindows(otherUpstream).integration!.runtime_mutable_paths,
+    mutablePaths,
+  );
   const otherBios = {
     ...record,
     integration: { ...record.integration, bios_source_profile: "psx-scph-5552-bios" },
@@ -1747,57 +1624,30 @@ void test("Alexbeav PSX split-mods preserves the reviewed diagnostic paths", () 
   assert.throws(() => projectPsxManagedWindows(otherBios), /retail SCPH-1001 BIOS/u);
 });
 
-void test("PSX split-mods diagnostics preserves the two exact accepted routes", () => {
-  const family = readCatalogSource(catalogRoot).records.filter(
-    (record) => record.psx_managed_windows_v1 === "split-mods-diagnostics",
-  );
-  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
-    "alexbeav-medievil-recomp",
-    "mortal-kombat-4-recompiled",
-  ]);
+void test("PSX diagnostics routes are explicit and the title-keyed layout is refused", () => {
+  const { records } = readCatalogSource(catalogRoot);
   const accepted = new Map(fixtureCatalog(schema3Fixture).ports.map((port) => [port.id, port]));
-  for (const record of family) {
-    const { id } = record.listing;
-    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
-    const explicit = projectPsxManagedWindows(record);
-    delete explicit.psx_managed_windows_v1;
-    assert.deepEqual(compactPsxManagedWindows(explicit), record);
-
-    const alternate = structuredClone(explicit);
-    requiredFixture(alternate.integration).runtime_subdirectory = "other-runtime";
-    assert.equal(compactPsxManagedWindows(alternate), alternate);
-    const otherBios = structuredClone(record);
-    requiredFixture(otherBios.integration).bios_source_profile = "psx-scph-5552-bios";
-    assert.throws(() => projectPsxManagedWindows(otherBios), /exact reviewed MediEvil/u);
-    const otherPlayer = structuredClone(record);
-    fixtureRecord(requiredFixture(otherPlayer.integration).executable_hints)["linux-x86-64"] = [
-      "setup-host",
-    ];
-    assert.throws(() => projectPsxManagedWindows(otherPlayer), /exact reviewed MediEvil/u);
-    const missingSelector = structuredClone(record);
-    delete fixtureRecord(fixtureRecord(missingSelector.integration?.release).asset_hints)[
-      "linux-x86-64"
-    ];
-    assert.throws(() => projectPsxManagedWindows(missingSelector), /exact reviewed MediEvil/u);
-  }
-  const mortalKombat = requiredFixture(
-    family.find((record) => record.listing.id === "mortal-kombat-4-recompiled"),
+  const diagnostics = records.filter((record) =>
+    (record.integration?.persistent_paths as unknown[] | undefined)?.includes(
+      "diagnostics-location.txt",
+    ),
   );
-  const extraTarget = structuredClone(mortalKombat);
-  requiredFixture(extraTarget.integration).platforms = [
-    "windows-x86-64",
-    "linux-x86-64",
-    "macos-x86-64",
-    "macos-aarch64",
-    "linux-aarch64",
-  ];
-  assert.throws(() => projectPsxManagedWindows(extraTarget), /exact reviewed MediEvil/u);
-  const alternateMac = structuredClone(mortalKombat);
-  const release = fixtureRecord(alternateMac.integration?.release);
-  fixtureRecord(release.asset_hints)["macos-aarch64"] = ["alternate-mac"];
-  assert.throws(() => projectPsxManagedWindows(alternateMac), /exact reviewed MediEvil/u);
+  assert.ok(diagnostics.length > 0);
+  for (const record of diagnostics) {
+    const { id } = record.listing;
+    assert.equal(record.psx_managed_windows_v1, undefined, id);
+    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
+    assert.equal(compactPsxManagedWindows(record), record, id);
+    assert.throws(
+      () =>
+        projectPsxManagedWindows({
+          ...record,
+          psx_managed_windows_v1: "split-mods-diagnostics",
+        } as unknown as AuthoredPort),
+      /Missing: a known layout, not "split-mods-diagnostics"/u,
+    );
+  }
 });
-
 void test("PSX split mods keep the reviewed overlay directory layout distinct", () => {
   const { records } = readCatalogSource(catalogRoot);
   const record = records.find((entry) => entry.listing.id === "alexbeav-alundra-recomp");
@@ -1887,20 +1737,26 @@ void test("N64 recomp persistence compacts exact layouts and preserves explicit 
 
   const nested = records.find((record) => record.listing.id === "beetle-recomp")!;
   const otherProvider = records.find((record) => record.listing.id === "extreme-g-recompiled")!;
-  for (const explicit of [nested, otherProvider]) {
+  for (const [explicit, missing] of [
+    [nested, /require no runtime_subdirectory/u],
+    [otherProvider, /require a GitHub release repository/u],
+  ] as const) {
     assert.equal(compactN64RecompPersistence(explicit), explicit);
     assert.throws(
       () => checkedAuthoredPort({ ...explicit, n64_recomp_persistence_v1: true }),
-      /requires? the reviewed root-level GitHub recomp layout/u,
+      missing,
     );
   }
 
   const unsafe = structuredClone(consumers[0]!);
   unsafe.integration!.runtime_source_filename = "../alias.z64";
-  assert.throws(() => checkedAuthoredPort(unsafe), /reviewed root-level GitHub recomp layout/u);
+  assert.throws(
+    () => checkedAuthoredPort(unsafe),
+    /require a root-level \.z64 runtime_source_filename/u,
+  );
 });
 
-void test("N64 persistence additions preserve the reviewed writer order and refuse other owners", () => {
+void test("N64 persistence additions are declared variants in the reviewed writer order", () => {
   const { records } = readCatalogSource(catalogRoot);
   const dinosaur = records.find((record) => record.listing.id === "dinosaur-planet")!;
   const donkeyKong = records.find((record) => record.listing.id === "donkey-kong-64-recompiled")!;
@@ -1926,37 +1782,33 @@ void test("N64 persistence additions preserve the reviewed writer order and refu
     [dinosaur, ["config"]],
     [donkeyKong, ["technical.json", "technical.json.bak"]],
   ] as const) {
-    assert.throws(
-      () => checkedAuthoredPort({ ...record, n64_recomp_persistence_v1: true }),
-      /reviewed root-level GitHub recomp layout/u,
+    // The variant is the record's declaration, not its identity: the shared
+    // layout omits exactly the additions, and compaction picks the variant
+    // that reproduces the explicit paths.
+    const shared = projectN64RecompPersistence({ ...record, n64_recomp_persistence_v1: true });
+    const own = projectN64RecompPersistence(record);
+    assert.deepEqual(
+      shared.integration!.persistent_paths,
+      (own.integration!.persistent_paths as string[]).filter(
+        (path) => !additions.some((addition) => addition === path),
+      ),
     );
-    const changed = projectN64RecompPersistence(record);
-    delete changed.n64_recomp_persistence_v1;
-    const paths = changed.integration!.persistent_paths;
-    assert.ok(Array.isArray(paths));
-    changed.integration!.persistent_paths = paths.filter(
-      (path) => !additions.some((addition) => addition === path),
-    );
+    delete shared.n64_recomp_persistence_v1;
+    assert.equal(compactN64RecompPersistence(shared).n64_recomp_persistence_v1, true);
+    const changed = structuredClone(shared);
+    changed.integration!.persistent_paths = ["custom-saves"];
     assert.equal(compactN64RecompPersistence(changed), changed);
   }
   assert.throws(
-    () => checkedAuthoredPort({ ...dinosaur, n64_recomp_persistence_v1: "technical-settings" }),
-    /reviewed root-level GitHub recomp layout/u,
-  );
-  assert.throws(
     () => checkedAuthoredPort({ ...donkeyKong, n64_recomp_persistence_v1: ["technical-settings"] }),
-    /reviewed root-level GitHub recomp layout/u,
+    /take true, "config-directory" or "technical-settings"/u,
   );
-  assert.throws(
-    () =>
-      checkedAuthoredPort({
-        ...donkeyKong,
-        integration: { ...donkeyKong.integration, source_profile: "different-original" },
-      }),
-    /reviewed root-level GitHub recomp layout/u,
-  );
+  const otherOriginal = projectN64RecompPersistence({
+    ...donkeyKong,
+    integration: { ...donkeyKong.integration, source_profile: "different-original" },
+  });
+  assert.deepEqual(otherOriginal.integration!.persistent_paths, donkeyKongPaths);
 });
-
 void test("PSX split mods retain player data with explicit dual-platform and retail BIOS facts", () => {
   const { records } = readCatalogSource(catalogRoot);
   const consumers = records.filter((record) => record.psx_managed_windows_v1 === "split-mods");
@@ -2187,75 +2039,275 @@ void test("implementation descriptions project without changing source, route or
   }
 });
 
-void test("OpenXW and OpenXvT share their exact package selectors and local config path", () => {
+// A synthetic upstream no script may name: retained shorthands must expand it
+// from its declared fields alone.
+const unfamiliarId = "unfamiliar-shorthand-fixture-port";
+const unfamiliarRepository = "unfamiliar-fixture-owner/unfamiliar-fixture-kit";
+
+function unfamiliarRecord(
+  shorthand: Partial<AuthoredPort>,
+  integration: Record<string, unknown>,
+): AuthoredPort {
+  return {
+    format_version: 1,
+    listing: {
+      id: unfamiliarId,
+      name: "Unfamiliar fixture",
+      summary: "Unfamiliar fixture",
+      project_url: `https://github.com/${unfamiliarRepository}`,
+    },
+    ...shorthand,
+    integration: {
+      support_tier: "beta",
+      channels: ["stable"],
+      ...integration,
+      presentation: { installation_method: "portable-package" },
+    },
+  };
+}
+
+function unfamiliarPsx(layout: NonNullable<AuthoredPort["psx_managed_windows_v1"]>) {
+  const technicallyComputers =
+    layout === "technically-computers" || layout === "technically-computers-input-files";
+  const dual = typeof layout === "string" && layout.startsWith("split-mods");
+  const openBios = layout === "bundled-openbios" || layout === "split-mods-openbios";
+  const platforms = technicallyComputers
+    ? ["windows-x86-64", "macos-x86-64", "macos-aarch64"]
+    : dual
+      ? ["windows-x86-64", "linux-x86-64"]
+      : ["windows-x86-64"];
+  const assets: Record<string, string[]> = technicallyComputers
+    ? {
+        "windows-x86-64": ["windows-x64"],
+        "macos-x86-64": ["macos-x64"],
+        "macos-aarch64": ["macos-arm64"],
+      }
+    : dual
+      ? {
+          "windows-x86-64": ["unfamiliar-kit-", "-windows-x64.zip"],
+          "linux-x86-64": ["unfamiliar-kit-", "-linux-x64.zip"],
+        }
+      : { "windows-x86-64": ["unfamiliar-kit-windows.zip"] };
+  const executables = Object.fromEntries(
+    platforms.map((platform) => [
+      platform,
+      [platform === "windows-x86-64" ? "UnfamiliarPlayer.exe" : "UnfamiliarPlayer"],
+    ]),
+  );
+  return unfamiliarRecord(
+    { psx_managed_windows_v1: layout },
+    {
+      platforms,
+      automated_tested_platforms: [],
+      manually_validated_platforms: [],
+      adapter: "psx-recomp-managed",
+      release: { provider: "github", repository: unfamiliarRepository, asset_hints: assets },
+      source_profile: "unfamiliar-disc-psx",
+      executable_hints: executables,
+      ...(layout === "technically-computers-input-files"
+        ? { runtime_subdirectory: "build-portcove", runtime_mutable_paths: ["unfamiliar.cfg"] }
+        : {}),
+      ...(openBios || technicallyComputers ? {} : { bios_source_profile: "psx-scph-1001-bios" }),
+    },
+  );
+}
+
+void test("retained shorthands expand an unfamiliar upstream by its declared fields alone", () => {
   const { records } = readCatalogSource(catalogRoot);
-  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
-  const family = records.filter((record) => record.openx_portable_v1);
-  for (const historicalId of [
-    "star-wars-x-wing-openxw",
-    "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
-  ]) {
-    const historical = family.find(({ listing }) => listing.id === historicalId);
-    assert.ok(historical);
-    assert.deepEqual(projectAuthoredPort(historical), accepted.get(historicalId));
+  const layouts = [
+    true,
+    "bundled-openbios",
+    "split-mods",
+    "split-mods-no-crash-log",
+    "split-mods-openbios",
+    "split-mods-overlay-directory",
+    "technically-computers",
+    "technically-computers-input-files",
+  ] as const;
+  for (const layout of layouts) {
+    const fixture = unfamiliarPsx(layout);
+    const declared = fixture.integration!;
+    const projected = projectPsxManagedWindows(fixture).integration!;
+    // Every declared fact survives unchanged.
+    for (const [field, value] of Object.entries(declared))
+      assert.deepEqual(projected[field], value, `${String(layout)} ${field}`);
+    const supplied = Object.keys(projected).filter((field) => !Object.hasOwn(declared, field));
+    assert.ok(supplied.includes("persistent_paths"), String(layout));
+    // The supplied layout equals what an accepted record of the same layout gets.
+    const accepted = records.find((record) => record.psx_managed_windows_v1 === layout);
+    if (accepted) {
+      const reference = projectPsxManagedWindows(accepted).integration!;
+      for (const field of supplied)
+        assert.deepEqual(projected[field], reference[field], `${String(layout)} ${field}`);
+    }
+    // Compaction recognizes the unfamiliar explicit form too.
+    const explicit = { ...fixture, integration: projected };
+    delete explicit.psx_managed_windows_v1;
+    assert.equal(compactPsxManagedWindows(explicit).psx_managed_windows_v1, layout);
   }
-  for (const record of records) {
-    assert.equal(compactOpenXPortable(record), record, record.listing.id);
-  }
-  for (const record of family) {
-    const explicit = projectOpenXPortable(record);
-    assert.deepEqual(compactOpenXPortable(explicit), record);
-    assert.deepEqual(explicit.integration?.persistent_paths, ["config.yaml"]);
+  assert.ok(
+    (
+      projectPsxManagedWindows(unfamiliarPsx(true)).integration!.persistent_paths as string[]
+    ).includes("mods"),
+  );
+  assert.deepEqual(
+    projectPsxManagedWindows(unfamiliarPsx("bundled-openbios")).integration!.launch_arguments,
+    ["--no-launcher", "--bios", "bios/openbios.bin"],
+  );
+
+  const n64 = (variant: NonNullable<AuthoredPort["n64_recomp_persistence_v1"]>) =>
+    unfamiliarRecord(
+      { n64_recomp_persistence_v1: variant },
+      {
+        platforms: ["windows-x86-64"],
+        adapter: "n64-recomp-portable",
+        release: { repository: unfamiliarRepository },
+        source_profile: "unfamiliar-cartridge",
+        executable_hints: { "windows-x86-64": ["UnfamiliarRecomp.exe"] },
+        runtime_source_filename: "unfamiliar.z64",
+      },
+    );
+  const shared = [
+    "mods.json",
+    "mods.json.bak",
+    "general.json",
+    "general.json.bak",
+    "graphics.json",
+    "graphics.json.bak",
+    "controls.json",
+    "controls.json.bak",
+    "sound.json",
+    "sound.json.bak",
+  ];
+  for (const [variant, paths] of [
+    [true, ["mods", "mod_config", "saves", ...shared, "unfamiliar.z64"]],
+    ["config-directory", ["mods", "mod_config", "saves", "config", ...shared, "unfamiliar.z64"]],
+    [
+      "technical-settings",
+      [
+        "mods",
+        "mod_config",
+        "saves",
+        ...shared,
+        "technical.json",
+        "technical.json.bak",
+        "unfamiliar.z64",
+      ],
+    ],
+  ] as const) {
+    const projected = projectN64RecompPersistence(n64(variant)).integration!;
+    assert.deepEqual(projected.persistent_paths, paths, String(variant));
     assert.deepEqual(
-      explicit.integration?.reviewed_package_layouts,
-      record.integration?.reviewed_package_layouts,
+      Object.keys(projected).indexOf("persistent_paths") + 1,
+      Object.keys(projected).indexOf("runtime_source_filename"),
     );
-
-    const another = structuredClone(record);
-    another.listing.id = "compatible-player";
-    another.upstream_lineage!.target_key = "original-game-shared-by-alternatives";
-    another.listing.project_url = "https://github.com/example/compatible-player";
-    another.upstream_lineage!.origin.project_url = another.listing.project_url;
-    another.upstream_lineage!.origin.repository!.id = "12345";
-    another.openx_portable_v1 = "12345";
-    (another.integration!.release as Record<string, unknown>).repository =
-      "example/compatible-player";
-    assert.deepEqual(compactOpenXPortable(projectOpenXPortable(another)), another);
-
-    const otherIdentity = structuredClone(record);
-    otherIdentity.upstream_lineage!.origin.project_url = "https://github.com/example/other";
-    assert.throws(() => checkedAuthoredPort(otherIdentity), /accepted lineage identity/u);
-
-    const missingOrigin = structuredClone(record);
-    Reflect.deleteProperty(missingOrigin.upstream_lineage!, "origin");
-    assert.throws(() => checkedAuthoredPort(missingOrigin), /lineage|upstream/iu);
-
-    const wrongId = structuredClone(record);
-    wrongId.upstream_lineage!.origin.repository!.id = "1";
-    assert.throws(() => checkedAuthoredPort(wrongId), /repository ID differs/u);
-    assert.deepEqual(projectOpenXPortable({ ...record, openx_portable_v1: true }), explicit);
-    assert.throws(
-      () => projectOpenXPortable({ ...wrongId, openx_portable_v1: true }),
-      /historical portable package identity/iu,
-    );
-
-    const wrongLayout = structuredClone(record);
-    const layouts = wrongLayout.integration!.reviewed_package_layouts as Record<string, unknown>;
-    layouts["linux-x86-64"] = { executables: ["unexpected"] };
-    assert.throws(() => checkedAuthoredPort(wrongLayout), /reviewed layouts/u);
-
-    const duplicate = structuredClone(record);
-    duplicate.integration!.persistent_paths = [];
-    assert.throws(() => checkedAuthoredPort(duplicate), /already own/u);
-    delete duplicate.integration!.persistent_paths;
-    (duplicate.integration!.release as Record<string, unknown>).linux_tar_xz = false;
-    assert.throws(() => checkedAuthoredPort(duplicate), /already own/u);
-
-    const changedWriter = structuredClone(explicit);
-    changedWriter.integration!.persistent_paths = ["different.yaml"];
-    assert.equal(compactOpenXPortable(changedWriter), changedWriter);
-    const changedArchive = structuredClone(explicit);
-    (changedArchive.integration!.release as Record<string, unknown>).linux_tar_xz = false;
-    assert.equal(compactOpenXPortable(changedArchive), changedArchive);
+    const explicit = { ...n64(variant), integration: projected };
+    delete explicit.n64_recomp_persistence_v1;
+    assert.equal(compactN64RecompPersistence(explicit).n64_recomp_persistence_v1, variant);
   }
+});
+
+void test("retained shorthands refuse an unfamiliar upstream naming the missing precondition", () => {
+  const without = (record: AuthoredPort, field: string) => {
+    const copy = structuredClone(record);
+    delete copy.integration![field];
+    return copy;
+  };
+  for (const layout of [true, "split-mods", "split-mods-overlay-directory"] as const)
+    assert.throws(
+      () => projectPsxManagedWindows(without(unfamiliarPsx(layout), "source_profile")),
+      /Missing: an explicit source_profile\./u,
+    );
+  assert.throws(
+    () => projectPsxManagedWindows(without(unfamiliarPsx(true), "bios_source_profile")),
+    /Missing: a retail bios_source_profile\./u,
+  );
+  const extraBios = structuredClone(unfamiliarPsx("bundled-openbios"));
+  extraBios.integration!.bios_source_profile = "psx-scph-1001-bios";
+  assert.throws(() => projectPsxManagedWindows(extraBios), /Missing: no bios_source_profile\./u);
+  const noLinuxAsset = structuredClone(unfamiliarPsx("split-mods"));
+  delete fixtureRecord(fixtureRecord(noLinuxAsset.integration!.release).asset_hints)[
+    "linux-x86-64"
+  ];
+  assert.throws(
+    () => projectPsxManagedWindows(noLinuxAsset),
+    /Missing: a linux-x86-64 asset_hint\./u,
+  );
+  const otherBios = structuredClone(unfamiliarPsx("split-mods-no-crash-log"));
+  otherBios.integration!.bios_source_profile = "psx-scph-5552-bios";
+  assert.throws(() => projectPsxManagedWindows(otherBios), /requires the retail SCPH-1001 BIOS/u);
+  const otherSelector = structuredClone(unfamiliarPsx("technically-computers"));
+  fixtureRecord(fixtureRecord(otherSelector.integration!.release).asset_hints)["windows-x86-64"] = [
+    "other",
+  ];
+  assert.throws(
+    () => projectPsxManagedWindows(otherSelector),
+    /persistence requires asset_hints windows-x86-64: windows-x64, macos-x86-64: macos-x64, macos-aarch64: macos-arm64\./u,
+  );
+  assert.throws(
+    () =>
+      projectPsxManagedWindows(
+        without(unfamiliarPsx("technically-computers-input-files"), "runtime_mutable_paths"),
+      ),
+    /input files require explicit runtime_mutable_paths\./u,
+  );
+  const n64 = unfamiliarRecord(
+    { n64_recomp_persistence_v1: "config-directory" },
+    {
+      platforms: ["windows-x86-64"],
+      adapter: "n64-recomp-portable",
+      release: { repository: unfamiliarRepository },
+      source_profile: "unfamiliar-cartridge",
+    },
+  );
+  assert.throws(
+    () => projectN64RecompPersistence(n64),
+    /require a root-level \.z64 runtime_source_filename\./u,
+  );
+  assert.throws(
+    () =>
+      projectN64RecompPersistence(
+        without(
+          { ...n64, integration: { ...n64.integration, runtime_source_filename: "a.z64" } },
+          "source_profile",
+        ),
+      ),
+    /require an explicit source_profile\./u,
+  );
+});
+
+void test("the unfamiliar fixture upstream appears in no non-test script", () => {
+  const scripts = fileURLToPath(new URL(".", import.meta.url));
+  for (const entry of readdirSync(scripts, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".mts") || entry.name.endsWith(".test.mts"))
+      continue;
+    const text = readFileSync(join(entry.parentPath, entry.name), "utf8");
+    for (const name of [unfamiliarId, unfamiliarRepository, "unfamiliar-fixture-owner"])
+      assert.equal(text.includes(name), false, `${entry.name} names ${name}`);
+  }
+});
+
+void test("retired shorthands are refused instead of silently dropping their fields", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const record = requiredFixture(records.find((entry) => entry.integration !== undefined));
+  for (const field of [
+    "alephone_pinned_windows_v1",
+    "chocolate_family_windows_persistence_v1",
+    "crispy_doom_windows_persistence_v1",
+    "gen2recomp_windows_persistence_v1",
+    "native_managed_profile_v1",
+    "opengoal_setup_v1",
+    "openmohaa_portable_v1",
+    "openx_portable_v1",
+    "raze_windows_profile_v1",
+    "reflectionhle_portable_paths_v1",
+    "rsdkv4_portable_data_v1",
+  ])
+    assert.throws(
+      () => checkedAuthoredPort({ ...record, [field]: true }),
+      new RegExp(
+        `${field} is retired; author the integration fields it supplied explicitly\\.$`,
+        "u",
+      ),
+    );
 });

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "microsoft-hover-hover-recomp",
+    "project_url": "https://github.com/sp00nznet/hover",
+    "name": "Microsoft Hover! / Hover Recomp",
+    "summary": "Static recompilation of Microsoft Hover! (1995) to native C, on the pcrecomp toolkit. Bring your own copy; no game files or generated source in the repo.",
+    "issue_number": 5774,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "microsoft-hover",
+      "evidence_urls": ["https://github.com/sp00nznet/hover"],
+      "source_editions": []
+    },
+    "original_game_title": "Microsoft Hover!"
+  }
+}

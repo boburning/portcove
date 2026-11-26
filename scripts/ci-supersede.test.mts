@@ -272,8 +272,9 @@ void test("fast pull request producers stop at once when a newer head superseded
     "utf8",
   );
   const uses = "uses: ./.github/actions/stop-if-superseded";
-  // Classifier, Windows Rust and helpers, Linux quality, frontend, browser and catalog.
-  assert.equal(ci.split(uses).length - 1, 9);
+  // Classifier, Windows Rust and helpers, Linux quality, frontend, browser,
+  // catalog and each listing facts reproduction shard.
+  assert.equal(ci.split(uses).length - 1, 10);
   const helpers = workflowJob("windows_helpers");
   assert.ok(Array.isArray(helpers.steps));
   const stop: unknown = helpers.steps[1];

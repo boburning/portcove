@@ -82,6 +82,10 @@ struct PortBatchOutcome<T: JsonSchema> {
     ok: bool,
     result: Option<T>,
     error: Option<ApiError>,
+    /// An update check a provider request limit stopped: not checked, update state
+    /// unknown; the next check starts with it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    deferred: Option<portcove_core::UpdateCheckDeferral>,
 }
 
 impl<T: JsonSchema> PortBatchOutcome<T> {
@@ -91,6 +95,7 @@ impl<T: JsonSchema> PortBatchOutcome<T> {
             ok: true,
             result: Some(result),
             error: None,
+            deferred: None,
         }
     }
 
@@ -100,6 +105,15 @@ impl<T: JsonSchema> PortBatchOutcome<T> {
             ok: false,
             result: None,
             error: Some(api_error(error)),
+            deferred: None,
+        }
+    }
+
+    /// An update check failure, recording a request-limit deferral when it is one.
+    fn check_failure(port_id: String, error: &PortcoveError) -> Self {
+        Self {
+            deferred: error.update_check_deferral(),
+            ..Self::failure(port_id, error)
         }
     }
 }
@@ -357,21 +371,35 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 platform,
                 size,
                 sha256,
+                predecessor_observation,
             },
     } = &cli.command
     {
         let platform = serde_json::from_value(serde_json::Value::String(platform.clone()))
             .map_err(|_| portcove_core::PortcoveError::usage("unknown package platform"))?;
+        let observation = predecessor_observation
+            .as_deref()
+            .map(|input| {
+                if input.len() > 2048 {
+                    return Err(portcove_core::PortcoveError::usage(
+                        "package observation exceeds its size bound",
+                    ));
+                }
+                serde_json::from_str::<portcove_core::PackageLayoutObservation>(input)
+                    .map_err(|_| portcove_core::PortcoveError::usage("invalid package observation"))
+            })
+            .transpose()?;
         let catalog = portcove_core::Catalog::embedded()?;
         render_read_success(
             mode,
             "catalog.inspect-package-shape",
-            portcove_core::inspect_package_shape_archive(
+            portcove_core::inspect_package_shape_archive_observed(
                 archive,
                 catalog.port(port)?,
                 platform,
                 *size,
                 sha256,
+                observation.as_ref(),
             )?,
             |inspection| {
                 format!(
@@ -380,6 +408,66 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     inspection.shape.programs.as_ref().map_or(0, Vec::len),
                     inspection.shape.config_files.as_ref().map_or(0, Vec::len),
                     shape_verdict_text(&inspection.verdict, inspection.provenance)
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command: CatalogCommand::ClassifyListingNames { input },
+    } = &cli.command
+    {
+        const MAXIMUM_INPUT_BYTES: u64 = 8 * 1024 * 1024;
+        let file = std::fs::File::open(input)?;
+        let mut bytes = Vec::new();
+        std::io::Read::read_to_end(
+            &mut std::io::Read::take(file, MAXIMUM_INPUT_BYTES + 1),
+            &mut bytes,
+        )?;
+        if bytes.len() as u64 > MAXIMUM_INPUT_BYTES {
+            return Err(portcove_core::PortcoveError::usage(
+                "listing name classification input exceeds 8 MiB",
+            )
+            .into());
+        }
+        let names: portcove_core::ListingNamesInput = serde_json::from_slice(&bytes)
+            .map_err(|_| portcove_core::PortcoveError::usage("invalid listing names input"))?;
+        render_read_success(
+            mode,
+            "catalog.classify-listing-names",
+            portcove_core::classify_listing_names(&names)?,
+            |classification| {
+                format!(
+                    "Listing names: {} releases, {} assets, {} programs classified.",
+                    classification.releases.len(),
+                    classification.assets.len(),
+                    classification.programs.len()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command:
+            CatalogCommand::InspectListingArtifact {
+                archive,
+                platform,
+                size,
+                sha256,
+            },
+    } = &cli.command
+    {
+        let platform = serde_json::from_value(serde_json::Value::String(platform.clone()))
+            .map_err(|_| portcove_core::PortcoveError::usage("unknown package platform"))?;
+        render_read_success(
+            mode,
+            "catalog.inspect-listing-artifact",
+            portcove_core::inspect_listing_artifact_archive(archive, platform, *size, sha256)?,
+            |inspection| {
+                format!(
+                    "Listing artifact: {} files, {} player candidates.",
+                    inspection.files,
+                    inspection.player_candidates.len()
                 )
             },
         )?;
@@ -432,7 +520,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     {
         let file = std::fs::File::open(path)?;
         let mut bytes = String::new();
-        file.take(8 * 1024 * 1024 + 1).read_to_string(&mut bytes)?;
+        // One byte past Core's bound lets Core report the refusal itself.
+        file.take(portcove_core::MAX_LISTING_DIRECTORY_TEXT_BYTES as u64 + 1)
+            .read_to_string(&mut bytes)?;
         let document = portcove_core::CatalogListingDocument::from_json(&bytes)?;
         let document = if let Some(version) = format_version {
             document.export_format(*version)?
@@ -465,7 +555,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     {
         render_read_success(
             mode,
-            "catalog.inspect-definition-publication",
+            catalog::DEFINITION_PUBLICATION_INSPECTION_COMMAND,
             portcove_core::inspect_definition_publication(directory)?,
             |report| catalog::publication_inspection(report, cli.technical_details),
         )?;
@@ -785,6 +875,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 }
                 | Commands::Setup {
                     command: setup::SetupCommand::Download { .. }
+                }
+                // An interrupt stops unattended setup cleanly, so it is never
+                // counted against the game as a crash.
+                | Commands::Games {
+                    command: GamesCommand::SetupReady
                 }
         ))
     .then(|| cancellation::CancellationSignals::start(service.clone()))
@@ -1746,6 +1841,29 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 human::port_capabilities,
             )?;
         }
+        Commands::PortCapabilitiesBatch { ports } => {
+            // One catalog load for many focused reads. A refusal is local to its port and
+            // carries the same code and message the single-port command would report.
+            let mut reports = Vec::with_capacity(ports.len());
+            for port_id in ports {
+                reports.push(match service.port_capabilities(&port_id) {
+                    Ok(report) => {
+                        serde_json::json!({ "port_id": port_id, "ok": true, "report": report })
+                    }
+                    Err(error) => serde_json::json!({
+                        "port_id": port_id,
+                        "ok": false,
+                        "error": { "code": error.code, "message": error.message },
+                    }),
+                });
+            }
+            render_read_success(
+                mode,
+                "port-capabilities-batch",
+                serde_json::json!({ "format_version": 1, "reports": reports }),
+                |value| serde_json::to_string_pretty(value).unwrap_or_default(),
+            )?;
+        }
         Commands::Status { port_id } => {
             if let Some(port_id) = port_id {
                 render_read_success(mode, "status", service.status(&port_id)?, |value| {
@@ -2293,7 +2411,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     .into_iter()
                     .map(|(port_id, result)| match result {
                         Ok(result) => PortBatchOutcome::success(port_id, result),
-                        Err(error) => PortBatchOutcome::failure(port_id, &error),
+                        Err(error) => PortBatchOutcome::check_failure(port_id, &error),
                     })
                     .collect::<Vec<_>>();
                 render_read_success(mode, "check", checked, |results| {
@@ -2625,7 +2743,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 render_read_success(
                     mode,
                     "external.select-preview",
-                    service.preview_user_selected_runtime(
+                    service.choose_user_selected_runtime(
                         &port_id,
                         &executable,
                         &working_directory,
@@ -3048,6 +3166,43 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "channel.set",
                 service.set_channel(&port_id, channel.into())?,
+                |result| human::status(result, service.catalog()),
+            )?;
+        }
+        Commands::Channel {
+            command: ChannelCommand::ReviewExact { port_id, version },
+        } => {
+            render_read_success(
+                mode,
+                "channel.review-exact",
+                service.review_exact_release(&port_id, &version).await?,
+                human::exact_release_review,
+            )?;
+        }
+        Commands::Channel {
+            command:
+                ChannelCommand::Pin {
+                    port_id,
+                    version,
+                    review_sha256,
+                },
+        } => {
+            render_read_success(
+                mode,
+                "channel.pin",
+                service
+                    .pin_exact_release(&port_id, &version, &review_sha256)
+                    .await?,
+                |result| human::status(result, service.catalog()),
+            )?;
+        }
+        Commands::Channel {
+            command: ChannelCommand::Follow { port_id },
+        } => {
+            render_read_success(
+                mode,
+                "channel.follow",
+                service.clear_exact_release(&port_id)?,
                 |result| human::status(result, service.catalog()),
             )?;
         }
@@ -3697,6 +3852,15 @@ fn launcher_batch_items(
     Ok((items, Vec::new()))
 }
 
+fn response_schema_version(command: &str) -> u32 {
+    // The release inspector decodes a fixed envelope for this report.
+    if command == catalog::DEFINITION_PUBLICATION_INSPECTION_COMMAND {
+        catalog::DEFINITION_PUBLICATION_INSPECTION_RESPONSE_SCHEMA
+    } else {
+        API_SCHEMA_VERSION
+    }
+}
+
 fn render_read_success<T, F>(mode: OutputMode, command: &str, data: T, renderer: F) -> Result<()>
 where
     T: Serialize + JsonSchema,
@@ -3715,7 +3879,7 @@ where
         OutputMode::Json => println!(
             "{}",
             serde_json::to_string(&ApiResponse {
-                schema_version: API_SCHEMA_VERSION,
+                schema_version: response_schema_version(command),
                 ok: true,
                 command: command.into(),
                 data: Some(data),
@@ -3725,7 +3889,7 @@ where
         OutputMode::Jsonl => println!(
             "{}",
             serde_json::to_string(&serde_json::json!({
-                "schema_version": API_SCHEMA_VERSION, "type": "result", "ok": true,
+                "schema_version": response_schema_version(command), "type": "result", "ok": true,
                 "command": command, "data": data
             }))?
         ),
@@ -3742,7 +3906,7 @@ fn render_error(mode: OutputMode, command: &str, error: &PortcoveError, technica
         OutputMode::Json => println!(
             "{}",
             serde_json::to_string(&ApiResponse::<serde_json::Value> {
-                schema_version: API_SCHEMA_VERSION,
+                schema_version: response_schema_version(command),
                 ok: false,
                 command: command.into(),
                 data: None,
@@ -3753,7 +3917,7 @@ fn render_error(mode: OutputMode, command: &str, error: &PortcoveError, technica
         OutputMode::Jsonl => println!(
             "{}",
             serde_json::to_string(&serde_json::json!({
-                "schema_version": API_SCHEMA_VERSION, "type": "result", "ok": false,
+                "schema_version": response_schema_version(command), "type": "result", "ok": false,
                 "command": command, "error": api_error(error)
             }))
             .unwrap_or_else(|_| "{\"ok\":false}".into())
@@ -3846,6 +4010,26 @@ fn execute_artwork(
                 |result| human_adapters::artwork_state(result, service.catalog()),
             )
         }
+        ArtworkCommand::Suppress {
+            port_id,
+            slot,
+            expected_revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.suppress_artwork(&port_id, slot.into(), expected_revision)?,
+            |result| human_adapters::artwork_state(result, service.catalog()),
+        ),
+        ArtworkCommand::Unhide {
+            port_id,
+            slot,
+            expected_revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.unhide_artwork(&port_id, slot.into(), expected_revision)?,
+            |result| human_adapters::artwork_state(result, service.catalog()),
+        ),
         ArtworkCommand::ClearCache => {
             render_read_success(mode, name, service.clear_artwork_cache()?, |result| {
                 format!(
@@ -4009,6 +4193,7 @@ fn command_name(command: &Commands) -> &'static str {
             DatCommand::Remove { .. } => "dat.remove",
         },
         Commands::PortCapabilities { .. } => "port-capabilities",
+        Commands::PortCapabilitiesBatch { .. } => "port-capabilities-batch",
         Commands::Status { .. } => "status",
         Commands::Activity {
             command: Some(ActivityCommand::Log { .. }),
@@ -4119,7 +4304,12 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Rollback { .. } => "rollback",
         Commands::RemovePreview { .. } => "remove.preview",
         Commands::Remove { .. } => "remove",
-        Commands::Channel { .. } => "channel.set",
+        Commands::Channel { command } => match command {
+            ChannelCommand::Set { .. } => "channel.set",
+            ChannelCommand::ReviewExact { .. } => "channel.review-exact",
+            ChannelCommand::Pin { .. } => "channel.pin",
+            ChannelCommand::Follow { .. } => "channel.follow",
+        },
         Commands::Policy { .. } => "policy.set",
         Commands::Exec(_) => "exec",
         Commands::Capabilities => "capabilities",
@@ -4889,6 +5079,14 @@ mod tests {
             vec!["portcove", "auth", "status"],
             vec!["portcove", "capabilities"],
             vec!["portcove", "port-capabilities", "shipwright"],
+            vec![
+                "portcove",
+                "port-capabilities-batch",
+                "--port",
+                "shipwright",
+                "--port",
+                "soh",
+            ],
             vec!["portcove", "source", "verify", "zelda64-recomp"],
             vec!["portcove", "source", "verify", "--all"],
             vec!["portcove", "catalog", "update", "--file", "catalog.json"],
@@ -5467,6 +5665,43 @@ mod tests {
                 "channel.set",
             ),
             (
+                vec![
+                    "portcove",
+                    "port-capabilities-batch",
+                    "--port",
+                    "shipwright",
+                    "--port",
+                    "soh",
+                ],
+                "port-capabilities-batch",
+            ),
+            (
+                vec![
+                    "portcove",
+                    "channel",
+                    "review-exact",
+                    "lighthouse",
+                    "v1.2.0",
+                ],
+                "channel.review-exact",
+            ),
+            (
+                vec![
+                    "portcove",
+                    "channel",
+                    "pin",
+                    "lighthouse",
+                    "v1.2.0",
+                    "--review-sha256",
+                    "review",
+                ],
+                "channel.pin",
+            ),
+            (
+                vec!["portcove", "channel", "follow", "lighthouse"],
+                "channel.follow",
+            ),
+            (
                 vec!["portcove", "policy", "set", "lighthouse", "stage"],
                 "policy.set",
             ),
@@ -5485,16 +5720,33 @@ mod tests {
         assert_eq!(capabilities.port_capability_schema, Some(1));
         assert_eq!(
             capabilities.listing_formats,
-            [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+            [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
         );
         assert_eq!(
             capabilities.listing_delivery_carriers,
             ["json-v1", "gzip-base64-json-v1"]
         );
+        // The released-reader gate distinguishes this generation by its limits.
+        assert_eq!(
+            capabilities.listing_delivery_limits,
+            Some(portcove_core::ListingDeliveryLimits {
+                target_bytes: 8 * 1024 * 1024,
+                decoded_bytes: 32 * 1024 * 1024,
+                record_bytes: 1024 * 1024,
+                definition_index_bytes: 4 * 1024 * 1024,
+                element_budget_bytes: 40 * 1024 * 1024,
+                listing_charge_bytes: 4_027,
+                withdrawal_charge_bytes: 68,
+            })
+        );
         assert!(
             capabilities
                 .commands
                 .contains(&"port-capabilities".to_owned())
+        );
+        assert!(
+            super::registered_command_capabilities()
+                .contains(&"port-capabilities-batch".to_owned())
         );
         assert_eq!(
             capabilities.schema_version,

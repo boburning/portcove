@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-wind-waker-boat-of-daphnes",
+    "project_url": "https://github.com/AgitationSkeleton/boat_of_daphnes",
+    "name": "The Legend of Zelda: The Wind Waker / Boat of Daphnes",
+    "summary": "A PC port of The Legend of Zelda: The Wind Waker with enhancements, a built-in randomizer and Anchor online co-op. Bring your own disc.",
+    "issue_number": 5391,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-the-wind-waker",
+      "evidence_urls": ["https://github.com/AgitationSkeleton/boat_of_daphnes"],
+      "source_editions": []
+    },
+    "original_game_title": "The Legend of Zelda: The Wind Waker"
+  }
+}

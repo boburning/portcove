@@ -11,17 +11,72 @@ struct ProjectionDocument {
     contract_schema: u32,
     representation: String,
     catalog: Value,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_field"
+    )]
+    reviewed_forge: Option<crate::reviewed_forge::ReviewedForgeSelection>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_field"
+    )]
+    tool_artifacts: Option<Vec<crate::psx_tool_artifacts::ToolchainArtifact>>,
+}
+
+fn present_field<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<T>, D::Error> {
+    T::deserialize(deserializer).map(Some)
 }
 
 impl ProjectionDocument {
-    fn validated_catalog(&self) -> Result<Catalog> {
+    fn validated_catalog(&self, selected: Option<&str>) -> Result<Catalog> {
         let catalog_json = serde_json::to_string(&self.catalog)?;
         if catalog_json.len() > crate::signed_catalog::MAX_CATALOG_BYTES {
             return Err(PortcoveError::verification(
                 "projected catalog exceeds its existing byte bound",
             ));
         }
-        let catalog = Catalog::from_json(&catalog_json)?;
+        let catalog =
+            Catalog::from_indexed_document(serde_json::from_str(&catalog_json)?, selected, None)?;
+        if let Some(selection) = &self.reviewed_forge {
+            let [subject] = catalog.ports() else {
+                return Err(PortcoveError::verification(
+                    "reviewed forge selection requires one exact projected subject",
+                ));
+            };
+            selection.validate_subject(subject)?;
+        } else if catalog
+            .ports()
+            .iter()
+            .any(|port| port.release.provider == crate::ReleaseSource::ReviewedForge)
+        {
+            return Err(PortcoveError::verification(
+                "reviewed forge source requires its typed projected selector",
+            ));
+        }
+        if let Some(artifacts) = &self.tool_artifacts {
+            if self.contract_schema != 4
+                || self.reviewed_forge.is_some()
+                || catalog.ports().len() != 1
+                || catalog.ports()[0].adapter != crate::AdapterKind::PsxRecompManaged
+                || artifacts.len() != catalog.ports()[0].platforms.len()
+                || artifacts
+                    .iter()
+                    .any(|artifact| !catalog.ports()[0].platforms.contains(&artifact.platform))
+            {
+                return Err(PortcoveError::verification(
+                    "PS1 tool artifacts require a schema-4 managed PS1 subject and its exact platform scope",
+                ));
+            }
+            crate::psx_tool_artifacts::validate_artifacts(artifacts)?;
+        } else if self.contract_schema == 4 {
+            return Err(PortcoveError::verification(
+                "schema-4 catalog projections require PS1 tool artifacts",
+            ));
+        }
         if catalog
             .ports()
             .iter()
@@ -41,6 +96,16 @@ impl ProjectionDocument {
         }
         Ok(catalog)
     }
+
+    fn validate_loader_schema(&self, catalog: &Catalog) -> Result<()> {
+        if self.contract_schema != 3 && catalog.ports().iter().any(|port| port.mod_loader.is_some())
+        {
+            return Err(PortcoveError::verification(
+                "native mod loader bindings require catalog projection schema 3",
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// Materializes one proposed port's exact typed contract without opening a library.
@@ -49,24 +114,30 @@ pub fn canonical_definition_projection(path: &std::path::Path) -> Result<String>
     let bytes = crate::path::read_bounded_regular(path, limit)?;
     let value: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
     let mut document: ProjectionDocument = serde_json::from_value(value.0)?;
-    if !matches!(document.contract_schema, 1 | 2 | 3)
-        || document.representation != "catalog_projection"
+    if !matches!(document.contract_schema, 1..=4) || document.representation != "catalog_projection"
     {
         return Err(PortcoveError::unsupported(
             "unsupported definition catalog projection contract",
         ));
     }
-    let catalog = document.validated_catalog()?;
+    let proposed_subject = if document.contract_schema == 3 {
+        document
+            .catalog
+            .get("ports")
+            .and_then(Value::as_array)
+            .filter(|ports| ports.len() == 1)
+            .and_then(|ports| ports[0].get("id"))
+            .and_then(Value::as_str)
+    } else {
+        None
+    };
+    let catalog = document.validated_catalog(proposed_subject)?;
     if catalog.ports().len() != 1 {
         return Err(PortcoveError::usage(
             "definition projection preparation requires exactly one port",
         ));
     }
-    if catalog.ports()[0].mod_loader.is_some() && document.contract_schema != 3 {
-        return Err(PortcoveError::verification(
-            "native mod loader bindings require catalog projection schema 3",
-        ));
-    }
+    document.validate_loader_schema(&catalog)?;
     let typed = serde_json::to_value(catalog.authoritative_document())?;
     if !retains_authored_fields(&document.catalog, &typed) {
         return Err(PortcoveError::verification(
@@ -126,6 +197,24 @@ impl DefinitionSnapshot {
         hex::encode(Sha256::digest(self.index_json.as_bytes()))
     }
 
+    /// Digest of this definition's own retained entry and contract bytes.
+    /// It changes only when that stored content changes, never with the
+    /// application's in-memory representation of it.
+    pub(crate) fn content_sha256(&self) -> String {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        for part in [
+            self.namespace.as_bytes(),
+            self.stable_id.as_bytes(),
+            self.entry_json.as_bytes(),
+            self.contract_json.as_bytes(),
+        ] {
+            hasher.update((part.len() as u64).to_le_bytes());
+            hasher.update(part);
+        }
+        hex::encode(hasher.finalize())
+    }
+
     pub(crate) fn validate_bounds(&self) -> Result<()> {
         if self.namespace.len() > 255
             || self.stable_id.len() > 255
@@ -142,6 +231,14 @@ impl DefinitionSnapshot {
 
     pub(crate) fn catalog(&self) -> Result<Catalog> {
         Ok(self.projection()?.catalog)
+    }
+
+    pub(crate) fn selected_psx_tools(
+        &self,
+    ) -> Result<Option<Vec<crate::psx_tool_artifacts::ToolchainArtifact>>> {
+        self.validate_bounds()?;
+        let document: ProjectionDocument = serde_json::from_str(&self.contract_json)?;
+        Ok(document.tool_artifacts)
     }
 
     pub(crate) fn projection(&self) -> Result<DefinitionCatalogProjection> {
@@ -169,6 +266,13 @@ pub struct DefinitionCatalogProjection {
 impl DefinitionCatalogProjection {
     pub fn entry(&self) -> &DefinitionEntryInspection {
         &self.entry
+    }
+
+    pub(crate) fn reviewed_forge(
+        &self,
+    ) -> Result<Option<crate::reviewed_forge::ReviewedForgeSelection>> {
+        let document: ProjectionDocument = serde_json::from_slice(self.contract_bytes())?;
+        Ok(document.reviewed_forge)
     }
 
     pub fn contract_target(&self) -> &str {
@@ -251,7 +355,8 @@ impl DefinitionCatalogProjection {
             }
             sources.contracts.extend(contracts);
             sources.qualification.extend(qualification);
-            let mut catalog = Catalog::from_document(document)?;
+            let mut catalog =
+                Catalog::from_indexed_document(document, Some(selected), Some(baseline))?;
             catalog.retain_definition_snapshot(Arc::clone(&self.snapshot), self.entry.revision());
             catalog
         } else {
@@ -260,6 +365,7 @@ impl DefinitionCatalogProjection {
         catalog.retain_embedded_file_patterns(baseline, selected)?;
         catalog.retain_unrelated_upstream_reviews(baseline, selected);
         catalog.retain_unrelated_mod_loaders(baseline, selected);
+        catalog.retain_unrelated_mod_sources(baseline, selected);
         catalog.retain_unrelated_package_settings(baseline, selected);
         crate::definition_loader::validate_definition_transition(baseline, &catalog, selected)?;
         Ok(catalog)
@@ -397,7 +503,7 @@ impl DefinitionContentIndex {
         let value: crate::definition_entry::strict_json::UniqueValue =
             serde_json::from_slice(contract_bytes)?;
         let document: ProjectionDocument = serde_json::from_value(value.0)?;
-        if document.contract_schema != entry.schema_version()
+        if !entry.accepts_projection_schema(document.contract_schema)
             || document.representation != "catalog_projection"
         {
             return Err(PortcoveError::unsupported(
@@ -416,7 +522,9 @@ impl DefinitionContentIndex {
                 "successor support requires independently verified evidence and a released reader",
             ));
         }
-        let mut catalog = document.validated_catalog()?;
+        let mut catalog = document.validated_catalog(
+            (entry.has_named_features() && document.contract_schema == 3).then_some(stable_id),
+        )?;
         let port = catalog.port(stable_id)?;
         if let Some(sibling) = catalog
             .ports()
@@ -427,6 +535,29 @@ impl DefinitionContentIndex {
                 "native mod loader bindings must belong to the selected definition",
             )
             .detail("port_id", &sibling.id));
+        }
+        if let Some(sibling) = catalog
+            .ports()
+            .iter()
+            .find(|sibling| sibling.id != stable_id && !sibling.mod_sources.is_empty())
+        {
+            return Err(PortcoveError::verification(
+                "mod sources must belong to the selected definition",
+            )
+            .detail("port_id", &sibling.id));
+        }
+        document.validate_loader_schema(&catalog)?;
+        if let Some(artifacts) = &document.tool_artifacts {
+            if !entry.supports_feature(
+                crate::definition_capabilities::Feature::PsxToolchain,
+                "psx-recomp-managed",
+                1,
+            )? {
+                return Err(PortcoveError::verification(
+                    "PS1 tool artifacts require the named managed toolchain capability",
+                ));
+            }
+            crate::psx_tool_artifacts::validate_artifacts(artifacts)?;
         }
         if let Some(sibling) = catalog.ports().iter().find(|sibling| {
             sibling.id != stable_id
@@ -458,10 +589,11 @@ impl DefinitionContentIndex {
                             "the selected adapter has no optional original recognition capability",
                         )
                     })?;
-                if !entry.capabilities().checks.iter().any(|check| {
-                    check.requirement.template == template
-                        && check.requirement.minimum_version >= minimum
-                }) {
+                if !entry.supports_feature(
+                    crate::definition_capabilities::Feature::OriginalRecognition,
+                    template,
+                    minimum,
+                )? {
                     return Err(PortcoveError::verification(format!(
                         "optional original recognition requires {template} capability version {minimum}",
                     )));
@@ -480,10 +612,11 @@ impl DefinitionContentIndex {
                     crate::definition_capabilities::N64_RECOMP_RELEASE_INPUT_CAPABILITY
                 };
                 if contract.port_id != stable_id
-                    || !entry.capabilities().checks.iter().any(|check| {
-                        check.requirement.template == "n64-recomp-portable"
-                            && check.requirement.minimum_version >= minimum
-                    })
+                    || !entry.supports_feature(
+                        crate::definition_capabilities::Feature::N64ReleaseInputs,
+                        "n64-recomp-portable",
+                        minimum,
+                    )?
                 {
                     return Err(PortcoveError::verification(
                         "N64 release input requires the selected definition and its release-input reader capability",
@@ -494,11 +627,11 @@ impl DefinitionContentIndex {
         // Track counts live in the source profile, so only the projection can
         // tell that the entry's disc set needs a reader that keeps every track.
         if catalog.requires_psx_multi_track_set(port)
-            && !entry.capabilities().checks.iter().any(|check| {
-                check.requirement.template == "psx-recomp-managed"
-                    && check.requirement.minimum_version
-                        >= crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY
-            })
+            && !entry.supports_feature(
+                crate::definition_capabilities::Feature::PsxMultiTrack,
+                "psx-recomp-managed",
+                crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
+            )?
         {
             return Err(PortcoveError::verification(format!(
                 "managed PS1 disc sets with more than one track per disc require capability version {}",
@@ -508,11 +641,11 @@ impl DefinitionContentIndex {
         // The representation kind lives in the source catalog, so only the
         // projection can tell that its admission needs the copier-header reader.
         if catalog.snes_copier_header_profile(port) != crate::catalog::SnesCopierHeaderUse::None
-            && !entry.capabilities().checks.iter().any(|check| {
-                check.requirement.template == "staged-source-portable"
-                    && check.requirement.minimum_version
-                        >= crate::adapter::SNES_COPIER_HEADER_CAPABILITY
-            })
+            && !entry.supports_feature(
+                crate::definition_capabilities::Feature::SnesCopierHeader,
+                "staged-source-portable",
+                crate::adapter::SNES_COPIER_HEADER_CAPABILITY,
+            )?
         {
             return Err(PortcoveError::verification(
                 "copier-header-optional SNES sources require staged-source capability version 36",

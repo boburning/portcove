@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mine-bombers-mine-bombers-reloaded",
+    "project_url": "https://github.com/jeiel85/minebombers-reloaded",
+    "name": "Mine Bombers / Mine Bombers Reloaded",
+    "summary": "Port of the 1995 MS-DOS game Mine Bombers 3.11 to modern systems: a Rust/SDL2 native engine and a browser edition. Code: MIT OR Apache-2.0. Bring your own copy of the game files.",
+    "issue_number": 5835,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mine-bombers",
+      "evidence_urls": ["https://github.com/jeiel85/minebombers-reloaded"],
+      "source_editions": []
+    },
+    "original_game_title": "Mine Bombers"
+  }
+}

@@ -233,6 +233,15 @@ const containmentInputs = new Set([
   "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
 ]);
 const selectionContractTests = ordinaryFamily("selection-contract-tests");
+// docs/RESTRICTION-REGISTER.md names every production bound constant. A new or
+// removed bound constant needs a register edit in the same change.
+const restrictionRegisterTests = ordinaryFamily("restriction-register-tests");
+const restrictionRegisterInput = (file: string) =>
+  /^crates\/[^/]+\/src\//u.test(file) ||
+  file.startsWith("apps/desktop/src/") ||
+  file.startsWith("apps/desktop/src-tauri/src/") ||
+  /^scripts\/.+\.(?:rs|ts|tsx|mts)$/u.test(file) ||
+  file === "docs/RESTRICTION-REGISTER.md";
 
 const roadmapFeatureTests = ordinaryFamily("roadmap-feature-tests");
 const roadmapContractTests = ordinaryFamily("roadmap-contract-tests");
@@ -1890,7 +1899,10 @@ for (const [file, tests] of [
   ["scripts/upstream-relocation-candidates.mts", ["scripts/check-catalog-repositories.test.mts"]],
   ["scripts/upstream-relocation-evidence.mts", ["scripts/check-catalog-repositories.test.mts"]],
   ["scripts/observer-push-admission.mts", ["scripts/upstream-observer.test.mts"]],
-  ["scripts/catalog-observer-continuation.mts", ["scripts/catalog-upstream-observer.test.mts"]],
+  [
+    "scripts/catalog-observer-continuation.mts",
+    ["scripts/catalog-upstream-observer.test.mts", "scripts/upstream-observer.test.mts"],
+  ],
   ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],
   [
     "scripts/upstream-health-plan.mts",
@@ -3484,6 +3496,9 @@ function classifyOnePath(
     addNodeTest(selection, "scripts/transport-values.test.mts");
     recognized = true;
   }
+
+  if (restrictionRegisterInput(file))
+    for (const registerTest of restrictionRegisterTests) addNodeTest(selection, registerTest);
 
   if (!recognized) selection.unknown.add(file);
 }

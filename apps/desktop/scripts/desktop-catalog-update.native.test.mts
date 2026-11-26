@@ -4,6 +4,41 @@ import { runInNewContext } from "node:vm";
 import { readReviewFieldStyles } from "./desktop-review-presentation.mts";
 import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 
+void test("application update preference observations exclude only catalog activity", () => {
+  runDesktopModuleFixture(
+    new URL("./desktop-catalog-update-test.mts", import.meta.url),
+    `
+    const {activityOutsideCatalog}=await import(entry);
+    const feed={
+      active_and_actionable_complete:true,
+      terminal_history_complete:true,
+      terminal_history_count:4,
+      terminal_history_limit:50,
+      records:[
+        {id:"running-catalog",operation:"update_catalog",status:"running"},
+        {id:"running-check",operation:"check_update",status:"running"},
+        {id:"finished-catalog",operation:"update_catalog",status:"succeeded"},
+        {id:"failed-catalog",operation:"update_catalog",status:"failed"},
+        {id:"failed-update",operation:"update",status:"failed"},
+        {id:"finished-prepare",operation:"prepare",status:"succeeded"},
+      ],
+      current_activity_ids:["running-catalog","running-check"],
+      attention_required_activity_ids:["failed-catalog","failed-update"],
+      recovery_required_activity_ids:["failed-update"],
+    };
+    assert.deepEqual(activityOutsideCatalog(feed), {
+      ...feed,
+      records:[feed.records[1],feed.records[4],feed.records[5]],
+      current_activity_ids:["running-check"],
+      attention_required_activity_ids:["failed-update"],
+      terminal_history_count:2,
+    });
+    assert.throws(()=>activityOutsideCatalog({...feed,terminal_history_complete:false}));
+    assert.throws(()=>activityOutsideCatalog({...feed,active_and_actionable_complete:false}));
+    `,
+  );
+});
+
 void test("catalog field presentation reaches the browser as executable JavaScript with both element arguments", async () => {
   const fields = [
     {

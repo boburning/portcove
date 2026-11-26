@@ -5,12 +5,13 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 import { StrictMode } from "react";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { ArtworkProvider } from "../artwork";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import type { Perform } from "../features/operations/use-operation-state";
 import * as picker from "../file-picker";
+import { dismissActiveDialog, navigationScope } from "../focus";
 import { artworkState, portDefinition } from "../test-fixtures";
 import type {
   ArtworkState,
@@ -20,6 +21,7 @@ import type {
 } from "../types";
 import { ArtworkControls, ArtworkImage, listingEvidenceText } from "./Artwork";
 import { ListingDetailPanel } from "./ListingDetailPanel";
+import { GameHero, GameHeroFramingPreview } from "./GameHero";
 import { SteamGridDbPicker } from "./SteamGridDbPicker";
 
 // Valid 1×1 PNG also used by artwork-refresh.browser.test.tsx. Decode failures
@@ -62,37 +64,74 @@ async function render(portId = "sample", generation = 7, imageId = "") {
       <div style={{ display: "grid", width: 192, height: 256 }}>
         <ArtworkImage port={port} />
       </div>
-      <ArtworkControls key={`${portId}:${generation}`} port={port} />
+      <ArtworkControls
+        key={`${portId}:${generation}`}
+        port={port}
+        previewPort={{ ...port, name: "Displayed game identity" }}
+        Preview={GameHeroFramingPreview}
+        previewActions={{ wide: "Play", narrow: "Continue playing" }}
+      />
     </ArtworkProvider>,
   );
 }
 
 async function open() {
-  await act(async () => {
-    const details = container.querySelector<HTMLDetailsElement>(".artwork-controls")!;
-    details.open = true;
-    details.dispatchEvent(new Event("toggle"));
-  });
+  await page.getByRole("button", { name: "Change artwork", exact: true }).click();
 }
 
-const slotLabels = { cover: "Cover", detail: "Detail", landscape: "Landscape" } as const;
+async function closeArtwork() {
+  const sheet = page.getByRole("dialog", { name: "Change artwork", exact: true });
+  await sheet.getByRole("button", { name: "Close", exact: true }).click();
+  await expect.element(sheet).not.toBeInTheDocument();
+  await expect.poll(() => container.querySelector('[aria-label="Cover image"]')).toBeNull();
+}
+
+const slotLabels = {
+  cover: "Cover image",
+  detail: "Background",
+  landscape: "Wide cover",
+  logo: "Logo",
+} as const;
 
 function button(slot: keyof typeof slotLabels, label: string) {
-  const section = container.querySelector(`[aria-label="${slotLabels[slot]} image"]`)!;
+  const section = container.querySelector(`[aria-label="${slotLabels[slot]}"]`)!;
   return [...section.querySelectorAll("button")].find((item) => item.textContent === label)!;
 }
 
 async function selectSlot(slot: keyof typeof slotLabels) {
-  const name = `${slotLabels[slot]} image`;
-  const selected = container.querySelector('[aria-label="Artwork slot"] button[aria-pressed=true]');
+  const name = `${slotLabels[slot]}`;
+  const selected = container.querySelector(
+    '[aria-label="Artwork slot"] [role="tab"][aria-selected=true]',
+  );
   if (selected?.textContent !== name) {
-    await page.getByRole("button", { name, exact: true }).click();
+    await page.getByRole("tab", { name, exact: true }).click();
   }
 }
 
 async function click(slot: keyof typeof slotLabels, label: string) {
   await selectSlot(slot);
   await act(async () => button(slot, label).click());
+}
+
+async function confirmVisibility(
+  slot: keyof typeof slotLabels,
+  action: "Hide artwork" | "Show artwork" | "Use automatic",
+) {
+  await click(slot, action);
+  await click(slot, "Apply");
+}
+
+const reviewedImage = { original_sha256: "a".repeat(64), png_base64: thumbnailPng };
+const imageBinding = { preview_sha256: reviewedImage.original_sha256, framing: null };
+
+async function applyImageReview(slot: keyof typeof slotLabels) {
+  const confirmation = page.getByRole("form", { name: `Review ${slotLabels[slot]}`, exact: true });
+  await confirmation.getByRole("button", { name: "Apply", exact: true }).click();
+}
+
+async function chooseAndApplyLocal(slot: "cover" | "landscape" | "logo") {
+  await click(slot, "Choose local image");
+  await applyImageReview(slot);
 }
 
 function expectUnmarkedPickerLists() {
@@ -118,13 +157,10 @@ function expectCandidateFrameRatio(author: string, ratio: number) {
 }
 
 function expectArtworkDisclosureAlignment() {
-  const summaries = [
-    ...container.querySelectorAll<HTMLElement>(
-      ".artwork-controls > summary, .artwork-source > summary",
-    ),
-  ];
-  const visible = summaries.filter((summary) => !summary.closest("[hidden]"));
-  expect(visible).toHaveLength(2);
+  const visible = Array.from(
+    container.querySelectorAll<HTMLElement>(".artwork-source > summary"),
+  ).filter((summary) => !summary.closest("[hidden]"));
+  expect(visible).toHaveLength(1);
   for (const summary of visible) expectDisclosureAlignment(summary);
 }
 
@@ -161,6 +197,8 @@ beforeEach(async () => {
   vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) =>
     artworkState(port, slot),
   );
+  vi.spyOn(desktopApi, "previewLocalArtwork").mockResolvedValue(reviewedImage);
+  vi.spyOn(desktopApi, "previewSteamGridDbArtwork").mockResolvedValue(reviewedImage);
   vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async (_port, _slot, revision) => ({
     asset_sha256: "a".repeat(64),
     choice_revision: revision,
@@ -178,6 +216,176 @@ afterEach(async () => {
 });
 
 describe("local artwork controls", () => {
+  it.each(["cover", "landscape", "logo"] as const)(
+    "reviews a local %s before writing its choice",
+    async (slot) => {
+      vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+      const save = vi
+        .spyOn(desktopApi, "importArtwork")
+        .mockResolvedValue(artworkState("sample", slot, 1, true));
+      await render();
+      await open();
+      await click(slot, "Choose local image");
+      const review = page.getByRole("form", { name: `Review ${slotLabels[slot]}`, exact: true });
+      const preview = review.getByRole("img", { name: slotLabels[slot], exact: true });
+      await expect.element(preview).toBeVisible();
+      expect(getComputedStyle(preview.element()).objectFit).toBe("contain");
+      expect(save).not.toHaveBeenCalled();
+      await review.getByRole("button", { name: "Cancel", exact: true }).click();
+      expect(save).not.toHaveBeenCalled();
+      await expect.element(page.elementLocator(button(slot, "Choose local image"))).toHaveFocus();
+      await chooseAndApplyLocal(slot);
+      expect(save).toHaveBeenCalledExactlyOnceWith(
+        "sample",
+        slot,
+        "E:/owned.png",
+        0,
+        7,
+        imageBinding,
+      );
+    },
+  );
+
+  async function startBackgroundPreview() {
+    let revision = 0;
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      artworkState(port, slot, slot === "detail" ? revision : 0),
+    );
+    vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+    let finish!: (image: typeof reviewedImage) => void;
+    const preview = vi
+      .mocked(desktopApi.previewLocalArtwork)
+      .mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    const save = vi
+      .spyOn(desktopApi, "importArtwork")
+      .mockResolvedValue(artworkState("sample", "detail", 1, true));
+    await render("sample", 7, "old-cover");
+    await open();
+    await selectSlot("detail");
+    await expect.element(page.elementLocator(button("detail", "Choose local image"))).toBeEnabled();
+    await click("detail", "Choose local image");
+    expect(preview).toHaveBeenCalledExactlyOnceWith("sample", "E:/owned.png", 7);
+    return {
+      save,
+      refreshCatalog: async (currentRevision: number) => {
+        revision = currentRevision;
+        await render("sample", 7, "corrected-cover");
+      },
+      finishPreview: async () => {
+        await act(async () => finish(reviewedImage));
+        const review = page.getByRole("form", { name: "Review Background", exact: true });
+        await expect.element(review).toBeVisible();
+        expect(save).not.toHaveBeenCalled();
+        return review;
+      },
+    };
+  }
+
+  it("retains a local Background preview across a catalog refresh of the same choice", async () => {
+    const { save, refreshCatalog, finishPreview } = await startBackgroundPreview();
+    await refreshCatalog(0);
+    const review = await finishPreview();
+    const apply = review.getByRole("button", { name: "Apply", exact: true });
+    await expect.element(apply).toBeEnabled();
+    await apply.click();
+    expect(save).toHaveBeenCalledExactlyOnceWith("sample", "detail", "E:/owned.png", 0, 7, {
+      preview_sha256: reviewedImage.original_sha256,
+      framing: null,
+    });
+  });
+
+  it("retains a stale preview without moving focus or permitting Apply after the choice changes", async () => {
+    const { save, refreshCatalog, finishPreview } = await startBackgroundPreview();
+    await refreshCatalog(1);
+    const close = page
+      .getByRole("dialog", { name: "Change artwork" })
+      .getByRole("button", { name: "Close", exact: true });
+    await act(async () => (close.element() as HTMLElement).focus());
+    const review = await finishPreview();
+    await expect
+      .element(review.getByText("The artwork changed. Cancel and preview the image again."))
+      .toBeVisible();
+    await expect.element(review.getByRole("button", { name: "Apply", exact: true })).toBeDisabled();
+    await expect.element(close).toHaveFocus();
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("requires a new preview when the selected image changes before Apply", async () => {
+    vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+    const preview = vi.mocked(desktopApi.previewLocalArtwork).mockResolvedValueOnce(reviewedImage);
+    const save = vi
+      .spyOn(desktopApi, "importArtwork")
+      .mockRejectedValueOnce({
+        code: "conflict",
+        message: "the selected image changed; preview it again before applying",
+        details: { artwork_preview_changed: "true" },
+      })
+      .mockResolvedValue(artworkState("sample", "cover", 1, true));
+    await render();
+    await open();
+    await chooseAndApplyLocal("cover");
+
+    const review = page.getByRole("form", { name: "Review Cover image", exact: true });
+    await expect
+      .element(review.getByRole("alert"))
+      .toHaveTextContent("The image changed. Cancel and choose it again to review the new image.");
+    await expect.element(review.getByRole("button", { name: "Apply", exact: true })).toBeDisabled();
+    const cancel = review.getByRole("button", { name: "Cancel", exact: true });
+    await expect.element(cancel).toHaveFocus();
+    expect(save).toHaveBeenCalledTimes(1);
+
+    await cancel.click();
+    const freshReview = { ...reviewedImage, original_sha256: "b".repeat(64) };
+    preview.mockResolvedValueOnce(freshReview);
+    await chooseAndApplyLocal("cover");
+    expect(preview).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith("sample", "cover", "E:/owned.png", 0, 7, {
+      preview_sha256: freshReview.original_sha256,
+      framing: null,
+    });
+  });
+
+  it("keeps controller Back in the artwork sheet and returns focus to Change artwork", async () => {
+    await render();
+    await open();
+    const sheet = page.getByRole("dialog", { name: "Change artwork", exact: true });
+    expect(navigationScope()).toBe(sheet.element());
+    await act(async () => {
+      expect(dismissActiveDialog()).toBe(true);
+    });
+    await expect.element(sheet).not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("button", { name: "Change artwork", exact: true }))
+      .toHaveFocus();
+    expect(navigationScope()).toBe(document);
+  });
+
+  it("discards a pending file pick across a close and reopen before the native close event", async () => {
+    let finish!: (path: string) => void;
+    vi.mocked(picker.pickArtworkPath).mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    const importArtwork = vi.spyOn(desktopApi, "importArtwork");
+    const preview = vi.spyOn(desktopApi, "previewLocalArtwork");
+    await render();
+    await open();
+    await click("detail", "Choose local image");
+    expect(picker.pickArtworkPath).toHaveBeenCalledOnce();
+
+    const sheet = container.querySelector<HTMLDialogElement>(".artwork-sheet")!;
+    const trigger = container.querySelector<HTMLButtonElement>("[data-artwork-editor-trigger]")!;
+    await act(async () => {
+      sheet.close();
+      trigger.click();
+      finish("E:/closed-sheet.png");
+    });
+    expect(sheet.open).toBe(true);
+    expect(importArtwork).not.toHaveBeenCalled();
+    expect(preview).not.toHaveBeenCalled();
+    await expect
+      .element(page.getByRole("tab", { name: "Cover image", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    expect(container.textContent).not.toContain("Review Background");
+  });
+
   it("keeps a listing's independent artwork slots and one detail preview inside Change artwork", async () => {
     const listing: PortListing = {
       id: "listing-only",
@@ -214,17 +422,17 @@ describe("local artwork controls", () => {
     await expect.poll(() => container.querySelectorAll(".detail-artwork").length).toBe(1);
     expect(container.querySelector(".artwork-controls .detail-artwork")).not.toBeNull();
     expect(button("cover", "Choose local image")).toBeDefined();
-    expect(container.querySelector('[aria-label="Detail image"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Background"]')).toBeNull();
     expect(desktopApi.artwork).toHaveBeenCalledWith(listing.id, "cover", 7);
     expect(desktopApi.artwork).toHaveBeenCalledWith(listing.id, "detail", 7);
-    container.querySelector<HTMLElement>(".artwork-controls")!.scrollIntoView({ block: "start" });
+    container.querySelector<HTMLElement>(".artwork-sheet")!.scrollIntoView({ block: "start" });
     const coverControls = button("cover", "Choose local image").getBoundingClientRect();
     expect(coverControls.top).toBeGreaterThanOrEqual(0);
     expect(coverControls.bottom).toBeLessThanOrEqual(innerHeight);
     await page.viewport(420, 740);
-    const detailSlot = page.getByRole("button", { name: "Detail image", exact: true });
+    const detailSlot = page.getByRole("tab", { name: "Background", exact: true });
     await detailSlot.click();
-    await expect.element(detailSlot).toHaveAttribute("aria-pressed", "true");
+    await expect.element(detailSlot).toHaveAttribute("aria-selected", "true");
     expect(button("detail", "Choose local image")).toBeDefined();
     await expect
       .element(page.elementLocator(button("cover", "Choose local image")))
@@ -298,7 +506,7 @@ describe("local artwork controls", () => {
       "Artwork read unavailable.",
     );
     expect(button("cover", "Choose local image").disabled).toBe(true);
-    expect(button("cover", "Reset to default").disabled).toBe(true);
+    expect(button("cover", "Use automatic").disabled).toBe(true);
     expect(button("cover", "Refresh artwork").disabled).toBe(false);
     await selectSlot("detail");
     expect(button("detail", "Choose local image").disabled).toBe(false);
@@ -308,7 +516,7 @@ describe("local artwork controls", () => {
     expect(container.textContent).not.toContain("Showing previously loaded artwork.");
     expect(container.querySelector('[aria-label="Cover image"] [role="alert"]')).toBeNull();
     expect(button("cover", "Choose local image").disabled).toBe(false);
-    expect(button("cover", "Reset to default").disabled).toBe(false);
+    expect(button("cover", "Use automatic").disabled).toBe(false);
     expect(imported).not.toHaveBeenCalled();
     expect(reset).not.toHaveBeenCalled();
   });
@@ -353,10 +561,15 @@ describe("local artwork controls", () => {
       vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
       await render("sample", 7, "old-cover");
       await open();
-      await click("cover", kind === "import" ? "Choose local image" : "Reset to default");
+      if (kind === "import") await chooseAndApplyLocal("cover");
+      else await confirmVisibility("cover", "Use automatic");
       expect(change).toHaveBeenCalledTimes(1);
       await render("sample", 7, "corrected-cover");
       expect(button("cover", "Choose local image").disabled).toBe(true);
+      expect(container.textContent).toContain("Updating artwork…");
+      expect(container.textContent).not.toContain(
+        "This artwork choice changed. Cancel and review the current choice.",
+      );
       state = artworkState("sample", "cover", state.choice.revision + 1, kind === "import");
       await act(async () => finish(state));
       await expect
@@ -365,14 +578,112 @@ describe("local artwork controls", () => {
       expect(
         container.querySelector(".artwork-image")!.getBoundingClientRect().height,
       ).toBeGreaterThan(0);
-      expect(button("cover", "Reset to default").disabled).toBe(kind === "reset");
+      expect(button("cover", "Use automatic").disabled).toBe(kind === "reset");
       expect(button("cover", "Choose local image").disabled).toBe(false);
       expect(container.textContent).toContain(
-        kind === "import" ? "Local image selected." : "Default artwork restored.",
+        kind === "import" ? "Local image selected." : "Automatic artwork restored.",
       );
       expect(change).toHaveBeenCalledTimes(1);
     },
   );
+
+  it("lets players cancel a hide and refuses a staged choice after its revision changes", async () => {
+    let state = artworkState("sample", "cover", 1, true);
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      slot === "cover" ? state : artworkState(port, slot),
+    );
+    const hide = vi.spyOn(desktopApi, "suppressArtwork");
+    const automatic = vi.spyOn(desktopApi, "resetArtwork");
+    await render("sample", 7, "old-cover");
+    await open();
+    await click("cover", "Hide artwork");
+    const review = page.getByRole("form", { name: "Review artwork change", exact: true });
+    const heading = review.getByRole("heading", { name: "Review artwork change" });
+    await expect.element(heading).toHaveFocus();
+    await expect
+      .element(heading)
+      .toHaveAccessibleDescription("Hide artwork for this role. Other roles stay as they are.");
+    expect(hide).not.toHaveBeenCalled();
+    await review.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect.element(review).not.toBeInTheDocument();
+    await expect.element(page.elementLocator(button("cover", "Hide artwork"))).toHaveFocus();
+    expect(hide).not.toHaveBeenCalled();
+
+    await click("cover", "Use automatic");
+    await expect
+      .element(heading)
+      .toHaveAccessibleDescription("Use the default artwork for this role when available.");
+    expect(automatic).not.toHaveBeenCalled();
+    state = artworkState("sample", "cover", 2, true);
+    await render("sample", 7, "corrected-cover");
+    await expect
+      .element(
+        review.getByText("This artwork choice changed. Cancel and review the current choice."),
+      )
+      .toBeVisible();
+    await expect.element(review.getByRole("button", { name: "Apply", exact: true })).toBeDisabled();
+    expect(automatic).not.toHaveBeenCalled();
+  });
+
+  it("restores focus to the visibility toggle after Hide commits during a catalog refresh", async () => {
+    let state = artworkState("sample", "cover");
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      slot === "cover" ? state : artworkState(port, slot),
+    );
+    let finish!: (value: ArtworkState) => void;
+    const hide = vi
+      .spyOn(desktopApi, "suppressArtwork")
+      .mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    await render("sample", 7, "old-cover");
+    await open();
+    await confirmVisibility("cover", "Hide artwork");
+    expect(hide).toHaveBeenCalledExactlyOnceWith("sample", "cover", 0, 7);
+    await render("sample", 7, "corrected-cover");
+    await expect.element(page.elementLocator(button("cover", "Use automatic"))).toBeDisabled();
+    state = artworkState("sample", "cover", 1);
+    state.choice.suppressed = true;
+    await act(async () => finish(state));
+    await expect.element(page.elementLocator(button("cover", "Show artwork"))).toHaveFocus();
+    expect(button("cover", "Use automatic").disabled).toBe(false);
+    expect(hide).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the hidden selection and Show artwork restores exactly that choice", async () => {
+    const selected = artworkState("sample", "detail", 3, true);
+    let state = structuredClone(selected);
+    state.choice.suppressed = true;
+    state.availability = "fallback";
+    state.resolved_source = { kind: "generated_fallback" };
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      slot === "detail" ? state : artworkState(port, slot),
+    );
+    const show = vi.spyOn(desktopApi, "unhideArtwork").mockImplementation(async () => {
+      state = { ...structuredClone(selected), choice: { ...selected.choice, revision: 4 } };
+      return state;
+    });
+    const reset = vi.spyOn(desktopApi, "resetArtwork");
+    await render("sample", 7, "old-cover");
+    await open();
+    await selectSlot("detail");
+    await expect
+      .element(page.getByText("Hidden for this port. Show artwork to bring back your choice."))
+      .toBeVisible();
+    await click("detail", "Show artwork");
+    const review = page.getByRole("form", { name: "Review artwork change", exact: true });
+    await expect
+      .element(review.getByRole("heading", { name: "Review artwork change" }))
+      .toHaveAccessibleDescription(
+        "Show this role again with the artwork it had before it was hidden.",
+      );
+    expect(show).not.toHaveBeenCalled();
+    await review.getByRole("button", { name: "Apply", exact: true }).click();
+    expect(show).toHaveBeenCalledExactlyOnceWith("sample", "detail", 3, 7);
+    await expect.element(page.elementLocator(button("detail", "Hide artwork"))).toHaveFocus();
+    await expect
+      .element(page.getByText("Hidden for this port. Show artwork to bring back your choice."))
+      .not.toBeInTheDocument();
+    expect(reset).not.toHaveBeenCalled();
+  });
 
   it("waits for a pre-commit replacement-cache read and then reads the committed choice", async () => {
     const showArtwork = controlledArtworkVisibility();
@@ -398,7 +709,7 @@ describe("local artwork controls", () => {
     await act(async () => showArtwork());
     await expect.poll(() => container.querySelector(".artwork-image")?.textContent).toBe("SF");
     await open();
-    await click("cover", "Choose local image");
+    await chooseAndApplyLocal("cover");
     expect(change).toHaveBeenCalledTimes(1);
     const readsBefore = reads;
     deferReplacement = true;
@@ -418,7 +729,7 @@ describe("local artwork controls", () => {
       container.querySelector(".artwork-image")!.getBoundingClientRect().height,
     ).toBeGreaterThan(0);
     expect(reads).toBe(readsBefore + 2);
-    expect(button("cover", "Reset to default").disabled).toBe(false);
+    expect(button("cover", "Use automatic").disabled).toBe(false);
     expect(change).toHaveBeenCalledTimes(1);
   });
 
@@ -443,7 +754,7 @@ describe("local artwork controls", () => {
       .poll(() => container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource)
       .toBe("local_import");
     await open();
-    await click("cover", "Reset to default");
+    await confirmVisibility("cover", "Use automatic");
     await render("sample", 7, "corrected-cover");
     state = {
       ...artworkState("sample", "cover", 2),
@@ -466,7 +777,7 @@ describe("local artwork controls", () => {
       .poll(() => container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource)
       .toBe("igdb_cover");
     expect(container.textContent).toContain("image corrected-cover");
-    expect(button("cover", "Reset to default").disabled).toBe(true);
+    expect(button("cover", "Use automatic").disabled).toBe(true);
   });
 
   it.each(["select", "cancel", "reject"] as const)(
@@ -487,7 +798,7 @@ describe("local artwork controls", () => {
       await render("sample", 7, "cover-b");
       await render("sample", 7, "cover-a");
       const focus = document.createElement("button");
-      container.append(focus);
+      container.querySelector(".artwork-sheet")!.append(focus);
       focus.focus();
       await act(async () => {
         if (result === "reject") reject(new Error("Obsolete picker failed."));
@@ -510,11 +821,33 @@ describe("local artwork controls", () => {
     const change = vi.spyOn(desktopApi, "importArtwork");
     await render("sample", 7, "old-cover");
     await open();
-    await click("cover", "Choose local image");
+    await chooseAndApplyLocal("cover");
     await render("sample", 7, "corrected-cover");
     await act(async () => finishRead(artworkState("sample", "detail")));
     expect(change).not.toHaveBeenCalled();
     expect(button("cover", "Choose local image").disabled).toBe(false);
+  });
+
+  it("requires a new review when the catalog changes before Apply", async () => {
+    vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+    const change = vi.spyOn(desktopApi, "importArtwork");
+    await render("sample", 7, "old-cover");
+    await open();
+    await click("cover", "Choose local image");
+    const review = page.getByRole("form", { name: "Review Cover image", exact: true });
+    const apply = review.getByRole("button", { name: "Apply", exact: true });
+    await expect.element(apply).toBeEnabled();
+
+    await render("sample", 7, "corrected-cover");
+    await expect.element(apply).toBeDisabled();
+    await expect
+      .element(
+        review.getByText("This artwork choice changed. Cancel and review the current choice."),
+      )
+      .toBeVisible();
+    await review.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect.element(page.elementLocator(button("cover", "Choose local image"))).toHaveFocus();
+    expect(change).not.toHaveBeenCalled();
   });
 
   it.each(["import", "reset"] as const)(
@@ -531,22 +864,26 @@ describe("local artwork controls", () => {
       vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
       await render("sample", 7, "old-cover");
       await open();
-      await click("cover", kind === "import" ? "Choose local image" : "Reset to default");
+      if (kind === "import") await chooseAndApplyLocal("cover");
+      else await confirmVisibility("cover", "Use automatic");
       await render("sample", 7, "corrected-cover");
       state = artworkState("sample", "cover", 5, true);
       await act(async () => reject(new Error("Choice changed; review the current image.")));
       expect(container.textContent).toContain("Choice changed; review the current image.");
       expect(container.textContent).toContain("owned-image.png");
-      expect(button("cover", "Choose local image").disabled).toBe(false);
-      expect(button("cover", "Reset to default").disabled).toBe(false);
       expect(container.textContent).not.toContain("Local image selected.");
       await captureParityState(`artwork-${kind}-rejected-fixture`);
+      expect(button("cover", "Apply").disabled).toBe(true);
+      await click("cover", "Cancel");
+      expect(button("cover", "Choose local image").disabled).toBe(false);
+      expect(button("cover", "Use automatic").disabled).toBe(false);
       change.mockResolvedValueOnce(artworkState("sample", "cover", 6, kind === "import"));
-      await click("cover", kind === "import" ? "Choose local image" : "Reset to default");
+      if (kind === "import") await chooseAndApplyLocal("cover");
+      else await confirmVisibility("cover", "Use automatic");
       expect(change).toHaveBeenLastCalledWith(
         "sample",
         "cover",
-        ...(kind === "import" ? ["E:/owned.png", 5, 7] : [5, 7]),
+        ...(kind === "import" ? ["E:/owned.png", 5, 7, imageBinding] : [5, 7]),
       );
       expect(container.textContent).not.toContain("Choice changed; review the current image.");
     },
@@ -560,7 +897,7 @@ describe("local artwork controls", () => {
     vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
     await render("sample", 7, "old-cover");
     await open();
-    await click("cover", "Choose local image");
+    await chooseAndApplyLocal("cover");
     await render("sample", 7, "corrected-cover");
     vi.mocked(desktopApi.artwork).mockRejectedValue(new Error("Current artwork read failed."));
     await act(async () => finish(artworkState("sample", "cover", 1, true)));
@@ -587,14 +924,10 @@ describe("local artwork controls", () => {
       await act(async () => showArtwork());
       await expect.poll(() => container.querySelector(".artwork-image")?.textContent).toBe("SF");
       await open();
-      await click("cover", "Choose local image");
+      await chooseAndApplyLocal("cover");
       expect(change).toHaveBeenCalledTimes(1);
       if (kind === "close") {
-        await act(async () => {
-          const details = container.querySelector<HTMLDetailsElement>(".artwork-controls")!;
-          details.open = false;
-          details.dispatchEvent(new Event("toggle"));
-        });
+        await closeArtwork();
       } else await render(kind === "port" ? "another" : "sample", kind === "library" ? 8 : 7);
       await expect.poll(() => container.querySelector('[aria-label="Cover image"]')).toBeNull();
       const reads = vi.mocked(desktopApi.artwork).mock.calls.length;
@@ -609,7 +942,7 @@ describe("local artwork controls", () => {
       expect(
         currentButtons.find((item) => item.textContent === "Choose local image")?.disabled,
       ).toBe(kind === "close" ? undefined : false);
-      expect(currentButtons.find((item) => item.textContent === "Reset to default")?.disabled).toBe(
+      expect(currentButtons.find((item) => item.textContent === "Use automatic")?.disabled).toBe(
         kind === "close" ? undefined : true,
       );
     },
@@ -658,7 +991,7 @@ describe("local artwork controls", () => {
       "https://www.igdb.com/games/ship-of-harkinian",
     );
     expect(container.textContent).toContain("Not provided with this catalog mapping");
-    expect(button("cover", "Reset to default").disabled).toBe(true);
+    expect(button("cover", "Use automatic").disabled).toBe(true);
   });
 
   it.each([640, 900])(
@@ -680,6 +1013,10 @@ describe("local artwork controls", () => {
         return state;
       };
       const choose = vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+      const preview = vi.spyOn(desktopApi, "previewLocalArtwork").mockResolvedValue({
+        original_sha256: "a".repeat(64),
+        png_base64: thumbnailPng,
+      });
       const change = vi
         .spyOn(desktopApi, "importArtwork")
         .mockImplementation(async (port, slot, _path, revision) =>
@@ -707,8 +1044,15 @@ describe("local artwork controls", () => {
       );
       expect(container.textContent).toContain("Generated by Portcove");
       expect(container.textContent).toContain("f".repeat(64));
-      await click("cover", "Choose local image");
-      expect(change).toHaveBeenLastCalledWith("sample", "cover", "E:/owned.png", 0, 7);
+      await chooseAndApplyLocal("cover");
+      expect(change).toHaveBeenLastCalledWith(
+        "sample",
+        "cover",
+        "E:/owned.png",
+        0,
+        7,
+        imageBinding,
+      );
       expect(container.querySelector("img")?.alt).toBe("");
       expect(container.querySelector(".artwork-image img")).not.toBeNull();
       expect(getComputedStyle(container.querySelector(".artwork-image")!).backgroundColor).toBe(
@@ -720,8 +1064,58 @@ describe("local artwork controls", () => {
       expect(document.activeElement).toBe(button("cover", "Choose local image"));
       await captureParityState("artwork-cover-local-selected-fixture");
       await click("detail", "Choose local image");
-      expect(change).toHaveBeenLastCalledWith("sample", "detail", "E:/owned.png", 0, 7);
-      await click("cover", "Reset to default");
+      expect(preview).toHaveBeenLastCalledWith("sample", "E:/owned.png", 7);
+      expect(change).toHaveBeenCalledTimes(1);
+      const review = page.getByRole("form", { name: "Review Background", exact: true });
+      await expect
+        .element(review.getByRole("heading", { name: "Review Background" }))
+        .toHaveFocus();
+      const previews = container.querySelectorAll<HTMLElement>(".game-hero-framing-preview");
+      expect([...previews].map((preview) => preview.inert)).toEqual([true, true]);
+      expect(previews[0]?.querySelector(".game-hero-detail .detail-title")?.textContent).toContain(
+        "Displayed game identity",
+      );
+      expect(
+        previews[1]?.querySelector(".game-hero-continue .continue-actions")?.textContent,
+      ).toContain("Continue playing");
+      expect(previews[1]?.querySelector(".continue-details")?.textContent).toContain(
+        "Game details",
+      );
+      await expect
+        .element(review.getByRole("button", { name: "Continue playing", exact: true }))
+        .not.toBeInTheDocument();
+      const horizontal = review
+        .getByRole("group", { name: "Narrow crop · Continue" })
+        .getByRole("slider", { name: "Horizontal" });
+      (horizontal.element() as HTMLInputElement).focus();
+      await userEvent.keyboard("{End}");
+      await expect.element(horizontal).toHaveAttribute("aria-valuetext", "100%");
+      const wideImage = previews[0]?.querySelector<HTMLImageElement>(".game-hero-background img");
+      const narrowImage = previews[1]?.querySelector<HTMLImageElement>(".game-hero-background img");
+      if (!wideImage || !narrowImage) throw new Error("Both hero background layers must render");
+      expect(getComputedStyle(wideImage).objectPosition).toBe("50% 35%");
+      expect(getComputedStyle(narrowImage).objectPosition).toBe("100% 35%");
+      expect(getComputedStyle(narrowImage).maskImage).not.toBe("none");
+      await captureParityState("artwork-background-composition-fixture");
+      await review.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect.element(review).not.toBeInTheDocument();
+      expect(change).toHaveBeenCalledTimes(1);
+      await expect
+        .element(page.elementLocator(button("detail", "Choose local image")))
+        .toHaveFocus();
+      await click("detail", "Choose local image");
+      await expect.element(horizontal).toBeVisible();
+      (horizontal.element() as HTMLInputElement).focus();
+      await userEvent.keyboard("{End}");
+      await review.getByRole("button", { name: "Apply", exact: true }).click();
+      await vi.waitFor(() =>
+        expect(change).toHaveBeenLastCalledWith("sample", "detail", "E:/owned.png", 0, 7, {
+          preview_sha256: "a".repeat(64),
+          framing: { version: "v1", wide: { x: 5000, y: 3500 }, narrow: { x: 10000, y: 3500 } },
+        }),
+      );
+      await expect.element(review).not.toBeInTheDocument();
+      await confirmVisibility("cover", "Use automatic");
       expect(reset).toHaveBeenCalledWith("sample", "cover", 1, 7);
       expect(container.querySelector(".artwork-image:not(.wide-artwork) img")).toBeNull();
       expect(
@@ -733,13 +1127,18 @@ describe("local artwork controls", () => {
       );
       expect(container.querySelector(".artwork-image:not(.wide-artwork) img")).toBeNull();
       expect(container.querySelector(".artwork-image > span")?.textContent).toBe("SF");
-      expect(choose).toHaveBeenCalledTimes(2);
+      expect(choose).toHaveBeenCalledTimes(3);
       container.querySelector<HTMLElement>(".detail-artwork")!.scrollIntoView();
       await expect.poll(() => container.querySelector(".detail-artwork img")).not.toBeNull();
-      expect(button("detail", "Reset to default").disabled).toBe(false);
-      container.querySelector<HTMLElement>(".artwork-controls")!.scrollIntoView({ block: "start" });
-      expect(button("cover", "Reset to default").disabled).toBe(true);
-      const resetControls = button("cover", "Reset to default").getBoundingClientRect();
+      expect(button("detail", "Use automatic").disabled).toBe(false);
+      const resetControl = button("cover", "Use automatic");
+      expect(resetControl.disabled).toBe(true);
+      resetControl.scrollIntoView({ block: "nearest" });
+      const resetControls = resetControl.getBoundingClientRect();
+      const sheetBody = resetControl.closest(".artwork-slots")!.parentElement!;
+      const scrollBounds = sheetBody.getBoundingClientRect();
+      expect(resetControls.top).toBeGreaterThanOrEqual(scrollBounds.top);
+      expect(resetControls.bottom).toBeLessThanOrEqual(scrollBounds.bottom);
       expect(resetControls.top).toBeGreaterThanOrEqual(0);
       expect(resetControls.bottom).toBeLessThanOrEqual(innerHeight);
       await captureParityState("artwork-cover-reset-detail-retained-fixture");
@@ -771,11 +1170,7 @@ describe("local artwork controls", () => {
       await open();
       await click("cover", "Choose local image");
       if (kind === "close") {
-        await act(async () => {
-          const details = container.querySelector<HTMLDetailsElement>(".artwork-controls")!;
-          details.open = false;
-          details.dispatchEvent(new Event("toggle"));
-        });
+        await closeArtwork();
       } else await render(kind === "port" ? "another" : "sample", kind === "library" ? 8 : 7);
       await act(async () => finish("E:/stale.png"));
       expect(change).not.toHaveBeenCalled();
@@ -791,7 +1186,7 @@ describe("local artwork controls", () => {
       resolved_source: { kind: "generated_fallback" },
     }));
     vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/unsupported.svg");
-    vi.spyOn(desktopApi, "importArtwork").mockRejectedValue(
+    vi.spyOn(desktopApi, "previewLocalArtwork").mockRejectedValue(
       new Error("Static PNG or JPEG is required."),
     );
     await render();
@@ -803,7 +1198,7 @@ describe("local artwork controls", () => {
     expect(container.textContent).toContain(
       "Generated fallback; the selected local image is not currently rendered.",
     );
-    expect(button("cover", "Reset to default").disabled).toBe(false);
+    expect(button("cover", "Use automatic").disabled).toBe(false);
     expect(container.querySelector("img")).toBeNull();
     await expect
       .poll(() => container.querySelector(".artwork-image > span")?.textContent)
@@ -859,7 +1254,7 @@ describe("local artwork controls", () => {
         "Generated fallback; the selected local image is not currently rendered.",
       );
       expect(container.textContent).toContain("f".repeat(64));
-      expect(button("cover", "Reset to default").disabled).toBe(false);
+      expect(button("cover", "Use automatic").disabled).toBe(false);
       expect(detail.querySelector("img")).toBe(detailImage);
       expect(detailImage.complete && detailImage.naturalWidth > 0).toBe(true);
       expect(detail.dataset.artworkSource).toBe("local_import");
@@ -1055,6 +1450,83 @@ describe("SteamGridDB picker", () => {
     expect(search).not.toHaveBeenCalled();
   });
 
+  it("returns to the selected artwork role after cancelling or saving the key", async () => {
+    vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: false });
+    const save = vi.spyOn(desktopApi, "setSteamGridDbKey").mockResolvedValue({ configured: true });
+    const search = vi.spyOn(desktopApi, "searchSteamGridDbGames");
+    const listings = vi.spyOn(desktopApi, "checkSteamGridDbListings");
+    await render();
+    await open();
+    await click("logo", "Find on SteamGridDB");
+    const configure = page.getByRole("button", { name: "Set up SteamGridDB key", exact: true });
+    await configure.click();
+    const heading = page.getByRole("heading", { name: "Set up your SteamGridDB key" });
+    await expect.element(heading).toHaveFocus();
+    const key = page.getByLabelText("SteamGridDB API key", { exact: true });
+    await key.fill("discard-this-fixture");
+    await page.getByRole("button", { name: "Cancel key setup", exact: true }).click();
+    await expect.element(configure).toHaveFocus();
+    expect(save).not.toHaveBeenCalled();
+
+    await configure.click();
+    await expect.element(key).toHaveValue("");
+    await key.fill("fixture-only-key");
+    await page.getByRole("button", { name: "Save key", exact: true }).click();
+    const searchBox = page.getByRole("textbox", { name: "Game name to search on SteamGridDB" });
+    await expect.element(searchBox).toHaveAttribute("id", "steamgriddb-search-logo");
+    await expect.element(searchBox).toHaveFocus();
+    expect(save).toHaveBeenCalledExactlyOnceWith("fixture-only-key");
+    expect(search).not.toHaveBeenCalled();
+    expect(listings).not.toHaveBeenCalled();
+  });
+
+  it("rechecks the device key when returning to key setup from another artwork role", async () => {
+    let configured = false;
+    const secureStore = deferredStatus();
+    vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockImplementation(async () => ({ configured }));
+    const save = vi.spyOn(desktopApi, "setSteamGridDbKey").mockImplementation(async () => {
+      const result = await secureStore.promise;
+      configured = result.configured;
+      return result;
+    });
+    const search = vi.spyOn(desktopApi, "searchSteamGridDbGames");
+    try {
+      await render();
+      await open();
+      await click("logo", "Find on SteamGridDB");
+      const configure = page.getByRole("button", { name: "Set up SteamGridDB key", exact: true });
+      await configure.click();
+      const key = page.getByLabelText("SteamGridDB API key", { exact: true });
+      await key.fill("retired-fixture-secret");
+
+      await click("cover", "Find on SteamGridDB");
+      await configure.click();
+      await expect.element(key).toHaveValue("");
+      await key.fill("current-fixture-secret");
+      await page.getByRole("button", { name: "Save key", exact: true }).click();
+      await expect.poll(() => save.mock.calls.length).toBe(1);
+
+      await page.getByRole("tab", { name: "Logo", exact: true }).click();
+      await expect.element(key).toHaveValue("");
+      await key.fill("competing-fixture-secret");
+      const saveKey = page.getByRole("button", { name: "Save key", exact: true });
+      await saveKey.click();
+      await expect
+        .element(page.getByText(/Another SteamGridDB key change is finishing/))
+        .toBeVisible();
+      await act(async () => secureStore.resolve({ configured: true }));
+      // A fresh status read sends this role back to search using the now-saved key.
+      await saveKey.click();
+      await expect
+        .element(page.getByRole("textbox", { name: "Game name to search on SteamGridDB" }))
+        .toHaveAttribute("id", "steamgriddb-search-logo");
+      expect(save).toHaveBeenCalledExactlyOnceWith("current-fixture-secret");
+      expect(search).not.toHaveBeenCalled();
+    } finally {
+      secureStore.resolve({ configured: true });
+    }
+  });
+
   it("searches, previews locally, chooses by revision and credits the artist", async () => {
     await page.viewport(960, 800);
     document.documentElement.dataset.theme = "dark";
@@ -1105,7 +1577,7 @@ describe("SteamGridDB picker", () => {
       container.querySelector(".steamgriddb-picker")!.scrollIntoView({ block: "start" });
       await captureParityState("steamgriddb-game-matches");
       await click("cover", "Example Game (verified)");
-      expect(list).toHaveBeenCalledWith(42, "portrait_cover");
+      expect(list).toHaveBeenCalledWith(42, "portrait_cover", 0);
       // Choosing a match removes the list; focus moves to the way back.
       await vi.waitFor(() => expect(document.activeElement?.textContent).toBe("Back to matches"));
       await expect
@@ -1135,14 +1607,27 @@ describe("SteamGridDB picker", () => {
         .querySelector('[aria-label^="Use image by Artist 14,"]')!
         .scrollIntoView({ block: "nearest" });
       await captureParityState("steamgriddb-more-cover-candidates");
+      // Once every listed image is shown, the next provider page is requested.
+      list.mockResolvedValueOnce([candidate(15)]);
+      await click("cover", "Show more images");
+      expect(list).toHaveBeenLastCalledWith(42, "portrait_cover", 1);
+      await vi.waitFor(() =>
+        expect(container.querySelectorAll('[aria-label^="Use image by"]').length).toBe(15),
+      );
+      list.mockResolvedValueOnce([]);
+      await click("cover", "Show more images");
+      expect(list).toHaveBeenLastCalledWith(42, "portrait_cover", 2);
+      await vi.waitFor(() => expect(container.textContent).not.toContain("Show more images"));
       vi.mocked(desktopApi.artwork).mockResolvedValue(chosen);
       await act(async () =>
         container
           .querySelector<HTMLButtonElement>('[aria-label^="Use image by Artist 3,"]')!
           .click(),
       );
+      expect(choose).not.toHaveBeenCalled();
+      await applyImageReview("cover");
       await vi.waitFor(() => expect(container.textContent).toContain("Image by Artist 3"));
-      expect(choose).toHaveBeenCalledWith("sample", "cover", 42, 3, 0, 7);
+      expect(choose).toHaveBeenCalledWith("sample", "cover", 42, 3, 0, 7, imageBinding);
       expect(container.querySelector(".steamgriddb-picker")).toBeNull();
       await vi.waitFor(() => expect(container.textContent).toContain("SteamGridDB image 3"));
       expect(
@@ -1243,7 +1728,7 @@ describe("SteamGridDB picker", () => {
           .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
       });
       expect(search).toHaveBeenCalledTimes(1);
-      expect(list.mock.calls).toEqual([[83, "portrait_cover"]]);
+      expect(list.mock.calls).toEqual([[83, "portrait_cover", 0]]);
       await act(async () => {
         vi.advanceTimersByTime(15_000);
       });
@@ -1265,8 +1750,8 @@ describe("SteamGridDB picker", () => {
       expect(container.querySelector('[aria-label^="Use image by Artist 831,"]')).not.toBeNull(),
     );
     expect(list.mock.calls).toEqual([
-      [83, "portrait_cover"],
-      [84, "portrait_cover"],
+      [83, "portrait_cover", 0],
+      [84, "portrait_cover", 0],
     ]);
     expect(choose).not.toHaveBeenCalled();
   });
@@ -1339,13 +1824,11 @@ describe("SteamGridDB picker", () => {
       vi.spyOn(desktopApi, "steamGridDbPreview").mockResolvedValue({ png_base64: pixel });
       await render();
       await open();
-      await page.getByRole("button", { name: `${slotLabels[slot]} image`, exact: true }).click();
-      expect(
-        container.querySelector(`[aria-label="${slotLabels[slot]} image"]`)?.textContent,
-      ).toContain(
+      await page.getByRole("tab", { name: slotLabels[slot], exact: true }).click();
+      expect(container.querySelector(`[aria-label="${slotLabels[slot]}"]`)?.textContent).toContain(
         slot === "landscape"
           ? "Steam uses it for the game's library capsule"
-          : "Optional wide image for this game's details",
+          : "Optional background for Overview and Continue",
       );
       await click(slot, "Find on SteamGridDB");
       await vi.waitFor(() =>
@@ -1357,6 +1840,7 @@ describe("SteamGridDB picker", () => {
       expect(list).toHaveBeenCalledWith(
         55,
         slot === "landscape" ? "landscape_cover" : "hero_banner",
+        0,
       );
       await vi.waitFor(() =>
         expect(
@@ -1369,6 +1853,221 @@ describe("SteamGridDB picker", () => {
       await captureParityState(`steamgriddb-${slot}-candidates`);
     },
   );
+  it("returns to SteamGridDB results when cancelling Background review", async () => {
+    vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: true });
+    vi.spyOn(desktopApi, "searchSteamGridDbGames").mockResolvedValue([
+      { id: 55, name: "Wide Game", verified: false },
+    ]);
+    vi.spyOn(desktopApi, "steamGridDbCandidates").mockResolvedValue([
+      { ...candidate(701), role: "hero_banner", width: 920, height: 430 },
+    ]);
+    vi.spyOn(desktopApi, "steamGridDbPreview").mockResolvedValue({ png_base64: pixel });
+    await render();
+    await open();
+    await click("detail", "Find on SteamGridDB");
+    await click("detail", "Search");
+    await click("detail", "Wide Game");
+    let completePreview:
+      | ((value: { original_sha256: string; png_base64: string }) => void)
+      | undefined;
+    const preview = vi.spyOn(desktopApi, "previewSteamGridDbArtwork").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          completePreview = resolve;
+        }),
+    );
+    const choose = vi.spyOn(desktopApi, "chooseSteamGridDbArtwork");
+    const candidateControl = page.getByRole("button", { name: /^Use image by Artist 701/ });
+    await candidateControl.click();
+    await expect.element(page.getByRole("button", { name: "Search", exact: true })).toBeDisabled();
+    await expect
+      .element(page.getByRole("button", { name: "Back to matches", exact: true }))
+      .toBeDisabled();
+    if (!completePreview) throw new Error("Background preview did not start");
+    const finishPreview = completePreview;
+    await act(async () => finishPreview({ original_sha256: "b".repeat(64), png_base64: pixel }));
+    const review = page.getByRole("form", { name: "Review Background", exact: true });
+    await expect.element(review.getByText("SteamGridDB image by Artist 701")).toBeVisible();
+    expect(preview).toHaveBeenCalledWith("sample", "detail", 55, 701, 7);
+    expect(choose).not.toHaveBeenCalled();
+    await review.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect.element(review).not.toBeInTheDocument();
+    expect(choose).not.toHaveBeenCalled();
+    await expect.element(candidateControl).toBeVisible();
+    await expect.element(candidateControl).toHaveFocus();
+
+    preview.mockResolvedValue({ original_sha256: "b".repeat(64), png_base64: pixel });
+    choose.mockResolvedValue(artworkState("sample", "detail", 1, true));
+    await candidateControl.click();
+    await review.getByRole("button", { name: "Apply", exact: true }).click();
+    await vi.waitFor(() =>
+      expect(choose).toHaveBeenCalledExactlyOnceWith("sample", "detail", 55, 701, 0, 7, {
+        preview_sha256: "b".repeat(64),
+        framing: null,
+      }),
+    );
+    await expect.element(review).not.toBeInTheDocument();
+  });
+});
+
+it("moves focus to the Logo tab without starting its read until activation", async () => {
+  await render();
+  await open();
+  const cover = page.getByRole("tab", { name: "Cover image", exact: true });
+  const logo = page.getByRole("tab", { name: "Logo", exact: true });
+  await cover.click();
+  const panelId = logo.element().getAttribute("aria-controls");
+  expect(panelId && document.getElementById(panelId)?.getAttribute("role")).toBe("tabpanel");
+  await userEvent.keyboard("{End}");
+  await expect.element(logo).toHaveFocus();
+  await expect.element(cover).toHaveAttribute("aria-selected", "true");
+  expect(desktopApi.artwork).not.toHaveBeenCalledWith("sample", "logo", 7);
+  await userEvent.keyboard("{Enter}");
+  await expect.element(logo).toHaveAttribute("aria-selected", "true");
+  await expect
+    .poll(() => vi.mocked(desktopApi.artwork).mock.calls)
+    .toContainEqual(["sample", "logo", 7]);
+});
+
+it("shows and resets a local Logo in Continue without changing the cover", async () => {
+  const port = portDefinition();
+  const cover = artworkState(port.id, "cover", 4, true);
+  const canvas = document.createElement("canvas");
+  canvas.width = 400;
+  canvas.height = 100;
+  const logoContext = canvas.getContext("2d")!;
+  logoContext.fillStyle = "white";
+  logoContext.font = "bold 64px sans-serif";
+  logoContext.fillText("TEST LOGO", 8, 75);
+  const logoBytes = canvas.toDataURL("image/png").split(",")[1]!;
+  vi.mocked(desktopApi.artworkThumbnail).mockImplementation(async (_port, slot, revision) => ({
+    asset_sha256: "a".repeat(64),
+    choice_revision: revision,
+    png_base64: slot === "logo" ? logoBytes : thumbnailPng,
+  }));
+  let logo = artworkState(port.id, "logo");
+  vi.mocked(desktopApi.artwork).mockImplementation(async (id, slot) => {
+    if (slot === "logo") return logo;
+    if (slot === "cover") return cover;
+    return artworkState(id, slot);
+  });
+  const choose = vi.spyOn(desktopApi, "importArtwork").mockImplementation(async () => {
+    logo = artworkState(port.id, "logo", 1, true);
+    return logo;
+  });
+  const reset = vi.spyOn(desktopApi, "resetArtwork").mockImplementation(async () => {
+    logo = artworkState(port.id, "logo", 2);
+    return logo;
+  });
+  vi.mocked(picker.pickArtworkPath).mockResolvedValue("D:/sample-logo.png");
+
+  await root.rerender(
+    <ArtworkProvider generation={7}>
+      <GameHero port={port} variant="continue">
+        <h1>{port.name}</h1>
+      </GameHero>
+      <ArtworkControls port={port} Preview={GameHeroFramingPreview} />
+    </ArtworkProvider>,
+  );
+  await open();
+  await page.getByRole("tab", { name: "Logo", exact: true }).click();
+  await expect
+    .element(page.getByRole("tab", { name: "Logo", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  await vi.waitFor(() => expect(button("logo", "Choose local image").disabled).toBe(false));
+  await chooseAndApplyLocal("logo");
+  expect(choose).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    "logo",
+    "D:/sample-logo.png",
+    0,
+    7,
+    imageBinding,
+  );
+  await expect.element(page.getByRole("img", { name: "Selected logo preview" })).toBeVisible();
+  await expect
+    .poll(() => container.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+    .toBe("logo");
+  expect(container.querySelector(".game-hero h1")?.textContent).toBe(port.name);
+  expect(container.querySelector('[aria-label="Logo"].artwork-slot')?.textContent).not.toContain(
+    "not wider than tall",
+  );
+
+  await confirmVisibility("logo", "Use automatic");
+  expect(reset).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 1, 7);
+  await expect
+    .poll(() => container.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+    .toBe("cover");
+  await expect
+    .element(page.getByRole("img", { name: "Selected logo preview" }))
+    .not.toBeInTheDocument();
+});
+
+it("keeps a transparent Logo choice in Manage while Continue uses the cover", async () => {
+  const port = portDefinition();
+  const blank = document.createElement("canvas").toDataURL("image/png").split(",")[1]!;
+  vi.mocked(desktopApi.artwork).mockImplementation(async (id, slot) =>
+    artworkState(id, slot, 3, slot === "cover" || slot === "logo"),
+  );
+  vi.mocked(desktopApi.artworkThumbnail).mockImplementation(async (_port, slot, revision) => ({
+    asset_sha256: "a".repeat(64),
+    choice_revision: revision,
+    png_base64: slot === "logo" ? blank : thumbnailPng,
+  }));
+  await root.rerender(
+    <ArtworkProvider generation={7}>
+      <GameHero port={port} variant="continue">
+        <h1>{port.name}</h1>
+      </GameHero>
+      <ArtworkControls port={port} Preview={GameHeroFramingPreview} />
+    </ArtworkProvider>,
+  );
+  await open();
+  await page.getByRole("tab", { name: "Logo", exact: true }).click();
+  await expect.element(page.getByRole("img", { name: "Selected logo preview" })).toBeVisible();
+  await expect
+    .poll(() => container.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+    .toBe("cover");
+  await expect.element(page.elementLocator(button("logo", "Use automatic"))).toBeEnabled();
+});
+
+it("uses the Logo provider role and restores focus to the saved logo control", async () => {
+  const pngCandidate = {
+    id: 818,
+    role: "logo" as const,
+    url: "https://cdn2.steamgriddb.com/logo/logo818.png",
+    thumb: "https://cdn2.steamgriddb.com/thumb/logo818.png",
+    mime: "image/png",
+    width: 320,
+    height: 155,
+    style: "custom",
+    score: 3,
+    author: { name: "Logo artist", steam64: null },
+  };
+  vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: true });
+  vi.spyOn(desktopApi, "searchSteamGridDbGames").mockResolvedValue([
+    { id: 55, name: "Logo game", verified: true },
+  ]);
+  const candidates = vi
+    .spyOn(desktopApi, "steamGridDbCandidates")
+    .mockResolvedValue([pngCandidate]);
+  vi.spyOn(desktopApi, "steamGridDbPreview").mockResolvedValue({ png_base64: thumbnailPng });
+  const choose = vi
+    .spyOn(desktopApi, "chooseSteamGridDbArtwork")
+    .mockResolvedValue(artworkState("sample", "logo", 1, true));
+  await render();
+  await open();
+  await page.getByRole("tab", { name: "Logo", exact: true }).click();
+  await vi.waitFor(() => expect(button("logo", "Find on SteamGridDB").disabled).toBe(false));
+  await click("logo", "Find on SteamGridDB");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await page.getByRole("button", { name: "Logo game (verified)", exact: true }).click();
+  expect(candidates).toHaveBeenCalledExactlyOnceWith(55, "logo", 0);
+  await page.getByRole("button", { name: /^Use image by Logo artist/ }).click();
+  expect(choose).not.toHaveBeenCalled();
+  await applyImageReview("logo");
+  expect(choose).toHaveBeenCalledExactlyOnceWith("sample", "logo", 55, 818, 0, 7, imageBinding);
+  await expect.element(page.elementLocator(button("logo", "Choose local image"))).toHaveFocus();
 });
 
 it("states recorded SteamGridDB listing evidence, withdrawals and removals with their dates", () => {

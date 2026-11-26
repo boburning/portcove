@@ -116,107 +116,94 @@ const technicallyComputersAssets = {
   "macos-aarch64": "macos-arm64",
 } as const;
 const technicallyComputersPlatforms = Object.entries(technicallyComputersAssets);
-const technicallyComputersInputFiles = new Map([
-  [
-    "bomberman-party-edition-recompiled",
-    {
-      repository: "TechnicallyComputers/BombermanPartyEditionRecomp",
-      sourceProfile: "bomberman-party-edition-psx",
-      rawDiscSet: false,
-    },
-  ],
-  [
-    "final-fantasy-vii-recompiled",
-    {
-      repository: "TechnicallyComputers/Final-Fantasy-VII",
-      sourceProfile: "final-fantasy-vii-psx",
-      rawDiscSet: true,
-    },
-  ],
-]);
 
-function technicallyComputersRoute(record: AuthoredPort, inputFiles: boolean) {
+/**
+ * The first precondition of the TechnicallyComputers kit layout an authored
+ * record misses, or undefined. Input-file kits declare their own runtime root
+ * and mutable files; a raw disc set also declares its source and launch
+ * arguments. Nothing here depends on which kit or game the record names.
+ */
+function technicallyComputersMismatch(record: AuthoredPort, inputFiles: boolean) {
   const { integration } = record;
   const release = integration?.release;
   const platforms = integration?.platforms;
+  if (integration?.adapter !== "psx-recomp-managed") return "the psx-recomp-managed adapter";
   if (
-    integration?.adapter !== "psx-recomp-managed" ||
     !Array.isArray(platforms) ||
     platforms.length !== technicallyComputersPlatforms.length ||
+    technicallyComputersPlatforms.some(([platform], i) => platforms[i] !== platform)
+  )
+    return `platforms ${technicallyComputersPlatforms.map(([platform]) => platform).join(", ")} in that order`;
+  if (
     !isRecord(release) ||
     (release.provider !== undefined && release.provider !== "github") ||
     Object.keys(release).some(
       (field) => !["provider", "repository", "asset_hints"].includes(field),
     ) ||
     typeof release.repository !== "string" ||
-    !/^TechnicallyComputers\/[A-Za-z0-9_.-]+$/u.test(release.repository) ||
-    record.listing.project_url !== `https://github.com/${release.repository}` ||
-    typeof integration.source_profile !== "string" ||
-    !integration.source_profile ||
-    !isRecord(integration.presentation) ||
+    !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(release.repository) ||
+    record.listing.project_url !== `https://github.com/${release.repository}`
+  )
+    return "a GitHub release repository that is the listing project_url";
+  if (typeof integration.source_profile !== "string" || !integration.source_profile)
+    return "an explicit source_profile";
+  if (!isRecord(integration.presentation)) return "an explicit presentation";
+  if (
     record.route_facts_v1 !== undefined ||
     record.settings_qualification_v1 !== undefined ||
     record.settings_observation_v1 !== undefined
   )
-    return undefined;
+    return "no route facts or settings qualification";
   const assetHints = release.asset_hints;
   const executableHints = integration.executable_hints;
   if (
     !isRecord(assetHints) ||
-    !isRecord(executableHints) ||
-    technicallyComputersPlatforms.some(([platform, hint], i) => {
+    technicallyComputersPlatforms.some(([platform, hint]) => {
       const selectors = assetHints[platform];
-      return (
-        platforms[i] !== platform ||
-        !isAssetSelector(selectors) ||
-        selectors.length !== 1 ||
-        selectors[0] !== hint ||
-        !isAssetSelector(executableHints[platform])
-      );
+      return !isAssetSelector(selectors) || selectors.length !== 1 || selectors[0] !== hint;
     })
   )
-    return undefined;
-  const reviewed = technicallyComputersInputFiles.get(record.listing.id);
-  if (inputFiles !== Boolean(reviewed)) return undefined;
+    return `asset_hints ${technicallyComputersPlatforms.map(([platform, hint]) => `${platform}: ${hint}`).join(", ")}`;
   if (
-    reviewed &&
-    (release.repository !== reviewed.repository ||
-      integration.source_profile !== reviewed.sourceProfile ||
-      integration.runtime_subdirectory !== runtimeLayout.runtime_subdirectory ||
-      !Array.isArray(integration.runtime_mutable_paths))
+    !isRecord(executableHints) ||
+    technicallyComputersPlatforms.some(([platform]) => !isAssetSelector(executableHints[platform]))
   )
-    return undefined;
+    return "executable_hints for every platform";
+  const rawDiscSet = inputFiles && Object.hasOwn(integration, "runtime_source_filename");
+  if (inputFiles) {
+    if (integration.runtime_subdirectory !== runtimeLayout.runtime_subdirectory)
+      return `an explicit ${runtimeLayout.runtime_subdirectory} runtime_subdirectory`;
+    if (!Array.isArray(integration.runtime_mutable_paths)) return "explicit runtime_mutable_paths";
+  }
   if (
-    reviewed?.rawDiscSet
+    rawDiscSet
       ? integration.runtime_source_filename !== "runtime-discs" ||
         integration.runtime_source_materialization !== "psx-raw-set" ||
         Object.hasOwn(integration, "launch_disc_choice")
       : multidiscFields.some((field) => Object.hasOwn(integration, field))
   )
-    return undefined;
-  if (
-    Object.hasOwn(integration, "bios_source_profile") ||
-    Object.keys(integration).some(
-      (field) =>
-        field !== "persistent_paths" &&
-        field !== "runtime_subdirectory" &&
-        !(inputFiles && field === "runtime_mutable_paths") &&
-        !(reviewed?.rawDiscSet && field === "launch_arguments") &&
-        !explicitFields.has(field),
-    )
-  )
-    return undefined;
-  return integration;
+    return rawDiscSet
+      ? "a runtime-discs source with psx-raw-set materialization and no launch_disc_choice"
+      : "no multidisc fields";
+  if (Object.hasOwn(integration, "bios_source_profile")) return "no bios_source_profile";
+  const uncovered = Object.keys(integration).find(
+    (field) =>
+      field !== "persistent_paths" &&
+      field !== "runtime_subdirectory" &&
+      !(inputFiles && field === "runtime_mutable_paths") &&
+      !(rawDiscSet && field === "launch_arguments") &&
+      !explicitFields.has(field),
+  );
+  return uncovered === undefined ? undefined : `no ${uncovered}`;
 }
 
 function projectTechnicallyComputers(record: AuthoredPort, inputFiles: boolean): AuthoredPort {
-  const explicit = technicallyComputersRoute(record, inputFiles);
-  if (!explicit)
+  const missing = technicallyComputersMismatch(record, inputFiles);
+  if (missing !== undefined)
     throw new PsxLayoutMismatch(
-      inputFiles
-        ? "TechnicallyComputers PSX input files require the exact reviewed Bomberman Party Edition or Final Fantasy VII kit route."
-        : "TechnicallyComputers PSX persistence requires its reviewed Windows and macOS kit route.",
+      `TechnicallyComputers PSX ${inputFiles ? "input files require" : "persistence requires"} ${missing}.`,
     );
+  const explicit = record.integration!;
   if (
     Object.hasOwn(explicit, "persistent_paths") ||
     (!inputFiles && Object.hasOwn(explicit, "runtime_subdirectory"))
@@ -241,62 +228,13 @@ function projectTechnicallyComputers(record: AuthoredPort, inputFiles: boolean):
 
 class PsxLayoutMismatch extends Error {}
 
-const diagnosticKits = [
-  ["windows-x86-64", "windows-x64"],
-  ["linux-x86-64", "linux-x64"],
-  ["macos-x86-64", "macos-x64"],
-  ["macos-aarch64", "macos-arm64"],
-] as const;
-
-function reviewedDiagnosticsRoute(record: AuthoredPort) {
-  const id = record.listing.id;
-  const mortalKombat = id === "mortal-kombat-4-recompiled";
-  if (!mortalKombat && id !== "alexbeav-medievil-recomp") return false;
-  const integration = record.integration;
-  const release = integration?.release;
-  const orderedPlatforms = integration?.platforms;
-  const executables = integration?.executable_hints;
-  const repository = `alexbeavs-ps1-ports/${mortalKombat ? "mortal-kombat-4-recomp" : "medievil-recomp"}`;
-  const player = mortalKombat ? "Mortal_Kombat_4" : "MediEvil_Recompiled";
-  const kits = mortalKombat ? diagnosticKits : diagnosticKits.slice(0, 2);
-  if (
-    record.listing.project_url !== `https://github.com/${repository}` ||
-    integration?.source_profile !==
-      (mortalKombat ? "mortal-kombat-4-psx" : "alexbeav-medievil-recomp-usa-psx") ||
-    integration.bios_source_profile !== "psx-scph-1001-bios" ||
-    record.route_facts_v1 !== undefined ||
-    record.package_observation_v1 !== undefined ||
-    !isRecord(release) ||
-    release.repository !== repository ||
-    release.provider !== (mortalKombat ? undefined : "github") ||
-    !isRecord(release.asset_hints) ||
-    !isRecord(executables) ||
-    !Array.isArray(orderedPlatforms) ||
-    orderedPlatforms.length !== kits.length ||
-    Object.keys(release.asset_hints).length !== kits.length ||
-    Object.keys(executables).length !== kits.length
-  )
-    return false;
-
-  const assets = release.asset_hints;
-  return kits.every(([platform, kit], index) => {
-    const selectors = mortalKombat ? [kit] : ["medievil-recomp-", `-${kit}.zip`];
-    const executable = platform === "windows-x86-64" ? `${player}.exe` : player;
-    return (
-      orderedPlatforms[index] === platform &&
-      JSON.stringify(assets[platform]) === JSON.stringify(selectors) &&
-      JSON.stringify(executables[platform]) === JSON.stringify([executable])
-    );
-  });
-}
-
 /** Prefer a shared layout only when it reproduces the exact authored integration. */
 export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const { integration } = record;
   if (record.psx_managed_windows_v1 !== undefined || integration?.adapter !== "psx-recomp-managed")
     return record;
-  const inputFiles = technicallyComputersRoute(record, true) !== undefined;
-  if (inputFiles || technicallyComputersRoute(record, false)) {
+  const inputFiles = technicallyComputersMismatch(record, true) === undefined;
+  if (inputFiles || technicallyComputersMismatch(record, false) === undefined) {
     const { persistent_paths: _paths, ...explicit } = integration;
     if (!inputFiles) delete explicit.runtime_subdirectory;
     const proposal: AuthoredPort = {
@@ -321,7 +259,6 @@ export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     true,
     "bundled-openbios",
     "split-mods",
-    "split-mods-diagnostics",
     "split-mods-no-crash-log",
     "split-mods-openbios",
     "split-mods-overlay-directory",
@@ -346,13 +283,11 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const bundledOpenBios = layout === "bundled-openbios" || layout === "split-mods-openbios";
   const overlayDirectoryOnly = layout === "split-mods-overlay-directory";
   const withoutCrashLog = layout === "split-mods-no-crash-log";
-  const diagnostics = layout === "split-mods-diagnostics";
   const splitMods =
     layout === "split-mods" ||
     layout === "split-mods-openbios" ||
     overlayDirectoryOnly ||
-    withoutCrashLog ||
-    diagnostics;
+    withoutCrashLog;
   const integration = record.integration;
   const executableHints = isRecord(integration?.executable_hints)
     ? integration.executable_hints
@@ -363,48 +298,67 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const linuxAssets = isRecord(assetHints) ? assetHints["linux-x86-64"] : undefined;
   const windowsAssets = isRecord(assetHints) ? assetHints["windows-x86-64"] : undefined;
   const biosProfile = integration?.bios_source_profile;
-  if (diagnostics && !reviewedDiagnosticsRoute(record))
-    throw new PsxLayoutMismatch(
-      "PSX split-mods diagnostics requires the exact reviewed MediEvil or Mortal Kombat 4 kit route.",
-    );
-  if (
-    (layout !== true && !bundledOpenBios && !splitMods) ||
-    !integration ||
-    integration.adapter !== "psx-recomp-managed" ||
-    !Array.isArray(integration.platforms) ||
-    integration.platforms[0] !== "windows-x86-64" ||
-    (!diagnostics &&
-      integration.platforms.length !== 1 &&
-      (integration.platforms.length !== 2 || integration.platforms[1] !== "linux-x86-64")) ||
-    !isRecord(integration.release) ||
-    (!diagnostics && integration.release.provider !== "github") ||
-    Object.keys(integration.release).some(
-      (key) => !["provider", "repository", "asset_hints"].includes(key),
-    ) ||
-    typeof integration.source_profile !== "string" ||
-    !integration.source_profile ||
-    (bundledOpenBios
-      ? Object.hasOwn(integration, "bios_source_profile")
-      : !retailBiosProfiles.has(biosProfile)) ||
-    !Array.isArray(executable) ||
-    executable.length !== 1 ||
-    typeof executable[0] !== "string" ||
-    !/^[^/\\:]+\.exe$/iu.test(executable[0]) ||
-    (integration.platforms.length === 2 &&
+  const missing = ((): string | undefined => {
+    if (layout !== true && !bundledOpenBios && !splitMods)
+      return `a known layout, not ${JSON.stringify(layout)}`;
+    if (!integration || integration.adapter !== "psx-recomp-managed")
+      return "the psx-recomp-managed adapter";
+    if (
+      !Array.isArray(integration.platforms) ||
+      integration.platforms[0] !== "windows-x86-64" ||
+      (integration.platforms.length !== 1 &&
+        (integration.platforms.length !== 2 || integration.platforms[1] !== "linux-x86-64"))
+    )
+      return "platforms windows-x86-64, optionally followed by linux-x86-64";
+    if (
+      !isRecord(integration.release) ||
+      integration.release.provider !== "github" ||
+      Object.keys(integration.release).some(
+        (key) => !["provider", "repository", "asset_hints"].includes(key),
+      )
+    )
+      return "a GitHub release with only provider, repository and asset_hints";
+    if (typeof integration.source_profile !== "string" || !integration.source_profile)
+      return "an explicit source_profile";
+    if (bundledOpenBios ? Object.hasOwn(integration, "bios_source_profile") : false)
+      return "no bios_source_profile";
+    if (!bundledOpenBios && !retailBiosProfiles.has(biosProfile))
+      return "a retail bios_source_profile";
+    if (
+      !Array.isArray(executable) ||
+      executable.length !== 1 ||
+      typeof executable[0] !== "string" ||
+      !/^[^/\\:]+\.exe$/iu.test(executable[0])
+    )
+      return "one windows-x86-64 .exe executable_hint";
+    if (
+      integration.platforms.length === 2 &&
       (!Array.isArray(linuxExecutable) ||
         linuxExecutable.length !== 1 ||
-        linuxExecutable[0] !== executable[0].slice(0, -4) ||
-        !isAssetSelector(linuxAssets))) ||
-    record.settings_qualification_v1 !== undefined ||
-    record.settings_observation_v1 !== undefined
+        linuxExecutable[0] !== executable[0].slice(0, -4))
+    )
+      return "a linux-x86-64 executable_hint with the Windows player's basename";
+    if (integration.platforms.length === 2 && !isAssetSelector(linuxAssets))
+      return "a linux-x86-64 asset_hint";
+    if (
+      record.settings_qualification_v1 !== undefined ||
+      record.settings_observation_v1 !== undefined
+    )
+      return "no settings qualification";
+    return undefined;
+  })();
+  if (
+    missing !== undefined ||
+    !integration ||
+    !Array.isArray(integration.platforms) ||
+    !isRecord(integration.release)
   )
     throw new PsxLayoutMismatch(
-      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and either retail SCPH-1001 BIOS, an explicit retail SCPH-5552 or SCPH-5500 BIOS, or explicit bundled OpenBIOS without a retail profile. A Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
+      `PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and either retail SCPH-1001 BIOS, an explicit retail SCPH-5552 or SCPH-5500 BIOS, or explicit bundled OpenBIOS without a retail profile. A Linux x64 sibling requires the same generated player basename and an explicit asset selector. Missing: ${missing ?? "a structural precondition"}.`,
     );
 
   if (
     splitMods &&
-    !diagnostics &&
     (integration.platforms.length !== 2 ||
       !isRecord(assetHints) ||
       Object.keys(assetHints).length !== 2 ||
@@ -421,19 +375,18 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
       "PSX split-mods authoring requires exact Windows and Linux x64 kit selectors and generated players.",
     );
 
-  if (withoutCrashLog) {
-    const idPrefix = "alexbeav-";
-    const repository = `alexbeavs-ps1-ports/${record.listing.id.slice(idPrefix.length)}`;
-    if (
-      !record.listing.id.startsWith(idPrefix) ||
-      integration.release.repository !== repository ||
-      record.listing.project_url !== `https://github.com/${repository}` ||
-      biosProfile !== "psx-scph-1001-bios"
-    )
-      throw new PsxLayoutMismatch(
-        "PSX split-mods without a crash log requires the reviewed Alexbeav project and retail SCPH-1001 BIOS.",
-      );
-  }
+  if (
+    withoutCrashLog &&
+    (typeof integration.release.repository !== "string" ||
+      record.listing.project_url !== `https://github.com/${integration.release.repository}`)
+  )
+    throw new PsxLayoutMismatch(
+      "PSX split-mods without a crash log requires a release repository that is the listing project_url.",
+    );
+  if (withoutCrashLog && biosProfile !== "psx-scph-1001-bios")
+    throw new PsxLayoutMismatch(
+      "PSX split-mods without a crash log requires the retail SCPH-1001 BIOS.",
+    );
 
   const hasMultidiscContract = multidiscFields.some((field) => Object.hasOwn(integration, field));
   if (
@@ -473,7 +426,6 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
       path === "mods" ? splitModPaths : [path],
     );
   }
-  if (diagnostics) projectedLayout.persistent_paths.push("diagnostics-location.txt");
   if (withoutCrashLog)
     projectedLayout.runtime_mutable_paths = projectedLayout.runtime_mutable_paths.filter(
       (path) => path !== "psx_crash.txt",
@@ -487,22 +439,16 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
         ({ prefix, suffix }) => prefix !== "overlay_captures.json." || suffix !== ".tmp",
       );
   }
-  // The accepted Mortal Kombat definition puts BIOS before the player hints.
-  const retainBiosOrder = diagnostics && record.listing.id === "mortal-kombat-4-recompiled";
   return {
     ...record,
     integration: {
-      ...(retainBiosOrder
-        ? Object.fromEntries(
-            Object.entries(integration).filter(([field]) => field !== "presentation"),
-          )
-        : operation),
+      ...operation,
       ...projectedLayout,
       ...(bundledOpenBios
         ? { launch_arguments: ["--no-launcher", "--bios", "bios/openbios.bin"] }
         : {}),
       ...(presentation === undefined ? {} : { presentation }),
-      ...(bios_source_profile === undefined || retainBiosOrder ? {} : { bios_source_profile }),
+      ...(bios_source_profile === undefined ? {} : { bios_source_profile }),
       ...(hasMultidiscContract
         ? { runtime_source_filename, launch_disc_choice, runtime_source_materialization }
         : {}),

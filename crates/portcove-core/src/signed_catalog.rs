@@ -248,6 +248,11 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
     let baseline = Catalog::embedded()?;
     for port in &mut payload.catalog.ports {
         let original = baseline.port(&port.id)?;
+        if port.release.provider == crate::ReleaseSource::ReviewedForge {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver reviewed alternate forge selectors",
+            ));
+        }
         if port.release.reviewed_package_choices_v2.is_some() {
             return Err(PortcoveError::verification(
                 "legacy signed catalogs cannot deliver reviewed package choices",
@@ -294,6 +299,7 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
         }
         port.mod_provider_bindings
             .clone_from(&original.mod_provider_bindings);
+        crate::mod_source::retain_from_baseline(port, original)?;
 
         if port.windows_shipwright_persistence {
             return Err(PortcoveError::verification(
@@ -501,7 +507,7 @@ pub(crate) fn provenance(
     let (fallback_codes, fallback_reasons) = fallbacks.into_iter().unzip();
     Ok(CatalogProvenance {
         origin,
-        catalog_sha256: digest(&serde_json::to_vec(&catalog.authoritative_document())?),
+        catalog_sha256: catalog.document_digest()?.sha256.clone(),
         sequence: verified.map(|value| value.payload.sequence),
         key_id: verified.map(|value| value.envelope.key_id.clone()),
         expires_at: verified.map(|value| value.payload.expires_at),

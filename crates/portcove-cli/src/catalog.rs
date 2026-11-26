@@ -16,6 +16,10 @@ pub(crate) use render::{
     definition_capabilities, proposal_inspection, publication_inspection, upstream_observation,
 };
 
+pub(crate) const DEFINITION_PUBLICATION_INSPECTION_COMMAND: &str =
+    "catalog.inspect-definition-publication";
+pub(crate) const DEFINITION_PUBLICATION_INSPECTION_RESPONSE_SCHEMA: u32 = 100;
+
 #[derive(Debug, Args)]
 #[group(required = true, multiple = false)]
 pub(crate) struct CatalogSourceArgs {
@@ -139,6 +143,27 @@ pub(crate) enum CatalogCommand {
         #[arg(long)]
         classify_linux_programs_by_format: bool,
     },
+    /// List the native player candidates a verified listing release archive holds.
+    /// Read-only; nothing is executed and no catalog route is required.
+    InspectListingArtifact {
+        /// Local ZIP, TAR.GZ, or Linux x86-64 TAR.XZ release archive.
+        archive: PathBuf,
+        /// Archive reader rules (windows-x86-64, linux-x86-64, macos-x86-64, or macos-aarch64).
+        #[arg(long)]
+        platform: String,
+        /// Expected archive size in bytes from the publisher's release metadata.
+        #[arg(long)]
+        size: u64,
+        /// Expected 64-digit archive SHA-256 from the publisher's release metadata.
+        #[arg(long)]
+        sha256: String,
+    },
+    /// Classify listing release tags and asset names with Core's prerelease and
+    /// filename rules. Read-only; a filename never authorizes a runtime.
+    ClassifyListingNames {
+        /// JSON file with `releases` ({tag, provider_prerelease}) and `assets` (names).
+        input: PathBuf,
+    },
     /// Derive a verified local archive's package shape and its shadow drift verdict.
     #[command(visible_alias = "inspect-package-drift")]
     InspectPackageShape {
@@ -156,6 +181,9 @@ pub(crate) enum CatalogCommand {
         /// Expected 64-digit archive SHA-256 from the publisher's release metadata.
         #[arg(long)]
         sha256: String,
+        /// Exact provider observation JSON for a reviewed predecessor. Inspection only.
+        #[arg(long)]
+        predecessor_observation: Option<String>,
     },
     /// Probe inert settings samples through Core's document editor without library writes.
     InspectSettingsQualification {
@@ -298,9 +326,11 @@ impl CatalogCommand {
             Self::InspectDefinitionDelivery => "catalog.inspect-definition-delivery",
             Self::InspectPackageLayout { .. } => "catalog.inspect-package-layout",
             Self::InspectPackageShape { .. } => "catalog.inspect-package-shape",
+            Self::InspectListingArtifact { .. } => "catalog.inspect-listing-artifact",
+            Self::ClassifyListingNames { .. } => "catalog.classify-listing-names",
             Self::InspectSettingsQualification { .. } => "catalog.inspect-settings-qualification",
             Self::InspectListings { .. } => "catalog.inspect-listings",
-            Self::InspectDefinitionPublication { .. } => "catalog.inspect-definition-publication",
+            Self::InspectDefinitionPublication { .. } => DEFINITION_PUBLICATION_INSPECTION_COMMAND,
             Self::InspectObservation { .. } => "catalog.inspect-observation",
             Self::Status => "catalog.status",
             Self::DefinitionAuthority { .. } => "catalog.definition-authority",
@@ -528,6 +558,12 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectPackageShape { .. } => {
             unreachable!("package shape inspection executes before opening a library")
+        }
+        CatalogCommand::InspectListingArtifact { .. } => {
+            unreachable!("listing artifact inspection executes before opening a library")
+        }
+        CatalogCommand::ClassifyListingNames { .. } => {
+            unreachable!("listing name classification executes before opening a library")
         }
         CatalogCommand::InspectSettingsQualification { .. } => {
             unreachable!("settings qualification executes before opening a library")

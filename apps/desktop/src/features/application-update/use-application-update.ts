@@ -10,12 +10,20 @@ import { startManagedSubscription } from "../../shared/subscription-lifecycle";
 
 export type ApplicationUpdateAction = "check" | "save" | "install";
 
+type ApplicationUpdateAttempt =
+  | { action: "check" | "save" }
+  | { action: "install"; version: string; generation: number };
+
+type ApplicationUpdateFailure = (ApplicationUpdateAttempt | { action: "read" }) & {
+  error: unknown;
+};
+
 export interface ApplicationUpdateModel {
   status: ApplicationUpdateStatus | undefined;
   preferences: ApplicationUpdatePreferences | undefined;
   busy: ApplicationUpdateAction | undefined;
   progress: ApplicationUpdateProgress | undefined;
-  failure: unknown;
+  failure: ApplicationUpdateFailure | undefined;
   /** The available version the global notice still announces. */
   noticeVersion: string | undefined;
   check: () => Promise<void>;
@@ -34,7 +42,7 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
   const [preferences, setPreferences] = useState<ApplicationUpdatePreferences>();
   const [busy, setBusy] = useState<ApplicationUpdateAction>();
   const [progress, setProgress] = useState<ApplicationUpdateProgress>();
-  const [failure, setFailure] = useState<unknown>();
+  const [failure, setFailure] = useState<ApplicationUpdateFailure>();
   const [dismissedVersion, setDismissedVersion] = useState<string>();
 
   useEffect(() => {
@@ -53,7 +61,7 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
       if (disposed) return;
       if (nextStatus.status === "fulfilled") setStatus(nextStatus.value);
       if (nextPreferences.status === "fulfilled") setPreferences(nextPreferences.value);
-      else setFailure(nextPreferences.reason);
+      else setFailure({ action: "read", error: nextPreferences.reason });
     })();
     return () => {
       disposed = true;
@@ -61,13 +69,13 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
     };
   }, []);
 
-  const run = useCallback(async (action: ApplicationUpdateAction, task: () => Promise<void>) => {
-    setBusy(action);
+  const run = useCallback(async (attempt: ApplicationUpdateAttempt, task: () => Promise<void>) => {
+    setBusy(attempt.action);
     setFailure(undefined);
     try {
       await task();
     } catch (error) {
-      setFailure(error);
+      setFailure({ ...attempt, error });
     } finally {
       setBusy(undefined);
       setProgress(undefined);
@@ -76,7 +84,7 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
 
   const check = useCallback(
     () =>
-      run("check", async () => {
+      run({ action: "check" }, async () => {
         setStatus(await desktopApi.checkApplicationUpdate());
       }),
     [run],
@@ -84,7 +92,7 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
 
   const savePreferences = useCallback(
     (next: ApplicationUpdatePreferences) =>
-      run("save", async () => {
+      run({ action: "save" }, async () => {
         setPreferences(await desktopApi.setApplicationUpdatePreferences(next));
       }),
     [run],
@@ -92,12 +100,13 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
 
   const availableVersion = status?.available?.version;
   const install = useCallback(
-    (generation: number) =>
-      run("install", async () => {
-        if (!availableVersion) return;
+    (generation: number) => {
+      if (!availableVersion) return Promise.resolve();
+      return run({ action: "install", version: availableVersion, generation }, async () => {
         // On success the host restarts or hands over to the installer.
         await desktopApi.installApplicationUpdate(availableVersion, generation, setProgress);
-      }),
+      });
+    },
     [availableVersion, run],
   );
 

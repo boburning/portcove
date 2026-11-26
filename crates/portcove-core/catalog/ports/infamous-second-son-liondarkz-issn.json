@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "infamous-second-son-liondarkz-issn",
+    "project_url": "https://github.com/Liondarkz/issn_pc",
+    "name": "inFAMOUS Second Son / Liondarkz issn_pc",
+    "summary": "Port nativo de inFAMOUS Second Son para PC (Windows, Vulkan), com FSR 4, DLSS, mouse 1:1 e suporte a controle. Não inclui arquivos do jogo: use seu próprio dump. / Native PC port of inFAMOUS Second Son (Windows, Vulkan). No game files included.",
+    "issue_number": 6725,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "infamous-second-son",
+      "evidence_urls": ["https://github.com/Liondarkz/issn_pc"],
+      "source_editions": []
+    },
+    "original_game_title": "inFAMOUS Second Son"
+  }
+}

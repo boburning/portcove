@@ -137,7 +137,12 @@ it("keeps the selected mod setup and settings draft through version and save tas
       },
     ],
   };
-  const readSettings = vi.spyOn(desktopApi, "gameSettings").mockResolvedValue(settings);
+  const readSettings = vi.spyOn(desktopApi, "gameSettingsChangeSetView").mockResolvedValue({
+    settings,
+    setup: null,
+    setup_name: null,
+    installed_version: active.version,
+  });
   const readSetups = vi.spyOn(desktopApi, "modSetups").mockResolvedValue({
     port_id: portId,
     supported: true,
@@ -168,21 +173,30 @@ it("keeps the selected mod setup and settings draft through version and save tas
     },
     protection: protection(active, staged),
   });
-  const review = vi.spyOn(desktopApi, "reviewGameSetting").mockResolvedValue({
+  const review = vi.spyOn(desktopApi, "reviewGameSettingsChangeSet").mockResolvedValue({
+    library_id: "library",
     port_id: portId,
     install_id: active.id,
     file_id: "preferences",
-    setting_id: "master-volume",
-    label: "Master volume",
     path: "settings.json",
-    change: { action: "set", value: 84 },
-    previous_value: 70,
-    proposed_value: 84,
+    setup: null,
+    edits: [
+      {
+        edit: { setting_id: "master-volume", change: { action: "set", value: 84 } },
+        label: "Master volume",
+        previous_value: 70,
+        proposed_value: 84,
+      },
+    ],
     configuration_sha256: "e".repeat(64),
     review_sha256: "f".repeat(64),
   });
-  const apply = vi.spyOn(desktopApi, "applyGameSetting");
+  const savedSettings = structuredClone(settings);
+  savedSettings.files[0]!.settings[0]!.value = 84;
+  savedSettings.files[0]!.configuration_sha256 = "a".repeat(64);
+  const apply = vi.spyOn(desktopApi, "applyGameSettingsChangeSet").mockResolvedValue(savedSettings);
   const useSetup = vi.spyOn(desktopApi, "useModSetup");
+  const applyMods = vi.spyOn(desktopApi, "applyModSetupDraft");
 
   transport = installInteractiveTransport("details", (message) => {
     throw Error(message);
@@ -216,6 +230,9 @@ it("keeps the selected mod setup and settings draft through version and save tas
     exact: true,
   });
   await expect.element(activeSetup.getByText("textures.o2r", { exact: true })).toBeVisible();
+  const toggleMod = activeSetup.getByRole("checkbox", { name: "textures.o2r", exact: true });
+  await toggleMod.click();
+  await expect.element(toggleMod).not.toBeChecked();
   await modsPanel.getByText("Setups", { exact: true }).click();
   await expect.element(modsPanel.getByText("In use", { exact: true })).toBeVisible();
   await modsPanel.getByText("Setups", { exact: true }).click();
@@ -246,31 +263,55 @@ it("keeps the selected mod setup and settings draft through version and save tas
     .element(coverage.getByText("External profiles and mods are outside this backup."))
     .toBeVisible();
 
+  const reviewChanges = page.getByText("Review 2 changes", { exact: true });
+  await reviewChanges.click();
+  const reviewSettings = page.getByRole("button", { name: /^Game settings · 1 change/ });
+  await expect
+    .element(page.getByRole("button", { name: "Mods · 1 change", exact: true }))
+    .toBeVisible();
+  const reviewMods = page.getByRole("button", { name: "Mods · 1 change", exact: true });
+  await reviewMods.click();
+  const modHeading = modsPanel.getByRole("heading", { name: "Review changes", exact: true });
+  await expect.element(modHeading).toHaveFocus();
   await configuration.click();
   await expect.element(configuration).toHaveFocus();
   await expect.element(volume).toHaveValue(84);
-  await configPanel.getByRole("button", { name: "Review change", exact: true }).click();
+  await reviewChanges.click();
+  await reviewMods.click();
+  await expect.element(modHeading).toHaveFocus();
+  await reviewChanges.click();
+  await reviewSettings.click();
   await expect
-    .element(page.getByRole("heading", { name: "Review game setting", exact: true }))
+    .element(page.getByRole("heading", { name: "Review game settings", exact: true }))
     .toHaveFocus();
   expect(review).toHaveBeenCalledExactlyOnceWith(
     portId,
     "preferences",
-    "master-volume",
-    { action: "set", value: 84 },
+    [{ setting_id: "master-volume", change: { action: "set", value: 84 } }],
     generation,
   );
-  const settingReview = page.getByRole("dialog", { name: "Review game setting", exact: true });
+  const settingReview = page.getByRole("dialog", { name: "Review game settings", exact: true });
   await expect
-    .element(settingReview.getByRole("button", { name: "Save setting", exact: true }))
+    .element(settingReview.getByRole("button", { name: "Save changes", exact: true }))
     .toBeEnabled();
   await userEvent.keyboard("{Escape}");
   await expect
-    .element(configPanel.getByRole("heading", { level: 3, name: "Game settings", exact: true }))
+    .element(configPanel.getByRole("button", { name: "Review changes", exact: true }))
     .toHaveFocus();
   await expect.element(volume).toHaveValue(84);
   expect(apply).not.toHaveBeenCalled();
+  await reviewChanges.click();
+  await reviewSettings.click();
+  await settingReview.getByRole("button", { name: "Save changes", exact: true }).click();
+  expect(apply).toHaveBeenCalledTimes(1);
+  expect(applyMods).not.toHaveBeenCalled();
   expect(useSetup).not.toHaveBeenCalled();
+
+  await page.getByText("Review 1 change", { exact: true }).click();
+  await expect.element(reviewSettings).not.toBeInTheDocument();
+  await reviewMods.click();
+  await expect.element(modHeading).toHaveFocus();
+  expect(applyMods).not.toHaveBeenCalled();
   await page.getByRole("button", { name: "Back to Library", exact: true }).click();
   await expect.element(openGame).toHaveFocus();
 }, 30_000);

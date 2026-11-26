@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tekrantgaming-trials-revolution-trials-hd-xbla",
+    "project_url": "https://github.com/TekRantGaming/Trials-ReVolution-Collection",
+    "name": "Trials HD (Xbox 360 XBLA) / TekRantGaming ReVolution Collection",
+    "summary": "Trials HD, Trials Evolution and Trials Fusion on PC, recompiled from the Xbox 360 games, with their DLC, in one launcher",
+    "issue_number": 6779,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "trials-hd",
+      "evidence_urls": ["https://github.com/TekRantGaming/Trials-ReVolution-Collection"],
+      "source_editions": [
+        {
+          "id": "trials-hd-xbox-360",
+          "title": "Trials HD (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/TekRantGaming/Trials-ReVolution-Collection"]
+        }
+      ]
+    },
+    "original_game_title": "Trials HD"
+  }
+}

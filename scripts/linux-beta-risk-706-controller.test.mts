@@ -428,7 +428,7 @@ void test("risk asset readback follows only complete same-release pages through 
         const url =
           typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
         dispatched.push(url);
-        const page = dispatched.length;
+        const page = Number(new URL(url).searchParams.get("page") ?? "1");
         return Response.json([{ id: page, name: `asset-${page}` }], {
           headers: page === 1 ? { link: `<${origin}${next}>; rel="next"` } : {},
         });
@@ -444,7 +444,8 @@ void test("risk asset readback follows only complete same-release pages through 
         { id: 1, name: "asset-1" },
         { id: 2, name: "asset-2" },
       ]);
-      assert.deepEqual(dispatched, expected);
+      // The earlier page is re-read once after the walk and must be unchanged.
+      assert.deepEqual(dispatched, [...expected, expected[0]]);
     } else {
       await assert.rejects(read, /pagination changed scope/u);
       assert.deepEqual(dispatched, expected.slice(0, 1));

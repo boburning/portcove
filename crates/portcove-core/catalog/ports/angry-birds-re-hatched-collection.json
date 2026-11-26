@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "angry-birds-re-hatched-collection",
+    "project_url": "https://github.com/TekRantGaming/angry-birds-re-hatched-collection",
+    "name": "Angry Birds Re-Hatched Collection / TekRantGaming",
+    "summary": "Native PC ports of Angry Birds Classic, Seasons, Rio and Star Wars (Xbox 360) via static recompilation, in one launcher",
+    "issue_number": 6574,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One project bundles several Angry Birds games.",
+    "evidence_urls": ["https://github.com/TekRantGaming/angry-birds-re-hatched-collection"]
+  }
+}

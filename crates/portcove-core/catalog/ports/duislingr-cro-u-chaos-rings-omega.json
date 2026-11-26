@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "duislingr-cro-u-chaos-rings-omega",
+    "project_url": "https://github.com/DuIslingr/CRO-U",
+    "name": "Chaos Rings Omega / CRO-U (DuIslingr)",
+    "summary": "CRO-U - a from-scratch reimplementation of Chaos Rings Omega (iPad HD 1.0.0, PS Vita), begun from CR1:U. Bring your own copy; no game data included.",
+    "issue_number": 3794,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "chaos-rings-omega",
+      "evidence_urls": ["https://github.com/DuIslingr/CRO-U"],
+      "source_editions": []
+    },
+    "original_game_title": "Chaos Rings Omega"
+  }
+}

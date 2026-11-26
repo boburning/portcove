@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-hang-on-elfda-recomp",
+    "project_url": "https://github.com/ElFDA/SuperHangOn-MD-Recomp",
+    "name": "Super Hang-On / ElFDA",
+    "summary": "Static recompilation of Super Hang-On for Windows and Linux. Requires your own copy of the original game.",
+    "issue_number": 5557,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-hang-on",
+      "evidence_urls": ["https://github.com/ElFDA/SuperHangOn-MD-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Super Hang-On"
+  }
+}

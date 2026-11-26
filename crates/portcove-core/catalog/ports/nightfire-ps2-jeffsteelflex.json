@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nightfire-ps2-jeffsteelflex",
+    "project_url": "https://github.com/Jeffsteelflex/nightfire-port",
+    "name": "007 Nightfire PS2 / Jeffsteelflex native port",
+    "summary": "Native PC port of 007: Nightfire (PS2), rebuilt from the game's own executables. No game data included: bring your own copy.",
+    "issue_number": 5650,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "007-nightfire",
+      "evidence_urls": ["https://github.com/Jeffsteelflex/nightfire-port"],
+      "source_editions": [
+        {
+          "id": "007-nightfire-playstation-2",
+          "title": "007: NightFire (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/Jeffsteelflex/nightfire-port"]
+        }
+      ]
+    },
+    "original_game_title": "007: NightFire"
+  }
+}

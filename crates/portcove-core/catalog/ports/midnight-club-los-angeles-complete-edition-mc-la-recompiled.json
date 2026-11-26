@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "midnight-club-los-angeles-complete-edition-mc-la-recompiled",
+    "project_url": "https://github.com/robertoaraujo77/MC_LA_Recompiled",
+    "name": "Midnight Club: Los Angeles - Complete Edition / Midnight Club: Los Angeles Recompiled (PT-BR) (robertoaraujo77)",
+    "summary": "Installer that builds a native PC version of Midnight Club: Los Angeles - Complete Edition from your own copy of the game.",
+    "issue_number": 7220,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "midnight-club-los-angeles-complete-edition",
+      "evidence_urls": ["https://github.com/robertoaraujo77/MC_LA_Recompiled"],
+      "source_editions": []
+    },
+    "original_game_title": "Midnight Club: Los Angeles - Complete Edition"
+  }
+}

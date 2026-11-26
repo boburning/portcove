@@ -1,13 +1,18 @@
 //! The destination-owned journal is also its gate against opening an incomplete import.
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 
-use crate::{LibraryImportPlan, PortcoveError, Result, transfer_journal::TransferPhase};
+use crate::{
+    LibraryImportPlan, LibraryRecoveryBundle, PortcoveError, Result,
+    transfer_journal::TransferPhase,
+};
 
 const JOURNAL: &str = ".portcove-import.json";
-const MAX_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -16,9 +21,168 @@ pub(crate) struct ImportJournal {
     pub transfer_id: String,
     pub plan: LibraryImportPlan,
     pub phase: TransferPhase,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bundle: Option<BundleImportAdmission>,
+}
+
+const BUNDLE_IMPORT_DOMAIN: &str = "portcove:recovery-bundle-import:v1";
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct BundleImportAdmission {
+    bundle_id: String,
+    bundle_path: PathBuf,
+    receipt_sha256: String,
+    proof_sha256: String,
+}
+
+impl BundleImportAdmission {
+    pub fn admit(
+        bundle: &LibraryRecoveryBundle,
+        plan_sha256: &str,
+        transfer_id: &str,
+    ) -> Result<Self> {
+        let mut admission = Self {
+            bundle_id: bundle.bundle_id.clone(),
+            bundle_path: bundle.path.clone(),
+            receipt_sha256: bundle.receipt_sha256.clone(),
+            proof_sha256: String::new(),
+        };
+        admission.proof_sha256 = crate::portability_authority::sign_recovery_bundle(
+            BUNDLE_IMPORT_DOMAIN,
+            &admission.binding(plan_sha256, transfer_id),
+        )?;
+        Ok(admission)
+    }
+
+    fn binding<'a>(
+        &'a self,
+        plan_sha256: &'a str,
+        transfer_id: &'a str,
+    ) -> (&'a str, &'a Path, &'a str, &'a str, &'a str) {
+        (
+            &self.bundle_id,
+            &self.bundle_path,
+            &self.receipt_sha256,
+            plan_sha256,
+            transfer_id,
+        )
+    }
+
+    fn verify(&self, plan_sha256: &str, transfer_id: &str) -> Result<()> {
+        crate::portability_authority::verify_recovery_bundle(
+            BUNDLE_IMPORT_DOMAIN,
+            &self.binding(plan_sha256, transfer_id),
+            &self.proof_sha256,
+        )
+    }
+
+    fn verify_input(&self) -> Result<()> {
+        let current = crate::library_recovery_bundle::verify_bundle(&self.bundle_path)?;
+        if current.path != self.bundle_path
+            || current.bundle_id != self.bundle_id
+            || current.receipt_sha256 != self.receipt_sha256
+        {
+            return Err(PortcoveError::verification(
+                "recovery bundle no longer matches the interrupted restore",
+            ));
+        }
+        Ok(())
+    }
+}
+
+pub(crate) fn recovery_restore_fingerprint(
+    bundle_path: &Path,
+    receipt_sha256: &str,
+    import_plan_sha256: &str,
+) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
+        "portcove-library-recovery-restore-v1",
+        bundle_path,
+        receipt_sha256,
+        import_plan_sha256,
+    ))?)))
 }
 
 impl ImportJournal {
+    /// Rediscover the selected bundle's operation at a known destination without
+    /// acquiring a transfer lease or opening the destination for mutation.
+    pub fn review_bundle_recovery(
+        destination: &Path,
+        selected: &LibraryRecoveryBundle,
+    ) -> Option<PortcoveError> {
+        crate::path::refuse_symlink_ancestors(&std::path::absolute(destination).ok()?).ok()?;
+        let destination = fs::canonicalize(destination).ok()?;
+        let journal = Self::read_recovery(&destination).ok()??;
+        let bundle = journal.bundle.as_ref()?;
+        if journal.plan.destination_root != destination
+            || bundle.bundle_id != selected.bundle_id
+            || bundle.bundle_path != selected.path
+            || bundle.receipt_sha256 != selected.receipt_sha256
+            || [&bundle.bundle_path, &journal.plan.metadata.original_root]
+                .iter()
+                .any(|root| destination.starts_with(root) || root.starts_with(&destination))
+        {
+            return None;
+        }
+        let action = match journal.phase {
+            TransferPhase::Published | TransferPhase::Complete => {
+                let plan = recovery_restore_fingerprint(
+                    &bundle.bundle_path,
+                    &bundle.receipt_sha256,
+                    &journal.plan.plan_sha256,
+                )
+                .ok()?;
+                PortcoveError::conflict(
+                    "This bundle was restored to this folder. Check the recorded restore result.",
+                )
+                .detail("recovery_action", "read_published_recovery_restore")
+                .detail("import_destination", destination.display().to_string())
+                .detail("transfer_id", &journal.transfer_id)
+                .detail("recovery_restore_plan_sha256", plan)
+            }
+            TransferPhase::Copying | TransferPhase::Verified => journal.error(
+                PortcoveError::conflict("An interrupted restore is waiting in this folder."),
+            ),
+            TransferPhase::Aborted => return None,
+        };
+        Some(
+            action
+                .detail("recovery_bundle_id", &bundle.bundle_id)
+                .detail("recovery_bundle_receipt_sha256", &bundle.receipt_sha256)
+                .detail(
+                    "recovery_bundle_path",
+                    bundle.bundle_path.display().to_string(),
+                ),
+        )
+    }
+
+    pub fn require_published_bundle_review(&self, expected_plan: &str) -> Result<()> {
+        let bundle = self.bundle.as_ref().ok_or_else(|| {
+            PortcoveError::conflict("this destination belongs to a manual library import")
+        })?;
+        let reviewed = recovery_restore_fingerprint(
+            &bundle.bundle_path,
+            &bundle.receipt_sha256,
+            &self.plan.plan_sha256,
+        )?;
+        if reviewed != expected_plan {
+            return Err(PortcoveError::conflict(
+                "the destination belongs to a different restore review",
+            ));
+        }
+        match self.phase {
+            TransferPhase::Published | TransferPhase::Complete => Ok(()),
+            TransferPhase::Copying | TransferPhase::Verified => Err(self.error(
+                PortcoveError::conflict("the reviewed restore has not finished"),
+            )),
+            TransferPhase::Aborted => {
+                Err(PortcoveError::conflict("the reviewed restore was stopped"))
+            }
+        }
+    }
+
     pub fn read(root: &Path) -> Result<Option<Self>> {
         Self::read_path(root, &root.join(JOURNAL))
     }
@@ -36,22 +200,21 @@ impl ImportJournal {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => return Err(error.into()),
         };
-        if !metadata.is_file()
-            || metadata.file_type().is_symlink()
-            || metadata.len() > MAX_BYTES as u64
-        {
+        if !metadata.is_file() || metadata.file_type().is_symlink() {
             return Err(PortcoveError::verification(
-                "import journal is not a bounded regular file",
+                "import journal is not a regular file",
             ));
         }
-        let journal: Self =
-            serde_json::from_slice(&crate::path::read_bounded_regular(path, MAX_BYTES as u64)?)?;
+        // The journal carries the reviewed plan: metadata plus the content
+        // inventory. Its size follows the library being imported, so it has no
+        // whole-document ceiling; validation below checks it against the root.
+        let journal: Self = crate::path::read_regular_json(path, "import journal")?;
         journal.validate(root)?;
         Ok(Some(journal))
     }
 
     fn validate(&self, root: &Path) -> Result<()> {
-        if self.schema_version != 1
+        if self.schema_version != u32::from(self.bundle.is_some()) + 1
             || uuid::Uuid::parse_str(&self.transfer_id).is_err()
             || fs::canonicalize(root)? != self.plan.destination_root
             || self
@@ -68,11 +231,14 @@ impl ImportJournal {
                 "import journal identity or location is invalid",
             ));
         }
+        if let Some(bundle) = &self.bundle {
+            bundle.verify(&self.plan.plan_sha256, &self.transfer_id)?;
+        }
         if matches!(
             self.phase,
             TransferPhase::Published | TransferPhase::Complete
         ) {
-            verify_publication_record(root, &self.transfer_id, &self.plan.plan_sha256)?;
+            verify_publication_record(root, &self.transfer_id, self.publication_binding())?;
         }
         let contract_root = if matches!(
             self.phase,
@@ -118,12 +284,42 @@ impl ImportJournal {
         Ok(())
     }
 
-    pub fn write(&self, replace: bool) -> Result<()> {
-        if serde_json::to_vec_pretty(self)?.len() > MAX_BYTES - 4096 {
-            return Err(PortcoveError::unsupported(
-                "import inventory exceeds the recoverable journal limit",
+    pub fn publication_binding(&self) -> &str {
+        self.bundle
+            .as_ref()
+            .map_or(&self.plan.plan_sha256, |bundle| &bundle.proof_sha256)
+    }
+
+    pub fn verify_bundle_input(&self) -> Result<()> {
+        if let Some(bundle) = &self.bundle {
+            bundle.verify_input()?;
+        }
+        Ok(())
+    }
+
+    pub fn require_recovery_kind(
+        &self,
+        bundle: bool,
+        expected_transfer_id: Option<&str>,
+    ) -> Result<()> {
+        if expected_transfer_id.is_some_and(|expected| expected != self.transfer_id) {
+            return Err(PortcoveError::conflict(
+                "the interrupted restore changed; review the current recovery",
             ));
         }
+        if self.bundle.is_some() != bundle {
+            return Err(if bundle {
+                PortcoveError::conflict("this destination belongs to a manual library import")
+            } else {
+                self.error(PortcoveError::conflict(
+                    "this destination belongs to a recovery bundle restore",
+                ))
+            });
+        }
+        Ok(())
+    }
+
+    pub fn write(&self, replace: bool) -> Result<()> {
         crate::durability::write_json_atomically(
             &self.plan.destination_root.join(JOURNAL),
             self,
@@ -156,14 +352,28 @@ impl ImportJournal {
         crate::durability::sync_publication(root)
     }
 
+    /// This journal exists at the destination, so the restore can resume from it.
+    /// An aborted import is only reported; this call left it unchanged.
     pub fn error(&self, error: PortcoveError) -> PortcoveError {
         error
+            .with_mutation_state(if self.phase == TransferPhase::Aborted {
+                crate::MutationState::NoChanges
+            } else {
+                crate::MutationState::RecoveryRequired
+            })
             .detail("transfer_id", &self.transfer_id)
             .detail(
                 "import_destination",
                 self.plan.destination_root.display().to_string(),
             )
-            .detail("recovery_action", "resume_library_import")
+            .detail(
+                "recovery_action",
+                if self.bundle.is_some() {
+                    "resume_library_recovery_restore"
+                } else {
+                    "resume_library_import"
+                },
+            )
     }
 }
 
@@ -266,7 +476,8 @@ pub(crate) fn ensure_empty_destination(root: &Path) -> Result<()> {
         if !allowed {
             return Err(PortcoveError::conflict(
                 "import requires a new or empty library; existing data was retained",
-            ));
+            )
+            .detail("import_destination_state", "occupied"));
         }
     }
     let path = root.join("portcove.sqlite3");
@@ -276,9 +487,10 @@ pub(crate) fn ensure_empty_destination(root: &Path) -> Result<()> {
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
         )?;
         if !metadata_tables_empty(&connection)? {
-            return Err(PortcoveError::conflict(
-                "import cannot merge with an existing library",
-            ));
+            return Err(
+                PortcoveError::conflict("import cannot merge with an existing library")
+                    .detail("import_destination_state", "occupied"),
+            );
         }
     }
     Ok(())

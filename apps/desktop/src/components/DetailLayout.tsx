@@ -17,6 +17,7 @@ import {
   type PortIdentity,
 } from "../port-identity";
 import { GameHero } from "./GameHero";
+import type { HeroMediaContext } from "../hero-media";
 import { CatalogMediaGallery } from "./CatalogMedia";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../features/identity/identity-style";
@@ -78,12 +79,18 @@ function platformIdentities(
 }
 
 /** Presentation only: all eligibility and stateful workflow owners stay with the caller. */
+const artworkTarget = {
+  targetId: "detail-artwork",
+  control: "[data-artwork-editor-trigger]",
+};
+
 export function DetailLayout({
   backLabel,
   favoriteControl,
   managementSupplement,
   supplementSection,
   port,
+  mediaContext,
   platforms = port.platforms ?? [],
   upstreamPlatforms = [],
   projectUrl,
@@ -109,6 +116,7 @@ export function DetailLayout({
   /** Where the supplement opens; defaults to the management section. */
   supplementSection?: DetailSection | undefined;
   port: Identity;
+  mediaContext?: HeroMediaContext | undefined;
   /** Targets of the setup or retained installation shown in this detail. */
   platforms?: readonly PortDefinition["platforms"][number][];
   upstreamPlatforms?: readonly PortDefinition["platforms"][number][];
@@ -157,8 +165,9 @@ export function DetailLayout({
     const newOpening = focusedOpening.current !== identity;
     if (!request && !newOpening) return;
     if (!opening && !request) return;
+    const destination = request ?? (opening?.destination === "artwork" ? artworkTarget : undefined);
     const targetId =
-      request?.targetId ??
+      destination?.targetId ??
       (request || opening?.destination ? `detail-section-${selected}` : "port-detail-title");
     const element = root.current;
     const frame = requestAnimationFrame(() => {
@@ -174,9 +183,9 @@ export function DetailLayout({
       focusAndReveal(target);
       focusedOpening.current = identity;
       const controlScope = target.matches("h2, h3, span") ? target.parentElement : target;
-      const destination = request?.control;
-      const activate = typeof destination === "string";
-      const selector = activate ? destination : destination?.focus;
+      const action = destination?.control;
+      const activate = typeof action === "string";
+      const selector = activate ? action : action?.focus;
       const control = selector ? controlScope?.querySelector<HTMLElement>(selector) : undefined;
       if (
         control?.isConnected &&
@@ -235,7 +244,13 @@ export function DetailLayout({
       >
         <Icon glyph={ArrowLeft} className="rtl:-scale-x-100" /> {backLabel ?? "Back"}
       </Button>
-      <GameHero port={port} variant="detail" className="detail-hero" compact={!overview}>
+      <GameHero
+        port={port}
+        variant="detail"
+        className="detail-hero"
+        compact={!overview}
+        mediaContext={mediaContext}
+      >
         <div className="detail-identity min-w-0 [overflow-wrap:anywhere]">
           <h1 id="port-detail-title" tabIndex={-1} className="detail-title m-0">
             {gameTitle(port)}
@@ -341,7 +356,7 @@ export function DetailLayout({
                     <Menu.Item
                       className={`${controlFocus} cursor-default rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection`}
                       onClick={() =>
-                        reveal(managementSection, "detail-artwork", ".artwork-controls > summary")
+                        reveal(managementSection, artworkTarget.targetId, artworkTarget.control)
                       }
                     >
                       {t("actions.artwork")}
@@ -426,6 +441,7 @@ export function DetailLayout({
                   {panels.overview}
                   <CatalogMediaGallery
                     port={port}
+                    context={mediaContext}
                     fallbackFocus={() =>
                       root.current?.querySelector<HTMLElement>("[data-detail-back]")
                     }

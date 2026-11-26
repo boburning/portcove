@@ -367,6 +367,30 @@ export function proposeApplicationVersion(value: unknown, publishedVersions: unk
   };
 }
 
+/** The published versions that determine a proposal, derived from complete
+ * published history: the classification base, which complete history proves
+ * is the highest published precedence, and the highest published final
+ * version of the base's major line when one exists. `proposeApplicationVersion`
+ * returns the identical proposal from this basis as from the complete history,
+ * so durable records and transports carry a basis of at most two versions
+ * instead of lifetime history. Deriving it still requires the complete
+ * history: an incomplete inventory cannot prove that nothing newer exists. */
+export function publishedAllocationBasis(value: unknown, publishedVersions: unknown) {
+  const { classification, base } = reviewedClassification(value);
+  publishedHistory(classification, publishedVersions);
+  const finals = publishedVersions
+    .filter(
+      (version) =>
+        !semverRuntime().prerelease(version) && semverRuntime().major(version) >= base.major,
+    )
+    .toSorted(semverRuntime().compare);
+  const highestFinal = finals.at(-1);
+  const basis = [classification.base_version];
+  if (highestFinal !== undefined && !semverRuntime().eq(highestFinal, classification.base_version))
+    basis.push(highestFinal);
+  return basis.toSorted(semverRuntime().compare);
+}
+
 async function settleDirectCli() {
   if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     const [operation, inputPath] = process.argv.slice(2);

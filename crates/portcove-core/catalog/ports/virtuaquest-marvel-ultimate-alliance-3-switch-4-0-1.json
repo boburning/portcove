@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "virtuaquest-marvel-ultimate-alliance-3-switch-4-0-1",
+    "project_url": "https://github.com/VirtuaQuest/Marvel-Ultimate-Alliance-3-recomp",
+    "name": "Marvel Ultimate Alliance 3: The Black Order (Switch 4.0.1) / VirtuaQuest",
+    "summary": "Installer that builds a native PC version of Marvel Ultimate Alliance 3: The Black Order (Switch 4.0.1) from your own copy of the game.",
+    "issue_number": 5882,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "marvel-ultimate-alliance-3-the-black-order",
+      "evidence_urls": ["https://github.com/VirtuaQuest/Marvel-Ultimate-Alliance-3-recomp"],
+      "source_editions": [
+        {
+          "id": "marvel-ultimate-alliance-3-the-black-order-nintendo-switch",
+          "title": "Marvel Ultimate Alliance 3: The Black Order (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/VirtuaQuest/Marvel-Ultimate-Alliance-3-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Marvel Ultimate Alliance 3: The Black Order"
+  }
+}

@@ -35,6 +35,20 @@ without cancelling or overlapping backend IPC. Recovery stays outside query
 execution. Activity ordering, pending-change handoff and diagnostic revision guards
 remain explicit; query cancellation only stops frontend continuations.
 
+Core keeps routine workspace work proportional to what changed. Each `Catalog`
+document value carries its own lazily built port and listing id index, plus its
+canonical serialization digest. Nothing in Core can change a document without
+first discarding both, so they never outlive the revision they describe. Overlays,
+definition delivery and catalog replacement therefore always use fresh ones. No
+process-wide cache is involved. Lookups keep linear first-match semantics and the
+same unknown-id errors. Provenance, browsing binding and definition fingerprints
+reuse the digest without changing their bytes. The status hydration pass reads
+pending manual setups once inside the workspace transaction. Mutations still
+recheck them. No permission or eligibility decision is cached. The ignored
+`scaling_profile_workspace_acquisition` Core test measures this path on
+deterministic 1×/5×/10× catalog and 0/100/1,000-installation fixtures. These are
+validation scenarios, not product limits.
+
 Mod setup inventory requests share one frontend read lane per port and library
 generation, including across component remounts while native work is outstanding.
 Refreshes arriving during a read coalesce into one subsequent read; each current
@@ -289,8 +303,59 @@ The `catalog_downloads` table retains the listing, selected asset, observed
 digest and continuation identity. An atomic workspace snapshot includes
 listings, action assessments and pending setup. Explicit registration consumes
 only the reviewed pending row, and keeps the existing user-selected execution
-intent, native-file and path checks. Relinking preserves registration identity
-and history. Forgetting pending setup or removing a registration leaves user
+intent, native-file and path checks.
+
+A finished download also records the player's typed setup stage
+(`service/pending_setup_stage.rs`). Only stages the existing flow reaches
+exist: `artifact-obtained` (the download), `upstream-setup-opened` (Desktop
+opened the setup folder or retained setup guide), `final-selected` (the
+player's program choice through `choose_user_selected_runtime`, used by
+`external select-preview` and Desktop's preview command),
+`registration-reviewed` (authorization of the user-selected registration) and
+`invalidated`. Portcove never runs the upstream installer from a pending
+setup, so it observes no upstream exit; completion is the player's checked
+selection followed by reviewed registration.
+
+Publication keeps record format 1 (GitHub) or 2 (GitLab), which earlier
+releases read; `artifact-obtained` is a read-time mapping that is never
+written. Format 3 is written only at the first stage change past it, binding
+the stage to the retained source address, a definition digest, the artifact's
+typed route-fact role and the retained package or publication receipt. The
+definition digest covers the retained signed definition entry and contract
+bytes when one is selected, else an explicit list of setup fields of the
+embedded definition (identity, project address, adapter, platforms, release
+provider, repository, rolling tag, package and executable hints), else their
+absence for a listing-only project; it never hashes Portcove's own
+serialization, so an application update alone keeps it. That list is a
+deliberate subset: it does not see later-added managed, curated or direct
+routes or changes to `user_prepared` or `reviewed_package_choices_v2`, which is
+safe because registration uses the retained listing and stays non-owning. An
+earlier release
+refuses a format 3 row, as it refuses any unknown record format: its startup
+download recovery fails, so it cannot open that library while the row exists.
+Running the newer release again and finishing or forgetting that setup removes
+the row. Only a player who opened, chose or reviewed a setup carries one.
+
+Each stage change replaces the exact row in one SQLite transaction, under the
+port lock, so an interruption leaves the earlier or the later stage. Opening
+the folder or guide only records the handoff; a failure to record it is logged
+and never fails the open. Choosing and reviewing recheck the bound catalog
+facts and the retained file's presence and size. Registration also verifies
+the retained package digest, bounded by its recorded size and cancellable.
+A changed source, definition, held restriction, artifact role or retained
+bytes invalidates the stage with a typed reason and Core's player message.
+Only a missing or non-file package, a size or digest mismatch, or a missing or
+different receipt counts as changed bytes. Any other read failure, such as
+another program holding the file, is a retryable error with Core's player
+message that records nothing, as cancellation does.
+A newer upstream release never invalidates: Core compares release identity
+and publication time as the download candidate does, and reports a newer
+version as a notice while registration proceeds. Capability reports and
+`setup pending` recheck the catalog facts on read without writing, so a stage
+a catalog change invalidated never reads as continuable. Stages grant no
+update, removal or runtime ownership of the upstream output.
+
+Relinking preserves registration identity and history. Forgetting pending setup or removing a registration leaves user
 files in place. Neither operation grants updates, save migration, backup,
 rollback or external deletion.
 
@@ -770,6 +835,37 @@ does not load definitions or confer admission or execution permission. The
 specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
+
+Local Logo is an independent choice in library schema 75. It uses the same
+bounded static image ingest, content store, revision checks and read-only
+thumbnail path as the existing Cover, Detail and Landscape choices. Library
+metadata records a Logo selection or reset revision under schema 14.
+
+Library schema 77 records explicit role suppression alongside the choice
+revision. Hiding is independent of the selection: a hidden slot keeps its
+selected asset and framing stored but never displays or reads them, and
+unhiding restores exactly that selection (or automatic artwork when none was
+selected). Choosing a new image shows the role; reset clears both. Core keeps a
+neutral fallback available and withholds the retained selection and automatic
+Cover, companion and collection images. Framing cannot change while hidden.
+Metadata schema 16 preserves the hidden state and its retained selection across
+export and restore. The destination handoff remains schema 4 and reports no
+local original for a hidden role.
+
+Core stores versioned wide and narrow focal points with the selected Detail
+asset and its choice revision in library schema 76. Each coordinate is measured
+in ten-thousandths of the orientation-corrected image. Replacing the asset or
+returning to automatic artwork clears its framing. Exports that include framing
+require library metadata schema 15 and restore it against the same admitted
+choice. The destination handoff carries the original asset and its choice
+revision and omits these presentation points.
+
+A local or SteamGridDB artwork preview uses a bounded, orientation-corrected
+derivative and identifies the original by SHA-256. SteamGridDB preview resolves
+the exact provider collection for Cover, Detail, Landscape or Logo. Applying a
+reviewed selection reads the original again and verifies the reviewed digest and
+the expected role revision. Detail can include framing in the same commit.
+Preview creates no library choice or stored asset.
 
 Core validates bounded constituent-game `collection_covers` and resolves each requested
 member from the current or retained listing, with the expected digest and local Cover
@@ -1506,6 +1602,11 @@ visible alongside new events during the next bounded batch. Fresh scans, stale
 snapshots and restart-required checkpoints do not carry matches into the live
 view. These observations still require ordinary registration and Core plan
 revalidation; continuing a scan grants no additional setup authority.
+The same workspace retains the last completed one-off search for its exact
+folder and file profile. Reviewing it opens the completed report without
+another search. The Inbox and saved folders have separate results. Reopened
+matches require a fresh Core import plan for the same identity before any
+registration. Changing libraries discards the retained one-off report.
 Desktop also keeps an ephemeral selection of up to 512 independent ports (the
 Core batch bound) for setup review within the current library workspace.
 "Select all eligible" adds every currently reviewable port except ports that
@@ -2162,7 +2263,14 @@ every six hours while the preference is on. A found update is announced through
 the existing `application-update-notice` event and never installed without the
 player's explicit Download and restart request. That request downloads the
 announced package and lets the plugin verify its signature before any bytes are
-returned. Package-managed `.deb` and `.rpm` installations refuse checks and
+returned. The update check has a 60-second deadline; the package download has
+none. It is abandoned only when no bytes arrive for 60 seconds or the connection
+falls below Core's progress floor, so a slow link that keeps delivering finishes.
+Because the plugin holds the package in memory until it verifies the signature,
+the download also stops as soon as it exceeds its declared `Content-Length` or
+the 512 MiB package ceiling (`MAX_PACKAGE_BYTES`, a memory budget).
+The plugin holds the package in memory and offers no range continuation, so an
+abandoned download starts again on the next request. Package-managed `.deb` and `.rpm` installations refuse checks and
 installs and point the player to their package manager. The idle preflight runs
 before the download. After verification, `application_update_admission` takes
 the library-selection mutex, blocks new backend workers (game launches included)
@@ -2652,7 +2760,7 @@ existing crate dependency rules remain unchanged.
 
 Before launch, catalog-declared persistent paths are synchronized from `user/<port-id>/` into the active version. They are collected from that exact launched version when the child exits and before update, staged activation, rollback, removal, or backup. Synchronization refuses symlink destinations and ancestors. A per-version marker prevents a fresh release's defaults from replacing established user data while still recovering changes after an abnormal exit. Adapters may also use an upstream storage contract: Libultraship receives `SHIP_HOME`, N64 recomp releases get their upstream-supported `portable.txt` marker, and a reviewed catalog entry can declare a portable marker beside its executable together with a narrowly validated source-import variable and fixed arguments. Mutable paths are resolved against the same working directory the adapter launches, including when a release archive contains a wrapper directory.
 
-Catalog `persistent_file_patterns` extends the same core-owned persistence boundary to named save files. Rules are literal nonempty filename prefixes/suffixes in one working directory, with no recursive traversal or general glob syntax. Embedded persistent patterns can explicitly match an empty interior. Indexed definitions and disposable runtime patterns keep the existing nonempty interior contract. A scan admits at most 4,096 directory entries and 1,024 matching regular files; links, directories, special entries and unsafe filenames fail closed. Collection and restore consider both source and destination names so deleted/restored-away profiles cannot reappear. Manifest schema 5 stores the rules with their resolved directory, preserves immutable executable/bootstrap/runtime checks, records the qualified target platform and each immutable file's executable intent, and rejects changed rules or permissions during import. Schema 2-4 manifests remain readable without silently acquiring executable metadata they never recorded. Signed catalog delivery keeps persistence rules frozen like literal persistence paths. This adds no adapter authority or crate dependency; the existing architecture metadata rules remain unchanged.
+Catalog `persistent_file_patterns` extends the same core-owned persistence boundary to named save files. Rules are literal nonempty filename prefixes/suffixes in one working directory, with no recursive traversal or general glob syntax. Embedded persistent patterns can explicitly match an empty interior. Indexed definitions and disposable runtime patterns keep the existing nonempty interior contract. A scan streams the directory and admits at most 1,048,576 entries and 65,536 matching regular files (bounds raised on November 22, 2026 from 4,096 and 1,024); beyond either bound the operation refuses instead of protecting a subset, and links, directories, special entries and unsafe filenames fail closed. Collection and restore consider both source and destination names so deleted/restored-away profiles cannot reappear. Manifest schema 5 stores the rules with their resolved directory, preserves immutable executable/bootstrap/runtime checks, records the qualified target platform and each immutable file's executable intent, and rejects changed rules or permissions during import. Schema 2-4 manifests remain readable without silently acquiring executable metadata they never recorded. Signed catalog delivery keeps persistence rules frozen like literal persistence paths. This adds no adapter authority or crate dependency; the existing architecture metadata rules remain unchanged.
 
 Catalog `runtime_mutable_file_patterns` reuses that anchored filename syntax for narrowly reviewed, disposable files created inside the managed runtime working directory. Core projects both pattern classes into the existing manifest `mutable_file_patterns`, with their separately resolved directories, so immutable verification has one fail-closed matching boundary. Only `persistent_file_patterns` participates in enumeration, backup, restore and migration; runtime-only matches never become player-data ownership. Catalog validation refuses unsupported adapters, overlapping declarations, executables, source materialization, Portcove metadata, exact runtime paths and persistent data, while manifest construction and import repeat the resolved executable/runtime checks. An absent field preserves prior catalog serialization and existing manifest schemas require no new authority. External per-user paths remain outside this contract.
 
@@ -2667,6 +2775,20 @@ Core also owns the read-only output-destination preview, capacity/ownership asse
 `HostPreferenceStore` provides bounded format-1 host preference storage and selection provenance without moving a library. CLI and desktop use its platform configuration path outside movable library data and credentials, with an optional absolute preference-file override for portable/test hosts. Selection precedence is an explicit invocation path, saved path, then the platform default. Invalid selected configuration fails visibly; an explicit invocation path or reset remains available when preferences are corrupt or from a future format.
 
 Preference writers serialize through a process lock keyed by the exact preference path before taking the persistent sibling operating-system lock, then publish a flushed sibling atomically using the shared durability helper. The process lock closes platforms where operating-system file locks do not serialize handles owned by one process; the sibling lock preserves the cross-process boundary. Reads never create files. Setting or clearing a library preserves compatible unknown JSON fields and unrelated host preferences; explicit recovery reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
+
+Desktop compares existing library roots through Core validation. Reselecting
+the active root keeps the workspace generation and preference bytes when the
+canonical choice and startup source already agree. An explicit change to the
+startup choice still persists, even when the current library stays open.
+The Settings review classifies directory evidence without opening or creating
+a library. It discloses the canonical path, recognized database or recovery
+records and the startup effect. Before acting, Desktop recomputes the review
+against the current generation and preference selection. Core compares the
+reviewed preference change again under the host preference lock. Replacing an
+invalid preference document requires an explicit full-reset review. A retained
+move source prompts the player to pick the current folder, while startup keeps
+following the recorded move. Core still opens and validates the chosen library.
+Switching roots requires the outgoing library to be idle.
 
 Favorites use the compatible `favorites_by_library` extension in that same
 format-1 host preference document. `HostPreferenceStore::favorite_ports` and
@@ -2830,7 +2952,7 @@ grant a file mutation through the disclosure.
 An explicit backup and removal (review and execution) copy every unknown file
 and need only the space for the whole backup (owner decision, November 15,
 2026): when there are unknown files, the library volume must keep the larger
-of 1 GiB and 2% of the volume free after the saves and settings plus the
+of 1 GiB and 2% of the volume, capped at 8 GiB (owner decision, November 22, 2026), free after the saves and settings plus the
 stored unknown files, or they hold instead of truncating. A removal with no
 unknown files takes no backup, and an explicit backup of saves alone, checks
 nothing new. The removal review reports the stored unknown bytes as
@@ -2935,9 +3057,78 @@ and host-authenticated receipt without opening a library. The receipt uses a sep
 proof domain from historical installation admissions. A different host cannot use
 that receipt to establish local verification or publisher authority. Restore binds
 the verified receipt and checked import plan to a new or empty destination outside
-both the bundle and its source library. The import journal owns the restore and its
-recovery. The player opens the recovered library through the separate library
+both the bundle and its source library. The import journal retains an authenticated
+bundle admission tied to the exact transfer and restore plan. Resume checks the
+bundle receipt again before publication. After publication, the retained activity
+and destination own completion of bookkeeping. The player opens the recovered library through the separate library
 selection operation.
+
+In Desktop, open **Settings**, then **Library and storage**. Select **Create
+recovery bundle** to review coverage and the destination before copying. After
+a restart, review the same destination from the same library. A matching
+interrupted intent offers **Resume bundle creation**. If a write fails before
+Core can authenticate the journal, the error does not offer a staging resume.
+After authentication, copy failure preserves the journal and copied data for
+another attempt. When the authenticated
+intent matches a publication at that destination, **Verify published bundle**
+reads the exact receipt and checks its contents without replaying the copy.
+Select **Inspect or restore a bundle** to verify a finished copy and review a
+separate restore. If verifying the selected folder fails, Desktop keeps the
+folder available to retry and offers the verification details. An occupied
+restore folder keeps the verified bundle and returns focus to the destination
+field, with a request for a new or empty folder. Core still refuses the occupied
+destination and supplies the technical reason. A fresh review of the same
+bundle and restore folder rediscovers its authenticated transfer. Resume checks an interrupted copy,
+and a completed restore offers a read of its recorded result. After a restore completes, choose the restored folder through library
+selection when you are ready to use it. The Settings page keeps the individual
+library information export and manual copy controls alongside the bundle flow.
+
+Core reports each failure's outcome at the operation that observed it. The
+read-only commands that inspect a bundle, check a published bundle against its
+review, or read a recorded restore result report that no files changed. A
+restore failure before its journal exists reports that the restore did not
+start: nothing was copied, and the destination holds at most an empty folder
+with its lease file, which a new review accepts. Once the restore journal or the
+authenticated creation intent exists, every failure reports recovery required
+and names the resumable folder. This includes a re-check of the bundle inside a
+restore, a cancel and a full drive. When the operating system reports a full
+drive or quota, Core shows a plain explanation and keeps the operating-system
+text in the technical details. An aborted import that is reviewed again reports
+no changes.
+
+Portcove never deletes a retained creation staging directory or its `work`
+folder. After publication, the staging directory and its `work` folder stay in
+the destination's parent until the player removes them. Retained staging may hold
+the only copy of data the player needs, so automatic cleanup needs its own
+review. No safe cleanup for these directories exists yet; it is an open item.
+
+The opt-in Linux storage-exhaustion test uses an empty 80 MiB tmpfs in
+a private mount namespace. It reserves space after Core writes the authenticated
+intent, observes the kernel's write failure, then frees the reservation and
+resumes the same copy. Run it through the normal resource guard from an
+isolated checkout:
+
+```sh
+node scripts/dev-storage.mts run -- node scripts/run-rust-tests.mts --guard-command \
+  unshare --user --map-root-user --mount --propagation private bash -eu -c '
+    test_mount=$(mktemp -d "$PORTCOVE_TEMP_DIR/recovery-enospc.XXXXXXXX")
+    cleanup() {
+      if mountpoint -q "$test_mount"; then
+        umount "$test_mount"
+      fi
+      rmdir "$test_mount"
+    }
+    trap cleanup EXIT
+    mount -t tmpfs -o size=80m,mode=0700,nosuid,nodev,noexec tmpfs "$test_mount"
+    export PORTCOVE_RECOVERY_TEST_MOUNT="$test_mount"
+    cargo test --locked -p portcove-core --lib \
+      a_full_filesystem_leaves_the_exact_recovery_copy_resumable -- --ignored
+  '
+```
+
+The test exercises Core copying against a real Linux capacity limit. It
+uses the Core unit test's deterministic authority and does not qualify the
+production secure store, Windows filesystems or the Desktop presentation.
 
 ## Library imports
 
@@ -2972,7 +3163,14 @@ the opened file's location/object/size/mtime before and after reading, and reche
 retained handles, library identity, catalog and registrations before returning.
 Profiles, individual/aggregate hashing, response size and cooperative elapsed
 work are bounded. The elapsed limit does not interrupt blocked filesystem calls;
-adapters must await the worker before terminal settlement. These dated facts
+adapters must await the worker before terminal settlement. When it runs out, the
+original being read and every later one are reported as `NotChecked` with state
+`source_not_checked_yet`, never as missing, unreadable or unsupported, and the
+originals already checked keep their results. The batch's own final fences
+recheck the retained handles and re-list retained directories (bounded by the
+inventory budgets), so they run to completion past the deadline and stop only
+for cancellation. A caller with its own deadline, such as the game-file query
+refresh, still discards the whole result when that deadline passes. These dated facts
 write no registrations and establish neither continuous freshness nor route,
 platform or selected-release eligibility. Legacy identity remains unknown.
 Public CLI/Desktop transport and complete game-file query predicates remain
@@ -2993,7 +3191,9 @@ before charging directory entries. If more than 64 owned paths
 would need omission issues, the scan fails and preserves the prior snapshot so
 none are silently omitted. If output ownership changes during traversal, the
 scan cannot publish a snapshot; the final registry comparison and snapshot
-write share one database transaction. After a successful scan, core atomically
+write share one database transaction. The foreground command returns its own
+published snapshot. A later read of the saved scan serves the latest snapshot,
+which another invocation may have replaced. After a successful scan, core atomically
 replaces one bounded versioned snapshot containing
 the exact root identities and states, authoritative catalog digest, discovery report,
 limits and completion time. Current format 12 retains the delivered original-file/ZIP, directory/ZIP-file-set, normalized raw GameCube, exact STFS LIVE and pinned-validator preliminary discovery contracts, plus bounded normalized disc observations admitted independently through the existing schema-2 disc matcher. CISO streams the standard GameCube logical extent without materializing a full ISO. Windows decoder inspection copies one bounded original atom into private local staging, preflights fixed container headers/maps/metadata before decoder buffering, applies an OS-enforced job memory cap, supervises output growth and time, and requires positive tree closure before consuming output or cleanup. Output polling is not a hard Windows file-write quota. Original bytes are rehashed before publishing the observation. Complete PSX sets require the pre-enumeration directory handle, all ordered members, checked aggregate sizes and hashes, and final original-byte verification. No scan registers or prepares a source. On Linux, decoder inspection uses a private user/PID namespace with an atomic init pidfd and a bounded private startup gate. Positive terminal waitid(P_PIDFD) joins namespace teardown before consuming output or cleanup, including detached and nested descendants. Per-process address-space and per-file write limits are hard bounds; output-tree polling supplies the separate aggregate/depth/entry bound. Ordinary Unix process groups cannot prove escaped-descendant closure, and other Unix platforms report tool-based normalized discovery as uninspected. Unsupported Linux namespace capabilities fail explicitly without a weaker fallback. Unknown closure retains private inspection paths and aborts publication. Selected converted-disc inspection and registration on Windows/Linux reuse the same immutable observer and closure custody. Explicit selection has no scan batch/hash allowance, while individual originals and decoded discs have a 2 GiB boundary and selected PSX directories have a 16,384-entry bound. One ordered inventory, its held directory object, and final member-byte checks precede admission; storage identity is never computed from a newly enumerated set after decoding. Preliminary NotRun selections remain separate from exact matches and do not establish compatibility. Earlier formats retain their original readable evidence and become stale until rescanned; unknown historical limits are not invented.
@@ -3070,11 +3270,17 @@ default to a host that reads no store.
 The result is a read-only suggestion: it adds no saved root, registration, setup
 intent or second scanner, and store titles never identify a source. Search and
 admission stay with the existing discovery and inspector. Source import refuses
-Move for an original inside a detected store game folder or a Steam library's
+Move for an original inside a recorded store game folder or a Steam library's
 `steamapps` folder, for a folder that contains one, and for any path through a
-folder named `steamapps`, so Portcove does not remove a recognized store's
-files; Copy and Use current location are unchanged. Recognition depends on
-readable store metadata otherwise, and the CLI guide documents that limit. CLI `source roots stores` and the Tauri
+folder named `steamapps`, so Portcove does not remove a store's files; Copy and
+Use current location are unchanged. That decision does not use the bounded
+suggestion list. Core's ownership check streams every install record of each
+store the host can read (Steam libraries and app manifests, GOG registry
+entries, Epic manifests) with no count bound and keeps only the first match.
+A record whose location does not exist is a definite absence. An unreadable,
+oversized, malformed or relative record, or an unreadable registry entry or
+manifest folder, makes ownership `not_checked`, which blocks Move with a typed
+refusal rather than allowing it. CLI `source roots stores` and the Tauri
 `get_store_game_installs` command expose the same Core result, and Desktop **Find
 required files** loads it only when the player asks and uses a chosen folder as
 the ordinary search folder.
@@ -3137,9 +3343,11 @@ derivation version and a provenance (`reviewed` for an exactly listed artifact,
 `inherited` when every compared part equals a reviewed or inherited baseline's,
 which says nothing about content outside those parts, else `unreviewed`). The
 field is additive, does not change the manifest schema version and grants
-nothing. Core stores it as untyped JSON and parses it only when it is read: a
-record with another derivation version, or with a part, status or reason this
-build does not know, reads as no record and never makes the manifest, its
+nothing. Installs record components only and write derivation version 1 (the
+component rules version), so earlier builds keep reading them; this build reads
+versions 1 and 2. Core stores it as untyped JSON and parses it only when it is
+read: a record with a derivation version outside that range, or with a part,
+status or reason this build does not know, reads as no record and never makes the manifest, its
 verification, launch checks or rollback fail. Manifest rewrites, such as an
 archive-data admission, carry the stored value unchanged. An active
 installation's recorded shape is eligible as a local fallback baseline when the
@@ -3290,44 +3498,165 @@ Adoption uses the same publication state machine and never copies into a final v
 
 Staged activation and rollback collect user data from the version being deactivated only when its per-version launch marker proves it has actually run, then change active/previous pointers transactionally. The same guard applies before install, update, removal, and retained-version reuse, so a verified but never-launched release cannot propagate absent files as user-requested deletions. Adoption copies files into a new managed version and leaves the source directory untouched.
 
+Backup restore review binds the library save folder, registered installations and
+their roles, and the materialized setup and revision. Core incorporates that
+binding into the authorization fingerprint along with the reviewed backup and
+saved data. Desktop compares the binding across an explicit history refresh
+before offering fresh consent for the same snapshot.
+
 Backup restore publishes its verified canonical snapshot, then synchronizes the declared persistent paths in every registered version before completing the journal. This also removes files absent from the restored snapshot and clears stale launch markers. Active, previous, staged, and retained versions therefore cannot overwrite a restore at the next launch, rollback, activation, or save collection. This costs a bounded pass over each existing managed version; missing versions remain repair items, and unsafe paths fail without following links. Interrupted synchronization is idempotently retried from the published canonical data. Launch and save collection reject an unfinished prepared or published restore, including when the same service instance remains alive after failure. The automatic safety backup preserves the pre-restore canonical data.
 
 Restore consumes its one-use, action/target-bound authorization under the port lock before expensive save collection and fingerprint recomputation. Expiry is an admission deadline; an admitted operation can finish hashing a large tree. The current backup/data fingerprint must still match the reviewed state before any restore publication. Expired or mismatched tokens never begin that work, and changed state consumes the grant and requires a new review.
 
 When an update resolves to an artifact already present in the managed library, Portcove compares the verified digest, asset name, and size rather than the display tag. A republished stable, beta, rolling, or direct-manifest tag therefore remains visibly the same version while becoming a distinct update and content-addressed install. Before active/staged/retained reuse, activation, rollback, recovery, or launch, Portcove validates the manifest identity and rehashes the selected executable plus immutable libraries and bootstrap configuration beside it. The same targeted check enumerates the executable directory and rejects new unmanifested libraries, launchers, scripts, reviewed loader-read configuration names, or symlinks before a child can be created. Catalog-declared mutable paths and exact generated metadata remain explicit exclusions; explicit full verification checks every other immutable file and rejects unexpected immutable additions. Managed operations and launch of full-integrity portable runtimes hold only on hazards and report other additions as [unknown player-side files](#unknown-player-side-files); new loader-read configuration beside the executable stays launch-sensitive.
 
-The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. Within one artifact transfer, Core retries after a dropped response body (a reset or early close, or a partial body that ends cleanly short of its known length), never after a read-idle stall, an error status or a first request that fails before any body. At most five retries run with cancellable back-off from half a second to eight seconds; a reconnect that fails with a transport error other than a timeout consumes one of them. When retries run out, the error is the original body interruption with the retry count and last retry error as details, so that exhaustion path classifies for preserved-location failover exactly as it did before retries existed. A reconnect that instead fails fatally (a read-idle stall, or a status such as 404 or 410) returns that error with its own classification, so an unavailable answer on a reconnect can now trigger preserved-location failover. A status that means the server refused the range itself (400, 403, 405, 412 or 501 in answer to a `Range` request) instead discards the received bytes and retries from the start without a range. A retry continues with `Range` only when bytes were received, the first response carried a strong `ETag` (sent as `If-Range`) and the caller supplied an expected SHA-256; a non-empty expected digest is the caller's promise to verify the complete file against it (the catalog download uses the record digest or the known catalog artifact digest). Core appends only a `206` that echoes the same `ETag` and whose `Content-Range` and `Content-Length` continue from the received offset to the end of the same complete length and declared size. A `200` answer, a `416`, a missing or changed validator, an unusable range or a missing expected digest discards the received bytes, truncates the file, reports zero progress and downloads from the start, so different representations are never spliced. The caller's full-file size and SHA-256 verification remains the acceptance for every resumed file. Partial bytes otherwise live only in the operation's private download location (install lifecycle staging, the catalog `.portcove-download-*` temporary directory or the PSX toolchain operation root) and are discarded with it. A release asset downloaded for installation or update may also continue in a later run (#6222). PSX preparation uses the same bounded transfer mechanism for its exact pinned toolchain archive in downloads/psx-toolchain-partial-v1. A library-scoped acquisition lock excludes concurrent toolchain preparation through transfer and publication, and ordinary release downloads do not sweep its partial store. The staging root can be recreated on retry. The complete archive still passes pinned size and SHA-256 verification before extraction and the existing shared cache publication checks. An eligible transfer with an expected SHA-256 writes straight into its entry under `downloads/partial-v1` while holding an exclusive lock on it, and records the asset URL, declared size, expected digest, strong `ETag` and complete length as soon as the first whole response arrives, so bytes received before a failure, a cancellation, a crash or Portcove closing remain. A later transfer of the same exact asset that can take the lock continues from them under the same `Range`/`If-Range` rules, so any mismatch starts over; a refused range request also starts over without one. A verification failure, a weak or missing validator or a drain failure discards the entry; an entry another transfer holds is not used. Release and bundled-runtime archives can also resume into a verified install staging directory outside the library. The external output root retains its independent ownership, volume and capacity checks. On success the store moves the bytes to private staging, or copies them through the locked file across volumes, and removes the entry. Each use of the store removes expired (seven days), leftover and unpaired files and keeps at most four entries and 16 GiB, reserving the full declared size of each active transfer. When the store bounds or the volume's available space cannot accommodate another transfer after idle entries are evicted, it downloads in private staging without durable resume. An entry is otherwise only removed by its next use, by a later download or by deleting the library's `downloads` folder. The store never publishes, registers or activates anything, and the caller still verifies the complete file. Catalog and definition downloads keep in-transfer resume only. Durable job and queue state beyond that remains #248. GitHub and GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads the same maximum, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, returns results in the caller's order, records each activity independently, and never retries a rate-limited item implicitly; CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers and observes running launches, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
+The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no whole-transfer deadline, so a progressing large transfer on a slow link remains possible and cancellable. A shared progress floor (`transfer_progress`: at least 16 KiB in every 60-second window, about 273 bytes per second) cuts a connection that trickles bytes often enough to defeat the read-idle bound but too slowly to finish; together the two bound a worker's hold time by the file's size, never by a fixed duration. A floor cut ends the transfer like a read-idle stall and keeps eligible received bytes for a later run. Mod-provider downloads (`provider_http`) use the same floor in place of their former size-derived wall-clock allowance; they keep their declared-size and hard-cap checks and, because no digest is known before the download, restart rather than resume. After a 429, a server error or GitHub's throttling 403, `provider_http` pauses that provider's requests in memory for its stated `Retry-After` (read by the one shared parser, in any HTTP form) or 60 seconds, at most 15 minutes. Refusals during the pause record the status that started it, so a server error is never reported as a rate limit, and the failure keeps the provider's full stated wait for the durable unattended retry schedule (at most one day). A provider listing cut off mid-body is a temporary interruption; a complete body that is not the expected document stays lasting. Within one artifact transfer, Core retries after a dropped response body (a reset or early close, or a partial body that ends cleanly short of its known length), never after a read-idle stall, an error status or a first request that fails before any body. At most five retries run with cancellable back-off from half a second to eight seconds; a reconnect that fails with a transport error other than a timeout consumes one of them. When retries run out, the error is the original body interruption with the retry count and last retry error as details, so that exhaustion path classifies for preserved-location failover exactly as it did before retries existed. A reconnect that instead fails fatally (a read-idle stall, or a status such as 404 or 410) returns that error with its own classification, so an unavailable answer on a reconnect can now trigger preserved-location failover. A status that means the server refused the range itself (400, 403, 405, 412 or 501 in answer to a `Range` request) instead discards the received bytes and retries from the start without a range. A retry continues with `Range` only when bytes were received, the first response carried a strong `ETag` (sent as `If-Range`) and the caller supplied an expected SHA-256; a non-empty expected digest is the caller's promise to verify the complete file against it (the catalog download uses the record digest or the known catalog artifact digest). Core appends only a `206` that echoes the same `ETag` and whose `Content-Range` and `Content-Length` continue from the received offset to the end of the same complete length and declared size. A `200` answer, a `416`, a missing or changed validator, an unusable range or a missing expected digest discards the received bytes, truncates the file, reports zero progress and downloads from the start, so different representations are never spliced. The caller's full-file size and SHA-256 verification remains the acceptance for every resumed file. Partial bytes otherwise live only in the operation's private download location (install lifecycle staging, the catalog `.portcove-download-*` temporary directory or the PSX toolchain operation root) and are discarded with it. A release asset downloaded for installation or update may also continue in a later run (#6222). PSX preparation uses the same bounded transfer mechanism for its exact pinned toolchain archive in downloads/psx-toolchain-partial-v1. A library-scoped acquisition lock excludes concurrent toolchain preparation through transfer and publication, and ordinary release downloads do not sweep its partial store. The staging root can be recreated on retry. The complete archive still passes pinned size and SHA-256 verification before extraction and the existing shared cache publication checks. An eligible transfer with an expected SHA-256 writes straight into its entry under `downloads/partial-v1` while holding an exclusive lock on it, and records the asset URL, declared size, expected digest, strong `ETag` and complete length as soon as the first whole response arrives, so bytes received before a failure, a cancellation, a crash or Portcove closing remain. A later transfer of the same exact asset that can take the lock continues from them under the same `Range`/`If-Range` rules, so any mismatch starts over; a refused range request also starts over without one. A verification failure, a weak or missing validator or a drain failure discards the entry; an entry another transfer holds is not used. Release and bundled-runtime archives can also resume into a verified install staging directory outside the library. The external output root retains its independent ownership, volume and capacity checks. On success the store moves the bytes to private staging, or copies them through the locked file across volumes, and removes the entry. Each use of the store removes expired (seven days), leftover and unpaired files and keeps at most four entries and 16 GiB, reserving the full declared size of each active transfer. The byte budget bounds what idle entries keep: a single asset larger than it may still keep its own bytes once idle entries have made room and no other transfer is active, so a large game is not refused durable resume for its size. A later download of another asset can still evict that idle entry when the budget requires, as with any idle entry. When the store bounds or the volume's available space cannot accommodate another transfer after idle entries are evicted, it downloads in private staging without durable resume. An entry is otherwise only removed by its next use, by a later download or by deleting the library's `downloads` folder. The store never publishes, registers or activates anything, and the caller still verifies the complete file. Catalog and definition downloads keep in-transfer resume only. Durable job and queue state beyond that remains #248. GitHub managed-game release discovery reads 100-item pages newest first only until the channel choice is decided (a Beta stable fallback, curated identity checks, reviewed fallbacks and uploader continuity read further, up to the complete history), within the sixty-second request budget; running out reports an incomplete history, never an absent release. GitLab discovery is described under provider enumeration below. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, starts with the least recently checked games, returns results in the caller's order, records each activity it starts independently, defers the unstarted games of an allowance that reported a rate limit, and never retries a rate-limited item implicitly (see the update-check request cost below); CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers and observes running launches, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
 
-Anonymous update-check request cost (measured November 2026 by
-`release::tests::measure_the_request_cost_of_checking_a_library`, which drives the real
-provider and its persisted ETag cache against a fake API). This covers ports resolved on the
-ordinary path, which sends the player's token when signed in and revalidates with
-`If-None-Match`. One check of one such GitHub-hosted game makes two requests: one `releases`
-page and one repository-metadata call. Per GitHub's documented behavior, a 304 response to
-a conditional request does not count against the primary rate limit, so only 200 responses
-count.
+Provider enumeration reads every list to the provider's end; no page count, package count or whole-operation deadline stands in for "no more results". Each request keeps its own connection, idle-read and request bounds, so a list of any length finishes while responses keep arriving. GitLab release choice walks newest-first 100-item pages only until the channel is decided and looks up a rolling tag with the exact release endpoint first (falling back to history for a tag differing in case). The walk saves its next page after every page in the library's conditional-request cache table, keyed by project, channel and rolling tag and valid only for an unchanged first page (body digest) and `X-Total`. A walk stopped by a temporary failure (throttling, a server error, a transport or body interruption) reports a typed incomplete inventory (`KnownFailureCause::InventoryIncomplete`, presented as `inventory_incomplete`: classified temporary, so unattended setup never spends a lasting attempt on it, and never an absent release) and the next check continues from the saved page; a lasting refusal, such as a 403 without a stated wait, stays lasting. A changed first page between checks, or a changed `X-Total` during a walk, restarts the walk so additions or deletions cannot shift a release past it; page 1 is not re-read mid-walk, so without `X-Total` a change during one walk is caught only by the next check's first-page comparison. Every GitLab list also stops as incomplete when it does not advance: a full page after the first that lists no new identity (what a host or proxy ignoring `page` returns) or a page beyond what the latest `X-Total` allows. This never limits an honest list of any length. Saved progress rows (`portcove-continuation:` keys) are not responses: the 64 MiB response budget never evicts them, so a long walk does not depend on cache capacity; only age pruning (seven days without a check) or the 1,024 newest-rows bound removes one, which costs a restart, never a wrong answer. Whether GitLab sends validators and `X-Total` on every list page is UNKNOWN: Core uses them when present, and GitLab documents that `X-Total` is omitted above 10,000 rows, where deletion during a walk is detected only through the first page. GitLab packages are read through the registry's `package_version` filter for the release's tag (with and without a leading `v`), every matching package is checked with four package-file lists in flight, and package-file and release-link lists are read to their end. Those package, package-file and release-link lists keep no continuation: a request failure there is an ordinary temporary network error (or lasting, by its status) and a retry reads that one release's lists again; only the not-advancing guard raises the typed incomplete cause for them. Thunderstore communities are read from the chunked listing index under the shared progress floor (no whole-read deadline); chunks whose location names their SHA-256 are verified against it and kept in `downloads/provider-listing-v1/thunderstore` (least recently used out beyond 512 MiB), so an interrupted read continues with the chunks it has, and the parsed community is kept in memory for its current chunk list and shared, not copied, by each read (at most four communities and 512 MiB of their listing JSON, oldest out, the most recent always kept), so browsing and update checks parse it once. Quaddicted pages request one row beyond the page and report more results only when that row exists.
 
-| Library  | Cold check (no cached ETags) | Warm check after a restart | One repository changed  |
-| -------- | ---------------------------- | -------------------------- | ----------------------- |
-| 10 games | 20 requests, 20 counted      | 20 requests, 0 counted     | 20 requests, 2 counted  |
-| 25 games | 50 requests, 50 counted      | 50 requests, 0 counted     | 50 requests, 2 counted  |
-| 50 games | 100 requests, 100 counted    | 100 requests, 0 counted    | 100 requests, 2 counted |
+Update-check request cost and the running GitHub budget. GitHub's documentation ("Rate
+limits for the REST API",
+<https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api>, and
+"Best practices for using the REST API",
+<https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api>)
+exempts a `304 Not Modified` answer to a conditional request from the primary rate limit
+only when the request was correctly authorized. An anonymous conditional request still
+counts against the anonymous per-address allowance (60 an hour, shared with anything else
+on that address), and anonymous and signed-in requests draw from different allowances.
+`github_request_budget` in Core owns that accounting for the forecast, the running client
+budget and bulk checks:
 
-The test pins the 10- and 25-game rows; the 50-game row was measured once with the same
-harness, and the cost is linear in the number of games. An anonymous client is limited to 60
-counted requests per hour per IP address, shared with anything else on that address (other
-Portcove installations, the free `/rate_limit` probe aside). A cold check therefore uses a
-whole hour for a library of 30 or more such games and can fail partway through, while a warm
-check is free.
+- **Forecast.** `forecast_update_checks` estimates from local state only, under the current
+  sign-in. Anonymous ordinary reads count whether or not a validator is cached; a signed-in
+  read with a cached validator is expected to cost nothing, so a resource that changed
+  upstream costs one more counted request each. Release pages beyond the first count when
+  an earlier check persisted them. `sign_in_relief_requests` is the part signing in would
+  move to the larger allowance: the anonymous ordinary reads, and none once signed in.
+  The ordinary reads of games sharing one repository are counted once (at the costliest of
+  them), because a bulk check shares them; saved or explicit package choices read
+  game-specific tag and asset pages and are counted per game. It is an estimate, not a
+  reservation. The provider desktop and CLI use (`CompositeReleaseProvider`) forwards these
+  forecasts to its GitHub provider; before November 2026 it reported nothing for ordinary
+  and saved-choice GitHub games.
+- **Shared observations.** Within one bulk check, ordinary GitHub metadata for a repository
+  that several of its games name is read once per credential and reused in memory for the
+  rest of that check only. The shared bodies are bounded at 64 MiB in total; past the bound
+  a game reads for itself as it would without sharing.
+- **Running budget.** Each provider (shared by clones, so one per desktop process) keeps,
+  per credential (anonymous, or an in-memory fingerprint of the token), what GitHub last
+  reported in `x-ratelimit-limit`, `-remaining`, `-used`, `-reset` and `-resource` (only
+  `core` applies), plus any `retry-after` wait. A throttling answer (429, or 403 with an
+  exhausted allowance or `retry-after`) blocks that credential until `retry-after`, the
+  reported reset, or a default minute. `retry-after` is read by the one shared parser
+  (`temporary_failure::parse_retry_after`, delay-seconds or any HTTP-date, under its one
+  ceiling) against the answer's `Date`; the process holds requests back in memory for at
+  most one primary window (an hour) and then lets GitHub answer again, while the failure
+  keeps the stated time for presentation and the durable retry schedule. A local refusal
+  (`ProviderAllowanceExhausted`) classifies as a temporary rate limit and never spends an
+  unattended setup attempt. While blocked, or once the allowance
+  is known to be spent, Core refuses further requests of that credential locally with a
+  `provider_rate_limited` failure and sends nothing. Each sent anonymous or unconditional
+  request reserves one request; GitHub's answer then describes the allowance, and a
+  request that never got an answer (a transport failure, deadline or cancellation) returns
+  its reservation. Answers from an older window cannot raise what is left. The budget is memory only; after a
+  restart GitHub's next answer re-establishes it.
+- **Managed scoped acquisition** keeps its trust contract: unconditional, unauthenticated,
+  never reading or writing the conditional cache, and never sharing observations. It draws
+  from (and is gated by) the anonymous allowance, whatever the player's sign-in, so
+  signing in never relieves it.
+
+Request counts per check, from
+`release::tests::simulated_api_counts_library_checks_by_credential_and_shared_upstreams`,
+which drives the real provider, its persisted ETag cache and the bulk check's shared
+observations against a simulated API (November 2026). The simulated API answers `304` when
+the validator matches and applies the documented rule above to its own log; the rows are
+Portcove's request behavior and the counts that rule implies, not a measurement of
+GitHub's own quota accounting. Each ordinary game reads its repository document and one
+`releases` page. "Before" checks every game independently, as bulk checks did until
+November 2026; "after" is one bulk check that shares observations. The test pins the
+formulas on a 20-game library. The 100-, 1,000- and 5,000-game rows are derived from the
+pinned 20-game formulas, not pinned by a test; a one-off run of the same harness at 100 and
+1,000 games agreed with them.
+
+| Library                                           | Credential | Cold: requests / counted | Warm: requests / counted |
+| ------------------------------------------------- | ---------- | ------------------------ | ------------------------ |
+| 100 games, 100 repositories, before (derived)     | anonymous  | 200 / 200                | 200 / 200                |
+| 100 games, 100 repositories, after (derived)      | anonymous  | 200 / 200                | 200 / 200                |
+| 100 games, 100 repositories, either (derived)     | signed in  | 200 / 200                | 200 / 0                  |
+| 100 games, 4 per repository, before (derived)     | anonymous  | 200 / 200                | 200 / 200                |
+| 100 games, 4 per repository, after (derived)      | anonymous  | 50 / 50                  | 50 / 50                  |
+| 100 games, 4 per repository, before (derived)     | signed in  | 200 / 50                 | 200 / 0                  |
+| 100 games, 4 per repository, after (derived)      | signed in  | 50 / 50                  | 50 / 0                   |
+| 1,000 games, 1,000 repositories, either (derived) | anonymous  | 2,000 / 2,000            | 2,000 / 2,000            |
+| 1,000 games, 1,000 repositories, either (derived) | signed in  | 2,000 / 2,000            | 2,000 / 0                |
+| 1,000 games, 4 per repository, before (derived)   | anonymous  | 2,000 / 2,000            | 2,000 / 2,000            |
+| 1,000 games, 4 per repository, after (derived)    | anonymous  | 500 / 500                | 500 / 500                |
+| 1,000 games, 4 per repository, before (derived)   | signed in  | 2,000 / 500              | 2,000 / 0                |
+| 1,000 games, 4 per repository, after (derived)    | signed in  | 500 / 500                | 500 / 0                  |
+| 5,000 games, 4 per repository, after (derived)    | anonymous  | 2,500 / 2,500            | 2,500 / 2,500            |
+| 5,000 games, 4 per repository, after (derived)    | signed in  | 2,500 / 2,500            | 2,500 / 0                |
+
+One repository changing between warm checks adds two counted requests when signed in.
+UNKNOWN: whether exempt authenticated `304` answers count toward GitHub's secondary
+(per-minute or concurrency) limits. The cited pages document only the primary-limit
+exemption; GitHub documentation that states it, or an observed throttling answer during a
+large signed-in warm check, would settle it. Core already honors any secondary-limit
+`retry-after` it receives. Preparing the allowance key for each game before a bulk check
+measured about 0.9 ms per game in a debug build (4.4 seconds for 5,000 games), and reading
+the durable order took under 2 milliseconds. The
+forecast before November 2026 reported an anonymous warm check as 0 counted requests; it
+now reports what the table shows. A 100-game anonymous library therefore needs four hourly
+windows (200 counted requests at 60 an hour) for one complete check, warm or cold. Signed
+in, a cold check fits the much larger signed-in allowance and a warm one is free unless
+resources changed.
+
+Bulk checks retain and resume work fairly. `check_updates` starts with the game whose
+latest durable check or attempt is oldest, never-attempted games first, and returns
+results in the caller's order. A check counts from its successful snapshot
+(`update_snapshots.checked_at`) or from the latest check activity in the retained activity
+history that reached a verdict (it succeeded, or failed for any reason but a provider rate
+limit), so games that always fail cannot take every window. Rate-limited and deferred
+checks, cancellations and interrupted checks reached no verdict and keep their place. Once a check fails with a rate limit, games not yet started whose
+own checks draw from the allowance that failed (the provider, and for GitHub the anonymous
+or signed-in credential the failure records) are not sent: each returns a
+`provider_rate_limited` failure with `update_check_deferred`, keeps its earlier snapshot
+and stays unknown, never "checked" or "up to date". A listing a rate limit cut short (for example a GitLab
+release walk whose page 2 answered 429) is an incomplete inventory that still records the
+rate limit and its provider, so the bulk check defers the remaining games of that allowance
+in the same way and is presented as that rate limit (`provider_rate_limited`), with the
+stopping failure's own facts (spent allowance or throttle, reported or estimated reset,
+whose allowance); an incomplete listing is never a verdict for the fair order. The activity
+feed does not list a `check_update` stopped by a provider rate limit as needing attention
+(it is not checked and resumes after the reset; the desktop and the CLI label it "Not
+checked: request limit"). An incomplete listing that no rate limit caused, such as the
+guard against a list that never ends, still needs attention and reads "Check incomplete"
+in the game's row and in the activity history. Every rate-limited item, deferred or
+answered with a limit, carries a typed `UpdateCheckDeferral` (`resets_at`, and whether the
+provider reported it) through Tauri's `UpdateCheckOutcome` and the CLI's `deferred` field;
+the desktop counts such games as not checked rather than failed and does not fail the batch
+for them. Each deferred game shows a muted "Not checked: request limit" note with its
+**Resets** time, the provider's refusal only inside the technical details, and the
+activity history shows a rate-limited check as not checked rather than failed; the CLI's
+human summary also states the latest Resets time. Attempts come from the retained activity
+history, which keeps the 1,000 most recent finished activities; a pruned attempt falls back
+to the snapshot time or to never attempted. Open constraint: a game whose checks never
+succeed therefore regains front priority about once per 1,000 activities. The durable fix
+is a per-port last-verdict time with a schema migration and an upgrade test, which this
+change does not add. The next bulk check after the reset starts with the deferred games, so a large library completes across allowance windows instead of
+re-checking its first games, and the order survives restart because it is read from the
+library database. Launching an installed game never reads update-check state or waits for
+a check.
 
 What the table does not cover:
 
 - **Managed-definition ports.** A port resolved under an admitted publisher-policy scope
   deliberately sends no credential and no conditional header and does not read or write the
-  ETag cache, so every check of it counts in full (two requests per game, curated ports
-  add a tag-commit lookup), signed in or not. Signing in does not raise its limit.
-- **Long release histories.** The `releases` list is fetched 100 entries at a time, up to
-  ten pages, so a repository with many releases costs one counted request per page when cold.
+  ETag cache, so every check of it counts in full against the anonymous allowance (two
+  requests per game, curated ports add a tag-commit lookup), signed in or not.
+- **Long release histories.** The `releases` list is fetched 100 entries at a time and
+  only as far as the choice needs, so most checks read one page; a check that needs older
+  history (a Beta fallback, a reviewed fallback, uploader continuity) costs one counted
+  request per further page when cold.
 - **Short-lived caches.** A persisted ETag entry lives seven days from its last use and a
   304 refreshes it, so a library checked at least weekly stays warm; a longer gap makes the
   next check cold again. The in-memory release selection is reused for five minutes, but the
@@ -3336,9 +3665,10 @@ What the table does not cover:
 - **Channels.** The `releases` URL does not depend on the channel, so checking a second
   channel of the same repository reuses the cached response.
 
-Cost is therefore dominated by first checks and by cache loss, not by routine rechecks,
-which is why the useful moment to offer GitHub sign-in is before a cold check that would
-not fit, and only for the ports that sign-in actually helps.
+Signed in, cost is therefore dominated by first checks, changed resources and cache loss.
+Anonymous, every check counts in full, which is why the useful moment to offer GitHub
+sign-in is before a check that would not fit, and only for the ports that sign-in actually
+helps.
 
 React retains the latest event for each active operation and its available
 ancestor context, plus at most 32 other recent terminal events. Retained
@@ -3366,6 +3696,55 @@ and restore-pending marker to finish deployment after interruption. Launch holds
 before selecting an executable until the selected setup finishes materializing.
 Runtime rollback still owns the active executable for Default. A customized
 setup can recover an offered exact runtime without changing that pointer.
+
+### Supported setup contract
+
+One contract (Core `setup_capacity`) bounds what a setup may contain at every
+stage: draft review, provider closure staging, recipe export, recipe
+acquisition and import, revision persistence and reload, deployment and
+recovery. A state one stage can create passes every later stage; no stage keeps
+a smaller count of its own.
+
+- A setup holds at most 4,096 distinct packages. A revision is validated
+  (identity, dependency closure, provider requirement proofs, conflicts) and
+  written in one transaction under the port lock; this bounds that operation's
+  work. Drafts, recipes, provider plans and Thunderstore closures and direct
+  requirements use the same number.
+- A stored revision or profile record is parsed whole on every reload, so its
+  serialized form is bounded to 16 MiB when it is written. A recipe document has
+  twice that budget, because it also names each shared setting's exact package.
+  Import review holds a recipe whose setup would not fit one stored revision.
+- Staging is bounded per unit of work: each provider file has its own download
+  and extraction budget and is staged one at a time, admitted against free space
+  on the staging volume with a reserve. The extraction budget is measured after
+  the download, while the archive still holds its bytes. A setup draft admits
+  the package-store copy it will make before anything changes.
+- A provider plan admits the closure before downloading: only provider projects
+  the setup does not already hold count as new packages, so a setup at capacity
+  can still update the mods it has. Revision validation stays the authority.
+- Recipe acquisition stages missing packages in bounded steps. Each staged step
+  is recorded beside its private staging, so reopening the recipe resumes. A
+  provider plan is stored once by digest and packages reference it, in the
+  records, the review and IPC; the review's provider plans have a 64 MiB
+  working-set budget, refused by name. A review in use is refreshed against
+  the daily pruning of abandoned staging; one with recorded steps is kept for
+  30 days. Missing packages are staged dependants first, so a root's plan,
+  which stages its whole closure, is reused for its requirements. Steps
+  are rechecked by identity and size between steps; apply reads every byte and
+  releases a step whose bytes no longer match, so the next review shows it as
+  missing rather than ready.
+- Thunderstore closures resolve completely and iteratively, with cycle and
+  version-conflict detection. A requirement the listing does not offer is an
+  explicit failure naming it.
+- Every revision of every setup is kept and travels in library metadata.
+  Export, import and recovery-bundle review admit that document against the
+  library's memory-derived admission budget and refuse it early, naming its size,
+  the budget and its basis, when it does not fit. This history is not pruned
+  or streamed per revision yet; it is an open constraint (#1422).
+- The automatic mod update check log records one result per installed provider
+  file of every automatic setup, without a count cap. A log that cannot be read
+  whole, or a pass whose results could not be stored, is reported as incomplete
+  (`last_automatic_checks_incomplete`), never as "no checks".
 
 ### Runtime diagnostic writer
 
@@ -3669,6 +4048,15 @@ requires independently expected nonzero sizes and SHA-256 identities. Existing
 provider, definition, runtime-policy and source requirements still apply. Shared
 preference artifact trust is checked during transfer; permission to write that
 scope is reviewed afresh only by the later exclusive preparation/apply operation.
+
+A failure during `acquiring` that Core classifies as temporary (an interrupted,
+stalled or starved connection, a transport failure, a rate limit or a server
+error) releases the exact private reservation in the same process instead of
+entering `attention_required`: nothing was verified or published, and eligible
+received bytes stay in the partial-download store, so a fresh review of the same
+release continues from them without a discard. Cancellation, a lasting failure,
+any later phase and every process interruption keep `attention_required` and its
+explicit discard route.
 
 Private archives live under `downloads/update-acquisition-v1/<activity-UUID>`.
 The journal binds their exact owner, release, platform, definition and ordered
@@ -4374,6 +4762,11 @@ host's secure-storage key; ordinary copying does not mint another host's trust.
 The UI reports metadata export only, never a verified backup or a manual checkbox
 as verification. Existing content-bound import checks publication into a new/empty
 destination; Move separately switches authority and retains its original tree.
+The Desktop metadata export checks the starting library generation after the
+save picker returns. A support report from Settings checks the generation of the
+diagnostics snapshot it collects. Settings retains the last confirmed library information
+export and support report while navigating in the same library generation.
+Opening Settings again uses the saved receipt and does not rerun either export.
 Profile/workspace presentation state cannot change these Core guarantees.
 
 The manual-copy guide must also disclose host-local version credentials before

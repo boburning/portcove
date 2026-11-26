@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lego-racers-2-lr2-native-engine",
+    "project_url": "https://github.com/Spaggel/lr2",
+    "name": "LEGO Racers 2 / LR2 native engine",
+    "summary": "Lego Racers 2 recompiled for Mac, Linux and Windows",
+    "issue_number": 5742,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "lego-racers-2",
+      "evidence_urls": ["https://github.com/Spaggel/lr2"],
+      "source_editions": []
+    },
+    "original_game_title": "LEGO Racers 2"
+  }
+}

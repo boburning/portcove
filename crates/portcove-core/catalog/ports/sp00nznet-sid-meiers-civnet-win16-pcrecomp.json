@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sp00nznet-sid-meiers-civnet-win16-pcrecomp",
+    "project_url": "https://github.com/sp00nznet/civnet-recomp",
+    "name": "Sid Meier's CivNet (1995 Win3.1 PC) / sp00nznet pcrecomp",
+    "summary": "Sid Meier's CivNet (Win16, 1995) statically recompiled to native C with pcrecomp. Bring your own copy.",
+    "issue_number": 5877,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sid-meiers-civnet",
+      "evidence_urls": ["https://github.com/sp00nznet/civnet-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Sid Meier's CivNet"
+  }
+}

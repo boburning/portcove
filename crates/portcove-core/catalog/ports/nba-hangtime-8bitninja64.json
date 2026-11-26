@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nba-hangtime-8bitninja64",
+    "project_url": "https://github.com/8bitninja64/HangtimeRecomp",
+    "name": "NBA Hangtime / 8bitninja64",
+    "summary": "Unofficial native PC port of NBA Hangtime (N64) by static recompilation. Bring your own ROM; no game data included.",
+    "issue_number": 5968,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nba-hangtime",
+      "evidence_urls": ["https://github.com/8bitninja64/HangtimeRecomp"],
+      "source_editions": [
+        {
+          "id": "nba-hangtime-nintendo-64",
+          "title": "NBA Hangtime (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/8bitninja64/HangtimeRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "NBA Hangtime"
+  }
+}

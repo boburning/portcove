@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "guitar-hero-warriors-of-rock-ghwor-recomp",
+    "project_url": "https://github.com/ElGuslml/GHWoRRecomp",
+    "name": "Guitar Hero: Warriors of Rock / GHWoRRecomp (ElGuslml)",
+    "summary": "Guitar Hero: Warriors of Rock (Xbox 360) recompiled to run natively on PC. Xbox 360 guitars, up to 240 FPS, ultrawide, achievements, DLC read from your own folder, and a launcher that installs the game from your own ISO.",
+    "issue_number": 7260,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "guitar-hero-warriors-of-rock",
+      "evidence_urls": ["https://github.com/ElGuslml/GHWoRRecomp"],
+      "source_editions": [
+        {
+          "id": "guitar-hero-warriors-of-rock-xbox-360",
+          "title": "Guitar Hero: Warriors of Rock (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/ElGuslml/GHWoRRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Guitar Hero: Warriors of Rock"
+  }
+}

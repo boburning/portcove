@@ -2,7 +2,8 @@
 //! Native policies, commands, storage, and event emission remain in their owners.
 
 use portcove_core::{
-    LibrarySelection, ReconcileResult, ReleaseChannel, SourceVerification, UpdateCheck,
+    LibrarySelection, LibrarySelectionContents, LibrarySelectionSource, ReconcileResult,
+    ReleaseChannel, SourceVerification, UpdateCheck,
 };
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize};
@@ -17,6 +18,12 @@ pub(crate) const DESKTOP_EVENT_OPERATION: &str = "portcove://operation";
 pub(crate) const DESKTOP_EVENT_PLAY_REQUEST: &str = "portcove://play-request";
 
 pub(crate) type DesktopError = portcove_core::FailureReport;
+
+#[derive(Serialize, JsonSchema)]
+pub(crate) struct DesktopArtworkSelectionPreview {
+    pub(crate) original_sha256: String,
+    pub(crate) png_base64: String,
+}
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct DesktopWorkspaceSnapshot {
@@ -53,6 +60,19 @@ pub(crate) struct BatchOutcome<T> {
     pub(crate) error: Option<DesktopError>,
 }
 
+/// One game's result in a bulk update check. A `deferred` item was not checked:
+/// a provider allowance or throttle stopped it, its update state is unknown, and
+/// the next bulk check after `deferred.resets_at` starts with it.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct UpdateCheckOutcome {
+    pub(crate) port_id: String,
+    pub(crate) ok: bool,
+    pub(crate) result: Option<UpdateCheck>,
+    pub(crate) error: Option<DesktopError>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) deferred: Option<portcove_core::UpdateCheckDeferral>,
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct SourceBatchOutcome {
     pub(crate) profile_id: String,
@@ -68,6 +88,24 @@ pub(crate) struct BootstrapStatus {
     pub(crate) selection: Option<LibrarySelection>,
     pub(crate) generation: u64,
     pub(crate) error: Option<DesktopError>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum LibrarySelectionEffect {
+    Keep,
+    ChangeStartup,
+    Open,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct LibrarySelectionReview {
+    pub(crate) path: PathBuf,
+    pub(crate) source: LibrarySelectionSource,
+    pub(crate) effect: LibrarySelectionEffect,
+    pub(crate) contents: LibrarySelectionContents,
+    pub(crate) resets_preferences: bool,
+    pub(crate) review_sha256: String,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -91,6 +129,18 @@ pub(crate) struct RecipeImportReview {
     pub(crate) serialized_plan: String,
     /// Exact native text in the same order as `plan.recipe.settings`.
     pub(crate) setting_values: Vec<String>,
+}
+
+/// One bounded step of staging a recipe's missing packages.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct RecipeAcquisitionStep {
+    pub(crate) review: RecipeImportReview,
+    /// Packages this step staged, in order.
+    pub(crate) acquired: Vec<String>,
+    /// Set when the step stopped at a package it could not stage; earlier
+    /// steps stay staged and are resumed by the next review of this recipe.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) failure: Option<portcove_core::RecipeAcquisitionFailure>,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -441,14 +491,16 @@ pub fn export_transport_schemas() -> Value {
         "output": {
             "game_comparison": output::<portcove_core::GameComparison>(),
             "bootstrap_status": output::<BootstrapStatus>(),
+            "library_selection_review": output::<LibrarySelectionReview>(),
             "support_bundle_export": output::<portcove_core::SupportBundleExport>(),
             "locale_preference": output::<DesktopLocalePreference>(),
             "library_organization": output::<portcove_core::LibraryOrganization>(),
             "backup_review": output::<BackupReview>(),
             "recipe_import_review": output::<RecipeImportReview>(),
+            "recipe_acquisition_step": output::<RecipeAcquisitionStep>(),
             "cli_command_context": output::<CliCommandContext>(),
             "desktop_error": output::<DesktopError>(),
-            "update_check_outcome": output::<BatchOutcome<UpdateCheck>>(),
+            "update_check_outcome": output::<UpdateCheckOutcome>(),
             "reconcile_outcome": output::<BatchOutcome<ReconcileResult>>(),
             "source_verification_outcome": output::<SourceBatchOutcome>(),
             "launch_result": output::<LaunchResult>(),
@@ -494,6 +546,7 @@ pub fn export_transport_schemas() -> Value {
             "setup_launch_targets": output::<portcove_core::SetupLaunchTargets>(),
             "catalog_download_preview": output::<portcove_core::CatalogDownloadPreview>(),
             "pending_setup_record": output::<portcove_core::PendingSetupRecord>(),
+            "artwork_selection_preview": output::<DesktopArtworkSelectionPreview>(),
             "steam_entry_review": output::<SteamEntryReview>(),
             "steam_profiles": output::<Vec<String>>(),
             "steam_batch_review": output::<SteamBatchReview>(),
@@ -520,6 +573,7 @@ pub fn export_transport_schemas() -> Value {
             "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
             "steam_batch_selection": schemars::schema_for!(SteamBatchSelection),
             "steam_artwork_selection": schemars::schema_for!(SteamArtworkSelection),
+            "artwork_selection_framing": schemars::schema_for!(portcove_core::ArtworkSelectionFraming),
         },
         "events": events,
     })

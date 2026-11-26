@@ -20,13 +20,21 @@ export interface ListingReceipt extends Record<string, unknown> {
   validator_artifact_sha256: string;
 }
 
-export function coreProposalInspector(cli: string, root: string) {
+export function coreProposalInspector(
+  cli: string,
+  root: string,
+  options?: { env: NodeJS.ProcessEnv; expectedSha256: string },
+) {
   const artifact = join(root, process.platform === "win32" ? "validator.exe" : "validator");
   copyFileSync(resolve(cli), artifact);
   chmodSync(artifact, 0o500);
   const artifactSha256 = createHash("sha256").update(readFileSync(artifact)).digest("hex");
+  if (options && artifactSha256 !== options.expectedSha256)
+    throw new Error("Prepared validator differs from the verified release.");
   const env = Object.fromEntries(
-    Object.entries(process.env).filter(([name]) => name.toUpperCase() !== "PORTCOVE_LIBRARY"),
+    Object.entries(options?.env ?? process.env).filter(
+      ([name]) => name.toUpperCase() !== "PORTCOVE_LIBRARY",
+    ),
   );
   const invoke = (
     name: string,
@@ -53,7 +61,9 @@ export function coreProposalInspector(cli: string, root: string) {
         env,
         encoding: "utf8",
         timeout: 120000,
-        maxBuffer: (operation === "inspect-listings" ? 10 : 1) * 1024 * 1024,
+        // Core echoes a validated directory as compact JSON, so its output is
+        // proportional to this request's input rather than a fixed ceiling.
+        maxBuffer: (operation === "inspect-listings" ? 2 * bytes.length : 0) + 1024 * 1024,
         windowsHide: true,
       },
     );

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dead-space-mobile-undeadobvlivion",
+    "project_url": "https://github.com/UndeadObvlivion/dead-space-mobile-pc",
+    "name": "Dead Space (2011 Android) / UndeadObvlivion",
+    "summary": "Native PC port of Dead Space mobile (2011 Android release). Game files not included.",
+    "issue_number": 5989,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-space",
+      "evidence_urls": ["https://github.com/UndeadObvlivion/dead-space-mobile-pc"],
+      "source_editions": []
+    },
+    "original_game_title": "Dead Space"
+  }
+}

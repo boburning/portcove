@@ -56,44 +56,31 @@ import { observationHash } from "./upstream-observer.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { withCheckpointLock } from "./observe-configured-upstream.mts";
 import {
-  collectDiscoverySources,
   consumeConfiguredObserver,
   investigateDiscoveryUpstream,
-  resolveDiscoveryDefaultRevision,
   repoName,
 } from "./daily-discovery-sources.mts";
 import type { SourceContext, CollectedSource } from "./daily-discovery-sources.mts";
 import {
-  acceptLeadPage,
-  nextLeadPage,
+  overlayLocalResearch,
   parseLeadState,
+  replaceLeadStateEnvelope,
   pendingLeads,
   leadPageSize,
   leadFamilyIds,
-  advanceLeadFamily,
   leadSearchFamilyCount,
   retainLeadResults,
-  LeadSearchChanged,
-  restartLeadSlice,
-  linkExternalHints,
-  resolveExternalHint,
 } from "./discovery-leads.mts";
-import type { ExternalResolution } from "./discovery-leads.mts";
-import {
-  externalHintSummary,
-  externalLeadLists,
-  externalListDue,
-  externalRepository,
-  leadPaths,
-  mergeExternalList,
-  parseExternalList,
-  bindExternalListSource,
-  recordExternalListFailure,
-  selectExternalResolutions,
-} from "./discovery-external-lists.mts";
+import { externalHintSummary, externalRepository, leadPaths } from "./discovery-external-lists.mts";
 import { assessUpstreamLineage } from "./upstream-lineage.mts";
 import type { LeadState } from "./discovery-leads.mts";
+import type { readStoredLeads } from "./discovery-worker.mts";
 import { ecosystemBursts } from "./discovery-ecosystems.mts";
+import {
+  collectDiscoveryRun,
+  collectExternalLeadLists,
+  searchLeadFamilies,
+} from "./discovery-collection.mts";
 import { readCatalogSource } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { fileURLToPath } from "node:url";
@@ -159,6 +146,8 @@ interface Journal {
   backoff_until?: string;
   lead_state?: LeadState;
   research_progress?: Record<string, unknown>;
+  /** Where this run's leads came from when the shared store owns lead collection. */
+  lead_collection?: { owner: "shared-store"; revision: number; records: number; bytes: number };
 }
 const object = (v: unknown): Record<string, unknown> => {
   if (!isRecord(v)) throw new Error("Expected structured discovery message");
@@ -310,6 +299,8 @@ export class DiscoverySession {
   researchedLeads = new Set<number>();
   leadCollectionAttempted = false;
   externalCollectionAttempted = false;
+  /** The maintenance store's connection when it owns lead collection for this runner. */
+  sharedStore: NodeJS.ProcessEnv | undefined;
   private constructor(stateDir: string, runDir: string, startedAt: string, head: string) {
     this.stateDir = stateDir;
     this.runDir = runDir;
@@ -761,9 +752,12 @@ export class DiscoverySession {
     // Startup can fail before the first validated inventory. Retain the saved
     // queue without interpreting a stale cache as current canonical overlap.
     const pending = this.inventory ? pendingLeads(this.leads, this.knownLeadUrls()) : undefined;
+    const stored = this.journal.lead_collection;
     return {
+      ...(stored ? { collection: stored } : {}),
       searched_pages: this.leadPages,
-      pending_families: leadFamilyIds.filter((id) => !this.leadFamilies?.has(id)),
+      // Store-owned families are searched by the shared collector, not here.
+      pending_families: stored ? [] : leadFamilyIds.filter((id) => !this.leadFamilies?.has(id)),
       observed_families: [...(this.leadFamilies ?? [])],
       deferred_families: [...(this.deferredLeadFamilies ?? [])],
       investigated: [...this.researchedLeads],
@@ -799,407 +793,12 @@ export class DiscoverySession {
     }
     return covered;
   }
-  /** Curated community lists add lead hints only. Each due list is read once per run
-   * and a bounded number of uncovered GitHub hints is bound to primary repository IDs.
-   */
+  /** Curated community lists add lead hints only; see `collectExternalLeadLists`. */
   async collectExternalLists() {
-    if (this.externalCollectionAttempted) return this.leadSummary().external;
-    this.externalCollectionAttempted = true;
-    const at = this.journal.started_at;
-    // Provider-wide refusals stop this run. Only a typed GitHub answer about one
-    // repository path is recorded on that hint; anything unclassified stops too.
-    const providerWide = (error: unknown) =>
-      !(error instanceof GitHubApiError) ||
-      error.status === 401 ||
-      (error.status ?? 0) >= 500 ||
-      // Without an HTTP answer (DNS, TLS or another network failure) GitHub said
-      // nothing about this path; only refusals and malformed answers are per-hint.
-      (error.status === null &&
-        !["redirect_refused", "invalid_response", "response_limit"].includes(error.code)) ||
-      [
-        "budget_exhausted",
-        "rate_limited",
-        "deadline_exceeded",
-        "cancelled",
-        "credential_unavailable",
-        "invalid_configuration",
-        "request_refused",
-        "quota_unknown",
-        "quota_stale",
-        "retry_exhausted",
-      ].includes(error.code);
-    for (const list of externalLeadLists) {
-      if (!externalListDue(this.leads.external, list.id, at)) continue;
-      const left = this.budget.remaining();
-      // One list read may follow up to four redirects; keep the research reserve after them.
-      if (
-        left.requests < 22 + ("revision_repository" in list ? 3 : 0) ||
-        left.bytes < list.cap + 1024 * 1024
-      ) {
-        this.journal.notes.push({
-          phase: "external-list",
-          source: list.id,
-          status: "deferred",
-          resume: "Read this list on a later admitted run; retained hints are unchanged",
-        });
-        continue;
-      }
-      const name = `external-list-${list.id}`;
-      try {
-        let sourceUrl: string;
-        let revision: string | undefined;
-        if ("revision_repository" in list) {
-          revision = await resolveDiscoveryDefaultRevision(
-            this.source,
-            list.revision_repository,
-            list.repository_id,
-          );
-          sourceUrl = `https://raw.githubusercontent.com/${list.revision_repository}/${revision}/${list.revision_path}`;
-        } else {
-          sourceUrl = list.url;
-        }
-        const response = await this.source.http.request(
-          "GET",
-          sourceUrl,
-          undefined,
-          false,
-          list.cap,
-        );
-        this.save(name, { url: sourceUrl, revision, ...response });
-        if (response.status !== 200)
-          throw new Error(`External list returned HTTP ${String(response.status)}`);
-        let parsed = parseExternalList(list.id, response.text);
-        if (revision) parsed = bindExternalListSource(parsed, response.text, sourceUrl, revision);
-        if (
-          "reviewed_revision" in list &&
-          revision !== list.reviewed_revision &&
-          !this.leads.external?.lists[list.id]
-        ) {
-          const baselineUrl = `https://raw.githubusercontent.com/${list.revision_repository}/${list.reviewed_revision}/${list.revision_path}`;
-          const baseline = await this.source.http.request(
-            "GET",
-            baselineUrl,
-            undefined,
-            false,
-            list.cap,
-          );
-          this.save(`${name}-reviewed-baseline`, { url: baselineUrl, ...baseline });
-          if (baseline.status !== 200)
-            throw new Error(
-              "Reviewed external source baseline unavailable; retain canonical overlap as unknown",
-            );
-          const baselineParsed = bindExternalListSource(
-            parseExternalList(list.id, baseline.text),
-            baseline.text,
-            baselineUrl,
-            list.reviewed_revision,
-          );
-          this.leads = {
-            ...this.leads,
-            external: mergeExternalList(
-              this.leads.external,
-              list.id,
-              baselineParsed,
-              at,
-              path.join(this.runDir, `${name}-reviewed-baseline.json`),
-            ),
-          };
-        }
-        this.leads = linkExternalHints(
-          {
-            ...this.leads,
-            external: mergeExternalList(
-              this.leads.external,
-              list.id,
-              parsed,
-              at,
-              path.join(this.runDir, `${name}.json`),
-            ),
-          },
-          at,
-        );
-      } catch (error) {
-        // A list-specific failure waits before its next read; a budget or provider
-        // refusal leaves the list due for the next admitted run.
-        // The run deadline and cancellation end the whole run; a bounded read that
-        // fails once the run's time is spent says nothing about the list either.
-        const timeSpent = this.budget.remaining().milliseconds <= 0;
-        const budgetRefusal =
-          // A worker killed after the run's time is spent throws a plain Error.
-          (!(error instanceof GitHubApiError) && timeSpent) ||
-          (error instanceof GitHubApiError &&
-            ([
-              "budget_exhausted",
-              "rate_limited",
-              "quota_unknown",
-              "quota_stale",
-              "deadline_exceeded",
-              "cancelled",
-            ].includes(error.code) ||
-              (error.code === "download_failed" && timeSpent)));
-        if (!budgetRefusal)
-          this.leads = {
-            ...this.leads,
-            external: recordExternalListFailure(
-              this.leads.external,
-              list.id,
-              at,
-              errorMessage(error),
-            ),
-          };
-        this.journal.notes.push({
-          phase: "external-list",
-          source: list.id,
-          status: "partial",
-          evidence:
-            "revision_repository" in list
-              ? `https://github.com/${list.revision_repository}`
-              : list.url,
-          error: errorMessage(error),
-          resume: "Retained hints and the last successful list clock are unchanged",
-        });
-        if (budgetRefusal) {
-          this.persist();
-          break;
-        }
-      }
-      this.persist();
-    }
-    const picks = this.leads.external
-      ? selectExternalResolutions(
-          this.leads.external,
-          this.externalCovered(),
-          leadPaths(Object.values(this.leads.records)),
-          at,
-        )
-      : [];
-    for (const pick of picks) {
-      // Keep the same capacity for two upstream investigations that lead searches keep.
-      if (this.budget.remaining().requests < 18 || this.budget.remaining().bytes < 1024 * 1024) {
-        this.journal.notes.push({
-          phase: "external-resolution",
-          status: "deferred",
-          next: pick.repository,
-          resume: "Resolve remaining curated-list hints on a later admitted run",
-        });
-        break;
-      }
-      const name = `external-resolution-${observationHash(pick.key).slice(0, 16)}`;
-      let outcome: ExternalResolution;
-      try {
-        // Admission failures are budget/quota state, never evidence about this hint.
-        await this.budget.admit(1, 1);
-      } catch (error) {
-        this.journal.notes.push({
-          phase: "external-resolution",
-          status: "deferred",
-          next: pick.repository,
-          error: errorMessage(error),
-          resume: "Resolve remaining curated-list hints on a later admitted run",
-        });
-        break;
-      }
-      try {
-        const response = await this.source.sdk.request({
-          method: "GET",
-          url: new URL(`repos/${repoName(pick.repository)}`, "https://api.github.com/").href,
-        });
-        this.save(name, response.data);
-        outcome = { status: "found", repository: response.data };
-      } catch (error) {
-        if (providerWide(error)) {
-          this.journal.notes.push({
-            phase: "external-resolution",
-            status: "partial",
-            next: pick.repository,
-            error: errorMessage(error),
-            resume: "Resolve remaining curated-list hints on a later admitted run",
-          });
-          break;
-        }
-        const status = error instanceof GitHubApiError ? error.status : undefined;
-        outcome =
-          error instanceof GitHubApiError && error.code === "redirect_refused"
-            ? {
-                status: "unavailable",
-                reason:
-                  "GitHub redirected this path (renamed or transferred repository); research its new location manually",
-              }
-            : status === 404 || status === 410
-              ? { status: "unavailable", reason: `Repository metadata returned HTTP ${status}` }
-              : status === 451 || status === 403
-                ? {
-                    status: "unavailable",
-                    reason: `Repository access is blocked (HTTP ${status})`,
-                  }
-                : {
-                    status: "failed",
-                    reason: `Repository metadata read failed: ${errorMessage(error).slice(0, 200)}`,
-                  };
-      }
-      try {
-        this.leads = resolveExternalHint(
-          this.leads,
-          pick.key,
-          outcome,
-          at,
-          path.join(this.runDir, `${name}.json`),
-        );
-      } catch (error) {
-        // Malformed provider metadata: record a short retry so this hint cannot block others.
-        this.leads = resolveExternalHint(
-          this.leads,
-          pick.key,
-          { status: "failed", reason: `Malformed repository metadata: ${errorMessage(error)}` },
-          at,
-          path.join(this.runDir, `${name}.json`),
-        );
-      }
-      this.persist();
-    }
-    this.persist();
-    return this.leadSummary().external;
+    return await collectExternalLeadLists(this);
   }
   async discover() {
-    if (this.leadCollectionAttempted) return this.leadSummary();
-    this.leadCollectionAttempted = true;
-    this.leadFamilies ??= new Set();
-    this.deferredLeadFamilies ??= new Set();
-    // A full idle rotation terminates even when every family is current, capped or
-    // deferred. Successful pages reset it; request/time/byte admission bounds work.
-    let idleTurns = 0;
-    while (idleTurns < leadSearchFamilyCount) {
-      idleTurns++;
-      const plan = nextLeadPage(this.leads, this.journal.started_at);
-      if (this.deferredLeadFamilies.has(plan.family)) {
-        this.leads.next_family = advanceLeadFamily(this.leads.next_family);
-        continue;
-      }
-      if (plan.current) {
-        this.leadFamilies.add(plan.family);
-        this.leads.next_family = advanceLeadFamily(this.leads.next_family);
-        continue;
-      }
-      if (plan.capped) {
-        this.leadFamilies.add(plan.family);
-        this.journal.notes.push({
-          phase: "lead-search",
-          status: "capped",
-          ...plan,
-          resume:
-            "Narrow this capped time slice before a fresh bounded search; no complete coverage claim",
-        });
-        this.leads.next_family = advanceLeadFamily(this.leads.next_family);
-        this.persist();
-        continue;
-      }
-      // Leave bounded capacity for two upstream investigations as well as the existing delivery reserve.
-      if (this.budget.remaining().requests < 17 || this.budget.remaining().bytes < 1024 * 1024) {
-        this.journal.notes.push({
-          phase: "lead-search",
-          status: "deferred",
-          ...plan,
-          resume: "Continue this exact query/page on the next admitted run before quiet rotation",
-        });
-        break;
-      }
-      await this.budget.admit(1, 1);
-      const response = await this.source.sdk.request({
-        method: "GET",
-        url: new URL(
-          `search/repositories?q=${encodeURIComponent(plan.query)}&per_page=${leadPageSize}&page=${plan.page}${plan.sort ? `&sort=${plan.sort}&order=desc` : ""}`,
-          "https://api.github.com/",
-        ).href,
-      });
-      const name = `lead-search-${++this.searches}`;
-      this.save(name, {
-        ...object(response.data),
-        query: plan.query,
-        sort: plan.sort ?? "best-match",
-        order: plan.sort ? "desc" : undefined,
-        page: plan.page,
-      });
-      try {
-        this.leads = acceptLeadPage(
-          this.leads,
-          plan,
-          response.data,
-          this.journal.started_at,
-          path.join(this.runDir, `${name}.json`),
-        );
-      } catch (error) {
-        if (!(error instanceof LeadSearchChanged)) throw error;
-        // Keep independently validated positive identities, never the refused pagination.
-        this.leads = retainLeadResults(
-          this.leads,
-          object(response.data).items as unknown[],
-          this.journal.started_at,
-          path.join(this.runDir, `${name}.json`),
-          plan.family,
-        );
-        this.leads = restartLeadSlice(this.leads, plan, errorMessage(error));
-        this.leadFamilies.add(plan.family);
-        this.deferredLeadFamilies.add(plan.family);
-        this.leads.next_family = advanceLeadFamily(this.leads.next_family);
-        this.journal.notes.push({
-          phase: "lead-search",
-          status: "partial",
-          error: errorMessage(error),
-          query: plan.query,
-          page: plan.page,
-          evidence: path.join(this.runDir, `${name}.json`),
-          resume:
-            "Discard failed pagination and recollect this fixed slice on a later admitted run; no same-run retry",
-        });
-        this.persist();
-        continue;
-      }
-      this.leadFamilies.add(plan.family);
-      this.leadPages++;
-      idleTurns = 0;
-      this.persist();
-    }
-    for (const lead of pendingLeads(this.leads, this.knownLeadUrls())
-      .filter(
-        (r) =>
-          !r.release_hint ||
-          Date.parse(this.journal.started_at) - Date.parse(r.release_hint.observed_at) >=
-            7 * 86400000,
-      )
-      .slice(0, 4)) {
-      if (this.budget.remaining().requests < 17 || this.budget.remaining().bytes < 1024 * 1024)
-        break;
-      const response = await this.source.sdk.request({
-        method: "GET",
-        url: new URL(`repos/${lead.repository}/releases?per_page=5`, "https://api.github.com/")
-          .href,
-      });
-      if (!Array.isArray(response.data)) throw new Error("Malformed lead release hints");
-      const name = `lead-release-hint-${lead.id}`;
-      this.save(name, response.data);
-      lead.release_hint = {
-        assets_observed: response.data.some((raw: unknown) => {
-          const release = object(raw);
-          return (
-            release.draft === false &&
-            Array.isArray(release.assets) &&
-            release.assets.some((raw: unknown) => {
-              const asset = object(raw);
-              return (
-                asset.state === "uploaded" &&
-                typeof asset.name === "string" &&
-                /\.(?:zip|tar\.gz|AppImage|exe|msi|dmg)$/iu.test(asset.name)
-              );
-            })
-          );
-        }),
-        observed_at: this.journal.started_at,
-        evidence: path.join(this.runDir, `${name}.json`),
-      };
-      this.persist();
-    }
-    this.persist();
-    return this.leadSummary();
+    return await searchLeadFamilies(this);
   }
   disposeLead(raw: unknown) {
     const v = object(raw),
@@ -1443,6 +1042,7 @@ export class DiscoverySession {
         repository: new URL(candidate.upstream).pathname.slice(1),
         repository_id: ids[0],
         kind: candidate.identity_kind ?? "implementation",
+        catalog_id: candidate.portKey,
         ...(candidate.game ? { game_key: discoveryGameKey(candidate.game) } : {}),
       },
       this.inventory.issues,
@@ -1686,53 +1286,45 @@ export class DiscoverySession {
     return c;
   }
   async collect() {
-    if (this.journal.collection_done)
-      throw new Error("Source collection already completed in this run");
+    if (this.sharedStore && !this.journal.collection_done) await this.leadsFromSharedStore();
+    return await collectDiscoveryRun(this);
+  }
+  /**
+   * The shared store owns curated lists, lead searches and backfill; this runner
+   * takes its collected leads and keeps local research on top. The reviewed
+   * sources stay local because their checkpoint carries this runner's research
+   * queue. An empty or unavailable store leaves local collection in place.
+   */
+  async leadsFromSharedStore(read?: typeof readStoredLeads) {
+    read ??= (await import("./discovery-worker.mts")).readStoredLeads;
+    const { MaintenanceStoreError } = await import("./maintenance-store.mts");
+    const { MaintenanceResourceDeferred } = await import("./maintenance-resource-policy.mts");
+    let stored: Awaited<ReturnType<typeof readStoredLeads>>;
     try {
-      await this.collectExternalLists();
+      stored = await read(this.sharedStore!);
     } catch (error) {
-      // Curated hints are optional lead input; their failure never blocks collection.
+      if (!(error instanceof MaintenanceStoreError || error instanceof MaintenanceResourceDeferred))
+        throw error;
       this.journal.notes.push({
-        phase: "external-list",
+        source: "shared-store",
         status: "partial",
         error: errorMessage(error),
-        resume: "Retained hints are unchanged; retry on a later run",
+        resume: "Leads were collected locally this run; the shared store is read again next run",
       });
       this.persist();
+      return;
     }
-    await this.discover();
-    const reserve = this.budget.reserve;
-    const pending = pendingLeads(this.leads, this.knownLeadUrls());
-    if (pending.length) {
-      const left = this.budget.remaining();
-      this.budget.reserve = {
-        requests: reserve.requests + Math.min(16, Math.max(0, left.requests)),
-        bytes: reserve.bytes + Math.min(1024 * 1024, Math.max(0, left.bytes)),
-      };
-    }
-    try {
-      await collectDiscoverySources(this.source, this.checkpoint);
-    } finally {
-      this.budget.reserve = reserve;
-    }
-    this.checkpoint = advanceDiscovery(this.checkpoint, {
-      observed_at: new Date().toISOString(),
-      sources: this.journal.sources,
-    });
-    this.journal.collection_done = true;
-    this.journal.coverage =
-      this.journal.sources.some((s) => s.status !== "complete") || this.journal.notes.length
-        ? "partial"
-        : "complete";
-    this.persist();
-    return {
-      sources: this.journal.sources.map((s) => ({
-        id: s.id,
-        status: s.status,
-        next_path: s.next_path,
-      })),
-      pending: Object.keys(this.checkpoint.pending).length,
+    if (stored.outcome === "empty") return;
+    this.leads = overlayLocalResearch(stored.leads, this.leads);
+    this.externalCollectionAttempted = true;
+    this.leadCollectionAttempted = true;
+    this.journal.lead_collection = {
+      owner: "shared-store",
+      revision: stored.revision,
+      records: Object.keys(stored.leads.records).length,
+      bytes: stored.bytes,
     };
+    this.persist();
   }
   async recheck() {
     const records = sourceProvenancePortIssues(this.inventory.issues);
@@ -1854,11 +1446,13 @@ export class DiscoverySession {
       2,
       new Set([...pending.map((r) => r.id), ...this.researchedLeads]).size,
     );
-    return (
-      (this.leadPages >= 4 ||
-        (this.leadFamilies?.size ?? 0) >= Math.min(6, leadSearchFamilyCount)) &&
-      this.researchedLeads.size >= required
-    );
+    // When the shared store owns lead collection, its collector has searched;
+    // this runner's own searches are not required.
+    const searched =
+      this.journal.lead_collection?.owner === "shared-store" ||
+      this.leadPages >= 4 ||
+      (this.leadFamilies?.size ?? 0) >= Math.min(6, leadSearchFamilyCount);
+    return searched && this.researchedLeads.size >= required;
   }
   async apply() {
     const delivered: { id: string; issue: number | undefined; readback: string | undefined }[] = [];
@@ -2334,11 +1928,14 @@ export function boundedDiscoveryInput() {
     },
   });
 }
+/** Setting this for a local run makes the shared maintenance store own lead collection. */
+export const sharedStoreVariable = "PORTCOVE_MAINTENANCE_DATABASE_URL";
 export async function runDiscoverySession(
   stateDir: string,
   root: string,
   head: string,
   startedAt: string,
+  store: { url?: string | undefined; meterToken?: string | undefined } = {},
 ) {
   const runDir = await assertOwnedUnlinkedPath(
     path.join(root, "work"),
@@ -2346,6 +1943,22 @@ export async function runDiscoverySession(
     "discovery run",
   );
   await mkdir(runDir, { recursive: true });
+  // A configured maintenance store owns lead collection. The caller removed its
+  // URL and meter credential from the process environment before any child
+  // process started; only the store's own copied environment holds them.
+  const sharedStore = store.url
+    ? (await import("./maintenance-store.mts")).connectionFromEnvironment(sharedStoreVariable, {
+        ...process.env,
+        [sharedStoreVariable]: store.url,
+        ...(store.meterToken ? { PORTCOVE_NEON_METER_TOKEN: store.meterToken } : {}),
+      })
+    : undefined;
+  if (sharedStore) {
+    // Stored leads are bounded by the store, so the local copy is bounded by this
+    // machine's memory, as it is for the unattended collector.
+    const { physicalLeadEnvelope } = await import("./discovery-worker.mts");
+    replaceLeadStateEnvelope(physicalLeadEnvelope());
+  }
   const tokenResult = spawnSync("gh", ["auth", "token"], {
     encoding: "utf8",
     windowsHide: true,
@@ -2367,6 +1980,7 @@ export async function runDiscoverySession(
     head,
     { signal: cancellation.signal },
   );
+  session.sharedStore = sharedStore;
   const emit = (v: unknown) => process.stdout.write(JSON.stringify(v) + "\n");
   const guardedInput = boundedDiscoveryInput();
   const input = createInterface({ input: guardedInput, crlfDelay: Infinity });

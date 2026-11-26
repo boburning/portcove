@@ -46,11 +46,15 @@ impl PublicFile {
 
 impl PublicHistory {
     pub(super) fn read(root: &Path) -> Result<Self> {
-        let entries = io::inventory(
+        Self::read_bounded(
             root,
             PUBLIC_REPOSITORY_MAX_FILES,
             PUBLIC_REPOSITORY_MAX_BYTES,
-        )?;
+        )
+    }
+
+    pub(super) fn read_bounded(root: &Path, files: usize, bytes: u64) -> Result<Self> {
+        let entries = io::inventory(root, files, bytes)?;
         Ok(Self(
             entries
                 .into_iter()
@@ -65,6 +69,14 @@ impl PublicHistory {
                 })
                 .collect(),
         ))
+    }
+
+    /// Drop served files that are not TUF repository content (visitor pages
+    /// and the listing-floor ledger), as the publisher's prior copy does.
+    pub(super) fn without_served_extras(mut self) -> Self {
+        self.0
+            .retain(|name, _| !name.starts_with("browse/") && !name.starts_with("history-ledger/"));
+        self
     }
 
     pub(super) fn identities(&self) -> Vec<DefinitionFile> {

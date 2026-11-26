@@ -5,11 +5,12 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use super::{
-    LocalBaseline, PackageShape, PackageShapeRecord, SHAPE_VERSION, ShapeVerdict,
-    derivation_inputs_sha256, evaluate, withholds_release,
+    COMPONENT_RULES_VERSION, LocalBaseline, PackageShape, PackageShapeRecord, ShapeVerdict,
+    derivation_inputs_sha256, evaluate, readable_shape_version, withholds_release,
 };
 use crate::{
-    Library, Platform, PortDefinition, PortcoveError, ReleaseChannel, ResolvedRelease, Result,
+    ArtifactIdentity, Library, Platform, PortDefinition, PortcoveError, ReleaseChannel,
+    ResolvedRelease, Result, ScopedResolvedRelease,
 };
 
 const MAX_BYTES: u64 = 4 * 1024 * 1024;
@@ -74,7 +75,7 @@ pub(crate) fn record(
         return Ok(());
     };
     let observation = Observation {
-        shape_version: SHAPE_VERSION,
+        shape_version: COMPONENT_RULES_VERSION,
         capability,
         candidate_key,
         shape_inputs: shape_inputs(port, platform)?,
@@ -102,6 +103,7 @@ pub(crate) fn current(
     platform: Platform,
     release: &ResolvedRelease,
     capability: u32,
+    resolution: Option<&ScopedResolvedRelease>,
     local: impl FnOnce() -> Option<LocalBaseline>,
 ) -> Result<Option<ShapeVerdict>> {
     let Some(candidate_key) = candidate_key(release)? else {
@@ -114,7 +116,7 @@ pub(crate) fn current(
     crate::path::refuse_symlink_ancestors(&path)?;
     let observation: Observation =
         serde_json::from_slice(&crate::path::read_bounded_regular(&path, MAX_BYTES)?)?;
-    if observation.shape_version != SHAPE_VERSION
+    if !readable_shape_version(observation.shape_version)
         || observation.capability != capability
         || observation.candidate_key != candidate_key
         || observation.shape_inputs != shape_inputs(port, platform)?
@@ -122,12 +124,32 @@ pub(crate) fn current(
     {
         return Ok(None);
     }
+    let artifact = ArtifactIdentity {
+        asset_name: release.asset.name.clone(),
+        sha256: release.asset.sha256.clone(),
+        size: release.asset.size,
+    };
+    let reviewed_layout = crate::package_layout::layout_for_acquisition(
+        port,
+        platform,
+        // A plain cached offer or a different resolution cannot supply this proof.
+        resolution
+            .filter(|proof| {
+                &proof.release == release
+                    && proof
+                        .scope
+                        .as_ref()
+                        .is_none_or(|scope| scope.require_current().is_ok())
+            })
+            .map(|proof| (proof, &artifact)),
+    );
     let (verdict, _) = evaluate(
         port,
         platform,
         &release.asset.sha256,
         &observation.shape,
         local().as_ref(),
+        reviewed_layout,
     );
     Ok(withholds_release(&verdict).then_some(verdict))
 }
@@ -161,7 +183,7 @@ mod tests {
             version: "1.0.0".into(),
             sha256: "a".repeat(64),
             record: PackageShapeRecord {
-                shape_version: SHAPE_VERSION,
+                shape_version: COMPONENT_RULES_VERSION,
                 shape: Some(shape),
                 provenance: ShapeProvenance::Reviewed,
                 verdict: ShapeVerdict::Unknown {
@@ -214,6 +236,7 @@ mod tests {
             &release.asset.sha256,
             &changed,
             Some(&local(baseline.clone())),
+            None,
         );
         assert!(matches!(verdict, ShapeVerdict::Drifted { .. }));
         record(
@@ -223,7 +246,7 @@ mod tests {
             &release,
             capability,
             &PackageShapeRecord {
-                shape_version: SHAPE_VERSION,
+                shape_version: COMPONENT_RULES_VERSION,
                 shape: Some(changed.clone()),
                 provenance,
                 verdict,
@@ -234,9 +257,15 @@ mod tests {
 
         let library = Library::open(&root).unwrap();
         assert!(matches!(
-            current(&library, &port, platform, &release, capability, || Some(
-                local(baseline.clone())
-            ))
+            current(
+                &library,
+                &port,
+                platform,
+                &release,
+                capability,
+                None,
+                || Some(local(baseline.clone()))
+            )
             .unwrap(),
             Some(ShapeVerdict::Drifted {
                 baseline: ShapeBaseline::Local { .. },
@@ -244,25 +273,45 @@ mod tests {
             })
         ));
         assert!(
-            current(&library, &port, platform, &release, capability, || Some(
-                local(changed)
-            ))
+            current(
+                &library,
+                &port,
+                platform,
+                &release,
+                capability,
+                None,
+                || Some(local(changed))
+            )
             .unwrap()
             .is_none()
         );
         let mut unreviewed = local(baseline);
         unreviewed.record.provenance = ShapeProvenance::Unreviewed;
         assert!(
-            current(&library, &port, platform, &release, capability, || Some(
-                unreviewed
-            ))
+            current(
+                &library,
+                &port,
+                platform,
+                &release,
+                capability,
+                None,
+                || Some(unreviewed)
+            )
             .unwrap()
             .is_none()
         );
         assert!(
-            current(&library, &port, platform, &release, capability, || None)
-                .unwrap()
-                .is_none()
+            current(
+                &library,
+                &port,
+                platform,
+                &release,
+                capability,
+                None,
+                || None
+            )
+            .unwrap()
+            .is_none()
         );
 
         let mut replacement = release.clone();
@@ -274,6 +323,7 @@ mod tests {
                 platform,
                 &replacement,
                 capability,
+                None,
                 || panic!("mismatched artifact")
             )
             .unwrap()
@@ -281,9 +331,15 @@ mod tests {
         );
         port.persistent_paths.push("userdata".into());
         assert!(
-            current(&library, &port, platform, &release, capability, || panic!(
-                "mismatched inputs"
-            ))
+            current(
+                &library,
+                &port,
+                platform,
+                &release,
+                capability,
+                None,
+                || panic!("mismatched inputs")
+            )
             .unwrap()
             .is_none()
         );
@@ -316,15 +372,30 @@ mod tests {
             candidate_key(&release).unwrap().as_deref(),
             Some(old.candidate_key.as_str())
         );
-        let (raw_verdict, _) = evaluate(port, platform, &release.asset.sha256, &old.shape, None);
+        let (raw_verdict, _) = evaluate(
+            port,
+            platform,
+            &release.asset.sha256,
+            &old.shape,
+            None,
+            None,
+        );
         assert!(withholds_release(&raw_verdict));
         let path = observation_path(&library, port, platform, release.channel).unwrap();
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, legacy).unwrap();
         assert!(
-            current(&library, port, platform, &release, old.capability, || None)
-                .unwrap()
-                .is_none()
+            current(
+                &library,
+                port,
+                platform,
+                &release,
+                old.capability,
+                None,
+                || None
+            )
+            .unwrap()
+            .is_none()
         );
         assert_eq!(fs::read(&path).unwrap(), legacy);
 
@@ -336,8 +407,14 @@ mod tests {
             ]),
             ..old.shape
         };
-        let (verdict, provenance) =
-            evaluate(port, platform, &release.asset.sha256, &new_drift, None);
+        let (verdict, provenance) = evaluate(
+            port,
+            platform,
+            &release.asset.sha256,
+            &new_drift,
+            None,
+            None,
+        );
         assert!(withholds_release(&verdict));
         record(
             &library,
@@ -346,7 +423,7 @@ mod tests {
             &release,
             old.capability,
             &PackageShapeRecord {
-                shape_version: SHAPE_VERSION,
+                shape_version: COMPONENT_RULES_VERSION,
                 shape: Some(new_drift),
                 provenance,
                 verdict,
@@ -354,9 +431,17 @@ mod tests {
         )
         .unwrap();
         assert!(
-            current(&library, port, platform, &release, old.capability, || None)
-                .unwrap()
-                .is_some()
+            current(
+                &library,
+                port,
+                platform,
+                &release,
+                old.capability,
+                None,
+                || None
+            )
+            .unwrap()
+            .is_some()
         );
     }
 }

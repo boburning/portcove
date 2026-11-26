@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "deep-3d-abyssal",
+    "project_url": "https://github.com/TheWWWorm/abyssal",
+    "name": "Deep 3D: Submarine Odyssey / Abyssal",
+    "summary": "A Godot engine edition for Deep 3D: Submarine Odyssey by Fishlabs",
+    "issue_number": 5916,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "deep-3d-submarine-odyssey",
+      "evidence_urls": ["https://github.com/TheWWWorm/abyssal"],
+      "source_editions": []
+    },
+    "original_game_title": "Deep 3D: Submarine Odyssey"
+  }
+}

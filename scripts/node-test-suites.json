@@ -250,6 +250,14 @@
       ]
     },
     {
+      "file": "scripts/catalog-literal-launch-publication.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3507],
+        ["release-check", 4307]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/n64-original-publication.test.mts",
       "memberships": [
         ["catalog-full-2", 3550],
@@ -266,10 +274,66 @@
       "ordinary_families": ["release-contract-tests"]
     },
     {
+      "file": "scripts/listing-compact-activation-rehearsal.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3504],
+        ["release-check", 4304]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
+      "file": "scripts/catalog-released-reader.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3505],
+        ["release-check", 4305]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
+      "file": "scripts/github-release-attestation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3506],
+        ["release-check", 4306]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-publish.test.mts",
       "memberships": [
         ["catalog-full-2", 3502],
         ["release-check", 4302]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
+      "file": "scripts/catalog-definition-requirements.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3510],
+        ["release-check", 4310]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
+      "file": "scripts/listing-artwork-checkpoint.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3511],
+        ["release-check", 4311]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
+      "file": "scripts/catalog-body-window.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3508],
+        ["release-check", 4308]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
+      "file": "scripts/catalog-readback-depth.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3509],
+        ["release-check", 4309]
       ],
       "ordinary_families": ["release-contract-tests"]
     },
@@ -504,6 +568,41 @@
       ]
     },
     {
+      "file": "scripts/catalog-route-fit.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8923],
+        ["repository-tools-2", 3923]
+      ]
+    },
+    {
+      "file": "scripts/catalog-generated-registration.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8926],
+        ["repository-tools-2", 3926]
+      ]
+    },
+    {
+      "file": "scripts/listing-facts-batch.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8927],
+        ["repository-tools-2", 3927]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-program-view.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8924],
+        ["repository-tools-2", 3924]
+      ]
+    },
+    {
+      "file": "scripts/restriction-recheck.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8925],
+        ["repository-tools-2", 3925]
+      ]
+    },
+    {
       "file": "scripts/listing-funding.test.mts",
       "memberships": [
         ["catalog-full-2", 8917],
@@ -618,7 +717,8 @@
       "memberships": [
         ["catalog-full-2", 5200],
         ["repository-tools-2", 800]
-      ]
+      ],
+      "ordinary_families": ["restriction-register-tests"]
     },
     {
       "file": "scripts/check-fallow-report.test.mts",
@@ -1330,6 +1430,20 @@
       ]
     },
     {
+      "file": "scripts/discovery-source-parsers.test.mts",
+      "memberships": [
+        ["catalog-full", 1001],
+        ["roadmap-check", 1001]
+      ]
+    },
+    {
+      "file": "scripts/discovery-distribution-parsers.test.mts",
+      "memberships": [
+        ["catalog-full", 1002],
+        ["roadmap-check", 1002]
+      ]
+    },
+    {
       "file": "scripts/fallow-scope.test.mts",
       "memberships": [
         ["catalog-full-2", 8700],
@@ -1569,7 +1683,8 @@
             "migration 0003 binds existing state and handoff plans follow the applicable assessment",
             "Core per-target route offering is stored per port, reported and fails alone",
             "typed reconsiderations follow complete owner reads, stay quiet and keep episodes",
-            "a selective run reuses unchanged Core results without re-verifying them"
+            "a selective run reuses unchanged Core results without re-verifying them",
+            "in dep-info mode a selective run reuses by scoped key, an unchanged read leaves its binding alone, and an older run cannot rebind"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
@@ -1618,6 +1733,13 @@
       ]
     },
     {
+      "file": "scripts/maintenance-assessment-scope.test.mts",
+      "memberships": [
+        ["catalog-full", 1482],
+        ["repository-tools", 551]
+      ]
+    },
+    {
       "file": "scripts/maintenance-universe.test.mts",
       "memberships": [
         ["catalog-full", 1276],
@@ -1642,10 +1764,45 @@
             "ordinary maintenance report and history page preserve the full restored timeline",
             "maintenance store guards history and survives an independent PostgreSQL restore",
             "a receipt-only login can verify migrations and reserve handoffs through its explicit SQL role",
+            "revision-fenced discovery admission fits where its conservative default does not",
             "an interrupted maintenance migration leaves no partial schema and resumes cleanly",
+            "a completed charge leaves the ledger once the provider counter has settled past it",
             "shared admissions fence concurrent callers and retain crash charges",
+            "recovery retries reserve and settle real ledger attempts without retrying uncertain transfers",
+            "recovery caps row-delta metadata against measured remaining response bytes",
+            "a pre-0011 portable backup restores and migrates normalized discovery hints",
             "recovery reconstruction reuses history and restores current state and sequences",
             "cutover admissions share their finite allowance across purposes"
+          ],
+          "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
+        }
+      ]
+    },
+    {
+      "file": "scripts/discovery-worker.test.mts",
+      "memberships": [
+        ["catalog-full", 1279],
+        ["repository-tools", 414]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full",
+          "category": "prerequisite",
+          "prerequisite": "Non-root PostgreSQL 16+ server binaries (initdb, pg_ctl) for disposable clusters",
+          "reason": "The integration proof needs real PostgreSQL clusters; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
+          "cases": [
+            "fenced discovery leases refuse stale writers, resume committed state and deduplicate replays",
+            "watch evidence changes open new episodes and unchanged evidence stays quiet",
+            "a restored store starts discovery collection inactive and refuses pre-restore leases",
+            "local lead state imports once with its recorded strength",
+            "a local runner reads the shared store's leads without a lease and keeps its research",
+            "stored collector state is not capped at a fixed size",
+            "stored lead records round-trip through PostgreSQL and unchanged rows are not rewritten",
+            "the status export reports an unmigrated store instead of failing",
+            "the store omits state only for the exact revision, generation and definition a caller holds",
+            "status reconciliation distinguishes retained repository evidence from research signals"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
@@ -1656,6 +1813,13 @@
       "memberships": [
         ["catalog-full-2", 9500],
         ["repository-tools-2", 4500]
+      ]
+    },
+    {
+      "file": "scripts/migrate-acquisition-restrictions.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9501],
+        ["repository-tools-2", 4501]
       ]
     },
     {
@@ -1925,6 +2089,13 @@
       "memberships": [
         ["catalog-full-2", 6351],
         ["repository-tools-2", 2351]
+      ]
+    },
+    {
+      "file": "scripts/entry-module-cycles.test.mts",
+      "memberships": [
+        ["catalog-full-2", 4901],
+        ["repository-tools-2", 501]
       ]
     },
     {
@@ -4035,7 +4206,8 @@
             "host bridge refuses a public Linux custody directory before requesting either lease",
             "host bridge Linux probe refuses changed custody, live children and missing cleanup",
             "Linux bridge client preserves host queue refusal before local admission",
-            "host bridge actual client closes its helper on register ACK loss and release-probe failure"
+            "host bridge actual client closes its helper on register ACK loss and release-probe failure",
+            "retained bridge custody closes the real helper without releasing either reservation"
           ]
         }
       ],
@@ -4167,10 +4339,38 @@
       ]
     },
     {
+      "file": "scripts/hosted-discovery-intake-entry.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9692],
+        ["roadmap-check", 192]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "prerequisite",
+          "prerequisite": "Non-root PostgreSQL 16+ server binaries (initdb, pg_ctl) for disposable clusters",
+          "reason": "The scheduled receipt pass needs a real migrated PostgreSQL store; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2 on ubuntu-latest",
+          "cases": [
+            "scheduled receipt CLI records a passed receipt against a migrated local store where admission is bypassed"
+          ],
+          "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
+        }
+      ]
+    },
+    {
       "file": "scripts/hosted-discovery-intake.test.mts",
       "memberships": [
         ["catalog-full-2", 9690],
         ["roadmap-check", 190]
+      ]
+    },
+    {
+      "file": "scripts/hosted-discovery-receipt-wire.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9693],
+        ["roadmap-check", 193]
       ]
     },
     {
@@ -4227,6 +4427,15 @@
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
           "cases": ["Windows Job Object supervisor kills a detached grandchild when its root exits"]
+        },
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Actual Linux process identity and live reaper control-pipe semantics",
+          "reason": "The retained live reaper probe executes on the maintained complete Linux catalog-full-2 route; other platforms retain their native supervisor contracts.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2 on Linux",
+          "cases": ["a retained live reaper does not hold the wrapper open"]
         }
       ],
       "ordinary_families": ["containment-contract-tests"]

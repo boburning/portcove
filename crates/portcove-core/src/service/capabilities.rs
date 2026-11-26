@@ -2,6 +2,9 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::acquisition_restriction::{
+    EffectiveRestrictions, RestrictedOperation, RestrictionSubject,
+};
 use crate::{
     ListingAction, ListingActionAssessment, PortAction, PortActionAssessment,
     PortActionAvailability, PortStatus,
@@ -68,13 +71,17 @@ pub struct PortCapabilityReport {
     pub advisories: Vec<super::advisories::PortCapabilityNotice>,
     pub setup_guide: Option<crate::ManualSetupGuide>,
     pub pending_setup: Option<super::PendingSetupState>,
+    /// The setup stage the player reached; absent while a download is not
+    /// finished or no setup is pending.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pending_setup_stage: Option<super::PendingSetupStageKind>,
 }
 
 fn action_feature(
     status: &PortStatus,
     feature: CapabilityFeature,
     action: PortAction,
-    acquisition_hold: Option<&str>,
+    restrictions: &EffectiveRestrictions,
 ) -> PortCapabilityFeature {
     let matches = status
         .port_actions
@@ -91,16 +98,15 @@ fn action_feature(
         }
         None => CapabilityMode::Unknown,
     };
-    let hold = match action {
-        PortAction::Install | PortAction::Update => acquisition_hold,
-        _ => None,
-    };
+    let hold = restrictions
+        .action_hold(action)
+        .and_then(|outcome| outcome.explanation());
     PortCapabilityFeature {
         feature,
         mode,
-        explanation: hold
-            .unwrap_or("Current operation assessment; execution rechecks its requirements.")
-            .into(),
+        explanation: hold.unwrap_or_else(|| {
+            "Current operation assessment; execution rechecks its requirements.".into()
+        }),
         next_step: "Review this operation's requirements and any current refusal.".into(),
         action: assessment,
         listing_action: None,
@@ -128,7 +134,7 @@ impl PortCapabilityReport {
     pub(crate) fn from_status(
         status: &PortStatus,
         actions: &[ListingActionAssessment],
-        acquisition_hold: Option<&str>,
+        restrictions: &EffectiveRestrictions,
     ) -> Self {
         use CapabilityFeature as F;
         use CapabilityMode as M;
@@ -149,7 +155,7 @@ impl PortCapabilityReport {
             routes.push(PortCapabilityRoute {
                 route: route.into(),
                 install_id: None,
-                features: vec![action_feature(status, F::Setup, action, acquisition_hold)],
+                features: vec![action_feature(status, F::Setup, action, restrictions)],
             });
         }
         let attach = actions
@@ -174,25 +180,15 @@ impl PortCapabilityReport {
             simple(F::Updates, M::Manual, "Updates are handled by you or upstream.", "Follow the upstream update instructions."),
             simple(F::Backup, M::Unavailable, "Portcove does not collect backups of this external copy. This says nothing about the game's ability to save.", "Protect external saved data using the upstream instructions.")] });
         let mut features = vec![
-            action_feature(status, F::Launch, PortAction::Launch, acquisition_hold),
-            action_feature(status, F::Updates, PortAction::Update, acquisition_hold),
-            action_feature(
-                status,
-                F::Backup,
-                PortAction::BackupCreate,
-                acquisition_hold,
-            ),
-            action_feature(
-                status,
-                F::Restore,
-                PortAction::BackupRestore,
-                acquisition_hold,
-            ),
+            action_feature(status, F::Launch, PortAction::Launch, restrictions),
+            action_feature(status, F::Updates, PortAction::Update, restrictions),
+            action_feature(status, F::Backup, PortAction::BackupCreate, restrictions),
+            action_feature(status, F::Restore, PortAction::BackupRestore, restrictions),
             action_feature(
                 status,
                 F::PreviousVersion,
                 PortAction::Rollback,
-                acquisition_hold,
+                restrictions,
             ),
             simple(
                 F::OriginalFiles,
@@ -274,16 +270,21 @@ impl PortCapabilityReport {
             advisories: vec![],
             setup_guide: None,
             pending_setup: None,
+            pending_setup_stage: None,
         }
     }
 
+    /// `presented` is Core's current stage and message for `pending`, from
+    /// [`super::PortcoveService::pending_setup_presentation`].
     pub(super) fn add_setup_context(
         &mut self,
         listing: &crate::PortListing,
         pending: Option<&super::PendingSetupRecord>,
+        presented: Option<(super::PendingSetupStageKind, super::PendingSetupMessage)>,
     ) {
         self.setup_guide = listing.manual_setup.clone();
         self.pending_setup = pending.map(|p| p.state);
+        self.pending_setup_stage = presented.as_ref().map(|(stage, _)| *stage);
         let mut setup = simple(
             CapabilityFeature::Setup,
             CapabilityMode::Unknown,
@@ -301,21 +302,34 @@ impl PortCapabilityReport {
                     .unwrap_or(listing.project_url.as_str())
             );
         }
-        if let Some(reason) = &listing.download_block_reason {
+        if let Some(reason) = EffectiveRestrictions::listing_only(listing)
+            .evaluate(&RestrictionSubject::deferred(RestrictedOperation::Download))
+            .explanation()
+        {
             setup.explanation = format!("Fresh downloads are restricted: {reason}");
         }
         if let Some(pending) = pending {
             setup.mode = CapabilityMode::Manual;
-            setup.explanation = match pending.state {
-                super::PendingSetupState::Downloaded => "Downloaded; continue setup by reviewing the prepared executable. Nothing has been run by the download.".into(),
-                super::PendingSetupState::AttentionRequired => pending.reason.clone().unwrap_or_else(|| "This saved download needs attention before continuing setup.".into()),
-            };
-            setup.next_step = if pending.state == super::PendingSetupState::Downloaded {
-                "Continue setup"
-            } else {
-                "Review download"
+            // Core's stage message says what happened and what to do next.
+            match (pending.state, presented) {
+                (super::PendingSetupState::Downloaded, Some((_, message))) => {
+                    setup.explanation = match message.notice {
+                        Some(notice) => format!("{} {notice}", message.summary),
+                        None => message.summary,
+                    };
+                    setup.next_step = message.next_step;
+                }
+                (super::PendingSetupState::Downloaded, None) => {
+                    setup.explanation = "Downloaded; continue setup by reviewing the prepared executable. Nothing has been run by the download.".into();
+                    setup.next_step = "Continue setup".into();
+                }
+                (super::PendingSetupState::AttentionRequired, _) => {
+                    setup.explanation = pending.reason.clone().unwrap_or_else(|| {
+                        "This saved download needs attention before continuing setup.".into()
+                    });
+                    setup.next_step = "Review download".into();
+                }
             }
-            .into();
         }
         self.routes.insert(
             self.routes.len().saturating_sub(1),
@@ -336,7 +350,7 @@ impl super::PortcoveService {
             PortCapabilityReport::from_status(
                 &status.status,
                 &status.actions,
-                crate::managed_runtime_policy::acquisition_hold_reason(&self.catalog, port_id),
+                &EffectiveRestrictions::of(&self.catalog, port_id),
             )
         });
         let catalog = self.catalog_for_installed_fallback(port_id)?;
@@ -398,6 +412,11 @@ impl super::PortcoveService {
         // A focused read must not combine optional details with a replacement installation.
         if serde_json::to_value(&status.status)? != serde_json::to_value(&after.status)?
             || report.pending_setup != after.capabilities.as_ref().and_then(|r| r.pending_setup)
+            || report.pending_setup_stage
+                != after
+                    .capabilities
+                    .as_ref()
+                    .and_then(|r| r.pending_setup_stage)
         {
             return Err(crate::PortcoveError::conflict(
                 "installation changed while capability details were read; refresh this entry",
@@ -428,7 +447,8 @@ mod tests {
             allowed: true,
             reason: None,
         }];
-        let report = PortCapabilityReport::from_status(&status, &actions, None);
+        let report =
+            PortCapabilityReport::from_status(&status, &actions, &EffectiveRestrictions::default());
         assert_eq!(
             report.routes[0].features[0].mode,
             CapabilityMode::Unavailable
@@ -452,7 +472,8 @@ mod tests {
             json!({ "format_version": 1, "records": "wrong" }),
         ] {
             listing.compatibility = Some(value);
-            let mut report = PortCapabilityReport::from_status(&status, &[], None);
+            let mut report =
+                PortCapabilityReport::from_status(&status, &[], &EffectiveRestrictions::default());
             report.add_advisories(&listing, &status);
             assert_ne!(report.advisory_state, "available");
             assert_eq!(report.routes[3].features[0].mode, CapabilityMode::Automatic);
@@ -502,7 +523,8 @@ mod tests {
                 "provenance":"https://example.com/evidence", "observed_at":1,"evidence":"observed"
             }]}));
             let before = serde_json::to_value(&status).unwrap();
-            let mut report = PortCapabilityReport::from_status(&status, &[], None);
+            let mut report =
+                PortCapabilityReport::from_status(&status, &[], &EffectiveRestrictions::default());
             report.add_advisories(&listing, &status);
             assert_eq!(
                 serde_json::to_value(&report.advisories[0].applicability).unwrap(),
@@ -529,7 +551,8 @@ mod tests {
             "launch_behavior":{"first_launch":"asks-for-game-files", "repeat_launch":"starts-game-directly"}
         });
         listing.compatibility = Some(json!({"format_version":2,"records":[record.clone()]}));
-        let mut report = PortCapabilityReport::from_status(&status, &[], None);
+        let mut report =
+            PortCapabilityReport::from_status(&status, &[], &EffectiveRestrictions::default());
         report.add_advisories(&listing, &status);
         let notice = serde_json::to_value(&report.advisories[0]).unwrap();
         assert_eq!(notice["applicability"], "context-required");
@@ -545,7 +568,8 @@ mod tests {
 
         record["artifact_sha256"] = serde_json::Value::Null;
         listing.compatibility = Some(json!({"format_version":2,"records":[record]}));
-        let mut report = PortCapabilityReport::from_status(&status, &[], None);
+        let mut report =
+            PortCapabilityReport::from_status(&status, &[], &EffectiveRestrictions::default());
         report.add_advisories(&listing, &status);
         assert_eq!(report.advisory_state, "invalid");
         assert!(report.advisories.is_empty());
@@ -591,7 +615,9 @@ mod tests {
         assert!(dated.export_format(12).is_ok());
         assert!(dated.export_format(13).is_ok());
         assert!(dated.export_format(14).is_ok());
-        assert!(dated.export_format(15).is_err());
+        assert!(dated.export_format(15).is_ok());
+        assert!(dated.export_format(16).is_ok());
+        assert!(dated.export_format(17).is_err());
     }
 
     fn funded_listing(urls: &[&str]) -> crate::PortListing {

@@ -8,7 +8,9 @@ import { readCatalogSource } from "./catalog-authoring.mts";
 import { sceneCoverage } from "./artwork-operations.mts";
 import {
   checkShapeTable,
+  coreComponentRulesVersion,
   coreShapeVersion,
+  derivationInputsDigest,
   entriesDigest,
   pruneTable,
   recordEntry,
@@ -16,7 +18,7 @@ import {
   serializeTable,
   tablePath as shapeTablePath,
 } from "./package-shape-baselines.mts";
-import type { ShapeTable } from "./package-shape-baselines.mts";
+import type { ShapeEntry, ShapeTable } from "./package-shape-baselines.mts";
 
 import {
   requiredFixture,
@@ -78,6 +80,29 @@ void test("full proposal preparation cannot combine with ordinary catalog writes
     const refused = run("--prepare-proposal", "unused.json", flag, "untrusted");
     assert.notEqual(refused.status, 0);
     assert.match(refused.stderr, /Unknown or repeated proposal option/);
+  }
+});
+
+void test("Core image validator hashing accepts an executable beyond the controller payload bound", async (context) => {
+  const { hashCoreImageValidatorFile } = await import("./inspect-igdb-artwork.mts");
+  const { truncateSync, rmSync, symlinkSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-validator-digest-"));
+  context.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const file = join(scratch, "validator");
+  writeFileSync(file, "");
+  assert.throws(() => hashCoreImageValidatorFile(file), /nonempty regular file/u);
+  assert.throws(() => hashCoreImageValidatorFile(scratch), /regular file|EISDIR/u);
+  const chunk = Buffer.alloc(1024 * 1024);
+  truncateSync(file, 128 * chunk.length + 1);
+  const expected = createHash("sha256");
+  for (let index = 0; index < 128; index++) expected.update(chunk);
+  expected.update(Buffer.from([0]));
+  assert.equal(hashCoreImageValidatorFile(file), expected.digest("hex"));
+  if (process.platform !== "win32") {
+    const alias = join(scratch, "alias");
+    symlinkSync(file, alias);
+    assert.throws(() => hashCoreImageValidatorFile(alias), /ELOOP/u);
   }
 });
 
@@ -276,6 +301,23 @@ void test("the committed package shape table is current for the catalog and Core
   assert.deepEqual(checkShapeTable(shapeTableText(), shapeCatalog(), coreShapeVersion()), []);
 });
 
+void test("only the declared Linux portable data route changes its shape derivation digest", () => {
+  const port = (shapeCatalog().ports as Record<string, unknown>[]).find(
+    (candidate) => candidate.id === "nicholas-ochoa-opensc2k",
+  );
+  assert.ok(port);
+  const withoutPortableData = { ...port };
+  delete withoutPortableData.linux_portable_data_directory;
+  assert.notEqual(
+    derivationInputsDigest(port, "linux-x86-64"),
+    derivationInputsDigest(withoutPortableData, "linux-x86-64"),
+  );
+  assert.equal(
+    derivationInputsDigest(port, "windows-x86-64"),
+    derivationInputsDigest(withoutPortableData, "windows-x86-64"),
+  );
+});
+
 void test("package shape check refuses a digest the catalog no longer marks as reviewed", () => {
   const catalog = shapeCatalog();
   const entry = firstShapeEntry(JSON.parse(shapeTableText()) as ShapeTable);
@@ -411,9 +453,131 @@ void test("package shape prune drops unreviewed digests and adopts the catalog v
   const pruned = pruneTable(shapeTableText(), catalog, coreShapeVersion());
   assert.match(pruned.removed.join("\n"), /digest no longer reviewed/u);
   assert.deepEqual(checkShapeTable(pruned.text, catalog, coreShapeVersion()), []);
-  const reset = pruneTable(shapeTableText(), shapeCatalog(), coreShapeVersion() + 1);
+  // A derivation that also changes the component rules resets the table.
+  const reset = pruneTable(
+    shapeTableText(),
+    shapeCatalog(),
+    coreShapeVersion() + 1,
+    coreShapeVersion() + 1,
+  );
   assert.equal(reset.removed.length, table.entries.length);
   assert.equal((JSON.parse(reset.text) as ShapeTable).entries.length, 0);
+});
+
+// Shape version 2 (#8569): players with machine and digest; version 1 entries stay valid.
+const asVersionOne = (entry: ShapeEntry): ShapeEntry => {
+  const { player_candidates: _players, ...rest } = entry;
+  return { ...rest, shape_version: 1 };
+};
+
+void test("package shape entries record version 2 players and version 1 entries stay valid", () => {
+  const table = JSON.parse(shapeTableText()) as ShapeTable;
+  assert.equal(coreShapeVersion(), 2);
+  assert.equal(coreComponentRulesVersion(), 1);
+  assert.equal(table.shape_version, coreShapeVersion());
+  for (const entry of table.entries) {
+    assert.equal(entry.shape_version, 2);
+    assert.ok(entry.player_candidates?.length, `${entry.port_id} ${entry.platform}`);
+    for (const player of entry.player_candidates ?? []) {
+      assert.ok(entry.shape.programs.includes(player.path));
+      assert.match(player.machine, /^(pe|elf32|elf64|macho)-/u);
+    }
+  }
+  const reviewed = reviewedArtifacts(shapeCatalog());
+  // One entry still at version 1 beside version 2 entries.
+  const mixed = serializeTable(
+    [asVersionOne(firstShapeEntry(table)), ...table.entries.slice(1)],
+    coreShapeVersion(),
+    reviewed,
+  );
+  assert.deepEqual(checkShapeTable(mixed, shapeCatalog(), coreShapeVersion()), []);
+  assert.deepEqual(pruneTable(mixed, shapeCatalog(), coreShapeVersion()), {
+    text: mixed,
+    removed: [],
+  });
+  // A table written before per-entry versions prunes to version 1 entries.
+  const legacy = {
+    ...table,
+    shape_version: 1,
+    entries: table.entries.map((entry) => {
+      const { shape_version: _version, ...rest } = asVersionOne(entry);
+      return rest;
+    }),
+  };
+  const converted = pruneTable(JSON.stringify(legacy), shapeCatalog(), coreShapeVersion());
+  assert.deepEqual(converted.removed, []);
+  assert.deepEqual(checkShapeTable(converted.text, shapeCatalog(), coreShapeVersion()), []);
+  const convertedTable = JSON.parse(converted.text) as ShapeTable;
+  assert.equal(convertedTable.shape_version, coreShapeVersion());
+  assert.ok(convertedTable.entries.every((entry) => entry.shape_version === 1));
+  assert.ok(convertedTable.entries.every((entry) => entry.player_candidates === undefined));
+  // Recording re-derives one entry at version 2 and keeps the version 1 rest.
+  const { version: _v, reviewed_by: _r, ...derived } = firstShapeEntry(table);
+  const rerecorded = JSON.parse(
+    recordEntry(converted.text, shapeCatalog(), coreShapeVersion(), derived),
+  ) as ShapeTable;
+  const versions = rerecorded.entries.map((entry) => entry.shape_version);
+  assert.equal(versions.filter((version) => version === 2).length, 1);
+  assert.equal(versions.filter((version) => version === 1).length, table.entries.length - 1);
+});
+
+void test("package shape check refuses missing, foreign or noncanonical players", () => {
+  const table = JSON.parse(shapeTableText()) as ShapeTable;
+  const reviewed = reviewedArtifacts(shapeCatalog());
+  const problemsWith = (edit: (entry: ShapeEntry) => ShapeEntry) =>
+    checkShapeTable(
+      serializeTable(
+        [edit(structuredClone(firstShapeEntry(table))), ...table.entries.slice(1)],
+        coreShapeVersion(),
+        reviewed,
+      ),
+      shapeCatalog(),
+      coreShapeVersion(),
+    ).join("\n");
+  const player = (entry: ShapeEntry) => {
+    const first = entry.player_candidates?.[0];
+    assert.ok(first);
+    return first;
+  };
+  assert.match(
+    problemsWith(({ player_candidates: _players, ...entry }) => entry),
+    /player_candidates are missing/u,
+  );
+  assert.match(
+    problemsWith((entry) => ({ ...entry, shape_version: 1 })),
+    /need derivation version 2/u,
+  );
+  assert.match(
+    problemsWith((entry) => ({ ...entry, shape_version: 0 })),
+    /outside 1\.\.2/u,
+  );
+  assert.match(
+    problemsWith((entry) => {
+      player(entry).path = "overlay_toolchain/not-a-program.exe";
+      return entry;
+    }),
+    /not one of the shape's programs/u,
+  );
+  assert.match(
+    problemsWith((entry) => {
+      player(entry).sha256 = player(entry).sha256.toUpperCase();
+      return entry;
+    }),
+    /64 lowercase hex/u,
+  );
+  assert.match(
+    problemsWith((entry) => {
+      player(entry).machine = "PE X86";
+      return entry;
+    }),
+    /noncanonical machine/u,
+  );
+  const { version: _v, reviewed_by: _r, ...derived } = firstShapeEntry(table);
+  const { player_candidates: _players, ...withoutPlayers } = derived;
+  assert.throws(
+    () => recordEntry(shapeTableText(), shapeCatalog(), coreShapeVersion(), withoutPlayers),
+    /player_candidates are missing/u,
+  );
 });
 
 void test("the scene workset distinguishes catalog, provider, and unobserved scopes", () => {

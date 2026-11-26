@@ -65,6 +65,20 @@
     }
   },
   "integration": {
+    "mod_sources": [
+      {
+        "id": "nexus-daggerfall-unity",
+        "authority": "link_out",
+        "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+        "name": "Nexus Mods",
+        "instructions": "Choose the correct Daggerfall Unity version and operating system. Follow the archive’s instructions in a separate copy of Daggerfall Unity. Place .dfmod files in StreamingAssets/Mods.",
+        "source": {
+          "kind": "external_portal",
+          "site": "nexus_mods",
+          "url": "https://www.nexusmods.com/games/daggerfallunity/mods"
+        }
+      }
+    ],
     "support_tier": "beta",
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64"],
@@ -79,6 +93,36 @@
     "executable_hints": {
       "windows-x86-64": ["DaggerfallUnity.exe"],
       "linux-x86-64": ["DaggerfallUnity.x86_64"]
+    },
+    "mod_loader": {
+      "contract": { "id": "daggerfall-unity-data", "version": "1" },
+      "repository": "Interkarma/daggerfall-unity",
+      "minimum_version": "1.1.1",
+      "settings_file": "PortableAppdata/Mods/GameData/Mods.json",
+      "platforms": ["windows-x86-64", "linux-x86-64"],
+      "reviewed_artifacts": {
+        "windows-x86-64": {
+          "tag": "v1.1.1-cve-2025",
+          "identity": {
+            "asset_name": "dfu_windows_64bit-v1.1.1.zip",
+            "sha256": "b4eb2620cdf31f973ed1105d06be8a31f21796915d65c253a93eeb02cb1d64bd",
+            "size": 50240819
+          }
+        },
+        "linux-x86-64": {
+          "tag": "v1.1.1-cve-2025",
+          "identity": {
+            "asset_name": "dfu_linux_64bit-v1.1.1.zip",
+            "sha256": "be3c476ae92972f42448757719266ad82c04868eb7b6f3a3c90fcfcf1490849a",
+            "size": 58809717
+          }
+        }
+      },
+      "reviewed_repository_id": 28884050,
+      "reviewed_payload_sha256": {
+        "windows-x86-64": "176ef2de07fbdd4bee4fc3715e3712b644e39426984501ac0de7786ac2ed6293",
+        "linux-x86-64": "80bfff2c6f29a42adf3f0da73294a8394899747b8101f3a84d4d8b01273f260c"
+      }
     },
     "persistent_paths": [
       "Portable.txt",

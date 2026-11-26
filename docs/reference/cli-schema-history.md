@@ -56,6 +56,26 @@ capability 36, so an older reader refuses it rather than copying a headered file
 
 ## Documented API changes
 
+Additive, within the current API: `installation.reference-plan` results add an
+optional `retires` list (offers the binding retires under the 16-offer retention
+policy), and `installation.reference` adds an optional `retired` list of
+recorded retirements with their reason. Library writer schema 78 stores those
+records. No existing field changes meaning.
+
+API 101 adds the `logo` slot to artwork choices and the `logo` role to
+SteamGridDB candidates, attribution and listing reports. Logo changes can require
+library metadata format 14 and writer schema 75. Destination artwork handoff stays
+at schema 4 and events stay at schema 3. Optional background framing on
+`artwork_state.choice` requires library metadata format 15 and writer schema 76.
+`artwork suppress` records an explicit hidden choice that keeps its selected
+asset and framing; `artwork unhide` shows that selection again. Its `suppressed`
+field is present when true, and a hidden choice reports the generated fallback.
+Writers use library schema 77 and exports that carry hidden choices use metadata
+format 16. Library schema 78 widens the stored setup revision bound from 256 KiB
+to 16 MiB for the [supported setup contract](../ARCHITECTURE.md#supported-setup-contract);
+older clients refuse a schema-78 library before reading it. The managed definition publication
+inspection uses its fixed API 100 envelope for publication report schema 1.
+
 API 100 extends the exact recipe review with format 3 originals, typed setup
 configuration and reviewed provider acquisitions. Commands advertise support
 for `profile recipe-acquire` and `profile recipe-discard`. Use the advertised
@@ -68,7 +88,10 @@ game setup queue is unavailable. A successful envelope with
 `data.batches` is empty. The prior API returned an error for this queue failure.
 An independent, optional `profile setups.last_automatic_checks` field reports
 the last bounded check and grants no update permission. Event schema 3 and
-the private library writer protocol are unchanged.
+the private library writer protocol are unchanged. A later additive, optional
+`profile setups.last_automatic_checks_incomplete` (no API version change)
+reports that the stored results of the last pass could not be read in full;
+an older reader sees the same document without it.
 
 API 98 adds `profile inspect-mod-file` and `profile preserve-mod-file`.
 Inspection records one file and its exact bytes. Preservation requires the

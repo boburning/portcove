@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "snaity-core-pe2-pc-port-parasite-eve-ii",
+    "project_url": "https://github.com/Snaity-CORE/pe2-pc-port",
+    "name": "Parasite Eve II (PS1 USA) / pe2-pc-port (Snaity-CORE)",
+    "summary": "Parasite Eve II PC Port",
+    "issue_number": 3982,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "parasite-eve-ii",
+      "evidence_urls": ["https://github.com/Snaity-CORE/pe2-pc-port"],
+      "source_editions": [
+        {
+          "id": "parasite-eve-ii-playstation",
+          "title": "Parasite Eve II (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/Snaity-CORE/pe2-pc-port"]
+        }
+      ]
+    },
+    "original_game_title": "Parasite Eve II"
+  }
+}

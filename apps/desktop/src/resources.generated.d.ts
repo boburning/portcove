@@ -30,6 +30,7 @@ export default interface Resources {
       "libraryNeedsRecovery": "Your library needs to finish an upgrade or recovery first, so the update wasn’t installed. Reopen Portcove and let it finish, then try again.",
       "libraryRelocated": "Your library has moved, so the update wasn’t installed. Open the library at its new location, then try again.",
       "packageManaged": "This copy of Portcove was installed by your package manager. Update it through your package manager instead.",
+      "releaseNotFound": "Portcove couldn’t get update information. Try again later.",
       "saveFailed": "Portcove couldn’t save your update settings. Try again.",
       "stale": "This update is no longer available. Check for updates, then try again.",
       "unavailable": "Updates aren’t available in this Portcove build. Download the latest version from the Portcove website."
@@ -62,12 +63,19 @@ export default interface Resources {
   },
   "backups": {
     "automaticSnapshots": {
+      "checking": "Checking automatic snapshots for this library…",
       "control": "Snapshot saved data before each version change",
+      "coverage": "Saves & backups shows what Portcove covers and lists completed backups.",
       "description": "Before an update installs, a saved update is activated, or you restore a previous version, Portcove copies a game’s managed saves and settings so you can restore them if the new version misreads them. It skips games whose saves live outside Portcove and games with no saved data yet, and if a snapshot cannot be taken the version change stops. Portcove keeps the newest five automatic snapshots for each game and never removes the ones you take yourself. This applies to every game in this library, starting with the next version change.",
+      "disableUnconfirmed": "Portcove couldn’t confirm whether automatic snapshots were turned off.",
+      "disabled": "Automatic snapshots before version changes are off for this library.",
+      "enableUnconfirmed": "Portcove couldn’t confirm whether automatic snapshots were turned on.",
+      "enabled": "Automatic snapshots before version changes are on for this library.",
       "heading": "Snapshot saved data before version changes",
       "readFailed": "The setting could not be read.",
-      "retry": "Try again",
-      "saveFailed": "The setting could not be saved."
+      "retry": "Read setting again",
+      "saveFailed": "Portcove couldn’t confirm the result of saving this setting.",
+      "unavailable": "Portcove couldn’t check this library’s automatic snapshot setting."
     },
     "details": {
       "catalogId": "Catalog ID: {{id}}",
@@ -226,15 +234,20 @@ export default interface Resources {
     "review": {
       "applyDelete": "Delete this backup permanently",
       "applyRestore": "Restore this backup",
+      "backupUnavailable": "The selected backup is missing or has changed. Close this review to see the current backup list.",
       "cancel": "Cancel",
       "checking": "Checking the backup and current saved data…",
       "deleting": "Deleting backup…",
       "descriptionDelete": "Permanently delete only the selected backup.",
       "descriptionRestore": "Replace this game’s current saved data with this backup.",
       "failure": "The operation did not complete. Review the current backup and data before trying again.",
+      "inventoryUnavailable": "Portcove couldn’t confirm that this backup can be restored. Refresh backup history to check again.",
+      "reconcileRestore": "Check the restore result in Activity before starting another restore.",
+      "reopenRestore": "Portcove couldn’t verify the restore target. Close this review and choose the backup again.",
       "restoring": "Restoring backup…",
       "reviewAgain": "Review again",
-      "selectionChanged": "This review no longer matches the selected backup. Close it and refresh backup history.",
+      "selectionChanged": "Portcove couldn’t confirm that this review matches the selected backup.",
+      "targetChanged": "This game’s installation or setup changed. Close this review and check the current backup history.",
       "titleDelete": "Review backup deletion",
       "titleRestore": "Review backup restore"
     },
@@ -332,7 +345,8 @@ export default interface Resources {
     "hero": {
       "continueLabel": "{{title}} recently played",
       "credits": "Image credits",
-      "detailLabel": "{{title}} game details"
+      "detailLabel": "{{title}} game details",
+      "openDetails": "Game details"
     },
     "implementation": {
       "choose": "Choose <name/>",
@@ -739,6 +753,21 @@ export default interface Resources {
       "project": "Upstream project",
       "steam": "Steam shortcut"
     },
+    "artwork": {
+      "apply": "Apply",
+      "cancel": "Cancel",
+      "previewFailed": "The preview could not open. Cancel and choose an image again.",
+      "reviewAutomatic": "Use the default artwork for this role when available.",
+      "reviewChange": "Review artwork change",
+      "reviewHide": "Hide artwork for this role. Other roles stay as they are.",
+      "reviewImage": "Review {{role}}",
+      "reviewLocalImage": "Local image",
+      "reviewPreviewChanged": "The image changed. Cancel and choose it again to review the new image.",
+      "reviewProviderImage": "SteamGridDB image by {{author}}",
+      "reviewShow": "Show this role again with the artwork it had before it was hidden.",
+      "reviewStale": "This artwork choice changed. Cancel and review the current choice.",
+      "scopeCurrentPort": "Artwork changes apply only to this port."
+    },
     "capabilities": {
       "assessment": "Assessment details",
       "backupNone": "Latest completed backup: None recorded. Review Saves & backups for effective coverage and exclusions.",
@@ -843,6 +872,14 @@ export default interface Resources {
       "toFolder": "Active version folder",
       "toVersion": "Active version",
       "unreadable": "Could not be read"
+    },
+    "changeReview": {
+      "mods_one": "Mods · {{count}} change",
+      "mods_other": "Mods · {{count}} changes",
+      "open_one": "Review {{count}} change",
+      "open_other": "Review {{count}} changes",
+      "settings_one": "Game settings · {{count}} change",
+      "settings_other": "Game settings · {{count}} changes"
     },
     "identity": {
       "label": "Game and port identity",
@@ -996,7 +1033,8 @@ export default interface Resources {
         "detail": "Portcove only shows what it finds here.",
         "label": "Don't set up games from this folder automatically"
       },
-      "sharedFiles": "More than one game can use some files here. Choose which one to set up; until you do, Portcove waits."
+      "sharedFiles": "More than one game can use some files here. Choose which one to set up; until you do, Portcove waits.",
+      "waiting": "<game/> didn't finish setting up: <reason/>. Portcove will try again automatically. Next attempt: <time/>"
     },
     "intent": {
       "discoverOnly": {
@@ -1004,6 +1042,8 @@ export default interface Resources {
         "label": "Only show it in discovery"
       },
       "failed": "The last automatic setup didn't finish: <reason/>. Portcove tries again when the game's files, catalog or requirements change.",
+      "failedTemporary": "The last automatic setup didn't finish: <reason/>. Portcove will try again automatically.",
+      "failedTemporaryNext": "The last automatic setup didn't finish: <reason/>. Portcove will try again automatically. Next attempt: <time/>",
       "ignored": {
         "detail": "Portcove doesn't suggest, notify about or set up this game.",
         "label": "Ignore this game"
@@ -1101,6 +1141,20 @@ export default interface Resources {
       "externalRegistration": "Existing installation setup",
       "managedInstall": "Managed setup",
       "managedLaunch": "Managed launch"
+    },
+    "savedScan": {
+      "checking": "Checking the saved scan…",
+      "dismiss": "Dismiss scan result",
+      "failed": "Portcove could not check this scan.",
+      "heading": "Saved folder scan",
+      "label": "Saved folder scan result",
+      "partial": "Partial scan results saved.",
+      "progress": "Saved scan progress.",
+      "retry": "Retry checking this scan",
+      "review": "Review saved scan",
+      "saved": "Saved folder scan results.",
+      "showCurrent": "Show current folder results",
+      "unavailable": "This scan is no longer available with its original results and settings."
     },
     "setupReviews": {
       "add": "Add {{total}} selected to Library",
@@ -1218,13 +1272,16 @@ export default interface Resources {
       "error": {
         "choose": "Choose one of the listed options.",
         "number": "Enter a number.",
+        "range": "Enter a number within the listed range.",
         "tooLarge": "This number is too large to save accurately.",
         "whole": "Enter a whole number."
       },
+      "pendingDefault": "Will use the default when saved.",
       "rangeNumber": "Numbers from {{minimum}} to {{maximum}}, in steps of {{step}}.",
       "rangeWhole": "Whole numbers from {{minimum}} to {{maximum}}, in steps of {{step}}.",
-      "reset": "Reset to default…",
-      "review": "Review change"
+      "reset": "Use default",
+      "review": "Review changes",
+      "undo": "Undo"
     },
     "jakMods": {
       "browse": "Browse JakMods",
@@ -1333,6 +1390,30 @@ export default interface Resources {
       "createFirst": "Create first setup",
       "defaultRefreshRequired": "Default still records an older game version. Refresh it before copying or exporting this setup.",
       "empty": "No mods. The game plays without changes in this setup.",
+      "external": {
+        "cached": "Showing earlier results. The source could not be checked now.",
+        "checked": "Checked {{date}}",
+        "empty": "The source returned no results.",
+        "heading": "Community mod websites",
+        "incomplete": "Some entries had unreadable details. The results may be incomplete.",
+        "latest": "Show newest on Quaddicted",
+        "linkUnavailable": "This link is no longer confirmed. Refresh the results before opening it.",
+        "loading": "Checking the source…",
+        "modDb": "View on Mod DB",
+        "modIo": "View on mod.io",
+        "more": "More results",
+        "nexus": "Get on Nexus",
+        "notices": "Show {{name}} file notices",
+        "otherEngine": "Requires another engine",
+        "owner": "You choose, install and update files outside Portcove.",
+        "previous": "Previous results",
+        "quaddicted": "View on Quaddicted",
+        "search": "Search Quaddicted",
+        "searchFilename": "Filename",
+        "site": "Browse {{name}}",
+        "unavailable": "Couldn’t read this source. Try again or open its website.",
+        "unverifiedEngine": "Check which engines this file supports."
+      },
       "filePreservation": {
         "adopt": "For a supported mod, use Add mod file and choose this saved file.",
         "details": "File details",
@@ -1347,6 +1428,11 @@ export default interface Resources {
       },
       "fromProvider": "<name /> (from <provider />)",
       "gameChanged": "This game changed. Refresh its details before changing mods.",
+      "github": {
+        "browse": "Browse mods on GitHub",
+        "platform": "You can browse releases. Setting up this ZIP needs an installed copy of the game whose build supports it on this platform.",
+        "setup": "Download the intact ZIP. Open a separate copy of the game and use Install Mods to select the ZIP. Update it in that copy when you want a newer release."
+      },
       "heading": "Setups and mods",
       "held": {
         "intro_one": "Portcove kept the current version of a mod because its update needs your review:",
@@ -1417,13 +1503,18 @@ export default interface Resources {
       },
       "recipe": {
         "allowCode": "I allow the exact packages below to run mod code.",
+        "checkAllProviders": "Check the provider for every missing mod",
         "checkProvider": "Check provider for {{name}}",
+        "checkStopped": "Stopped at {{name}}. {{reason}} The mods checked before it stay ready, including after a restart.",
+        "checkedSoFar": "{{done}} of {{total}} mods checked with the provider.",
+        "checksPaused": "Paused after checking {{done}} of {{total}} mods. Checked files are ready for this recipe.",
         "close": "Close review",
         "details": "Recipe inputs and details",
         "disabled": "{{name}} is off",
         "enabled": "{{name}} is on",
         "export": "Export setup recipe…",
         "fileType": "Portcove setup recipe",
+        "finishingStep": "Finishing this step before pausing…",
         "gameFiles": "Open Game files",
         "held": "This recipe needs the files listed below before it can be imported.",
         "identity": "Recipe SHA-256",
@@ -1434,6 +1525,7 @@ export default interface Resources {
         "order": "Load order for {{domain}}",
         "originalNeeded": "Add or relink the matching original game file from your own copy, then review the recipe again.",
         "packages": "Mods in the recipe",
+        "pauseChecks": "Pause after this step",
         "platform": "Platform {{platform}}",
         "providerFile": "Check <provider/> project <project/>, file <file/> against this recipe before importing. Portcove checks which files are in the download and which other mods they require.",
         "providerSetupNeeded": "Create or select a setup to check the exact files with the provider.",
@@ -1520,6 +1612,7 @@ export default interface Resources {
           "held": "Update needs review.",
           "unavailable": "Check unavailable. Portcove will try again."
         },
+        "automaticIncomplete": "Some results of the last automatic check could not be read. The next automatic check records them again.",
         "check": "Check for mod updates",
         "checking": "Checking for mod updates…",
         "detail": {
@@ -1556,6 +1649,7 @@ export default interface Resources {
         "applied": "Setup changes applied.",
         "apply": "Apply changes",
         "applyCode": "Allow this code and apply changes",
+        "applyReadback": "Portcove couldn’t confirm the current setup. Read setups again.",
         "browse": "Browse mods",
         "browseOnly": "Open the source to see available files for this mod.",
         "cached": "The source could not be reached. Showing saved results.",
@@ -1574,7 +1668,7 @@ export default interface Resources {
         "disabledFilter": "Disabled",
         "discardOlder": "Discard older changes",
         "done": "Done",
-        "draftLimit": "You can queue up to 16 additions. Apply or undo some before adding more.",
+        "draftLimit": "A setup can hold up to {{limit}} mods. Apply or undo some changes before adding more.",
         "editOrder": "Edit order",
         "emptySource": "{{provider}} has no mods for this port.",
         "enabledFilter": "Enabled",
@@ -1616,6 +1710,7 @@ export default interface Resources {
         "playUses": "Uses <name />",
         "queueLocal": "Queue file",
         "readFailed": "Could not check whether this game supports mods.",
+        "readingAppliedSetup": "Reading the current setup…",
         "recoverAdditions": "Recover additions",
         "refresh": "Refresh",
         "refreshFailed": "Could not refresh this source. Try again.",
@@ -1653,10 +1748,16 @@ export default interface Resources {
       }
     },
     "panel": {
+      "discard": "Discard draft",
       "fileUnavailable": "This settings file is unavailable.",
       "heading": "Game settings",
-      "intro": "Review each change before saving. Other preferences stay as they are.",
+      "held": "This draft belongs to an earlier setup or file. To edit the current settings, discard this draft and enter your changes again.",
+      "heldUnavailable": "Portcove couldn’t read the settings for this draft. Read settings again to check for the original setup and file.",
+      "installTarget": "Game version {{version}}",
+      "intro": "Edit settings, then review the changes for each file before saving.",
       "label": "Game settings",
+      "limit": "Review up to 16 changes at a time. Undo some edits to continue.",
+      "setupTarget": "Setup {{setup}} · Game version {{version}}",
       "unavailable": "Settings are unavailable for this installation."
     },
     "review": {
@@ -1664,15 +1765,17 @@ export default interface Resources {
       "cancel": "Cancel",
       "current": "Current saved value",
       "default": "Default",
-      "description": "Save this one preference for the installed game. The game may need to restart to use it.",
-      "failure": "The change was not accepted. Refresh settings and review again.",
+      "description": "Check the changes below before saving. The game may need to restart to use them.",
+      "failure": "Portcove could not confirm this save. Read the settings again before trying another save.",
       "installationChanged": "The installation changed. Refresh settings and review again.",
       "new": "New value",
-      "reading": "Reading the current setting…",
-      "save": "Save setting",
-      "setting": "Setting",
+      "reading": "Checking the current settings…",
+      "requiresStandardWindowsSession": "Game settings can’t be reviewed in this Windows session. Open Portcove from the desktop without administrator privileges to edit game settings.",
+      "save": "Save changes",
+      "saved": "Changes saved.",
+      "savedReadback": "Changes saved. Read the settings again to see the current values.",
       "technical": "Technical details",
-      "title": "Review game setting"
+      "title": "Review game settings"
     },
     "value": {
       "notSaved": "Not saved",
@@ -1688,6 +1791,15 @@ export default interface Resources {
       "rolling": "Rolling",
       "stable": "Stable",
       "unknown": "Unknown channel"
+    },
+    "deferral": {
+      "resetUnknown": "The reset time is unknown.",
+      "resets": "Resets: {{time}}.",
+      "resetsEstimated": "Resets: about {{time}} (Portcove’s estimate).",
+      "rowLabel": "Update check not run for {{port}}",
+      "rowNote": "Not checked: request limit.",
+      "summary_one": "{{count}} port not checked yet because a request limit was reached. The next check starts with this port.",
+      "summary_other": "{{count}} ports not checked yet because a request limit was reached. The next check starts with these ports."
     },
     "releaseChannel": {
       "changeEffect": "Changing channel selects releases for future checks and updates. Your installed version stays unchanged.",
@@ -1705,6 +1817,27 @@ export default interface Resources {
       "unconfirmed": "Channel change was not confirmed. Check the current selection before retrying.",
       "unlisted": "This update channel is no longer listed. Your saved choice has not changed.",
       "unrecognized": "This saved channel is not recognized in this version. Your saved choice has not changed."
+    },
+    "releasePreference": {
+      "cancel": "Cancel release review",
+      "channelCandidate": "The channel offers {{version}}.",
+      "choose": "Choose exact release",
+      "follow": "Follow channel",
+      "followFailed": "Portcove couldn’t confirm the change. Refresh to check the saved choice.",
+      "following": "Following the selected channel.",
+      "heldChannel": "The saved release pin belongs to a different channel, so Portcove won’t check for or install updates for this game. Choose Follow channel to clear it.",
+      "heldUnreadable": "Portcove can’t read the saved release pin, so it won’t check for or install updates for this game. Choose Follow channel to clear it.",
+      "package": "{{version}} · {{filename}} · {{size}}",
+      "pin": "Pin this release",
+      "pinConsequence": "Future installs and update checks use this release, even when the channel offers a newer one.",
+      "pinFailed": "Portcove couldn’t confirm the pin. Review the release again.",
+      "pinned": "Pinned to {{version}}.",
+      "review": "Review release",
+      "reviewFailed": "Portcove couldn’t review this release. Check the tag and try again.",
+      "reviewing": "Reviewing release…",
+      "saveCompatibility": "Check the release’s save compatibility before installing a different version.",
+      "tag": "Release tag or version",
+      "title": "Release selection"
     }
   },
   "installation": {
@@ -2322,11 +2455,16 @@ export default interface Resources {
       "open": "Restore from a library copy",
       "plan": "Library restore plan",
       "recovery": {
+        "bundleIntro": "Finish checking and restoring the bundle before opening the library.",
+        "bundleRestored": "The library has been restored. Open it when you're ready.",
+        "bundleResume": "Resume bundle restore",
+        "bundleUnknown": "Portcove could not confirm this bundle restore.",
         "busy": "Recovering the library restore…",
         "destination": "Restore destination: <path />",
         "heading": "Finish the interrupted library restore",
         "intro": "Resume the restore to verify and finish opening the copied library. The Portcove export stays unchanged. Incomplete copies remain closed until recovery succeeds.",
         "label": "Library restore recovery",
+        "open": "Open restored library",
         "resume": "Resume restore"
       },
       "restore": "Restore this library",

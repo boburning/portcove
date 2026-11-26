@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "harry-potter-and-the-sorcerer-s-stone-openhp1",
+    "project_url": "https://github.com/SplittyDev/openhp1",
+    "name": "Harry Potter and the Sorcerer's Stone / OpenHP1",
+    "summary": "Open reimplementation of the Harry Potter 1 PC game",
+    "issue_number": 5772,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "harry-potter-and-the-sorcerers-stone",
+      "evidence_urls": ["https://github.com/SplittyDev/openhp1"],
+      "source_editions": []
+    },
+    "original_game_title": "Harry Potter and the Sorcerer's Stone"
+  }
+}

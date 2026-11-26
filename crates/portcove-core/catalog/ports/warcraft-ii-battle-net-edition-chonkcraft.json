@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "warcraft-ii-battle-net-edition-chonkcraft",
+    "project_url": "https://github.com/chriskearney/chonkcraft",
+    "name": "Warcraft II: Battle.net Edition / ChonkCraft",
+    "summary": "A Java port of Warcraft II: Battle.net Edition",
+    "issue_number": 5863,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "warcraft-ii-battle-net-edition",
+      "evidence_urls": ["https://github.com/chriskearney/chonkcraft"],
+      "source_editions": []
+    },
+    "original_game_title": "Warcraft II: Battle.net Edition"
+  }
+}

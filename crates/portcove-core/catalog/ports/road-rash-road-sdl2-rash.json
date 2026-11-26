@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "road-rash-road-sdl2-rash",
+    "project_url": "https://github.com/speedydevil007/road-sdl2-rash",
+    "name": "Road Rash / road-sdl2-rash (speedydevil007)",
+    "summary": "Modern native 64-bit C port and WebAssembly release of Road Rash (1996 PC). Runs natively on Windows 10/11, Linux, Steam Deck, and Web Browsers via SDL2. Features gamepad support,   1280x960 high-res rendering, SoundFont audio, in-game options overlay, and real-time physics/AI modding",
+    "issue_number": 7271,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "road-rash",
+      "evidence_urls": ["https://github.com/speedydevil007/road-sdl2-rash"],
+      "source_editions": []
+    },
+    "original_game_title": "Road Rash"
+  }
+}

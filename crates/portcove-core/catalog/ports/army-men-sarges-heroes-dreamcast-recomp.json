@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "army-men-sarges-heroes-dreamcast-recomp",
+    "project_url": "https://github.com/theurbanninja1993-sketch/army-men-sarges-heroes-recomp",
+    "name": "Army Men: Sarge's Heroes / theurbanninja1993-sketch Dreamcast recomp",
+    "summary": "Unofficial Dreamcast Army Men: Sarge's Heroes native Linux port. Modern controls, mouse camera, and widescreen. Windows version coming soon.",
+    "issue_number": 6011,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "army-men-sarges-heroes",
+      "evidence_urls": [
+        "https://github.com/theurbanninja1993-sketch/army-men-sarges-heroes-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "army-men-sarges-heroes-dreamcast",
+          "title": "Army Men: Sarge's Heroes (Dreamcast)",
+          "system": "dreamcast",
+          "evidence_urls": [
+            "https://github.com/theurbanninja1993-sketch/army-men-sarges-heroes-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Army Men: Sarge's Heroes"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sid-meier-s-colonization-for-windows-opencol",
+    "project_url": "https://github.com/OpenCol/win-port",
+    "name": "Sid Meier's Colonization for Windows / OpenCol",
+    "summary": "Modern port of Sid Meier’s Colonization (Windows 3.1), built from byte-accurate decompiled C code to run natively on modern operating systems without emulation.",
+    "issue_number": 5845,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sid-meiers-colonization-for-windows",
+      "evidence_urls": ["https://github.com/OpenCol/win-port"],
+      "source_editions": []
+    },
+    "original_game_title": "Sid Meier's Colonization for Windows"
+  }
+}

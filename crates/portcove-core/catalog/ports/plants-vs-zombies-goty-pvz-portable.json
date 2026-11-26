@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "plants-vs-zombies-goty-pvz-portable",
+    "project_url": "https://github.com/wszqkzqk/PvZ-Portable",
+    "name": "Plants vs. Zombies GOTY / PvZ-Portable",
+    "summary": "A cross-platform reimplementation of Plants vs. Zombies by the community. Aiming to bring 100% authentic experience of GOTY edition.",
+    "issue_number": 5576,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "plants-vs-zombies-goty",
+      "evidence_urls": ["https://github.com/wszqkzqk/PvZ-Portable"],
+      "source_editions": []
+    },
+    "original_game_title": "Plants vs. Zombies GOTY"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ultima-underworld-interrupt-native-engine",
+    "project_url": "https://github.com/Interrupt/ultima-underworld",
+    "name": "Ultima Underworld / Interrupt native engine",
+    "summary": "An Ultima Underworld 1 recompilation project based on the Pocket PC port",
+    "issue_number": 5798,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ultima-underworld",
+      "evidence_urls": ["https://github.com/Interrupt/ultima-underworld"],
+      "source_editions": []
+    },
+    "original_game_title": "Ultima Underworld I"
+  }
+}

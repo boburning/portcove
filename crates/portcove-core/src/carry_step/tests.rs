@@ -8,7 +8,7 @@ fn ok() -> Result<()> {
 }
 
 fn write(root: &Path, relative: &str, bytes: &[u8]) {
-    let path = member(root, relative);
+    let path = crate::path::join_relative(root, relative);
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(path, bytes).unwrap();
 }
@@ -180,9 +180,18 @@ fn a_short_volume_carries_nothing() {
         other => panic!("{other:?}"),
     }
     assert_eq!(fs::read_dir(&fixture.target).unwrap().count(), 0);
-    // A 500 GiB volume keeps 10 GiB.
+    // A 400 GiB volume keeps its 2% (8 GiB); larger volumes keep the cap.
     let gib = 1024 * 1024 * 1024;
-    assert_eq!(required_bytes(&[], &BTreeMap::new(), 500 * gib), 10 * gib);
+    assert_eq!(required_bytes(&[], &BTreeMap::new(), 400 * gib), 8 * gib);
+    assert_eq!(required_bytes(&[], &BTreeMap::new(), 500 * gib), 8 * gib);
+    assert_eq!(
+        required_bytes(&[], &BTreeMap::new(), 10 * 1024 * gib),
+        8 * gib
+    );
+    assert_eq!(
+        required_bytes(&[], &BTreeMap::new(), 10 * gib),
+        RESERVE_BYTES
+    );
 }
 
 #[test]

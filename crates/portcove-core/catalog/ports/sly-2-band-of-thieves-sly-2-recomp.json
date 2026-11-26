@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sly-2-band-of-thieves-sly-2-recomp",
+    "project_url": "https://github.com/menaman123/Sly-2-Recomp",
+    "name": "Sly 2: Band of Thieves / Sly 2 Recomp (menaman123)",
+    "summary": "Native port of Sly Cooper 2 done through recompilation.",
+    "issue_number": 7265,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sly-2-band-of-thieves",
+      "evidence_urls": ["https://github.com/menaman123/Sly-2-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Sly 2: Band of Thieves"
+  }
+}

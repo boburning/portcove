@@ -213,6 +213,31 @@
       "native_game": "mm"
     },
     "mod_provider_bindings": [{ "provider": "thunderstore", "community": "zelda-64-recompiled" }],
+    "mod_sources": [
+      {
+        "id": "mm-recomp-rando",
+        "authority": "inspect",
+        "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+        "source": {
+          "kind": "github_release",
+          "repository": "RecompRando/MMRecompRando",
+          "repository_id": 854379059,
+          "asset_name": "MMRecompRando.zip",
+          "companions": [
+            {
+              "platform": "windows-x86-64",
+              "declared_library": "APCpp-Glue",
+              "files": ["APCpp-Glue.dll", "python311.dll"]
+            },
+            {
+              "platform": "linux-x86-64",
+              "declared_library": "APCpp-Glue",
+              "files": ["APCpp-Glue.so", "libpython3.11.so.1.0"]
+            }
+          ]
+        }
+      }
+    ],
     "support_tier": "stable",
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],

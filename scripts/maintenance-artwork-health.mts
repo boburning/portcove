@@ -8,11 +8,13 @@ import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.
 import { validArtworkCollection, validArtworkMapping } from "./catalog-cover-mapping.mts";
 import {
   createCoreImageValidator,
+  hashCoreImageValidatorFile,
   createIgdbInspector,
   isConfirmedIgdbImageGone,
 } from "./inspect-igdb-artwork.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
 const listingsPath = "crates/portcove-core/catalog/listings.json";
 const repository = "boburning/portcove";
@@ -56,8 +58,9 @@ export function artworkHealthProducer(environment: NodeJS.ProcessEnv, revision: 
 
 export type CoverReference = { id: string; artwork: IgdbArtwork };
 export function artworkHealthInventory(document: unknown) {
-  if (!isRecord(document) || !Array.isArray(document.listings) || document.listings.length > 10_000)
-    throw new Error("Artwork health needs the bounded committed listing inventory");
+  // The committed directory is read under its text bound; no row count applies.
+  if (!isRecord(document) || !Array.isArray(document.listings))
+    throw new Error("Artwork health needs the committed listing inventory");
   const images = new Map<string, CoverReference[]>();
   const ids = new Set<string>();
   let rows = 0;
@@ -144,7 +147,7 @@ export async function observeArtworkWindow(
 function committedInventory(revision: string) {
   const bytes = execFileSync("git", ["show", revision + ":" + listingsPath], {
     timeout: 10_000,
-    maxBuffer: 32 * 1024 * 1024,
+    maxBuffer: listingDirectoryTextMaximum,
   });
   return {
     sha256: digest(bytes),
@@ -283,7 +286,7 @@ async function main(args: string[]) {
   }).trim();
   const producer = artworkHealthProducer(process.env, revision);
   const { sha256, inventory } = committedInventory(revision);
-  const cliSha256 = digest(await readControllerToolFile(path.resolve(cli)));
+  const cliSha256 = hashCoreImageValidatorFile(path.resolve(cli));
   const startedAt = Date.now();
   const scratch = mkdtempSync(path.join(tmpdir(), "portcove-artwork-health-"));
   try {

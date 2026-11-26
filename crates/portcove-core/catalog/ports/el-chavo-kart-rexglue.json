@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "el-chavo-kart-rexglue",
+    "project_url": "https://github.com/saulob/el-chavo-kart-recompiled",
+    "name": "El Chavo Kart / ReXGlue",
+    "summary": "Chaves Kart (El Chavo Kart) for Xbox 360, statically recompiled as a native PC port for Windows and Linux, with online multiplayer, modern graphics options and Steam Deck support",
+    "issue_number": 5915,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "el-chavo-kart",
+      "evidence_urls": ["https://github.com/saulob/el-chavo-kart-recompiled"],
+      "source_editions": [
+        {
+          "id": "el-chavo-kart-xbox-360",
+          "title": "El Chavo Kart (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/saulob/el-chavo-kart-recompiled"]
+        }
+      ]
+    },
+    "original_game_title": "El Chavo Kart"
+  }
+}

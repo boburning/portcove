@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "drakolordx7-pokopia-switch2-nxrecomp",
+    "project_url": "https://github.com/drakolordx7/pokopia-recomp",
+    "name": "Pokemon Pokopia (Switch 2 v2.0.1a) / drakolordx7 Pokopia Recomp",
+    "summary": "Static recompilation of Pokemon Pokopia for Windows. Requires your own copy of the original game.",
+    "issue_number": 4272,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-pokopia",
+      "evidence_urls": ["https://github.com/drakolordx7/pokopia-recomp"],
+      "source_editions": [
+        {
+          "id": "pokemon-pokopia-nintendo-switch",
+          "title": "Pokémon Pokopia (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/drakolordx7/pokopia-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Pokémon Pokopia"
+  }
+}

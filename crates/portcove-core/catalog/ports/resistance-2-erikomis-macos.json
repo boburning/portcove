@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "resistance-2-erikomis-macos",
+    "project_url": "https://github.com/erikomis/resistance2-recomp",
+    "name": "Resistance 2 / erikomis Apple Silicon recomp",
+    "summary": "Resistance 2 (PS3, BCUS98120) statically recompiled to native macOS/arm64 with ps3recomp. No game data included.",
+    "issue_number": 6692,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "resistance-2",
+      "evidence_urls": ["https://github.com/erikomis/resistance2-recomp"],
+      "source_editions": [
+        {
+          "id": "resistance-2-playstation-3",
+          "title": "Resistance 2 (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": ["https://github.com/erikomis/resistance2-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Resistance 2"
+  }
+}

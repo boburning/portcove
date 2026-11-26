@@ -244,6 +244,9 @@ pub(crate) enum SetupCommand {
         /// Explicit stable or preview (beta); otherwise use the catalog recommendation.
         #[arg(long)]
         channel: Option<portcove_core::ReleaseChannel>,
+        /// List this many of the newest releases (10 to 1,000) to reach older ones.
+        #[arg(long)]
+        release_window: Option<usize>,
     },
     /// Review the exact asset and a fresh destination before downloading.
     Preview {
@@ -306,16 +309,30 @@ pub(crate) async fn execute(
             port_id,
             release,
             channel,
+            release_window,
         } => render_read_success(
             mode,
             name,
-            service
-                .catalog_download_options(
-                    &port_id,
-                    release.reference()?,
-                    channel.unwrap_or(service.catalog_download_channel(&port_id)?),
-                )
-                .await?,
+            {
+                let channel = channel.unwrap_or(service.catalog_download_channel(&port_id)?);
+                match release_window {
+                    Some(window) => {
+                        service
+                            .catalog_download_options_window(
+                                &port_id,
+                                release.reference()?,
+                                channel,
+                                window,
+                            )
+                            .await?
+                    }
+                    None => {
+                        service
+                            .catalog_download_options(&port_id, release.reference()?, channel)
+                            .await?
+                    }
+                }
+            },
             |result| {
                 let mut lines = vec![format!("Upstream: {}", human::clean(&result.upstream_url))];
                 if let Some(reason) = &result.reason {
@@ -415,7 +432,7 @@ pub(crate) async fn execute(
                     .iter()
                     .map(|record| {
                         format!(
-                            "{}\t{}\t{}{}",
+                            "{}\t{}\t{}{}{}",
                             human::clean(&record.port_id),
                             record.id,
                             record.path.display(),
@@ -423,6 +440,21 @@ pub(crate) async fn execute(
                                 .reason
                                 .as_ref()
                                 .map(|reason| format!("\n{}", human::clean(reason)))
+                                .unwrap_or_default(),
+                            // Core's current stage message: what happened, any
+                            // notice, then the next step.
+                            service
+                                .pending_setup_presentation(record)
+                                .map(|(_, message)| format!(
+                                    "\n{}{}\n{}",
+                                    human::clean(&message.summary),
+                                    message
+                                        .notice
+                                        .as_deref()
+                                        .map(|notice| format!("\n{}", human::clean(notice)))
+                                        .unwrap_or_default(),
+                                    human::clean(&message.next_step)
+                                ))
                                 .unwrap_or_default()
                         )
                     })

@@ -564,6 +564,51 @@ await test("REST issue inventory ignores PR-only edits but refuses creations and
   }
 });
 
+await test("REST issue inventory tolerates provider created-order skew but refuses real inversions", async () => {
+  // Row 3 sets the running maximum at 00:00:04; row 2's timestamp is checked against it.
+  for (const [skew, accepted] of [
+    ["2026-01-01T00:00:02Z", true],
+    ["2026-01-01T00:00:01Z", false],
+    ["2025-12-31T00:00:00Z", false],
+  ] as const) {
+    const pr = (number: number, created_at: string) => ({
+      ...issue(number),
+      pull_request: {},
+      html_url: `https://github.com/${config.repository}/pull/${number}`,
+      created_at,
+    });
+    const newest = { ...issue(4), created_at: "2026-01-01T00:00:05Z" };
+    const rows = [
+      issue(1),
+      pr(5, "2026-01-01T00:00:04Z"),
+      pr(3, "2026-01-01T00:00:03Z"),
+      pr(2, skew),
+      newest,
+    ];
+    const read: RestInventoryReader = async (endpoint) => {
+      const url = new URL(endpoint, base + "/");
+      if (url.pathname === `/repos/${config.repository}`)
+        return response({ id: 10, node_id: "repo", full_name: config.repository });
+      return response(url.searchParams.get("direction") === "asc" ? rows : [newest]);
+    };
+    const client = new RestPortIntakeClient(config, {
+      read,
+      issueProjectMemberships: async () => {
+        throw new Error("unexpected membership read");
+      },
+      write: async () => {
+        throw new Error("unexpected write");
+      },
+    });
+    if (accepted)
+      assert.deepEqual(
+        (await client.repositoryIssues()).issues.map(({ number }) => number),
+        [1, 4],
+      );
+    else await assert.rejects(() => client.repositoryIssues(), /unordered/u);
+  }
+});
+
 await test("REST endpoints omitting Link on304 use complete unconditional pages afterward", async () => {
   const requests: Readonly<Record<string, string>>[] = [];
   const link = `<${base}/items?after=next>; rel="next"`;
@@ -596,4 +641,26 @@ void test("inventory recovery cannot renew a failed page's SDK attempt allowance
   await assert.rejects(inventory.get("repos/example/repo/issues"));
   await assert.rejects(inventory.get("repos/example/repo/issues"));
   assert.equal(dispatched, 3);
+});
+
+await test("REST intake refuses historical stage assignments before a write", async () => {
+  const { client, writes } = fixture();
+  await assert.rejects(
+    client.setItemFields("PVTI-new", { "Port stage": "Manual qualification" }),
+    /Historical Port stage/,
+  );
+  assert.deepEqual(writes, []);
+});
+
+await test("REST port creation refuses a listing-owned catalog ID without writing", async () => {
+  const { client, writes } = fixture();
+  await assert.rejects(
+    client.createPortIssue({
+      title: "Separate ticket",
+      upstream: "https://github.com/2ship2harkinian/2ship2harkinian",
+      catalogId: "2ship2harkinian",
+    }),
+    /Catalog listing 2ship2harkinian belongs to issue #59/,
+  );
+  assert.deepEqual(writes, []);
 });

@@ -43,7 +43,16 @@
         }
       ]
     },
-    "download_block_reason": "New downloads are paused while the bundled third-party game assets are reviewed. Keep using your permitted existing copy; downloads can resume when the package’s distribution terms are established.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "New downloads are paused while the bundled third-party game assets are reviewed. Keep using your permitted existing copy; downloads can resume when the package’s distribution terms are established.",
+        "tracking_issue": 2729
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "mario-forever",

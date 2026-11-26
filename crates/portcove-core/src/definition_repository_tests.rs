@@ -2493,7 +2493,130 @@ async fn replay_evaluation_allows_independent_monotonic_metadata_advance() {
 }
 
 #[tokio::test]
+async fn signed_named_advice_preserves_operational_and_installed_contracts() {
+    let fixture = RepositoryFixture::new();
+    let catalog = metadata_catalog();
+    let port_id = &catalog.ports()[0].id;
+    let bundle =
+        crate::test_fixture::IndexedCatalogFixture::new(&catalog, port_id).with_entry(7, |entry| {
+            entry["definition_schema"] = 4.into();
+            entry["required_features"] = serde_json::json!([]);
+            entry["advisory"] = serde_json::json!({"future-summary": ["descriptive content"]});
+        });
+    let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+    targets.extend(bundle.contents);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let projection = candidate
+        .inspect_catalog_projection("official", port_id)
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(projection.catalog().authoritative_document()).unwrap(),
+        serde_json::to_value(catalog.authoritative_document()).unwrap(),
+    );
+    let installed =
+        crate::installed_contract::InstalledContract::capture(projection.catalog(), port_id)
+            .unwrap();
+    let bytes = serde_json::to_vec(&installed).unwrap();
+    let decoded: crate::installed_contract::InstalledContract =
+        serde_json::from_slice(&bytes).unwrap();
+    let restored = decoded.catalog(port_id).unwrap();
+    assert_eq!(
+        serde_json::to_vec(
+            &crate::installed_contract::InstalledContract::capture(&restored, port_id).unwrap()
+        )
+        .unwrap(),
+        bytes,
+    );
+}
+
+#[tokio::test]
+async fn authenticated_named_loader_requires_schema_three_projection_when_fresh_and_retained() {
+    let catalog = Catalog::embedded().unwrap();
+    let port_id = "banjo-recomp";
+    for schema in [1, 2, 3] {
+        let fixture = RepositoryFixture::new();
+        let bundle = crate::test_fixture::IndexedCatalogFixture::with_projection_schema(
+            &catalog, port_id, schema,
+        )
+        .with_entry(7, |entry| {
+            entry["definition_schema"] = 4.into();
+            entry["required_features"] = serde_json::json!([
+                "mods.native-loader-binding-v1",
+                "release.archive-file-links-v1"
+            ]);
+        });
+        let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+        targets.extend(bundle.contents);
+        let root = fixture
+            .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+            .await;
+        let candidate = acquire(&fixture, &root).await.unwrap();
+        let index = candidate.index();
+        let entry = candidate
+            .content_bytes(index.definitions()[0].target())
+            .unwrap();
+        let inspected = index.inspect_entry("official", port_id, entry).unwrap();
+        let leaf = candidate
+            .content_bytes(inspected.execution_contract())
+            .unwrap();
+        for result in [
+            candidate.inspect_catalog_projection("official", port_id),
+            index.inspect_retained_catalog_projection("official", port_id, entry, leaf),
+        ] {
+            if schema == 3 {
+                assert_eq!(
+                    result.unwrap().entry().port().mod_loader,
+                    catalog.port(port_id).unwrap().mod_loader
+                );
+            } else {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("require catalog projection schema 3")
+                );
+            }
+        }
+    }
+}
+
+#[tokio::test]
 async fn unsupported_sibling_does_not_block_a_supported_definition() {
+    unsupported_sibling(|entry| {
+        entry["required_capabilities"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!({
+                "template":"future-template","minimum_version":1,"maximum_version":1
+            }));
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn unknown_named_feature_does_not_block_a_supported_definition() {
+    unsupported_sibling(|entry| {
+        entry["definition_schema"] = 4.into();
+        entry["required_features"] = serde_json::json!(["native.future-layout-v7"]);
+    })
+    .await;
+}
+
+/// A released reader that meets a future entry schema records that one
+/// definition as needing a newer engine; its siblings remain usable.
+#[tokio::test]
+async fn newer_definition_schema_does_not_block_a_supported_definition() {
+    unsupported_sibling(|entry| {
+        entry["definition_schema"] = 5.into();
+        entry["future_layout"] = serde_json::json!({"shape": "unknown to this reader"});
+    })
+    .await;
+}
+
+async fn unsupported_sibling(change: impl FnOnce(&mut Value)) {
     let fixture = RepositoryFixture::new();
     let (port_id, mut targets) = repository_targets();
     let supported_entry = targets
@@ -2509,12 +2632,7 @@ async fn unsupported_sibling_does_not_block_a_supported_definition() {
     incompatible["stable_id"] = "future-incompatible".into();
     incompatible["revision"] = 8.into();
     incompatible["port"]["id"] = "future-incompatible".into();
-    incompatible["required_capabilities"]
-        .as_array_mut()
-        .unwrap()
-        .push(serde_json::json!({
-            "template":"future-template","minimum_version":1,"maximum_version":1
-        }));
+    change(&mut incompatible);
     let incompatible = serde_json::to_vec_pretty(&incompatible).unwrap();
     let digest = hex::encode(Sha256::digest(&incompatible));
     let target = format!("sha256/{digest}.json");

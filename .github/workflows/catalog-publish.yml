@@ -8,6 +8,15 @@
 #   otherwise. Every trigger publishes the newest CI-green `main` commit.
 # - The schedule renews the 1-day timestamp and 7-day roles twice a day from the
 #   newest CI-green `main` commit. A manual run does the same.
+# - Signed catalog history checkpoints stay inert until the owner activates them:
+#   only a manual run with `bootstrap_history` set may create the first
+#   checkpoint. Push and scheduled runs never pass it; without a published
+#   checkpoint pointer they publish exactly as before history existed.
+#
+# - Listing-body retention (#1422) is off: CATALOG_RETAIN_BODIES stays `all`
+#   until the lead activates `ledger`, then `window`, in reviewed changes
+#   (docs/RELEASING.md, "Catalog listing-body window"). It never runs beside
+#   checkpointed history.
 #
 # Each signing job runs in its own catalog signing environment, which only
 # admits `main`, and sees only its own key, in one step. Root and Targets stay
@@ -23,6 +32,15 @@ on:
   schedule:
     - cron: "13 5,17 * * *"
   workflow_dispatch:
+    inputs:
+      bootstrap_history:
+        description: Owner activation only - create the first signed catalog history checkpoint
+        type: boolean
+        default: false
+      activate_cover_checkpoint:
+        description: Owner activation only - admit the first cover checkpoint after signed history and released reader support
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -30,6 +48,11 @@ permissions:
 concurrency:
   group: catalog-publish
   cancel-in-progress: false
+
+env:
+  # all: serve every listing body (unchanged). ledger: also serve the verified
+  # listing-floor ledger. window: also prune superseded listing bodies.
+  CATALOG_RETAIN_BODIES: all
 
 jobs:
   prepare:
@@ -45,6 +68,11 @@ jobs:
       publish: ${{ steps.decide.outputs.publish }}
       commit: ${{ steps.commit.outputs.commit }}
       prior_digest: ${{ steps.prepare.outputs.prior_digest }}
+      prior_history_digest: ${{ steps.prepare.outputs.prior_history_digest }}
+      prior_commit: ${{ steps.prepare.outputs.prior_commit }}
+      history_mode: ${{ steps.prepare.outputs.history_mode }}
+      reader_activation: ${{ steps.observe.outputs.reader_activation }}
+      retain_bodies: ${{ steps.prepare.outputs.retain_bodies }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -69,7 +97,8 @@ jobs:
           # ls-remote exits 2 only for a missing branch; any other failure stops the run.
           rc=0; git ls-remote --exit-code --heads origin gh-pages > /dev/null || rc=$?
           if [ "$rc" = 0 ]; then
-            git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
+            # Every later step reads only the published tree, never its history.
+            git fetch --quiet --depth=1 origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
             git worktree add --quiet --detach site refs/remotes/origin/gh-pages
           elif [ "$rc" != 2 ]; then
             echo "::error::Could not read gh-pages (git ls-remote exited $rc)"; exit 1
@@ -85,6 +114,10 @@ jobs:
           if [ ! -d site/catalog ]; then
             exit 0
           fi
+          # The readback compares the last catalog commit with its parent, past
+          # any later application-only Pages commits: deepen in bounded steps
+          # (up to 64 commits) until both are present.
+          node scripts/catalog-readback-depth.mts --site site
           receipt="$RUNNER_TEMP/catalog-publication-late-readback.json"
           status="$RUNNER_TEMP/catalog-publication-late-observation.json"
           node scripts/catalog-publication-continuation.mts --site site --output "$receipt" --status "$status"
@@ -126,22 +159,51 @@ jobs:
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Read the owner history bootstrap request
+        if: steps.decide.outputs.publish == 'true'
+        env:
+          BOOTSTRAP_HISTORY: ${{ github.event_name == 'workflow_dispatch' && inputs.bootstrap_history == true }}
+        run: |
+          set -euo pipefail
+          # Only an explicit manual owner dispatch may request the first history checkpoint.
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$BOOTSTRAP_HISTORY" = true ]; then
+            echo "HISTORY_BOOTSTRAP=requested" >> "$GITHUB_ENV"
+          fi
       - name: Require a compatible CI-green source
         if: steps.decide.outputs.publish == 'true'
         run: |
-          if [ ! -f scripts/catalog-pages-overlay.mts ]; then
-            echo "::error::Wait for a CI-green main commit that supports the catalog Pages overlay"
+          if [ ! -f scripts/catalog-pages-overlay.mts ] || [ ! -f scripts/catalog-definition-reader-gate.mts ] || [ ! -f scripts/listing-cover-reader-proof.mts ]; then
+            echo "::error::Wait for a CI-green main commit that supports guarded catalog publication"
             exit 1
+          fi
+          # History support is required only once history is requested or published.
+          if [ "${HISTORY_BOOTSTRAP:-}" = requested ] || [ -e site/catalog-history ]; then
+            if ! node --input-type=module -e 'const plan = await import("./scripts/catalog-publish.mts"); if (typeof plan.limitSignerHistory !== "function") process.exit(1)'; then
+              echo "::error::Wait for a CI-green main commit that supports catalog Pages history"
+              exit 1
+            fi
           fi
       - uses: ./.github/actions/setup-rust
         if: steps.decide.outputs.publish == 'true'
       - name: Build the catalog tools
         if: steps.decide.outputs.publish == 'true'
         run: cargo build --locked --release -p portcove-cli -p portcove-release-tools
-      - name: Project completed shared observations into the existing descriptive target
+      # Compact listing delivery (#1422) is the only live listing carrier; the
+      # legacy target keeps its last signed bytes. The anonymously selected and
+      # verified released reader gates the carrier; without one the prior
+      # listing targets are renewed exactly. A listing-only failure renews the
+      # prior listing targets too and is reported as `listing_publication_stopped`;
+      # the publish job fails the run on it after readback.
+      - name: Project completed shared observations into the compact listing target
+        id: observe
         if: steps.decide.outputs.publish == 'true'
+        env:
+          ACTIVATE_COVER_CHECKPOINT: ${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_cover_checkpoint == true }}
         run: |
           set -euo pipefail
+          cover_options=()
+          if [ -d site/catalog-history ]; then cover_options+=(--prior-history "$PWD/site/catalog-history"); fi
+          if [ "$ACTIVATE_COVER_CHECKPOINT" = true ]; then cover_options+=(--activate-cover-checkpoint); fi
           node scripts/listing-observation-delivery.mts \
             --bundle release/catalog-publication/bundle \
             --canonical crates/portcove-core/catalog/listings.json \
@@ -149,7 +211,12 @@ jobs:
             --prior "$PRIOR" --output "$RUNNER_TEMP/observation-bundle" \
             --cli target/release/portcove --tools target/release/portcove-release-tools \
             --root crates/portcove-core/catalog/official-definition-root.json \
-            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json
+            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
+            "${cover_options[@]}" \
+            --withdrawals crates/portcove-core/catalog/listing-withdrawals.json \
+            --official-released-reader
+          activation=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const report = JSON.parse(readFileSync(process.argv[1], "utf8")); if (report.released_reader_activation) process.stdout.write(JSON.stringify(report.released_reader_activation))' "$RUNNER_TEMP/observation-bundle/report.json")
+          echo "reader_activation=$activation" >> "$GITHUB_OUTPUT"
           echo "BUNDLE=$RUNNER_TEMP/observation-bundle/bundle" >> "$GITHUB_ENV"
       - name: Inspect the bundle and plan the next versions
         id: prepare
@@ -163,17 +230,51 @@ jobs:
             XDG_DATA_HOME="$scratch/data" XDG_STATE_HOME="$scratch/state" \
             target/release/portcove --json catalog inspect-definition-publication \
             "$BUNDLE" > "$RUNNER_TEMP/inspection.stdout"
+          history_request=()
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "${HISTORY_BOOTSTRAP:-}" = requested ]; then
+            history_request=(--bootstrap-history)
+          fi
           node scripts/catalog-publish.mts prepare --work "$RUNNER_TEMP/catalog-work" \
             --root crates/portcove-core/catalog/official-definition-root.json \
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
             --bundle "$BUNDLE" \
             --inspection-stdout "$RUNNER_TEMP/inspection.stdout" \
-            --prior "$PRIOR" >> "$GITHUB_OUTPUT"
+            --retain-bodies "$CATALOG_RETAIN_BODIES" \
+            --prior "$PRIOR" "${history_request[@]}" > "$RUNNER_TEMP/prepare.outputs"
+          cat "$RUNNER_TEMP/prepare.outputs" >> "$GITHUB_OUTPUT"
           target/release/portcove-release-tools check-definition-publication-context \
             "$RUNNER_TEMP/catalog-work/context.json"
+          node scripts/catalog-definition-reader-gate.mts prepare "$RUNNER_TEMP/catalog-work" site
+          history_mode=$(sed -n 's/^history_mode=//p' "$RUNNER_TEMP/prepare.outputs")
+          if [ -n "$history_mode" ]; then
+            prior_commit=$(git -C site rev-parse HEAD)
+            echo "prior_commit=$prior_commit" >> "$GITHUB_OUTPUT"
+            node scripts/catalog-publish.mts limit-signer-history --work "$RUNNER_TEMP/catalog-work"
+          fi
           cp "$RUNNER_TEMP/observation-bundle/report.json" "$RUNNER_TEMP/catalog-work/observation-projection.json"
           mkdir -p "$RUNNER_TEMP/catalog-tools"
           cp target/release/portcove-release-tools "$RUNNER_TEMP/catalog-tools/"
+      # The capacity guard with the staged compact target's own signed
+      # observations. It never blocks this publication: the publish job fails
+      # the run after readback when a ceiling is crossed, as for a listing stop.
+      - name: Measure the staged compact listing target against the capacity guard
+        if: steps.decide.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          target="$BUNDLE/policy/official/catalog.listings.compact.json"
+          observed=()
+          if [ -f "$target" ]; then observed=(--observed-target "$target"); fi
+          status=0
+          node scripts/catalog-capacity.mts --check "${observed[@]}" > "$RUNNER_TEMP/capacity.out" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/capacity.out"
+          node --input-type=module -e '
+            import {readFileSync, writeFileSync} from "node:fs";
+            writeFileSync(process.argv[1], JSON.stringify({
+              status: Number(process.argv[2]),
+              observed_target: process.argv[3] === "true",
+              output: readFileSync(process.argv[4], "utf8"),
+            }));
+          ' "$RUNNER_TEMP/catalog-work/capacity-guard.json" "$status" "$([ -f "$target" ] && echo true || echo false)" "$RUNNER_TEMP/capacity.out"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.decide.outputs.publish == 'true'
         with:
@@ -231,6 +332,11 @@ jobs:
     env:
       COMMIT: ${{ needs.prepare.outputs.commit }}
       PRIOR_DIGEST: ${{ needs.prepare.outputs.prior_digest }}
+      PRIOR_HISTORY_DIGEST: ${{ needs.prepare.outputs.prior_history_digest }}
+      PRIOR_COMMIT: ${{ needs.prepare.outputs.prior_commit }}
+      HISTORY_MODE: ${{ needs.prepare.outputs.history_mode }}
+      CATALOG_READER_ACTIVATION: ${{ needs.prepare.outputs.reader_activation }}
+      RETAIN_BODIES: ${{ needs.prepare.outputs.retain_bodies || 'all' }}
     steps:
       # Credentials stay for the gh-pages push.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -257,6 +363,18 @@ jobs:
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/catalog-work"
+          if [ -n "$HISTORY_MODE" ] && [ "$HISTORY_MODE" != bootstrap ] && [ "$HISTORY_MODE" != segmented ]; then
+            echo "::error::Unknown catalog history mode"; exit 1
+          fi
+          if [ "$HISTORY_MODE" = segmented ]; then
+            [[ "$PRIOR_COMMIT" =~ ^[a-f0-9]{40}$ ]] || { echo "::error::Missing pinned catalog prior"; exit 1; }
+            git fetch --quiet --depth=1 origin "$PRIOR_COMMIT"
+            git worktree add --quiet --detach "$RUNNER_TEMP/catalog-prior-site" "$PRIOR_COMMIT"
+            node scripts/catalog-publish.mts restore-history --work "$work" \
+              --site "$RUNNER_TEMP/catalog-prior-site" --prior "$PRIOR_DIGEST" \
+              --prior-history "$PRIOR_HISTORY_DIGEST"
+            git worktree remove "$RUNNER_TEMP/catalog-prior-site"
+          fi
           chmod +x "$RUNNER_TEMP/catalog-tools/portcove-release-tools"
           node scripts/catalog-publish.mts assembly-config --work "$work"
           "$RUNNER_TEMP/catalog-tools/portcove-release-tools" assemble-definition-repository "$work/assembly.json" > "$work/assembly-report.json"
@@ -276,19 +394,39 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           repository="$RUNNER_TEMP/catalog-work/repository"
           for attempt in 1 2 3 4; do
-            git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
+            # The new commit needs only the current head as its parent.
+            git fetch --quiet --depth=1 origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
             rm -rf site && git worktree add --quiet --force site refs/remotes/origin/gh-pages
+            # A reader withdrawn or replaced on the fresh Pages base stops the push.
+            if [ -n "$CATALOG_READER_ACTIVATION" ]; then
+              node scripts/catalog-released-reader.mts site
+            fi
             # The assembled report is local to this job. Compare the guarded
             # prior inventory and stage only newly assembled repository files.
             node scripts/catalog-pages-overlay.mts --site site --prior "$PRIOR_DIGEST" \
-              --repository "$repository" --receipt "$RUNNER_TEMP/catalog-work/assembly-report.json"
+              --repository "$repository" --receipt "$RUNNER_TEMP/catalog-work/assembly-report.json" \
+              --retain-bodies "$RETAIN_BODIES" --ledger "$RUNNER_TEMP/catalog-work/listing-floors.json" \
+              --pins release/catalog-publication-pins.json --history-mode "$HISTORY_MODE"
+            if [ -n "$HISTORY_MODE" ]; then
+              node scripts/catalog-publish.mts stage-history --site site \
+                --work "$RUNNER_TEMP/catalog-work" --prior-history "$PRIOR_HISTORY_DIGEST"
+            fi
+            if [ "$RETAIN_BODIES" != all ]; then
+              # The staged tree must verify with the ledger it serves before it
+              # is committed, so a window/verifier divergence stops this run.
+              node scripts/catalog-publish.mts site-history-config --work "$RUNNER_TEMP/catalog-work" --site site
+              "$RUNNER_TEMP/catalog-tools/portcove-release-tools" verify-definition-history \
+                "$RUNNER_TEMP/catalog-work/site-history.json" > "$RUNNER_TEMP/catalog-work/site-history-report.json"
+            fi
+            node scripts/catalog-definition-reader-gate.mts recheck "$RUNNER_TEMP/catalog-work" site
+            node scripts/listing-cover-reader-proof.mts "$RUNNER_TEMP/catalog-work" site
             git -C site commit --quiet -m "Publish the official catalog from $COMMIT"
             # Bound the actual complete Pages tree, including the application and
             # browse output. Keep margin below GitHub Pages' published 1 GB limit.
             git -C site ls-tree -r -l HEAD | awk '
               $2 == "blob" { bytes += $4; files++ }
               END {
-                printf "Complete Pages tree: %d files, %.0f bytes\n", files, bytes
+                printf "Complete Pages tree: %d files, %.0f of 900000000 bytes\n", files, bytes
                 if (bytes > 900000000) exit 1
               }'
             if git -C site push --quiet origin HEAD:refs/heads/gh-pages; then exit 0; fi
@@ -306,6 +444,10 @@ jobs:
           sample=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const rows=JSON.parse(readFileSync(process.argv[1],"utf8")); process.stdout.write((rows.find(row=>row.reviewed_game&&row.projects.length>1)??rows[0])?.url??"")' "$RUNNER_TEMP/catalog-work/repository/browse/search-index.json")
           sample_expected=empty
           if [ -n "$sample" ]; then sample_expected=$(sha256sum "$RUNNER_TEMP/catalog-work/repository/browse/$sample" | cut -d' ' -f1); fi
+          history_readback=
+          if [ -n "$HISTORY_MODE" ]; then
+            history_readback=$(node scripts/catalog-publish.mts history-readback --work "$RUNNER_TEMP/catalog-work")
+          fi
           url="https://boburning.github.io/portcove/catalog/metadata/timestamp.json"
           deadline=$((SECONDS + 900))
           fetch_digest() {
@@ -324,7 +466,15 @@ jobs:
             inputs_actual=$(fetch_digest "https://boburning.github.io/portcove/catalog/browse/inputs.json?run=$GITHUB_RUN_ID-$attempt" 8192)
             sample_actual=empty
             if [ -n "$sample" ]; then sample_actual=$(fetch_digest "https://boburning.github.io/portcove/catalog/browse/$sample?run=$GITHUB_RUN_ID-$attempt" 67108864); fi
-            if [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ]; then
+            history_verified=true
+            while read -r history_file history_sha history_max; do
+              if [ -z "$history_file" ]; then continue; fi
+              if [ "$(fetch_digest "https://boburning.github.io/portcove/$history_file?run=$GITHUB_RUN_ID-$attempt" "$history_max")" != "$history_sha" ]; then
+                history_verified=false
+                break
+              fi
+            done <<< "$history_readback"
+            if [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ] && [ "$history_verified" = true ]; then
               echo "Pages serves the published timestamp and generated catalog pages."
               if node scripts/catalog-publication-receipt.mts --work "$RUNNER_TEMP/catalog-work" \
                 --output "$RUNNER_TEMP/catalog-publication-live-readback.json" \
@@ -350,3 +500,47 @@ jobs:
           path: ${{ runner.temp }}/catalog-publication-live-readback.json
           retention-days: 7
           if-no-files-found: error
+      # Freshness, definitions and policy are already published. A stopped
+      # listing publication, or a compact activation (first publication or
+      # format raise) deferred for any reason, an unverifiable prior that left
+      # listing changes unpublished, or a capacity guard failure
+      # measured on the staged target, still fails the run so a person
+      # resolves it instead of it repeating silently.
+      - name: Fail the run when listing publication stopped or is pending, or the capacity guard failed
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import {appendFileSync, existsSync, readFileSync} from "node:fs";
+            const report = JSON.parse(readFileSync(process.argv[1], "utf8"));
+            const lines = [];
+            if (existsSync(process.argv[2])) {
+              const capacity = JSON.parse(readFileSync(process.argv[2], "utf8"));
+              if (capacity.status !== 0)
+                lines.push(["Listing capacity guard failed", "The capacity guard failed" +
+                  (capacity.observed_target ? " with the staged compact target" + String.fromCharCode(39) + "s observations" : "") +
+                  "; this publication was not blocked. Start the next reader generation or reduce catalog bytes. Guard output:\n" +
+                  capacity.output]);
+            }
+            const stopped = report.listing_publication_stopped;
+            if (stopped)
+              lines.push(["Listing publication stopped", "Listing publication stopped (" + stopped.code + "): " +
+                stopped.reason + "; prior listing targets renewed. Figures: " + JSON.stringify(stopped.figures)]);
+            const unverified = report.listing_prior_unverified;
+            if (unverified)
+              lines.push(["Prior catalog unverified", "The prior signed catalog could not be verified (" +
+                unverified.prior_carrier + " carrier): " + unverified.reason +
+                "; prior listing targets renewed and listing changes not published."]);
+            const pending = report.listing_activation_pending;
+            if (pending)
+              lines.push(["Compact listing activation pending", "Compact listing activation pending (" +
+                pending.prior_carrier + " format " + pending.prior_format + " -> compact format " +
+                pending.candidate_format + "): " + pending.reason + "; prior listing targets renewed."]);
+            if (!lines.length) process.exit(0);
+            const summary = process.env.GITHUB_STEP_SUMMARY;
+            for (const [title, line] of lines) {
+              const escaped = line.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+              console.log("::error title=" + title + "::" + escaped);
+              if (summary) appendFileSync(summary, "### " + title + "\n\n" + line + "\n");
+            }
+            process.exit(1);
+          ' "$RUNNER_TEMP/catalog-work/observation-projection.json" "$RUNNER_TEMP/catalog-work/capacity-guard.json"

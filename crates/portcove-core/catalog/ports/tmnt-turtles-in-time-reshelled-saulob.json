@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tmnt-turtles-in-time-reshelled-saulob",
+    "project_url": "https://github.com/saulob/tmnt-turtles-in-time-reshelled-recompiled",
+    "name": "Teenage Mutant Ninja Turtles: Turtles in Time Re-Shelled / saulob",
+    "summary": "TMNT: Turtles in Time Re-Shelled native PC port via static recompilation, with 4K rendering, 4-player online co-op, Português Brasil, TRG launcher, and experimental Linux/Steam Deck support",
+    "issue_number": 5992,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "teenage-mutant-ninja-turtles-turtles-in-time-re-shelled",
+      "evidence_urls": ["https://github.com/saulob/tmnt-turtles-in-time-reshelled-recompiled"],
+      "source_editions": []
+    },
+    "original_game_title": "Teenage Mutant Ninja Turtles: Turtles in Time Re-Shelled"
+  }
+}

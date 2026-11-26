@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fun-tracks-fun-tracks-recomp",
+    "project_url": "https://github.com/Karlos-fr/fun-tracks-recomp-releases",
+    "name": "Fun Tracks / Fun Tracks Recomp",
+    "summary": "Multi-platform releases (Windows, Android) of the Fun Tracks (1997) decompilation / recompilation. Original game files required.",
+    "issue_number": 5723,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fun-tracks",
+      "evidence_urls": ["https://github.com/Karlos-fr/fun-tracks-recomp-releases"],
+      "source_editions": []
+    },
+    "original_game_title": "Fun Tracks"
+  }
+}

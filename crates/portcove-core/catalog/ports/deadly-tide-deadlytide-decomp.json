@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "deadly-tide-deadlytide-decomp",
+    "project_url": "https://github.com/awkto/deadly-tide-decomp",
+    "name": "Deadly Tide / deadlytide-decomp",
+    "summary": "Reverse engineering + modern/WASM reimplementation of Deadly Tide (1996). No game data included.",
+    "issue_number": 5467,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "deadly-tide",
+      "evidence_urls": ["https://github.com/awkto/deadly-tide-decomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Deadly Tide"
+  }
+}

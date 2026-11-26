@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dust-a-tale-of-the-wired-west-dust-recomp",
+    "project_url": "https://github.com/twitchplayskh/Dust-a-tale-of-the-wired-west-Recomp",
+    "name": "Dust: A Tale of the Wired West / Dust Recomp",
+    "summary": "a full Recomp of the pc  game Dust dust a tale of the wired west",
+    "issue_number": 5817,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dust-a-tale-of-the-wired-west",
+      "evidence_urls": ["https://github.com/twitchplayskh/Dust-a-tale-of-the-wired-west-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Dust: A Tale of the Wired West"
+  }
+}

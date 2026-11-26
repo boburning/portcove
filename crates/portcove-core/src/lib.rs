@@ -1,3 +1,4 @@
+mod acquisition_restriction;
 mod activity_diagnostics;
 mod adapter;
 mod application_runtime;
@@ -52,7 +53,9 @@ mod game_file_root;
 mod game_recommendations;
 mod game_settings;
 mod ghostship_data_store;
+mod github_request_budget;
 mod gitlab;
+mod historical_artifacts;
 mod host_preferences;
 mod host_tools;
 mod import_execution;
@@ -61,6 +64,13 @@ mod install;
 mod installed_contract;
 mod installed_mutability;
 mod launch;
+mod launch_paths;
+mod reviewed_launch_contract;
+pub use launch_paths::LaunchPath;
+pub use reviewed_launch_contract::{
+    AssetRules, LaunchPathValue, LaunchValue, LaunchValues, PackageFormat, PrereleaseRule,
+    ReviewedLaunchContractV1,
+};
 #[cfg(windows)]
 mod legacy_cartridge_cleanup;
 mod library;
@@ -68,6 +78,7 @@ mod library_access;
 mod library_authority;
 mod library_import;
 mod library_membership;
+mod library_metadata_document;
 mod library_move;
 mod library_recovery_bundle;
 mod library_transfer;
@@ -76,8 +87,12 @@ mod managed_initialization;
 mod managed_runtime_policy;
 mod managed_shared_preferences;
 mod managed_tfe;
+#[cfg(test)]
+mod mechanism_fixtures;
 mod n64_graphics;
 mod native_external_profile;
+#[cfg(test)]
+mod native_external_profile_consumer_tests;
 mod native_portable_data;
 mod native_temp;
 mod operation;
@@ -99,18 +114,29 @@ mod provider_observation;
 mod providers;
 mod target_inspection;
 pub use provider_observation::inspect_provider_observation;
+mod dfu_mod;
 mod disc_filesystem;
 mod disc_product;
+mod external_mod_portal;
+pub use external_mod_portal::{ExternalModBrowser, ExternalModPortal, ExternalModSite};
 mod gamebanana;
+mod github_mods;
 mod jakmods;
 mod mod_package;
 mod mod_provider;
+mod mod_source;
+pub use mod_source::{
+    ListingModPortal, ModCompanionLayout, ModPortalSite, ModSource, ModSourceAuthority,
+    ModSourceKind,
+};
+mod moddb_feed;
 mod native_mod_list;
 mod profile;
 mod profile_deploy;
 mod profile_file_preservation;
 mod profile_loader;
 mod profile_originals;
+mod profile_package_files;
 mod provider_auto_update;
 mod provider_binding;
 mod provider_browse;
@@ -120,9 +146,13 @@ mod provider_http;
 mod provider_install;
 mod provider_update;
 mod psx;
+mod psx_tool_artifacts;
+mod quaddicted;
+mod quake_mod_browser;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
 mod recipe;
+mod recomp_companion_review;
 mod recomp_mod;
 mod recomp_mod_list;
 mod recomp_mod_settings;
@@ -131,12 +161,18 @@ mod relative_file_set;
 mod release;
 mod release_notes;
 mod retained_build;
+mod reviewed_forge;
 mod rom_patch;
+mod route_facts;
 mod runtime;
 mod runtime_data_policy;
 pub mod runtime_diagnostics;
 mod runtime_path_policy;
+#[cfg(test)]
+mod scaling_profile_tests;
 mod service;
+mod setup_capacity;
+pub use setup_capacity::{MAX_SETUP_DOCUMENT_BYTES, MAX_SETUP_PACKAGES};
 mod signed_catalog;
 mod source;
 mod source_assessment;
@@ -158,6 +194,7 @@ mod support_bundle;
 mod support_bundle_export;
 mod support_bundle_read;
 mod support_bundle_stage;
+mod temporary_failure;
 #[cfg(test)]
 mod test_fixture;
 #[cfg(test)]
@@ -165,13 +202,21 @@ mod test_http;
 mod thunderstore;
 mod tool_process;
 mod transfer_copy;
+pub use temporary_failure::{TemporaryCause, TemporaryFailure, TemporaryRetry};
 mod transfer_journal;
+mod transfer_progress;
+pub use transfer_progress::{PROGRESS_FLOOR, ProgressFloor, ProgressWatch};
 mod types;
 mod windows_runtime;
 #[cfg(windows)]
 mod windows_user_access;
 mod zip_read;
 
+pub use acquisition_restriction::{
+    AcquisitionRestriction, ReconsiderCondition, RestrictedArtifact, RestrictedComponent,
+    RestrictedOperation, RestrictionCarrier, RestrictionEffect, RestrictionReason,
+    RestrictionScope,
+};
 pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
 pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};
 pub use adapter::{host_tool_statuses, recheck_host_tool};
@@ -182,15 +227,16 @@ pub use archive::fuzzing as archive_fuzzing;
 pub use artwork::{
     ARTWORK_CACHE_MISS, ARTWORK_HANDOFF_SCHEMA, ARTWORK_RETRY, ArtworkAttribution,
     ArtworkAvailability, ArtworkCacheClear, ArtworkCacheEpoch, ArtworkChoice, ArtworkEvictedAsset,
-    ArtworkImageFormat, ArtworkMetadata, ArtworkProvider, ArtworkProviderListing,
-    ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail,
-    ArtworkWithdrawalRecord, ArtworkWithdrawalSignal, DestinationArtworkBytes,
-    DestinationArtworkContent, DestinationArtworkHandoff, DestinationArtworkRole,
-    DestinationArtworkSource, DestinationArtworkUnavailableReason, GeneratedArtworkFallback,
-    IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
-    STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate,
-    SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbFailure, SteamGridDbGame,
-    SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
+    ArtworkFocalPoint, ArtworkFraming, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider,
+    ArtworkProviderListing, ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSelectionFraming,
+    ArtworkSelectionPreview, ArtworkSlot, ArtworkState, ArtworkThumbnail, ArtworkWithdrawalRecord,
+    ArtworkWithdrawalSignal, DestinationArtworkBytes, DestinationArtworkContent,
+    DestinationArtworkHandoff, DestinationArtworkRole, DestinationArtworkSource,
+    DestinationArtworkUnavailableReason, GeneratedArtworkFallback, IGDB_ARTWORK_WORK_LIMIT,
+    LocalArtworkAsset, PreparedSteamGridDbArtwork, STEAMGRIDDB_API_ORIGIN,
+    STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbArtworkRole, SteamGridDbAuthor,
+    SteamGridDbCandidate, SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbFailure,
+    SteamGridDbGame, SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
     SteamGridDbListingResult, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
     clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
     steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
@@ -209,7 +255,10 @@ pub use bug_report::{
 pub use cancellation::{CancellationPhase, CancellationState};
 pub use carried_files::{CarriedFileCounts, CarriedFileOutcome, CarriedFilesStatus};
 pub use cartridge_build::CartridgeBuildRecipe;
-pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
+pub use catalog::{
+    Catalog, CatalogProposalInspection, CatalogProposalPortInspection,
+    MAX_LISTING_DIRECTORY_TEXT_BYTES,
+};
 pub use catalog_media::{
     CatalogMediaAsset, CatalogMediaRole, CatalogMediaSubject, IgdbGameImage, IgdbGameImageKind,
     validate_catalog_media,
@@ -291,13 +340,17 @@ pub use game_recommendations::{
 };
 pub use game_settings::{
     GameSetting, GameSettingChange, GameSettingChoice, GameSettingReview, GameSettingType,
-    GameSettingView, GameSettingsChangeSetReview, GameSettingsContract, GameSettingsEdit,
-    GameSettingsFile, GameSettingsFileView, GameSettingsFormat, GameSettingsRelease,
-    GameSettingsSetupIdentity, GameSettingsView, ReviewedGameSettingsEdit,
+    GameSettingView, GameSettingsChangeSetReview, GameSettingsChangeSetView, GameSettingsContract,
+    GameSettingsEdit, GameSettingsFile, GameSettingsFileView, GameSettingsFormat,
+    GameSettingsRelease, GameSettingsSetupIdentity, GameSettingsView, ReviewedGameSettingsEdit,
     inspect_game_settings_qualification,
 };
 pub use gamebanana::GameBananaClient;
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
+pub use github_mods::{
+    GithubCompoundConsent, GithubCompoundPlan, GithubModAsset, GithubModCatalog,
+    GithubModCompoundReview, GithubModRelease, has_github_mod_source,
+};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
     CollectionPreference, HostPreferenceStore, HostPreferences, HostToolPreference,
@@ -319,7 +372,8 @@ pub use launch::forward_launch_signal;
 #[cfg(windows)]
 pub use launch::{LAUNCH_JOB_KEEPER_MODE, run_launch_job_keeper};
 pub use library::{
-    ApplicationUpdateQuiescenceGuard, Library, LibraryChangeObserver, PortOperationGuard,
+    ApplicationUpdateQuiescenceGuard, Library, LibraryChangeObserver, LibrarySelectionContents,
+    LibrarySelectionTarget, PortOperationGuard,
 };
 pub use library_import::LibraryImportPlan;
 pub use library_membership::{
@@ -330,7 +384,7 @@ pub use library_membership::{
 pub use library_move::LibraryMoveResult;
 pub use library_recovery_bundle::{
     LibraryRecoveryBundle, LibraryRecoveryBundlePlan, LibraryRecoveryCoverage,
-    LibraryRecoveryExclusion, LibraryRecoveryRestorePlan,
+    LibraryRecoveryExclusion, LibraryRecoveryProgress, LibraryRecoveryRestorePlan,
 };
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
 pub use mod_package::{
@@ -344,6 +398,7 @@ pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
     OutputRelocationInstall, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus,
 };
+pub use package_layout::PackageLayoutObservation;
 pub use package_layout::{
     PackageProgramFilter, inspect_package_archive, inspect_package_archive_with_program_filter,
 };
@@ -351,6 +406,12 @@ pub use package_shape::{
     InstalledPackageShape, InstalledShapeStatus, PackageShape, PackageShapeInspection,
     PackageShapeRecord, ShapeBaseline, ShapeChange, ShapeComponent, ShapeProvenance,
     ShapeUnknownReason, ShapeVerdict, inspect_package_shape_archive,
+    inspect_package_shape_archive_observed,
+};
+pub use package_shape::{
+    ListingArtifactInspection, ListingNameSuggestion, ListingNamesClassification,
+    ListingNamesInput, ListingPlayerCandidate, ListingProgramVerdict, ListingReleaseName,
+    ListingReleaseVerdict, classify_listing_names, inspect_listing_artifact_archive,
 };
 pub use port_recommendation::{
     PORT_RECOMMENDATION_POLICY, PortRecommendationAssessment, PortRecommendationInput,
@@ -393,6 +454,9 @@ pub use profile_file_preservation::{
     ModFileIdentity, ModFilePreservationPlan, ModFilePreservationResult,
 };
 pub use profile_originals::{ProfileOriginalInstance, ProfileOriginalReview};
+pub use profile_package_files::{
+    RecompCompanionMemberV1, RecompCompanionRole, RecompCompanionSetV1,
+};
 pub use provider_auto_update::{
     HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateCheck, ProviderAutoUpdateOutcome,
 };
@@ -404,15 +468,18 @@ pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use recipe::{
-    ProfileRecipe, RECIPE_FORMAT, RecipeAcquisitionPlan, RecipeCodeApproval, RecipeImportPlan,
-    RecipeInputPlan, RecipeInputStatus, RecipeOriginal, RecipeOriginalStorage, RecipePackage,
-    RecipeRuntime,
+    MAX_RECIPE_REVIEW_BYTES, ProfileRecipe, RECIPE_ACQUISITION_STEP, RECIPE_FORMAT,
+    RecipeAcquisitionBatch, RecipeAcquisitionFailure, RecipeAcquisitionPlan, RecipeAcquisitionRef,
+    RecipeCodeApproval, RecipeImportPlan, RecipeInputPlan, RecipeInputStatus, RecipeOriginal,
+    RecipeOriginalStorage, RecipePackage, RecipeRuntime, RecipeStaging,
 };
+pub use recomp_companion_review::{RecompCompoundReview, ReviewedRecompCompanion};
 pub use recomp_mod::{
     RecompDependency, RecompExecution, RecompModHold, RecompModInspection, inspect_recomp_mod,
 };
 pub use recomp_mod_settings::{RecipeModSetting, RecipeModSettingValue};
 pub use release::{
+    ExactReleaseHold, ExactReleaseHoldReason, ExactReleaseIdentity, ExactReleaseSelection,
     GithubReleaseProvider, ManagedPackageVariant, ObservationEvidence, ObservedReleaseIdentity,
     ObservedResolution, ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
     inspect_upstream_observation,
@@ -421,7 +488,12 @@ pub use retained_build::{
     MAX_OFFERED_REVISIONS, RetainedBuild, RetainedBuildAvailability, RetainedBuildBindingPreview,
     RetainedBuildGap, RetainedBuildHistoryResolution, RetainedBuildIdentity,
     RetainedBuildInventory, RetainedBuildReference, RetainedBuildRemovalPreview,
-    RetainedBuildResolution, RetainedBuildRetirementPreview, RetainedBuildRevision,
+    RetainedBuildResolution, RetainedBuildRetirement, RetainedBuildRetirementPreview,
+    RetainedBuildRetirementReason, RetainedBuildRevision,
+};
+pub use route_facts::{
+    ArtifactFact, ArtifactRole, Coverage, FactProvenance, FactSource, LastGood,
+    ObservedReleaseFacts, PlayerCandidate, RouteHold, TargetArch, TargetOs,
 };
 pub use service::{
     ADOPTION_BATCH_LIMIT, AdoptionBatchItem, AdoptionBatchItemOutcome, AdoptionBatchItemResult,
@@ -431,7 +503,7 @@ pub use service::{
     CatalogDownloadAssetId, CatalogDownloadCandidate, CatalogDownloadCandidates,
     CatalogDownloadCoverage, CatalogDownloadPreview, CatalogDownloadRefusal,
     CatalogDownloadRelease, CatalogDownloadReleaseId, CatalogDownloadRequest,
-    CatalogForeignAssetId, CatalogForeignReleaseId, CatalogPackageAssessment,
+    CatalogForeignAssetId, CatalogForeignReleaseId, CatalogPackageAssessment, ExactReleaseReview,
     GITHUB_LAUNCHER_FORMAT_REVISION, INSTALL_BATCH_FORMAT_VERSION, IdentifiedLaunchRequest,
     InstallBatchCapacity, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
     InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
@@ -441,14 +513,17 @@ pub use service::{
     LauncherModInventory, MAX_INSTALL_BATCH_ITEMS, MAX_PORT_INTENT_ASSESSMENTS,
     MAX_ROOT_SETUP_BASELINE, MAX_ROOT_SETUPS_PER_PASS, MAX_STANDING_SETUP_ATTEMPTS,
     ManagedRouteChangePreview, ManagedRouteChangeResult, PORT_INTENT_FORMAT_VERSION,
-    PendingSetupRecord, PendingSetupState, PlayerDataProtection, PortCapabilityFeature,
-    PortCapabilityNotice, PortCapabilityReport, PortCapabilityRoute, PortIntent,
-    PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortIntentSource, PortMaintenance,
-    PortReadiness, PortReadinessAcknowledgement, PortRemovalPreview, PortcoveService,
-    ProtectionDeclaration, ProtectionInstallRole, QUIVER_FORMAT_REVISION, RECENTLY_PLAYED_LIMIT,
-    ROOT_SETUP_FORMAT_VERSION, RecentlyPlayedGame, RootSetupConsent, RootSetupEnrollment,
-    RootSetupFailure, RootSetupImplementation, RootSetupWaiting, SetupLaunchTarget,
-    SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
+    PendingSetupBinding, PendingSetupInvalidation, PendingSetupMessage, PendingSetupProgress,
+    PendingSetupRecord, PendingSetupStage, PendingSetupStageKind, PendingSetupState,
+    PlayerDataProtection, PortCapabilityFeature, PortCapabilityNotice, PortCapabilityReport,
+    PortCapabilityRoute, PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode,
+    PortIntentSource, PortMaintenance, PortReadiness, PortReadinessAcknowledgement,
+    PortRemovalPreview, PortcoveService, ProtectionDeclaration, ProtectionInstallRole,
+    QUIVER_FORMAT_REVISION, RECENTLY_PLAYED_LIMIT, ROOT_SETUP_FORMAT_VERSION, RecentlyPlayedGame,
+    RetainedSetupBytes, RootSetupConsent, RootSetupEnrollment, RootSetupFailure,
+    RootSetupImplementation, RootSetupWaiting, SelectedSetupResult, SetupLaunchTarget,
+    SetupLaunchTargets, StandingSetupFailure, StandingSetupResult, UpstreamSetupHandoff,
+    pending_setup_message,
 };
 pub use signed_catalog::{
     CatalogFallbackCode, CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope,
@@ -487,8 +562,8 @@ pub use source_reuse::{
     SourceReuseReview,
 };
 pub use store_install::{
-    GameStore, RegisteredStoreInstall, StoreGameInstall, StoreGameInstalls, StoreInstallHost,
-    StoreOriginalFolder, SystemStoreInstallHost,
+    GameStore, RegisteredStoreInstall, RegisteredStoreInstalls, StoreGameInstall,
+    StoreGameInstalls, StoreInstallHost, StoreOriginalFolder, SystemStoreInstallHost,
 };
 pub use successor_support::{
     SuccessorEvidencePreparation, SuccessorEvidenceSubject, SupportCoordinates,
@@ -547,10 +622,17 @@ pub use windows_runtime::{
 // Public 98 adds reviewed mod-file inspection and preservation receipts.
 // Public 99 reports partial results when the game setup queue is unavailable.
 // Public 100 adds exact original, settings and acquisition data to recipe reviews.
-pub const API_SCHEMA_VERSION: u32 = 100;
+pub const API_SCHEMA_VERSION: u32 = 101;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.
 pub const LIBRARY_SCHEMA_VERSION: u32 = database::CURRENT_SCHEMA_VERSION as u32;
 /// Cross-process exclusion capability required by application update metadata.
 pub const APPLICATION_UPDATE_LOCK_PROTOCOL: &str = "library-lock-v1";
+
+pub use moddb_feed::FileNotice as ModDbFileNotice;
+pub use quaddicted::{
+    QuaddictedEngineCompatibility, QuaddictedEntry, QuaddictedInstallNotes, QuaddictedPage,
+    QuakeEngine,
+};
+pub use quake_mod_browser::ModDbFileNotices;

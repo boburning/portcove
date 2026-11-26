@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cosmo-s-cosmic-adventure-cosmo",
+    "project_url": "https://github.com/digows/cosmo",
+    "name": "Cosmo's Cosmic Adventure / Cosmo",
+    "summary": "Native source port of Cosmo's Cosmic Adventure: Forbidden Planet (Apogee, 1992) for macOS, Linux and Windows. Built from the original game's code, with an emulated EGA, PIT, PC speaker and AdLib — no DOSBox.",
+    "issue_number": 5717,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "cosmos-cosmic-adventure",
+      "evidence_urls": ["https://github.com/digows/cosmo"],
+      "source_editions": []
+    },
+    "original_game_title": "Cosmo's Cosmic Adventure"
+  }
+}

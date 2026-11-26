@@ -26,6 +26,37 @@ const GLOBAL: &[&str] = &[
 ];
 
 const SCOPED: &[(&str, &[&str])] = &[
+    // The Linux-only, ignored listing-scale measurement reads the kernel's
+    // process memory counters and resets its peak; it never runs elsewhere.
+    (
+        "crates/portcove-core/src/listing_delivery.rs",
+        &["/proc/self/status", "/proc/self/clear_refs"],
+    ),
+    // ELF PT_INTERP program-interpreter names a header declares. Core compares
+    // them as identifiers to classify an executable's host; it never opens them.
+    (
+        "crates/portcove-core/src/package_shape/machine.rs",
+        &[
+            "/lib",
+            "/libexec/ld-elf.so.1",
+            "/usr/libexec/ld.so",
+            "/usr/libexec/ld.elf_so",
+            "/system/runtime_loader",
+            "/lib64/ld-linux-x86-64.so.2",
+        ],
+    ),
+    (
+        "crates/portcove-core/src/package_shape/listing.rs",
+        &[
+            "/lib/ld-musl-x86_64.so.1",
+            "/system/bin/linker64",
+            "/libexec/ld-elf.so.1",
+            "/usr/libexec/ld.so",
+            "/usr/libexec/ld.elf_so",
+            "/system/runtime_loader",
+            "/opt/loader",
+        ],
+    ),
     // This dedicated test file intentionally rejects the exact hostile selector below.
     (
         "crates/portcove-core/src/external_runtime/tfe_settings_tests.rs",
@@ -403,6 +434,23 @@ const SCOPED: &[(&str, &[&str])] = &[
     ),
     // An exact rooted package name that recipe inspection must reject.
     ("crates/portcove-core/src/recipe_tests.rs", &["/etc/passwd"]),
+    // Linux process accounting read by the ignored scaling profile only.
+    (
+        "crates/portcove-core/src/scaling_profile_tests.rs",
+        &["/proc/self/status", "/proc/self/clear_refs"],
+    ),
+    // Host locations a launch text value or argument must refuse.
+    (
+        "crates/portcove-core/src/reviewed_launch_contract.rs",
+        &[
+            "/usr/lib/fixture.so",
+            "\\\\server\\share\\fixture.dll",
+            "\\\\?\\C:\\fixture.dll",
+            "\\\\.\\pipe\\fixture",
+            "C:\\fixture\\plugin.dll",
+            "c:/fixture/plugin.dll",
+        ],
+    ),
 ];
 
 pub fn allows(file: &str, value: &str) -> bool {

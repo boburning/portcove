@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import { isDiscoveryCache } from "./discovery-cache.mts";
+import { discoveryReadCeiling } from "./discovery-http.mts";
 
 export const discoveryProfiles = {
   ordinary: { requests: 200, bytes: 20 * 1024 * 1024, milliseconds: 30 * 60000 },
@@ -163,10 +164,12 @@ export class DiscoveryBudget {
     persist: (usage: Usage) => void = () => {},
     now: () => number = Date.now,
     startedAt = new Date(now()).toISOString(),
+    /** Measured physical limits replacing the profile's bootstrap envelope. */
+    limits: { requests: number; bytes: number; milliseconds: number } = discoveryProfiles[profile],
   ) {
     this.persist = persist;
     this.now = now;
-    this.limits = discoveryProfiles[profile];
+    this.limits = limits;
     const started = Date.parse(startedAt);
     if (!Number.isFinite(started)) throw new Error("Invalid discovery start time");
     this.deadline = performance.now() + this.limits.milliseconds - Math.max(0, now() - started);
@@ -370,13 +373,16 @@ export function createDiscoveryTransport(
   // Retry-After must not suppress independent origins. Existing callers retain
   // their batch-wide backoff unless they explicitly select this scope.
   const backoffs = new Map<string, string>();
-  // `limit` lets one named bounded list read exceed the 2 MiB default, never 8 MiB.
+  // `limit` lets one named bounded read exceed the 2 MiB default, up to the
+  // physical read ceiling. `conditional` sends the validators of a retained copy;
+  // an unchanged resource answers 304 with no body.
   const request = async (
     method: string,
     url: string,
     body?: string,
     binary = false,
     limit = 2 * 1024 * 1024,
+    read: { conditional?: { etag?: string; last_modified?: string } } = {},
   ) => {
     const target = new URL(url);
     const backoff = backoffs.get(target.origin);
@@ -390,7 +396,7 @@ export function createDiscoveryTransport(
         "request_refused",
         "Discovery external/byte transport admits reads only",
       );
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 8 * 1024 * 1024)
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > discoveryReadCeiling)
       throw new GitHubApiError("request_refused", "Discovery byte cap exceeds its bound");
     const github = target.origin === "https://api.github.com";
     if (
@@ -408,7 +414,16 @@ export function createDiscoveryTransport(
     const maxRequests = Math.min(5, left.requests),
       timeout = Math.min(20000, left.milliseconds);
     const response = spawnSync(process.execPath, [worker], {
-      input: JSON.stringify({ method, url, binary, token, cap, maxRequests, timeout }),
+      input: JSON.stringify({
+        method,
+        url,
+        binary,
+        token,
+        cap,
+        maxRequests,
+        timeout,
+        ...(read.conditional ? { conditional: read.conditional } : {}),
+      }),
       encoding: "utf8",
       windowsHide: true,
       timeout: timeout + 1000,

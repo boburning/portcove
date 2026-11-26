@@ -546,7 +546,8 @@ impl PortcoveService {
         if prepared.review.sha256() != review_sha256 {
             let error = PortcoveError::conflict(
                 "settings review is stale; read the configuration and review again",
-            );
+            )
+            .with_known_cause(crate::failure::KnownFailureCause::SettingsReviewStale);
             return Err(
                 if matches!(&prepared.review, SettingsJournalReview::ChangeSet(_)) {
                     error.with_mutation_state(crate::MutationState::NotStarted)

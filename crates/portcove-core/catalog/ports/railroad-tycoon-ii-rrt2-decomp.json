@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "railroad-tycoon-ii-rrt2-decomp",
+    "project_url": "https://github.com/pedryvo/rrt2-decomp",
+    "name": "Railroad Tycoon II / rrt2-decomp",
+    "summary": "Reverse engineering and modern Rust reimplementation of Railroad Tycoon II — same isometric gameplay, native 1080p/4K. Requires the original game data.",
+    "issue_number": 5579,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "railroad-tycoon-ii",
+      "evidence_urls": ["https://github.com/pedryvo/rrt2-decomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Railroad Tycoon II"
+  }
+}

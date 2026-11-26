@@ -23,6 +23,85 @@ interpret. [Check a client's capabilities](#check-a-clients-capabilities)
 before choosing a definition. The source inventory is
 [`EngineTemplateCapability::current()`](../crates/portcove-core/src/definition_capabilities.rs).
 
+### Named requirements for indexed entries
+
+Definition entry schema 4 adds a required `required_features` array and an
+optional `advisory` object. It keeps the existing integer capability vector,
+including all adapter range and historical operational minimum checks. A
+schema-4 entry must also name every applicable feature checked by Core's
+[feature registry](../crates/portcove-core/src/definition_capabilities.rs).
+For example, `port.release.linux_tar_xz` requires `native.linux-tar-xz`.
+A reader refuses unfamiliar required names and known operational uses that
+omit their feature. An unfamiliar required name, or an entry schema above the
+reader's newest, records that one definition as needing a newer Portcove
+(`engine_capability_required`) on both manual and scheduled refresh. The
+reader checks the schema number before interpreting any other entry field,
+and siblings in the same index stay usable. All operational fields still pass the complete typed
+entry and catalog projection checks. New operational behavior needs a new
+feature name and its validator. When the feature itself is the reader gate,
+the validator requires entry schema 4 and the declared feature while the
+adapter range can stay the same.
+
+An advisory object may contain up to 64 keys. Each key must have between 1
+and 128 UTF-8 bytes. The compact encoded object may occupy up to 16 KiB
+within the existing entry byte limit. Readers ignore every advisory value
+when deriving installation, launch, release, source, policy, and retained
+runtime behavior. New advisory keys need no engine or schema bump.
+Duplicate JSON keys and additional top-level entry fields still fail.
+The index and signing envelope keep their existing closed schemas.
+
+Schemas 1 through 3 keep their existing shapes and retain their prior behavior.
+Each of those entries points to a catalog projection contract of its own
+schema. Schema 4 may point to an unchanged catalog projection contract of
+schema 1, 2, 3, or 4. A reviewed package and launch contract also needs a
+schema-3 projection, which names its single scoped subject. Its launch values
+reach players' machines and start a game process, so they follow the strict
+[launch value and environment rules](CATALOG.md#package-and-launch-declaration-compatibility):
+an environment name is accepted only when it is the reviewed harmless
+`PYTHONDONTWRITEBYTECODE` or starts with the prefix derived from the port ID
+(its uppercase ASCII letters and digits, a stem over 32 shortened to its
+first 24 characters plus the first 8 uppercase SHA-256 hex digits of the ID,
+then `_`; a stated
+`environment_prefix` other than that derivation is refused), and every
+literal text argument and environment value is 1 to 256 characters of
+`[A-Za-z0-9._=,+-:]` with no `..`, drive or stream form, device name or
+refused runtime option, so it has no path character and a location comes only
+from the closed `path` set. These rules bound locations, not every
+runtime-specific semantic flag, so review of a contract's literal arguments
+remains a publication-time responsibility. The entry's exact
+indexed bytes, including the advisory object, remain bound
+to authentication, retained identity, and installed contract storage. A
+reader limited to entry schemas 1 through 3 refuses a schema-4 entry, so use
+schema 4 only after the intended clients have received the reader and the
+#246 publication route has qualified it. The normal inspection path can
+check a proposed bundle before that rollout.
+
+### Qualification for separately reviewed forges
+
+The `reviewed-forge` release source requires an indexed entry with schema 4
+and `release.reviewed-forge-v1`. Its projection carries one typed
+`reviewed_forge` selector for the exact subject, stable channel and platform.
+It binds the API dialect and root, public web host, asset host allowlist, and
+the immutable repository, release and archive identity. Historical readers
+refuse the new source. Forge selectors are outside the advisory envelope.
+
+A separate schema-5 publisher policy decision, `managed_forge_v1`, must use
+a `reviewed-forge-v1-*` grant ID and repeat the complete reviewed selector in
+`selection`. The installed publisher role must authenticate it against the
+exact definition and index hashes. Version 1 accepts one stable native portable
+archive on one platform. The API and archive requests use reviewed public HTTPS
+origins, with no proxy, credentials or redirects. The installer verifies the
+signed archive size and SHA-256 using the normal transfer and staging path.
+A different release, host or archive needs a new independently reviewed
+decision. A schema-5 revocation uses the same grant family.
+
+Deploy compatible readers before publishing any schema-5 policy. Existing
+GitHub and GitLab selection keeps its authority and transport. The forge grant
+cannot replace an existing publisher scope or authorize curated acquisitions.
+No production grants are included, and Naev remains upstream-owned. The
+qualification fixture covers both dialects and separately verifies provider
+identity, bounded transfer and refusal of changed bytes or a foreign redirect.
+
 Staged-source creation versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
@@ -855,8 +934,11 @@ but occur once in the inventory. Empty snapshots are structurally valid; parsing
 one cannot remove catalog availability. Unknown or duplicate fields at every
 index boundary fail closed. Index bytes are retained exactly, not reserialized.
 
-The parser enforces a 4 MiB index, at most 4,096 definitions and a 32 MiB aggregate
-content bound before exposing an immutable inventory. The general per-target
+The parser enforces a 4 MiB index and a 32 MiB aggregate content bound before
+exposing an immutable inventory. It reads every definition identity within the
+index byte bound. Released readers also refuse more than 4,096 definitions, so
+the publisher keeps that count until they are no longer supported (see
+[Reader generations](SIGNED-CATALOG.md#reader-generations)). The general per-target
 ceiling is 16 MiB. Individual definition entries keep their 4 MiB limit. This
 representation conservatively bounds all listed content, including records
 not referenced by a definition. A transport can obtain each target's validated
@@ -1346,6 +1428,97 @@ including null; unknown versions fail closed. A schema-4 grant binds a nonempty
 curated record map to the exact independently authenticated definition. Record
 claims or a first client download cannot create this grant or install its root.
 
+#### Decision binding schemas
+
+The `policy_schema` number above selects the grant's scope. A separate
+top-level `decision_schema` selects how a positive decision (`availability`,
+`managed_github`, `managed_forge_v1`) names the exact definition it authorizes.
+
+- **Decision schema 1** is expressed by omitting `decision_schema`. The decision
+  names `definition_revision`, `definition_sha256` (the exact indexed entry
+  bytes), `template` and the global definitions `index_sha256`.
+- **Decision schema 2** is `"decision_schema": 2`. The decision names the same
+  fields except `index_sha256`, which it must omit.
+
+Readers interpret both. A decision with `decision_schema: 1`, a non-integer, or
+schema 2 with `index_sha256` is invalid. A larger number is refused before typed
+parsing as needing a newer Portcove for that one subject. A manual refresh
+reports it as `engine_capability_required`; a scheduled refresh skips that
+subject. Siblings and that subject's retained last-good admission are
+unaffected. A `revoked` decision binds nothing and never carries
+`decision_schema`, in this or any later schema, so every released reader can
+read a revocation.
+The binding form is not authority. Changing it keeps retained launch continuity,
+just as a schema-1 rebind at a higher `policy_revision` does. Readers that list
+`catalog.policy-decision-v2` in `capabilities.definition_features` accept
+schema 2. Earlier readers refuse the unknown field for that subject and keep
+their last-good decision.
+
+**What the global index binding protects.** Each property of decision
+schema 1 and the mechanism that also enforces it:
+
+| Property                                                                 | Also enforced by                                                                                                                                     | Schema 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A decision is paired only with the entry its publisher reviewed          | `namespace`, `stable_id`, `definition_revision`, `definition_sha256` and `template`, all compared on every use                                       | Unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| A removed subject's decision stops being honored                         | The reader resolves a subject only through the verified index it is using; a removed subject has no entry, so nothing can be interpreted or admitted | No entry, no projection, no admission. Schema 1 also made the policy role countersign the whole index, so a definitions-role signature alone could list the subject again only by replaying that exact whole index. Under schema 2 a later index that lists the identical reviewed entry again would honor an unrevoked decision, so a schema-2 publisher revokes (a higher-revision `revoked` decision under the policy role) whenever it removes a subject. Publication inspection accepts policy targets only for indexed subjects, so the revocation is published while the subject is still indexed, and the removal follows in a later publication |
+| A revised subject's old decision stops being honored                     | A revision has a new entry digest, which the index names and verifies                                                                                | Unchanged: the entry digest differs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| The entry's contracts are the reviewed ones                              | The entry names its contract leaves by content-addressed targets the index verifies, so the entry digest binds them                                  | Unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| A decision is not combined with a definition from another index          | The projection is interpreted from one verified index                                                                                                | Each use requires the projection's own index digest to equal the index the caller relies on (a fresh candidate or the retained selection), and that index to name this entry digest                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| A revoked subject stays revoked                                          | Revocation is a higher `policy_revision` under the per-subject policy revision floor; it carries no index binding                                    | Unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| An older index or metadata cannot replace a newer one (replay, rollback) | The definitions-role replay floor on selection, the policy-role replay floor on admission, and authenticated expiry                                  | Unchanged; tested with an unchanged decision presented with an older index                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Concurrent publications are ordered                                      | Monotonic role versions; an equal version with a different signed body is equivocation                                                               | Unchanged; tested with identical decision bytes from two racing bodies                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Freshness                                                                | Earliest authenticated metadata expiry on the candidate, the selection and the policy                                                                | Unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| An unrelated index change invalidates the decision                       | Nothing else; this is the only additional effect of the global binding                                                                               | Removed: an addition or change of another subject leaves this decision valid, so the publisher re-signs only the changed subject's targets                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+
+Only the removal row depends on the publisher: it holds when removal is a
+policy-role revocation, which every reader generation honors. With that
+procedure no property depends only on the global digest, so no case keeps the
+conservative binding. Decision schema 1 keeps its existing behavior, including
+stored admissions and selections that libraries already hold.
+
+Schema 2 is safe only because an entry's meaning depends on nothing at index
+level: the entry bytes and the contracts they name by digest are the whole
+reviewed definition, and the index contributes only membership. A future index
+field or `index_schema` that changes what an entry means must either be added
+to the decision binding or bump the decision schema.
+
+**Stored decisions a reader cannot interpret.** A stored admission whose exact
+authenticated bytes this reader cannot parse refuses only its own subject. An
+example is a newer decision schema stored by a later release before an
+application rollback. The authority review that runs before every official
+refresh still checks that row's digest, provenance and replay floor, then
+continues with the other subjects. Bytes that fail those checks still refuse
+the review. Curated hold evaluation still reads every retained receipt
+strictly and fails closed. Releases before this reader stop every official
+refresh on any stored decision they cannot parse.
+
+**Rollout.** A publisher emits schema 2 only after the
+[released-reader gate](design/CATALOG-DISTRIBUTION-SCALING.md#4-definitions-policy-decision-schema-2)
+verifies a released build that lists `catalog.policy-decision-v2`. That build
+is declared the minimum supported preview generation before the first schema-2
+decision is emitted. Older previews then refuse each schema-2 decision with a
+generic unknown-field parse error. They keep their last-good decisions,
+selections and installs, but no further decisions reach them. Once each
+stored policy's authenticated expiry passes, `require_fresh` refuses new
+acquisition for that subject. Already-installed games keep launching under the
+retained contract. Those previews must update the application. The cutover
+re-signs every subject once at a higher `policy_revision`, which requires one
+re-selection of every subject. After that, an addition or change re-signs only
+that subject's policy and launch targets.
+
+Before the first schema-2 emission, every writer that compares or emits
+`decision.index_sha256` must handle schema 2. The writers are:
+
+- `crates/portcove-release-tools/src/definition_repository/bundle.rs`
+- `scripts/catalog-prepare-publication.mts`
+- `scripts/catalog-publication-receipt.mts`
+- `scripts/catalog-literal-launch-publication.mts`
+- `scripts/n64-original-publication.mts`
+
+The publication receipt check must also refuse a `removed` change unless that
+subject already has a higher-revision revocation, so "removal is revocation" is
+enforced rather than procedural.
+
 Curated resolution freshly observes the numeric GitHub repository, release and
 asset IDs, tag, peeled commit, filename, canonical asset URL and nonzero size.
 They must match the accepted record. A present publisher digest must agree; an
@@ -1699,12 +1872,11 @@ missing, extra, changed, linked or unsupported content refuses. The bounds are
 definition entries, and 64 KiB policy records. Its exact file/definition manifest grants no semantic or publisher
 acceptance. An empty index is bootstrap preparation, not a delivered definition.
 
-The maintained release inspector and its real-CLI build fixtures accept API84
-and API85 machine envelopes for this unchanged publication-schema-1 report.
-They retain exact envelope/report validation, byte binding and same-process
-inspection custody; unknown versions and reflected authority remain refused.
-This compatibility window changes no publisher, Root, signature or acceptance
-authority, and does not relabel earlier API84 observations.
+The maintained release inspector requires the fixed API 100 machine envelope
+for publication report schema 1. The CLI keeps that response version when its
+general API version advances. Inspection validates the exact envelope and report
+against the input bytes and keeps the result in the same process. It refuses
+unexpected versions and reflected authority.
 
 The release tool provides `sign-offline-definition-targets CONFIG`,
 `sign-definition-role ROLE CONFIG` and `assemble-definition-repository CONFIG`.
@@ -1764,6 +1936,66 @@ directory. Its receipt records the exact inputs and output digests with authorit
 `none`. The protected publisher still establishes the authenticated baseline,
 revision floors, signing and public delivery through the existing workflow.
 
+A new reviewed forge subject uses a schema-3 projection template with the exact
+`reviewed_forge` selector. Its reviewed indexed entry declares schema 4 and
+`release.reviewed-forge-v1`. Supply the separate schema-5 acquisition policy
+bytes for the exact selector, entry and complete index. This preparation refuses
+a subject already in the embedded operational catalog or prior managed bundle.
+A schema-5 policy has no launch record. The tool checks the supplied decision
+and preserves its bytes. Provider observations supply no acquisition authority.
+The authenticated publication review and released-reader gate still determine
+when a first activation can proceed.
+
+### Prepare a literal launch declaration transition
+
+Use the exact current authenticated bundle as `PRIOR`. The candidate changes
+only the representation of an existing nonempty launch argument list. Asset
+hints, archive layout, runtime executable, data roots, provider scope and
+player-forwarded arguments remain the same. The tool refuses a subject whose
+launch would change: one with managed initialization, an external profile
+policy, a runtime data policy, managed shared preferences, a bundled runtime,
+a managed build or a player-prepared runtime, since Core reads or replaces the
+static argument list for those declarations. Run the following from the repository with a validated
+capable Core CLI and an existing private output directory.
+
+```sh
+node scripts/catalog-literal-launch-publication.mts draft --prior "$PRIOR" --port "$PORT" > "$OUT/draft.json"
+"$CORE_CLI" --json catalog canonical-definition-projection "$OUT/draft.json" |
+  jq -jr 'if .ok then .data else error(.error.message) end' > "$OUT/typed.json"
+node scripts/catalog-literal-launch-publication.mts bind --prior "$PRIOR" --port "$PORT"   --projection "$OUT/typed.json" --feature native.package-layouts-v1 --output-parent "$OUT"
+```
+
+Repeat `--feature` for every other named feature the current entry needs.
+Dungeon Crawl Stone Soup requires only the package layout feature alongside
+the new named feature, which the authoring command adds. The Resurrection of
+Evil DUDE entry has an external profile policy whose validator requires its
+exact static argument list, so the tool refuses it. Recheck the published
+index and its selected definition before using these feature lists.
+
+The generated request and bundle are keyless review inputs. For normal
+`catalog-prepare-publication.mts prepare`, extract the proposed `catalog` from
+the typed projection for `--catalog`, and use the same projection with an
+empty `catalog.ports` array for `--projection-template`. Supply the generated
+directory as `--reviewed` only after independent review of all bindings. The
+existing Core inspector and protected workflow own qualification and signing.
+Release and verify the capable reader before this publication step.
+
+Reopen both affected platforms and the retained old installation on the
+same released capable binary. Check the previous released reader with the old
+bundle, the staged successor and the forward rollback. A refused successor is
+expected on the older reader. A rollback must publish a newer index/entry and
+rebound policy with the original projection bytes, rather than replaying a
+lower revision. Once a transition has been published, take a new authenticated
+bundle as `CURRENT`, then prepare its rollback with:
+
+```sh
+node scripts/catalog-literal-launch-publication.mts rollback --prior "$CURRENT"   --baseline "$PRIOR" --port "$PORT" --output-parent "$OUT"
+```
+
+Run the same independent review and protected publication procedure for the
+rollback candidate. Keep the baseline and rollback receipts available to the
+unchanged-client evidence for [#246](https://github.com/boburning/portcove/issues/246).
+
 ### Stage an observed N64 original-input amendment
 
 Use `catalog-prepare-publication.mts project --port ID --prior PRIOR_BUNDLE
@@ -1810,8 +2042,14 @@ the managed index, checksum-addressed definitions and official policy/launch
 records. This is separate from the compiled catalog. The existing coordinator
 freezes exact raw Git inputs, actual Core projection, accumulated changes from
 the accepted catalog baseline and current component/site identities. The catalog
-source readers reconstruct at most 6,144 entries per complete Git tree and refuse
-truncated or mismatched trees. Its neutral
+source readers reconstruct every entry of a complete Git tree and refuse
+truncated or mismatched trees. The count bound is GitHub's 100,000-entry
+recursive-tree completeness limit; in practice each reader's response byte
+bound (8 MiB for application sources, 16 MiB for catalog sources) binds first. Ancestry comparison stays bounded by commit
+distance from the accepted baseline (2,048 commits; 3,200 for application
+sources), matching the sandboxed history depth. This is an accepted limit (owner
+decision, November 22, 2026): release regularly, and revisit it only if a release
+approaches that distance. Its neutral
 request is consumed by the selected independent whole-opportunity producer;
 parser success or persistence does not establish acceptance. Negative results
 retain the actual authenticated Check and bounded repair history in the same
@@ -1925,9 +2163,11 @@ remain separate and unchanged.
 The strict UTF-8 target has `listing_delivery_schema: 1`, a positive safe-integer
 `revision`, `withdrawn_ids` and a `directory` containing the existing format-1 or
 format-2 `CatalogListingDocument`; `download_block_reason` requires format 2.
-The legacy target is bounded to 8 MiB, each listing
-uses the existing descriptive validator, and both lists are bounded to 10,000
-identities. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
+The legacy target is bounded to 8 MiB and each listing
+uses the existing descriptive validator. The current reader charges each
+listing and withdrawal against one measured working-memory element budget per
+admission (about 10,400 listings or 616,000 withdrawals); released readers
+instead refuse more than 10,000 of either, which the publisher keeps honoring. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
 withdrawals, unsafe links and operational fields are rejected. Setup instructions
 and IGDB artwork mappings remain inert descriptions; acquisition, user-selected
 execution consent and managed installation retain their existing boundaries.
@@ -1935,7 +2175,9 @@ execution consent and managed installation retain their existing boundaries.
 The compact target uses the same delegation and an 8 MiB authenticated carrier.
 A compatible reader verifies the complete decoded digest and accepts up to 32 MiB
 of decoded directory data. Compact parsing checks each record separately and
-accepts up to 1 MiB per record and 10,000 records or withdrawals. Admission and
+accepts up to 1 MiB per record. Records and withdrawals are charged against the
+element budget while they are parsed (released readers: 10,000 each). See
+[Reader generations](SIGNED-CATALOG.md#reader-generations). Admission and
 local readback keep the same decoded bounds and retain the transport identity.
 
 Ordinary preparation and publication carry complete authored listings, including
@@ -1943,6 +2185,14 @@ acquisition restrictions; package observations and metadata enrichment cannot
 resolve a condition. A reviewed Git-authored resolution may remove it in a newer
 authenticated snapshot. The reader retains snapshot replacement semantics rather
 than making an older restriction an additional policy authority.
+
+Compact preparation projects every canonical listing except explicit withdrawals
+and includes the applicable observations. An optional observer candidate that
+fails Core validation is excluded and reported, and its row keeps its prior
+signed observation. Legacy preparation instead drops every candidate when Core
+refuses the set. Capacity exhaustion fails preparation and leaves the last-good
+publication in place. Existing legacy readers keep their separately
+authenticated 8 MiB target.
 
 Core atomically retains the exact target bytes and authenticated metadata
 provenance with the shared installed-authority replay floor. Lower metadata or
@@ -2001,6 +2251,25 @@ keeps bundled bindings only for the same project and original description.
 A format-14 replacement can remove those bindings. Carrier support and format
 support are advertised separately, so compact transport alone does not
 establish format-14 compatibility.
+
+Listing format 15 carries typed [acquisition restrictions](CATALOG.md#acquisition-restrictions).
+Its `download_block_reason` must equal the projection of those restrictions, so
+a format-14 reader keeps enforcing at least the same download hold, and exports
+up to format 14 omit `restrictions` and keep that string. Signed listing
+delivery stays at format 11: the observer's projection accepts the format-15
+canonical directory as input and still publishes Core's format-11 export. A
+delivered listing that repeats the current string for the same project and
+game keeps the reader's typed restrictions; any other delivered value replaces
+them with a whole-listing download hold, or clears them. Publishing a format-15
+signed target is a later, separately gated change.
+
+Managed acquisition holds keep their delivered `managed_acquisition_hold`
+form; Core normalizes it to typed decisions when it loads, and the definition
+loader accepts a selected definition only when it keeps or adds restriction. A
+typed definition field is not deliverable yet. It needs a reader gate that
+older applications refuse, planned as a named definition feature under
+definition schema 4 once [#8496](https://github.com/boburning/portcove/pull/8496)
+lands; until then authoring emits only the legacy hold.
 
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at
@@ -2107,10 +2376,54 @@ legacy signed catalog envelopes cannot appoint a loader.
 
 A binding declares a versioned engine, GitHub release repository, minimum
 stable release, applicable platforms, and native settings file. N64 Recomp also
-declares the native game. Each loader platform needs executable hints, and
-both the `mods` directory and settings file must be persistent paths. Core
-requires the exact retained installation to match before enabling managed mods.
-A stable successor in the declared release series uses the same loader.
+declares the native game. Each loader platform needs executable hints. For the
+Libultraship and N64 Recomp contracts, both the `mods` directory and settings
+file must be persistent paths, and the reviewed artifact fields below are
+refused. Core requires the exact retained installation to match before enabling
+managed mods. A stable successor in the declared release series uses the same
+loader.
+
+The `daggerfall-unity-data` version 1 contract admits data-only `.dfmod`
+bundles for a NativePortable GitHub release. The definition must require
+NativePortable capability 41 or later; older readers cannot interpret the
+binding. The settings file is `PortableAppdata/Mods/GameData/Mods.json`. The
+persistent paths must include `DaggerfallUnity_Data/StreamingAssets/Mods`,
+`Portable.txt` and `PortableAppdata`, and may add only
+`DaggerfallUnity_Data/StreamingAssets/GameFiles`. The definition declares no
+runtime data policy, file patterns or runtime-mutable paths. Each loader
+platform needs one executable hint, a Windows `.exe` or Linux `.x86_64` player,
+and a reviewed package layout. Portcove does not create `Portable.txt`; the
+player's marker is collected from and restored to the active runtime like the
+other declared paths.
+
+The binding adds three reviewed facts:
+
+- `reviewed_artifacts` names one release tag and exact ZIP identity (asset
+  name, size and SHA-256) for every loader platform. The tag must be in the
+  minimum release's major series and no older than the minimum.
+- `reviewed_payload_sha256` optionally records, per loader platform, the
+  digest of the sorted path, size and SHA-256 rows of the reviewed immutable
+  payload.
+- `reviewed_repository_id` is the numeric GitHub repository ID. A payload
+  digest requires it.
+
+An installation matching a reviewed artifact exactly uses the loader after its
+retained files verify. Another release identity can reuse the review only when
+its manifest records the same platform, the declared repository and numeric
+repository ID, and the installed tag. The installed release must be in the
+minimum release's major series and no older than the minimum. Its immutable
+payload rows must produce the reviewed digest. The package's shipped mutable roots must also have the
+reviewed shape: no `Portable.txt` or `PortableAppdata`, and only the stock
+`readme.txt` in `Mods` and `GameFiles`. This comparison grants no new download
+or code-execution authority.
+
+Core deploys reviewed bundles only into
+`DaggerfallUnity_Data/StreamingAssets/Mods` under the exact retained runtime.
+It stages each file in a private directory beside `Mods`, outside Unity's
+recursive scan, and publishes it by rename only. A mount boundary fails closed
+instead of copying into `Mods`. Removal and replacement require the live file
+to match the recorded package. Files the setup does not own, or owned files
+that changed, hold the deployment and stay in place for review.
 
 The authored Shipwright and Zelda 64: Recompiled bindings match the existing
 native settings and platform contracts. Historical definitions keep their
@@ -2161,3 +2474,33 @@ scope.
 
 Keep newly authored scopes out of public projections until the matching
 reader and profile writer are available to the clients using those scopes.
+
+### Catalog-declared mod sources
+
+`port.mod_sources` declares link-out, browse and inspect mod sources. The
+[catalog contract](CATALOG.md#declare-mod-sources) lists the kinds, their
+authority ceilings and address rules. An indexed entry that carries a
+non-empty list must use definition schema 4 and name `mods.sources-v1`. A
+schema 1 through 3 entry that carries one is refused. The projection may not
+place sources on a sibling port. Legacy signed catalog envelopes cannot
+appoint or withdraw a source. They keep the baseline catalog's declaration.
+
+Readers check compatibility per definition:
+
+- A reader without `mods.sources-v1` refuses only the definition that names
+  it, as needing a newer engine. Other definitions in the same snapshot stay
+  usable. That client keeps its current version of the port, including its
+  built-in sources, and receives no newer revision of that port until it
+  upgrades.
+- A reader with the feature refuses a definition whose source has an unknown
+  kind, authority or field. A new kind or authority needs a new feature name.
+- A source with an empty `platforms` list must be an external website and
+  also name `mods.platform-independent-portals-v1` in the definition's
+  required features. Older clients keep their current definition for that port.
+- Definitions without `mod_sources` keep their existing schema and remain
+  readable by older clients.
+
+No published definition carries `mod_sources` yet. Publish one only with
+separate approval, one low-risk port first. Publishing a widely installed port
+with sources stops older clients' updates for that port until they upgrade.
+Publishing it without sources removes the sources for upgraded clients.

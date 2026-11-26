@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-bros-mstan-nes-recomp",
+    "project_url": "https://github.com/mstan/SuperMarioBrosNESRecomp",
+    "name": "Super Mario Bros. / mstan",
+    "summary": "Super Mario Bros. recompiled for the NES using nesrecomp · Part of the R.A.I.D. community",
+    "issue_number": 5491,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-bros",
+      "evidence_urls": ["https://github.com/mstan/SuperMarioBrosNESRecomp"],
+      "source_editions": [
+        {
+          "id": "super-mario-bros-nes",
+          "title": "Super Mario Bros. (NES)",
+          "system": "nes",
+          "evidence_urls": ["https://github.com/mstan/SuperMarioBrosNESRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Super Mario Bros."
+  }
+}

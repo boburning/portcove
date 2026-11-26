@@ -1,5 +1,6 @@
 import { useAppTranslation } from "../localization";
 import { ExternalLaunchWarnings } from "./AuthoredSetupWarnings";
+import type { HeroMediaContext } from "../hero-media";
 import { GameHero } from "./GameHero";
 import {
   browsePortPresentation,
@@ -56,6 +57,7 @@ import {
   CheckCircle2,
   Gamepad2,
   History,
+  Image as ImageIcon,
   LoaderCircle,
   MoreHorizontal,
   Settings2,
@@ -76,6 +78,7 @@ import {
   filterPorts,
   portReadiness,
   hasUnconfirmedLaunchInput,
+  continueActionPresentation,
   releaseChannelPresentation,
   type Filter,
   type CatalogSort,
@@ -155,7 +158,7 @@ function firstLibraryVisit({
     query.trim().length === 0
   );
 }
-function visibleRecentPort(
+export function visibleRecentPort(
   recent: RecentPort | undefined,
   organization: Organization | undefined,
   ports: CatalogEntry[],
@@ -354,6 +357,7 @@ function usePortBrowser({
   overview,
   libraryCount,
   recent,
+  recentArtwork,
   filter,
   query = "",
   setQuery,
@@ -404,6 +408,7 @@ function usePortBrowser({
   catalogSort?: CatalogSort;
   setCatalogSort?: Dispatch<SetStateAction<CatalogSort>>;
   recent?: RecentPort | undefined;
+  recentArtwork?: ((recent: RecentPort) => HeroMediaContext) | undefined;
   setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onContinue?: (portId: string) => void;
@@ -557,6 +562,7 @@ function usePortBrowser({
     overview,
     libraryCount,
     recent: visibleRecentPort(recent, organization, catalogUniverse ?? ports, statuses),
+    recentArtwork,
     filter,
     query,
     setQuery,
@@ -1130,34 +1136,30 @@ function BrowserEmptyState({
   );
 }
 
-function continueLaunchable(port: CatalogEntry, status: PortStatus, blocked: boolean) {
-  return (
-    (!port.listing || listingActionAssessment(port.listingStatus, "launch").allowed) &&
-    !port.pendingSetup &&
-    status.readiness?.launchable === true &&
-    status.readiness.blockers.length === 0 &&
-    !blocked
-  );
-}
-
 function ContinueCard({
   recent,
+  mediaContext,
   launch,
   details,
 }: {
   recent: RecentPort;
+  mediaContext?: HeroMediaContext | undefined;
   launch: (portId: string) => void;
   details: (portId: string, originKey?: string) => void;
 }) {
+  const { t } = useAppTranslation("browsing");
   const { port, status } = recent;
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
-  const launchable = continueLaunchable(port, status, action.readiness.blocked);
-  const trial = hasUnconfirmedLaunchInput(status, port);
-  const previouslyPlayed = status.successful_launches > 0;
+  const { launchable, trial, previouslyPlayed, label } = continueActionPresentation(
+    port,
+    status,
+    action.readiness.blocked,
+  );
   return (
     <GameHero
       port={port}
       variant="continue"
+      mediaContext={mediaContext}
       className="continue-card mb-6"
       successfulLaunches={status.successful_launches}
       label={`${previouslyPlayed ? "Continue" : "Play"} ${gameIdentityLabel(port)}`}
@@ -1189,15 +1191,7 @@ function ContinueCard({
           }
         >
           <Icon glyph={Play} className="fill-current" />
-          {launchable
-            ? status.readiness?.pending_setup
-              ? "Launch to finish setup"
-              : trial
-                ? "Try launch"
-                : previouslyPlayed
-                  ? "Continue playing"
-                  : "Play"
-            : "Review launch"}
+          {label}
         </Button>
         <Button
           data-focusable
@@ -1206,7 +1200,7 @@ function ContinueCard({
           data-detail-origin={`library:continue-details:${port.id}`}
           onClick={() => details(port.id, `library:continue-details:${port.id}`)}
         >
-          Game details
+          {t("hero.openDetails")}
           <Icon glyph={ArrowRight} />
         </Button>
       </div>
@@ -1348,7 +1342,7 @@ function LibraryEntry({
   organizationMenu: ReactNode;
 }) {
   const { element: artworkElement, visible, priority } = useArtworkVisibility();
-  const { display: artwork } = useArtwork(presentationPort.id, "cover", visible, priority);
+  const { display: artwork } = useArtwork(port.id, "cover", visible, priority);
   const artworkNotice = artworkDisplayNotice(artwork);
   const title = gameTitle(presentationPort);
   const project = gameProjectLabel(port);
@@ -1380,7 +1374,7 @@ function LibraryEntry({
           <ArtworkFrame
             element={artworkElement}
             display={artwork}
-            portId={presentationPort.id}
+            portId={port.id}
             visible={visible}
             priority={priority}
             identityArtwork
@@ -1689,7 +1683,12 @@ function renderContinuePortBrowserView(
     model.recent &&
     model.onContinue &&
     !favorites?.only && (
-      <ContinueCard recent={model.recent} launch={model.onContinue} details={model.onSelect} />
+      <ContinueCard
+        recent={model.recent}
+        mediaContext={model.recentArtwork?.(model.recent)}
+        launch={model.onContinue}
+        details={model.onSelect}
+      />
     )
   );
 }
@@ -2287,6 +2286,7 @@ function PortCardActionMenu({
   Parameters<typeof PortCardStatus>[0] & { overflowOrigin: string },
   "organizationMenu" | "port" | "status" | "onSelect" | "overflowOrigin"
 >) {
+  const { t } = useAppTranslation("detail");
   const menu = useLibraryMenu();
   const trigger = useRef<HTMLButtonElement>(null);
   const popup = useRef<HTMLDivElement>(null);
@@ -2377,6 +2377,17 @@ function PortCardActionMenu({
             )}
           >
             {organizationMenu}
+            <Menu.Item
+              data-collection-control="artwork"
+              className={cn(
+                controlFocus,
+                "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground [&_svg]:size-4 [&_svg]:shrink-0",
+              )}
+              onClick={() => onSelect(port.id, overflowOrigin, "artwork")}
+            >
+              <ImageIcon aria-hidden="true" />
+              {t("actions.artwork")}
+            </Menu.Item>
             <Menu.Item
               data-collection-control="history"
               className={cn(

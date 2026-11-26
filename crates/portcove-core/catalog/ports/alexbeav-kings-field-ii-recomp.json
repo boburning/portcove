@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-kings-field-ii-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/kings-field-ii-recomp",
+    "name": "King's Field II / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of King's Field II (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6677,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "kings-field-ii",
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/kings-field-ii-recomp"],
+      "source_editions": [
+        {
+          "id": "kings-field-ii-playstation",
+          "title": "King's Field (US) (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/kings-field-ii-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "King's Field (US)"
+  }
+}

@@ -71,6 +71,7 @@ Project item until implemented; dated outcomes remain historical evidence.
 | Read-only public game discovery and comparison pages                               | [Generated public catalog](PUBLIC-CATALOG.md)                                                                                                                                                                     |
 | CLI or external frontend integration                                               | [CLI machine contract](CLI.md), [integration contract](INTEGRATIONS.md), and [integration author guide](INTEGRATION-AUTHOR.md)                                                                                    |
 | Repository rules or hosted settings                                                | [Repository settings](REPOSITORY-SETTINGS.md)                                                                                                                                                                     |
+| Limits, their class, effect and planned disposition                                | [Restriction register](RESTRICTION-REGISTER.md)                                                                                                                                                                   |
 | Security reports or vulnerability boundaries                                       | [Security policy](../SECURITY.md)                                                                                                                                                                                 |
 | Product targets and release-stage vocabulary                                       | [Product roadmap and release stages](ROADMAP.md)                                                                                                                                                                  |
 | Domain terminology, content wording or a naming migration                          | [Glossary](../GLOSSARY.md), [content design](CONTENT-DESIGN.md), [domain guidance](agents/domain.md) and [source observation/registration decision](adr/0005-distinguish-source-observations-and-registration.md) |
@@ -117,6 +118,15 @@ measured Node, frontend unit, or Chromium branches with retained source mappings
 - [Desktop localization and authoring](LOCALIZATION.md)
 - [Brand assets](BRAND-ASSETS.md)
 - [Development storage](DEVELOPMENT-STORAGE.md)
+
+## Proposed designs
+
+Design records are proposals, not current contracts. Each names the contracts it
+would change and stays proposed until its own pull requests land.
+
+- [Supported capability contracts as the unit of integration](design/INTEGRATION-CONTRACTS.md)
+- [Scaling signed catalog distribution](design/CATALOG-DISTRIBUTION-SCALING.md)
+- [Automatic managed acquisition from upstream releases](design/AUTOMATIC-MANAGED-ACQUISITION.md)
 
 ## Historical evidence
 

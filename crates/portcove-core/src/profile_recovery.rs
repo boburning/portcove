@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    OriginalStatus, PortcoveError, PortcoveService, ProfileRevision, ProfileUpdatePolicy,
-    ResolvedPackage, Result, RetainedBuildGap, profile,
+    OriginalStatus, PortcoveError, PortcoveService, ProfileRevision, ProfileUpdatePolicy, Result,
+    RetainedBuildGap, profile,
 };
 
 use super::{
     Layout, NativeModListStatus, mark_restore_pending, native_status, observe, require_clean,
-    require_code_allowed, require_projectable,
+    require_code_allowed, require_dfu_basename_stability, require_projectable,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -137,17 +137,24 @@ impl PortcoveService {
             &target,
             setup.is_default,
         ));
+        check(require_dfu_basename_stability(&current, &target));
+        check(self.require_dfu_target_clean(layout, &target));
         check(require_projectable(layout, &target));
         if setup.is_default && current.originals != target.originals {
             check(Err(PortcoveError::unsupported(
                 "Default follows the registered original files. Copy the setup to choose an exact original before recovering this revision.",
             )));
         }
-        for package in &target.packages {
-            check(
-                verify_retained_package(layout, package)
-                    .map_err(|error| error.detail("package", &package.native_id)),
-            );
+        match crate::profile_package_files::profile_package_files(&target) {
+            Ok(files) => {
+                for file in files {
+                    check(
+                        verify_retained_package(layout, &file)
+                            .map_err(|error| error.detail("package", file.name)),
+                    );
+                }
+            }
+            Err(error) => check(Err(error)),
         }
         check(require_code_allowed(layout, &target));
         let needs_loader = target.packages.iter().any(|package| package.enabled);
@@ -274,8 +281,11 @@ impl PortcoveService {
     }
 }
 
-fn verify_retained_package(layout: &Layout, package: &ResolvedPackage) -> Result<()> {
-    let path = layout.package(&package.sha256, &package.native_id);
+fn verify_retained_package(
+    layout: &Layout,
+    package: &crate::profile_package_files::ProfilePackageFile<'_>,
+) -> Result<()> {
+    let path = layout.package(package.sha256, package.name);
     crate::path::refuse_symlink_ancestors(&path)?;
     let metadata = fs::symlink_metadata(&path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
@@ -287,6 +297,17 @@ fn verify_retained_package(layout: &Layout, package: &ResolvedPackage) -> Result
     let changed = || PortcoveError::verification("Stored mod bytes differ from the earlier setup.");
     if !metadata.is_file() || metadata.len() != package.size {
         return Err(changed());
+    }
+    if let Some(platform) = layout.dfu_platform {
+        let inspection = crate::dfu_mod::inspect_data_only(&path, platform)?;
+        return if inspection.package.sha256 == package.sha256
+            && inspection.package.size == package.size
+            && inspection.package.file_name == package.name
+        {
+            Ok(())
+        } else {
+            Err(changed())
+        };
     }
     let file = fs::File::open(path)?;
 

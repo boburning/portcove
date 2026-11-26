@@ -2,12 +2,26 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { isRecord } from "./runtime-values.mts";
-import { observationHash } from "./upstream-observer.mts";
-import type { ProviderObservation } from "./upstream-observer.mts";
+import { observationHash, releaseTextFact, releaseTextWindow } from "./upstream-observer.mts";
+import type { ProviderObservation, ReleaseTextFact } from "./upstream-observer.mts";
 
 // A bounded descriptive window, never a complete-history or compatibility claim.
 export const listingObservationPolicy = "provider-listing-window-v2";
-export const listingReleaseLimit = 4;
+// The observer keeps release text for exactly this window (`releaseTextWindow`).
+export const listingReleaseLimit = releaseTextWindow;
+/**
+ * The format of a listing projection's release text beside its observation
+ * (`listing_release_text`), kept in the observer's checkpoint. The text stays outside
+ * `upstream_observation`, whose shape Core's signed listing accepts.
+ */
+export const listingReleaseTextFormat = 1;
+export interface ListingReleaseText {
+  format: typeof listingReleaseTextFormat;
+  /** The observation the text belongs to: its provider facts digest. */
+  facts_sha256: string;
+  /** Per observed release whose text the provider reported, in observation order. */
+  releases: ({ id: number } & ReleaseTextFact)[];
+}
 // Reprojection follows actual implementation and schema-inventory changes too.
 export const listingProjectionHash = observationHash({
   policy: listingObservationPolicy,
@@ -26,9 +40,12 @@ export function listingDeclarationHash(listing: Record<string, unknown>) {
   delete declaration.funding_urls;
   // Technique and dependency explanations do not change the observed release scope.
   delete declaration.implementation;
+  // Mod community navigation is independent of release identity and coverage.
+  delete declaration.mod_portals;
   return observationHash(declaration);
 }
-const packageLimit = 32;
+/** At most this many assets of one release are observed. */
+export const listingPackageLimit = 32;
 
 /** Only already-supported public provider hosts can become observation sources. */
 export function listingProviderIdentity(
@@ -157,8 +174,15 @@ export function projectListingObservation<Listing extends Record<string, unknown
     [...selected].every((id) => covered.has(id)) &&
     observation.facts.releases
       .filter((release) => selected.has(release.id))
-      .every((release) => release.assets.length <= packageLimit);
+      .every((release) => release.assets.length <= listingPackageLimit);
   const observedAt = observation.validation_started_at ?? observation.completed_at;
+  const releaseText: ListingReleaseText = {
+    format: listingReleaseTextFormat,
+    facts_sha256: observation.facts_sha256,
+    releases: observation.facts.releases.flatMap((release) =>
+      selected.has(release.id) && release.text ? [{ id: release.id, ...release.text }] : [],
+    ),
+  };
   const releases = observation.facts.releases
     .filter((release) => selected.has(release.id))
     .map((release) => ({
@@ -167,8 +191,8 @@ export function projectListingObservation<Listing extends Record<string, unknown
       release_url: `https://github.com/${observation.facts.repository.full_name}/releases/tag/${encodeURIComponent(release.tag_name)}`,
       published_at: release.published_at,
       provider_prerelease: release.prerelease,
-      assets_complete: covered.has(release.id) && release.assets.length <= packageLimit,
-      assets: release.assets.slice(0, packageLimit).map((asset) => ({
+      assets_complete: covered.has(release.id) && release.assets.length <= listingPackageLimit,
+      assets: release.assets.slice(0, listingPackageLimit).map((asset) => ({
         // Authored literal filename hints only; these labels do not establish compatibility.
         platform_hints: platformHints(listing, asset.name),
         id: asset.id,
@@ -191,6 +215,7 @@ export function projectListingObservation<Listing extends Record<string, unknown
       factsHash: observation.facts_sha256,
       complete,
       releases,
+      releaseText,
     },
     staleAfterHours,
   );
@@ -328,7 +353,7 @@ export function projectGitLabListingObservation<Listing extends Record<string, u
       const links =
         isRecord(release.assets) && Array.isArray(release.assets.links) ? release.assets.links : [];
       const assetsComplete =
-        assets.length <= packageLimit &&
+        assets.length <= listingPackageLimit &&
         links.every(
           (link) =>
             isRecord(link) &&
@@ -349,7 +374,7 @@ export function projectGitLabListingObservation<Listing extends Record<string, u
         release_url: `https://gitlab.com/${identity.repository}/-/releases/${encodeURIComponent(version)}`,
         provider_prerelease: false,
         assets_complete: assetsComplete,
-        assets: assets.slice(0, packageLimit),
+        assets: assets.slice(0, listingPackageLimit),
       };
     });
   return projectDescriptiveListing(
@@ -380,6 +405,8 @@ function projectDescriptiveListing<Listing extends Record<string, unknown>>(
     factsHash: string;
     complete: boolean;
     releases: DescriptiveRelease[];
+    /** The observed releases' own text, beside (never inside) the observation. */
+    releaseText?: ListingReleaseText;
   },
   staleAfterHours: number,
 ) {
@@ -448,7 +475,17 @@ function projectDescriptiveListing<Listing extends Record<string, unknown>>(
     // Deliberately no managed channel/artifact eligibility projection.
     projections: [],
     listing_update: { ...structuredClone(listing), upstream_observation },
+    // Only a complete observation's own releases: an incomplete projection
+    // keeps retained facts whose text this observation did not read.
+    ...(complete && input.releaseText ? { listing_release_text: input.releaseText } : {}),
   };
+}
+
+/** A projection without its release text, which only the observer's checkpoint keeps. */
+export function withoutListingReleaseText(policy: unknown): unknown {
+  if (!isRecord(policy) || !Object.hasOwn(policy, "listing_release_text")) return policy;
+  const { listing_release_text: _text, ...rest } = policy;
+  return rest;
 }
 
 /** A failed attempt annotates retained facts without advancing their success/freshness clocks. */
@@ -460,11 +497,20 @@ export function listingUpdatesForReport(
 ): (Record<string, unknown> & { upstream_observation: Record<string, unknown> })[] {
   const exception = isRecord(report) && isRecord(report.exception) ? report.exception : undefined;
   const rule = typeof exception?.rule === "string" ? exception.rule : "failed";
-  const status = /budget|incomplete/u.test(rule)
-    ? "incomplete"
-    : /unavailable|rate.limit|backoff/u.test(rule)
-      ? "unavailable"
-      : "failed";
+  // The attempt's stated coverage decides the listing status, so one attempt
+  // has one word: `partial` is the listing's `incomplete`. Reports without a
+  // statement keep the rule-based mapping.
+  const stated = isRecord(exception?.coverage) ? exception.coverage.kind : undefined;
+  const status =
+    stated === "partial"
+      ? "incomplete"
+      : stated === "unavailable" || stated === "failed"
+        ? stated
+        : /budget|incomplete/u.test(rule)
+          ? "incomplete"
+          : /unavailable|rate.limit|backoff|provider-quota/u.test(rule)
+            ? "unavailable"
+            : "failed";
   return source.ports.flatMap((consumer) => {
     if (!consumer.listing) return [];
     const current = structuredClone(consumer.listing);
@@ -510,4 +556,64 @@ export function listingUpdatesForReport(
       },
     ];
   });
+}
+
+/**
+ * The observation with each release's own text attached in the worker's
+ * release shape (`name`, `body_line`, `body_line_complete`), only where the text
+ * (`listing_release_text`) names this observation's exact facts digest and a
+ * release id of it. A projection without text (one an older observer
+ * retained), text of other facts, or a malformed row leaves those releases without text: UNKNOWN, which the fit
+ * withholds (`release-text-unobserved`), never a statement either way.
+ */
+export function withReleaseText(observation: unknown, text: unknown): unknown {
+  if (
+    !isRecord(observation) ||
+    !Array.isArray(observation.releases) ||
+    !isRecord(text) ||
+    text.format !== listingReleaseTextFormat ||
+    typeof text.facts_sha256 !== "string" ||
+    text.facts_sha256 !== observation.facts_sha256 ||
+    !Array.isArray(text.releases)
+  )
+    return observation;
+  const rows = new Map<number, ReleaseTextFact>();
+  for (const row of text.releases as unknown[]) {
+    if (!isRecord(row) || !Number.isSafeInteger(row.id) || rows.has(Number(row.id))) continue;
+    try {
+      const { id: _id, ...fields } = row;
+      const fact = releaseTextFact({ text: fields });
+      if (fact) rows.set(Number(row.id), fact);
+    } catch {
+      // A malformed row reads as unobserved text.
+    }
+  }
+  return {
+    ...observation,
+    releases: (observation.releases as unknown[]).map((release) => {
+      const fact =
+        isRecord(release) && typeof release.id === "number" ? rows.get(release.id) : undefined;
+      return fact && isRecord(release)
+        ? {
+            ...release,
+            name: fact.title,
+            body_line: fact.line,
+            body_line_complete: fact.line_complete,
+          }
+        : release;
+    }),
+  };
+}
+
+/**
+ * The bytes of release text a source had beyond its budget
+ * (`releaseTextSourceBytes`), when its projection kept none for that reason;
+ * null otherwise.
+ */
+export function releaseTextOverflow(text: unknown): number | null {
+  if (!isRecord(text) || !Array.isArray(text.releases)) return null;
+  for (const row of text.releases as unknown[])
+    if (isRecord(row) && Number.isSafeInteger(row.overflow_bytes))
+      return Number(row.overflow_bytes);
+  return null;
 }

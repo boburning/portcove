@@ -84,6 +84,30 @@
     ]
   },
   "integration": {
+    "mod_sources": [
+      {
+        "id": "quaddicted",
+        "authority": "browse",
+        "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+        "name": "Quaddicted",
+        "instructions": "Check that the package supports your Quake engine. Follow the author’s setup in a separate Quake copy.",
+        "source": {
+          "kind": "quaddicted",
+          "engine": "vk_quake"
+        }
+      },
+      {
+        "id": "mod-db-arcane-dimensions",
+        "authority": "browse",
+        "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+        "name": "Arcane Dimensions",
+        "instructions": "Check that the package supports your Quake engine. Follow the author’s setup in a separate Quake copy.",
+        "source": {
+          "kind": "mod_db_feed",
+          "url": "https://www.moddb.com/mods/arcane-dimensions/downloads"
+        }
+      }
+    ],
     "support_tier": "beta",
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64"],

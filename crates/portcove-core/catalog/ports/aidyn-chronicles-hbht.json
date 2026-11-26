@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "aidyn-chronicles-hbht",
+    "project_url": "https://github.com/Aquatakat/hbht",
+    "name": "Aidyn Chronicles: The First Mage / Hoo Boy, Here's Trouble",
+    "summary": "Hoo Boy, Here's Trouble: A reimplementation of the engine that runs Aidyn Chronicles: The First Mage on the N64",
+    "issue_number": 5901,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "aidyn-chronicles-the-first-mage",
+      "evidence_urls": ["https://github.com/Aquatakat/hbht"],
+      "source_editions": [
+        {
+          "id": "aidyn-chronicles-the-first-mage-nintendo-64",
+          "title": "Aidyn Chronicles: The First Mage (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/Aquatakat/hbht"]
+        }
+      ]
+    },
+    "original_game_title": "Aidyn Chronicles: The First Mage"
+  }
+}

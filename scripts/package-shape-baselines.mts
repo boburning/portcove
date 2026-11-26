@@ -21,6 +21,12 @@
 //   `portcove --json catalog inspect-package-shape` (Core extraction, nothing
 //   executed) and rewrites the table. The archive is obtained separately; the
 //   caller verifies and deletes it.
+//
+// Derivation versions: each entry records the `shape_version` it was derived
+// with. Version 2 adds `player_candidates` (path, machine and SHA-256 of the
+// players the reviewed bytes contain) to version 1's components, whose rules
+// are unchanged, so version 1 entries stay valid baselines until re-recorded.
+// Core's `COMPONENT_RULES_VERSION` is the oldest version still accepted.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -54,6 +60,11 @@ export const MANAGED_PORTABLE_ADAPTERS = new Set([
 const MAXIMUM_SHAPE_PATHS = 16_384;
 
 export type Shape = Record<(typeof SHAPE_COMPONENTS)[number], string[]>;
+export interface PlayerCandidate {
+  path: string;
+  machine: string;
+  sha256: string;
+}
 export interface ShapeEntry {
   port_id: string;
   platform: string;
@@ -63,8 +74,14 @@ export interface ShapeEntry {
   size: number;
   asset_name: string;
   reviewed_by: string;
+  /** Absent only in tables written before per-entry versions; then the table's. */
+  shape_version?: number;
   shape: Shape;
+  /** Present from derivation version 2. */
+  player_candidates?: PlayerCandidate[];
 }
+/** First derivation version that records player candidates. */
+export const PLAYER_CANDIDATES_VERSION = 2;
 export interface ShapeTable {
   format: number;
   generator: string;
@@ -79,11 +96,70 @@ export interface ReviewedArtifact {
   reviewed_by: string;
 }
 
-/** The derivation version Core compiles in; a table from another version is stale. */
+/** The derivation version Core compiles in and the generator writes. */
 export function coreShapeVersion(source = readFileSync(derivationSource, "utf8")) {
   const match = /pub\(crate\) const SHAPE_VERSION: u32 = (\d+);/u.exec(source);
   if (!match) throw new Error("Core package_shape.rs declares no SHAPE_VERSION");
   return Number(match[1]);
+}
+
+/**
+ * The oldest derivation version whose component rules equal Core's; entries
+ * from this version through `coreShapeVersion` remain baselines.
+ */
+export function coreComponentRulesVersion(source = readFileSync(derivationSource, "utf8")) {
+  const match = /pub\(crate\) const COMPONENT_RULES_VERSION: u32 = (\d+);/u.exec(source);
+  if (!match) throw new Error("Core package_shape.rs declares no COMPONENT_RULES_VERSION");
+  return Number(match[1]);
+}
+
+/** An entry's own derivation version; older tables recorded one for all entries. */
+export function entryShapeVersion(entry: { shape_version?: unknown }, tableVersion: unknown) {
+  return entry.shape_version ?? tableVersion;
+}
+
+function readableVersion(version: unknown, shapeVersion: number, componentRulesVersion: number) {
+  return (
+    Number.isSafeInteger(version) &&
+    (version as number) >= componentRulesVersion &&
+    (version as number) <= shapeVersion
+  );
+}
+
+const MACHINE = /^[a-z0-9+-]{1,64}$/u;
+
+/** Problems with an entry's player candidates for its derivation version. */
+export function playerProblems(entry: Partial<ShapeEntry>, version: number): string[] {
+  const players: unknown = entry.player_candidates;
+  if (version < PLAYER_CANDIDATES_VERSION)
+    return players === undefined
+      ? []
+      : [`player_candidates need derivation version ${PLAYER_CANDIDATES_VERSION}`];
+  if (!Array.isArray(players)) return ["player_candidates are missing"];
+  const programs = new Set(Array.isArray(entry.shape?.programs) ? entry.shape.programs : []);
+  const problems: string[] = [];
+  for (const [index, player] of players.entries()) {
+    if (
+      !isRecord(player) ||
+      Object.keys(player).sort().join(",") !== "machine,path,sha256" ||
+      typeof player.path !== "string" ||
+      typeof player.machine !== "string" ||
+      typeof player.sha256 !== "string"
+    ) {
+      problems.push(`player_candidates[${index}] must have exactly path, machine and sha256`);
+      continue;
+    }
+    if (!programs.has(player.path))
+      problems.push(`player_candidates[${index}] is not one of the shape's programs`);
+    if (!MACHINE.test(player.machine))
+      problems.push(`player_candidates[${index}] has a noncanonical machine`);
+    if (!/^[0-9a-f]{64}$/u.test(player.sha256))
+      problems.push(`player_candidates[${index}] sha256 must be 64 lowercase hex digits`);
+    const previous: unknown = players[index - 1];
+    if (index > 0 && !(isRecord(previous) && String(previous.path) < player.path))
+      problems.push("player_candidates are not strictly sorted by path");
+  }
+  return problems;
 }
 
 function array(value: unknown): unknown[] {
@@ -118,8 +194,12 @@ export function derivationInputs(port: unknown, platform: string) {
     field(field(port, "reviewed_package_layouts"), platform),
     "classify_linux_programs_by_format",
   );
+  const portableData = field(port, "linux_portable_data_directory");
   return {
     ...(linuxFormat === null ? {} : { classify_linux_programs_by_format: linuxFormat }),
+    ...(platform === "linux-x86-64" && portableData !== null
+      ? { verified_optional_empty_portable_data: portableData }
+      : {}),
     ...(field(port, "external_profile_policy") === "openmohaa-unix-v1" &&
     ["linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(platform)
       ? { openmohaa_prepared_programs: true }
@@ -272,9 +352,19 @@ export function serializeTable(
     size: entry.size,
     asset_name: entry.asset_name,
     reviewed_by: entry.reviewed_by,
+    shape_version: entry.shape_version ?? shapeVersion,
     shape: Object.fromEntries(
       SHAPE_COMPONENTS.map((component) => [component, entry.shape[component]]),
     ),
+    ...(entry.player_candidates === undefined
+      ? {}
+      : {
+          player_candidates: entry.player_candidates.map((player) => ({
+            path: player.path,
+            machine: player.machine,
+            sha256: player.sha256,
+          })),
+        }),
   })) as ShapeEntry[];
   const table: ShapeTable = {
     format: TABLE_FORMAT,
@@ -287,7 +377,12 @@ export function serializeTable(
 }
 
 /** Every reason the committed table is not current for this catalog and Core. */
-export function checkShapeTable(text: string, catalog: unknown, shapeVersion: number): string[] {
+export function checkShapeTable(
+  text: string,
+  catalog: unknown,
+  shapeVersion: number,
+  componentRulesVersion = coreComponentRulesVersion(),
+): string[] {
   let table: unknown;
   try {
     table = JSON.parse(text);
@@ -354,6 +449,17 @@ export function checkShapeTable(text: string, catalog: unknown, shapeVersion: nu
     if (seen.has(key)) problems.push(`${name}: duplicate entry`);
     seen.add(key);
     problems.push(...shapeProblems(entry.shape).map((problem) => `${name}: ${problem}`));
+    const version = entryShapeVersion(entry, table.shape_version);
+    if (typeof entry.shape_version !== "number")
+      problems.push(`${name}: shape_version must record the entry's derivation version`);
+    if (!readableVersion(version, shapeVersion, componentRulesVersion))
+      problems.push(
+        `${name}: derivation version ${String(version)} is outside ${componentRulesVersion}..${shapeVersion}; re-derive it with --record`,
+      );
+    else
+      problems.push(
+        ...playerProblems(entry, version as number).map((problem) => `${name}: ${problem}`),
+      );
   }
   if (table.entries_sha256 !== entriesDigest(table.entries as ShapeEntry[]))
     problems.push("entries_sha256 does not match the entries; regenerate, never hand-edit");
@@ -374,14 +480,26 @@ export function candidates(text: string, catalog: unknown) {
  * derivation inputs they were recorded with; adopt the catalog's version
  * label. Nothing is re-derived, so no kept shape changes.
  */
-export function pruneTable(text: string, catalog: unknown, shapeVersion: number) {
+export function pruneTable(
+  text: string,
+  catalog: unknown,
+  shapeVersion: number,
+  componentRulesVersion = coreComponentRulesVersion(),
+) {
   const table = JSON.parse(text) as ShapeTable;
   const reviewed = reviewedArtifacts(catalog);
   const ports = catalogPorts(catalog);
   const removed: string[] = [];
   const kept: ShapeEntry[] = [];
   const seen = new Set<string>();
-  for (const entry of table.shape_version === shapeVersion ? table.entries : []) {
+  const readable = (entry: ShapeEntry) =>
+    readableVersion(
+      entryShapeVersion(entry, table.shape_version),
+      shapeVersion,
+      componentRulesVersion,
+    );
+  for (const entry of table.entries.filter(readable)) {
+    const version = entryShapeVersion(entry, table.shape_version) as number;
     const port = ports.get(entry.port_id);
     const artifact =
       reviewed.find((candidate) => reviewedKey(candidate) === reviewedKey(entry)) ??
@@ -399,7 +517,7 @@ export function pruneTable(text: string, catalog: unknown, shapeVersion: number)
             ? "digest no longer reviewed"
             : entry.derivation_inputs_sha256 !== derivationInputsDigest(port, entry.platform)
               ? "derivation inputs changed"
-              : shapeProblems(entry.shape).length
+              : shapeProblems(entry.shape).length || playerProblems(entry, version).length
                 ? "shape is invalid"
                 : seen.has(key)
                   ? "duplicate"
@@ -411,15 +529,21 @@ export function pruneTable(text: string, catalog: unknown, shapeVersion: number)
       );
       continue;
     }
-    kept.push({ ...entry, version: artifact.version, reviewed_by: artifact.reviewed_by });
+    kept.push({
+      ...entry,
+      version: artifact.version,
+      reviewed_by: artifact.reviewed_by,
+      shape_version: version,
+    });
   }
-  if (table.shape_version !== shapeVersion)
-    removed.push(
-      ...table.entries.map(
+  removed.push(
+    ...table.entries
+      .filter((entry) => !readable(entry))
+      .map(
         (entry) =>
           `${entry.port_id} ${entry.platform} ${entry.version} ${entry.sha256}: derivation version changed`,
       ),
-    );
+  );
   return { text: serializeTable(kept, shapeVersion, reviewed), removed };
 }
 
@@ -434,6 +558,7 @@ export function recordEntry(
   catalog: unknown,
   shapeVersion: number,
   entry: Omit<ShapeEntry, "version" | "reviewed_by">,
+  componentRulesVersion = coreComponentRulesVersion(),
 ) {
   const table = JSON.parse(text) as ShapeTable;
   const reviewed = reviewedArtifacts(catalog);
@@ -450,18 +575,34 @@ export function recordEntry(
     throw new Error(
       `the inspecting CLI derived ${entry.port_id} ${entry.platform} from different catalog facts (${String(entry.derivation_inputs_sha256)}) than catalog.json (${expected}); rebuild the CLI from this checkout (cargo build -p portcove-cli) or pass --cli, then record again`,
     );
-  const problems = shapeProblems(entry.shape);
+  const version = entry.shape_version ?? shapeVersion;
+  const problems = [...shapeProblems(entry.shape), ...playerProblems(entry, version)];
+  if (version !== shapeVersion)
+    problems.push(`derivation version ${version} is not Core's ${shapeVersion}`);
   if (problems.length) throw new Error(`derived shape is invalid: ${problems.join("; ")}`);
-  const kept = (table.shape_version === shapeVersion ? table.entries : []).filter(
-    (existing) =>
-      !(
-        existing.port_id === entry.port_id &&
-        existing.platform === entry.platform &&
-        existing.sha256 === entry.sha256
+  const kept = table.entries
+    .filter((existing) =>
+      readableVersion(
+        entryShapeVersion(existing, table.shape_version),
+        shapeVersion,
+        componentRulesVersion,
       ),
-  );
+    )
+    .map((existing) => ({
+      ...existing,
+      shape_version: entryShapeVersion(existing, table.shape_version) as number,
+    }))
+    .filter(
+      (existing) =>
+        !(
+          existing.port_id === entry.port_id &&
+          existing.platform === entry.platform &&
+          existing.sha256 === entry.sha256
+        ),
+    );
   kept.push({
     ...entry,
+    shape_version: version,
     version: artifact.version,
     reviewed_by: artifact.reviewed_by,
   });
@@ -560,7 +701,9 @@ export function main(argv: readonly string[] = process.argv.slice(2)) {
         typeof data.derivation_inputs_sha256 === "string"
           ? data.derivation_inputs_sha256
           : "absent",
+      shape_version: shapeVersion,
       shape: data.shape as Shape,
+      player_candidates: data.player_candidates as PlayerCandidate[],
     });
     writeFileSync(tablePath, output);
     console.log(`Recorded ${required(argv, "--port")} ${sha256}.`);

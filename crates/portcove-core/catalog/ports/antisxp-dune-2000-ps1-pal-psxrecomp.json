@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "antisxp-dune-2000-ps1-pal-psxrecomp",
+    "project_url": "https://github.com/AntiSXP/Dune-2000-PS1-PC-Port",
+    "name": "Dune 2000 (PlayStation Europe) / AntiSXP PSXRecomp PC port",
+    "summary": "Dune 2000 (PS1) as a native Windows game with mouse and keyboard, recompiled with PSXRecomp. Bring your own disc.",
+    "issue_number": 6272,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dune-2000",
+      "evidence_urls": ["https://github.com/AntiSXP/Dune-2000-PS1-PC-Port"],
+      "source_editions": [
+        {
+          "id": "dune-2000-playstation",
+          "title": "Dune 2000 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/AntiSXP/Dune-2000-PS1-PC-Port"]
+        }
+      ]
+    },
+    "original_game_title": "Dune 2000"
+  }
+}

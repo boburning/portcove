@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sr-zgs-knivesdevilish-sonic-riders-zero-gravity",
+    "project_url": "https://github.com/KnivesDevilish/SR-ZGS",
+    "name": "Sonic Riders: Zero Gravity / SR-ZGS (KnivesDevilish)",
+    "summary": "Native PC port of Sonic Riders: Zero Gravity for Windows and Linux. Requires your own copy of the original game.",
+    "issue_number": 3421,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-riders-zero-gravity",
+      "evidence_urls": ["https://github.com/KnivesDevilish/SR-ZGS"],
+      "source_editions": []
+    },
+    "original_game_title": "Sonic Riders: Zero Gravity"
+  }
+}

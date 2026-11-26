@@ -6,8 +6,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    DesktopResult, DesktopState, blocking_worker, desktop_contract::RecipeImportReview,
-    game_settings_commands::read_at_generation, service_at_generation,
+    DesktopResult, DesktopState, blocking_worker,
+    desktop_contract::{RecipeAcquisitionStep, RecipeImportReview},
+    game_settings_commands::read_at_generation,
+    service_at_generation,
 };
 use portcove_core::{
     ModSetupsView, PortcoveError, Profile, ProfileProgressCopy, ProfileRecipe, ProfileRecoveryPlan,
@@ -15,8 +17,11 @@ use portcove_core::{
 };
 
 impl RecipeImportReview {
-    pub(crate) fn new(plan: portcove_core::RecipeImportPlan) -> portcove_core::Result<Self> {
+    pub(crate) fn new(mut plan: portcove_core::RecipeImportPlan) -> portcove_core::Result<Self> {
         let serialized_plan = serde_json::to_string(&plan)?;
+        // The provider plans travel once, inside the authoritative serialized
+        // plan. The display copy keeps only which packages are staged.
+        plan.staging.provider_plans.clear();
         let setting_values = plan
             .recipe
             .settings
@@ -47,11 +52,16 @@ pub(crate) async fn get_mod_setups(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     port_id: String,
+    browse_only: Option<bool>,
 ) -> DesktopResult<ModSetupsView> {
     let state = state.inner().clone();
     blocking_worker(move || {
         read_at_generation(&state, generation, |service| {
-            service.preview_mod_setups(&port_id)
+            if browse_only == Some(true) {
+                service.preview_mod_handoff(&port_id)
+            } else {
+                service.preview_mod_setups(&port_id)
+            }
         })
     })
     .await
@@ -298,37 +308,39 @@ pub(crate) async fn acquire_mod_recipe_package(
         move |service| async move {
             let plan = RecipeImportReview::decode(&serialized_plan)?;
             require_recipe_port(&port_id, &plan.recipe)?;
-            let current =
-                service.plan_recipe_import_with_acquisitions(&plan.recipe, &plan.acquisitions)?;
-            if current.plan_sha256 != plan.plan_sha256
-                || !current.provider_checks.contains(&native_id)
-            {
-                return Err(PortcoveError::conflict(
-                    "recipe inputs changed; inspect the recipe again",
-                )
-                .into());
-            }
-            let acquisition = service
-                .plan_recipe_acquisition(&plan.recipe, &profile_id, &native_id, &plan.acquisitions)
-                .await?;
-            let mut acquisitions = plan.acquisitions;
-            acquisitions.push(acquisition);
-            match service
-                .plan_recipe_import_with_acquisitions(&plan.recipe, &acquisitions)
-                .and_then(RecipeImportReview::new)
-            {
-                Ok(review) => Ok(review),
-                Err(error) => {
-                    if let Some((acquisition, earlier)) = acquisitions.split_last()
-                        && !earlier.iter().any(|item| {
-                            item.provider_plan.plan_sha256 == acquisition.provider_plan.plan_sha256
-                        })
-                    {
-                        let _ = service.discard_recipe_acquisition(acquisition);
-                    }
-                    Err(error.into())
-                }
-            }
+            RecipeImportReview::new(
+                service
+                    .acquire_recipe_package(&plan, &profile_id, &native_id)
+                    .await?,
+            )
+            .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+/// Stages the next missing recipe packages in one bounded step. The app
+/// repeats it until no package is left to check or a step stops at a failure.
+#[tauri::command]
+pub(crate) async fn acquire_mod_recipe_packages(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    serialized_plan: String,
+) -> DesktopResult<RecipeAcquisitionStep> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            let plan = RecipeImportReview::decode(&serialized_plan)?;
+            require_recipe_port(&port_id, &plan.recipe)?;
+            let batch = service.acquire_recipe_packages(&plan, &profile_id).await?;
+            Ok(RecipeAcquisitionStep {
+                review: RecipeImportReview::new(batch.plan)?,
+                acquired: batch.acquired,
+                failure: batch.failure,
+            })
         },
     )
     .await
@@ -346,20 +358,7 @@ pub(crate) async fn discard_mod_recipe_review(
         let service = service_at_generation(&state, generation)?;
         let plan = RecipeImportReview::decode(&serialized_plan)?;
         require_recipe_port(&port_id, &plan.recipe)?;
-        for acquisition in &plan.acquisitions {
-            if acquisition.provider_plan.port_id != port_id
-                || acquisition.recipe_identity_sha256 != plan.recipe.identity_sha256
-            {
-                return Err(PortcoveError::conflict(
-                    "staging belongs to a different recipe review",
-                )
-                .into());
-            }
-        }
-        for acquisition in &plan.acquisitions {
-            service.discard_recipe_acquisition(acquisition)?;
-        }
-        Ok(())
+        service.discard_recipe_review(&plan).map_err(Into::into)
     })
     .await
 }
@@ -693,13 +692,14 @@ pub(crate) async fn get_mod_provider_catalog(
     generation: u64,
     port_id: String,
     source: String,
+    start_page: Option<u32>,
 ) -> DesktopResult<portcove_core::ProviderCatalog> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
             service
-                .mod_provider_catalog(&port_id, &source)
+                .mod_provider_catalog_from(&port_id, &source, start_page.unwrap_or(1))
                 .await
                 .map_err(Into::into)
         },
@@ -900,6 +900,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn the_desktop_draft_capacity_is_cores_setup_capacity() {
+        // React bounds drafts with this literal; it must stay Core's number.
+        let draft = include_str!("../../src/features/mod-setups/mod-draft.ts");
+        let expected = format!(
+            "export const MOD_SETUP_CAPACITY = {};",
+            portcove_core::MAX_SETUP_PACKAGES
+        );
+        assert!(
+            draft.contains(&expected),
+            "mod-draft.ts must declare {expected}"
+        );
+    }
+
+    #[test]
     fn a_plan_must_match_the_displayed_game_setup_and_digest() {
         let plan: portcove_core::ProviderInstallPlan = serde_json::from_value(serde_json::json!({
             "port_id": "shipwright", "profile_id": "a", "expected_revision": 1,
@@ -922,3 +936,69 @@ mod tests {
 #[cfg(test)]
 #[path = "mod_recipe_review_tests.rs"]
 mod mod_recipe_review_tests;
+
+#[tauri::command]
+pub(crate) async fn get_quaddicted_catalog(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    filename_search: Option<String>,
+    page: u32,
+) -> DesktopResult<portcove_core::Observed<portcove_core::QuaddictedPage>> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            Ok(service
+                .quaddicted_catalog(
+                    &port_id,
+                    portcove_core::Platform::current()?,
+                    filename_search.as_deref(),
+                    page,
+                )
+                .await?)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_moddb_file_notices(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+) -> DesktopResult<portcove_core::Observed<portcove_core::ModDbFileNotices>> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            Ok(service
+                .moddb_file_notices(&port_id, portcove_core::Platform::current()?)
+                .await?)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn open_upstream_mod_notice(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    source: String,
+    page_url: String,
+) -> DesktopResult<()> {
+    let selection = state.inner().clone();
+    crate::blocking_async_service_at_generation(
+        selection.clone(),
+        generation,
+        move |service| async move {
+            let reviewed = service
+                .review_external_mod_source_page(&port_id, &source, &page_url)
+                .await?;
+            crate::require_library_generation(crate::state_generation(&selection), generation)?;
+            crate::open_host_target(std::ffi::OsStr::new(&reviewed))
+        },
+    )
+    .await
+}

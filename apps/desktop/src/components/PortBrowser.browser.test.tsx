@@ -58,6 +58,7 @@ describe("Library card overflow", () => {
       () => [new DOMRect(0, 0, 100, 20)] as unknown as DOMRectList,
     );
     expect(focusableControls(menu as HTMLElement).map((item) => item.textContent)).toEqual([
+      "Change artwork",
       "Updates and activity",
       "Saves & backups",
     ]);

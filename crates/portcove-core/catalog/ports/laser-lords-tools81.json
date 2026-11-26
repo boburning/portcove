@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "laser-lords-tools81",
+    "project_url": "https://github.com/tools81/laser-lords-static-recomp",
+    "name": "Laser Lords / tools81",
+    "summary": "Laser Lords (Philips CD-i) statically recompiled to a native Windows program, with an HD edition. Bring your own disc image.",
+    "issue_number": 5981,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "laser-lords",
+      "evidence_urls": ["https://github.com/tools81/laser-lords-static-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Laser Lords"
+  }
+}

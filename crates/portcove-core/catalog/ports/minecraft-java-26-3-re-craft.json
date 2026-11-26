@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "minecraft-java-26-3-re-craft",
+    "project_url": "https://github.com/KimPolar/re-craft",
+    "name": "Minecraft Java 26.3 / Re-Craft",
+    "summary": "A from-scratch reimplementation of Minecraft in Rust, built with Codex.",
+    "issue_number": 5775,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "minecraft-java-26-3",
+      "evidence_urls": ["https://github.com/KimPolar/re-craft"],
+      "source_editions": []
+    },
+    "original_game_title": "Minecraft Java 26.3"
+  }
+}

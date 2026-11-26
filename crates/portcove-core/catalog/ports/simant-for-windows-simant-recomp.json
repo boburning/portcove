@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "simant-for-windows-simant-recomp",
+    "project_url": "https://github.com/Tim-campy/simant-recomp",
+    "name": "SimAnt for Windows / SimAnt Recomp",
+    "summary": "Reimplementação moderna do SimAnt (Maxis, 1991, Windows 3.x) em Rust + SDL2, com suporte a mods. Requer os arquivos originais do jogo.",
+    "issue_number": 5847,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "simant-for-windows",
+      "evidence_urls": ["https://github.com/Tim-campy/simant-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "SimAnt for Windows"
+  }
+}

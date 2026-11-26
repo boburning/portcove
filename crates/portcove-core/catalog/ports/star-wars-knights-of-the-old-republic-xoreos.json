@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-wars-knights-of-the-old-republic-xoreos",
+    "project_url": "https://github.com/xoreos/xoreos",
+    "name": "Star Wars: Knights of the Old Republic / xoreos (xoreos)",
+    "summary": "A reimplementation of BioWare's Aurora engine (and derivatives). Pre-pre-alpha :P",
+    "issue_number": 7308,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-knights-of-the-old-republic",
+      "evidence_urls": ["https://github.com/xoreos/xoreos"],
+      "source_editions": []
+    },
+    "original_game_title": "Star Wars: Knights of the Old Republic"
+  }
+}

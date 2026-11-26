@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-world-is-not-enough-ciphernovaa-ps1",
+    "project_url": "https://github.com/ciphernovaa/twine-pc",
+    "name": "007: The World Is Not Enough / CipherNovaa PS1 port",
+    "summary": "A Fan Remake of the Original PlayStation Classic \"007: The World is Not Enough\"",
+    "issue_number": 5521,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-world-is-not-enough-playstation",
+      "evidence_urls": ["https://github.com/ciphernovaa/twine-pc"],
+      "source_editions": [
+        {
+          "id": "the-world-is-not-enough-playstation-playstation",
+          "title": "007: The World Is Not Enough (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/ciphernovaa/twine-pc"]
+        }
+      ]
+    },
+    "original_game_title": "007: The World Is Not Enough"
+  }
+}

@@ -89,9 +89,11 @@ const root = createRoot(element);
 const open = vi.fn();
 const changed = vi.fn(async () => undefined);
 const performFailures: unknown[] = [];
-const perform: Perform = async (_name, task) => {
+const perform: Perform = async (_name, task, options) => {
   try {
-    return await task();
+    const result = await task();
+    if (typeof options?.refresh === "function") await options.refresh(result).catch(() => {});
+    return result;
   } catch (failure) {
     // Shared invocation notices read errorText of the recorded failure.
     performFailures.push(failure);

@@ -1,5 +1,6 @@
 //! Descriptive directory and actual Library membership without operational definitions.
 use super::*;
+use crate::acquisition_restriction::EffectiveRestrictions;
 
 mod recommendations;
 
@@ -62,6 +63,7 @@ impl PortcoveService {
         let Some(id) = url
             .strip_prefix("https://www.steamgriddb.com/grid/")
             .or_else(|| url.strip_prefix("https://www.steamgriddb.com/hero/"))
+            .or_else(|| url.strip_prefix("https://www.steamgriddb.com/logo/"))
             .and_then(|id| id.parse::<u64>().ok())
             .filter(|id| *id > 0)
         else {
@@ -91,8 +93,8 @@ impl PortcoveService {
             .launch_sessions()?
             .iter()
             .any(|session| session.port_id == port_id && session.outcome.is_none());
-        let hold = crate::managed_runtime_policy::acquisition_hold_reason(&self.catalog, port_id);
-        let mut projected = Self::assess_listing_status(status, owned, launching, hold);
+        let restrictions = EffectiveRestrictions::of(&self.catalog, port_id);
+        let mut projected = Self::assess_listing_status(status, owned, launching, &restrictions);
         projected.library_membership = self
             .library
             .library_memberships()?
@@ -100,7 +102,12 @@ impl PortcoveService {
             .find(|member| member.port_id == port_id);
         let pending = self.pending_setups()?;
         if let Some(report) = projected.capabilities.as_mut() {
-            report.add_setup_context(listing, pending.iter().find(|p| p.port_id == port_id));
+            let pending = pending.iter().find(|p| p.port_id == port_id);
+            report.add_setup_context(
+                listing,
+                pending,
+                pending.and_then(|record| self.pending_setup_presentation(record)),
+            );
         }
         Ok(projected)
     }
@@ -198,16 +205,16 @@ impl PortcoveService {
                 };
                 let has_owner = owned.contains(&status.port_id);
                 let launching = launching.contains(&status.port_id);
-                let hold = crate::managed_runtime_policy::acquisition_hold_reason(
-                    catalog,
-                    &status.port_id,
-                );
-                let mut projected = Self::assess_listing_status(status, has_owner, launching, hold);
+                let restrictions = EffectiveRestrictions::of(catalog, &status.port_id);
+                let mut projected =
+                    Self::assess_listing_status(status, has_owner, launching, &restrictions);
                 projected.library_membership = members.get(&projected.port_id).cloned();
                 if let Some(report) = projected.capabilities.as_mut() {
+                    let pending = pending.iter().find(|p| p.port_id == projected.port_id);
                     report.add_setup_context(
                         listing,
-                        pending.iter().find(|p| p.port_id == projected.port_id),
+                        pending,
+                        pending.and_then(|record| self.pending_setup_presentation(record)),
                     );
                     report.add_advisories(listing, &projected.status);
                 }
@@ -220,7 +227,7 @@ impl PortcoveService {
         status: PortStatus,
         has_managed_owner: bool,
         launching: bool,
-        acquisition_hold: Option<&str>,
+        restrictions: &EffectiveRestrictions,
     ) -> crate::PortListingStatus {
         use crate::ListingAction;
         let selected = status
@@ -272,7 +279,7 @@ impl PortcoveService {
             capabilities: Some(crate::PortCapabilityReport::from_status(
                 &status,
                 &actions,
-                acquisition_hold,
+                restrictions,
             )),
             status,
             actions,

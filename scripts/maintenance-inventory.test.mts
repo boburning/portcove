@@ -23,7 +23,9 @@ import {
 } from "./maintenance-interventions.mts";
 import {
   clockWindowCrossed,
-  coreReuseKey,
+  coreCapabilitiesMany,
+  dueReasons,
+  reassessmentDue,
   deferralChanges,
   deliveryFacts,
   planReassessment,
@@ -41,8 +43,6 @@ import {
   targetSummary,
   assessmentSubject,
   readAssessmentPlatform,
-  isolationScope,
-  capabilityProjectionVersion,
   acknowledgeDigest,
   buildDigest,
   renderDigestMarkdown,
@@ -57,13 +57,19 @@ import {
   renderHtml,
   takeIssueCredential,
   writeReport,
+  issueFacts,
   type DefinitionDeliveryInspection,
   type SubjectReassessment,
   type InventoryReport,
 } from "./maintenance-inventory.mts";
 import { reconcileIntakeHandoffReceipts } from "./maintenance-intake-receipts.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
-import { issueReconsiderations, targetReconsiderations } from "./maintenance-reconsiderations.mts";
+import {
+  backlogLifecycleReview,
+  dependencyWake,
+  issueReconsiderations,
+  targetReconsiderations,
+} from "./maintenance-reconsiderations.mts";
 import { targetsDigest } from "./release-content-scan.mts";
 import { explicitBlockerFields } from "./roadmap-qualification.mts";
 import type { HostedRequestStatus, HostedStatusAll } from "./hosted-discovery-intake.mts";
@@ -273,7 +279,7 @@ void test("the issue collector reads only its own named credential and removes i
   }
 });
 
-void test("the hosted workflow runs daily on main with least privilege and a read-only Project credential", () => {
+void test("the hosted workflow runs daily on main with least privilege and a read-only Project credential", (context) => {
   const source = readFileSync(
     new URL("../.github/workflows/maintenance-inventory.yml", import.meta.url),
     "utf8",
@@ -312,6 +318,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "recover",
     "verify-recovery",
     "recovery-full",
+    "discover",
   ]);
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
@@ -319,9 +326,63 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.deepEqual(Object.keys(workflow.jobs), [
     "reconcile-intake-receipts",
     "collect",
+    "discover",
     "resume-intake-audits",
     "restore-proof",
   ]);
+  // Discovery collection is read-only toward GitHub, isolated on its own runner and
+  // holds no Roadmap or intake credential.
+  const discover = workflow.jobs.discover!;
+  assert.deepEqual(discover.permissions, { contents: "read", actions: "read" });
+  assert.match(discover.if!, /github.event_name == 'schedule' \|\| inputs.purpose == 'discover'/u);
+  assert.ok(discover["timeout-minutes"]! > 0);
+  assert.doesNotMatch(
+    JSON.stringify(discover),
+    /PORTCOVE_ROADMAP_TOKEN|PORTCOVE_DISCOVERY_DATABASE_URL/u,
+  );
+  for (const step of discover.steps) assert.doesNotMatch(step.run ?? "", /secrets\./u);
+  const discoveryStep = discover.steps.find((step) =>
+    step.run?.includes("discovery-worker.mts collect"),
+  )!;
+  assert.equal(discoveryStep.env!.GH_TOKEN, "${{ github.token }}");
+  const previewStep = discover.steps.find((step) => step.run?.includes("--discovery-listings"))!;
+  assert.match(previewStep.if!, /github.event_name == 'schedule'/u);
+  assert.match(previewStep.if!, /steps.discover.outcome == 'success'/u);
+  assert.match(previewStep.if!, /steps.discover.outputs.listing_preview == 'true'/u);
+  assert.match(
+    discover.steps[0]?.run ?? "",
+    /PORTCOVE_DISCOVERY_JOB_STARTED_EPOCH=\$EPOCHSECONDS/u,
+  );
+  assert.match(discoveryStep.run!, /PORTCOVE_DISCOVERY_JOB_STARTED_EPOCH \+ 330 \* 60/u);
+  assert.match(discoveryStep.run!, /listing_preview_sha256/u);
+  assert.match(discoveryStep.run!, /createHash\("sha256"\)/u);
+  assert.match(previewStep.run!, /--discovery-deadline-epoch-ms/u);
+  assert.match(previewStep.run!, /--discovery-released-validator true/u);
+  assert.doesNotMatch(previewStep.run!, /--discovery-stage-source/u);
+  assert.deepEqual(previewStep.env, { GH_TOKEN: "${{ github.token }}" });
+  const previewGate = discoveryStep.run!.match(/node -e '([^']+)' >> "\$GITHUB_OUTPUT"/u)?.[1];
+  assert.ok(previewGate);
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-scheduled-preview-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const workerOutput = path.join(root, "work", "discovery-worker");
+  mkdirSync(workerOutput, { recursive: true });
+  const handoff = JSON.stringify({ candidates: [{ id: "retained-candidate" }] });
+  const digest = createHash("sha256").update(handoff).digest("hex");
+  writeFileSync(path.join(workerOutput, "listing-preview-handoff.json"), handoff);
+  const gate = (outcome: string, expectedDigest = digest) => {
+    writeFileSync(
+      path.join(workerOutput, "result.json"),
+      JSON.stringify({ outcome, listing_preview_sha256: expectedDigest }),
+    );
+    return execFileSync(process.execPath, ["-e", previewGate], { cwd: root, encoding: "utf8" });
+  };
+  assert.equal(gate("deferred"), "");
+  assert.equal(gate("failed"), "");
+  assert.equal(gate("complete").trim(), "listing_preview=true");
+  assert.throws(
+    () => gate("complete", "0".repeat(64)),
+    /Current listing preview handoff differs from the collection result/u,
+  );
   const resume = workflow.jobs["resume-intake-audits"]!;
   assert.match(resume.if!, /github.event_name == 'schedule'/u);
   assert.match(resume.if!, /audit_continuations != '\[\]'/u);
@@ -3794,6 +3855,195 @@ void test("holds and deferrals come only from their owners and episodes stay dis
   );
 });
 
+void test("dependency wake requires matching complete owner facts and never changes planning", () => {
+  const project = (Status: string, fields: Record<string, string> = {}) => [
+    { project_id: "P1", archived: false, fields: { Status, ...fields } },
+  ];
+  const ref = {
+    number: 2,
+    node_id: "I2",
+    url: "https://github.com/boburning/portcove/issues/2",
+  };
+  const subject = {
+    number: 1,
+    node_id: "I1",
+    url: "https://github.com/boburning/portcove/issues/1",
+    state: "OPEN",
+    project: project("Blocked"),
+  };
+  const issue = (state: string, edgeState: string) =>
+    new Map<string, unknown>([
+      [
+        "issue:1",
+        {
+          ...subject,
+          blocked_by: [{ ...ref, state: edgeState }],
+        },
+      ],
+      ["issue:2", { ...ref, state, project: project("Done") }],
+      [
+        "issue:3",
+        {
+          number: 3,
+          state: "OPEN",
+          project: project("Deferred"),
+          blocked_by: [{ ...ref, state: edgeState }],
+        },
+      ],
+      [
+        "issue:4",
+        {
+          number: 4,
+          state: "OPEN",
+          project: project("Blocked"),
+          blocked_by: [{ ...ref, state: edgeState }],
+          reconsideration: { blocker: "Upstream", resume_condition: "New release" },
+        },
+      ],
+    ]);
+  const open = issue("OPEN", "OPEN");
+  const conditions = issueReconsiderations(open, "P1").conditions;
+  const blocked = conditions.find(({ subject_key }) => subject_key === "issue:1")!;
+  const deferred = conditions.find(({ subject_key }) => subject_key === "issue:3")!;
+  const explicit = conditions.find(({ subject_key }) => subject_key === "issue:4")!;
+  assert.deepEqual(blocked.condition.dependency_issues, [2]);
+  assert.deepEqual(blocked.condition.dependency_refs, [ref]);
+  assert.equal(deferred.condition.dependency_issues, undefined);
+  assert.equal(explicit.condition.dependency_issues, undefined);
+  assert.equal(dependencyWake(blocked.condition, open.get("issue:1"), open, true), "waiting");
+  const closed = issue("CLOSED", "CLOSED");
+  assert.equal(
+    dependencyWake(blocked.condition, closed.get("issue:1"), closed, true),
+    "review-ready",
+  );
+  assert.deepEqual(issueReconsiderations(closed, "P1").conditions[0], blocked);
+  assert.equal(dependencyWake(blocked.condition, closed.get("issue:1"), closed, false), "unknown");
+  const inconsistent = issue("OPEN", "CLOSED");
+  assert.equal(
+    dependencyWake(blocked.condition, inconsistent.get("issue:1"), inconsistent, true),
+    "unknown",
+  );
+  const edge = { ...ref, state: "CLOSED" };
+  const foreign = { ...edge, node_id: "foreign", url: "https://github.com/other/project/issues/2" };
+  for (const [reason, edges] of [
+    ["foreign URL with a matching local node ID", [{ ...foreign, node_id: ref.node_id }]],
+    ["URL names a different issue number", [{ ...edge, url: subject.url }]],
+    ["foreign issue with the same number", [foreign]],
+    [
+      "foreign issue sharing the owner's number",
+      [{ ...foreign, number: 1, url: "https://github.com/other/project/issues/1" }],
+    ],
+    ["self edge", [{ ...edge, number: 1, node_id: "I1", url: subject.url }]],
+    ["duplicate edge", [edge, edge]],
+    ["local and foreign issues share the same number", [edge, foreign]],
+  ] as const) {
+    const current = new Map(closed);
+    const owner = { ...subject, blocked_by: edges };
+    current.set("issue:1", owner);
+    const condition = issueReconsiderations(current, "P1").conditions[0]!.condition;
+    assert.deepEqual(
+      condition.dependency_issues,
+      [...new Set(edges.map(({ number }) => number))],
+      reason,
+    );
+    assert.equal(dependencyWake(condition, owner, current, true), "unknown", reason);
+  }
+  const legacyCondition = { ...blocked.condition };
+  delete legacyCondition.dependency_refs;
+  assert.equal(dependencyWake(legacyCondition, closed.get("issue:1"), closed, true), "unknown");
+  closed.set("issue:2", { number: 2, node_id: "I2", state: "CLOSED" });
+  assert.equal(dependencyWake(blocked.condition, closed.get("issue:1"), closed, true), "unknown");
+  closed.delete("issue:2");
+  assert.equal(dependencyWake(blocked.condition, closed.get("issue:1"), closed, true), "unknown");
+  assert.equal(dependencyWake(deferred.condition, closed.get("issue:3"), closed, true), null);
+});
+
+void test("issue inventory keeps repository-qualified evidence for a locally closed dependency", () => {
+  const repository = "boburning/portcove";
+  const dependency = {
+    id: "I2",
+    number: 2,
+    title: "Dependency",
+    state: "CLOSED",
+    url: `https://github.com/${repository}/issues/2`,
+  };
+  const owner = {
+    id: "I1",
+    number: 1,
+    title: "Owner",
+    state: "OPEN",
+    url: `https://github.com/${repository}/issues/1`,
+    blockedBy: {
+      nodes: [{ ...dependency, url: "https://github.com/Boburning/Portcove/issues/2" }],
+    },
+  };
+  const facts = issueFacts({
+    repository,
+    observed_at: "2026-11-25T00:00:00Z",
+    total: 2,
+    issues: [owner, dependency],
+    memberships: [
+      {
+        project_id: "P1",
+        issue_id: owner.id,
+        isArchived: false,
+        fieldValues: { nodes: [{ name: "Blocked", field: { name: "Status" } }] },
+      },
+    ],
+  });
+  const { condition } = issueReconsiderations(facts, "P1").conditions[0]!;
+  assert.equal(dependencyWake(condition, facts.get("issue:1"), facts, true), "review-ready");
+});
+
+void test("backlog lifecycle cohorts preserve neutral watches and owner planning", () => {
+  const neutral = {
+    "Work type": "Port",
+    "Port stage": "Watchlist",
+    Status: "Triage",
+    Priority: "None",
+    Horizon: "Someday",
+    "Target release": "Unscheduled",
+  };
+  const make = (number: number, fields: Record<string, string>, project_id = "P1") => ({
+    number,
+    state: "OPEN",
+    project: [{ project_id, archived: false, fields }],
+  });
+  const { Priority: _priority, ...withoutPriority } = neutral;
+  const issues = new Map<string, unknown>([
+    ["issue:1", make(1, neutral)],
+    ["issue:2", make(2, { ...neutral, Priority: "High" })],
+    ["issue:3", make(3, { ...neutral, Status: "In progress" })],
+    ["issue:4", make(4, { ...neutral, Status: "Blocked" })],
+    ["issue:5", make(5, { ...neutral, "Port stage": "Cataloged" })],
+    ["issue:6", make(6, neutral, "OTHER")],
+    ["issue:7", { ...make(7, neutral), blocked_by: [{ number: 2, state: "OPEN" }] }],
+    ["issue:8", { ...make(8, neutral), state: "CLOSED" }],
+    ["issue:9", make(9, { ...neutral, "Work type": "Bug" })],
+    ["issue:10", make(10, withoutPriority)],
+    [
+      "issue:11",
+      { ...make(11, neutral), project: [{ project_id: "P1", archived: true, fields: neutral }] },
+    ],
+    ["issue:12", make(12, { ...withoutPriority, Horizon: "Now" })],
+  ]);
+  const before = structuredClone(issues);
+  const review = backlogLifecycleReview(issues, "P1");
+  assert.equal(review.scope, "Repository issues and their memberships in the configured Project");
+  assert.equal(review.neutral_watchlist, 1);
+  assert.equal(review.watchlist_with_planning, 3);
+  assert.equal(review.watchlist_unknown_planning, 1);
+  assert.equal(review.watchlist_active, 1);
+  assert.equal(review.watchlist_other, 1);
+  assert.equal(review.other_ports, 1);
+  assert.equal(review.unknown_membership, 1);
+  assert.equal(
+    review.status_stage.reduce((sum, group) => sum + group.count, 0),
+    8,
+  );
+  assert.deepEqual(issues, before);
+});
+
 void test(
   "typed reconsiderations follow complete owner reads, stay quiet and keep episodes",
   { skip: server.skip ?? false, timeout: 240_000 },
@@ -4468,35 +4718,126 @@ void test("each subject names its assessment inputs, when they last changed and 
   );
 });
 
-void test("selective reassessment is planned only under the same verified Core semantics", () => {
+/** A stub Core whose "slow" port outlasts a time budget and "huge" port overflows an output budget. */
+function budgetStubCli(context: { after: (cleanup: () => void) => void }) {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-batch-budget-"));
+  const cli = path.join(root, "portcove");
+  // A stub Core: "slow" outlasts the time budget and "huge" overflows the output budget
+  // whenever they are in the batch; every other port reports normally.
+  writeFileSync(
+    cli,
+    `#!/usr/bin/env node
+const args = process.argv.slice(2);
+const ports = args.flatMap((arg, index) => (args[index - 1] === "--port" ? [arg] : []));
+const finish = () => {
+  const reports = ports.map((port_id) => ({ port_id, ok: true, report: { port_id } }));
+  const padding = ports.includes("huge") ? "x".repeat(300000) : "";
+  process.stdout.write(JSON.stringify({ ok: true, data: { format_version: 1, reports }, padding }));
+};
+if (ports.includes("slow")) setTimeout(finish, 5000);
+else finish();
+`,
+  );
+  chmodSync(cli, 0o755);
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  return cli;
+}
+
+void test(
+  "a batch over its time or output budget is split down to single ports, and a port that still exceeds it is a gap",
+  { timeout: 60_000 },
+  async (context) => {
+    const cli = budgetStubCli(context);
+    const splits: number[] = [];
+    let largest = 0;
+    const results = await coreCapabilitiesMany(cli, ["a", "b", "slow", "c", "huge", "d"], {
+      batch: true,
+      concurrency: 1,
+      budget: { timeoutMs: 1_500, maxBufferBytes: 100_000 },
+      onSplit: (ports) => splits.push(ports),
+      onOutputBytes: (bytes) => (largest = Math.max(largest, bytes)),
+    });
+    for (const id of ["a", "b", "c", "d"])
+      assert.deepEqual(results.get(id), { ok: true, report: { port_id: id } }, id);
+    assert.equal(results.get("slow")?.error?.code, "batch-time-budget");
+    assert.equal(results.get("huge")?.error?.code, "batch-output-budget");
+    // 6 -> 3 + 3; [a, b, slow] -> [a, b] + [slow]; [c, huge, d] -> [c, huge] + [d]; [c, huge] -> [c] + [huge].
+    assert.deepEqual(splits, [6, 3, 3, 2]);
+    assert.ok(largest > 0 && largest < 100_000, String(largest));
+  },
+);
+
+void test(
+  "the Core read stops at its deadline and leaves unread ports as gaps",
+  { timeout: 60_000 },
+  async (context) => {
+    const cli = budgetStubCli(context);
+    // Past the deadline no process starts at all.
+    let processes = 0;
+    const none = await coreCapabilitiesMany(cli, ["a", "b"], {
+      batch: true,
+      concurrency: 1,
+      deadlineMs: 0,
+      onProcess: () => processes++,
+    });
+    assert.equal(processes, 0);
+    for (const id of ["a", "b"]) assert.equal(none.get(id)?.error?.code, "core-read-deadline");
+    // A process running into the deadline is cut at the deadline, not at its own
+    // longer budget, and nothing is split or started after it.
+    const started = performance.now();
+    const cut = await coreCapabilitiesMany(cli, ["a", "slow", "b"], {
+      batch: true,
+      concurrency: 1,
+      budget: { timeoutMs: 30_000, maxBufferBytes: 1_000_000 },
+      deadlineMs: 1_500,
+    });
+    assert.ok(performance.now() - started < 4_000, "the read ends near its deadline");
+    for (const id of ["a", "slow", "b"])
+      assert.equal(cut.get(id)?.error?.code, "core-read-deadline", id);
+    // The fallback that reads one port per process honours the deadline too.
+    const fallback = await coreCapabilitiesMany(cli, ["a"], {
+      batch: false,
+      concurrency: 1,
+      deadlineMs: 0,
+    });
+    assert.equal(fallback.get("a")?.error?.code, "core-read-deadline");
+  },
+);
+
+void test("selective reassessment reuses only subjects the store did not select", () => {
   const key = "k".repeat(64);
   const now = new Date("2026-11-13T12:00:00Z");
   const base = {
     requested: "changed" as const,
     reuseKey: key,
     history: {
-      latest: { coverage: "complete", reuse_key: key },
+      latest: { coverage: "complete", reuse_key: "o".repeat(64) },
       full_started_at: "2026-11-12T12:00:00Z",
     },
     now,
-    clockCrossed: () => false,
+    due: new Map([["port:c", "scope-changed"]]),
     subjects: [
       { key: "port:a", catalogDigest: "1" },
       { key: "port:b", catalogDigest: "2" },
+      { key: "port:c", catalogDigest: "3" },
     ],
     catalogMembers: new Map([
       ["port:a", "1"],
       ["port:b", "changed"],
+      ["port:c", "3"],
     ]),
     coreMembers: new Map([
       ["port:a", "x"],
       ["port:b", "y"],
+      ["port:c", "z"],
     ]),
   };
   const selective = planReassessment(base);
   assert.equal(selective.reassessment.mode, "selective");
-  // Only an unchanged catalog fact with a stored Core result is reused.
+  // A latest run under another base key does not prevent reuse: each subject's
+  // own binding decides. The store's selection and the decided baselines both bind.
   assert.deepEqual([...selective.reused], ["port:a"]);
+  assert.match(selective.reason, /1 subjects reused.*2 read/u);
   for (const [override, reason] of [
     [{ requested: "full" }, /requested/u],
     [{ reuseKey: null }, /not verified/u],
@@ -4504,58 +4845,40 @@ void test("selective reassessment is planned only under the same verified Core s
       { history: { ...base.history, latest: { coverage: "partial", reuse_key: key } } },
       /complete read/u,
     ],
-    [
-      { history: { ...base.history, latest: { coverage: "complete", reuse_key: "o".repeat(64) } } },
-      /same key/u,
-    ],
+    [{ history: null }, /complete read/u],
     [{ history: { ...base.history, full_started_at: "2026-11-01T00:00:00Z" } }, /7 days/u],
-    [{ clockCrossed: () => true }, /clock-dated/u],
-    [{ coreMembers: new Map() }, /no subject is unchanged/u],
+    [{ history: { ...base.history, full_started_at: null } }, /7 days/u],
+    [{ due: null }, /selection is unavailable/u],
+    [
+      {
+        due: new Map([
+          ["port:a", "clock"],
+          ["port:c", "unbound"],
+        ]),
+      },
+      /changed or are due/u,
+    ],
+    [{ coreMembers: new Map() }, /changed or are due/u],
   ] as const) {
     const plan = planReassessment({ ...base, ...override });
     assert.equal(plan.reassessment.mode, "full", String(reason));
     assert.equal(plan.reused.size, 0);
     assert.match(plan.reason, reason);
   }
-  // The key ignores the binary and changes with any semantic input.
-  const producer = { features: [], embedded_catalog_sha256: "c", embedded_listings_sha256: "l" };
-  const keyed = (trees: Record<string, string>, platform = "linux-x86-64") =>
-    coreReuseKey({ trees, producer, apiSchema: 88, platform });
-  assert.equal(keyed({ crates: "t1" }), keyed({ crates: "t1" }));
-  assert.notEqual(keyed({ crates: "t1" }), keyed({ crates: "t2" }));
-  assert.notEqual(keyed({ crates: "t1" }), keyed({ crates: "t1" }, "windows-x86-64"));
-  const trees = { crates: "t1" };
-  const platform = "macos-x86-64";
-  const legacy = createHash("sha256")
-    .update(
-      canonicalJson({
-        trees,
-        features: [...producer.features],
-        embedded_catalog_sha256: producer.embedded_catalog_sha256,
-        embedded_listings_sha256: producer.embedded_listings_sha256,
-        api: 88,
-        projection: capabilityProjectionVersion,
-        platform,
-        isolation: isolationScope,
-      }),
-    )
-    .digest("hex");
-  const current = keyed(trees, platform);
-  assert.notEqual(current, legacy, "launcher-derived x64 keys cannot authorize Core reuse");
-  for (const [reuse_key, mode] of [
-    [legacy, "full"],
-    [current, "selective"],
-  ] as const) {
-    assert.equal(
-      planReassessment({
-        ...base,
-        reuseKey: current,
-        history: { ...base.history, latest: { coverage: "complete", reuse_key } },
-      }).reassessment.mode,
-      mode,
-    );
-  }
-  // A clock-dated observation inside the window forces a full read.
+  assert.deepEqual(
+    dueReasons(
+      new Map([
+        ["a", "clock"],
+        ["b", "clock"],
+        ["c", "unbound"],
+      ]),
+    ),
+    {
+      clock: 2,
+      unbound: 1,
+    },
+  );
+  // A clock-dated observation inside the window is detected (hosted coalescing).
   const catalog = { ports: [{ observations: [{ observed_at: 150 }] }] };
   assert.equal(clockWindowCrossed([catalog], 100, 200), true);
   assert.equal(clockWindowCrossed([catalog], 150, 200), false);
@@ -4571,11 +4894,20 @@ void test(
     migrate(store.owner);
     const { cli, responses } = stubCli(fixture.root);
     const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    const embedded = (file: string) =>
+      createHash("sha256")
+        .update(
+          execFileSync("git", ["show", `${head}:crates/portcove-core/catalog/${file}`], {
+            maxBuffer: 64 * 1024 * 1024,
+          }),
+        )
+        .digest("hex");
+    // Scoped keys need the reviewed catalog and listings to be what the binary embeds.
     const producer = {
       source_revision: head,
       features: [],
-      embedded_catalog_sha256: "d".repeat(64),
-      embedded_listings_sha256: "e".repeat(64),
+      embedded_catalog_sha256: embedded("catalog.json"),
+      embedded_listings_sha256: embedded("listings.json"),
       catalog_override: false,
     };
     const respond = (core: unknown) =>
@@ -4614,15 +4946,15 @@ void test(
       ).trim();
     respond(report("automatic"));
     const first = await run("changed");
-    // No earlier read under this key: the first run is full and records the key.
+    // A clean, committed Core tree is a precondition, asserted rather than skipped.
+    assert.notEqual(
+      first.reassessment.reuse_key,
+      null,
+      "reuse needs a verified Core binding: run from a checkout whose Core sources are committed and clean",
+    );
+    // No earlier complete read: the first run is full and binds each subject's key.
     assert.equal(first.reassessment.mode, "full");
-    assert.match(first.reassessment.reason, /same key/u);
-    if (first.reassessment.reuse_key === null) {
-      // Uncommitted Core sources here leave the binding unverified; reuse is refused.
-      assert.match((await run("changed")).reassessment.reason, /not verified/u);
-      context.skip("Core sources are not clean in this checkout, so reuse cannot be keyed");
-      return;
-    }
+    assert.match(first.reassessment.reason, /complete read/u);
     assert.deepEqual(latestCore(), {
       coverage: "complete",
       reassessment: "full",
@@ -4631,6 +4963,66 @@ void test(
       observed_count: 1,
       expected_count: 1,
     });
+    // The stub has no Cargo dep-info: the mechanism is the whole Core tree.
+    assert.equal(first.reassessment.mechanism, "whole-tree");
+    assert.match(String(first.reassessment.mechanism_reason), /dep-info/u);
+    const binding = JSON.parse(
+      runSql(
+        store.owner,
+        `SELECT row_to_json(b) FROM portcove_maintenance.core_reuse_bindings b
+          WHERE subject_key = 'port:2ship2harkinian';`,
+      ),
+    ) as {
+      scope_key: string;
+      catalog_digest: string;
+      content_sha256: string;
+      run_id: string;
+      visible_until: number | null;
+    };
+    assert.match(binding.scope_key, /^[0-9a-f]{64}$/u);
+    // The store selects only subjects whose key, catalog fact, result or clock moved.
+    const source = "core-port-capabilities-linux-x86-64";
+    const desired = {
+      s: "port:2ship2harkinian",
+      k: binding.scope_key,
+      c: binding.catalog_digest,
+      v: binding.visible_until,
+    };
+    assert.deepEqual([...reassessmentDue(store.owner, source, [desired])], []);
+    assert.deepEqual(
+      [
+        ...reassessmentDue(store.owner, source, [
+          { ...desired, k: "0".repeat(64) },
+          { ...desired, s: "port:unbound" },
+        ]),
+      ],
+      [
+        ["port:2ship2harkinian", "scope-changed"],
+        ["port:unbound", "unbound"],
+      ],
+    );
+    assert.deepEqual(
+      [...reassessmentDue(store.owner, source, [{ ...desired, c: "0".repeat(64) }])],
+      [["port:2ship2harkinian", "catalog-changed"]],
+    );
+    // Any other newest visible clock value makes it due, whether the reader's
+    // clock is ahead (a later value) or behind (an earlier one or none).
+    for (const v of [4_102_444_800, 1, ...(binding.visible_until === null ? [] : [null])])
+      assert.deepEqual(
+        [...reassessmentDue(store.owner, source, [{ ...desired, v }])],
+        [["port:2ship2harkinian", "clock"]],
+      );
+    // Bindings are written only by their in-progress run and never deleted.
+    for (const [statement, pattern] of [
+      [
+        `UPDATE portcove_maintenance.core_reuse_bindings SET scope_key = repeat('0', 64)
+          WHERE subject_key = 'port:2ship2harkinian';`,
+        /in-progress run/u,
+      ],
+      [`DELETE FROM portcove_maintenance.core_reuse_bindings;`, /never deleted/u],
+      [`TRUNCATE portcove_maintenance.core_reuse_bindings;`, /never deleted/u],
+    ] as const)
+      assert.throws(() => runSql(store.owner, statement), pattern);
     const verifiedBefore = verified();
     // Core would now fail on this host; a reused subject is never sent to Core.
     respond("network");
@@ -4653,8 +5045,17 @@ void test(
     const third = await run("full");
     assert.equal(third.core_gaps, 1);
     assert.equal(latestCore().coverage, "failed");
-    // After a partial run, nothing is reused until a complete read.
+    // After a failed run, nothing is reused until a complete read.
     assert.match((await run("changed")).reassessment.reason, /complete read/u);
+    // A failed read wrote no binding over the last real read.
+    assert.equal(
+      runSql(
+        store.owner,
+        `SELECT run_id FROM portcove_maintenance.core_reuse_bindings
+          WHERE subject_key = 'port:2ship2harkinian';`,
+      ).trim(),
+      binding.run_id,
+    );
     // How a run was taken is fixed when it starts, even while it is in progress.
     assert.throws(
       () =>
@@ -4666,6 +5067,129 @@ void test(
             WHERE run_id = 'reassessment-fixed';`,
         ),
       /fixed when it starts/u,
+    );
+  },
+);
+
+void test(
+  "in dep-info mode a selective run reuses by scoped key, an unchanged read leaves its binding alone, and an older run cannot rebind",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("selective-dep-info");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    const embedded = (file: string) =>
+      createHash("sha256")
+        .update(
+          execFileSync("git", ["show", `${head}:crates/portcove-core/catalog/${file}`], {
+            maxBuffer: 64 * 1024 * 1024,
+          }),
+        )
+        .digest("hex");
+    const producer = {
+      source_revision: head,
+      features: [],
+      embedded_catalog_sha256: embedded("catalog.json"),
+      embedded_listings_sha256: embedded("listings.json"),
+      catalog_override: false,
+    };
+    // A fixture dep-info beside the stub CLI naming real, committed build inputs.
+    const repository = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      encoding: "utf8",
+    }).trim();
+    writeFileSync(
+      `${cli}.d`,
+      `${cli}: ${[
+        "crates/portcove-core/src/lib.rs",
+        "crates/portcove-core/src/service/capabilities.rs",
+        "crates/portcove-core/catalog/catalog.json",
+        "crates/portcove-core/catalog/listings.json",
+      ]
+        .map((file) => path.join(repository, file))
+        .join(" ")}\n`,
+    );
+    const respond = (core: unknown) =>
+      writeFileSync(
+        responses,
+        JSON.stringify({
+          "2ship2harkinian": core,
+          "targets:not-a-catalog-port": "not_found",
+          producer,
+        }),
+      );
+    const run = (reassess: "full" | "changed") =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        targets: true,
+        reassess,
+        environment: store.owner,
+        runner: "fixture",
+      });
+    const binding = () =>
+      JSON.parse(
+        runSql(
+          store.owner,
+          `SELECT row_to_json(b) FROM portcove_maintenance.core_reuse_bindings b
+            WHERE subject_key = 'port:2ship2harkinian';`,
+        ),
+      ) as Record<string, unknown>;
+    respond(report("automatic"));
+    const first = await run("changed");
+    assert.notEqual(
+      first.reassessment.reuse_key,
+      null,
+      "reuse needs a verified Core binding: run from a checkout whose Core sources are committed and clean",
+    );
+    assert.equal(first.reassessment.mechanism, "dep-info");
+    const bound = binding();
+    // An unchanged full read finds the same key, fact, result and clock: the
+    // upsert's no-op branch leaves the binding, including its run, untouched.
+    await run("full");
+    assert.deepEqual(binding(), bound);
+    // Core now fails; the subject is reused under its dep-info key without a read.
+    respond("network");
+    const reused = await run("changed");
+    assert.deepEqual(
+      [reused.reassessment.mode, reused.reassessment.reused, reused.core_gaps],
+      ["selective", 1, 0],
+    );
+    assert.equal(reused.reassessment.mechanism, "dep-info");
+    // A compiled input that differs from the revision falls back to the whole tree.
+    writeFileSync(
+      `${cli}.d`,
+      `${cli}: ${path.join(repository, "crates/portcove-core/src/not-in-the-revision.rs")}\n`,
+    );
+    respond(report("automatic"));
+    assert.equal((await run("changed")).reassessment.mechanism, "whole-tree");
+    // The guard refuses a binding from a run that is not newer than the binding's
+    // own run, even when admission is bypassed to create such a run.
+    const acquisition = Number(
+      runSql(
+        store.owner,
+        `SELECT r.acquisition FROM portcove_maintenance.core_reuse_bindings b
+           JOIN portcove_maintenance.collection_runs r ON r.run_id = b.run_id
+          WHERE b.subject_key = 'port:2ship2harkinian';`,
+      ).trim(),
+    );
+    assert.throws(
+      () =>
+        runSql(
+          store.owner,
+          `ALTER TABLE portcove_maintenance.collection_runs DISABLE TRIGGER collection_runs_admission;
+           INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at, acquisition)
+             VALUES ('older-acquisition', 'core-port-capabilities-linux-x86-64', 'fixture', now(), ${acquisition});
+           ALTER TABLE portcove_maintenance.collection_runs ENABLE TRIGGER collection_runs_admission;
+           UPDATE portcove_maintenance.core_reuse_bindings
+              SET run_id = 'older-acquisition',
+                  read_at = (SELECT started_at FROM portcove_maintenance.collection_runs
+                              WHERE run_id = 'older-acquisition')
+            WHERE subject_key = 'port:2ship2harkinian';`,
+        ),
+      /is newer than run older-acquisition/u,
     );
   },
 );

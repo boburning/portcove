@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "digimon-super-xros-wars-red-aoxzh",
+    "project_url": "https://github.com/aoxzh/digimon-super-xros-wars-recomp",
+    "name": "Digimon Story: Super Xros Wars Red / digimon-super-xros-wars-recomp",
+    "summary": "Native PC port of Digimon Story: Super Xros Wars Red (Nintendo DS) by static recompilation — not an emulator. Bring your own ROM; the game builds on your PC on first start. デジモンストーリー スーパークロスウォーズ レッド PC移植 / 数码宝贝物语 超级合体战争 红 PC 移植",
+    "issue_number": 6680,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-story-super-xros-wars-red",
+      "evidence_urls": ["https://github.com/aoxzh/digimon-super-xros-wars-recomp"],
+      "source_editions": [
+        {
+          "id": "digimon-story-super-xros-wars-red-nintendo-ds",
+          "title": "Digimon Story: Super Xros Wars Red (Nintendo DS)",
+          "system": "nintendo-ds",
+          "evidence_urls": ["https://github.com/aoxzh/digimon-super-xros-wars-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Digimon Story: Super Xros Wars Red"
+  }
+}

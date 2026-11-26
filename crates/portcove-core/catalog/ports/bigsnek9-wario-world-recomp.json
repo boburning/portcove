@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bigsnek9-wario-world-recomp",
+    "project_url": "https://github.com/BigSnek9/wario-world-recomp",
+    "name": "Wario World (GameCube) / wario-world-recomp (BigSnek9)",
+    "summary": "Native Windows static recompilation of Wario World (GameCube) - made entirely by Claude. Bring your own disc.",
+    "issue_number": 3850,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wario-world",
+      "evidence_urls": ["https://github.com/BigSnek9/wario-world-recomp"],
+      "source_editions": [
+        {
+          "id": "wario-world-nintendo-gamecube",
+          "title": "Wario World (Nintendo GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": ["https://github.com/BigSnek9/wario-world-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Wario World"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "imalti0r-fire-emblem-engage-switch-2-0-0-windows-native",
+    "project_url": "https://github.com/imalti0r/engage-pc-recomp",
+    "name": "Fire Emblem Engage (Switch update 2.0.0) / imalti0r Engage PC Recomp",
+    "summary": "Fire Emblem Engage 2.0.0 on Windows: TotK Recomp port with NVIDIA DLSS (DLAA/Quality/Performance/Ultra), 4K, Simplified Chinese UI",
+    "issue_number": 5010,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fire-emblem-engage",
+      "evidence_urls": ["https://github.com/imalti0r/engage-pc-recomp"],
+      "source_editions": [
+        {
+          "id": "fire-emblem-engage-nintendo-switch",
+          "title": "Fire Emblem Engage (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/imalti0r/engage-pc-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Fire Emblem Engage"
+  }
+}

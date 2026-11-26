@@ -2,15 +2,7 @@
 use super::*;
 
 pub(crate) const PORT: &str = "yu-gi-oh-forbidden-memories-recompiled";
-const REPOSITORY: &str = "Unchiga/YuGiOhForbiddenMemoriesRecomp";
-const REPOSITORY_ID: u64 = 1_339_885_631;
-const RELEASE_ID: u64 = 387_954_225;
-const ASSET_ID: u64 = 561_508_224;
-const TAG: &str = "v0.6.1";
-const NAME: &str = "ygofm-0.6.1-win-x64.zip";
-const SIZE: u64 = 34_799_128;
-const DIGEST: &str = "4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53";
-const URL: &str = "https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp/releases/download/v0.6.1/ygofm-0.6.1-win-x64.zip";
+use crate::historical_artifacts::forbidden_memories_producer;
 
 #[derive(Deserialize)]
 struct HistoricalRelease {
@@ -34,11 +26,12 @@ fn authenticated_baseline(
     repository: GithubRepository,
     release: HistoricalRelease,
 ) -> Result<ResolvedRelease> {
+    let retained = forbidden_memories_producer();
     if port.id != PORT
-        || port.release.repository != REPOSITORY
-        || repository.id != Some(REPOSITORY_ID)
-        || release.id != RELEASE_ID
-        || release.tag_name != TAG
+        || port.release.repository != retained.repository
+        || repository.id != Some(retained.repository_id)
+        || release.id != retained.release_id
+        || release.tag_name != retained.tag
         || release.draft
         || release.prerelease
     {
@@ -60,25 +53,26 @@ fn authenticated_baseline(
         .filter(|entry| entry.asset.name == selected.name)
         .collect();
     if identities.len() != 1
-        || identities[0].id != ASSET_ID
-        || selected.name != NAME
-        || selected.browser_download_url != URL
-        || selected.size != SIZE
-        || selected.digest.as_deref().and_then(parse_digest).as_deref() != Some(DIGEST)
+        || identities[0].id != retained.asset_id
+        || selected.name != retained.asset_name
+        || selected.browser_download_url != retained.url
+        || selected.size != retained.size
+        || selected.digest.as_deref().and_then(parse_digest).as_deref()
+            != Some(retained.sha256.as_str())
     {
         return Err(PortcoveError::verification(
             "historical producer asset identity changed",
         ));
     }
     Ok(ResolvedRelease {
-        version: TAG.into(),
+        version: retained.tag.clone(),
         channel: ReleaseChannel::Stable,
         published_at: release.published_at,
         asset: ReleaseAsset {
-            name: NAME.into(),
-            url: URL.into(),
-            size: SIZE,
-            sha256: DIGEST.into(),
+            name: retained.asset_name.clone(),
+            url: retained.url.clone(),
+            size: retained.size,
+            sha256: retained.sha256.clone(),
         },
         uploader_continuity: None,
     })
@@ -98,10 +92,14 @@ impl GithubReleaseProvider {
                 "historical producer requires the normal official provider",
             ));
         }
-        let repository_url = format!("https://api.github.com/repos/{REPOSITORY}");
+        let retained = forbidden_memories_producer();
+        let repository_url = format!("https://api.github.com/repos/{}", retained.repository);
         let repository = self.get_json(&repository_url).await?;
         let release = self
-            .get_json(&format!("{repository_url}/releases/{RELEASE_ID}"))
+            .get_json(&format!(
+                "{repository_url}/releases/{}",
+                retained.release_id
+            ))
             .await?;
         authenticated_baseline(port, repository, release)
     }
@@ -111,6 +109,15 @@ impl GithubReleaseProvider {
 mod tests {
     use super::*;
     use crate::Catalog;
+
+    const REPOSITORY_ID: u64 = 1_339_885_631;
+    const RELEASE_ID: u64 = 387_954_225;
+    const ASSET_ID: u64 = 561_508_224;
+    const TAG: &str = "v0.6.1";
+    const NAME: &str = "ygofm-0.6.1-win-x64.zip";
+    const SIZE: u64 = 34_799_128;
+    const DIGEST: &str = "4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53";
+    const URL: &str = "https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp/releases/download/v0.6.1/ygofm-0.6.1-win-x64.zip";
 
     fn metadata() -> serde_json::Value {
         serde_json::json!({

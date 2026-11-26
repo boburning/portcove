@@ -45,7 +45,16 @@
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game.",
+        "tracking_issue": 367
+      }
+    ],
     "recommended_download_channel": "beta",
     "download_asset_hints": {
       "windows-x86-64": ["DantesInferno-", "-portable.zip"]

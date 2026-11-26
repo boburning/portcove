@@ -35,6 +35,20 @@ export type ModDraft = {
 
 export const emptyModDraft: ModDraft = { additions: [], packages: [], order: null };
 
+/**
+ * Mods one setup can hold: Core's shared setup capacity (`setup_capacity.rs`).
+ * Every draft list is bounded by it, so a draft the player can build here is
+ * one Core reviews and applies as a single change.
+ */
+export const MOD_SETUP_CAPACITY = 4096;
+/** Stored text for a full draft: each entry is a few bounded strings and a path. */
+const MAX_STORED_DRAFT_TEXT = MOD_SETUP_CAPACITY * 6 * 1024;
+
+/** Whether `adding` more files fit beside the `queued` ones in one setup. */
+export function draftHasRoom(queued: number, adding = 1) {
+  return queued + adding <= MOD_SETUP_CAPACITY;
+}
+
 /** A queued removal temporarily replaces an enable or disable of the same package. */
 export function changeModEdit(
   draft: ModDraft,
@@ -68,14 +82,14 @@ export function draftSize(draft: ModDraft) {
 function readDraft(key: string): ModDraft {
   try {
     const raw = localStorage.getItem(key);
-    if (!raw || raw.length > 200_000) return emptyModDraft;
+    if (!raw || raw.length > MAX_STORED_DRAFT_TEXT) return emptyModDraft;
     const draft = JSON.parse(raw) as ModDraft | null;
     const text = (value: unknown) =>
       typeof value === "string" && value.length > 0 && value.length <= 256;
     if (
       !draft ||
       !Array.isArray(draft.additions) ||
-      draft.additions.length > 16 ||
+      draft.additions.length > MOD_SETUP_CAPACITY ||
       !draft.additions.every(
         (item) =>
           item &&
@@ -83,7 +97,7 @@ function readDraft(key: string): ModDraft {
           [item.provider, item.project, item.file, item.name, item.fileName].every(text),
       ) ||
       !Array.isArray(draft.packages) ||
-      draft.packages.length > 1024 ||
+      draft.packages.length > MOD_SETUP_CAPACITY ||
       !draft.packages.every(
         (item) =>
           item &&
@@ -107,7 +121,7 @@ function readDraft(key: string): ModDraft {
     if (
       draft.localFiles !== undefined &&
       (!Array.isArray(draft.localFiles) ||
-        draft.localFiles.length + draft.additions.length > 16 ||
+        draft.localFiles.length + draft.additions.length > MOD_SETUP_CAPACITY ||
         !draft.localFiles.every(
           (entry) =>
             entry &&

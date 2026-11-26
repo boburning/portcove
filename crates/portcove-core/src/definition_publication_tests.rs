@@ -10,6 +10,15 @@ fn fixture_with_catalog_growth(
     additional_bytes: usize,
     padded_leaf_bytes: Option<usize>,
 ) -> BTreeMap<String, Vec<u8>> {
+    fixture_with_entry(schema, additional_bytes, padded_leaf_bytes, |_| {})
+}
+
+fn fixture_with_entry(
+    schema: u32,
+    additional_bytes: usize,
+    padded_leaf_bytes: Option<usize>,
+    change_entry: impl FnOnce(&mut Value),
+) -> BTreeMap<String, Vec<u8>> {
     let mut document = crate::test_fixture::indexed_fixture_document_for_port(
         &crate::Catalog::embedded().unwrap(),
         "shipwright",
@@ -32,9 +41,11 @@ fn fixture_with_catalog_growth(
         leaf.resize(bytes, b' ');
     }
     let leaf_target = format!("sha256/{}.json", hash(&leaf));
-    let entry = serde_json::to_vec(&json!({"definition_schema":loader_schema,"namespace":"official","stable_id":port.id,"revision":1,"port":port,
+    let mut entry = json!({"definition_schema":loader_schema,"namespace":"official","stable_id":port.id,"revision":1,"port":port,
         "required_capabilities":crate::test_fixture::definition_requirements(port, 1),
-        "source_contracts":[leaf_target],"execution_contract":leaf_target,"persistence_contract":leaf_target,"artifact_bindings":[],"evidence_references":[]})).unwrap();
+        "source_contracts":[leaf_target],"execution_contract":leaf_target,"persistence_contract":leaf_target,"artifact_bindings":[],"evidence_references":[]});
+    change_entry(&mut entry);
+    let entry = serde_json::to_vec(&entry).unwrap();
     let entry_target = format!("sha256/{}.json", hash(&entry));
     let index = serde_json::to_vec(&json!({"index_schema":1,"definitions":[{"namespace":"official","stable_id":port.id,"revision":1,"target":entry_target}],
         "contents":[{"target":entry_target,"sha256":hash(&entry),"length":entry.len()},{"target":leaf_target,"sha256":hash(&leaf),"length":leaf.len()}]})).unwrap();
@@ -270,4 +281,179 @@ fn publication_refuses_a_valid_leaf_that_cannot_fit_the_escaped_selection() {
             .message
             .contains("escaped definition snapshot exceeds selection storage capacity")
     );
+}
+
+#[test]
+fn publication_inspects_named_advice_without_changing_report_or_authority() {
+    let build = |features| {
+        fixture_with_entry(2, 0, None, |entry| {
+            entry["definition_schema"] = 4.into();
+            entry["required_features"] = features;
+            entry["advisory"] = json!({"future-advice": "inert"});
+        })
+    };
+    let files = build(json!([
+        "mods.native-loader-binding-v1",
+        "mods.provider-bindings-v1"
+    ]));
+    let missing_loader = build(json!(["mods.provider-bindings-v1"]));
+    assert!(
+        inspect_definition_publication_bytes(&missing_loader)
+            .unwrap_err()
+            .message
+            .contains("mods.native-loader-binding-v1"),
+    );
+    let report = inspect_definition_publication_bytes(&files).unwrap();
+    assert_eq!(report.publication_schema, 1);
+    assert_eq!(report.authority, "none");
+    let files = build(json!(["native.future-layout-v7"]));
+    assert_eq!(
+        inspect_definition_publication_bytes(&files)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Unsupported,
+    );
+}
+
+#[test]
+fn publication_inspects_the_compact_producer_body_and_retained_legacy_together() {
+    let mut files = BTreeMap::from([(
+        INDEX.into(),
+        br#"{"index_schema":1,"definitions":[],"contents":[]}"#.to_vec(),
+    )]);
+    let old = portcove_listing_carrier::LEGACY_TARGET;
+    let new = portcove_listing_carrier::COMPACT_TARGET;
+    let wire = include_bytes!("testdata/compact-listing-delivery.generated.json");
+    files.insert(new.into(), wire.to_vec());
+    assert!(inspect_definition_publication_bytes(&files).is_err());
+    let legacy = include_bytes!("testdata/listing-observation-delivery.generated.json");
+    files.insert(old.into(), legacy.to_vec());
+    let report = inspect_definition_publication_bytes(&files).unwrap();
+    let summary = report.listings.unwrap();
+    assert_eq!(summary.target, new);
+    assert_eq!(summary.sha256, hash(wire));
+    assert_eq!(summary.revision, 1);
+    assert_eq!(summary.listing_count, 1);
+    assert!(report.definitions.is_empty());
+    let mut revised = legacy.to_vec();
+    revised.push(b' ');
+    files.insert(old.into(), revised);
+    assert!(inspect_definition_publication_bytes(&files).is_err());
+}
+
+#[test]
+fn cover_checkpoint_inspection_binds_the_exact_active_compact_directory() {
+    use portcove_listing_carrier::{COMPACT_TARGET, COVER_CHECKPOINT_TARGET, LEGACY_TARGET};
+    let index =
+        serde_json::to_vec(&json!({"index_schema":1,"definitions":[],"contents":[]})).unwrap();
+    let wire = include_bytes!("testdata/compact-listing-delivery.generated.json");
+    let legacy = include_bytes!("testdata/listing-observation-delivery.generated.json");
+    let (_, listing_digest) = portcove_listing_carrier::decode(wire).unwrap();
+    let mut files = BTreeMap::from([
+        ("definitions/index.json".into(), index),
+        (LEGACY_TARGET.into(), legacy.to_vec()),
+        (COMPACT_TARGET.into(), wire.to_vec()),
+    ]);
+    assert_eq!(
+        inspect_definition_publication_bytes(&files)
+            .unwrap()
+            .publication_schema,
+        2
+    );
+    let mut checkpoint = json!({
+        "checkpoint_schema": 1,
+        "listing_sha256": listing_digest,
+        "prior_checkpoint_sha256": null,
+        "entries": [{
+            "id": "new-unmanaged-port",
+            "scope": "a".repeat(64),
+            "image_id": "cover",
+            "prior_sha256": "b".repeat(64),
+            "observed_at": "2026-11-26T14:00:00.000Z",
+            "receipt": format!("sha256:{}", "c".repeat(64)),
+            "state": "gone",
+        }],
+    });
+    let bytes = serde_json::to_vec(&checkpoint).unwrap();
+    files.insert(COVER_CHECKPOINT_TARGET.into(), bytes.clone());
+    let report = inspect_definition_publication_bytes(&files).unwrap();
+    assert_eq!(report.publication_schema, 3);
+    let identity = report.cover_checkpoint.unwrap();
+    assert_eq!(identity.target, COVER_CHECKPOINT_TARGET);
+    assert_eq!(identity.sha256, hash(&bytes));
+    assert_eq!(identity.listing_decoded_sha256, listing_digest);
+    files.remove(COMPACT_TARGET);
+    assert!(inspect_definition_publication_bytes(&files).is_err());
+    files.insert(COMPACT_TARGET.into(), wire.to_vec());
+    checkpoint["listing_sha256"] = json!(hash(wire));
+    files.insert(
+        COVER_CHECKPOINT_TARGET.into(),
+        serde_json::to_vec(&checkpoint).unwrap(),
+    );
+    assert!(inspect_definition_publication_bytes(&files).is_err());
+}
+
+#[test]
+fn a_refused_listing_target_is_a_verification_refusal_for_either_carrier() {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use flate2::{Compression, write::GzEncoder};
+    use sha2::Digest as _;
+    use std::io::Write as _;
+    let index = br#"{"index_schema":1,"definitions":[],"contents":[]}"#.to_vec();
+    let legacy = include_bytes!("testdata/listing-observation-delivery.generated.json");
+    let mut refused: Value = serde_json::from_slice(legacy).unwrap();
+    // Core's observation schema refuses an unknown field.
+    refused["directory"]["listings"][0]["upstream_observation"]["unexpected_field"] = json!(true);
+    let refused = serde_json::to_vec(&refused).unwrap();
+    let code = |files: &BTreeMap<String, Vec<u8>>| {
+        inspect_definition_publication_bytes(files)
+            .unwrap_err()
+            .code
+    };
+    for bytes in [refused.clone(), b"{".to_vec()] {
+        let files = BTreeMap::from([
+            (INDEX.into(), index.clone()),
+            (portcove_listing_carrier::LEGACY_TARGET.into(), bytes),
+        ]);
+        assert_eq!(code(&files), crate::ErrorCode::Verification);
+    }
+    // The same refusal inside a well-formed compact carrier, beside a control
+    // carrier that differs only by the refused field.
+    let wire = include_bytes!("testdata/compact-listing-delivery.generated.json");
+    let (decoded, _) = portcove_listing_carrier::decode(wire).unwrap();
+    let carrier = |document: &Value| {
+        let bytes = serde_json::to_vec(document).unwrap();
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&bytes).unwrap();
+        serde_json::to_vec(&json!({
+            "carrier": portcove_listing_carrier::COMPACT_CARRIER,
+            "decoded_bytes": bytes.len(),
+            "decoded_sha256": hex::encode(sha2::Sha256::digest(&bytes)),
+            "gzip_base64": STANDARD.encode(encoder.finish().unwrap()),
+        }))
+        .unwrap()
+    };
+    let mut document: Value = serde_json::from_slice(&decoded).unwrap();
+    // Above the retained legacy revision, so re-encoded bytes are no equivocation.
+    document["revision"] = json!(2);
+    let mut files = BTreeMap::from([
+        (INDEX.into(), index),
+        (
+            portcove_listing_carrier::LEGACY_TARGET.into(),
+            legacy.to_vec(),
+        ),
+        (
+            portcove_listing_carrier::COMPACT_TARGET.into(),
+            carrier(&document),
+        ),
+    ]);
+    inspect_definition_publication_bytes(&files).unwrap();
+    let listing = &mut document["directory"]["listings"][0];
+    assert!(listing["upstream_observation"].is_object());
+    listing["upstream_observation"]["unexpected_field"] = json!(true);
+    files.insert(
+        portcove_listing_carrier::COMPACT_TARGET.into(),
+        carrier(&document),
+    );
+    assert_eq!(code(&files), crate::ErrorCode::Verification);
 }

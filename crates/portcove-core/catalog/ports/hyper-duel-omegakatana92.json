@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hyper-duel-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Hyper-Duel-Recomp-",
+    "name": "Hyper Duel / omegakatana92 Saturn recomp",
+    "summary": "Native Windows x64 and Steam Deck recompilation of Hyper Duel (Japan) for Sega Saturn, built with satrecomp. Launcher, Arcade and Saturn modes, CD-DA music, saves and controller support. SH-2 code is translated ahead of time; no emulator is bundled. Requires your own CUE/BIN disc image; no ROM, BIOS or game data included. GPL-3.0. Source included.",
+    "issue_number": 5706,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "hyper-duel",
+      "evidence_urls": ["https://github.com/omegakatana92/Hyper-Duel-Recomp-"],
+      "source_editions": [
+        {
+          "id": "hyper-duel-sega-saturn",
+          "title": "Hyper Duel (Sega Saturn)",
+          "system": "sega-saturn",
+          "evidence_urls": ["https://github.com/omegakatana92/Hyper-Duel-Recomp-"]
+        }
+      ]
+    },
+    "original_game_title": "Hyper Duel"
+  }
+}

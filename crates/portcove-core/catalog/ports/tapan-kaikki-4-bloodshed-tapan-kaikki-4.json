@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tapan-kaikki-4-bloodshed-tapan-kaikki-4",
+    "project_url": "https://github.com/suomipelit/tapankaikki4",
+    "name": "Tapan Kaikki 4: Bloodshed / Tapan Kaikki 4: Bloodshed (suomipelit)",
+    "summary": "Open source port of Tapan Kaikki 4: Bloodshed",
+    "issue_number": 7103,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tapan-kaikki-4-bloodshed",
+      "evidence_urls": ["https://github.com/suomipelit/tapankaikki4"],
+      "source_editions": []
+    },
+    "original_game_title": "Tapan Kaikki 4: Bloodshed"
+  }
+}

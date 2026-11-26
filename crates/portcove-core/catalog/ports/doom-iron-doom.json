@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-iron-doom",
+    "project_url": "https://github.com/Henrique194/iron-doom",
+    "name": "Doom / Iron Doom (Henrique194)",
+    "summary": "A modern and readable Doom source port written in Rust, designed for clarity and maintainability.",
+    "issue_number": 6928,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom",
+      "evidence_urls": ["https://github.com/Henrique194/iron-doom"],
+      "source_editions": []
+    },
+    "original_game_title": "Doom"
+  }
+}

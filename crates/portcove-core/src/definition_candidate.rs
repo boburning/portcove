@@ -283,11 +283,19 @@ impl AuthenticatedDefinitionCandidate {
             .ok_or_else(|| {
                 crate::PortcoveError::not_found("definition identity is outside the candidate")
             })?;
-        let entry = self.index().inspect_entry(
+        let entry = match self.index().inspect_entry(
             namespace,
             stable_id,
             self.content_bytes(indexed.target())?,
-        )?;
+        ) {
+            Ok(entry) => entry,
+            Err(error) if crate::definition_capabilities::requires_newer_engine(&error) => {
+                return Ok(DefinitionCandidateAvailability::Ineligible(
+                    availability_eligibility(publisher.status, false, true, false),
+                ));
+            }
+            Err(error) => return Err(error),
+        };
         let capability_eligibility = availability_eligibility(
             publisher.status,
             entry.capabilities().compatible,

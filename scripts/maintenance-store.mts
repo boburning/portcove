@@ -43,7 +43,8 @@ export const maintenanceSchemas = ["portcove_maintenance", "portcove_maintenance
 const migrationLockKey = 4129_0001;
 const toolTimeoutMs = 120_000;
 export const dumpTimeoutMs = 600_000;
-const outputLimitBytes = 64 * 1024 * 1024;
+/** The largest output one client command may return. */
+export const outputLimitBytes = 64 * 1024 * 1024;
 
 /** Ordered tables and their deterministic, collation-independent row order. */
 export const storeTables = [
@@ -59,7 +60,39 @@ export const storeTables = [
   ["portcove_maintenance.discovery_intake_batches", "request_comment"],
   ["portcove_maintenance.discovery_intake_candidates", "request_comment, candidate_index"],
   ["portcove_maintenance_meta.resource_admissions", "attempt_id"],
+  ["portcove_maintenance.discovery_collection_state", 'scope COLLATE "C"'],
+  ["portcove_maintenance.discovery_collection_attempts", "acquisition"],
+  [
+    "portcove_maintenance.discovery_observations",
+    'provider COLLATE "C", provider_id COLLATE "C", parser_version, content_sha256 COLLATE "C"',
+  ],
+  [
+    "portcove_maintenance.discovery_watches",
+    'provider COLLATE "C", provider_id COLLATE "C", reason COLLATE "C"',
+  ],
+  [
+    "portcove_maintenance.discovery_watch_transitions",
+    'provider COLLATE "C", provider_id COLLATE "C", reason COLLATE "C", generation',
+  ],
+  ["portcove_maintenance.discovery_lead_records", 'scope COLLATE "C", lead_id'],
+  ["portcove_maintenance.core_reuse_bindings", 'source COLLATE "C", subject_key COLLATE "C"'],
+  ["portcove_maintenance.discovery_external_hints", 'scope COLLATE "C", hint_key COLLATE "C"'],
 ] as const;
+
+/** The migration that introduced each table added after the original store. */
+const tableIntroducedIn: Partial<Record<(typeof storeTables)[number][0], number>> = {
+  "portcove_maintenance.discovery_intake_batches": 5,
+  "portcove_maintenance.discovery_intake_candidates": 5,
+  "portcove_maintenance_meta.resource_admissions": 6,
+  "portcove_maintenance.discovery_collection_state": 7,
+  "portcove_maintenance.discovery_collection_attempts": 7,
+  "portcove_maintenance.discovery_observations": 7,
+  "portcove_maintenance.discovery_watches": 7,
+  "portcove_maintenance.discovery_watch_transitions": 7,
+  "portcove_maintenance.discovery_lead_records": 9,
+  "portcove_maintenance.core_reuse_bindings": 10,
+  "portcove_maintenance.discovery_external_hints": 11,
+};
 
 const queryParameters = new Map([
   ["host", "PGHOST"],
@@ -399,17 +432,20 @@ export function migrationStatus(
   };
 }
 
-/** Apply pending migrations one transaction at a time, then the role contract. */
+/** Apply pending migrations in order, committing the final schema with its role contract. */
 export function migrate(environment: NodeJS.ProcessEnv, directory = defaultMigrationDirectory) {
   const plan = planMigrations(readMigrations(directory), readLedger(environment));
   if (plan.problems.length)
     throw new MaintenanceStoreError(`Refusing to migrate: ${plan.problems.join("; ")}`);
   const applied: number[] = [];
   for (const migration of plan.pending) {
-    runSql(environment, migrationTransaction(migration));
+    // The last schema revision and its callable permissions must become visible
+    // together. A role-contract error rolls back the final migration and ledger.
+    const roles = migration === plan.pending.at(-1) ? roleContract() : "";
+    runSql(environment, migrationTransaction(migration) + roles);
     applied.push(migration.version);
   }
-  if (plan.applied.length || plan.pending.length) runSql(environment, roleContract());
+  if (!plan.pending.length && plan.applied.length) runSql(environment, roleContract());
   return { ...migrationStatus(environment, directory), newly_applied: applied };
 }
 
@@ -477,8 +513,9 @@ function digestExpression(tables = storeTables.slice()) {
   return `json_build_object(${fields.join(",\n  ")})`;
 }
 
-export function digestQuery() {
-  return `${digestSettings}\nSELECT ${digestExpression()};`;
+export function digestQuery(schemaVersion = Number.POSITIVE_INFINITY) {
+  const tables = storeTables.filter(([table]) => (tableIntroducedIn[table] ?? 0) <= schemaVersion);
+  return `${digestSettings}\nSELECT ${digestExpression(tables)};`;
 }
 
 /** Raises inside the restore transaction when restored content differs from the manifest. */
@@ -539,6 +576,14 @@ export async function withExportedSnapshot<T>(
     waiting = undefined;
   };
   child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+    if (transfer && transfer.host === environment.PGHOST) {
+      transfer.payloadBytes += Buffer.byteLength(chunk);
+      if (transfer.payloadBytes > transfer.byteLimit) {
+        fail(new MaintenanceStoreError("Maintenance snapshot exhausted its response allowance"));
+        child.kill();
+        return;
+      }
+    }
     stdout += chunk;
     const end = stdout.indexOf(`${marker}\n`);
     if (end >= 0 && waiting) {
@@ -607,7 +652,7 @@ export async function backup(
   // Written beside the destination and renamed only when complete: a failure leaves no partial backup.
   const staging = mkdtempSync(`${output}.partial-`);
   try {
-    const manifest = await writeBackup(environment, staging);
+    const manifest = await writeBackup(environment, staging, status.schema_version);
     renameSync(staging, output);
     return manifest;
   } catch (error) {
@@ -616,12 +661,12 @@ export async function backup(
   }
 }
 
-async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
+async function writeBackup(environment: NodeJS.ProcessEnv, output: string, schemaVersion: number) {
   const dumpPath = path.join(output, dumpFileName);
   const { tables, serverVersion, sequences } = await withExportedSnapshot(
     environment,
     async (snapshot, query) => {
-      const tables = JSON.parse((await query(digestQuery())).trim()) as StoreDigest;
+      const tables = JSON.parse((await query(digestQuery(schemaVersion))).trim()) as StoreDigest;
       const serverVersion = Number((await query("SHOW server_version_num;")).trim());
       const sequences = JSON.parse(await query(sequenceStateQuery)) as SequenceState;
       runTool(
@@ -647,7 +692,7 @@ async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
   );
   const migrations = readLedger(environment);
   const ledger = tables["portcove_maintenance_meta.schema_migrations"];
-  if (ledger?.rows !== migrations.length)
+  if (ledger?.rows !== migrations.length || migrations.at(-1)?.version !== schemaVersion)
     throw new MaintenanceStoreError("Migration ledger changed during backup");
   const manifest: BackupManifest = {
     format: backupFormat,
@@ -674,12 +719,9 @@ async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
 function validTableDigests(tables: unknown, schemaVersion: number): tables is StoreDigest {
   if (typeof tables !== "object" || tables === null || Array.isArray(tables)) return false;
   const entries: [string, unknown][] = Object.entries(tables);
-  const expected =
-    schemaVersion < 5
-      ? storeTables.slice(0, -3)
-      : schemaVersion < 6
-        ? storeTables.slice(0, -1)
-        : storeTables;
+  const expected = storeTables.filter(
+    ([table]) => (tableIntroducedIn[table] ?? 0) <= schemaVersion,
+  );
   return (
     entries.length === expected.length &&
     expected.every(([table]) => Object.hasOwn(tables, table)) &&
@@ -783,7 +825,9 @@ export function restore(
         "-f",
         roles,
         "-c",
-        "UPDATE portcove_maintenance_meta.discovery_intake_activation SET active = false;",
+        // Every discovery writer class starts inactive, and the collection generation
+        // advances so no pre-restore lease can commit to the restored store.
+        "UPDATE portcove_maintenance_meta.discovery_intake_activation SET active = false, collection_active = false, collection_generation = collection_generation + 1;",
       ],
       environment,
       { timeoutMs: dumpTimeoutMs },
@@ -794,6 +838,8 @@ export function restore(
   return {
     verified: true,
     schema_version: manifest.schema_version,
+    manifest_tables_verified: true,
+    target_schema_version: manifest.schema_version + plan.pending.length,
     migrated: plan.pending.map(({ version }) => version),
     tables: storeDigest(environment),
     sequences_verified: manifest.sequences ? true : null,
@@ -914,34 +960,40 @@ async function runStoreCommand(
     );
   else if (command === "backup-reusing-history") {
     if (!output) throw new MaintenanceStoreError("backup-reusing-history requires --output DIR");
-    const { backupReusingHistory } = await import("./maintenance-backup-reuse.mts");
+    const { createBackupRecovery, retryBackupAdmission } =
+      await import("./maintenance-backup-reuse.mts");
     const prefixDatabase = connectionFromEnvironment("PORTCOVE_MAINTENANCE_PREFIX_URL");
     const target = connectionFromEnvironment("PORTCOVE_MAINTENANCE_SCRATCH_URL");
     delete process.env.PORTCOVE_MAINTENANCE_PREFIX_URL;
     delete process.env.PORTCOVE_MAINTENANCE_SCRATCH_URL;
-    result = await policy.withMaintenanceAdmission(
-      environment,
+    const operation =
       !input || recoveryEnvelope === "full"
         ? "recovery-full"
         : recoveryEnvelope === "catchup"
           ? "recovery-catchup"
-          : "recovery",
-      (bytes) =>
-        backupReusingHistory({
-          source: environment,
-          prefixDatabase,
-          target,
-          previous: input && path.resolve(input),
-          output: path.resolve(output),
-          reservedBytes: bytes,
-          reuseRecent: environment.PORTCOVE_MAINTENANCE_PURPOSE === "recover",
-        }),
-      {
+          : "recovery";
+    const recover = createBackupRecovery({
+      source: environment,
+      prefixDatabase,
+      target,
+      previous: input && path.resolve(input),
+      output: path.resolve(output),
+      reuseRecent: environment.PORTCOVE_MAINTENANCE_PURPOSE === "recover",
+    });
+    const admit = (reservationBytes?: number) =>
+      policy.withMaintenanceAdmission(environment, operation, recover, {
+        ...(reservationBytes === undefined ? {} : { reservationBytes }),
         estimate: ({ transfer }) =>
           2_000_000 +
-          Math.ceil(1.25 * (transfer.history_copy_bytes + transfer.other_table_copy_bytes)),
-      },
-    );
+          Math.ceil(
+            1.25 *
+              (transfer.history_copy_bytes +
+                transfer.other_table_copy_bytes +
+                transfer.row_delta_copy_bytes +
+                transfer.row_delta_plan_bytes),
+          ),
+      });
+    result = await retryBackupAdmission(admit);
   } else if (command === "backup") {
     if (!output) throw new MaintenanceStoreError("backup requires --output DIR");
     if (policy.isNeon(environment))

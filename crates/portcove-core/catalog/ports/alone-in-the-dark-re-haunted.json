@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alone-in-the-dark-re-haunted",
+    "project_url": "https://github.com/spacefarergames/AloneInTheDarkReHaunted",
+    "name": "Alone in the Dark / Re-Haunted",
+    "summary": "A heavily enhanced port and dynamic recomp of Alone In The Dark 1, with Textured Models, HD-4K background replacements, QOL improvements, controller support and so much more.",
+    "issue_number": 5760,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "alone-in-the-dark",
+      "evidence_urls": ["https://github.com/spacefarergames/AloneInTheDarkReHaunted"],
+      "source_editions": []
+    },
+    "original_game_title": "Alone in the Dark"
+  }
+}

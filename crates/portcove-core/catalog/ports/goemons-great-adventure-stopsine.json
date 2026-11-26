@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "goemons-great-adventure-stopsine",
+    "project_url": "https://github.com/StopSine/GGA64Recomp",
+    "name": "Goemon's Great Adventure / StopSine",
+    "summary": "An unofficial PC port of Goemon's Great Adventures achieved via static recompilation.",
+    "issue_number": 5971,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "goemons-great-adventure",
+      "evidence_urls": ["https://github.com/StopSine/GGA64Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Goemon's Great Adventure"
+  }
+}

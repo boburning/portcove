@@ -1,0 +1,1500 @@
+{
+  "_comment": "Core's catalog classify-listing-names output for this input. Pinned by a portcove-core test; the facts worker tests replay it.",
+  "input": {
+    "releases": [
+      {
+        "tag": "v1.0",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v2.0-rc1",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v2.0-alpha",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v2.1-preview",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v2.2-nightly",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "Version1.0.5beta12",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v3.0",
+        "provider_prerelease": true
+      },
+      {
+        "tag": "alphabet-1.0",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v1.0‮",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v2.0.0-beta",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "texture-studio-v1.0.0",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "texture-studio-v2.0-beta",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "sm1-v1.0",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "sm2-v1.1",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "build_20261120_2250",
+        "provider_prerelease": false
+      },
+      {
+        "tag": "v3.0",
+        "provider_prerelease": false
+      }
+    ],
+    "assets": [
+      "Game-v1.0-windows-x64.zip",
+      "Game-v1.0-linux-x86_64.tar.gz",
+      "Game-v1.0-macos-universal.zip",
+      "Game-v1.0-macos-arm64.zip",
+      "Game-v1.0.zip",
+      "MyGame-dedicated-server-win64.zip",
+      "Game-installer-windows-x64.zip",
+      "Game-builder-windows-x64.zip",
+      "Game-compiler-windows-x64.zip",
+      "Game-tools-windows-x64.zip",
+      "Game-importer-windows-x64.zip",
+      "Game-android-arm64.zip",
+      "Game-switch.zip",
+      "Game-notices.zip",
+      "Game-symbols-windows-x64.zip",
+      "Game-source.zip",
+      "Game-win32.zip",
+      "Game-linux-arm64.tar.gz",
+      "Game-windows-arm64.zip",
+      "Game-v1.0-linux-x86_64.tar.xz",
+      "Patcher-v1.0-windows-x64.zip",
+      "Game-v1.1-patch.zip",
+      "GameRandomizer-v1.0-windows-x64.zip",
+      "MarioKart64Recomp-v1.0-windows-x64.zip",
+      "N64Recomp-v1.0-windows-x64.zip",
+      "PatchQuest-v1.0-windows-x64.zip",
+      "Game-v1.0-iphone.zip",
+      "Game-v1.0-freebsd-x86_64.tar.gz",
+      "Game-v1.0-android-tv.zip",
+      "Game-v1.0-ps4.zip",
+      "HaikuQuest-v1.0-windows-x64.zip",
+      "Switchblade-v1.0-windows-x64.zip",
+      "Game-v1.0-x64.zip",
+      "Game-v1.0-win32.zip",
+      "Collection-v1.0-windows-x64.zip",
+      "Game-Studio-v1.0-windows-x64.zip",
+      "Studiopolis-v1.0-windows-x64.zip",
+      "Game-Extras-v1.0-windows-x64.zip",
+      "Table-Tennis-Engine-Windows-v1.6.0.zip",
+      "SOTN-v1.2.0-windows-x64.zip",
+      "OpenMB2-v0.3.0-linux-x86_64.tar.gz",
+      "Woof-v15.0.0-windows.zip",
+      "OpenTIE-v1.0-windows-x64.zip",
+      "MiniQuake-v0.9-macos-arm64.zip",
+      "Peggle-v1.0-windows-x64.zip",
+      "PokePlatinum-v1.1.0-linux-x86_64.tar.gz",
+      "TableTennis-Windows-v1.7.0.zip",
+      "the-force-engine-v1.0-win.zip",
+      "Game-v1.0-win64.7z",
+      "Game-v1.0.rar",
+      "Game-win64.7z",
+      "Game-v1.0.7z",
+      "Game-v1.0-android.7z",
+      "Game-win32.7z"
+    ],
+    "programs": [
+      "game.exe",
+      "Game.exe",
+      "Unseen.exe",
+      "mygame.exe",
+      "Game",
+      "Unseen",
+      "server.exe",
+      "gаme.exe",
+      "Game.x86_64.exe",
+      "Game.x86_64",
+      "Patcher.exe",
+      "UnityCrashHandler64.exe",
+      "GameUpdater.exe",
+      "Launcher.exe",
+      "Zelda64Recompiled.exe",
+      "LevelEditor.exe",
+      "PatchQuest.exe",
+      "crashpad_handler.exe",
+      "A.exe",
+      "B.exe",
+      "C.exe",
+      "D.exe",
+      "E.exe",
+      "openjk.x86_64.exe",
+      "openjo.x86_64.exe",
+      "openjk.x86.exe",
+      "Helper.exe",
+      "Game32.exe",
+      "Game64.exe",
+      "Game.console.exe",
+      "Other.exe",
+      "Game.x86",
+      "openjk.x86_64",
+      "openjo.x86_64",
+      "Game-64.exe",
+      "Game.x64.exe",
+      "Game_win64.exe",
+      "Game.debug.exe",
+      "Doom.exe",
+      "Doom64.exe",
+      "Quake.exe",
+      "Quake32.exe",
+      "TextureStudio.exe",
+      "SpiderMan.exe",
+      "SpiderMan2.exe",
+      "rexglue.exe",
+      "rex-glue.exe",
+      "Studiopolis.exe",
+      "Game Studio.exe",
+      "sotn.exe",
+      "openmb2",
+      "woof.exe",
+      "opentie.exe",
+      "miniquake",
+      "Peggle.exe",
+      "pokeplatinum",
+      "GameConfig.exe",
+      "Game_Settings.exe",
+      "Configurator.exe",
+      "Editor.exe",
+      "GameLauncher.exe",
+      "GameStudio.exe",
+      "Launch.exe",
+      "Settler.exe",
+      "Setup.exe",
+      "Upset.exe",
+      "game",
+      "game-installer.exe",
+      "launcher",
+      "GameCodegen.exe",
+      "GameRecomp.exe",
+      "game-gen",
+      "the-mapper.exe",
+      "Table.exe",
+      "MyGame.exe",
+      "Game-x64.exe",
+      "game.x86_64",
+      "supergame2.exe",
+      "Table_Game.exe",
+      "gamegen",
+      "StartGame.exe",
+      "Game-start.exe",
+      "GameCfg.exe",
+      "Configure.exe",
+      "GameLoader.exe",
+      "Install.exe",
+      "Starfall.exe",
+      "Startup.exe",
+      "Restart.exe",
+      "Installation.exe",
+      "Loaders2.exe",
+      "Cfgame.exe",
+      "Game-debug.exe",
+      "Game-dedicated.exe",
+      "Game-demo.exe",
+      "Game-headless.exe",
+      "GameServer.exe",
+      "GameEditor.exe",
+      "Observer.exe",
+      "Demon.exe",
+      "Serverless.exe",
+      "Debugger.exe",
+      "Demos.exe",
+      "Game2.exe",
+      "Game-2.exe",
+      "Super_Game.exe",
+      "gameserver.exe",
+      "GAMESERVER.EXE",
+      "gamedebug.exe",
+      "gamed.exe",
+      "servergame.exe",
+      "Game-dbg.exe",
+      "Game-srv.exe",
+      "Game-ded.exe",
+      "Game-trial.exe",
+      "Game-shareware.exe",
+      "Game-test.exe",
+      "Gamedev.exe",
+      "Testament.exe",
+      "Trialsmith.exe",
+      "Gamer.exe",
+      "Gаme.exe",
+      "Ｇａｍｅ.exe",
+      "Space.exe",
+      "2048.exe",
+      "SGEDIT.EXE",
+      "SGSERVER.EXE",
+      "SUPERGAMELAUNCHER.EXE",
+      "SpaceGame-cli.exe",
+      "SpaceGame.exe",
+      "SuperGame-x64.exe",
+      "SuperGame.exe",
+      "SuperGame64.exe",
+      "supergame-cli.exe",
+      "supergameserver64.exe",
+      "engine.exe",
+      "HaikuQuest.exe",
+      "Switchblade.exe",
+      "UpdatedGame.exe",
+      "DeltaruneFan.exe",
+      "Patchwork.exe",
+      "Doom2.exe",
+      "doom2.exe",
+      "Deltaforce.exe",
+      "Crackdown.exe",
+      "DOA3.exe",
+      "crusader.exe",
+      "SealTeam.exe",
+      "CyberMage.exe",
+      "FZeroX.exe",
+      "MechAssault2.exe",
+      "itc.exe",
+      "Lantern.exe",
+      "Condemned2.exe",
+      "shadowsoftheempire.exe",
+      "Amped2Recomp.exe",
+      "SSX3Recomp.exe",
+      "Dora643.exe",
+      "CrackdownLauncher.exe",
+      "Crackdown-server.exe",
+      "CrackdownRecompiledServer.exe",
+      "Crackdown-debug.exe",
+      "StarWars.exe",
+      "StarWarsBattlefront.exe",
+      "LanternTwo.exe",
+      "CrackdownRecompiled.exe",
+      "crackdown-x64.exe",
+      "CrackdownServer.exe",
+      "cd.exe",
+      "shock.exe"
+    ]
+  },
+  "output": {
+    "filename_rule_version": 1,
+    "releases": [
+      {
+        "tag": "v1.0",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "v2.0-rc1",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "v2.0-alpha",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "v2.1-preview",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "v2.2-nightly",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "Version1.0.5beta12",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "v3.0",
+        "provider_prerelease": true,
+        "prerelease": true
+      },
+      {
+        "tag": "alphabet-1.0",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "v1.0‮",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "v2.0.0-beta",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "texture-studio-v1.0.0",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "texture-studio-v2.0-beta",
+        "provider_prerelease": false,
+        "prerelease": true
+      },
+      {
+        "tag": "sm1-v1.0",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "sm2-v1.1",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "build_20261120_2250",
+        "provider_prerelease": false,
+        "prerelease": false
+      },
+      {
+        "tag": "v3.0",
+        "provider_prerelease": false,
+        "prerelease": false
+      }
+    ],
+    "assets": [
+      {
+        "name": "Game-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-linux-x86_64.tar.gz",
+        "role": "desktop-game-runtime",
+        "os": "linux",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-macos-universal.zip",
+        "role": "desktop-game-runtime",
+        "os": "macos",
+        "arch": "universal",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-macos-arm64.zip",
+        "role": "desktop-game-runtime",
+        "os": "macos",
+        "arch": "aarch64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0.zip",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "MyGame-dedicated-server-win64.zip",
+        "role": "dedicated-server",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "server",
+        "system_token": null
+      },
+      {
+        "name": "Game-installer-windows-x64.zip",
+        "role": "installer",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "installer",
+        "system_token": null
+      },
+      {
+        "name": "Game-builder-windows-x64.zip",
+        "role": "builder",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "builder",
+        "system_token": null
+      },
+      {
+        "name": "Game-compiler-windows-x64.zip",
+        "role": "compiler",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "compiler",
+        "system_token": null
+      },
+      {
+        "name": "Game-tools-windows-x64.zip",
+        "role": "dev-tool",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "tools",
+        "system_token": null
+      },
+      {
+        "name": "Game-importer-windows-x64.zip",
+        "role": "importer",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "importer",
+        "system_token": null
+      },
+      {
+        "name": "Game-android-arm64.zip",
+        "role": "mobile-package",
+        "os": "android",
+        "arch": "aarch64",
+        "tool_token": null,
+        "system_token": "android"
+      },
+      {
+        "name": "Game-switch.zip",
+        "role": "console-output",
+        "os": "console",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": "switch"
+      },
+      {
+        "name": "Game-notices.zip",
+        "role": "documentation",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-symbols-windows-x64.zip",
+        "role": "debug-symbols",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-source.zip",
+        "role": "source-archive",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-win32.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-linux-arm64.tar.gz",
+        "role": "desktop-game-runtime",
+        "os": "linux",
+        "arch": "aarch64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-windows-arm64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "aarch64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-linux-x86_64.tar.xz",
+        "role": "desktop-game-runtime",
+        "os": "linux",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Patcher-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "patcher",
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.1-patch.zip",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": "patch",
+        "system_token": null
+      },
+      {
+        "name": "GameRandomizer-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "randomizer",
+        "system_token": null
+      },
+      {
+        "name": "MarioKart64Recomp-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "N64Recomp-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "n64recomp",
+        "system_token": null
+      },
+      {
+        "name": "PatchQuest-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-iphone.zip",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": "iphone"
+      },
+      {
+        "name": "Game-v1.0-freebsd-x86_64.tar.gz",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": "freebsd"
+      },
+      {
+        "name": "Game-v1.0-android-tv.zip",
+        "role": "mobile-package",
+        "os": "android",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": "android"
+      },
+      {
+        "name": "Game-v1.0-ps4.zip",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": "ps4"
+      },
+      {
+        "name": "HaikuQuest-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Switchblade-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-win32.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Collection-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-Studio-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "studio",
+        "system_token": null
+      },
+      {
+        "name": "Studiopolis-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-Extras-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Table-Tennis-Engine-Windows-v1.6.0.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "SOTN-v1.2.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "OpenMB2-v0.3.0-linux-x86_64.tar.gz",
+        "role": "desktop-game-runtime",
+        "os": "linux",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Woof-v15.0.0-windows.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "OpenTIE-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "MiniQuake-v0.9-macos-arm64.zip",
+        "role": "desktop-game-runtime",
+        "os": "macos",
+        "arch": "aarch64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Peggle-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "PokePlatinum-v1.1.0-linux-x86_64.tar.gz",
+        "role": "desktop-game-runtime",
+        "os": "linux",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "TableTennis-Windows-v1.7.0.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "the-force-engine-v1.0-win.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-win64.7z",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0.rar",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-win64.7z",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0.7z",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": null
+      },
+      {
+        "name": "Game-v1.0-android.7z",
+        "role": "mobile-package",
+        "os": "android",
+        "arch": "unknown",
+        "tool_token": null,
+        "system_token": "android"
+      },
+      {
+        "name": "Game-win32.7z",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86",
+        "tool_token": null,
+        "system_token": null
+      }
+    ],
+    "programs": [
+      {
+        "name": "game.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Unseen.exe",
+        "tool_token": null
+      },
+      {
+        "name": "mygame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game",
+        "tool_token": null
+      },
+      {
+        "name": "Unseen",
+        "tool_token": null
+      },
+      {
+        "name": "server.exe",
+        "tool_token": "server"
+      },
+      {
+        "name": "gаme.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.x86_64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.x86_64",
+        "tool_token": null
+      },
+      {
+        "name": "Patcher.exe",
+        "tool_token": "patcher"
+      },
+      {
+        "name": "UnityCrashHandler64.exe",
+        "tool_token": "crashhandler"
+      },
+      {
+        "name": "GameUpdater.exe",
+        "tool_token": "updater"
+      },
+      {
+        "name": "Launcher.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Zelda64Recompiled.exe",
+        "tool_token": null
+      },
+      {
+        "name": "LevelEditor.exe",
+        "tool_token": "editor"
+      },
+      {
+        "name": "PatchQuest.exe",
+        "tool_token": null
+      },
+      {
+        "name": "crashpad_handler.exe",
+        "tool_token": "crashpad"
+      },
+      {
+        "name": "A.exe",
+        "tool_token": null
+      },
+      {
+        "name": "B.exe",
+        "tool_token": null
+      },
+      {
+        "name": "C.exe",
+        "tool_token": null
+      },
+      {
+        "name": "D.exe",
+        "tool_token": null
+      },
+      {
+        "name": "E.exe",
+        "tool_token": null
+      },
+      {
+        "name": "openjk.x86_64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "openjo.x86_64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "openjk.x86.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Helper.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game32.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.console.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Other.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.x86",
+        "tool_token": null
+      },
+      {
+        "name": "openjk.x86_64",
+        "tool_token": null
+      },
+      {
+        "name": "openjo.x86_64",
+        "tool_token": null
+      },
+      {
+        "name": "Game-64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.x64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game_win64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.debug.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Doom.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Doom64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Quake.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Quake32.exe",
+        "tool_token": null
+      },
+      {
+        "name": "TextureStudio.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SpiderMan.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SpiderMan2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "rexglue.exe",
+        "tool_token": null
+      },
+      {
+        "name": "rex-glue.exe",
+        "tool_token": "glue"
+      },
+      {
+        "name": "Studiopolis.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game Studio.exe",
+        "tool_token": "studio"
+      },
+      {
+        "name": "sotn.exe",
+        "tool_token": null
+      },
+      {
+        "name": "openmb2",
+        "tool_token": null
+      },
+      {
+        "name": "woof.exe",
+        "tool_token": null
+      },
+      {
+        "name": "opentie.exe",
+        "tool_token": null
+      },
+      {
+        "name": "miniquake",
+        "tool_token": null
+      },
+      {
+        "name": "Peggle.exe",
+        "tool_token": null
+      },
+      {
+        "name": "pokeplatinum",
+        "tool_token": null
+      },
+      {
+        "name": "GameConfig.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game_Settings.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Configurator.exe",
+        "tool_token": "configurator"
+      },
+      {
+        "name": "Editor.exe",
+        "tool_token": "editor"
+      },
+      {
+        "name": "GameLauncher.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameStudio.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Launch.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Settler.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Setup.exe",
+        "tool_token": "setup"
+      },
+      {
+        "name": "Upset.exe",
+        "tool_token": null
+      },
+      {
+        "name": "game",
+        "tool_token": null
+      },
+      {
+        "name": "game-installer.exe",
+        "tool_token": "installer"
+      },
+      {
+        "name": "launcher",
+        "tool_token": null
+      },
+      {
+        "name": "GameCodegen.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameRecomp.exe",
+        "tool_token": null
+      },
+      {
+        "name": "game-gen",
+        "tool_token": null
+      },
+      {
+        "name": "the-mapper.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Table.exe",
+        "tool_token": null
+      },
+      {
+        "name": "MyGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-x64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "game.x86_64",
+        "tool_token": null
+      },
+      {
+        "name": "supergame2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Table_Game.exe",
+        "tool_token": null
+      },
+      {
+        "name": "gamegen",
+        "tool_token": null
+      },
+      {
+        "name": "StartGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-start.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameCfg.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Configure.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameLoader.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Install.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Starfall.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Startup.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Restart.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Installation.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Loaders2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Cfgame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-debug.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-dedicated.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-demo.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-headless.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GameServer.exe",
+        "tool_token": "server"
+      },
+      {
+        "name": "GameEditor.exe",
+        "tool_token": "editor"
+      },
+      {
+        "name": "Observer.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Demon.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Serverless.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Debugger.exe",
+        "tool_token": "debugger"
+      },
+      {
+        "name": "Demos.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Super_Game.exe",
+        "tool_token": null
+      },
+      {
+        "name": "gameserver.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GAMESERVER.EXE",
+        "tool_token": null
+      },
+      {
+        "name": "gamedebug.exe",
+        "tool_token": null
+      },
+      {
+        "name": "gamed.exe",
+        "tool_token": null
+      },
+      {
+        "name": "servergame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-dbg.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-srv.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-ded.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-trial.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-shareware.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-test.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Gamedev.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Testament.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Trialsmith.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Gamer.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Gаme.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Ｇａｍｅ.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Space.exe",
+        "tool_token": null
+      },
+      {
+        "name": "2048.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SGEDIT.EXE",
+        "tool_token": null
+      },
+      {
+        "name": "SGSERVER.EXE",
+        "tool_token": null
+      },
+      {
+        "name": "SUPERGAMELAUNCHER.EXE",
+        "tool_token": null
+      },
+      {
+        "name": "SpaceGame-cli.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SpaceGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SuperGame-x64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SuperGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SuperGame64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "supergame-cli.exe",
+        "tool_token": null
+      },
+      {
+        "name": "supergameserver64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "engine.exe",
+        "tool_token": null
+      },
+      {
+        "name": "HaikuQuest.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Switchblade.exe",
+        "tool_token": null
+      },
+      {
+        "name": "UpdatedGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "DeltaruneFan.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Patchwork.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Doom2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "doom2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Deltaforce.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Crackdown.exe",
+        "tool_token": null
+      },
+      {
+        "name": "DOA3.exe",
+        "tool_token": null
+      },
+      {
+        "name": "crusader.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SealTeam.exe",
+        "tool_token": null
+      },
+      {
+        "name": "CyberMage.exe",
+        "tool_token": null
+      },
+      {
+        "name": "FZeroX.exe",
+        "tool_token": null
+      },
+      {
+        "name": "MechAssault2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "itc.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Lantern.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Condemned2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "shadowsoftheempire.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Amped2Recomp.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SSX3Recomp.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Dora643.exe",
+        "tool_token": null
+      },
+      {
+        "name": "CrackdownLauncher.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Crackdown-server.exe",
+        "tool_token": "server"
+      },
+      {
+        "name": "CrackdownRecompiledServer.exe",
+        "tool_token": "server"
+      },
+      {
+        "name": "Crackdown-debug.exe",
+        "tool_token": null
+      },
+      {
+        "name": "StarWars.exe",
+        "tool_token": null
+      },
+      {
+        "name": "StarWarsBattlefront.exe",
+        "tool_token": null
+      },
+      {
+        "name": "LanternTwo.exe",
+        "tool_token": null
+      },
+      {
+        "name": "CrackdownRecompiled.exe",
+        "tool_token": null
+      },
+      {
+        "name": "crackdown-x64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "CrackdownServer.exe",
+        "tool_token": "server"
+      },
+      {
+        "name": "cd.exe",
+        "tool_token": null
+      },
+      {
+        "name": "shock.exe",
+        "tool_token": null
+      }
+    ]
+  }
+}

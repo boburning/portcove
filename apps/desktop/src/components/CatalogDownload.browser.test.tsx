@@ -950,6 +950,32 @@ it("requires a package choice when selected asset coverage is insufficient", asy
   expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(selection, 9);
 });
 
+it("lists older releases on request when the release history continues", async () => {
+  const partial = {
+    ...candidates,
+    recommended_asset_id: null,
+    coverage: { ...candidates.coverage!, release_history_complete: false },
+  };
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue(partial);
+  await click("Check upstream downloads");
+  await expect.element(page.getByRole("button", { name: "Show older releases" })).toBeVisible();
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...partial,
+    coverage: { ...partial.coverage, release_limit: 35, release_history_complete: true },
+  });
+  await click("Show older releases");
+  expect(desktopApi.catalogDownloadCandidates).toHaveBeenLastCalledWith(
+    expect.any(String),
+    expect.any(Number),
+    partial.selected_release_id,
+    expect.any(String),
+    35,
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Show older releases" }))
+    .not.toBeInTheDocument();
+});
+
 it("keeps empty partial-search guidance distinct from unavailable upstream packages", async () => {
   vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
     ...candidates,

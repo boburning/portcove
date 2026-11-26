@@ -4,6 +4,8 @@ run-name: Maintenance inventory / ${{ inputs.purpose || 'schedule' }}
 # #4129 hosted operation: one unattended daily collection into the maintenance
 # store, a dated report and changes-only digest, a verified backup, and an
 # independent restore proof. See docs/MAINTENANCE-STORE.md#hosted-operation.
+# The separate discover job runs deterministic discovery collection into the same
+# store (docs/DAILY-PORT-DISCOVERY.md#unattended-collection).
 # The scheduled run can resume an existing owner-authorized, receipt-bound final intake audit.
 
 on:
@@ -14,7 +16,8 @@ on:
       purpose:
         description: Operation to perform
         type: choice
-        options: [status, collect-changed, report, recover, verify-recovery, recovery-full]
+        options:
+          [status, collect-changed, report, recover, verify-recovery, recovery-full, discover]
         default: status
 
 permissions:
@@ -485,6 +488,159 @@ jobs:
         if: ${{ !cancelled() && github.event_name == 'schedule' && steps.collect.outputs.completed == 'true' && needs.reconcile-intake-receipts.result == 'success' }}
         run: jq -e '.hosted_intake.receipt_fence == "verified"' work/maintenance-evidence/collect.json > /dev/null
 
+  discover:
+    needs: collect
+    # Deterministic discovery collection runs on its own runner after collection has
+    # applied migrations, so one inaccessible source cannot suppress maintenance output.
+    if: >-
+      !cancelled() && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'schedule' || inputs.purpose == 'discover')
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-latest
+    # GitHub-hosted jobs stop at 360 minutes. Collection itself is bounded by
+    # provider quota, runner disk and admitted database transfer, not counts.
+    timeout-minutes: 355
+    concurrency:
+      group: portcove-discovery-collection
+      cancel-in-progress: false
+    env:
+      PORTCOVE_MAINTENANCE_PURPOSE: ${{ inputs.purpose || 'schedule' }}
+      PORTCOVE_MAINTENANCE_RESOURCE_EVIDENCE: ${{ github.workspace }}/work/discovery-worker/resource.jsonl
+    steps:
+      - name: Record the discovery job clock
+        run: echo "PORTCOVE_DISCOVERY_JOB_STARTED_EPOCH=$EPOCHSECONDS" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Install locked collector dependencies before credentials
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Ensure the maintenance PostgreSQL client is available
+        run: |
+          command -v psql || sudo apt-get install -y --no-install-recommends postgresql-client
+          mkdir -p work/discovery-worker
+      - name: Prepare optional discovery seed from the existing verified recovery
+        continue-on-error: true
+        timeout-minutes: 12
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # No production database credentials are supplied to this step.
+          # Select the same independently verified recovery artifacts used by collect.
+          rc=0
+          seed_root="$RUNNER_TEMP/discovery-seed"
+          node scripts/maintenance-recovery-artifact.mts "$seed_root" || rc=$?
+          if [[ "$rc" != 0 ]]; then
+            echo 'No verified discovery seed; the collector will use its normal cold read.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          client="/usr/lib/postgresql/18/bin"
+          if [[ ! -x "$client/initdb" ]]; then
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+            sudo apt-get install -y --no-install-recommends postgresql-18
+          fi
+          socket="$seed_root/socket"
+          mkdir -p "$socket"
+          "$client/initdb" --auth=trust --encoding=UTF8 --no-locale -D "$seed_root/data" > /dev/null
+          "$client/pg_ctl" -D "$seed_root/data" -l "$seed_root/postgres.log" -w \
+            -o "-c listen_addresses='' -k $socket" start
+          "$client/createdb" -h "$socket" discovery_seed
+          export PORTCOVE_POSTGRES_BIN="$client"
+          export PORTCOVE_DISCOVERY_SEED_URL="postgresql://$USER@localhost/discovery_seed?host=$socket"
+          node scripts/maintenance-store.mts restore --database-env PORTCOVE_DISCOVERY_SEED_URL \
+            --input "$seed_root/backup" > "$seed_root/restore.json"
+          {
+            echo "PORTCOVE_POSTGRES_BIN=$client"
+            echo "PORTCOVE_DISCOVERY_SEED_URL=$PORTCOVE_DISCOVERY_SEED_URL"
+          } >> "$GITHUB_ENV"
+      - name: Collect discovery sources without a terminal or model
+        id: discover
+        # The worker stops collecting before this deadline to commit its final state.
+        timeout-minutes: 335
+        env:
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
+          PORTCOVE_NEON_METER_TOKEN: ${{ secrets.PORTCOVE_NEON_METER_TOKEN }}
+          # Read-only public metadata and search; the worker refuses any mutation.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rc=0
+          # The optional recovery seed shares the job clock. Keep time for the
+          # final database commit, status export, preparation and artifact upload.
+          export PORTCOVE_DISCOVERY_DEADLINE_EPOCH=$((PORTCOVE_DISCOVERY_JOB_STARTED_EPOCH + 330 * 60))
+          node scripts/discovery-worker.mts collect --output work/discovery-worker || rc=$?
+          if [[ "$rc" == 75 ]]; then
+            echo 'Discovery collection deferred; the retained continuation resumes on the next run.' >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "$rc" != 0 ]]; then
+            exit "$rc"
+          else
+            node -e '
+              const { createHash } = require("node:crypto");
+              const { readFileSync } = require("node:fs");
+              const root = "work/discovery-worker";
+              const result = JSON.parse(readFileSync(root + "/result.json", "utf8"));
+              if (!["complete", "partial"].includes(result.outcome) || !result.listing_preview_sha256)
+                process.exit(0);
+              const handoff = readFileSync(root + "/listing-preview-handoff.json");
+              if (createHash("sha256").update(handoff).digest("hex") !== result.listing_preview_sha256)
+                throw new Error("Current listing preview handoff differs from the collection result");
+              console.log("listing_preview=" + (JSON.parse(handoff).candidates.length > 0));
+            ' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Export read-only discovery status
+        if: ${{ !cancelled() }}
+        timeout-minutes: 4
+        env:
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
+          PORTCOVE_NEON_METER_TOKEN: ${{ secrets.PORTCOVE_NEON_METER_TOKEN }}
+        run: |
+          rc=0
+          node scripts/discovery-worker.mts status --output work/discovery-worker || rc=$?
+          if [[ -f work/discovery-worker/status.md ]]; then
+            cat work/discovery-worker/status.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          [[ "$rc" == 0 || "$rc" == 75 ]]
+      - name: Prepare listing admission from scheduled discovery evidence
+        if: >-
+          !cancelled() && github.event_name == 'schedule' &&
+          steps.discover.outcome == 'success' &&
+          steps.discover.outputs.listing_preview == 'true'
+        # Allow the last bounded provider request, reader verification and Core inspection to finish.
+        timeout-minutes: 11
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/prepare-port.mts \
+            --discovery-listings work/discovery-worker/listing-preview-handoff.json \
+            --discovery-automatic-scope true \
+            --discovery-released-validator true \
+            --discovery-deadline-epoch-ms "$(((EPOCHSECONDS + 240) * 1000))" \
+            --output-dir work/discovery-worker/listing-preview
+      - name: Retain discovery result and status
+        if: ${{ !cancelled() && hashFiles('work/discovery-worker/*.json') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: discovery-status-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/discovery-worker/result.json
+            work/discovery-worker/status.json
+            work/discovery-worker/status.md
+            work/discovery-worker/resource.jsonl
+            work/discovery-worker/listing-preview-evidence.json
+            work/discovery-worker/listing-preview-handoff.json
+            work/discovery-worker/listing-preview/completion-*.json
+            work/discovery-worker/listing-preview/github-*.json
+            work/discovery-worker/listing-preview/discovery-upstream-*.json
+            work/discovery-worker/listing-preview/discovery-listing-admission-*.patch
+          if-no-files-found: warn
+          retention-days: 30
+
   resume-intake-audits:
     needs: [collect, reconcile-intake-receipts]
     if: >-
@@ -565,15 +721,25 @@ jobs:
               verified: $restore[0].verified, source_server_version_num: $manifest[0].server_version_num,
               target_server_version_num: $server[0].server_version_num,
               dump_sha256: $dump, manifest_dump_sha256: $manifest[0].dump.sha256,
+              source_schema_version: $manifest[0].schema_version,
+              target_schema_version: $restore[0].target_schema_version,
+              migrated: $restore[0].migrated,
               sequences_verified: $restore[0].sequences_verified,
-              tables_match_manifest: ($restore[0].tables == $manifest[0].tables)}' \
+              tables_match_manifest: ($restore[0].manifest_tables_verified == true and
+                $restore[0].schema_version == $manifest[0].schema_version),
+              post_restore_tables_match_manifest: (if ($restore[0].migrated | length) == 0
+                then ($restore[0].tables == $manifest[0].tables) else null end)}' \
             > work/maintenance-restore/evidence/evidence.json
-          jq -e '.verified and .tables_match_manifest and .dump_sha256 == .manifest_dump_sha256' \
-            work/maintenance-restore/evidence/evidence.json > /dev/null
+          jq -e '.verified and .tables_match_manifest and
+            (if (.migrated | length) == 0 then .post_restore_tables_match_manifest == true
+              else .post_restore_tables_match_manifest == null end) and
+            (.source_schema_version < 6 or .sequences_verified == true) and
+            .target_schema_version == (.source_schema_version + (.migrated | length)) and
+            .dump_sha256 == .manifest_dump_sha256' work/maintenance-restore/evidence/evidence.json > /dev/null
           {
             echo '## Maintenance backup restore proof'
             echo
-            echo "Restored onto an independent PostgreSQL $MAJOR server in ${seconds}s; every table count and digest matches the manifest."
+            echo "Restored onto an independent PostgreSQL $MAJOR server in ${seconds}s. The backup's original schema matched its manifest before any upgrade."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Retain restore evidence
         if: ${{ !cancelled() && hashFiles('work/maintenance-restore/evidence/*') != '' }}

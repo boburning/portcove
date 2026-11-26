@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "scud-race-wanszai-research",
+    "project_url": "https://github.com/wanszai/Scud-Race",
+    "name": "Scud Race / Sega Super GT / wanszai (research only)",
+    "summary": "Scud Race PC, X360 and XSX.",
+    "issue_number": 4387,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "scud-race",
+      "evidence_urls": ["https://github.com/wanszai/Scud-Race"],
+      "source_editions": [
+        {
+          "id": "scud-race-xbox-360",
+          "title": "Scud Race (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/wanszai/Scud-Race"]
+        }
+      ]
+    },
+    "original_game_title": "Scud Race"
+  }
+}

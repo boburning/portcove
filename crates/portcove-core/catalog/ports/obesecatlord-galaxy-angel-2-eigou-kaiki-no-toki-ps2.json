@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "obesecatlord-galaxy-angel-2-eigou-kaiki-no-toki-ps2",
+    "project_url": "https://github.com/ObeseCatLord/galaxy-angel-2-pc",
+    "name": "Galaxy Angel II: Eigou Kaiki no Toki (PS2) / ObeseCatLord PS2Recomp",
+    "summary": "Native PC port of Galaxy Angel II: Eigou Kaiki no Toki for Windows and Linux. Requires your own copy of the original game.",
+    "issue_number": 5310,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "galaxy-angel-ii-eigou-kaiki-no-toki",
+      "evidence_urls": ["https://github.com/ObeseCatLord/galaxy-angel-2-pc"],
+      "source_editions": [
+        {
+          "id": "galaxy-angel-ii-eigou-kaiki-no-toki-playstation-2",
+          "title": "Galaxy Angel II: Eigou Kaiki no Toki (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/ObeseCatLord/galaxy-angel-2-pc"]
+        }
+      ]
+    },
+    "original_game_title": "Galaxy Angel II: Eigou Kaiki no Toki"
+  }
+}

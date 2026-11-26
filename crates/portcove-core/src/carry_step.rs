@@ -39,8 +39,18 @@ use crate::{PortcoveError, Result};
 /// Prefix of the temporary files a carry stages beside each destination.
 pub(crate) const STAGING_PREFIX: &str = ".portcove-carry-";
 /// Free space a carry keeps after staging: the larger of this and a fiftieth
-/// of the volume (design section 7, as for backups).
+/// of the volume (design section 7, as for backups), up to `MAX_RESERVE_BYTES`.
 pub(crate) const RESERVE_BYTES: u64 = 1024 * 1024 * 1024;
+/// The reserve keeps room for the next session's saves, journals and backups,
+/// which do not grow with the volume. Owner decision 2026-11-22: cap it so a
+/// small operation on a large volume (a 10 TiB drive asked for 205 GiB) is not
+/// refused. Volumes up to 400 GiB keep exactly the 2% reserve.
+pub(crate) const MAX_RESERVE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
+
+/// Bytes kept free after a preservation copy on a volume of `total` bytes.
+pub(crate) fn reserve_bytes(total: u64) -> u64 {
+    RESERVE_BYTES.max(total / 50).min(MAX_RESERVE_BYTES)
+}
 /// Allocation unit assumed when rounding each staged file up.
 pub(crate) const CLUSTER_BYTES: u64 = 4096;
 
@@ -108,13 +118,6 @@ pub(crate) fn locked_error(relative: &str) -> PortcoveError {
     .detail("carried_file_unreadable", relative)
 }
 
-/// The path of a persistence-relative `/` path under `root`.
-fn member(root: &Path, relative: &str) -> PathBuf {
-    relative
-        .split('/')
-        .fold(root.to_path_buf(), |path, part| path.join(part))
-}
-
 /// Folder listings read once per carry (review finding 6).
 #[derive(Debug, Default)]
 pub(crate) struct Listings(RefCell<BTreeMap<PathBuf, Vec<OsString>>>);
@@ -180,7 +183,7 @@ pub(crate) fn inspect_target(
     listings: &Listings,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<TargetCopy> {
-    let path = member(root, relative);
+    let path = crate::path::join_relative(root, relative);
     if crate::runtime_data_policy::refuse_sensitive_entry(&path).is_err() {
         return Ok(TargetCopy::Blocked);
     }
@@ -212,7 +215,7 @@ pub(crate) fn inspect_source(
     listings: &Listings,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<(SourceCopy, Option<u64>)> {
-    let path = member(root, relative);
+    let path = crate::path::join_relative(root, relative);
     if crate::runtime_data_policy::refuse_sensitive_entry(&path).is_err() {
         return Ok((SourceCopy::Unreadable, None));
     }
@@ -275,7 +278,7 @@ pub(crate) fn required_bytes(
         .filter(|planned| matches!(planned.action, CarryAction::Copy | CarryAction::Replace))
         .map(|planned| sizes.get(&planned.path).copied().unwrap_or(0))
         .map(|size| size.div_ceil(CLUSTER_BYTES).saturating_mul(CLUSTER_BYTES))
-        .fold(RESERVE_BYTES.max(total / 50), u64::saturating_add)
+        .fold(reserve_bytes(total), u64::saturating_add)
 }
 
 /// Create the missing parents of `relative` one folder at a time, refusing to
@@ -304,7 +307,7 @@ fn create_parents(root: &Path, relative: &str) -> Result<Option<PathBuf>> {
         }
         directory = next;
     }
-    crate::path::refuse_symlink_ancestors(&member(root, relative))?;
+    crate::path::refuse_symlink_ancestors(&crate::path::join_relative(root, relative))?;
     Ok(Some(directory))
 }
 
@@ -492,7 +495,7 @@ pub(crate) fn stage_with_writer(
                 }
                 _ => continue,
             };
-            let destination = member(target_root, &planned.path);
+            let destination = crate::path::join_relative(target_root, &planned.path);
             if planned.action == CarryAction::Remove {
                 staged.removals.push(StagedRemoval {
                     path: planned.path.clone(),
@@ -514,7 +517,7 @@ pub(crate) fn stage_with_writer(
                 .prefix(STAGING_PREFIX)
                 .tempfile_in(&parent)
                 .map_err(destination_error)?;
-            let source = member(source_root, &planned.path);
+            let source = crate::path::join_relative(source_root, &planned.path);
             let limit = inspected.sizes.get(&planned.path).copied().unwrap_or(0);
             let copied = (|| {
                 let copied = copy_hashing(&source, output.as_file_mut(), limit, checkpoint, writer)
@@ -620,7 +623,7 @@ fn verify(
         .collect::<BTreeMap<_, _>>();
     let mut changed = Vec::new();
     for copy in &mut staged.copies {
-        let source = member(source_root, &copy.path);
+        let source = crate::path::join_relative(source_root, &copy.path);
         if locked(&source) {
             return Err(CarryStop::Locked(copy.path.clone()));
         }

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "touhou-8-imperishable-night-th08-rs",
+    "project_url": "https://github.com/kauri-off/th08-rs",
+    "name": "Touhou 8: Imperishable Night / th08-rs",
+    "summary": "Clean-room Rust reimplementation of Touhou 8: Imperishable Night (Windows, Linux, android, browser)",
+    "issue_number": 5466,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "touhou-8-imperishable-night",
+      "evidence_urls": ["https://github.com/kauri-off/th08-rs"],
+      "source_editions": []
+    },
+    "original_game_title": "Touhou 8: Imperishable Night"
+  }
+}

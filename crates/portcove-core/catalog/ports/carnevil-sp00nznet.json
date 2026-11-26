@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "carnevil-sp00nznet",
+    "project_url": "https://github.com/sp00nznet/carnevil",
+    "name": "CarnEvil / sp00nznet",
+    "summary": "Tearing apart Midway's 1998 horror-themed light gun arcade classic and putting it back together for modern hardware.",
+    "issue_number": 6595,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "carnevil",
+      "evidence_urls": ["https://github.com/sp00nznet/carnevil"],
+      "source_editions": []
+    },
+    "original_game_title": "CarnEvil"
+  }
+}

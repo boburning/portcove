@@ -20,7 +20,7 @@ import {
 } from "./ci-workflow-fixture.mts";
 
 // Independently expected contract pin; Renovate updates it with the Action group.
-const reviewedInstallAction = "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"; // v2.90.1
+const reviewedInstallAction = "taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c"; // v2.90.8
 
 void test("ordinary Linux package operation is fixed and isolated from fixture builds and broader dispatch", async () => {
   const sections = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);

@@ -29,6 +29,8 @@ import {
   sameTargets,
   signConfig,
   treeDigest,
+  limitSignerHistory,
+  stageHistoryObjects,
 } from "./catalog-publish.mts";
 import {
   describeCatalogPublication,
@@ -89,11 +91,17 @@ void test("Pages overlay reuses retained immutable files and writes only the gen
       [overlayTimestamp]: "successor",
     }),
   );
-  assert.deepEqual(result, {
+  const { retention, ...staged } = result;
+  assert.deepEqual(staged, {
     changed: [addedMetadata, overlayTimestamp],
+    removed: [],
     retainedBytes: 25,
     writtenBytes: 17,
   });
+  // Body retention is off by default: nothing is pruned and no ledger is served.
+  assert.equal(retention.mode, "all");
+  assert.equal(retention.ledger, null);
+  assert.deepEqual(retention.pruned, { bodies: 0, bytes: 0 });
   assert.equal(readFileSync(path.join(prior, priorTarget), "utf8"), "historic");
   assert.equal(readFileSync(path.join(prior, overlayTimestamp), "utf8"), "successor");
   assert.equal(readFileSync(path.join(prior, "browse/index.html"), "utf8"), "browse");
@@ -142,6 +150,92 @@ void test("Pages overlay refuses stale input, missing history, immutable replace
     /differs from receipt/u,
   );
   assert.equal(treeDigest(prior), baseline);
+});
+
+void test("signer inputs contain only live TUF files and two addressed history objects", (t) => {
+  const work = mkdtempSync(path.join(os.tmpdir(), "catalog-thin-inputs-"));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  const prior = path.join(work, "prior");
+  const history = path.join(work, "history");
+  const object = (body: string) => ({
+    bytes: Buffer.byteLength(body),
+    sha256: overlaySha256(body),
+  });
+  const tip = JSON.stringify({ files: [] });
+  const active = JSON.stringify({ tip: object(tip) });
+  const pointer = JSON.stringify({ active: object(active) });
+  const logical = "policy/official/catalog.history-checkpoint.json";
+  const pointerSha = overlaySha256(pointer);
+  overlayFile(work, "plan.json", JSON.stringify({ schema_version: 1, history: "segmented" }));
+  overlayFile(work, "root.json", JSON.stringify({ signed: { version: 1 } }));
+  overlayFile(
+    prior,
+    "metadata/timestamp.json",
+    JSON.stringify({
+      signed: { version: 2, meta: { "snapshot.json": { version: 2 } } },
+    }),
+  );
+  overlayFile(
+    prior,
+    "metadata/2.snapshot.json",
+    JSON.stringify({
+      signed: {
+        meta: {
+          "targets.json": { version: 1 },
+          "official-definitions.json": { version: 2 },
+          "official-policy.json": { version: 2 },
+        },
+      },
+    }),
+  );
+  overlayFile(prior, "metadata/1.root.json", "root");
+  overlayFile(prior, "metadata/1.targets.json", "targets");
+  overlayFile(
+    prior,
+    "metadata/2.official-definitions.json",
+    JSON.stringify({ signed: { targets: {} } }),
+  );
+  overlayFile(
+    prior,
+    "metadata/2.official-policy.json",
+    JSON.stringify({
+      signed: { targets: { [logical]: { hashes: { sha256: pointerSha } } } },
+    }),
+  );
+  overlayFile(prior, `targets/${pointerSha}.${logical}`, pointer);
+  overlayFile(prior, "metadata/1.snapshot.json", "earlier snapshot");
+  for (const bytes of [tip, active, "earlier history object"]) {
+    overlayFile(history, `sha256/${overlaySha256(bytes)}.json`, bytes);
+  }
+  limitSignerHistory(work);
+  assert.equal(existsSync(path.join(prior, "metadata/1.snapshot.json")), false);
+  assert.equal(readFileSync(path.join(prior, `targets/${pointerSha}.${logical}`), "utf8"), pointer);
+  assert.equal(
+    existsSync(path.join(history, `sha256/${overlaySha256("earlier history object")}.json`)),
+    false,
+  );
+  assert.equal(readFileSync(path.join(history, `sha256/${overlaySha256(tip)}.json`), "utf8"), tip);
+});
+
+void test("history staging is append-only and refuses stale publish custody", (t) => {
+  const work = mkdtempSync(path.join(os.tmpdir(), "catalog-history-stage-"));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  const source = path.join(work, "next");
+  const destination = path.join(work, "prior");
+  const old = `sha256/${overlaySha256("earlier")}.json`;
+  const next = `sha256/${overlaySha256("successor")}.json`;
+  overlayFile(destination, old, "earlier");
+  overlayFile(source, next, "successor");
+  const guard = treeDigest(destination);
+  assert.deepEqual(stageHistoryObjects(source, destination, guard), [next]);
+  assert.equal(readFileSync(path.join(destination, old), "utf8"), "earlier");
+  assert.throws(() => stageHistoryObjects(source, destination, guard), /changed since/u);
+  assert.deepEqual(stageHistoryObjects(source, destination, treeDigest(destination)), []);
+  overlayFile(source, next, "different");
+  assert.throws(
+    () => stageHistoryObjects(source, destination, treeDigest(destination)),
+    /immutable bounds/u,
+  );
 });
 
 void test("public browsing stays inside whole-tree concurrency identity but outside signer prior repository", (t) => {
@@ -649,6 +743,192 @@ void test("a CI-triggered run also renews a timestamp that expires within the wi
   assert.throws(() => renewalDue(dir, now, 12), /expiry is malformed/u);
 });
 
+function preparePublication(
+  t: test.TestContext,
+  options: { event: string; bootstrap?: boolean; history?: boolean; pointer?: boolean },
+) {
+  const dir = temp(t);
+  const prior = path.join(dir, "site", "catalog");
+  site(
+    prior,
+    options.pointer
+      ? { "policy/official/catalog.history-checkpoint.json": "c".repeat(64) }
+      : { "policy/official/catalog.listings.json": "a".repeat(64) },
+  );
+  if (options.history) put(dir, "site/catalog-history/sha256/x.json", "{}");
+  put(dir, "root.json", "root");
+  put(dir, "offline-targets.json", "offline");
+  put(dir, "bundle/policy/official/catalog.listings.json", "listing");
+  put(
+    dir,
+    "inspection.stdout",
+    JSON.stringify({
+      ok: true,
+      error: null,
+      command: "catalog.inspect-definition-publication",
+      data: { publication_schema: 1 },
+    }),
+  );
+  const work = path.join(dir, "work");
+  const stdout = execFileSync(
+    process.execPath,
+    [
+      path.join(root, "scripts", "catalog-publish.mts"),
+      "prepare",
+      "--work",
+      work,
+      "--root",
+      path.join(dir, "root.json"),
+      "--offline-targets",
+      path.join(dir, "offline-targets.json"),
+      "--bundle",
+      path.join(dir, "bundle"),
+      "--inspection-stdout",
+      path.join(dir, "inspection.stdout"),
+      "--prior",
+      prior,
+      ...(options.bootstrap ? ["--bootstrap-history"] : []),
+    ],
+    {
+      encoding: "utf8",
+      env: { ...process.env, GITHUB_EVENT_NAME: options.event },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  const json = (name: string) =>
+    JSON.parse(readFileSync(path.join(work, name), "utf8")) as Record<string, unknown>;
+  return { work, stdout, plan: json("plan.json"), context: json("context.json") };
+}
+
+void test("push and scheduled runs plan the pre-history publication for a pointerless prior", (t) => {
+  for (const event of ["workflow_run", "schedule", "workflow_dispatch"]) {
+    const { work, stdout, plan, context } = preparePublication(t, { event });
+    // Exactly the outputs, plan and signing context publication had before history.
+    assert.match(stdout, /^prior_digest=[a-f0-9]{64}\n$/u, event);
+    assert.deepEqual(
+      plan,
+      planPublication(
+        { definitions: 5, policy: 4, snapshot: 7, timestamp: 9 },
+        new Date(String(plan.planned_at)),
+      ),
+      event,
+    );
+    assert.deepEqual(
+      Object.keys(context),
+      [
+        "schema_version",
+        "initial_root_profile",
+        "generated_at",
+        "trusted_root",
+        "trusted_root_sha256",
+        "offline_targets",
+        "offline_targets_sha256",
+        "prepared_bundle",
+        "inspection",
+        "inspection_sha256",
+        "previous_repository",
+        "versions",
+        "expires",
+      ],
+      event,
+    );
+    assert.ok(!existsSync(path.join(work, "history")), event);
+    // Downstream history commands stay inert without a requested or published history.
+    limitSignerHistory(work);
+    assert.ok(!existsSync(path.join(work, "thin-prior")), event);
+    execFileSync(process.execPath, [
+      path.join(root, "scripts", "catalog-publish.mts"),
+      "assembly-config",
+      "--work",
+      work,
+    ]);
+    assert.deepEqual(
+      JSON.parse(readFileSync(path.join(work, "assembly.json"), "utf8")),
+      assemblyConfig,
+    );
+  }
+});
+
+void test("only an explicit manual owner request bootstraps catalog history", (t) => {
+  const manual = preparePublication(t, { event: "workflow_dispatch", bootstrap: true });
+  assert.equal(manual.plan.history, "bootstrap");
+  assert.equal(manual.context.bootstrap_history, true);
+  assert.match(manual.stdout, /^history_mode=bootstrap$/mu);
+  for (const event of ["workflow_run", "schedule", "push"])
+    assert.throws(
+      () => preparePublication(t, { event, bootstrap: true }),
+      /owner action from a manual run only/u,
+      event,
+    );
+  assert.throws(
+    () => preparePublication(t, { event: "workflow_dispatch", bootstrap: true, history: true }),
+    /objects without an authenticated pointer/u,
+  );
+  // A published pointer continues its archive on every trigger; it is not a new activation.
+  const continued = preparePublication(t, { event: "schedule", pointer: true, history: true });
+  assert.equal(continued.plan.history, "segmented");
+  assert.equal(continued.context.history_store, "history");
+});
+
+void test("the history bootstrap flag is reachable only from the manual dispatch input", () => {
+  const workflow = read("catalog-publish.yml");
+  const source = readFileSync(path.join(workflows, "catalog-publish.yml"), "utf8");
+  assert.deepEqual(workflow.on.workflow_dispatch, {
+    inputs: {
+      bootstrap_history: {
+        description: "Owner activation only - create the first signed catalog history checkpoint",
+        type: "boolean",
+        default: false,
+      },
+      activate_cover_checkpoint: {
+        description:
+          "Owner activation only - admit the first cover checkpoint after signed history and released reader support",
+        type: "boolean",
+        default: false,
+      },
+    },
+  });
+  assert.equal(source.match(/--bootstrap-history/gu)?.length, 1);
+  assert.equal(source.match(/inputs\.bootstrap_history/gu)?.length, 1);
+  assert.equal(source.match(/--activate-cover-checkpoint/gu)?.length, 1);
+  assert.equal(source.match(/inputs\.activate_cover_checkpoint/gu)?.length, 1);
+  const steps = workflow.jobs.prepare!.steps!;
+  const prepare = steps.find(({ id }) => id === "prepare")!;
+  const gate =
+    "${{ github.event_name == 'workflow_dispatch' && inputs.bootstrap_history == true }}";
+  const requests = steps.filter((step) => step.env?.BOOTSTRAP_HISTORY !== undefined);
+  assert.equal(requests.length, 1);
+  const request = requests[0]!;
+  assert.deepEqual(request.env, { BOOTSTRAP_HISTORY: gate });
+  assert.match(
+    request.run!,
+    /if \[ "\$GITHUB_EVENT_NAME" = workflow_dispatch \] && \[ "\$BOOTSTRAP_HISTORY" = true \]; then\n\s*echo "HISTORY_BOOTSTRAP=requested" >> "\$GITHUB_ENV"\n\s*fi/u,
+  );
+  assert.ok(steps.indexOf(request) < steps.indexOf(prepare));
+  assert.equal(prepare.env, undefined);
+  assert.match(
+    prepare.run!,
+    /history_request=\(\)\n\s*if \[ "\$GITHUB_EVENT_NAME" = workflow_dispatch \] && \[ "\$\{HISTORY_BOOTSTRAP:-\}" = requested \]; then\n\s*history_request=\(--bootstrap-history\)\n\s*fi/u,
+  );
+  assert.match(prepare.run!, /--prior "\$PRIOR" "\$\{history_request\[@\]\}"/u);
+  // Without a history mode no history step runs.
+  assert.match(
+    prepare.run!,
+    /if \[ -n "\$history_mode" \]; then\n[^]*?limit-signer-history[^]*?\n\s*fi/u,
+  );
+  assert.equal(source.match(/HISTORY_BOOTSTRAP=requested/gu)?.length, 1);
+  const publish = workflow.jobs.publish!.steps!.map((step) => step.run ?? "").join("\n");
+  assert.match(
+    publish,
+    /if \[ -n "\$HISTORY_MODE" \]; then\n\s*node scripts\/catalog-publish\.mts stage-history/u,
+  );
+  assert.match(
+    publish,
+    /if \[ -n "\$HISTORY_MODE" \]; then\n\s*history_readback=\$\(node scripts\/catalog-publish\.mts history-readback/u,
+  );
+  assert.match(publish, /if \[ "\$HISTORY_MODE" = segmented \]; then\n\s*\[\[/u);
+});
+
 void test("signing recreates roles/, which artifact uploads drop when empty", (t) => {
   const work = temp(t);
   for (const name of ["root.json", "offline-targets.json", "inspection.json"])
@@ -724,6 +1004,8 @@ void test("tree digests change with any catalog file and match for absent trees"
 
 type Step = {
   id?: string;
+  name?: string;
+  "continue-on-error"?: boolean;
   uses?: string;
   run?: string;
   if?: string;
@@ -754,7 +1036,7 @@ void test("the existing Pages readback emits the receipt only after matching liv
   const readback = steps[index]!.run!;
   assert.match(
     readback,
-    /\[ "\$actual" = "\$expected" \][^\n]+\[ "\$sample_actual" = "\$sample_expected" \]; then\s+echo [^\n]+\s+if node scripts\/catalog-publication-receipt\.mts/u,
+    /\[ "\$actual" = "\$expected" \][^\n]+\[ "\$sample_actual" = "\$sample_expected" \] && \[ "\$history_verified" = true \]; then\s+echo [^\n]+\s+if node scripts\/catalog-publication-receipt\.mts/u,
   );
   assert.equal(readback.match(/receipt=true/gu)?.length, 1);
   assert.match(
@@ -764,6 +1046,177 @@ void test("the existing Pages readback emits the receipt only after matching liv
   const upload = steps[index + 1]!;
   assert.equal(upload.if, "steps.readback.outputs.receipt == 'true'");
   assert.equal(upload.with?.["retention-days"], 7);
+});
+
+void test("compact listing activation selects the released reader and rechecks it before each push", () => {
+  const workflow = read("catalog-publish.yml");
+  const source = readFileSync(path.join(workflows, "catalog-publish.yml"), "utf8");
+  // Only automatic selection decides activation; no route forces or reverses it.
+  assert.equal(source.match(/--official-released-reader/gu)?.length, 1);
+  assert.doesNotMatch(source, /--compact\b|--return-to-legacy|--released-reader\b/u);
+  const prepare = workflow.jobs.prepare!;
+  const steps = prepare.steps!;
+  const observe = steps.find(({ id }) => id === "observe")!;
+  assert.equal(observe.if, "steps.decide.outputs.publish == 'true'");
+  assert.deepEqual(observe.env, {
+    ACTIVATE_COVER_CHECKPOINT:
+      "${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_cover_checkpoint == true }}",
+  });
+  assert.match(
+    observe.run!,
+    /node scripts\/listing-observation-delivery\.mts [^]*--official-released-reader\n/u,
+  );
+  assert.match(observe.run!, /report\.released_reader_activation/u);
+  assert.match(observe.run!, /echo "reader_activation=\$activation" >> "\$GITHUB_OUTPUT"/u);
+  assert.doesNotMatch(observe.run!, /\$\{\{/u);
+  assert.ok(steps.indexOf(observe) < steps.findIndex(({ id }) => id === "prepare"));
+  const outputs = (prepare as Job & { outputs?: Record<string, string> }).outputs!;
+  assert.equal(outputs.reader_activation, "${{ steps.observe.outputs.reader_activation }}");
+  // The prepare job reads anonymously; activation adds no permission.
+  assert.deepEqual(prepare.permissions, { contents: "read", actions: "read" });
+
+  const publish = workflow.jobs.publish! as Job & { env?: Record<string, string> };
+  assert.equal(
+    publish.env?.CATALOG_READER_ACTIVATION,
+    "${{ needs.prepare.outputs.reader_activation }}",
+  );
+  assert.deepEqual(publish.permissions, { contents: "write" });
+  const push = publish.steps!.find((step) => step.run?.includes("for attempt in"))!;
+  // Each fresh Pages base is rechecked after the worktree is recreated and
+  // before anything is staged or pushed.
+  const loop = push.run!;
+  const worktree = loop.indexOf("git worktree add --quiet --force site");
+  const recheck = loop.indexOf("node scripts/catalog-released-reader.mts site");
+  assert.ok(loop.indexOf("for attempt in") < worktree && worktree < recheck);
+  assert.ok(recheck < loop.indexOf("catalog-pages-overlay.mts"));
+  assert.ok(recheck < loop.indexOf("git -C site push"));
+  assert.match(
+    loop,
+    /if \[ -n "\$CATALOG_READER_ACTIVATION" \]; then\n\s*node scripts\/catalog-released-reader\.mts site\n\s*fi/u,
+  );
+  assert.equal(source.match(/catalog-released-reader\.mts/gu)?.length, 1);
+});
+
+void test("a stopped listing publication, pending activation or capacity guard failure fails the run only after publish and readback", () => {
+  const workflow = read("catalog-publish.yml");
+  const observe = workflow.jobs.prepare!.steps!.find(({ id }) => id === "observe")!;
+  assert.match(
+    observe.run!,
+    /--withdrawals crates\/portcove-core\/catalog\/listing-withdrawals\.json \\\n/u,
+  );
+  const steps = workflow.jobs.publish!.steps!;
+  const stop = steps.findIndex(
+    ({ name }) =>
+      name ===
+      "Fail the run when listing publication stopped or is pending, or the capacity guard failed",
+  );
+  const push = steps.findIndex(({ run }) => run?.includes("git -C site push"));
+  const readback = steps.findIndex(({ id }) => id === "readback");
+  // Last: freshness, definitions and policy are pushed and read back first.
+  assert.equal(stop, steps.length - 1);
+  assert.ok(push < readback && readback < stop);
+  assert.equal(steps[stop]!.if, undefined);
+  assert.equal(steps[stop]!["continue-on-error"], undefined);
+  // The prepare job measures the staged compact target, after the catalog
+  // work exists and before it is uploaded, and never stops preparation itself.
+  const prepare = workflow.jobs.prepare!.steps!;
+  const measure = prepare.findIndex(
+    ({ name }) => name === "Measure the staged compact listing target against the capacity guard",
+  );
+  assert.ok(prepare.findIndex(({ id }) => id === "prepare") < measure);
+  assert.ok(measure < prepare.findIndex((step) => step.with?.name === "catalog-work"));
+  assert.match(prepare[measure]!.run!, /catalog-capacity\.mts --check "\$\{observed\[@\]\}"/u);
+  assert.match(prepare[measure]!.run!, /--observed-target "\$target"/u);
+  assert.match(prepare[measure]!.run!, /\|\| status=\$\?/u);
+  assert.match(prepare[measure]!.run!, /catalog-work\/capacity-guard\.json/u);
+  const scratch = mkdtempSync(path.join(os.tmpdir(), "portcove-listing-stop-"));
+  try {
+    const work = path.join(scratch, "catalog-work");
+    mkdirSync(work);
+    const run = (report: unknown) => {
+      writeFileSync(path.join(work, "observation-projection.json"), JSON.stringify(report));
+      const summary = path.join(scratch, "summary.md");
+      rmSync(summary, { force: true });
+      try {
+        const stdout = execFileSync("bash", ["-c", steps[stop]!.run!], {
+          env: { ...process.env, RUNNER_TEMP: scratch, GITHUB_STEP_SUMMARY: summary },
+          encoding: "utf8",
+        });
+        return { status: 0, stdout, summary: existsSync(summary) };
+      } catch (error) {
+        const failure = error as { status: number; stdout: string };
+        return { status: failure.status, stdout: failure.stdout, summary: existsSync(summary) };
+      }
+    };
+    assert.deepEqual(run({ carrier: "compact" }), { status: 0, stdout: "", summary: false });
+    const stopped = run({
+      listing_publication_stopped: {
+        code: "decoded_bound",
+        reason: "Complete compact listing exceeds its decoded byte bound",
+        figures: { decoded_bytes: 33554433, decoded_limit: 33554432 },
+      },
+    });
+    assert.equal(stopped.status, 1);
+    assert.equal(stopped.summary, true);
+    assert.match(
+      stopped.stdout,
+      /^::error title=Listing publication stopped::Listing publication stopped \(decoded_bound\): Complete compact listing exceeds its decoded byte bound; prior listing targets renewed\. Figures: \{"decoded_bytes":33554433,"decoded_limit":33554432\}$/mu,
+    );
+    // A released-reader refusal defers a pending cutover: the run fails.
+    const pending = run({
+      carrier: "legacy-renewal",
+      released_reader_unavailable: "Public Portcove API attestations unavailable (403)",
+      listing_activation_pending: {
+        prior_carrier: "legacy",
+        prior_format: 11,
+        candidate_format: 15,
+        reason: "Public Portcove API attestations unavailable (403)",
+      },
+    });
+    assert.equal(pending.status, 1);
+    assert.equal(pending.summary, true);
+    assert.match(
+      pending.stdout,
+      /^::error title=Compact listing activation pending::Compact listing activation pending \(legacy format 11 -> compact format 15\): Public Portcove API attestations unavailable \(403\); prior listing targets renewed\.$/mu,
+    );
+    // After cutover, a renewal without a pending activation stays green.
+    assert.equal(run({ carrier: "compact", changed: false }).status, 0);
+    // An unverifiable prior after cutover renews the compact target exactly
+    // with no activation pending; listing changes are unpublished, so it fails.
+    const unverified = run({
+      carrier: "compact",
+      changed: false,
+      listing_prior_unverified: { prior_carrier: "compact", reason: "timestamp expired" },
+    });
+    assert.equal(unverified.status, 1);
+    assert.equal(unverified.summary, true);
+    assert.match(
+      unverified.stdout,
+      /^::error title=Prior catalog unverified::The prior signed catalog could not be verified \(compact carrier\): timestamp expired; prior listing targets renewed and listing changes not published\.$/mu,
+    );
+    // The capacity guard measured on the staged target fails the run after
+    // readback; a passing guard does not.
+    const capacity = path.join(work, "capacity-guard.json");
+    writeFileSync(capacity, JSON.stringify({ status: 0, observed_target: true, output: "ok\n" }));
+    assert.equal(run({ carrier: "compact" }).status, 0);
+    writeFileSync(
+      capacity,
+      JSON.stringify({
+        status: 1,
+        observed_target: true,
+        output: "FAIL compact listing carrier bytes (modeled): 7000000 of 6410976\n",
+      }),
+    );
+    const short = run({ carrier: "compact" });
+    assert.equal(short.status, 1);
+    assert.equal(short.summary, true);
+    assert.match(
+      short.stdout,
+      /^::error title=Listing capacity guard failed::The capacity guard failed with the staged compact target's observations; this publication was not blocked\..*%0AFAIL compact listing carrier bytes/mu,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 void test("late catalog readback stays in the existing read-only scheduled prepare lane", () => {
@@ -936,7 +1389,14 @@ void test("observer output is delivered as bounded compatible descriptive data w
   assert.equal(directory.format_version, 11);
   assert.equal(firstListing.implementation, undefined);
   assert.deepEqual(firstListing.download_asset_hints, fixtureListing.download_asset_hints);
-  assert.deepEqual(firstListing.upstream_observation, policy.listing_update.upstream_observation);
+  const expectedObservation = fixtureRecord(
+    structuredClone(policy.listing_update.upstream_observation),
+  );
+  const expectedRelease = requiredFixture(fixtureRecords(expectedObservation.releases)[0]);
+  const expectedAsset = requiredFixture(fixtureRecords(expectedRelease.assets)[0]);
+  assert.equal(expectedAsset.sha256, null);
+  delete expectedAsset.sha256;
+  assert.deepEqual(firstListing.upstream_observation, expectedObservation);
   const before = structuredClone(canonical);
   for (const candidates of [
     [],
@@ -980,52 +1440,298 @@ void test("observer output is delivered as bounded compatible descriptive data w
   assert.equal(corrected.revision, first.revision + 1);
 });
 
-void test("observation delivery accepts format-13 canonical input and uses Core's format-11 projection", async () => {
-  const { fixtureListing, fixturePolicy, fixtureDelivery } =
-    await import("./fixtures/listing-observation-delivery-fixture.mts");
-  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
-  const authored = {
-    ...fixtureListing,
-    media: [{ id: "scene", role: "screenshot", igdb: { kind: "screenshot" } }],
-  };
-  const result = projectListingDelivery(
-    { format_version: 13, listings: [authored] },
-    [{ ...fixturePolicy().listing_update, media: authored.media }],
-    null,
-    0,
-    8 * 1024 * 1024,
-    { format_version: 11, listings: [fixtureListing] },
+void test("compact activation requires both capabilities from the reviewed released reader", async () => {
+  const { requireCompactListingReader } = await import("./listing-observation-delivery.mts");
+  const { compactListingCarrier } = await import("./listing-directory-carrier.mts");
+  const capabilities = (listing_formats: number[], listing_delivery_carriers: string[]) => ({
+    ok: true,
+    command: "capabilities",
+    data: {
+      product: "Portcove",
+      product_version: "fixture",
+      listing_formats,
+      listing_delivery_carriers,
+    },
+  });
+  assert.throws(
+    () => requireCompactListingReader(capabilities([11, 12, 13], ["json-v1"]), 13),
+    /gzip-base64-json-v1 and listing format 13/u,
   );
-  assert.deepEqual(result.bytes, fixtureDelivery());
+  assert.throws(
+    () => requireCompactListingReader(capabilities([11, 12], [compactListingCarrier]), 13),
+    /gzip-base64-json-v1 and listing format 13/u,
+  );
+  assert.equal(
+    requireCompactListingReader(capabilities([11, 12, 13], [compactListingCarrier]), 13),
+    "fixture",
+  );
 });
 
-void test("observation publication retains applicable earlier rows before admitting fresh rows into the fixed byte budget", async () => {
+void test("format 14 edition bindings require both released capabilities and stay out of older projections", async () => {
+  const { fixtureListing, fixtureDelivery } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery, requireCompactListingReader } =
+    await import("./listing-observation-delivery.mts");
+  const { compactListingCarrier, encodeCompactListing, decodeRetainedCompactListing } =
+    await import("./listing-directory-carrier.mts");
+  const release = (listing_formats: number[], listing_delivery_carriers: string[]) => ({
+    ok: true,
+    command: "capabilities",
+    data: {
+      product: "Portcove",
+      product_version: "fixture",
+      listing_formats,
+      listing_delivery_carriers,
+    },
+  });
+  assert.equal(
+    requireCompactListingReader(release([12, 13], [compactListingCarrier]), 13),
+    "fixture",
+  );
+  for (const reader of [release([12, 13], [compactListingCarrier]), release([14], ["json-v1"])])
+    assert.throws(
+      () => requireCompactListingReader(reader, 14),
+      /gzip-base64-json-v1 and listing format 14/u,
+    );
+  assert.equal(
+    requireCompactListingReader(release([12, 13, 14], [compactListingCarrier]), 14),
+    "fixture",
+  );
+
+  const edition = { id: "disc", title: "Original", system: "PlayStation", evidence_urls: [] };
+  const original = {
+    format_version: 1,
+    id: "original",
+    source_editions: [edition],
+    evidence_urls: [],
+  };
+  const binding = { game_id: "original", variant_id: "disc", representation_id: "disc-bin" };
+  const scene = { id: "scene", role: "screenshot", igdb: { kind: "screenshot" } };
+  const legacy = { ...fixtureListing, original_game: original };
+  const format13 = { ...legacy, media: [scene] };
+  const current = {
+    ...format13,
+    original_game: {
+      ...original,
+      source_editions: [{ ...edition, verified_sources: [binding] }],
+    },
+  };
+  const canonical = { format_version: 14, listings: [current] };
+  const old = decodedListingDelivery(fixtureDelivery());
+  const prior13 = Buffer.from(
+    JSON.stringify({
+      ...old,
+      directory: { format_version: 13, listings: [format13] },
+    }),
+  );
+  const completeSnapshot = (source: unknown, projection: unknown, previous: Buffer) =>
+    projectListingDelivery(source, [], previous, { compatible: projection, now: 0 });
+  const projected = completeSnapshot(canonical, canonical, prior13);
+  const decoded = decodedListingDelivery(
+    decodeRetainedCompactListing(encodeCompactListing(projected.bytes)),
+  );
+  assert.equal(decoded.directory.format_version, 14);
+  assert.equal(projected.delivered_records, 1);
+  assert.deepEqual(decoded.directory.listings[0]!.original_game, current.original_game);
+  assert.deepEqual(decoded.directory.listings[0]!.media, [scene]);
+  assert.equal(decoded.revision, old.revision + 1);
+
+  assert.throws(
+    () => completeSnapshot(canonical, { format_version: 13, listings: [format13] }, prior13),
+    /changed canonical identities or format/u,
+  );
+  const removed = completeSnapshot(
+    { format_version: 13, listings: [format13] },
+    { format_version: 14, listings: [format13] },
+    projected.bytes,
+  );
+  const withdrawn = decodedListingDelivery(removed.bytes).directory;
+  assert.equal(withdrawn.format_version, 14);
+  assert.deepEqual(withdrawn.listings[0]!.original_game, original);
+});
+
+void test("format 15 restrictions require the released reader and never reach older readers weaker", async () => {
+  const { fixtureListing, fixtureDelivery } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery, requireCompactListingReader } =
+    await import("./listing-observation-delivery.mts");
+  const { compactListingCarrier, encodeCompactListing, decodeRetainedCompactListing } =
+    await import("./listing-directory-carrier.mts");
+  const release = (listing_formats: number[]) => ({
+    ok: true,
+    command: "capabilities",
+    data: {
+      product: "Portcove",
+      product_version: "fixture",
+      listing_formats,
+      listing_delivery_carriers: [compactListingCarrier],
+    },
+  });
+  assert.throws(
+    () => requireCompactListingReader(release([12, 13, 14]), 15),
+    /gzip-base64-json-v1 and listing format 15/u,
+  );
+  assert.equal(requireCompactListingReader(release([13, 14, 15]), 15), "fixture");
+
+  const reason = "Fresh acquisition remains held for the documented permissions.";
+  const restrictions = [
+    {
+      id: "download",
+      effect: "hold",
+      operations: ["download"],
+      reason: "bundled-game-data",
+      explanation: reason,
+      tracking_issue: 1,
+    },
+  ];
+  // Core exports the legacy string before its typed source; earlier formats
+  // keep only the string (catalog/listings.rs export_format).
+  const legacy = { ...fixtureListing, download_block_reason: reason };
+  const current = { ...legacy, restrictions };
+  const canonical = { format_version: 15, listings: [current] };
+  const old = decodedListingDelivery(fixtureDelivery());
+  const prior14 = Buffer.from(
+    JSON.stringify({ ...old, directory: { format_version: 14, listings: [fixtureListing] } }),
+  );
+  const projected = projectListingDelivery(canonical, [], prior14, {
+    compatible: canonical,
+    now: 0,
+  });
+  const decoded = decodedListingDelivery(
+    decodeRetainedCompactListing(encodeCompactListing(projected.bytes)),
+  );
+  assert.equal(decoded.directory.format_version, 15);
+  assert.equal(decoded.directory.listings[0]!.download_block_reason, reason);
+  assert.deepEqual(decoded.directory.listings[0]!.restrictions, restrictions);
+
+  assert.throws(
+    () => projectListingDelivery({ format_version: 17, listings: [current] }, [], null, { now: 0 }),
+    /supported bounded canonical directory/u,
+  );
+});
+
+void test("format-16 mod website changes preserve an independent signed release observation", async () => {
+  const { fixtureListing, fixtureDelivery } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const prior = fixtureDelivery();
+  const observation = decodedListingDelivery(prior).directory.listings[0]!.upstream_observation;
+  assert.ok(observation);
+  const modPortal = {
+    id: "community",
+    site: "community_site",
+    name: "Game mods",
+    url: "https://mods.example.com/",
+    instructions: "Read the community requirements.",
+  };
+  const added = { format_version: 16, listings: [{ ...fixtureListing, mod_portals: [modPortal] }] };
+  const first = projectListingDelivery(added, [], prior, { compatible: added, now: 0 });
+  assert.equal(first.retained, 1);
+  const selected = decodedListingDelivery(first.bytes).directory.listings[0]!;
+  assert.deepEqual(selected.upstream_observation, observation);
+  assert.deepEqual(selected.mod_portals, [modPortal]);
+
+  const removed = { format_version: 16, listings: [fixtureListing] };
+  const second = projectListingDelivery(removed, [], first.bytes, { compatible: removed, now: 0 });
+  const withdrawn = decodedListingDelivery(second.bytes).directory.listings[0]!;
+  assert.deepEqual(withdrawn.upstream_observation, observation);
+  assert.equal(withdrawn.mod_portals, undefined);
+});
+
+void test("complete format-13 compact snapshots keep authored scenes and format-12 explanations", async () => {
+  const { fixtureListing, fixtureDelivery } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { encodeCompactListing, decodeRetainedCompactListing } =
+    await import("./listing-directory-carrier.mts");
+  const implementation = { kind: "native_port" };
+  const scene = { id: "scene", role: "screenshot", igdb: { kind: "screenshot" } };
+  const authored = { ...fixtureListing, implementation, media: [scene] };
+  const canonical = { format_version: 13, listings: [authored] };
+  const prior = fixtureDelivery();
+  const compact = projectListingDelivery(canonical, [], prior, { compatible: canonical, now: 0 });
+  assert.equal(compact.delivered_records, 1);
+  const decoded = decodedListingDelivery(
+    decodeRetainedCompactListing(encodeCompactListing(compact.bytes)),
+  );
+  assert.equal(decoded.directory.format_version, 13);
+  assert.deepEqual(decoded.directory.listings[0]!.media, [scene]);
+  assert.deepEqual(decoded.directory.listings[0]!.implementation, implementation);
+  const old = decodedListingDelivery(prior);
+  assert.deepEqual(
+    decoded.directory.listings[0]!.upstream_observation,
+    old.directory.listings[0]!.upstream_observation,
+  );
+  assert.equal(compact.retained, 1);
+  assert.equal(decoded.revision, old.revision + 1);
+  const changedSource = {
+    format_version: 13,
+    listings: [{ ...authored, project_url: "https://github.com/other/game" }],
+  };
+  const changed = projectListingDelivery(changedSource, [], prior, {
+    compatible: changedSource,
+    now: 0,
+  });
+  assert.equal(
+    decodedListingDelivery(changed.bytes).directory.listings[0]!.upstream_observation,
+    undefined,
+  );
+  const withdrawnScene = {
+    format_version: 12,
+    listings: [{ ...fixtureListing, implementation }],
+  };
+  const next = projectListingDelivery(withdrawnScene, [], compact.bytes, {
+    compatible: { ...withdrawnScene, format_version: 13 },
+    now: 0,
+  });
+  const nextDirectory = decodedListingDelivery(next.bytes).directory;
+  assert.equal(nextDirectory.format_version, 13);
+  assert.equal(nextDirectory.listings[0]!.media, undefined);
+});
+
+void test("an absent observed digest frees signed capacity without counting a retained observation as new", async () => {
   const { fixtureListing, fixturePolicy } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
   const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
-  const old = fixturePolicy().listing_update;
-  const first = projectListingDelivery(
-    { format_version: 11, listings: [fixtureListing] },
-    [old],
-    null,
+  const existing = fixturePolicy().listing_update;
+  const previous = Buffer.from(
+    JSON.stringify({
+      listing_delivery_schema: 1,
+      revision: 7,
+      withdrawn_ids: [],
+      directory: { format_version: 11, listings: [existing] },
+    }),
   );
-  const nextListing = { ...fixtureListing, id: "another-project", summary: "x".repeat(20000) };
-  const next = { ...fixturePolicy(nextListing).listing_update };
-  const capped = projectListingDelivery(
-    { format_version: 11, listings: [fixtureListing, nextListing] },
-    [next, old],
-    first.bytes,
-    0,
-    first.bytes.length + 100,
+  const canonical = { format_version: 11, listings: [fixtureListing] };
+  const compact = projectListingDelivery(canonical, [], previous);
+  assert.equal(compact.revision, 8);
+  assert.equal(compact.updated, 0);
+  assert.equal(compact.retained, 1);
+  assert.equal(previous.length - compact.bytes.length, Buffer.byteLength(',"sha256":null'));
+
+  const newListing = { ...fixtureListing, id: "another-project" };
+  const incoming = fixturePolicy(newListing).listing_update;
+  const incomingObservation = fixtureRecord(incoming.upstream_observation);
+  const incomingRelease = requiredFixture(fixtureRecords(incomingObservation.releases)[0]);
+  const incomingAsset = requiredFixture(fixtureRecords(incomingRelease.assets)[0]);
+  incomingAsset.sha256 = "a".repeat(64);
+  const directory = { format_version: 11, listings: [fixtureListing, newListing] };
+  const bounded = projectListingDelivery(directory, [incoming, existing], previous);
+  assert.equal(bounded.delivered_records, 2);
+  assert.equal(bounded.updated, 1);
+  const delivered = fixtureRecord(fixtureRecord(JSON.parse(bounded.bytes.toString())).directory);
+  const newRow = requiredFixture(
+    fixtureRecords(delivered.listings).find((row) => row.id === newListing.id),
   );
-  assert.deepEqual(capped.bytes, first.bytes);
-  assert.equal(capped.changed, false);
-  assert.deepEqual(
-    capped.omitted.map((value) => value.id),
-    ["another-project"],
-  );
-  assert.equal(capped.delivered_records, 1);
-  assert.equal(capped.canonical_records, 2);
+  assert.deepEqual(newRow.upstream_observation, incomingObservation);
+  const oldObservation = fixtureRecord(existing.upstream_observation);
+  const oldRelease = requiredFixture(fixtureRecords(oldObservation.releases)[0]);
+  assert.equal(requiredFixture(fixtureRecords(oldRelease.assets)[0]).sha256, null);
+  const replay = projectListingDelivery(directory, [existing, incoming], bounded.bytes);
+  assert.equal(replay.changed, false);
+  assert.equal(replay.revision, bounded.revision);
+  assert.equal(replay.updated, 0);
+  assert.deepEqual(replay.bytes, bounded.bytes);
 });
 
 void test("descriptive delivery encodes an exact GitHub slash tag from a retained observation", async () => {
@@ -1069,7 +1775,9 @@ void test("descriptive delivery encodes an exact GitHub slash tag from a retaine
   const published = requiredFixture(fixtureRecords(directory.listings)[0]);
   const publishedObservation = fixtureRecord(published.upstream_observation);
   const publishedRelease = requiredFixture(fixtureRecords(publishedObservation.releases)[0]);
-  assert.deepEqual(publishedRelease.assets, [{ ...asset, url: encoded }]);
+  const expected: Record<string, unknown> = { ...asset, url: encoded };
+  delete expected.sha256;
+  assert.deepEqual(publishedRelease.assets, [expected]);
   assert.equal(publishedObservation.facts_sha256, observation.facts_sha256);
   assert.equal(publishedObservation.observed_at, observation.observed_at);
   assert.equal(asset.url, `${root}/download/v1.0/${name}`);
@@ -1187,79 +1895,103 @@ void test("completed source observations stay bound to current canonical provide
   );
 });
 
-void test("reviewed operational listings survive absent observations before optional expired enrichment", async () => {
-  const { fixtureListing, fixturePolicy } =
-    await import("./fixtures/listing-observation-delivery-fixture.mts");
-  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
-  const first = fixturePolicy().listing_update;
-  const initial = projectListingDelivery(
-    { format_version: 11, listings: [fixtureListing] },
-    [first],
-    null,
-  );
-  const registered = {
-    ...fixtureListing,
-    id: "new-reviewed",
-    download_block_reason: "External only",
-  };
-  const discovery = { ...fixtureListing, id: "other-candidate" };
-  const current = { format_version: 11, listings: [fixtureListing, registered, discovery] };
-  const ids = new Set([String(fixtureListing.id), registered.id]);
-  const base = projectListingDelivery(current, [], null, 0, 8 * 1024 * 1024, undefined, ids);
-  assert.ok(typeof first.upstream_observation.fresh_until === "string");
-  const expiry = Date.parse(first.upstream_observation.fresh_until);
-  assert.ok(Number.isFinite(expiry));
-  const constrained = projectListingDelivery(
-    current,
-    [],
-    initial.bytes,
-    0,
-    base.bytes.length,
-    undefined,
-    ids,
-    expiry,
-  );
-  const doc = fixtureRecord(JSON.parse(constrained.bytes.toString()));
-  const rows = fixtureRecords(fixtureRecord(doc.directory).listings);
-  assert.deepEqual(new Set(rows.map((row) => row.id)), ids);
+void test("compact publication rebinds the exact decoded directory to its separate retained physical identity", async (t) => {
+  const { createHash } = await import("node:crypto");
+  const { fixtureDelivery } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { verifiedPriorListing, priorListingForRenewal } =
+    await import("./listing-observation-delivery.mts");
+  const { compactListingDeliveryTarget, encodeCompactListing, decodeRetainedCompactListing } =
+    await import("./listing-directory-carrier.mts");
+  const prior = temp(t);
+  const decoded = fixtureDelivery();
+  const raw = encodeCompactListing(decoded);
+  const sha = createHash("sha256").update(raw).digest("hex");
+  const target = `targets/${sha}.${compactListingDeliveryTarget}`;
+  assert.deepEqual(encodeCompactListing(decoded), raw);
+  assert.deepEqual(decodeRetainedCompactListing(raw), decoded);
   assert.deepEqual(
-    rows.find((row) => row.id === registered.id),
-    registered,
-  );
-  assert.deepEqual(constrained.omittedObservations, [
-    { id: fixtureListing.id, reason: "expired-observation-byte-budget" },
-  ]);
-  assert.deepEqual(doc.withdrawn_ids, []);
-  assert.throws(
-    () =>
-      projectListingDelivery(
-        current,
-        [],
-        initial.bytes,
-        0,
-        base.bytes.length,
-        undefined,
-        ids,
-        expiry - 1,
+    raw,
+    readFileSync(
+      new URL(
+        "../crates/portcove-core/src/testdata/compact-listing-delivery.generated.json",
+        import.meta.url,
       ),
-    /unexpired prior observations/,
+    ),
   );
-  const replay = projectListingDelivery(
-    current,
-    [],
-    constrained.bytes,
-    0,
-    base.bytes.length,
-    undefined,
-    ids,
-    expiry,
+  site(prior, { [compactListingDeliveryTarget]: sha });
+  put(prior, target, raw.toString());
+  const report = {
+    schema_version: 1,
+    authority: "none",
+    files: [{ target, sha256: sha, bytes: raw.length }],
+  };
+  assert.deepEqual(await verifiedPriorListing(prior, report, compactListingDeliveryTarget), raw);
+  const renewal = await priorListingForRenewal(prior, 1, compactListingDeliveryTarget);
+  assert.deepEqual(renewal.bytes, decoded);
+  assert.deepEqual(renewal.wire, raw);
+  await assert.rejects(
+    verifiedPriorListing(
+      prior,
+      { ...report, files: [{ target, sha256: "c".repeat(64), bytes: raw.length }] },
+      compactListingDeliveryTarget,
+    ),
+    /not referenced/u,
   );
-  assert.deepEqual(replay.bytes, constrained.bytes);
-  assert.equal(replay.changed, false);
-  assert.throws(
-    () => projectListingDelivery({ format_version: 11, listings: [registered] }, [], initial.bytes),
-    /without an explicit withdrawal/,
+});
+
+void test("a reviewed compact withdrawal keeps the other delivered listings", async () => {
+  const { fixtureDelivery } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const before = decodedListingDelivery(fixtureDelivery());
+  const released = before.directory.listings[0]!;
+  const wire = (value: unknown) => Buffer.from(JSON.stringify(value));
+  const compactOnly = { ...released, id: "compact-only" };
+  const newerDirectory = {
+    ...before.directory,
+    listings: [...before.directory.listings, compactOnly],
+  };
+  const active = wire({ ...before, directory: newerDirectory, revision: 3 });
+  const refreshed = projectListingDelivery(newerDirectory, [], active, {
+    revisionFloor: 4,
+    compatible: newerDirectory,
+    withdrawals: [released.id],
+  });
+  const actual = decodedListingDelivery(refreshed.bytes);
+  assert.equal(actual.revision, 5);
+  assert.deepEqual(actual.withdrawn_ids, [released.id]);
+  assert.deepEqual(
+    actual.directory.listings.map((listing: { id: string }) => listing.id),
+    ["compact-only"],
   );
+});
+
+void test("compact listing includes the complete canonical snapshot or fails at its true bound", async () => {
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { compactListingDecodedMaximum, decodeRetainedCompactListing, encodeCompactListing } =
+    await import("./listing-directory-carrier.mts");
+  const listings = [
+    { id: "unobserved-listing", name: "Descriptive listing" },
+    { id: "operational-listing", name: "Operational listing" },
+    { id: "withdrawn-listing", name: "Withdrawn listing" },
+  ];
+  const canonical = { format_version: 11, listings };
+  const project = (byteLimit: number) =>
+    projectListingDelivery(canonical, [], null, {
+      byteLimit,
+      now: 0,
+      withdrawals: ["withdrawn-listing"],
+    });
+  const complete = project(compactListingDecodedMaximum);
+  assert.equal(complete.delivered_records, 2);
+  assert.deepEqual(decodedListingDelivery(complete.bytes).directory.listings, [
+    listings[1],
+    listings[0],
+  ]);
+  const wire = encodeCompactListing(complete.bytes);
+  assert.deepEqual(decodeRetainedCompactListing(wire), complete.bytes);
+  assert.deepEqual(project(complete.bytes.length).bytes, complete.bytes);
+  assert.throws(() => project(complete.bytes.length - 1), /retaining last-good publication/u);
+  assert.throws(() => project(compactListingDecodedMaximum + 1), /compact decoded maximum/u);
 });
 
 void test("signed directory retains equivalent completed evidence until its recorded midpoint", async () => {
@@ -1277,21 +2009,23 @@ void test("signed directory retains equivalent completed evidence until its reco
   };
   const candidate = { ...old, upstream_observation: observation };
   const advance = (hours: number, proposed = candidate) =>
-    projectListingDelivery(
-      canonical,
-      [proposed],
-      first.bytes,
-      0,
-      undefined,
-      undefined,
-      new Set(),
-      Date.parse(`2026-11-10T0${hours}:00:02Z`),
-    );
+    projectListingDelivery(canonical, [proposed], first.bytes, {
+      now: Date.parse(`2026-11-10T0${hours}:00:02Z`),
+    });
   assert.deepEqual(advance(3).bytes, first.bytes);
   const renewal = advance(6);
   assert.equal(renewal.revision, first.revision + 1);
   const directory = fixtureRecord(fixtureRecord(JSON.parse(renewal.bytes.toString())).directory);
-  assert.deepEqual(fixtureRecords(directory.listings)[0]?.upstream_observation, observation);
+  const priorDirectory = fixtureRecord(fixtureRecord(JSON.parse(first.bytes.toString())).directory);
+  const priorObservation = fixtureRecord(
+    fixtureRecords(priorDirectory.listings)[0]?.upstream_observation,
+  );
+  assert.deepEqual(fixtureRecords(directory.listings)[0]?.upstream_observation, {
+    ...priorObservation,
+    attempted_at: observation.attempted_at,
+    observed_at: observation.observed_at,
+    fresh_until: observation.fresh_until,
+  });
   for (const changed of [
     { ...observation, facts_sha256: "b".repeat(64) },
     { ...observation, fresh_until: "2026-11-10T14:00:00Z" },
@@ -1299,3 +2033,11 @@ void test("signed directory retains equivalent completed evidence until its reco
     assert.equal(advance(3, { ...candidate, upstream_observation: changed }).changed, true);
   }
 });
+
+function decodedListingDelivery(bytes: Buffer) {
+  return JSON.parse(bytes.toString()) as {
+    revision: number;
+    withdrawn_ids: string[];
+    directory: { format_version: number; listings: ({ id: string } & Record<string, unknown>)[] };
+  };
+}

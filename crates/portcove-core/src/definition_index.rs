@@ -7,7 +7,10 @@ use sha2::{Digest, Sha256};
 use crate::{PortcoveError, Result};
 
 pub(crate) const MAX_INDEX_BYTES: usize = 4 * 1024 * 1024;
-const MAX_DEFINITIONS: usize = 4096;
+/// Count bound the released readers enforce; the publisher keeps honoring it
+/// until they are unsupported. This reader is bounded by `MAX_INDEX_BYTES`.
+#[cfg(test)]
+pub(crate) const RELEASED_READER_MAX_DEFINITIONS: usize = 4096;
 pub(crate) const MAX_ENTRY_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) const MAX_CONTENT_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_TOTAL_BYTES: u64 = 32 * 1024 * 1024;
@@ -76,11 +79,6 @@ impl DefinitionContentIndex {
         if document.index_schema != 1 {
             return Err(PortcoveError::unsupported(
                 "unsupported definition index schema",
-            ));
-        }
-        if document.definitions.len() > MAX_DEFINITIONS {
-            return Err(PortcoveError::verification(
-                "definition index has too many entries",
             ));
         }
         let mut contents = BTreeMap::new();

@@ -83,7 +83,7 @@ fn sealed_plan(format: u32) -> RecipeImportPlan {
         originals: Vec::new(),
         verified_originals: Vec::new(),
         packages: Vec::new(),
-        acquisitions: Vec::new(),
+        staging: Default::default(),
         provider_checks: Vec::new(),
         code_approval: vec![RecipeCodeApproval {
             native_id: "numbers.nrm".into(),
@@ -176,4 +176,64 @@ fn edited_serialized_recipe_review_still_requires_existing_core_integrity_and_co
         ErrorCode::Verification
     );
     assert!(RecipeImportReview::decode("not JSON").is_err());
+}
+
+#[test]
+fn the_display_copy_carries_no_provider_plans_and_the_serialized_plan_carries_each_once() {
+    let mut plan = sealed_plan(3);
+    let provider_plan = portcove_core::ProviderInstallPlan {
+        port_id: "zelda64-recomp".into(),
+        profile_id: "review".into(),
+        review_nonce: None,
+        expected_revision: 1,
+        provider: portcove_core::ProviderPackageRef {
+            binding: None,
+            provider: "gamebanana".into(),
+            project: "1".into(),
+            file: Some("2".into()),
+            version: None,
+        },
+        project_name: "Shared closure display fixture".into(),
+        file: portcove_core::ProviderFileCandidate {
+            file_id: "2".into(),
+            file_name: "fixture.zip".into(),
+            size: 1,
+            added_at: 1,
+            download_url: "https://gamebanana.com/dl/2".into(),
+            claimed_md5: None,
+            archived: false,
+            status_unknown: None,
+            claimed_scan: None,
+            thunderstore_dependencies: None,
+        },
+        download_sha256: "d".repeat(64),
+        download_size: 1,
+        members: Vec::new(),
+        wrappers: Vec::new(),
+        ignored_entries: 0,
+        replaces: Vec::new(),
+        conflicts: Vec::new(),
+        conflicts_truncated: false,
+        unverified_claims: Vec::new(),
+        plan_sha256: "e".repeat(64),
+    };
+    plan.staging.provider_plans.push(provider_plan);
+    plan.staging.acquisitions = ["first.nrm", "second.nrm"]
+        .into_iter()
+        .map(|native_id| portcove_core::RecipeAcquisitionRef {
+            native_id: native_id.into(),
+            plan_sha256: "e".repeat(64),
+        })
+        .collect();
+    let review = RecipeImportReview::new(plan.clone()).unwrap();
+    assert!(review.plan.staging.provider_plans.is_empty());
+    assert_eq!(review.plan.staging.acquisitions, plan.staging.acquisitions);
+    let envelope = serde_json::to_string(&review).unwrap();
+    assert_eq!(
+        envelope.matches("Shared closure display fixture").count(),
+        1,
+        "the plan crosses IPC once, inside the serialized plan"
+    );
+    let decoded = RecipeImportReview::decode(&review.serialized_plan).unwrap();
+    assert_eq!(decoded.staging, plan.staging);
 }

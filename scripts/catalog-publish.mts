@@ -6,15 +6,19 @@
 // The compiled root (`crates/portcove-core/catalog/official-definition-root.json`)
 // and the owner's offline Targets stay authoritative; this script only writes
 // configuration. Every signer and the assembler re-verify all inputs.
+import { artworkCheckpointTarget } from "./listing-artwork-checkpoint.mts";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   cpSync,
+  copyFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
+  renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -22,6 +26,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import { decodeTufRoleKey } from "./tuf-role-key.mts";
+import {
+  compactListingDeliveryTarget,
+  listingDeliveryTarget,
+} from "./listing-directory-carrier.mts";
+import {
+  type RetainBodies,
+  listingFloorLedgerPath,
+  prunedListingBodies,
+  retainBodies,
+} from "./catalog-body-window.mts";
 
 export const onlineRoles = [
   "official-definitions",
@@ -42,6 +56,11 @@ export type Plan = {
   versions: Four<number>;
   expires: Four<string>;
   prior: boolean;
+  history?: "bootstrap" | "segmented";
+  /** Body retention in force for this run (#1422); absent means `all`. */
+  retain_bodies?: "ledger" | "window";
+  /** Whether a published listing-floor ledger exists to extend. */
+  listing_ledger?: "backfill" | "extend";
 };
 
 function readJson(file: string): unknown {
@@ -153,8 +172,36 @@ export function contextConfig(work: string, now: Date) {
     inspection: "inspection.json",
     inspection_sha256: sha256(path.join(work, "inspection.json")),
     previous_repository: plan.prior ? "prior" : null,
+    ...(plan.history === "bootstrap" ? { bootstrap_history: true } : {}),
+    ...(plan.history === "segmented" ? { history_store: "history" } : {}),
+    ...(plan.listing_ledger
+      ? {
+          listing_floor_ledger: {
+            prior: plan.listing_ledger === "extend" ? priorListingLedger : null,
+          },
+        }
+      : {}),
     versions: plan.versions,
     expires: plan.expires,
+  };
+}
+
+/**
+ * Keyless history verification of the staged Pages catalog against the ledger
+ * this run serves, before the publish commit: a divergence between the window
+ * and the verifier stops this run instead of the next one (#1422).
+ */
+export function siteHistoryConfig(work: string, site: string) {
+  const catalog = path.resolve(site, "catalog");
+  return {
+    schema_version: 1,
+    initial_root_profile: "single-owner-one-of-one-v1",
+    trusted_root: "root.json",
+    trusted_root_sha256: sha256(path.join(work, "root.json")),
+    offline_targets: "offline-targets.json",
+    offline_targets_sha256: sha256(path.join(work, "offline-targets.json")),
+    repository: catalog,
+    listing_floor_ledger: { prior: path.join(catalog, listingFloorLedgerPath) },
   };
 }
 
@@ -175,12 +222,191 @@ export const assemblyConfig = {
   output: "repository",
 };
 
-/** Visitor pages are not TUF repository inputs. Preserve the existing prior
- * repository files while keeping the whole site's digest as the write guard. */
+const historyTarget = "policy/official/catalog.history-checkpoint.json";
+/** Work-relative copy of the published ledger and the run's derived ledger. */
+const priorListingLedger = "prior-listing-floors.json";
+export const listingLedgerOutput = "listing-floors.json";
+
+/**
+ * Body retention for one run. Checkpointed history keeps its own archive of
+ * every file, so retention stays off beside it (publication continues).
+ */
+export function retentionPlan(
+  site: string | null,
+  mode: RetainBodies,
+  history: Plan["history"],
+): Pick<Plan, "retain_bodies" | "listing_ledger"> & { notice?: string } {
+  if (mode === "all" || !site) return {};
+  if (history)
+    return { notice: `catalog body retention ${mode} stays off while history is ${history}` };
+  return {
+    retain_bodies: mode,
+    listing_ledger: existsSync(path.join(site, listingFloorLedgerPath)) ? "extend" : "backfill",
+  };
+}
+const hashPattern = /^[a-f0-9]{64}$/u;
+const publicPath = /^(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+$/u;
+
+function historyObject(identity: unknown, source: string, destination: string, limit: number) {
+  if (
+    !isRecord(identity) ||
+    typeof identity.bytes !== "number" ||
+    !Number.isSafeInteger(identity.bytes) ||
+    identity.bytes < 1 ||
+    identity.bytes > limit ||
+    typeof identity.sha256 !== "string" ||
+    !hashPattern.test(identity.sha256)
+  )
+    throw new Error("catalog history object identity is outside its bound");
+  const name = `sha256/${identity.sha256}.json`;
+  const file = path.join(source, name);
+  const stat = lstatSync(file);
+  if (!stat.isFile() || stat.size !== identity.bytes || sha256(file) !== identity.sha256)
+    throw new Error("catalog history object differs from its expected identity");
+  mkdirSync(path.join(destination, "sha256"), { recursive: true });
+  copyFileSync(file, path.join(destination, name));
+  return readJson(file);
+}
+
+/**
+ * Signed history stays inert until the owner activates it. A published pointer
+ * continues the segmented archive; otherwise only an explicit owner bootstrap
+ * request (a manual `workflow_dispatch` input, never push or schedule) may sign
+ * the first checkpoint. Everything else plans exactly the pre-history publication.
+ */
+export function historyMode(input: {
+  site: string | null;
+  versions: Four<number> | null;
+  history: string;
+  bootstrapRequested: boolean;
+  event: string | undefined;
+}): Plan["history"] {
+  const { site, versions, history, bootstrapRequested, event } = input;
+  if (bootstrapRequested && event !== undefined && event !== "workflow_dispatch")
+    throw new Error("catalog history bootstrap is an owner action from a manual run only");
+  if (site && versions && Object.hasOwn(publishedTargets(site), historyTarget)) {
+    if (!existsSync(history)) throw new Error("checkpointed catalog history archive is missing");
+    return "segmented";
+  }
+  if (!bootstrapRequested) return undefined;
+  if (!site || !versions)
+    throw new Error("catalog history bootstrap requires an existing published catalog");
+  if (existsSync(history))
+    throw new Error("catalog history has objects without an authenticated pointer");
+  // A checkpoint is derived from every listing body; the window's pruned
+  // bodies must be restored first (docs/RELEASING.md, full restore).
+  if (prunedListingBodies(site).length)
+    throw new Error(
+      "catalog history bootstrap needs a full restore of the pruned listing bodies first",
+    );
+  return "bootstrap";
+}
+
+/** Thin transport for independent signers. Rust reauthenticates every copied
+ * role/active target and checks the checkpoint before touching a role key. */
+export function limitSignerHistory(work: string) {
+  if (readPlan(work).history !== "segmented") return;
+  const prior = path.join(work, "prior");
+  const thin = path.join(work, "thin-prior");
+  const history = path.join(work, "history");
+  const thinHistory = path.join(work, "thin-history");
+  const versions = priorVersions(prior);
+  const root = readJson(path.join(work, "root.json"));
+  const version = isRecord(root) && isRecord(root.signed) ? root.signed.version : undefined;
+  if (!versions || typeof version !== "number" || !Number.isSafeInteger(version) || version < 1)
+    throw new Error("catalog thin prior requires exact current role versions");
+  const snapshot = readJson(path.join(prior, "metadata", `${versions.snapshot}.snapshot.json`));
+  const targetsMeta =
+    isRecord(snapshot) && isRecord(snapshot.signed) && isRecord(snapshot.signed.meta)
+      ? snapshot.signed.meta["targets.json"]
+      : null;
+  if (!isRecord(targetsMeta)) throw new Error("catalog thin prior is missing the top-level role");
+  const targetsVersion = positive(targetsMeta.version, "targets");
+  const files = [
+    "metadata/timestamp.json",
+    `metadata/${version}.root.json`,
+    `metadata/${targetsVersion}.targets.json`,
+    `metadata/${versions.snapshot}.snapshot.json`,
+    `metadata/${versions.policy}.official-policy.json`,
+    `metadata/${versions.definitions}.official-definitions.json`,
+  ];
+  const targets = publishedTargets(prior);
+  const pointerHash = targets[historyTarget];
+  if (!pointerHash || !hashPattern.test(pointerHash))
+    throw new Error("checkpointed catalog is missing its signed history pointer");
+  if (Object.keys(targets).length > 4096)
+    throw new Error("catalog thin target count exceeds bound");
+  for (const [name, digest] of Object.entries(targets)) {
+    if (
+      !hashPattern.test(digest) ||
+      !publicPath.test(name) ||
+      name.split("/").some((part) => part === "." || part === "..")
+    )
+      throw new Error("catalog thin target path is invalid");
+    files.push(`targets/${digest}.${name}`);
+  }
+  const pointerPath = path.join(prior, `targets/${pointerHash}.${historyTarget}`);
+  const pointerFile = lstatSync(pointerPath);
+  if (!pointerFile.isFile() || pointerFile.size > 4096 || sha256(pointerPath) !== pointerHash)
+    throw new Error("catalog history pointer differs from its policy target");
+  const pointer = readJson(pointerPath);
+  if (!isRecord(pointer)) throw new Error("catalog history pointer is unreadable");
+  const active = historyObject(pointer.active, history, thinHistory, 2 * 1024 * 1024);
+  if (!isRecord(active)) throw new Error("catalog history active checkpoint is unreadable");
+  historyObject(active.tip, history, thinHistory, 1024 * 1024);
+  let bytes = 0;
+  for (const file of files) {
+    const source = path.join(prior, file);
+    const stat = lstatSync(source);
+    bytes += stat.size;
+    if (!stat.isFile() || bytes > 64 * 1024 * 1024)
+      throw new Error("catalog thin prior exceeds its regular-file bound");
+    const destination = path.join(thin, file);
+    mkdirSync(path.dirname(destination), { recursive: true });
+    copyFileSync(source, destination);
+  }
+  for (const [original, replacement] of [
+    [prior, thin],
+    [history, thinHistory],
+  ] as const) {
+    const full = `${original}-verified-full`;
+    renameSync(original, full);
+    renameSync(replacement, original);
+    rmSync(full, { recursive: true });
+  }
+}
+
+export function stageHistoryObjects(source: string, destination: string, priorDigest: string) {
+  if (treeDigest(destination) !== priorDigest)
+    throw new Error("gh-pages catalog-history/ changed since this run read it");
+  if (!existsSync(source)) return [];
+  const objects = treeInventory(source);
+  for (const [name, object] of objects) {
+    if (name !== `sha256/${object.sha256}.json` || object.bytes > 2 * 1024 * 1024)
+      throw new Error("assembled catalog history object exceeds its immutable bounds");
+  }
+  const changed: string[] = [];
+  for (const [name, object] of objects) {
+    const output = path.join(destination, name);
+    if (existsSync(output)) {
+      if (!lstatSync(output).isFile() || sha256(output) !== object.sha256)
+        throw new Error("published catalog history object cannot be replaced");
+      continue;
+    }
+    mkdirSync(path.dirname(output), { recursive: true });
+    copyFileSync(path.join(source, name), output);
+    changed.push(name);
+  }
+  return changed;
+}
+
+/** Visitor pages and the listing-floor ledger are not TUF repository inputs.
+ * Preserve the existing prior repository files while keeping the whole site's
+ * digest as the write guard. */
 export function copyPriorRepository(site: string, output: string) {
   mkdirSync(output, { recursive: true });
   for (const name of readdirSync(site)) {
-    if (name === "browse") continue;
+    if (name === "browse" || name === path.dirname(listingFloorLedgerPath)) continue;
     cpSync(path.join(site, name), path.join(output, name), { recursive: true });
   }
 }
@@ -278,8 +504,13 @@ export function sameStaticPublicationTargets(
   published: Record<string, string>,
 ) {
   const previous = { ...published };
-  if (!Object.hasOwn(bundle, "policy/official/catalog.listings.json"))
-    delete previous["policy/official/catalog.listings.json"];
+  delete previous[historyTarget];
+  for (const target of [
+    listingDeliveryTarget,
+    compactListingDeliveryTarget,
+    artworkCheckpointTarget,
+  ])
+    if (!Object.hasOwn(bundle, target)) delete previous[target];
   return sameTargets(bundle, previous);
 }
 
@@ -345,9 +576,39 @@ async function main(argv: string[]) {
     if (versions && existsSync(path.join(site!, "browse")))
       cpSync(path.join(site!, "browse"), path.join(work, "prior-browse"), { recursive: true });
     const plan = planPublication(versions, new Date());
+    const history = site
+      ? path.join(path.dirname(site), "catalog-history")
+      : path.join(work, "absent");
+    const mode = historyMode({
+      site,
+      versions,
+      history,
+      bootstrapRequested: args.includes("--bootstrap-history"),
+      event: process.env.GITHUB_EVENT_NAME,
+    });
+    if (mode === "segmented") cpSync(history, path.join(work, "history"), { recursive: true });
+    if (mode) plan.history = mode;
+    const index = args.indexOf("--retain-bodies");
+    const { notice, ...retention } = retentionPlan(
+      versions ? site : null,
+      retainBodies(index >= 0 ? args[index + 1] : undefined),
+      mode,
+    );
+    if (notice) console.error(`::notice::${notice}`);
+    Object.assign(plan, retention);
+    if (plan.listing_ledger === "extend")
+      cpSync(path.join(site!, listingFloorLedgerPath), path.join(work, priorListingLedger));
     write(path.join(work, "plan.json"), plan);
+    // Without a published pointer or an owner bootstrap request the outputs,
+    // plan and signing context stay exactly those of pre-history publication.
+    if (mode) {
+      console.log(`history_mode=${mode}`);
+      console.log(`prior_history_digest=${treeDigest(history)}`);
+    }
     write(path.join(work, "context.json"), contextConfig(work, new Date()));
     console.log(`prior_digest=${treeDigest(site ?? path.join(work, "absent"))}`);
+    // Retention off keeps exactly the outputs publication had before it.
+    if (plan.retain_bodies) console.log(`retain_bodies=${plan.retain_bodies}`);
     console.error(`Catalog plan: ${JSON.stringify(plan.versions)} (prior site: ${plan.prior})`);
   } else if (command === "sign-config") {
     const work = path.resolve(flag(args, "work"));
@@ -360,7 +621,63 @@ async function main(argv: string[]) {
   } else if (command === "assembly-config") {
     const work = path.resolve(flag(args, "work"));
     write(path.join(work, "context.json"), contextConfig(work, new Date()));
-    write(path.join(work, "assembly.json"), assemblyConfig);
+    const plan = readPlan(work);
+    write(path.join(work, "assembly.json"), {
+      ...assemblyConfig,
+      ...(plan.history ? { history_output: "repository-history" } : {}),
+      ...(plan.listing_ledger ? { listing_floor_ledger_output: listingLedgerOutput } : {}),
+    });
+  } else if (command === "site-history-config") {
+    const work = path.resolve(flag(args, "work"));
+    write(path.join(work, "site-history.json"), siteHistoryConfig(work, flag(args, "site")));
+  } else if (command === "limit-signer-history") {
+    limitSignerHistory(path.resolve(flag(args, "work")));
+  } else if (command === "restore-history") {
+    const work = path.resolve(flag(args, "work"));
+    if (readPlan(work).history !== "segmented")
+      throw new Error("catalog restore requires segmented signing inputs");
+    const site = path.resolve(flag(args, "site"));
+    const history = path.join(site, "catalog-history");
+    if (
+      treeDigest(path.join(site, "catalog")) !== flag(args, "prior") ||
+      treeDigest(history) !== flag(args, "prior-history")
+    )
+      throw new Error("pinned catalog history differs from the guarded preparation");
+    copyPriorRepository(path.join(site, "catalog"), path.join(work, "prior"));
+    cpSync(history, path.join(work, "history"), { recursive: true });
+  } else if (command === "stage-history") {
+    const site = path.resolve(flag(args, "site"));
+    const work = path.resolve(flag(args, "work"));
+    const changed = stageHistoryObjects(
+      path.join(work, "repository-history"),
+      path.join(site, "catalog-history"),
+      flag(args, "prior-history"),
+    );
+    if (changed.length)
+      execFileSync("git", [
+        "--literal-pathspecs",
+        "-C",
+        site,
+        "add",
+        "--",
+        ...changed.map((file) => `catalog-history/${file}`),
+      ]);
+  } else if (command === "history-readback") {
+    const work = path.resolve(flag(args, "work"));
+    if (!readPlan(work).history) return;
+    const repository = path.join(work, "repository");
+    const pointer = publishedTargets(repository)[historyTarget];
+    if (!pointer || !hashPattern.test(pointer))
+      throw new Error("assembled catalog has no exact history pointer");
+    console.log(`catalog/targets/${pointer}.${historyTarget} ${pointer} 4096`);
+    const objects = treeInventory(path.join(work, "repository-history"));
+    if (!objects.size || objects.size > 64)
+      throw new Error("assembled catalog history is outside its live-readback bound");
+    for (const [name, entry] of objects) {
+      if (name !== `sha256/${entry.sha256}.json` || entry.bytes > 2 * 1024 * 1024)
+        throw new Error("assembled catalog history object exceeds its immutable bounds");
+      console.log(`catalog-history/${name} ${entry.sha256} ${entry.bytes}`);
+    }
   } else if (command === "unchanged") {
     // Compare fixed reviewed inputs; the sole derived listing target refreshes on the existing cadence.
     const site = flag(args, "prior");
@@ -384,7 +701,7 @@ async function main(argv: string[]) {
     console.log(treeDigest(path.resolve(flag(args, "dir"))));
   } else {
     throw new Error(
-      "usage: catalog-publish.mts green-main|prepare|unchanged|renewal-due|sign-config|write-key|assembly-config|tree-digest",
+      "usage: catalog-publish.mts green-main|prepare|unchanged|renewal-due|sign-config|write-key|assembly-config|site-history-config|tree-digest",
     );
   }
 }

@@ -15,13 +15,16 @@
     "error": {
       "choose": "Elige una de las opciones de la lista.",
       "number": "Escribe un número.",
+      "range": "Introduce un número dentro del intervalo indicado.",
       "tooLarge": "Este número es demasiado grande para guardarlo con precisión.",
       "whole": "Escribe un número entero."
     },
+    "pendingDefault": "Se usará el valor predeterminado al guardar.",
     "rangeNumber": "Números de {{minimum}} a {{maximum}}, en pasos de {{step}}.",
     "rangeWhole": "Números enteros de {{minimum}} a {{maximum}}, en pasos de {{step}}.",
-    "reset": "Restablecer el valor predeterminado…",
-    "review": "Revisar el cambio"
+    "reset": "Usar valor predeterminado",
+    "review": "Revisar cambios",
+    "undo": "Deshacer"
   },
   "jakMods": {
     "browse": "Explorar JakMods",
@@ -135,6 +138,30 @@
     "createFirst": "Crear el primer perfil",
     "defaultRefreshRequired": "El perfil predeterminado aún registra una versión anterior del juego. Actualízalo antes de copiarlo o exportarlo.",
     "empty": "No hay mods. El juego se ejecuta sin cambios en este perfil.",
+    "external": {
+      "cached": "Se muestran resultados anteriores. La fuente no se pudo consultar ahora.",
+      "checked": "Consultado el {{date}}",
+      "empty": "La fuente no devolvió resultados.",
+      "heading": "Sitios de mods de la comunidad",
+      "incomplete": "Algunas entradas tenían datos ilegibles. Los resultados pueden estar incompletos.",
+      "latest": "Ver lo más reciente en Quaddicted",
+      "linkUnavailable": "El enlace ya no está confirmado. Actualiza los resultados antes de abrirlo.",
+      "loading": "Consultando la fuente…",
+      "modDb": "Ver en Mod DB",
+      "modIo": "Ver en mod.io",
+      "more": "Más resultados",
+      "nexus": "Obtener en Nexus",
+      "notices": "Ver avisos de archivos de {{name}}",
+      "otherEngine": "Requiere otro motor",
+      "owner": "Elige, instala y actualiza los archivos fuera de Portcove.",
+      "previous": "Resultados anteriores",
+      "quaddicted": "Ver en Quaddicted",
+      "search": "Buscar en Quaddicted",
+      "searchFilename": "Nombre de archivo",
+      "site": "Explorar {{name}}",
+      "unavailable": "No se pudo consultar la fuente. Inténtalo de nuevo o abre su sitio web.",
+      "unverifiedEngine": "Comprueba qué motores admite este archivo."
+    },
     "filePreservation": {
       "adopt": "Para un mod compatible, usa Añadir archivo de mod y elige este archivo guardado.",
       "details": "Detalles del archivo",
@@ -149,6 +176,11 @@
     },
     "fromProvider": "<name /> (de <provider />)",
     "gameChanged": "Este juego cambió. Actualiza sus detalles antes de cambiar los mods.",
+    "github": {
+      "browse": "Ver mods en GitHub",
+      "platform": "Puedes ver las versiones. Para instalar este ZIP necesitas una copia instalada del juego cuya versión lo admita en esta plataforma.",
+      "setup": "Descarga el ZIP completo. Abre una copia separada del juego y selecciona el ZIP en Install Mods. Actualiza esa copia cuando quieras una versión más reciente."
+    },
     "heading": "Perfiles y mods",
     "held": {
       "intro_one": "Portcove mantuvo la versión actual de un mod porque su actualización necesita tu revisión:",
@@ -223,13 +255,18 @@
     },
     "recipe": {
       "allowCode": "Permito que los paquetes indicados a continuación ejecuten código de mods.",
+      "checkAllProviders": "Buscar en el proveedor todos los mods que faltan",
+      "checkedSoFar": "{{done}} de {{total}} mods comprobados con el proveedor.",
       "checkProvider": "Buscar {{name}} en el proveedor",
+      "checksPaused": "En pausa tras comprobar {{done}} de {{total}} mods. Los archivos comprobados están listos para esta receta.",
+      "checkStopped": "Se detuvo en {{name}}. {{reason}} Los mods comprobados antes siguen listos, también tras reiniciar.",
       "close": "Cerrar revisión",
       "details": "Archivos y detalles de la receta",
       "disabled": "{{name}} está desactivado",
       "enabled": "{{name}} está activo",
       "export": "Exportar receta de configuración…",
       "fileType": "Receta de configuración de Portcove",
+      "finishingStep": "Terminando este paso antes de pausar…",
       "gameFiles": "Abrir Archivos del juego",
       "held": "Para importar esta receta, primero necesitas los archivos indicados abajo.",
       "identity": "SHA-256 de la receta",
@@ -240,6 +277,7 @@
       "order": "Orden de carga para {{domain}}",
       "originalNeeded": "Añade o vuelve a vincular el archivo original correspondiente de tu propia copia y revisa la receta de nuevo.",
       "packages": "Mods en la receta",
+      "pauseChecks": "Pausar después de este paso",
       "platform": "Plataforma {{platform}}",
       "providerFile": "Comprueba el archivo <file/> del proyecto <project/> en <provider/> antes de importar esta receta. Portcove comprueba qué archivos contiene la descarga y qué otros mods necesitan.",
       "providerSetupNeeded": "Crea o selecciona una configuración para buscar los archivos exactos en el proveedor.",
@@ -326,6 +364,7 @@
         "held": "La actualización requiere revisión.",
         "unavailable": "No se pudo comprobar. Portcove volverá a intentarlo."
       },
+      "automaticIncomplete": "No se pudieron leer algunos resultados de la última comprobación automática. La próxima comprobación automática los vuelve a registrar.",
       "check": "Buscar actualizaciones de mods",
       "checking": "Buscando actualizaciones de mods…",
       "detail": {
@@ -362,6 +401,7 @@
       "applied": "Cambios del perfil aplicados.",
       "apply": "Aplicar cambios",
       "applyCode": "Permitir este código y aplicar los cambios",
+      "applyReadback": "Portcove no pudo confirmar el perfil actual. Vuelve a leer los perfiles.",
       "browse": "Explorar mods",
       "browseOnly": "Abre la fuente para ver qué archivos ofrece para este mod.",
       "cached": "No se pudo acceder a la fuente. Se muestran los resultados guardados.",
@@ -381,7 +421,7 @@
       "disabledFilter": "Desactivados",
       "discardOlder": "Descartar cambios anteriores",
       "done": "Listo",
-      "draftLimit": "Puedes añadir hasta 16 mods a la cola. Aplica o deshaz cambios para añadir más.",
+      "draftLimit": "Una configuración admite hasta {{limit}} mods. Aplica o deshaz cambios para añadir más.",
       "editOrder": "Editar orden",
       "emptySource": "{{provider}} no ofrece mods para este port.",
       "enabledFilter": "Activados",
@@ -429,6 +469,7 @@
       "playUses": "Usa <name />",
       "queueLocal": "Añadir archivo a la cola",
       "readFailed": "No se pudo comprobar si este juego admite mods.",
+      "readingAppliedSetup": "Leyendo el perfil actual…",
       "recoverAdditions": "Recuperar adiciones",
       "refresh": "Actualizar",
       "refreshFailed": "No se pudo actualizar la fuente. Inténtalo de nuevo.",
@@ -467,10 +508,16 @@
     }
   },
   "panel": {
+    "discard": "Descartar borrador",
     "fileUnavailable": "Este archivo de ajustes no está disponible.",
     "heading": "Ajustes del juego",
-    "intro": "Revisa cada cambio antes de guardarlo. Las demás preferencias no cambian.",
+    "held": "Este borrador pertenece a una configuración o un archivo anterior. Para editar los ajustes actuales, descarta este borrador y vuelve a introducir tus cambios.",
+    "heldUnavailable": "Portcove no pudo leer los ajustes de este borrador. Vuelve a leer los ajustes para buscar la configuración y el archivo originales.",
+    "installTarget": "Versión del juego {{version}}",
+    "intro": "Edita los ajustes y revisa los cambios de cada archivo antes de guardarlos.",
     "label": "Ajustes del juego",
+    "limit": "Puedes revisar hasta 16 cambios a la vez. Deshaz algunos para continuar.",
+    "setupTarget": "Configuración {{setup}} · Versión del juego {{version}}",
     "unavailable": "Los ajustes no están disponibles para esta instalación."
   },
   "review": {
@@ -478,15 +525,17 @@
     "cancel": "Cancelar",
     "current": "Valor guardado actual",
     "default": "Predeterminado",
-    "description": "Guarda solo esta preferencia para el juego instalado. Es posible que el juego deba reiniciarse para usarla.",
-    "failure": "No se aceptó el cambio. Actualiza los ajustes y vuelve a revisarlos.",
+    "description": "Comprueba los cambios antes de guardarlos. Puede que necesites reiniciar el juego.",
+    "failure": "Portcove no pudo confirmar que se guardaran los cambios. Vuelve a leer los ajustes antes de guardar de nuevo.",
     "installationChanged": "La instalación cambió. Actualiza los ajustes y vuelve a revisarlos.",
     "new": "Nuevo valor",
-    "reading": "Leyendo el ajuste actual…",
-    "save": "Guardar el ajuste",
-    "setting": "Ajuste",
+    "reading": "Comprobando los ajustes actuales…",
+    "requiresStandardWindowsSession": "No se pueden revisar los ajustes del juego en esta sesión de Windows. Abre Portcove desde el escritorio sin privilegios de administrador para editar los ajustes del juego.",
+    "save": "Guardar cambios",
+    "saved": "Cambios guardados.",
+    "savedReadback": "Cambios guardados. Vuelve a leer los ajustes para ver los valores actuales.",
     "technical": "Detalles técnicos",
-    "title": "Revisar el ajuste del juego"
+    "title": "Revisar ajustes del juego"
   },
   "value": {
     "notSaved": "Sin guardar",

@@ -68,6 +68,15 @@ and package tests and both executable adapter suites still run, along with
 catalog validation and workspace compilation. Mixed, unproven and
 qualification changes retain ordinary coverage.
 
+A new or removed bound constant needs a register edit in the same change.
+[`RESTRICTION-REGISTER.md`](RESTRICTION-REGISTER.md) names every production
+constant with a `MAX`, `LIMIT`, `BOUND`, `CAP` or `BUDGET` name segment in Rust,
+and every top-level TypeScript constant named like a bound (`maxItems`,
+`maximumBytes`, `requestLimit`, `pageBound`). Production sources select
+`scripts/check-document-links.test.mts`. It fails when a cited file or whole-word
+name disappears, and when a production bound constant is neither registered nor
+in its reviewed exclusions.
+
 Ordinary catalog changes are meant to be data-only. On pull requests, the CI plan
 job runs `scripts/catalog-rust-edit-report.mts` over the plan's complete changed-file
 list and, when port data under `crates/portcove-core/catalog/ports/` or `catalog.json`
@@ -459,6 +468,26 @@ This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
 
+Windows run `44903098663`, attempt 1, hit the 120-second Nextest limit on
+the additive Sonic settings lifecycle and the three-update MStan SNES fixture.
+Neither run reported an assertion failure before its cutoff. The MStan case
+has a 240-second Windows limit with the same assertions, cleanup and retry
+policy. The Sonic case still reached only its final restore when run
+`44960117848` cut it at 240 seconds. These timeouts occurred only on #8478 and
+#8503 heads that added the `portcove-listing-carrier` crate without a test
+`opt-level`, so Core tests ran its shared code unoptimized. On those heads the
+populated Mega Man X2 transition took 143 to 240 seconds, against 38.4 seconds
+on pre-#8478 `main` (`63c5b009`, run `45054336807`), where the additive Sonic
+case passed in 71 seconds and every `compatible_archive_progression_*` and
+`reviewed_archive_transition_*` case passed under the 120-second default.
+#8478 set the carrier's test `opt-level` to 1 and also limited the fixture
+catalog to the port under test; no run separates the two effects. Windows run
+`45042553290`, attempt 1, then passed both families in 3.7 to 13.7 seconds, so
+they use the 120-second default again. The
+`[profile.test.package.portcove-listing-carrier]` `opt-level = 1` entry in
+`Cargo.toml` is load-bearing for these budgets; re-measure them on Windows
+before removing it.
+
 On November 21, two guarded WSL commands hit the 30-second checkout scan
 deadline before starting their payloads. One read-only scan of the #8115
 checkout at `36703f2c4ddd` then completed in 87.516 seconds under the existing
@@ -480,6 +509,24 @@ now explicitly set the normal-motion media preference they exercise and restore
 the browser default after each case. Their rendering and transition assertions
 remain in place.
 
+Linux `main` job 135397217271 failed the narrow portrait-cards capture while it
+waited for document images under the default one-second poll. The two pending
+images were the App shell's sidebar avatar, a protected 949 KB PNG served by
+the test server, not the fixture covers. Local network throttling to 600 KB/s
+reproduced the same assertion in 30 of 30 runs. The shared
+`settleDocumentImages` helper now waits for each incomplete image's load, error
+or abort event within a six-second harness budget, matching the finite-animation
+and virtual-row mount waits. The same throttled case then passed 30 of 30 runs
+and still passed at 300 KB/s. Interactive-app captures use the same helper.
+Screenshot, layout and containment assertions are unchanged.
+
+Windows owned-backups job 136906004836 reached the 600-second harness deadline
+after verifying restore, deletion and the first degraded-history capture. The
+backup chain has a 1,200-second allowance to finish the remaining checks and
+join its owned processes. The degraded-history action check waits up to 60
+seconds for the exact usable row and both enabled actions on the same current
+inventory. The app still disables Restore while history refreshes.
+
 The November 18 Native27 Windows run at `eaae775d` (output
 `2026-11-18T12-56-04-004Z-K6Cg8V`, preparation live by 13:05 UTC) retained a
 15-second timeout waiting for the backup review's “Review again” control after
@@ -497,6 +544,15 @@ ordinary click. Activity identity, accessible name and focus assertions, consent
 stale-review refusal, saved-data and backup assertions, retry policy, cleanup and
 application/IPC/safety deadlines remain unchanged. The original failures remain
 evidence; these calibrations alone do not establish successful native workflows.
+
+On November 21, hosted Windows artwork job 136791041646 recorded the exact
+Cover import at revision 1. The editor remained busy with thumbnail and artwork
+reads in flight, and an earlier read took 16.35 seconds. The native test now
+allows up to 60 seconds for the exact committed digest and for the editor to
+settle. Its 10-minute scenario watchdog includes both role confirmations,
+reload and owned cleanup. The test still requires the original digest, revision
+and focus assertions. The observed import and picker results remain partial
+evidence until the renderer and recovery checks pass.
 
 The November 18 hosted Windows review-continuation run at `6c01ccf6`
 (`44395050884/1`, job `135122626956`) positively recorded the owned native
@@ -669,6 +725,23 @@ limit; the 15 exact overrides above 120 seconds keep their budgets and order.
 Product deadlines, assertions and cleanup are unchanged; a pass under the
 larger budget proves completion under that budget.
 
+Hosted Windows run 45270048531 (job 138089076789, partition 1) cut
+`profile::tests::a_port_keeps_creating_setups_past_the_old_per_port_boundary_and_exports_them`
+at the 120-second default on both tries. It created 499 setups one at a time
+through `copy_profile`. Measurement on Linux found one product defect. With
+the per-port `LIMIT 65` gone, looking up one setup decoded every setup of the
+port, so each create grew with library size. Before the fix, one create decoded
+2 records at 2 setups and 1,003 at 1,002. The lookup now reads the indexed row:
+a create decodes 2 records, prepares 59 statements and runs 3,088 SQLite steps
+at both sizes. A create still costs about 135 milliseconds on Linux and about
+240 milliseconds or more on Windows. That cost is constant: each create is its
+own durable transaction. The case now creates 65 and then 200 setups through
+that path. It then bulk-seeds the library to 1,000 setups and creates one more
+through the same path, so it reaches 1,001 instead of 500. The 120-second
+budget is unchanged. Every export, reference, validation, edit and revision
+assertion remains. The deterministic per-create work is pinned separately by
+`creating_a_setup_does_the_same_work_however_many_setups_the_port_has`.
+
 Automatic saved-data snapshots before update, activation and rollback (#4879)
 added one verified snapshot to each version change in the generated managed
 native-route lifecycles. Hosted Windows run 42840655073 timed out
@@ -688,6 +761,8 @@ Run 43244946189 attempt 1 then terminated
 budget (421.091 seconds, no failed assertion) in an 898-second Windows partition
 6, so MMX2 now also has 600 seconds (5s × 120) with zero retries; Super Metroid
 stays at 420. Every phase and assertion is unchanged.
+These transition budgets were removed when the shared fixture catalog shrank
+to the port under test (see the additive Sonic record above).
 
 `service::native_portable::tests::ready_staged_archive_observed_lifecycle_cases`
 has an exact Windows override that went from 270 seconds (5s × 54) to

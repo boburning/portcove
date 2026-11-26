@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "shadow-of-the-colossus-genissonemilio-linux",
+    "project_url": "https://github.com/GenissonEmilio/ShadowOfTheColossusPC",
+    "name": "Shadow of the Colossus / GenissonEmilio Linux",
+    "summary": "Native Linux, Windows and Android port of Shadow of the Colossus (PS2 USA), based on Celosia/PS2Recomp; requires your own ROM.",
+    "issue_number": 6710,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-of-the-colossus",
+      "evidence_urls": ["https://github.com/GenissonEmilio/ShadowOfTheColossusPC"],
+      "source_editions": [
+        {
+          "id": "shadow-of-the-colossus-playstation-2",
+          "title": "Shadow of the Colossus (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/GenissonEmilio/ShadowOfTheColossusPC"]
+        }
+      ]
+    },
+    "original_game_title": "Shadow of the Colossus"
+  }
+}

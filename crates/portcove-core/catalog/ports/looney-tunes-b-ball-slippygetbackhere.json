@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "looney-tunes-b-ball-slippygetbackhere",
+    "project_url": "https://github.com/SlippyGetBackHere/looney_tunes_b-ball_recomp",
+    "name": "Looney Tunes B-Ball / SlippyGetBackHere",
+    "summary": "A native PC recompilation of the Looney Tunes B-Ball for the SNES",
+    "issue_number": 6588,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "looney-tunes-b-ball",
+      "evidence_urls": ["https://github.com/SlippyGetBackHere/looney_tunes_b-ball_recomp"],
+      "source_editions": [
+        {
+          "id": "looney-tunes-b-ball-super-nintendo",
+          "title": "Looney Tunes B-Ball (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/SlippyGetBackHere/looney_tunes_b-ball_recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Looney Tunes B-Ball"
+  }
+}

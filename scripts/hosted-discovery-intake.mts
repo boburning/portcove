@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
 import {
+  compactHostedReceiptDelivery,
+  compactHostedReceiptWire,
+  expandHostedReceiptWire,
+} from "./hosted-discovery-receipt-wire.mts";
+import {
+  fencedHostedJson,
   hostedAmendmentMarker,
   parseHostedAmendment,
   readHostedAmendment,
@@ -8,6 +14,7 @@ import {
 } from "./hosted-discovery-amendment.mts";
 import {
   resolveDiscoveryRepository,
+  createRelocationMetadataClient,
   relocationMetadataReader,
   DiscoveryLocationUnavailable,
 } from "./upstream-relocation-candidates.mts";
@@ -71,7 +78,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   hostedIntakeMaxPasses,
   scheduledAuditRequests,
-} from "./hosted-discovery-intake-runner.mts";
+} from "./hosted-discovery-intake-audits.mts";
 import type { RoadmapInventory, RoadmapInventoryClient } from "./roadmap-inventory.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 
@@ -129,9 +136,9 @@ interface Proposal {
 export function parseHostedRequest(body: unknown): Proposal {
   if (typeof body !== "string" || Buffer.byteLength(body) > 64000)
     throw new Error("Hosted request exceeds its comment envelope");
-  const match = /^<!-- portcove-hosted-intake:v1 -->\s*```json\n([\s\S]+)\n```\s*$/u.exec(body);
-  if (!match) throw new Error("Expected exactly one structured hosted intake request");
-  const v = object(JSON.parse(match[1]!));
+  const json = fencedHostedJson("<!-- portcove-hosted-intake:v1 -->", body);
+  if (json === null) throw new Error("Expected exactly one structured hosted intake request");
+  const v = object(JSON.parse(json));
   if (v.schema_version !== 1 && v.schema_version !== 2)
     throw new Error("Unsupported hosted intake schema");
   exact(v, [
@@ -507,7 +514,7 @@ function readHostedReceipt(
 ): Receipt {
   const match = /```json\n([\s\S]+)\n```\s*$/u.exec(comment.body);
   if (!match) throw new Error("Malformed retained hosted receipt");
-  const stored = object(JSON.parse(match[1]!));
+  const stored = expandHostedReceiptWire(JSON.parse(match[1]!));
   if (
     stored.schema_version !== 1 ||
     (stored.body_request_comment ?? request.id) !== bodyRequest ||
@@ -753,7 +760,7 @@ function receiptProjectItemId(id: unknown) {
   return id;
 }
 
-function encodeReceipt(r: Receipt) {
+function encodeReceipt(r: Receipt, compact = false) {
   // Exact bodies are reconstructed from the hash-bound owner proposal. Do not
   // repeat its evidence in both candidate and rendered-body copies on the wire.
   const wire = {
@@ -765,7 +772,11 @@ function encodeReceipt(r: Receipt) {
       port_key: candidate.port_key,
     })),
   };
-  return `${receiptMarker(r.request_comment)}\nHosted intake **${r.status}**.\n\n\`\`\`json\n${JSON.stringify(wire, null, 2)}\n\`\`\``;
+  const wrap = (json: string) =>
+    `${receiptMarker(r.request_comment)}\nHosted intake **${r.status}**.\n\n\`\`\`json\n${json}\n\`\`\``;
+  const readable = wrap(JSON.stringify(wire, null, 2));
+  if (!compact && Buffer.byteLength(readable) + 4096 <= receiptByteLimit) return readable;
+  return wrap(JSON.stringify(compactHostedReceiptWire(wire)));
 }
 
 function checkpointSlots(receipt: Receipt) {
@@ -820,31 +831,35 @@ function assertReceiptCapacity(receipt: Receipt) {
       receipt_sha256: capacityHash,
     },
   };
-  // Size the serialized shape, including indentation and retained holds. A
-  // previously unbound hold can later add a primary binding.
-  const capacity = encodeReceipt({
-    ...receipt,
-    plan: receipt.plan.map((slot) =>
-      slot.primary
-        ? slot
-        : {
-            ...slot,
-            primary: largestPrimary,
-            evidence_sha256: capacityHash,
-          },
-    ),
-    delivery: receipt.delivery.map(({ hold, ...delivery }, index) => {
-      const candidate = receipt.plan[index]!.candidate;
-      const held = {
-        ...delivery,
-        hold: hold ?? candidateHold(candidate),
-      };
-      const complete = { ...delivery, ...largestDelivery };
-      const bytes = (value: Delivery) =>
-        Buffer.byteLength(JSON.stringify(value, null, 2).replaceAll("\n", "\n    "));
-      return canHold(delivery) && bytes(held) > bytes(complete) ? held : complete;
-    }),
-  });
+  // Size the compact wire shape and retained holds. The readable format is
+  // selected only when it independently fits the same envelope and reserve.
+  // A previously unbound hold can later add a primary binding.
+  const capacity = encodeReceipt(
+    {
+      ...receipt,
+      plan: receipt.plan.map((slot) =>
+        slot.primary
+          ? slot
+          : {
+              ...slot,
+              primary: largestPrimary,
+              evidence_sha256: capacityHash,
+            },
+      ),
+      delivery: receipt.delivery.map(({ hold, ...delivery }, index) => {
+        const candidate = receipt.plan[index]!.candidate;
+        const held = {
+          ...delivery,
+          hold: hold ?? candidateHold(candidate),
+        };
+        const complete = { ...delivery, ...largestDelivery };
+        const bytes = (value: Delivery) =>
+          Buffer.byteLength(JSON.stringify(compactHostedReceiptDelivery(value)));
+        return canHold(delivery) && bytes(held) > bytes(complete) ? held : complete;
+      }),
+    },
+    true,
+  );
   // Leave room for the run metadata, terminal diagnostic and full doctor.
   if (Buffer.byteLength(capacity) + 4096 > receiptByteLimit)
     throw new Error("Logical batch cannot retain complete delivery receipts");
@@ -1193,10 +1208,13 @@ export class HostedIntakeBridge {
         repository: c.upstream,
         repository_id: c.repository_id,
         kind: "implementation",
+        catalog_id: c.port_key,
         game_key: discoveryGameKey(c.game),
       },
       others,
-      records,
+      exclude === undefined
+        ? records
+        : records.filter((record) => record.listing.issue_number !== exclude),
       [],
     );
     if (c.intent?.kind === "observe-existing") {
@@ -1237,11 +1255,11 @@ export class HostedIntakeBridge {
         : undefined;
     if (c.intent?.kind === "create" && identity.disposition !== "New canonical intake")
       throw new CandidateIdentityConflict(
-        `Explicit create conflicts with canonical identity: ${identity.reason}`,
+        `Explicit create conflicts with canonical identity: ${identity.reason}${identity.catalog_ids?.length ? ` (${identity.catalog_ids.join(", ")})` : ""}`,
       );
     if (identity.disposition !== "New canonical intake" && !owner)
       throw new Error(
-        `Canonical discovery identity held: ${identity.disposition}; ${identity.reason}`,
+        `Canonical discovery identity held: ${identity.disposition}; ${identity.reason}${identity.catalog_ids?.length ? ` (${identity.catalog_ids.join(", ")})` : ""}`,
       );
     try {
       assertHostedCatalogIdentity(c, records, owner ?? exclude);
@@ -2829,10 +2847,8 @@ async function main() {
       origin,
     );
   };
-  const locationSdk = await createGitHubClient({
+  const locationSdk = await createRelocationMetadataClient({
     ...discoveryGitHubScope(budget, process.env.GH_TOKEN),
-    observeRedirects: true,
-    maxBytes: 16384,
     allowRequest: (method, url) =>
       method === "GET" &&
       (/^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname) ||

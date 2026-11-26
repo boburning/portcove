@@ -3,14 +3,17 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use crate::{
-    GithubReleaseProvider, GitlabReleaseProvider, Library, Platform, PortDefinition, PortcoveError,
-    ReleaseAsset, ReleaseChannel, ReleaseProvider, ReleaseSource, ResolvedRelease, Result,
+    ExactReleaseSelection, GithubReleaseProvider, GitlabReleaseProvider, Library, Platform,
+    PortDefinition, PortcoveError, ReleaseAsset, ReleaseChannel, ReleaseProvider, ReleaseSource,
+    ResolvedRelease, Result,
 };
 
 #[derive(Clone)]
 pub struct CompositeReleaseProvider {
     github: Arc<GithubReleaseProvider>,
     gitlab: GitlabReleaseProvider,
+    #[cfg(test)]
+    forge_fixture: Option<(Library, String)>,
 }
 
 impl CompositeReleaseProvider {
@@ -18,7 +21,17 @@ impl CompositeReleaseProvider {
         Ok(Self {
             github: Arc::new(GithubReleaseProvider::for_library(library)?),
             gitlab: GitlabReleaseProvider::for_library(library)?,
+            #[cfg(test)]
+            forge_fixture: None,
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_forge_fixture(library: &Library, origin: &str) -> Result<Self> {
+        crate::definition_acquisition::validate_fixture_origin(origin)?;
+        let mut provider = Self::for_library(library)?;
+        provider.forge_fixture = Some((library.clone(), origin.to_owned()));
+        Ok(provider)
     }
 
     pub fn github(&self) -> Arc<GithubReleaseProvider> {
@@ -32,6 +45,86 @@ impl CompositeReleaseProvider {
 
 #[async_trait]
 impl ReleaseProvider for CompositeReleaseProvider {
+    async fn review_exact(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        version: &str,
+    ) -> Result<ExactReleaseSelection> {
+        match port.release.provider {
+            ReleaseSource::Github => {
+                self.github
+                    .review_exact(port, channel, platform, scope, version)
+                    .await
+            }
+            ReleaseSource::Gitlab => {
+                self.gitlab
+                    .review_exact(port, channel, platform, scope, version)
+                    .await
+            }
+            ReleaseSource::DirectManifest => {
+                let query = crate::release::ExactReleaseQuery::Review(version);
+                query.require_route(
+                    port,
+                    channel,
+                    platform,
+                    ReleaseSource::DirectManifest,
+                    scope,
+                )?;
+                let release = resolve_direct(port, channel, platform)?;
+                query.bind(
+                    port,
+                    platform,
+                    &release,
+                    crate::ExactReleaseIdentity::DirectManifest,
+                )
+            }
+            ReleaseSource::ReviewedForge => {
+                Err(crate::release::reviewed_forge_exact_release_unsupported())
+            }
+            ReleaseSource::UserPrepared => Err(PortcoveError::unsupported(
+                "a user-prepared runtime has no managed release selection",
+            )),
+        }
+    }
+
+    async fn resolve_exact(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        pin: &ExactReleaseSelection,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        match port.release.provider {
+            ReleaseSource::Github => {
+                self.github
+                    .resolve_exact(port, channel, platform, scope, pin)
+                    .await
+            }
+            ReleaseSource::Gitlab => {
+                self.gitlab
+                    .resolve_exact(port, channel, platform, scope, pin)
+                    .await
+            }
+            ReleaseSource::DirectManifest => {
+                pin.require_context(port, channel, platform, scope)?;
+                let selected = resolve_direct(port, channel, platform)?;
+                pin.require_artifact(&selected)?;
+                crate::ScopedResolvedRelease::legacy(selected)
+                    .for_selection(port, platform, channel)
+            }
+            ReleaseSource::ReviewedForge => {
+                Err(crate::release::reviewed_forge_exact_release_unsupported())
+            }
+            ReleaseSource::UserPrepared => Err(PortcoveError::unsupported(
+                "a user-prepared runtime has no managed release selection",
+            )),
+        }
+    }
+
     async fn resolve_scoped(
         &self,
         port: &PortDefinition,
@@ -41,6 +134,30 @@ impl ReleaseProvider for CompositeReleaseProvider {
     ) -> Result<crate::ScopedResolvedRelease> {
         if port.release.managed_build.contains_key(&platform) {
             return Err(crate::cartridge_build::retired_creation());
+        }
+        if port.release.provider == ReleaseSource::ReviewedForge {
+            let scope = scope.ok_or_else(crate::reviewed_forge::independent_admission_required)?;
+            #[cfg(test)]
+            let bound;
+            #[cfg(test)]
+            let scope = if let Some((library, origin)) = &self.forge_fixture {
+                if library.root() != scope.library.root() {
+                    return Err(PortcoveError::verification(
+                        "forge fixture library does not match",
+                    ));
+                }
+                let mut selected = scope.clone();
+                selected.fixture_origin = Some(origin.clone());
+                bound = selected;
+                &bound
+            } else {
+                scope
+            };
+            let forge = scope
+                .forge
+                .as_ref()
+                .ok_or_else(crate::reviewed_forge::independent_admission_required)?;
+            return forge.resolve_scoped(scope, port, channel, platform).await;
         }
         match scope {
             scope if port.release.provider == ReleaseSource::Github => {
@@ -69,6 +186,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
         scope: Option<&crate::DefinitionAcquisitionScope>,
         variant: &crate::ManagedPackageVariant,
     ) -> Result<crate::ScopedResolvedRelease> {
+        if port.release.provider == ReleaseSource::ReviewedForge {
+            return Err(crate::reviewed_forge::independent_admission_required());
+        }
         if port.release.managed_build.contains_key(&platform) {
             return Err(crate::cartridge_build::retired_creation());
         }
@@ -112,8 +232,36 @@ impl ReleaseProvider for CompositeReleaseProvider {
             .await
     }
 
+    async fn forecast_request_cost(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+        scoped: bool,
+    ) -> Result<crate::RequestCostForecast> {
+        match port.release.provider {
+            ReleaseSource::Github => {
+                self.github
+                    .forecast_request_cost(port, platform, scoped)
+                    .await
+            }
+            _ => Ok(crate::RequestCostForecast::default()),
+        }
+    }
+
+    fn forecast_saved_variant_request_cost(&self, scoped: bool) -> crate::RequestCostForecast {
+        // Saved package choices are GitHub inventories; the service asks only for them.
+        self.github.forecast_saved_variant_request_cost(scoped)
+    }
+
     fn forecast_explicit_variant_request_cost(&self) -> crate::RequestCostForecast {
         self.github.forecast_explicit_variant_request_cost()
+    }
+
+    fn ordinary_allowance(&self, port: &PortDefinition) -> Option<&'static str> {
+        match port.release.provider {
+            ReleaseSource::Github => self.github.ordinary_allowance(port),
+            _ => None,
+        }
     }
 
     fn cached_release_notes(
@@ -131,7 +279,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
             ReleaseSource::Gitlab => self
                 .gitlab
                 .cached_release_notes(port, channel, platform, installed, offered),
-            ReleaseSource::DirectManifest | ReleaseSource::UserPrepared => None,
+            ReleaseSource::ReviewedForge
+            | ReleaseSource::DirectManifest
+            | ReleaseSource::UserPrepared => None,
         }
     }
 
@@ -147,6 +297,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
         match port.release.provider {
             ReleaseSource::Github => self.github.resolve(port, channel, platform).await,
             ReleaseSource::Gitlab => self.gitlab.resolve(port, channel, platform).await,
+            ReleaseSource::ReviewedForge => {
+                Err(crate::reviewed_forge::independent_admission_required())
+            }
             ReleaseSource::DirectManifest => resolve_direct(port, channel, platform),
             ReleaseSource::UserPrepared => Err(PortcoveError::unsupported(format!(
                 "{} has a user-prepared runtime; Portcove does not acquire it",
@@ -203,6 +356,55 @@ mod tests {
     use crate::{AdapterKind, DirectReleaseSpec, ReleaseSpec, SupportTier, UpstreamStatus};
 
     use super::*;
+
+    /// The provider desktop and CLI use must forecast its GitHub ports, not report
+    /// the trait default of nothing.
+    #[tokio::test]
+    async fn the_composite_provider_forecasts_through_its_github_provider() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let composite = CompositeReleaseProvider::for_library(&library).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog
+            .ports()
+            .iter()
+            .find(|port| port.release.provider == ReleaseSource::Github)
+            .unwrap();
+        let platform = Platform::WindowsX86_64;
+        assert_eq!(
+            composite
+                .forecast_request_cost(port, platform, false)
+                .await
+                .unwrap(),
+            composite
+                .github()
+                .forecast_request_cost(port, platform, false)
+                .await
+                .unwrap(),
+        );
+        // A cold ordinary check reads at least the repository and one releases page.
+        assert!(
+            composite
+                .forecast_request_cost(port, platform, false)
+                .await
+                .unwrap()
+                .counted_requests
+                >= 2
+        );
+        assert_eq!(
+            composite.forecast_saved_variant_request_cost(true),
+            composite.github().forecast_saved_variant_request_cost(true)
+        );
+        let mut gitlab = port.clone();
+        gitlab.release.provider = ReleaseSource::Gitlab;
+        assert_eq!(
+            composite
+                .forecast_request_cost(&gitlab, platform, false)
+                .await
+                .unwrap(),
+            crate::RequestCostForecast::default()
+        );
+    }
 
     #[test]
     fn direct_manifests_resolve_without_a_host_api() {
@@ -272,10 +474,12 @@ mod tests {
             linux_packaged_library: None,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
+            managed_runtime_applies_to: None,
             source_environment: None,
             user_data_environment: None,
             launch_environment: BTreeMap::new(),
             launch_arguments: vec![],
+            reviewed_launch_contract_v1: None,
             runtime_subdirectory: None,
             runtime_subdirectory_by_platform: BTreeMap::new(),
             runtime_source_filename: None,
@@ -296,9 +500,11 @@ mod tests {
             upstream_active_reviewed: false,
             mod_provider_bindings: None,
             legacy_mod_provider_held: false,
+            mod_sources: Vec::new(),
             mod_loader: None,
             managed_acquisition_hold: None,
             reviewed_package_layouts: BTreeMap::new(),
+            reviewed_predecessor_package_layouts_v1: BTreeMap::new(),
             presentation: None,
         };
         let release =
@@ -307,3 +513,6 @@ mod tests {
         assert_eq!(release.asset.sha256, "a".repeat(64));
     }
 }
+
+#[cfg(test)]
+mod exact_tests;

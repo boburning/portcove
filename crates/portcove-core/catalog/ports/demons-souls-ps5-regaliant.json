@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "demons-souls-ps5-regaliant",
+    "project_url": "https://github.com/SulphurS16/Regaliant",
+    "name": "Demon's Souls (PS5) / Regaliant (SulphurS16)",
+    "summary": "Unofficial Windows PC port of Demon's Souls (2020), Bluepoint's PS5 remake. Runs your own copy of the PS5 game (PPSA01341, version 1.07). No game files included.",
+    "issue_number": 8608,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "demon-s-souls",
+      "evidence_urls": ["https://github.com/SulphurS16/Regaliant"],
+      "source_editions": []
+    },
+    "original_game_title": "Demon's Souls"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hotel-mario-anton-retro-cd-i-port",
+    "project_url": "https://github.com/antonretro/HotelMario-Decomp",
+    "name": "Hotel Mario / Anton Retro CD-i port",
+    "summary": "Hotel Mario (Philips CD-i, 1994): a static recompilation port, playable start to finish on PC and 3DS without a CD-i BIOS, plus a decompilation in progress. Bring your own disc.",
+    "issue_number": 5448,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "hotel-mario",
+      "evidence_urls": ["https://github.com/antonretro/HotelMario-Decomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Hotel Mario"
+  }
+}

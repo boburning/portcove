@@ -146,7 +146,7 @@ describe("backup inventory read owner", () => {
 
     const disposed = deferred<BackupInventory>();
     vi.mocked(desktopApi.backups).mockReturnValueOnce(disposed.promise);
-    let pending!: Promise<void>;
+    let pending!: Promise<unknown>;
     await act(async () => {
       pending = state.refresh();
       root?.unmount();
@@ -166,7 +166,7 @@ describe("backup inventory read owner", () => {
       .mockResolvedValueOnce({ ...inventory("game"), backups: [] })
       .mockReturnValueOnce(next.promise);
     await act(async () => root?.render(<Fixture portId="game" />));
-    let pending!: Promise<void>;
+    let pending!: Promise<unknown>;
     await act(async () => {
       pending = state.refresh();
     });
@@ -192,8 +192,8 @@ describe("backup inventory read owner", () => {
       .mockReturnValueOnce(older.promise)
       .mockReturnValueOnce(newer.promise);
     await act(async () => root?.render(<Fixture portId="game" />));
-    let oldRequest!: Promise<void>;
-    let newRequest!: Promise<void>;
+    let oldRequest!: Promise<unknown>;
+    let newRequest!: Promise<unknown>;
     await act(async () => {
       oldRequest = state.refresh();
       newRequest = state.refresh();
@@ -222,8 +222,8 @@ describe("backup inventory read owner", () => {
       .mockReturnValueOnce(older.promise)
       .mockReturnValueOnce(newer.promise);
     await act(async () => root?.render(<Fixture portId="game" />));
-    let oldRequest!: Promise<void>;
-    let newRequest!: Promise<void>;
+    let oldRequest!: Promise<unknown>;
+    let newRequest!: Promise<unknown>;
     await act(async () => {
       oldRequest = state.refresh();
       newRequest = state.refresh();

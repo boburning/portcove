@@ -93,6 +93,9 @@ pub(crate) struct FailureContext {
     known_cause: Option<KnownFailureCause>,
     pub(crate) catalog_fallback: Option<crate::CatalogFallbackCode>,
     upstream: Option<UpstreamObservation>,
+    /// Set where a connection was interrupted, stalled or starved: the
+    /// network failed, not the requested content.
+    transient_transport: bool,
 }
 
 /// Transport facts recorded where an upstream request failed. They classify
@@ -159,6 +162,9 @@ pub(crate) enum KnownFailureCause {
         path: std::path::PathBuf,
     },
     RecordedUploaderHold,
+    /// An exact release review, pin or saved pin was refused for a reason the
+    /// player can act on.
+    ExactRelease(crate::release::ExactReleaseRefusal),
     PackageShapeDrift,
     CatalogValidity,
     CatalogReplay,
@@ -168,6 +174,9 @@ pub(crate) enum KnownFailureCause {
     Busy,
     CancellationUnavailable,
     OperationInterrupted,
+    /// A waiting setup's retained download could not be read right now, for
+    /// example while another program had it open. Nothing was recorded.
+    RetainedDownloadUnreadable,
     RequiredRuntimeUnverified,
     LaunchArgumentsUnsupported,
     SourceChanged,
@@ -182,6 +191,10 @@ pub(crate) enum KnownFailureCause {
     SettingsDefaultsConflict,
     #[cfg(any(test, windows))]
     SettingsDefaultsUnverified,
+    /// A reviewed settings change no longer matches the current file or
+    /// installation, so Core refused it before taking custody.
+    #[cfg(any(test, windows))]
+    SettingsReviewStale,
     /// Two copies of a settings file a newer version newly carries differ, so
     /// Core cannot tell which to keep. `other` is the saved copy, or the new
     /// version's copy when `other_is_saved` is false.
@@ -208,6 +221,8 @@ pub(crate) enum KnownFailureCause {
         directory: std::path::PathBuf,
     },
     DestinationCapacity,
+    /// The operating system reported a full drive or quota while writing.
+    StorageFull,
     MetadataExportExists,
     ArchiveLimit,
     UnicodePath,
@@ -244,12 +259,292 @@ pub(crate) enum KnownFailureCause {
         rate_limited: bool,
         resets_at: Option<i64>,
     },
+    /// The provider already reported this client's allowance used up, or asked it
+    /// to wait, so Core did not send the request. Nothing was learned about the
+    /// requested resource.
+    ProviderAllowanceExhausted {
+        provider: FailureProvider,
+        resets_at: Option<i64>,
+        /// The provider asked the client to wait (a secondary limit or throttle)
+        /// rather than reporting its primary allowance spent.
+        throttled: bool,
+        /// Whether the provider reported `resets_at`, or Portcove estimated it.
+        reset_reported: bool,
+        /// Whose allowance: signed in (per account) or anonymous (per network
+        /// address). `None` when the failure does not say.
+        signed_in: Option<bool>,
+    },
+    /// A provider listing the decision depends on was read only in part this
+    /// time (a page budget, a partial listing or a mixed-time snapshot): the
+    /// work continues from where it stopped on the next attempt. Incomplete
+    /// is never an absent release, package or file. Always temporary, and it
+    /// waits until `resets_at` when the provider stated one.
+    InventoryIncomplete {
+        provider: FailureProvider,
+        /// What was being listed, such as `release history`.
+        inventory: &'static str,
+        /// Pages or chunks already read and kept for the next attempt.
+        read: u64,
+        /// Pages or chunks the provider listed, when it said.
+        total: Option<u64>,
+        resets_at: Option<i64>,
+        /// Set when a provider allowance or throttle cut the listing short: the
+        /// stopping request's own facts, so work that shares that allowance
+        /// waits too (a bulk update check defers the rest rather than sending
+        /// them) and is presented exactly as that rate limit was.
+        rate_limit: Option<RateLimitFacts>,
+    },
+}
+
+/// How a provider rate limit stopped a request, as the stopping failure recorded it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct RateLimitFacts {
+    /// The provider asked the client to wait, rather than reporting its allowance spent.
+    pub(crate) throttled: bool,
+    /// The provider stated the reset time; otherwise Portcove estimated it.
+    pub(crate) reset_reported: bool,
+    /// Whose allowance: signed in (per account) or anonymous; `None` when unknown.
+    pub(crate) signed_in: Option<bool>,
+}
+
+/// The provider, reset time and facts of a rate limit that stopped this request,
+/// from the failure's own recorded facts. `None` when it is not a rate limit.
+fn rate_limit_of(error: &PortcoveError) -> Option<(FailureProvider, Option<i64>, RateLimitFacts)> {
+    let signed_in = || {
+        error
+            .details
+            .get("rate_limit_credential")
+            .map(|credential| credential == "authenticated")
+    };
+    match error.known_cause()? {
+        KnownFailureCause::ProviderRequest {
+            provider,
+            rate_limited: true,
+            resets_at,
+            ..
+        } => Some((
+            *provider,
+            *resets_at,
+            RateLimitFacts {
+                throttled: error.details.get("rate_remaining").map(String::as_str) != Some("0"),
+                reset_reported: resets_at.is_some(),
+                signed_in: signed_in(),
+            },
+        )),
+        KnownFailureCause::ProviderAllowanceExhausted {
+            provider,
+            resets_at,
+            throttled,
+            reset_reported,
+            signed_in,
+        } => Some((
+            *provider,
+            *resets_at,
+            RateLimitFacts {
+                throttled: *throttled,
+                reset_reported: *reset_reported,
+                signed_in: *signed_in,
+            },
+        )),
+        KnownFailureCause::InventoryIncomplete {
+            provider,
+            resets_at,
+            rate_limit: Some(facts),
+            ..
+        } => Some((*provider, *resets_at, *facts)),
+        _ => None,
+    }
+}
+
+/// Whether a failure means a provider allowance or throttle stopped the request,
+/// as opposed to an answer about the requested resource.
+pub(crate) fn is_rate_limited(error: &PortcoveError) -> bool {
+    rate_limit_of(error).is_some()
+}
+
+/// The release provider whose allowance or throttle stopped this request.
+pub(crate) fn rate_limited_provider(error: &PortcoveError) -> Option<crate::ReleaseSource> {
+    match rate_limit_of(error)?.0 {
+        FailureProvider::Github => Some(crate::ReleaseSource::Github),
+        FailureProvider::Gitlab => Some(crate::ReleaseSource::Gitlab),
+        // Not a release provider: no update-check allowance to defer.
+        FailureProvider::Thunderstore => None,
+    }
+}
+
+/// The failure of an item that was not sent because `cause` already stopped the
+/// same provider allowance. `None` when `cause` is not a rate limit.
+pub(crate) fn deferred_after(cause: &PortcoveError) -> Option<PortcoveError> {
+    let (
+        provider,
+        resets_at,
+        RateLimitFacts {
+            throttled,
+            reset_reported,
+            signed_in,
+        },
+    ) = rate_limit_of(cause)?;
+    let mut error = PortcoveError::network(
+        "Not sent: the provider's request allowance stopped an earlier request in the same batch.",
+    )
+    .with_known_cause(KnownFailureCause::ProviderAllowanceExhausted {
+        provider,
+        resets_at,
+        throttled,
+        reset_reported,
+        signed_in,
+    })
+    .detail("rate_limit_deferred", "true");
+    for key in [
+        "rate_limit",
+        "rate_remaining",
+        "rate_reset",
+        "retry_after",
+        "rate_limit_credential",
+    ] {
+        if let Some(value) = cause.details.get(key) {
+            error.details.insert(key.into(), value.clone());
+        }
+    }
+    Some(error)
+}
+
+/// Whose allowance stopped the request, and when it resets, for presentation.
+fn rate_limit_sentences(
+    provider: FailureProvider,
+    resets_at: Option<i64>,
+    facts: RateLimitFacts,
+) -> (String, String) {
+    let provider = provider.name();
+    let cause = match (facts.throttled, facts.signed_in) {
+        (true, _) => format!("{provider} asked Portcove to wait before more requests"),
+        (false, Some(true)) => {
+            format!("The {provider} request allowance for your signed-in account is used up")
+        }
+        (false, Some(false)) => format!(
+            "The {provider} request allowance for anonymous requests from this network is used up"
+        ),
+        (false, None) => format!("The {provider} request allowance is used up"),
+    };
+    let next = match (reset_time(resets_at), facts.reset_reported) {
+        (Some(time), true) => format!("Resets: {time}. Try again after then."),
+        (Some(time), false) => {
+            format!("Resets: about {time} (estimated by Portcove). Try again after then.")
+        }
+        (None, _) => "The reset time is unknown. Try again later.".to_owned(),
+    };
+    (cause, next)
+}
+
+/// A provider reset instant (Unix seconds) as RFC 3339, for presentation.
+fn reset_time(resets_at: Option<i64>) -> Option<String> {
+    resets_at
+        .and_then(|seconds| time::OffsetDateTime::from_unix_timestamp(seconds).ok())
+        .and_then(|time| {
+            time.format(&time::format_description::well_known::Rfc3339)
+                .ok()
+        })
+}
+
+fn reset_sentence(resets_at: Option<i64>) -> String {
+    reset_time(resets_at).map_or_else(String::new, |time| {
+        format!(" The provider reported a reset time of {time}.")
+    })
 }
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum FailureProvider {
     Github,
     Gitlab,
+    Thunderstore,
+}
+
+impl FailureProvider {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Github => "GitHub",
+            Self::Gitlab => "GitLab",
+            Self::Thunderstore => "Thunderstore",
+        }
+    }
+}
+
+/// Detail key every incomplete provider listing carries, shared by the
+/// GitHub, GitLab and Thunderstore readers.
+pub(crate) const INVENTORY_INCOMPLETE_DETAIL: &str = "inventory";
+
+/// An incomplete provider listing: typed cause plus the shared details.
+pub(crate) fn inventory_incomplete(
+    provider: FailureProvider,
+    inventory: &'static str,
+    read: u64,
+    total: Option<u64>,
+) -> PortcoveError {
+    let mut error = PortcoveError::network(format!(
+        "the {} {inventory} was read only in part; trying again continues where it stopped",
+        provider.name()
+    ))
+    .detail(INVENTORY_INCOMPLETE_DETAIL, "incomplete")
+    .detail("inventory_read", read.to_string());
+    if let Some(total) = total {
+        error = error.detail("inventory_total", total.to_string());
+    }
+    error.with_known_cause(KnownFailureCause::InventoryIncomplete {
+        provider,
+        inventory,
+        read,
+        total,
+        resets_at: None,
+        rate_limit: None,
+    })
+}
+
+/// An incomplete provider listing caused by `cause`, a request that did not
+/// complete. The cause's details (status facts, `retry_after`) are kept, its
+/// message becomes the `cause` detail, and any wait it states (a rate-limit
+/// reset or `Retry-After`) becomes the listing's own `resets_at`, so the
+/// retry schedule still honors it.
+pub(crate) fn inventory_incomplete_after(
+    provider: FailureProvider,
+    inventory: &'static str,
+    read: u64,
+    total: Option<u64>,
+    cause: PortcoveError,
+) -> PortcoveError {
+    let temporary = cause.temporary_cause();
+    let resets_at = temporary.and_then(|(_, reset)| reset);
+    // A throttle or spent allowance stays one, with the stopping failure's own
+    // facts, so work sharing that allowance waits and reads the same.
+    let rate_limit = rate_limit_of(&cause)
+        .map(|(_, _, facts)| facts)
+        .or_else(|| {
+            temporary
+                .is_some_and(|(kind, _)| kind == crate::TemporaryCause::RateLimited)
+                .then(|| RateLimitFacts {
+                    // A bare throttling status (429, or 403 with a stated wait).
+                    throttled: cause.details.get("rate_remaining").map(String::as_str) != Some("0"),
+                    reset_reported: resets_at.is_some(),
+                    signed_in: cause
+                        .details
+                        .get("rate_limit_credential")
+                        .map(|credential| credential == "authenticated"),
+                })
+        });
+    let mut error = inventory_incomplete(provider, inventory, read, total)
+        .detail("cause", cause.message.clone());
+    for (name, value) in cause.details {
+        error.details.entry(name).or_insert(value);
+    }
+    if let Some(KnownFailureCause::InventoryIncomplete {
+        resets_at: reset,
+        rate_limit: facts,
+        ..
+    }) = error.failure.known_cause.as_mut()
+    {
+        *reset = resets_at;
+        *facts = rate_limit;
+    }
+    error
 }
 
 fn decimal_gigabytes(bytes: u64) -> String {
@@ -321,6 +616,10 @@ impl KnownFailureCause {
                 "operation_interrupted",
                 "Portcove stopped before this task finished. Review the current state before trying again.",
             ),
+            Self::RetainedDownloadUnreadable => (
+                "retained_download_unreadable",
+                "Portcove couldn’t read the downloaded files right now, so your setup wasn’t changed. Close any program that might be using them, then try again.",
+            ),
             Self::RequiredRuntimeUnverified => (
                 "required_runtime_unverified",
                 "This installation's required runtime could not be verified. Review its runtime requirements and current installation; use an offered compatible update or repair when available.",
@@ -370,6 +669,11 @@ impl KnownFailureCause {
             Self::SettingsDefaultsConflict => (
                 "settings_defaults_conflict",
                 "Your settings and the new version’s defaults changed in different ways. Portcove kept your settings and the new defaults. You can keep using the installed version while the update waits.",
+            ),
+            #[cfg(any(test, windows))]
+            Self::SettingsReviewStale => (
+                "settings_review_stale",
+                "This settings file changed after you reviewed it, so your changes weren’t saved. Read the settings again, then review your changes.",
             ),
             #[cfg(any(test, windows))]
             Self::SettingsDefaultsUnverified => (
@@ -446,6 +750,7 @@ impl KnownFailureCause {
                     ),
                 );
             }
+            Self::ExactRelease(refusal) => return refusal.presentation(),
             Self::MetadataExportExists => (
                 "metadata_export_exists",
                 "Portcove kept the existing file. Choose a new filename to export library information.",
@@ -453,6 +758,42 @@ impl KnownFailureCause {
             Self::DestinationCapacity => (
                 "destination_space_insufficient",
                 "The prepared files cannot fit in the available destination space. Free space or select a suitable destination, then review the operation again.",
+            ),
+            Self::InventoryIncomplete {
+                provider,
+                inventory,
+                read,
+                total,
+                resets_at,
+                rate_limit,
+            } => {
+                let progress = total.map_or_else(
+                    || format!(" ({read} parts read)"),
+                    |total| format!(" ({read} of {total} parts read)"),
+                );
+                // Cut short by a rate limit: it reads as that rate limit, so every
+                // consumer treats it as not checked rather than as a failure.
+                if let Some(facts) = rate_limit {
+                    let (cause, next) = rate_limit_sentences(*provider, *resets_at, *facts);
+                    return (
+                        "provider_rate_limited",
+                        format!(
+                            "{cause}, so Portcove read only part of the {} {inventory}{progress}. Nothing was concluded from the missing part. {next}",
+                            provider.name()
+                        ),
+                    );
+                }
+                return (
+                    "inventory_incomplete",
+                    format!(
+                        "Portcove read only part of the {} {inventory} this time{progress}. Nothing was concluded from the missing part, and Portcove will try again from where it stopped.",
+                        provider.name()
+                    ),
+                );
+            }
+            Self::StorageFull => (
+                "storage_full",
+                "The drive ran out of free space before Portcove finished. Free up space on that drive, then review the action again.",
             ),
             Self::ArchiveLimit => (
                 "archive_safety_limit",
@@ -532,10 +873,7 @@ impl KnownFailureCause {
                 rate_limited,
                 resets_at,
             } => {
-                let provider = match provider {
-                    FailureProvider::Github => "GitHub",
-                    FailureProvider::Gitlab => "GitLab",
-                };
+                let provider = provider.name();
                 if *status == 401 {
                     return (
                         "provider_sign_in_rejected",
@@ -545,15 +883,7 @@ impl KnownFailureCause {
                     );
                 }
                 if *rate_limited {
-                    let reset = resets_at
-                        .and_then(|seconds| time::OffsetDateTime::from_unix_timestamp(seconds).ok())
-                        .and_then(|time| {
-                            time.format(&time::format_description::well_known::Rfc3339)
-                                .ok()
-                        });
-                    let reset = reset.map_or_else(String::new, |time| {
-                        format!(" The provider reported a reset time of {time}.")
-                    });
+                    let reset = reset_sentence(*resets_at);
                     return (
                         "provider_rate_limited",
                         format!(
@@ -565,6 +895,29 @@ impl KnownFailureCause {
                     "provider_request_rejected",
                     format!(
                         "{provider} rejected the API request (HTTP {status}). Review the technical details and current provider status before retrying."
+                    ),
+                );
+            }
+            Self::ProviderAllowanceExhausted {
+                provider,
+                resets_at,
+                throttled,
+                reset_reported,
+                signed_in,
+            } => {
+                let (cause, next) = rate_limit_sentences(
+                    *provider,
+                    *resets_at,
+                    RateLimitFacts {
+                        throttled: *throttled,
+                        reset_reported: *reset_reported,
+                        signed_in: *signed_in,
+                    },
+                );
+                return (
+                    "provider_rate_limited",
+                    format!(
+                        "{cause}, so Portcove did not send this request and nothing changed. {next}"
                     ),
                 );
             }
@@ -587,6 +940,40 @@ pub(crate) enum PreparationFailureCause {
 }
 
 impl PortcoveError {
+    /// The deferral this failure represents for an update check, when a provider
+    /// allowance or throttle stopped it rather than an answer about the game.
+    pub fn update_check_deferral(&self) -> Option<crate::UpdateCheckDeferral> {
+        match self.known_cause()? {
+            KnownFailureCause::ProviderRequest {
+                rate_limited: true,
+                resets_at,
+                ..
+            } => Some(crate::UpdateCheckDeferral {
+                resets_at: *resets_at,
+                reset_reported: resets_at.is_some(),
+            }),
+            KnownFailureCause::ProviderAllowanceExhausted {
+                resets_at,
+                reset_reported,
+                ..
+            } => Some(crate::UpdateCheckDeferral {
+                resets_at: *resets_at,
+                reset_reported: *reset_reported && resets_at.is_some(),
+            }),
+            // A cut-short listing keeps whether its stopping failure's reset was
+            // reported or estimated.
+            KnownFailureCause::InventoryIncomplete {
+                resets_at,
+                rate_limit: Some(facts),
+                ..
+            } => Some(crate::UpdateCheckDeferral {
+                resets_at: *resets_at,
+                reset_reported: facts.reset_reported && resets_at.is_some(),
+            }),
+            _ => None,
+        }
+    }
+
     pub fn report(&self) -> FailureReport {
         let mut details = self.details.clone();
         if let Some(code) = self.catalog_fallback() {
@@ -627,6 +1014,15 @@ impl PortcoveError {
         self.failure.known_cause.as_ref()
     }
 
+    /// Whether a provider listing stopped before its end; the item asked for
+    /// is not known to be absent.
+    pub(crate) fn is_inventory_incomplete(&self) -> bool {
+        matches!(
+            self.failure.known_cause,
+            Some(KnownFailureCause::InventoryIncomplete { .. })
+        )
+    }
+
     pub(crate) fn is_recorded_uploader_hold(&self) -> bool {
         matches!(
             self.failure.known_cause,
@@ -646,6 +1042,56 @@ impl PortcoveError {
         self
     }
 
+    pub(crate) fn upstream_observation(&self) -> Option<UpstreamObservation> {
+        self.failure.upstream
+    }
+
+    /// Marks a transport interruption (reset, early close, stall or starved
+    /// connection). Temporary classification is opt-in: an unmarked
+    /// network-coded error without a status stays lasting.
+    pub(crate) fn transient_transport(mut self) -> Self {
+        self.failure.transient_transport = true;
+        self
+    }
+
+    pub(crate) fn is_transient_transport(&self) -> bool {
+        self.failure.transient_transport
+    }
+
+    /// A network-coded failure while reading a body that recorded no status is
+    /// an interrupted body (temporary); limit and parse failures keep their
+    /// own lasting codes.
+    pub(crate) fn mark_interrupted_body(self) -> Self {
+        if self.code == crate::ErrorCode::Network && self.failure.upstream.is_none() {
+            self.transient_transport()
+        } else {
+            self
+        }
+    }
+
+    /// The one conversion for a failed HTTP exchange: it records the
+    /// transport observation, and marks connection interruptions (resets,
+    /// early closes, a body cut off mid-stream, stalls, DNS/TLS/connect
+    /// failures) temporary. Builder, redirect-policy and status errors stay
+    /// lasting; a status is recorded separately by the caller.
+    ///
+    /// Body errors: reqwest reports a body stream that ends early as a decode
+    /// error ("error decoding response body"), so `is_decode` here is a
+    /// truncated body and stays temporary. A body that arrives complete but is
+    /// not the expected document is never converted here: Portcove reads the
+    /// bytes and parses them with its own code, whose unmarked failure stays
+    /// lasting. Do not pass errors from `Response::json`/`text` to this
+    /// conversion, which cannot tell such a malformed body from a cut-off one.
+    pub(crate) fn from_transport(error: &reqwest::Error) -> Self {
+        let converted = Self::network(error.to_string())
+            .with_upstream(UpstreamObservation::from_reqwest(error));
+        if error.is_builder() || error.is_redirect() || error.is_status() {
+            converted
+        } else {
+            converted.transient_transport()
+        }
+    }
+
     /// Classify this failure for preserved-location failover from recorded facts
     /// only, never from message text.
     pub(crate) fn upstream_failure(&self) -> UpstreamFailure {
@@ -658,6 +1104,7 @@ impl PortcoveError {
                 }),
                 _,
             ) => (Some(*status), *rate_limited),
+            (Some(KnownFailureCause::ProviderAllowanceExhausted { .. }), _) => (None, true),
             (_, Some(UpstreamObservation::Status(status))) => (Some(status), false),
             (_, Some(UpstreamObservation::Transport { .. })) => {
                 return UpstreamFailure::Unavailable;
@@ -996,6 +1443,202 @@ mod upstream_classification_tests {
             rate_limited,
             resets_at: None,
         })
+    }
+
+    fn allowance_refusal(
+        resets_at: Option<i64>,
+        throttled: bool,
+        reset_reported: bool,
+        signed_in: Option<bool>,
+    ) -> PortcoveError {
+        PortcoveError::network("not sent").with_known_cause(
+            KnownFailureCause::ProviderAllowanceExhausted {
+                provider: FailureProvider::Github,
+                resets_at,
+                throttled,
+                reset_reported,
+                signed_in,
+            },
+        )
+    }
+
+    #[test]
+    fn allowance_refusal_copy_names_whose_allowance_and_how_the_reset_is_known() {
+        let summary = |error: PortcoveError| error.presentation().summary;
+        let account = summary(allowance_refusal(Some(1_600), false, true, Some(true)));
+        assert!(account.starts_with("The GitHub request allowance for your signed-in account"));
+        assert!(
+            account.contains("Resets: 1970-01-01T00:26:40Z. "),
+            "{account}"
+        );
+        let anonymous = summary(allowance_refusal(Some(1_600), false, false, Some(false)));
+        assert!(anonymous.contains("anonymous requests from this network"));
+        assert!(anonymous.contains("Resets: about 1970-01-01T00:26:40Z (estimated by Portcove)."));
+        let unknown = summary(allowance_refusal(None, false, false, None));
+        assert!(unknown.starts_with("The GitHub request allowance is used up"));
+        assert!(unknown.contains("The reset time is unknown."));
+        let throttled = summary(allowance_refusal(None, true, false, Some(true)));
+        assert!(throttled.starts_with("GitHub asked Portcove to wait"));
+        for text in [account, anonymous, unknown, throttled] {
+            assert!(!text.contains("computer"), "{text}");
+            assert!(!text.contains("waited"), "{text}");
+        }
+    }
+
+    #[test]
+    fn an_incomplete_listing_is_a_rate_limit_only_when_one_stopped_it() {
+        let not_a_rate_limit = |error: &PortcoveError| {
+            assert!(error.is_inventory_incomplete());
+            assert!(!is_rate_limited(error));
+            assert_eq!(rate_limited_provider(error), None);
+            assert_eq!(error.update_check_deferral(), None);
+            assert!(deferred_after(error).is_none());
+            assert_eq!(
+                error.presentation().presentation_key,
+                "inventory_incomplete"
+            );
+        };
+        // The never-ending-list guard stops a list that does not advance.
+        not_a_rate_limit(&inventory_incomplete(
+            FailureProvider::Gitlab,
+            "release history",
+            3,
+            Some(2),
+        ));
+        // A 503 on page 2 of a walk: temporary, but nobody's allowance is spent.
+        let unavailable = PortcoveError::network("GitLab API returned 503")
+            .with_upstream(Some(UpstreamObservation::Status(503)))
+            .with_known_cause(KnownFailureCause::ProviderRequest {
+                provider: FailureProvider::Gitlab,
+                status: 503,
+                rate_limited: false,
+                resets_at: None,
+            });
+        let walk = inventory_incomplete_after(
+            FailureProvider::Gitlab,
+            "release history",
+            1,
+            None,
+            unavailable,
+        );
+        not_a_rate_limit(&walk);
+        assert!(walk.temporary_cause().is_some());
+    }
+
+    #[test]
+    fn a_wrapped_local_refusal_keeps_its_own_facts() {
+        let wrapped = |throttled, reset_reported| {
+            inventory_incomplete_after(
+                FailureProvider::Github,
+                "release history",
+                1,
+                None,
+                allowance_refusal(Some(1_600), throttled, reset_reported, Some(true)),
+            )
+        };
+        // A spent allowance with an estimated reset stays exactly that.
+        let spent = wrapped(false, false);
+        assert!(is_rate_limited(&spent));
+        assert_eq!(
+            rate_limited_provider(&spent),
+            Some(crate::ReleaseSource::Github)
+        );
+        let deferral = spent.update_check_deferral().unwrap();
+        assert_eq!(
+            (deferral.resets_at, deferral.reset_reported),
+            (Some(1_600), false)
+        );
+        let presentation = spent.presentation();
+        assert_eq!(presentation.presentation_key, "provider_rate_limited");
+        assert!(
+            presentation
+                .summary
+                .starts_with("The GitHub request allowance for your signed-in account is used up")
+        );
+        assert!(
+            presentation.summary.contains("Resets: about "),
+            "{}",
+            presentation.summary
+        );
+        assert!(!presentation.summary.contains("asked Portcove to wait"));
+        let follower = deferred_after(&spent).unwrap();
+        assert!(matches!(
+            follower.known_cause(),
+            Some(KnownFailureCause::ProviderAllowanceExhausted {
+                throttled: false,
+                reset_reported: false,
+                signed_in: Some(true),
+                ..
+            })
+        ));
+        assert_eq!(follower.update_check_deferral(), Some(deferral));
+        // A throttle with a reported reset stays a throttle.
+        let throttle = wrapped(true, true);
+        let summary = throttle.presentation().summary;
+        assert!(
+            summary.starts_with("GitHub asked Portcove to wait"),
+            "{summary}"
+        );
+        assert!(!summary.contains("about"), "{summary}");
+        assert!(throttle.update_check_deferral().unwrap().reset_reported);
+    }
+
+    #[test]
+    fn update_check_deferral_reports_a_reset_only_when_the_provider_stated_it() {
+        let deferral = |error: PortcoveError| error.update_check_deferral().unwrap();
+        // A provider answer with a reset states it.
+        let answered = deferral(PortcoveError::network("limited").with_known_cause(
+            KnownFailureCause::ProviderRequest {
+                provider: FailureProvider::Github,
+                status: 403,
+                rate_limited: true,
+                resets_at: Some(1_600),
+            },
+        ));
+        assert_eq!(
+            (answered.resets_at, answered.reset_reported),
+            (Some(1_600), true)
+        );
+        // A provider answer without a reset: unknown, not reported.
+        let unstated = PortcoveError::network("limited").with_known_cause(
+            KnownFailureCause::ProviderRequest {
+                provider: FailureProvider::Github,
+                status: 429,
+                rate_limited: true,
+                resets_at: None,
+            },
+        );
+        let unstated = deferral(unstated);
+        assert_eq!((unstated.resets_at, unstated.reset_reported), (None, false));
+        // A local refusal keeps whether the provider reported its time.
+        let reported = deferral(allowance_refusal(Some(1_600), false, true, None));
+        assert_eq!(
+            (reported.resets_at, reported.reset_reported),
+            (Some(1_600), true)
+        );
+        let estimated = deferral(allowance_refusal(Some(1_600), true, false, None));
+        assert_eq!(
+            (estimated.resets_at, estimated.reset_reported),
+            (Some(1_600), false)
+        );
+        // "Reported" never stands without a time.
+        let timeless = deferral(allowance_refusal(None, false, true, None));
+        assert_eq!((timeless.resets_at, timeless.reset_reported), (None, false));
+        // A deferred item inherits whose allowance stopped the batch.
+        let stopped = provider(403, true)
+            .detail("rate_remaining", "0")
+            .detail("rate_limit_credential", "authenticated");
+        let follower = deferred_after(&stopped).unwrap();
+        assert!(matches!(
+            follower.known_cause(),
+            Some(KnownFailureCause::ProviderAllowanceExhausted {
+                signed_in: Some(true),
+                throttled: false,
+                ..
+            })
+        ));
+        // Not a rate limit: no deferral.
+        assert!(provider(404, false).update_check_deferral().is_none());
     }
 
     #[test]

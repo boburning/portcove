@@ -2,31 +2,28 @@ import { useCallback, useEffect, useState, type RefObject } from "react";
 import { focusAndReveal } from "../../focus";
 
 type Trigger = "switch" | "reset";
+type LibrarySelectionAccepted = (generation: number) => void;
 
 export function useLibrarySelectionReturn(
   generation: number | undefined,
-  switchLibrary: (path: string) => Promise<void>,
-  resetLibrary: () => Promise<void>,
+  switchLibrary: (
+    path: string,
+    accepted: LibrarySelectionAccepted,
+    review?: string,
+  ) => Promise<void>,
+  resetLibrary: (accepted: LibrarySelectionAccepted, review?: string) => Promise<void>,
 ) {
-  const [pending, setPending] = useState<
-    { generation: number | undefined; trigger: Trigger } | undefined
-  >();
-  const run = async (trigger: Trigger, operation: () => Promise<void>) => {
-    setPending({ generation, trigger });
-    try {
-      await operation();
-    } catch (error) {
-      setPending(undefined);
-      throw error;
-    }
+  const [pending, setPending] = useState<{ generation: number; trigger: Trigger }>();
+  const recordDestination = (trigger: Trigger) => (destination: number) => {
+    if (destination !== generation) setPending({ generation: destination, trigger });
   };
-  const switchFromSettings = (path: string) => run("switch", () => switchLibrary(path));
-  const resetFromSettings = () => run("reset", resetLibrary);
+  const switchFromSettings = (path: string, review?: string) =>
+    switchLibrary(path, recordDestination("switch"), review);
+  const resetFromSettings = (review?: string) => resetLibrary(recordDestination("reset"), review);
   const consume = useCallback(() => {
     setPending(undefined);
   }, []);
-  const returnToSelection =
-    pending && pending.generation !== generation ? pending.trigger : undefined;
+  const returnToSelection = pending?.generation === generation ? pending?.trigger : undefined;
   return { switchFromSettings, resetFromSettings, returnToSelection, consume };
 }
 

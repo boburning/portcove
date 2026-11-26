@@ -14,11 +14,15 @@ import {
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 void test("shared Core machine reader pins API 100 and refuses old/future schemas, malformed envelopes and reflected authority", async () => {
-  const core = await readFile(
-    new URL("../crates/portcove-core/src/lib.rs", import.meta.url),
+  const cli = await readFile(
+    new URL("../crates/portcove-cli/src/catalog.rs", import.meta.url),
     "utf8",
   );
-  const declarations = [...core.matchAll(/^pub const API_SCHEMA_VERSION: u32 = ([0-9]+);\r?$/gmu)];
+  const declarations = [
+    ...cli.matchAll(
+      /^pub\(crate\) const DEFINITION_PUBLICATION_INSPECTION_RESPONSE_SCHEMA: u32 = ([0-9]+);\r?$/gmu,
+    ),
+  ];
   assert.deepEqual(
     declarations.map((match) => Number(match[1])),
     [100],

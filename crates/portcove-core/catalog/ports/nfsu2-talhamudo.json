@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nfsu2-talhamudo",
+    "project_url": "https://github.com/TalhaMudo/NFSU2Recomp",
+    "name": "Need for Speed: Underground 2 / NFSU2Recomp (Apple Silicon)",
+    "summary": "Play Need for Speed: Underground 2 natively on Apple Silicon Macs (M1+). Static recompilation of the PC game (x86, Direct3D 9) to ARM64 + Metal: no Wine, CrossOver or emulator; 119 fps vs 10-15 fps under Wine. Bring your own copy; no game code or assets included.",
+    "issue_number": 6809,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-underground-2",
+      "evidence_urls": ["https://github.com/TalhaMudo/NFSU2Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Need for Speed: Underground 2"
+  }
+}

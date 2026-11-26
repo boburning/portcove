@@ -29,9 +29,9 @@ The Project uses these single-select fields:
   governance.
 - **Platform:** Unknown, All, Multi-platform, Windows, Linux, Steam Deck, macOS Intel,
   macOS Apple Silicon, Android, PS5, Not applicable.
-- **Port stage:** Watchlist, Researching, Source contract known, Release
-  integrity qualified, Cataloged, Automated qualification, Manual
-  qualification, Supported, Blocked, Rejected.
+- **Port stage:** Watchlist, Researching, Blocked, Rejected, Cataloged,
+  Automated qualification, Supported. Three historical options remain visible
+  in Project readback while retained assignments still use them.
 - **Effort:** XS, S, M, L, XL, Unknown.
 
 GitHub reserves the field name `Type` for its own item-type filter, so the live
@@ -61,23 +61,11 @@ channel, catalog maturity, or Project Status:
   presence does not grant catalog support.
 - **Researching:** active investigation of upstream identity, releases, source
   requirements, platforms, persistence, or adapter fit.
-- **Source contract known:** required game/source identity and accepted
-  revisions are sufficiently documented for implementation planning. No
-  runnable release is implied.
-- **Release integrity qualified:** at least one useful runnable artifact has a
-  deterministic, reviewable integrity path for an intended platform. Portcove
-  installation or gameplay has not necessarily passed.
 - **Cataloged:** exactly one valid `catalog.json` ID exists, but no catalog-owned
   automated platform qualification has been recorded.
 - **Automated qualification:** at least one declared platform has catalog-owned
   automated evidence, but no supported platform scope has completed the
   required hands-on evidence.
-- **Manual qualification:** automated evidence exists and hands-on
-  qualification is the active next or partially completed gate. This workflow
-  stage does not itself assert a recorded hands-on pass. The stage name is
-  historical; it does not require a human operator when an agent can directly
-  observe the same behavior on the runtime and any input or device relevant to
-  the claim.
 - **Supported:** historical entries require at least one declared platform in
   both legacy qualification arrays. New exact claims require matching scoped
   automated and hands-on records for the artifact, source contract, variant,
@@ -952,13 +940,22 @@ and observed body digests, and reports missing or conflicting catalog links
 as unresolved. A failed or incomplete read establishes no migration counts.
 This mode reports migration coverage separately from global doctor health.
 
-The proposed reduced stage set keeps **Watchlist**, **Researching**,
-**Blocked**, and **Rejected** as deliberate planning values and derives
-**Cataloged**, **Automated qualification**, and **Supported** from existing catalog
-admission and platform qualification. The three historical values,
+The [owner-approved stage model](https://github.com/boburning/portcove/issues/4850#issuecomment-7068240241)
+keeps **Watchlist**, **Researching**, **Blocked**, and **Rejected** as deliberate
+planning values. **Cataloged**, **Automated qualification**, and **Supported**
+follow existing catalog admission and platform qualification. Intake fills an
+unset stage from a uniquely matched operational catalog definition with the
+same upstream. Unbound intake starts at Watchlist. Normalization preserves
+already assigned values and leaves a completed unbound assignment unset.
+Single and bulk edits to a catalog-derived stage require the canonical issue's
+exact current catalog projection.
+
 **Source contract known**, **Release integrity qualified**, and **Manual
-qualification**, require individual review before any migration. Retain their
-source, artifact, and hands-on work evidence in the owning issue. The report
+qualification** are historical options. Routine Roadmap tooling refuses new
+assignments to them and accepts them in readback. Keep their option identities
+available while retained items use them. Preserve source, artifact, and
+hands-on evidence in the owning issue before applying a separately reviewed
+transition. The report
 shows each historical value beside its catalog projection when a unique link
 exists. Doctor already computes and reports drift in either direction from
 observed catalog evidence. It reports a lower stored stage as advisory and
@@ -973,9 +970,11 @@ failures independently. The report includes a catalog projection for matching
 operational ports covered by the issue-free listing rule. A listing or dated
 runtime observation alone supplies no substitute for an automated or hands-on
 qualification pass. The read-only doctor report runs under existing authority.
-Changing the Project value set requires the owner's confirmation. Migrating
-existing assignments requires approval of the reviewed assignment plan,
-including preservation of the supporting evidence in their owning issues.
+The approved assignment plan covers 299 clears, 20 transitions to Researching,
+five transitions to Blocked, and 34 historical holds. Apply a transition
+only after rechecking that exact row and preserving its supporting evidence
+in the owning issue. Changed or newly identified assignments need separate
+disposition.
 
 For each historical assignment, the dry run retains the exact old value and
 issue body with the Project and issue IDs, observed revision, and body digest.

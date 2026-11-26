@@ -313,6 +313,8 @@ fn quake_linux_entries_require_native15_for_fresh_and_retained_reads() {
     for id in ["quake-ironwail", "quake-vkquake"] {
         let mut creating_port = catalog.port(id).unwrap().clone();
         creating_port.reviewed_package_layouts.clear();
+        // The creating definition predates mod source data.
+        creating_port.mod_sources.clear();
         let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(15);
         for minimum in [14, 15] {
@@ -360,6 +362,8 @@ fn profile_siblings_require_native16_for_fresh_and_retained_reads() {
     for id in ["corsixth-corsixth", "openloco-openloco"] {
         let mut creating_port = catalog.port(id).unwrap().clone();
         creating_port.reviewed_package_layouts.clear();
+        // The creating definition predates mod source data.
+        creating_port.mod_sources.clear();
         let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(16);
         for minimum in [15, 16] {
@@ -385,6 +389,8 @@ fn archive_siblings_require_native17_for_fresh_and_retained_reads() {
     for id in ["jgrennison-openttd-patches", "gladiator-openglad"] {
         let mut creating_port = catalog.port(id).unwrap().clone();
         creating_port.reviewed_package_layouts.clear();
+        // The creating definition predates mod source data.
+        creating_port.mod_sources.clear();
         let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(17);
         for minimum in [16, 17] {
@@ -807,6 +813,25 @@ fn reviewed_package_layouts_require_a_capable_native_reader() {
         invalid["port"]["reviewed_package_layouts"]["linux-x86-64"]["executables"] = paths;
         assert!(inspect(&invalid).is_err());
     }
+}
+
+#[test]
+fn reviewed_predecessor_layouts_require_the_new_reader_even_when_retained() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("dethrace-labs-dethrace").unwrap();
+    let mut entry = entry_for_port(port);
+    let capability = crate::package_layout::PREDECESSOR_LAYOUT_CAPABILITY;
+    let inspect_retained = |entry: &serde_json::Value| {
+        let bytes = serde_json::to_vec(entry).unwrap();
+        index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes)
+    };
+    entry["required_capabilities"][0]["minimum_version"] = json!(41);
+    entry["required_capabilities"][0]["maximum_version"] = json!(capability);
+    assert!(inspect(&entry).is_err());
+    assert!(inspect_retained(&entry).is_err());
+    entry["required_capabilities"][0]["minimum_version"] = json!(capability);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(inspect_retained(&entry).unwrap().capabilities().compatible);
 }
 
 #[test]
@@ -1903,7 +1928,12 @@ fn provider_bound_runtime_policies_exclude_older_readers_without_reinterpreting_
 #[test]
 fn every_existing_official_projection_keeps_its_complete_fields() {
     let mut value = fixture();
-    for port in crate::Catalog::embedded().unwrap().ports() {
+    for current in crate::Catalog::embedded().unwrap().ports() {
+        // Existing official projections predate mod source data. A current
+        // port that declares sources needs schema 4, tested separately.
+        let mut owned = current.clone();
+        owned.mod_sources.clear();
+        let port = &owned;
         value["stable_id"] = json!(port.id);
         value["definition_schema"] = json!(if port.mod_loader.is_some() { 3 } else { 1 });
         value["port"] = serde_json::to_value(port).unwrap();
@@ -2256,8 +2286,8 @@ fn an_unsupported_entry_does_not_discard_a_valid_sibling_or_change_the_index() {
 #[test]
 fn shape_inspection_does_not_bypass_existing_catalog_semantic_validation() {
     let mut value = catalog_fixture();
+    // Isolate generic persistence validation from the separate loader and provider fences.
     let port = value["port"].as_object_mut().unwrap();
-    // Exercise generic persistence validation rather than the earlier loader fence.
     port.remove("mod_loader");
     port.remove("mod_provider_bindings");
     // Keep the fixture's authored settings targets in the persistence contract.
@@ -2641,6 +2671,8 @@ fn native_original_siblings_require_native10_in_fresh_and_retained_readers() {
     ] {
         let mut creating_port = catalog.port(id).unwrap().clone();
         creating_port.reviewed_package_layouts.clear();
+        // The creating definition predates mod source data.
+        creating_port.mod_sources.clear();
         assert!(crate::native_temp::has_sibling_platforms(&creating_port));
         let mut entry = entry_for_port(&creating_port);
         entry["required_capabilities"][0]["maximum_version"] = json!(10);
@@ -2753,5 +2785,297 @@ fn native_relative_originals_require_capability_37_in_fresh_and_retained_readers
                 assert!(result.unwrap().capabilities().compatible);
             }
         }
+    }
+}
+
+#[test]
+fn named_features_are_explicit_and_keep_legacy_reader_minimums() {
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::NativePortable;
+    port.release.linux_tar_xz = true;
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(8);
+    entry["required_capabilities"][0]["maximum_version"] = json!(8);
+    for schema in [1, 2, 3] {
+        entry["definition_schema"] = json!(schema);
+        assert!(inspect(&entry).unwrap().capabilities().compatible);
+    }
+    entry["definition_schema"] = json!(4);
+    assert!(inspect(&entry).is_err());
+    entry["required_features"] = json!([]);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("native.linux-tar-xz")
+    );
+    entry["required_features"] = json!(["native.linux-tar-xz"]);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(7);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 8"));
+    entry["required_features"] = json!(["native.linux-tar-xz", "native.linux-tar-xz"]);
+    assert!(inspect(&entry).unwrap_err().message.contains("duplicate"));
+    entry["required_features"] = json!(["native.future-layout-v7"]);
+    assert_eq!(
+        inspect(&entry).unwrap_err().code,
+        crate::ErrorCode::Unsupported
+    );
+}
+
+#[test]
+fn mod_sources_require_their_named_reader_and_refuse_only_their_definition() {
+    let base = fixture_catalog().ports()[0].clone();
+    let mut port = base.clone();
+    let mut platforms = port.platforms.clone();
+    platforms.sort();
+    port.mod_sources = vec![crate::ModSource {
+        id: "community".into(),
+        authority: crate::ModSourceAuthority::LinkOut,
+        platforms,
+        name: Some("Community mods".into()),
+        instructions: Some("Follow the author’s setup.".into()),
+        source: crate::ModSourceKind::ExternalPortal {
+            site: crate::ModPortalSite::CommunitySite,
+            url: "https://mods.example.org/".into(),
+        },
+    }];
+    let mut entry = entry_for_port(&port);
+    // Older entry schemas cannot carry the field.
+    for schema in [1, 2, 3] {
+        entry["definition_schema"] = json!(schema);
+        assert!(
+            inspect(&entry)
+                .unwrap_err()
+                .message
+                .contains("definition schema 4")
+        );
+    }
+    entry["definition_schema"] = json!(4);
+    entry["required_features"] = json!([]);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("mods.sources-v1")
+    );
+    entry["required_features"] = json!(["mods.sources-v1"]);
+    assert_eq!(
+        inspect(&entry).unwrap().port().mod_sources,
+        port.mod_sources
+    );
+    // A reader without this feature sees an unknown name: it refuses this
+    // definition as needing a newer engine, not as invalid.
+    entry["required_features"] = json!(["mods.sources-v2"]);
+    let newer = inspect(&entry).unwrap_err();
+    assert_eq!(newer.code, crate::ErrorCode::Unsupported);
+    assert!(crate::definition_capabilities::requires_newer_engine(
+        &newer
+    ));
+    let mut unscoped = entry.clone();
+    unscoped["port"]["mod_sources"][0]["platforms"] = json!([]);
+    unscoped["required_features"] = json!(["mods.sources-v1"]);
+    assert!(
+        inspect(&unscoped)
+            .unwrap_err()
+            .message
+            .contains("mods.platform-independent-portals-v1")
+    );
+    unscoped["required_features"] =
+        json!(["mods.platform-independent-portals-v1", "mods.sources-v1"]);
+    assert!(inspect(&unscoped).unwrap().port().mod_sources[0].is_platform_independent_portal());
+
+    // This reader refuses an unknown kind or an invalid address per definition.
+    entry["required_features"] = json!(["mods.sources-v1"]);
+    let mut unknown = entry.clone();
+    unknown["port"]["mod_sources"][0]["source"]["kind"] = json!("future_feed");
+    assert!(inspect(&unknown).is_err());
+    let mut insecure = entry.clone();
+    insecure["port"]["mod_sources"][0]["source"]["url"] = json!("http://mods.example.org/");
+    assert!(
+        inspect(&insecure)
+            .unwrap_err()
+            .message
+            .contains("invalid mod source")
+    );
+    // A definition without sources keeps its legacy schema.
+    let mut legacy = entry_for_port(&base);
+    legacy["definition_schema"] = json!(1);
+    assert!(inspect(&legacy).unwrap().capabilities().compatible);
+}
+
+#[test]
+fn reviewed_runtime_compatibility_artifacts_require_named_entry_even_when_retained() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog
+        .port("the-force-engine-dark-forces")
+        .unwrap()
+        .clone();
+    port.managed_runtime_applies_to = Some(vec![crate::RuntimePolicyArtifact {
+        version: "v91.2".into(),
+        size: 31_291,
+        sha256: "bc".repeat(32),
+    }]);
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(23);
+    entry["required_capabilities"][0]["maximum_version"] = json!(38);
+    for schema in [1, 2, 3] {
+        entry["definition_schema"] = json!(schema);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        assert!(
+            inspect(&entry)
+                .unwrap_err()
+                .message
+                .contains("definition schema 4")
+        );
+        assert!(
+            index(&bytes, &port.id)
+                .inspect_retained_entry("official", &port.id, &bytes)
+                .unwrap_err()
+                .message
+                .contains("definition schema 4")
+        );
+    }
+    entry["definition_schema"] = json!(4);
+    entry["required_features"] = json!([
+        "staged.provider-resolution-v1",
+        "staged.reusable-runtime-policy-v1",
+        "staged.managed-initialization-v1",
+        "staged.ready-archive-v1"
+    ]);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("runtime.reviewed-compatibility-artifacts-v1")
+    );
+    entry["required_features"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!("runtime.reviewed-compatibility-artifacts-v1"));
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
+fn named_entry_ignores_only_bounded_top_level_advice() {
+    let mut entry = fixture();
+    let legacy = inspect(&entry).unwrap();
+    let advisory = json!({"future-reader": {"downloaded_implementation": true}});
+    entry["advisory"] = advisory.clone();
+    assert!(inspect(&entry).is_err());
+    for schema in [2, 3] {
+        entry["definition_schema"] = json!(schema);
+        assert!(inspect(&entry).is_err());
+    }
+    entry["definition_schema"] = json!(4);
+    entry["required_features"] = json!(null);
+    assert!(inspect(&entry).is_err());
+    entry["required_features"] = json!([]);
+    let newer = inspect(&entry).unwrap();
+    assert_eq!(
+        serde_json::to_value(newer.port()).unwrap(),
+        serde_json::to_value(legacy.port()).unwrap()
+    );
+    assert_eq!(
+        serde_json::to_value(newer.capabilities()).unwrap(),
+        serde_json::to_value(legacy.capabilities()).unwrap()
+    );
+    entry["future_required_field"] = advisory.clone();
+    assert!(inspect(&entry).is_err());
+    entry
+        .as_object_mut()
+        .unwrap()
+        .remove("future_required_field");
+    entry["port"]["future_required_field"] = advisory;
+    assert!(inspect(&entry).is_err());
+    entry["port"]
+        .as_object_mut()
+        .unwrap()
+        .remove("future_required_field");
+    for invalid in [
+        json!(null),
+        json!([]),
+        json!({"over-size": "x".repeat(16 * 1024)}),
+    ] {
+        entry["advisory"] = invalid;
+        assert!(inspect(&entry).is_err());
+    }
+}
+
+/// The Daggerfall Unity loader's capability floor goes through the named
+/// feature helper: the same native-portable minimum for schema-3 and schema-4
+/// entries, fresh and retained, and a schema-4 entry must name the loader.
+#[test]
+fn daggerfall_unity_loader_capability_uses_the_named_feature_helper() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog
+        .ports()
+        .iter()
+        .find(|port| crate::profile_loader::declares_dfu_loader(port))
+        .expect("the catalog has a Daggerfall Unity loader binding")
+        .clone();
+    // This test covers the loader capability only; mod sources need schema 4.
+    port.mod_sources.clear();
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"] = json!(crate::test_fixture::definition_requirements(&port, 3));
+    let floor = crate::profile_loader::DFU_CAPABILITY;
+    let set_minimum = |entry: &mut Value, minimum: u32| {
+        for requirement in entry["required_capabilities"].as_array_mut().unwrap() {
+            if requirement["template"] == "native-portable" {
+                requirement["minimum_version"] = json!(minimum);
+            }
+        }
+    };
+    let results = |entry: &Value| {
+        let bytes = serde_json::to_vec(entry).unwrap();
+        [
+            inspect(entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ]
+    };
+    assert_eq!(entry["definition_schema"], 3);
+    // Name every feature this entry needs, as a schema-4 author would.
+    let mut named = entry.clone();
+    named["definition_schema"] = json!(4);
+    named["required_features"] = json!([]);
+    for _ in 0..64 {
+        let Err(error) = inspect(&named) else { break };
+        let feature = error
+            .message
+            .strip_prefix("definition omits required feature ")
+            .and_then(|rest| rest.split(' ').next())
+            .unwrap_or_else(|| panic!("{error:?}"))
+            .to_owned();
+        named["required_features"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!(feature));
+    }
+    let features = named["required_features"].as_array().unwrap().clone();
+    assert!(features.contains(&json!("mods.native-loader-binding-v1")));
+    for candidate in [&mut entry, &mut named] {
+        for (minimum, accepted) in [(floor - 1, false), (floor, true)] {
+            set_minimum(candidate, minimum);
+            for result in results(candidate) {
+                if accepted {
+                    assert!(result.unwrap().capabilities().compatible);
+                } else {
+                    assert!(
+                        result
+                            .unwrap_err()
+                            .message
+                            .contains("Daggerfall Unity data-only loader")
+                    );
+                }
+            }
+        }
+    }
+    named["required_features"] = json!(
+        features
+            .into_iter()
+            .filter(|feature| feature != "mods.native-loader-binding-v1")
+            .collect::<Vec<_>>()
+    );
+    for result in results(&named) {
+        assert!(result.unwrap_err().message.contains("port.mod_loader"));
     }
 }

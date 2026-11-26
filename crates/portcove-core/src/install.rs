@@ -12,23 +12,46 @@ use crate::{
     ResolvedRelease, Result, RuntimeIdentity, RuntimeOrigin,
     adapter::{hash_file, walk_files},
     archive::{
-        extract_archive_with_checkpoint, extract_tar_xz_with_checkpoint,
-        validate_download_progress, validate_download_size,
+        extract_archive_with_checkpoint, extract_tar_xz_with_checkpoint, validate_download_size,
     },
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
         LifecyclePhase, NoLifecycleFaults, OperationStore,
     },
 };
-use futures_util::StreamExt;
 
 const LINUX_PACKAGED_LIBRARY_DIRECTORY: &str = "linux-libraries";
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tokio::io::AsyncWriteExt;
 
 mod partial_download;
+/// The library's partial-download store for install, update and catalog assets.
+const PARTIAL_DOWNLOADS_DIR: &str = "partial-v1";
+
+impl crate::Library {
+    /// Kept partial-download bytes of these entries, for telling an
+    /// unattended run that keeps moving from one that keeps ending at the
+    /// same point. Entries of other plans are left out.
+    pub(crate) fn kept_downloads_of(
+        &self,
+        keys: &[String],
+    ) -> crate::temporary_failure::KeptDownloads {
+        let mut kept =
+            partial_download::kept_downloads(&self.downloads_dir().join(PARTIAL_DOWNLOADS_DIR));
+        kept.retain(|key, _| keys.contains(key));
+        kept
+    }
+}
+
+/// The partial-download entries an install plan's downloads use.
+pub(crate) fn plan_download_keys(plan: &crate::InstallPlan) -> Vec<String> {
+    std::iter::once(&plan.release.asset)
+        .chain(plan.bundled_runtime.iter().map(|runtime| &runtime.asset))
+        .chain(&plan.auxiliary_downloads)
+        .filter_map(partial_download::PartialDownloads::entry_key)
+        .collect()
+}
 mod transfer;
 
 #[derive(Debug, Clone)]
@@ -74,6 +97,7 @@ struct AssetPreparation<'a> {
     acquisition: Option<AssetAcquisition<'a>>,
     acquired: Option<&'a Path>,
     requires_tar_xz: bool,
+    reviewed_package_format: Option<crate::PackageFormat>,
     tar_xz_allow_file_links: bool,
     unwrap_inner_archive: bool,
 }
@@ -118,8 +142,12 @@ pub struct InstallQualification {
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     requires_tar_xz: bool,
+    reviewed_package_format: Option<crate::PackageFormat>,
     native_mac_bundle_tar_xz: bool,
     executable_hints: Vec<String>,
+    /// The setup program a managed preparation route runs on this host. A new
+    /// package must contain it before publication (#8602).
+    setup_executable_hints: Vec<String>,
     runtime_subdirectory: Option<String>,
     external_profile_policy: Option<crate::ExternalProfilePolicy>,
     persistent_paths: Vec<String>,
@@ -135,6 +163,17 @@ pub struct InstallQualification {
 }
 
 impl InstallQualification {
+    pub(crate) fn psx_toolchain(
+        &self,
+        port_id: &str,
+    ) -> Result<crate::psx_tool_artifacts::ToolchainArtifact> {
+        if let Some(contract) = &self.retained_contract {
+            let catalog = contract.catalog(port_id)?;
+            return crate::psx_tool_artifacts::selected(&catalog, port_id, self.platform);
+        }
+        Ok(crate::psx_tool_artifacts::embedded(self.platform)?.clone())
+    }
+
     pub(crate) fn with_shared_preferences(
         mut self,
         accepted: Option<crate::managed_shared_preferences::Acceptance>,
@@ -311,8 +350,17 @@ impl InstallQualification {
             retained_contract: None,
             platform,
             requires_tar_xz: port.release.requires_tar_xz(platform),
+            reviewed_package_format: port.reviewed_package_format(platform),
             native_mac_bundle_tar_xz: crate::runtime::native_mac_bundle_tar_xz(port, platform),
             executable_hints,
+            setup_executable_hints: if crate::preparation::managed(port) {
+                port.setup_executable_hints
+                    .get(&platform)
+                    .cloned()
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            },
             runtime_subdirectory: port.runtime_subdirectory_for(platform).map(str::to_owned),
             external_profile_policy: port.external_profile_policy,
             persistent_paths: crate::persistence::declared_paths(port, platform).to_vec(),
@@ -555,6 +603,7 @@ impl InstallQualification {
         // This synthetic installer port clears the loader's required persistent paths.
         port.mod_loader = None;
         port.mod_provider_bindings = None;
+        port.mod_sources.clear();
         port.source_profile = None;
         port.presentation = None;
         port.source_environment = None;
@@ -655,6 +704,10 @@ struct InstallManifest {
     schema_version: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     archive_data_admission: Option<crate::archive_data_transition::Admission>,
+    /// Private extraction proved that the package shipped no additional
+    /// contents under otherwise mutable loader persistence paths.
+    #[serde(default, skip_serializing_if = "is_false")]
+    reviewed_loader_shipped_persistence: bool,
     /// Package defaults observed before preparation. The manifest binds them to
     /// its artifact; historical installs have no recorded baseline.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -1165,11 +1218,7 @@ impl Installer {
             )?;
         }
         if request.qualification.managed_shared_preferences.is_some()
-            || request
-                .release
-                .asset
-                .sha256
-                .eq_ignore_ascii_case(crate::managed_shared_preferences::SHA)
+            || crate::managed_shared_preferences::known_artifact(&request.release.asset.sha256)
         {
             let port = catalog.port(&request.port_id)?;
             if request.qualification.retained_contract.is_none()
@@ -1224,6 +1273,24 @@ impl Installer {
             )?;
         }
         let port = catalog.port(&request.port_id)?;
+        if port.reviewed_launch_contract_v1.is_some() {
+            let resolution = request
+                .qualification
+                .acquisition
+                .as_ref()
+                .filter(|resolved| resolved.scope.is_some())
+                .filter(|_| request.qualification.retained_contract.is_some())
+                .ok_or_else(|| {
+                    PortcoveError::verification(
+                        "named package and launch declarations require independent acquisition authority",
+                    )
+                })?;
+            resolution.require_selection(
+                port,
+                request.qualification.platform,
+                request.release.channel,
+            )?;
+        }
         let requires_tar_xz = port.release.requires_tar_xz(request.qualification.platform);
         let is_tar_xz = request
             .release
@@ -1231,10 +1298,18 @@ impl Installer {
             .name
             .to_ascii_lowercase()
             .ends_with(".tar.xz");
+        let reviewed_format = port.reviewed_package_format(request.qualification.platform);
+        if reviewed_format != request.qualification.reviewed_package_format
+            || reviewed_format.is_some_and(|format| !format.matches(&request.release.asset.name))
+        {
+            return Err(PortcoveError::verification(
+                "reviewed archive format requires the matching retained and admitted acquisition",
+            ));
+        }
         if requires_tar_xz != request.qualification.requires_tar_xz
             || request.qualification.native_mac_bundle_tar_xz
                 != crate::runtime::native_mac_bundle_tar_xz(port, request.qualification.platform)
-            || is_tar_xz != requires_tar_xz
+            || (reviewed_format.is_none() && is_tar_xz != requires_tar_xz)
             || (requires_tar_xz && request.qualification.retained_contract.is_none())
         {
             return Err(PortcoveError::unsupported(
@@ -1268,6 +1343,19 @@ impl Installer {
             return Err(PortcoveError::unsupported(
                 "Managed installation requires player-data preflight before activation. Install inactive, then activate through Core; the previous installation is preserved.",
             ));
+        }
+        if port.managed_runtime_applies_to.is_some() {
+            let resolution = request.qualification.acquisition.as_ref()
+                .filter(|resolved| resolved.scope.is_some())
+                .filter(|_| request.qualification.retained_contract.is_some())
+                .ok_or_else(|| PortcoveError::verification(
+                    "reviewed runtime compatibility artifacts require independent acquisition authority",
+                ))?;
+            resolution.require_selection(
+                port,
+                request.qualification.platform,
+                request.release.channel,
+            )?;
         }
         if crate::managed_runtime_policy::requires_provider_resolution_on(
             port,
@@ -1307,6 +1395,14 @@ impl Installer {
                     return Err(PortcoveError::conflict(
                         "installation acquisition proof changed",
                     ));
+                }
+                if let Some(forge) = &scope.forge {
+                    resolution.require_selection(
+                        port,
+                        request.qualification.platform,
+                        request.release.channel,
+                    )?;
+                    forge.require_asset(&request.release, request.qualification.platform)?;
                 }
                 scope.require_current()?;
                 scope.require_asset_url(&request.release.asset.url)?;
@@ -1478,6 +1574,7 @@ impl Installer {
                         .map(|inputs| inputs.path(&request.release.asset))
                         .transpose()?,
                     requires_tar_xz: request.qualification.requires_tar_xz,
+                    reviewed_package_format: request.qualification.reviewed_package_format,
                     tar_xz_allow_file_links: !request.qualification.native_mac_bundle_tar_xz,
                     // Only macOS and Linux routes with a declared executable unwrap a
                     // package that publishes one inner archive; other payload shapes
@@ -1580,6 +1677,11 @@ impl Installer {
                     platform,
                     &payload_root,
                     None,
+                    request
+                        .qualification
+                        .acquisition
+                        .as_ref()
+                        .map(|proof| (proof, &artifact)),
                 )?;
             }
             if port.release.grant_declared_executable && !grant_before_layout {
@@ -1595,12 +1697,8 @@ impl Installer {
                 &payload_root,
             )?;
             // Compare the upstream package before an adapter adds content.
-            let shape = self.package_shape_record(
-                port,
-                &request.qualification,
-                &payload_root,
-                &artifact.sha256,
-            );
+            let shape =
+                self.package_shape_record(port, &request.qualification, &payload_root, &artifact);
             if crate::package_shape::withholds_release(&shape.verdict)
                 && let Some(capability) =
                     crate::package_shape::selected_enforcement_capability(&catalog, port)?
@@ -1657,6 +1755,11 @@ impl Installer {
                     platform,
                     &payload_root,
                     None,
+                    request
+                        .qualification
+                        .acquisition
+                        .as_ref()
+                        .map(|proof| (proof, &artifact)),
                 )?;
             }
             if crate::native_external_profile::archive_siblings::requires_archive(
@@ -1743,6 +1846,19 @@ impl Installer {
                     )?;
                 }
             }
+            require_declared_setup_program(
+                port,
+                &payload_root,
+                &request.qualification,
+                || -> Result<bool> {
+                    Ok(replacement.is_some()
+                        || crate::profile::active_install_id(
+                            &self.library.connection()?,
+                            &port.id,
+                        )?
+                        .is_some())
+                },
+            )?;
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
@@ -1783,6 +1899,11 @@ impl Installer {
                     platform,
                     &payload_root,
                     Some(&data),
+                    request
+                        .qualification
+                        .acquisition
+                        .as_ref()
+                        .map(|proof| (proof, &artifact)),
                 )?;
             }
         }
@@ -1802,6 +1923,7 @@ impl Installer {
                         .map(|inputs| inputs.path(&runtime.asset))
                         .transpose()?,
                     requires_tar_xz: false,
+                    reviewed_package_format: None,
                     tar_xz_allow_file_links: true,
                     unwrap_inner_archive: false,
                 },
@@ -1824,6 +1946,7 @@ impl Installer {
             operation.checkpoint()?;
         }
         if let Some(preparation) = request.managed.clone() {
+            let toolchain = request.qualification.psx_toolchain(&request.port_id)?;
             if let Some((dependency, destination)) =
                 crate::psx::missing_offline_webp(&payload_root)?
             {
@@ -1858,7 +1981,7 @@ impl Installer {
             emit(operation.message("info", "Preparing and compiling PlayStation game data"));
             let managed_root = payload_root.clone();
             run_managed_install_worker(lifecycle, operation, move |checkpoint| {
-                crate::psx::prepare_install(&managed_root, &preparation, &checkpoint)
+                crate::psx::prepare_install(&managed_root, &preparation, &toolchain, &checkpoint)
             })
             .await?;
             operation.checkpoint()?;
@@ -1923,7 +2046,8 @@ impl Installer {
             &install.path,
         )?;
         if request.activate {
-            crate::profile::require_default_recovery_capacity(
+            crate::profile::require_default_retention_ready(
+                &self.library,
                 &self.library.connection()?,
                 &install.port_id,
                 &install.id,
@@ -2211,6 +2335,7 @@ impl Installer {
             acquisition,
             acquired,
             requires_tar_xz,
+            reviewed_package_format,
             tar_xz_allow_file_links,
             unwrap_inner_archive,
         } = input;
@@ -2233,7 +2358,17 @@ impl Installer {
                 }
                 extraction_operation.checkpoint()
             };
-            let result = if requires_tar_xz {
+            let result = if let Some(format) = reviewed_package_format {
+                crate::archive::extract_reviewed_package(
+                    &extraction_path,
+                    &extraction_root,
+                    &asset_name,
+                    expected_size,
+                    format,
+                    false,
+                    &checkpoint,
+                )
+            } else if requires_tar_xz {
                 extract_tar_xz_with_checkpoint(
                     &extraction_path,
                     &extraction_root,
@@ -2346,11 +2481,36 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
+        #[cfg(test)]
+        let forge_fixture_asset = if let Some(scope) =
+            scope.filter(|scope| scope.forge.is_some() && scope.fixture_origin.is_some())
+        {
+            scope.require_asset_url(&asset.url)?;
+            let canonical = reqwest::Url::parse(&asset.url)
+                .map_err(|_| PortcoveError::verification("invalid forge fixture artifact URL"))?;
+            crate::reviewed_forge::fixture_destination(scope, &canonical)?.map(|url| ReleaseAsset {
+                url: url.into(),
+                ..asset.clone()
+            })
+        } else {
+            None
+        };
         let client = match scope {
             Some(scope) => {
                 scope.require_current()?;
                 scope.require_asset_url(&asset.url)?;
-                reqwest::Client::builder()
+                let builder = if scope.forge.is_some() {
+                    crate::reviewed_forge::public_transport(reqwest::Client::builder())
+                } else {
+                    reqwest::Client::builder()
+                };
+                #[cfg(test)]
+                let builder = if forge_fixture_asset.is_some() {
+                    reqwest::Client::builder().no_proxy()
+                } else {
+                    builder
+                };
+                builder
                     .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
                     .connect_timeout(self.network_bounds.0)
                     .read_timeout(self.network_bounds.1)
@@ -2369,7 +2529,7 @@ impl Installer {
         // The library store checks its own capacity. The caller still verifies
         // the complete archive after it reaches private install staging.
         let partials = partial_download::PartialDownloads::new(
-            self.library.downloads_dir().join("partial-v1"),
+            self.library.downloads_dir().join(PARTIAL_DOWNLOADS_DIR),
         );
         let retained = if let Some((port_id, operation_id)) = download.install_owner {
             let library = self.library.clone();
@@ -2394,6 +2554,8 @@ impl Installer {
             self.is_library_staged(download.path)
                 .then_some(transfer::RetainedDownload::private(&partials))
         };
+        #[cfg(test)]
+        let asset = forge_fixture_asset.as_ref().unwrap_or(asset);
         transfer::download_resuming(
             &client,
             asset,
@@ -3806,39 +3968,265 @@ pub(crate) fn retained_catalog_for_install(
     catalog_for_verified_manifest(install, &manifest)
 }
 
-#[derive(Deserialize)]
-struct LegacyDkrArtifact {
-    version: String,
+use crate::historical_artifacts::LegacyDkrArtifact;
+
+fn verify_loader_files(install: &InstallRecord, files: &[ManifestFile]) -> Result<bool> {
+    if files.is_empty()
+        || files.len() > 4096
+        || files
+            .iter()
+            .try_fold(0_u64, |sum, file| sum.checked_add(file.size))
+            .is_none_or(|bytes| bytes > 2 * 1024 * 1024 * 1024)
+    {
+        return Ok(false);
+    }
+    for member in files {
+        let path = manifest_member(&install.path, &member.path)?;
+        let (digest, bytes) =
+            crate::external_runtime::hash_stable_regular(&path, member.size, &|| Ok(()))?;
+        if !digest.eq_ignore_ascii_case(&member.sha256) || bytes != member.size {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+pub(crate) fn verify_exact_loader_files(install: &InstallRecord) -> Result<bool> {
+    verify_loader_files(install, &verified_manifest(install)?.files)
+}
+
+/// The admitted manifest supplies canonical release-owned file identities.
+/// Repack continuity additionally requires ordinary immutable GitHub provenance.
+pub(crate) fn matches_reviewed_loader_payload(
+    install: &InstallRecord,
+    repository: (&str, u64),
     platform: Platform,
-    asset_name: String,
-    size: u64,
-    sha256: String,
-    executable: String,
+    allowed_mutable_paths: &[&str],
+    reviewed_sha256: &str,
+    verify_files: bool,
+) -> Result<bool> {
+    let manifest = verified_manifest(install)?;
+    if manifest.platform != Some(platform)
+        || manifest
+            .github_artifact_identity
+            .as_ref()
+            .is_none_or(|identity| {
+                !identity.repository.eq_ignore_ascii_case(repository.0)
+                    || identity.repository_id != repository.1
+                    || identity.tag != install.version
+            })
+        || !manifest.reviewed_loader_shipped_persistence
+        || !manifest.mutable_file_patterns.is_empty()
+        || manifest
+            .mutable_paths
+            .iter()
+            .any(|path| !allowed_mutable_paths.contains(&path.as_str()))
+        || manifest.files.is_empty()
+        || manifest.files.len() > 4096
+    {
+        return Ok(false);
+    }
+    let mut rows = manifest
+        .files
+        .iter()
+        .map(|file| {
+            (
+                file.path.as_str(),
+                file.size,
+                file.sha256.to_ascii_lowercase(),
+            )
+        })
+        .collect::<Vec<_>>();
+    rows.sort_unstable_by_key(|row| row.0);
+    if !crate::signed_catalog::digest(&serde_json::to_vec(&rows)?)
+        .eq_ignore_ascii_case(reviewed_sha256)
+    {
+        return Ok(false);
+    }
+    if verify_files {
+        return verify_loader_files(install, &manifest.files);
+    }
+    Ok(true)
+}
+
+#[cfg(test)]
+mod reviewed_loader_payload_tests {
+    use super::*;
+    use crate::ReleaseChannel;
+
+    #[test]
+    fn ordinary_accepted_dfu_payload_reuses_loader_review_across_release_identities() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = Library::open(dir.path().join("library")).unwrap();
+        let installer = Installer::new(library.clone()).unwrap();
+        // A Windows manifest cannot record the Unix executable bit a Linux
+        // package manifest requires, so every non-Windows host qualifies Linux.
+        let platform = if cfg!(windows) {
+            Platform::WindowsX86_64
+        } else {
+            Platform::LinuxX86_64
+        };
+        let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "interkarma-daggerfall-unity")
+            .unwrap();
+        let repo = "fixture/portable-game";
+        port.release.repository = repo.into();
+        let executable = port.executable_hints[&platform][0].clone();
+        let loader = port.mod_loader.as_mut().unwrap();
+        loader.repository = repo.into();
+        loader.reviewed_repository_id = Some(42);
+        let runtime = b"inert immutable fixture, never executed";
+        let paths = [(
+            executable.as_str(),
+            runtime.len() as u64,
+            crate::signed_catalog::digest(runtime),
+        )];
+        let reviewed = crate::signed_catalog::digest(&serde_json::to_vec(&paths).unwrap());
+        loader
+            .reviewed_payload_sha256
+            .insert(platform, reviewed.clone());
+        let port_id = port.id.clone();
+        let catalog = crate::Catalog::from_document(document).unwrap();
+        let port = catalog.port(&port_id).unwrap();
+        let allowed = [
+            "Portable.txt",
+            "PortableAppdata",
+            crate::profile_loader::DFU_MODS,
+            "DaggerfallUnity_Data/StreamingAssets/GameFiles",
+        ];
+
+        for (i, tag, repository_id, extra_shipped_file, expected) in [
+            (1, "v1.1.2", 42, false, true),
+            (2, "v1.1.3", 42, false, true),
+            (3, "v1.1.4", 43, false, false),
+            (4, "v1.1.5", 42, true, false),
+        ] {
+            let install_id = format!("runtime-{i}");
+            let root = library.versions_dir().join(&port_id).join(&install_id);
+            fs::create_dir_all(&root).unwrap();
+            let executable_path = root.join(&executable);
+            fs::write(&executable_path, runtime).unwrap();
+            crate::permissions::normalize_archive_entry(&executable_path, false, true).unwrap();
+            if extra_shipped_file {
+                fs::write(root.join("Portable.txt"), []).unwrap();
+            }
+            let asset = crate::ReleaseAsset {
+                name: format!("runtime-{i}.zip"),
+                url: format!("https://github.com/{repo}/releases/download/{tag}/runtime-{i}.zip"),
+                size: 123 + i,
+                sha256: format!("{i:064x}"),
+            };
+            let artifact = ArtifactIdentity {
+                asset_name: asset.name.clone(),
+                size: asset.size,
+                sha256: asset.sha256.clone(),
+            };
+            let mut resolved = crate::ScopedResolvedRelease::legacy(crate::ResolvedRelease {
+                version: tag.into(),
+                channel: ReleaseChannel::Stable,
+                published_at: None,
+                asset,
+                uploader_continuity: None,
+            })
+            .for_selection(port, platform, ReleaseChannel::Stable)
+            .unwrap();
+            resolved.github_identity =
+                Some(crate::definition_acquisition::GithubArtifactIdentity {
+                    repository: repo.into(),
+                    repository_id,
+                    release_id: i + 100,
+                    asset_id: i + 200,
+                    tag: tag.into(),
+                });
+            let qualification = InstallQualification::from_catalog(&catalog, &port_id, platform)
+                .unwrap()
+                .with_acquisition_resolution(resolved)
+                .unwrap();
+            let shape = installer.package_shape_record(port, &qualification, &root, &artifact);
+            let (manifest_sha256, selected_executable, runtime) = write_manifest_with_shape(
+                &install_id,
+                &port_id,
+                tag,
+                &artifact,
+                &qualification,
+                &root,
+                Some(shape),
+            )
+            .unwrap();
+            let install = InstallRecord {
+                id: install_id,
+                port_id: port_id.clone(),
+                version: tag.into(),
+                channel: ReleaseChannel::Stable,
+                verified: true,
+                staged: false,
+                installed_at: Library::now(),
+                path: root,
+                artifact,
+                manifest_sha256,
+                selected_executable,
+                runtime,
+            };
+            let build = retained_build_identity_for_install(&install).unwrap();
+            assert_eq!(
+                crate::profile_loader::require_contract(&install, &build, None, false)
+                    .unwrap()
+                    .is_some(),
+                expected
+            );
+            assert_eq!(
+                matches_reviewed_loader_payload(
+                    &install,
+                    (repo, 42),
+                    platform,
+                    &allowed,
+                    &reviewed,
+                    true
+                )
+                .unwrap(),
+                expected
+            );
+            if expected {
+                fs::write(&executable_path, b"immutable payload drift").unwrap();
+                assert!(
+                    !matches_reviewed_loader_payload(
+                        &install,
+                        (repo, 42),
+                        platform,
+                        &allowed,
+                        &reviewed,
+                        true
+                    )
+                    .unwrap_or(false)
+                );
+            }
+        }
+    }
 }
 
 fn legacy_dkr_artifact(
     install: &InstallRecord,
     manifest: &InstallManifest,
-) -> Result<Option<LegacyDkrArtifact>> {
+) -> Result<Option<&'static LegacyDkrArtifact>> {
     if install.port_id != "dkr-r" || manifest.retained_contract.is_some() {
         return Ok(None);
     }
     // Only verified pre-contract manifests reach here. Never derive historical
     // launch or persistence from today's non-owning definition or host platform.
-    let artifacts: Vec<LegacyDkrArtifact> =
-        serde_json::from_str(include_str!("legacy_dkr/artifacts.json"))?;
-    let artifact = artifacts.into_iter().find(|artifact| {
-        install.version == artifact.version
-            && install.artifact.asset_name == artifact.asset_name
-            && install.artifact.size == artifact.size
-            && install.artifact.sha256 == artifact.sha256
-            && Path::new(&install.selected_executable).file_name()
-                == Some(std::ffi::OsStr::new(&artifact.executable))
-            && manifest
-                .platform
-                .is_none_or(|platform| platform == artifact.platform)
-            && manifest.runtime.is_none()
-    });
+    let artifact = crate::historical_artifacts::dkr_artifacts()
+        .iter()
+        .find(|row| {
+            manifest.runtime.is_none()
+                && row.matches(
+                    &install.version,
+                    manifest.platform,
+                    &install.artifact,
+                    &install.selected_executable,
+                )
+        });
     artifact.map(Some).ok_or_else(|| PortcoveError::verification(
         "legacy DKR-R installation is outside the recorded compatibility identities; preserve its files and review its original contract",
     ))
@@ -3861,7 +4249,7 @@ fn catalog_for_verified_manifest(
     if artifact.platform == Platform::LinuxX86_64 {
         document.ports[0]
             .executable_hints
-            .insert(artifact.platform, vec![artifact.executable]);
+            .insert(artifact.platform, vec![artifact.executable.clone()]);
     }
     crate::Catalog::from_json(&serde_json::to_string(&document)?).map(Some)
 }
@@ -3892,6 +4280,7 @@ mod legacy_dkr_tests {
         };
         let manifest = InstallManifest {
             archive_data_admission: None,
+            reviewed_loader_shipped_persistence: false,
             shipped_settings_defaults: BTreeMap::new(),
             shipped_settings_capture_gaps: BTreeMap::new(),
             schema_version: schema,
@@ -4199,7 +4588,7 @@ impl Installer {
         port: &PortDefinition,
         qualification: &InstallQualification,
         payload_root: &Path,
-        sha256: &str,
+        artifact: &ArtifactIdentity,
     ) -> crate::package_shape::PackageShapeRecord {
         let local = self
             .local_shape_baseline(port, qualification.platform)
@@ -4210,8 +4599,16 @@ impl Installer {
             qualification,
             qualification.platform,
             payload_root,
-            sha256,
+            &artifact.sha256,
             local.as_ref(),
+            crate::package_layout::layout_for_acquisition(
+                port,
+                qualification.platform,
+                qualification
+                    .acquisition
+                    .as_ref()
+                    .map(|proof| (proof, artifact)),
+            ),
         )
     }
 
@@ -4445,6 +4842,10 @@ fn write_manifest_with_shape(
     }
     let manifest = InstallManifest {
         archive_data_admission: None,
+        reviewed_loader_shipped_persistence: package_shape.is_some()
+            && qualification.acquisition.is_some()
+            && crate::profile_loader::declares_dfu_loader(catalog.port(port_id)?)
+            && crate::profile_loader::dfu_package_has_only_shipped_scaffolds(root).unwrap_or(false),
         shipped_settings_defaults: qualification.shipped_settings_defaults.clone(),
         shipped_settings_capture_gaps: qualification.shipped_settings_capture_gaps.clone(),
         schema_version: if qualification.shared_preferences.is_some() {
@@ -5337,6 +5738,54 @@ pub(crate) fn resolve_declared_executable(
         _ => {}
     }
     Ok(executable)
+}
+
+/// A managed preparation route runs the setup program its package declares.
+/// Resolve it in the staged package exactly as preparation will, so a package
+/// that could never be prepared is refused before anything is published.
+/// `has_current_installation` keeps the refusal true to the state: an update
+/// leaves the current installation unchanged, a first install adds nothing.
+/// It is read only on refusal, so ports without a setup program never open
+/// the library for it, and a failed read cannot hide the refusal.
+fn require_declared_setup_program(
+    port: &PortDefinition,
+    payload_root: &Path,
+    qualification: &InstallQualification,
+    has_current_installation: impl FnOnce() -> Result<bool>,
+) -> Result<()> {
+    if qualification.setup_executable_hints.is_empty() {
+        return Ok(());
+    }
+    let selected = resolve_declared_executable(payload_root, qualification)?;
+    let working = crate::adapter::launch_working_directory(
+        port,
+        payload_root,
+        &selected,
+        qualification.platform,
+    )?;
+    resolve_executable_hints(
+        &working,
+        qualification.platform,
+        &qualification.setup_executable_hints,
+        "setup executable",
+    )
+    .map(|_| ())
+    .map_err(|error| {
+        let outcome = match has_current_installation() {
+            Ok(true) => "Portcove did not install it. Your current installation is unchanged.",
+            Ok(false) => "nothing was installed.",
+            Err(_) => "Portcove did not install it.",
+        };
+        PortcoveError::verification(format!(
+            "This download does not contain the setup program this game needs, so {outcome} Choose another release, or report the missing setup program to the port's maintainers."
+        ))
+        .detail("port_id", &port.id)
+        .detail(
+            "expected_setup_program",
+            qualification.setup_executable_hints.join(", "),
+        )
+        .detail("cause", error.message)
+    })
 }
 
 pub(crate) fn resolve_executable_hints(

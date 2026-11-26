@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "omegakatana92-samurai-shodown-ii-recomp",
+    "project_url": "https://github.com/omegakatana92/Samurai-Shodown-II-Recomp",
+    "name": "Samurai Shodown II (Neo Geo) / Samurai-Shodown-II-Recomp (omegakatana92)",
+    "summary": "Samurai Shodown II / Shin Samurai Spirits (SNK 1994, NGM-063) statically recompiled to native C with NeoGeoRecomp: native Windows x64 and Steam Deck/Linux AppImage builds, 100% measured 68000 coverage, 0 verification mismatches, SDL2 video/audio/gamepads and YM2610 sound. PolyForm Noncommercial 1.0.0; no ROMs or BIOS included. Source on GitHub.",
+    "issue_number": 3857,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "samurai-shodown-ii",
+      "evidence_urls": ["https://github.com/omegakatana92/Samurai-Shodown-II-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Samurai Shodown II"
+  }
+}

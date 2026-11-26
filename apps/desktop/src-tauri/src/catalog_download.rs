@@ -16,15 +16,31 @@ pub(crate) async fn catalog_download_candidates(
     generation: u64,
     selected_release_id: Option<portcove_core::CatalogDownloadReleaseId>,
     channel: Option<portcove_core::ReleaseChannel>,
+    release_window: Option<usize>,
 ) -> DesktopResult<CatalogDownloadCandidates> {
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
-        tauri::async_runtime::block_on(service.catalog_download_options(
-            &port_id,
-            selected_release_id,
-            channel.unwrap_or(service.catalog_download_channel(&port_id)?),
-        ))
+        let channel = channel.unwrap_or(service.catalog_download_channel(&port_id)?);
+        tauri::async_runtime::block_on(async {
+            match release_window {
+                Some(window) => {
+                    service
+                        .catalog_download_options_window(
+                            &port_id,
+                            selected_release_id,
+                            channel,
+                            window,
+                        )
+                        .await
+                }
+                None => {
+                    service
+                        .catalog_download_options(&port_id, selected_release_id, channel)
+                        .await
+                }
+            }
+        })
         .map_err(Into::into)
     })
     .await
@@ -108,6 +124,11 @@ pub(crate) async fn open_pending_setup_folder(
     blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         let path = service.pending_setup_folder(&port_id, &pending_id)?;
         open_directory(&path)?;
+        // Core records the handoff so setup resumes at this stage. The folder
+        // is already open, so a failure to record it never fails the open.
+        if let Err(error) = service.note_pending_setup_opened(&port_id, &pending_id, None) {
+            tracing::warn!(port_id = %port_id, error = %error, "pending setup handoff was not recorded");
+        }
         Ok(path)
     })
     .await
@@ -126,7 +147,14 @@ pub(crate) async fn open_pending_setup_resource(
         let service = service_at_generation(&state, generation)?;
         let url = service.pending_setup_resource(&port_id, &pending_id, &url)?;
         require_library_generation(state_generation(&state), generation)?;
-        open_host_target(std::ffi::OsStr::new(&url))
+        open_host_target(std::ffi::OsStr::new(&url))?;
+        // Core decides whether this link is the setup guide and records it.
+        // The link is already open, so a failure to record it never fails it.
+        if let Err(error) = service.note_pending_setup_opened(&port_id, &pending_id, Some(&url))
+        {
+            tracing::warn!(port_id = %port_id, error = %error, "pending setup handoff was not recorded");
+        }
+        Ok(())
     })
     .await
 }

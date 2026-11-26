@@ -74,6 +74,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             },
             ArtworkCommand::Import { .. }
             | ArtworkCommand::Reset { .. }
+            | ArtworkCommand::Suppress { .. }
+            | ArtworkCommand::Unhide { .. }
             | ArtworkCommand::ClearCache
             | ArtworkCommand::RemoveUnused { .. } => Recovering,
         },
@@ -121,6 +123,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::InspectDefinitionDelivery
             | CatalogCommand::InspectPackageLayout { .. }
             | CatalogCommand::InspectPackageShape { .. }
+            | CatalogCommand::InspectListingArtifact { .. }
+            | CatalogCommand::ClassifyListingNames { .. }
             | CatalogCommand::InspectSettingsQualification { .. } => ReadOnly,
             CatalogCommand::InspectDefinitionPublication { .. } => ReadOnly,
             CatalogCommand::DefinitionAuthority { apply, .. }
@@ -271,12 +275,16 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             SchemaCommand::Export { .. } => Recovering,
         },
         Commands::Channel { command } => match command {
-            ChannelCommand::Set { .. } => Recovering,
+            ChannelCommand::ReviewExact { .. } => ReadOnly,
+            ChannelCommand::Set { .. }
+            | ChannelCommand::Pin { .. }
+            | ChannelCommand::Follow { .. } => Recovering,
         },
         Commands::Policy { command } => match command {
             PolicyCommand::Set { .. } => Recovering,
         },
         Commands::PortCapabilities { .. }
+        | Commands::PortCapabilitiesBatch { .. }
         | Commands::Status { .. }
         | Commands::Storage
         | Commands::Doctor
@@ -424,6 +432,8 @@ mod tests {
             "catalog canonical-definition-projection file",
             "catalog inspect-package-layout file --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-package-shape file --port p --platform windows-x86-64 --size 1 --sha256 hash",
+            "catalog inspect-listing-artifact file --platform windows-x86-64 --size 1 --sha256 hash",
+            "catalog classify-listing-names file",
             "catalog inspect-package-drift file --port p --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-definition-publication directory",
             "catalog definition-authority",
@@ -462,6 +472,8 @@ mod tests {
         let recovering = [
             "artwork import p file",
             "artwork reset p",
+            "artwork suppress p --expected-revision 0",
+            "artwork unhide p --expected-revision 0",
             "artwork clear-cache",
             "artwork remove-unused hash",
             "artwork steamgriddb set-key --stdin",

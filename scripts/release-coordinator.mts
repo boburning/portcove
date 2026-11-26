@@ -84,7 +84,9 @@ function uniqueStrings(
   label: string,
   validate: (value: unknown, label: string) => string = text,
 ) {
-  if (!Array.isArray(value) || value.length > 256) throw new Error(`${label} must be an array`);
+  // No entry count: publication lists grow with history. The coordinator
+  // checkpoint's byte bound governs the serialized record as a whole.
+  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
   const raw: unknown[] = value;
   const checked = raw.map((entry) => validate(entry, `${label} entry`));
   if (new Set(value).size !== value.length) throw new Error(`${label} contains duplicates`);

@@ -101,6 +101,63 @@ async function capture(name: string, atTop = true) {
   }
 }
 
+it("keeps the Settings snapshot policy current across navigation during a save", async () => {
+  await page.viewport(1366, 768);
+  await mount("dark");
+  const save = desktopApi.setAutomaticSnapshots;
+  let releaseSave = () => {};
+  const gate = new Promise<void>((resolve) => {
+    releaseSave = resolve;
+  });
+  const savePolicy = vi
+    .spyOn(desktopApi, "setAutomaticSnapshots")
+    .mockImplementation(async (enabled, generation) => {
+      await gate;
+      return save(enabled, generation);
+    });
+  const navigation = page.getByRole("navigation", { name: "Primary navigation" });
+  const savesName = "Saves & backups";
+  const versionsName = "Versions & updates";
+  const panel = (name: string) => page.getByRole("tabpanel", { name, exact: true });
+  const on = "Automatic snapshots before version changes are on for this library.";
+  const off = "Automatic snapshots before version changes are off for this library.";
+
+  await open();
+  await page.getByRole("tab", { name: savesName, exact: true }).click();
+  await expect.element(panel(savesName).getByText(on, { exact: true })).toBeVisible();
+  await expect.element(panel(savesName).getByText("No backups yet", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: versionsName, exact: true }).click();
+  await expect.element(panel(versionsName).getByText(on, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
+
+  await navigation.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Library and storage", exact: true }).click();
+  const setting = page.getByRole("checkbox", {
+    name: "Snapshot saved data before each version change",
+  });
+  await expect.element(setting).toBeChecked();
+  try {
+    await setting.click();
+    await expect.element(setting).toBeDisabled();
+    expect(savePolicy).toHaveBeenCalledOnce();
+    await navigation.getByRole("button", { name: /^Library\b/ }).click();
+    await open();
+    await page.getByRole("tab", { name: versionsName, exact: true }).click();
+    await expect
+      .element(panel(versionsName).getByText("Checking automatic snapshots for this library…"))
+      .toBeVisible();
+  } finally {
+    releaseSave();
+  }
+  await expect.element(panel(versionsName).getByText(off, { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: savesName, exact: true }).click();
+  await expect.element(panel(savesName).getByText(off, { exact: true })).toBeVisible();
+  await expect.element(panel(savesName).getByText("No backups yet", { exact: true })).toBeVisible();
+  await expect
+    .element(panel(savesName).getByText(/^Latest completed backup:/))
+    .not.toBeInTheDocument();
+});
+
 for (const theme of ["dark", "light"]) {
   for (const [width, height] of [
     [1366, 768],
@@ -370,20 +427,27 @@ it.each(["dark", "light"])("preserves transparent artwork against the %s frame",
   await capture(`transparent-${theme}-960`);
 });
 
-it("opens and focuses the real artwork disclosure from the hero menu after Manage rows are flattened", async () => {
+it("opens and focuses the real artwork sheet from the hero menu after Manage rows are flattened", async () => {
   await mount("dark");
   await open();
   await page.getByRole("button", { name: /^More actions for / }).click();
   await page.getByRole("menuitem", { name: "Change artwork", exact: true }).click();
   await expect
-    .element(page.getByRole("tab", { name: "Manage", exact: true }))
-    .toHaveAttribute("aria-selected", "true");
-  const summary = page.elementLocator(
-    document.querySelector<HTMLElement>(".artwork-controls > summary")!,
-  );
-  await expect.element(summary).toHaveFocus();
-  expect(summary.element().closest("details")?.open).toBe(true);
-  expect(document.activeElement?.closest("[inert], [hidden]")).toBeNull();
+    .poll(() =>
+      document
+        .getElementById("detail-section-manage")
+        ?.closest('[role="tabpanel"]')
+        ?.hasAttribute("hidden"),
+    )
+    .toBe(false);
+  const sheet = page.getByRole("dialog", { name: "Change artwork", exact: true });
+  await expect.element(sheet).toBeVisible();
+  await expect.element(sheet.getByRole("button", { name: "Close", exact: true })).toHaveFocus();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(sheet).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Change artwork", exact: true }))
+    .toHaveFocus();
 });
 
 it.each(["Library", "Discover"])("names and restores the known %s origin", async (origin) => {

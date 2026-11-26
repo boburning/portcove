@@ -23,11 +23,31 @@ pub(crate) fn port_batch<T: JsonSchema>(
         return format!("{label}: no installed ports to process.");
     }
     let succeeded = outcomes.iter().filter(|item| item.ok).count();
-    let mut output = format!(
-        "{label}: {} ports; {succeeded} succeeded, {} did not succeed.\nEach result is independent.",
-        outcomes.len(),
-        outcomes.len() - succeeded,
-    );
+    let deferrals = outcomes
+        .iter()
+        .filter(|item| !item.ok)
+        .filter_map(|item| item.deferred.as_ref())
+        .collect::<Vec<_>>();
+    let deferred = deferrals.len();
+    // The latest reset among deferred items is when all of them can be checked.
+    let latest_reset = deferrals
+        .iter()
+        .filter(|deferral| deferral.resets_at.is_some())
+        .max_by_key(|deferral| deferral.resets_at);
+    let mut output = if deferred == 0 {
+        format!(
+            "{label}: {} ports; {succeeded} succeeded, {} did not succeed.\nEach result is independent.",
+            outcomes.len(),
+            outcomes.len() - succeeded,
+        )
+    } else {
+        format!(
+            "{label}: {} ports; {succeeded} succeeded, {} did not succeed, {deferred} not checked because a provider request limit was reached.\nEach result is independent. The next check starts with the ports not checked. {}",
+            outcomes.len(),
+            outcomes.len() - succeeded - deferred,
+            deferral_reset(latest_reset.copied()),
+        )
+    };
     for item in outcomes {
         output.push_str(&format!(
             "\n\n{}\n",
@@ -35,11 +55,35 @@ pub(crate) fn port_batch<T: JsonSchema>(
         ));
         match (&item.result, &item.error) {
             (Some(result), _) if item.ok => output.push_str(&render(result, catalog)),
+            // Not checked, never a failure: the provider's refusal is a detail.
+            (_, Some(error)) if item.deferred.is_some() => {
+                output.push_str(&format!(
+                    "Not checked: request limit. {}",
+                    deferral_reset(item.deferred.as_ref())
+                ));
+                if technical {
+                    output.push('\n');
+                    output.push_str(&human::failure(error, technical));
+                }
+            }
             (_, Some(error)) => output.push_str(&human::failure(error, technical)),
             _ => output.push_str("No result was returned. Next step: Inspect this port's status and activity before trying again."),
         }
     }
     output
+}
+
+/// The reset sentence for a deferral: reported by the provider, estimated by
+/// Portcove, or unknown.
+fn deferral_reset(deferral: Option<&portcove_core::UpdateCheckDeferral>) -> String {
+    match deferral.and_then(|deferral| Some((deferral.resets_at?, deferral.reset_reported))) {
+        Some((resets_at, true)) => format!("Resets: {}.", human::utc_time(resets_at)),
+        Some((resets_at, false)) => format!(
+            "Resets: about {} (estimated by Portcove).",
+            human::utc_time(resets_at)
+        ),
+        None => "The reset time is unknown.".to_owned(),
+    }
 }
 
 pub(crate) fn source_batch(
@@ -217,6 +261,7 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
         ArtworkSlot::Cover => "Cover",
         ArtworkSlot::Detail => "Detail image",
         ArtworkSlot::Landscape => "Landscape image",
+        ArtworkSlot::Logo => "Logo",
     };
     let availability = match state.availability {
         ArtworkAvailability::Fallback => "Generated fallback",
@@ -233,6 +278,13 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
         human::port_name(catalog, &state.choice.port_id),
         state.choice.revision
     );
+    if state.choice.suppressed {
+        output.push_str(if state.selection.is_some() {
+            "\nArtwork hidden. Use artwork unhide to show the kept selection again, or artwork reset to return to automatic artwork."
+        } else {
+            "\nArtwork hidden. Use artwork unhide or artwork reset to return to automatic artwork."
+        });
+    }
     if let Some(asset) = &state.selection {
         output.push_str(&format!("\n{}", artwork_asset(asset)));
     }
@@ -593,7 +645,24 @@ pub(crate) fn error(command: &str, error: &PortcoveError, technical: bool) -> St
         output.push_str(&format!("\nNext step: {next}"));
         return output;
     }
-    let mut output = human::failure(&error.report(), technical);
+    let report = error.report();
+    let mut output = human::failure(&report, technical);
+    // Core's summary names the remedy; the CLI adds its command form.
+    if matches!(
+        report.presentation.presentation_key.as_str(),
+        "exact_release_channel_differs"
+            | "exact_release_unreadable"
+            | "exact_release_channel_changed"
+    ) && let Some(port_id) = error.details.get("port_id").filter(|id| {
+        !id.is_empty()
+            && id
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+    }) {
+        output.push_str(&format!(
+            "\nTo follow the channel again: portcove channel follow {port_id}"
+        ));
+    }
     if error.code == ErrorCode::Usage {
         // The command comes only from this adapter's fixed command-name map.
         let help = match command {
@@ -779,6 +848,8 @@ mod tests {
                 slot: ArtworkSlot::Detail,
                 revision: 1,
                 asset_sha256: None,
+                framing: None,
+                suppressed: false,
             }),
             source: DestinationArtworkSource::UnassignedRole,
             selected_asset_sha256: None,
@@ -865,6 +936,68 @@ mod tests {
             )
             .contains("no installed ports")
         );
+    }
+
+    #[test]
+    fn deferred_update_checks_read_as_not_checked_in_json_and_text() {
+        let catalog = Catalog::embedded().unwrap();
+        let ids = catalog
+            .ports()
+            .iter()
+            .take(3)
+            .map(|port| port.id.clone())
+            .collect::<Vec<_>>();
+        // Core's own tests pin how a failure maps to its deferral; this pins how
+        // the CLI serializes and words one.
+        let deferred = |id: &String, resets_at, reset_reported| PortBatchOutcome {
+            deferred: Some(portcove_core::UpdateCheckDeferral {
+                resets_at: Some(resets_at),
+                reset_reported,
+            }),
+            ..PortBatchOutcome::failure(id.clone(), &PortcoveError::network("private-limit-canary"))
+        };
+        let outcomes = vec![
+            PortBatchOutcome::success(ids[0].clone(), 7_u32),
+            deferred(&ids[1], 1_800_000_000, true),
+            deferred(&ids[2], 1_800_000_600, false),
+        ];
+        let json = serde_json::to_value(&outcomes).unwrap();
+        assert_eq!(
+            json[0].get("deferred"),
+            None,
+            "a checked item has no deferral"
+        );
+        assert_eq!(
+            json[1]["deferred"],
+            serde_json::json!({"resets_at": 1_800_000_000, "reset_reported": true})
+        );
+        assert_eq!(
+            json[2]["deferred"],
+            serde_json::json!({"resets_at": 1_800_000_600, "reset_reported": false})
+        );
+        assert_eq!(json[1]["ok"], false);
+
+        let text = port_batch("Update checks", &outcomes, &catalog, false, |result, _| {
+            format!("Committed item {result}")
+        });
+        assert!(
+            text.contains("3 ports; 1 succeeded, 0 did not succeed, 2 not checked"),
+            "{text}"
+        );
+        let summary = text.lines().nth(1).unwrap();
+        assert!(
+            summary.ends_with(&format!(
+                "Resets: about {} (estimated by Portcove).",
+                crate::human::utc_time(1_800_000_600)
+            )),
+            "{summary}"
+        );
+        assert!(text.contains(&format!(
+            "Not checked: request limit. Resets: {}.",
+            crate::human::utc_time(1_800_000_000)
+        )));
+        assert!(!text.contains("private-limit-canary"));
+        assert_eq!(serde_json::to_value(&outcomes).unwrap(), json);
     }
 
     #[test]

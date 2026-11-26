@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tekken-3-tekken3recompiled",
+    "project_url": "https://github.com/FishB0nes98/Tekken3Recompiled",
+    "name": "Tekken 3 / Tekken 3 Recompiled (FishB0nes98)",
+    "summary": "Tekken 3 hybrid recompilation preview with Jun Kazama, widescreen, custom skins and local asset import tools.",
+    "issue_number": 7056,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-3",
+      "evidence_urls": ["https://github.com/FishB0nes98/Tekken3Recompiled"],
+      "source_editions": []
+    },
+    "original_game_title": "Tekken 3"
+  }
+}

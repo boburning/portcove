@@ -118,6 +118,7 @@
       "linux-x86-64": ["devilutionx"]
     },
     "linux_packaged_library": "discord_game_sdk.so",
+    "windows_runtime_path_policy": "relative-file-max-path",
     "source_profile": "diablo-hellfire-devilutionx-originals",
     "runtime_source_set": [
       {
@@ -155,6 +156,8 @@
       "--config-dir",
       "profile"
     ],
+    "persistent_paths": ["profile"],
+    "windows_temp_directory": "profile",
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [
@@ -190,6 +193,5 @@
         "executables": ["devilutionx", "devilutionx.sh"]
       }
     }
-  },
-  "native_managed_profile_v1": true
+  }
 }

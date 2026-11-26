@@ -58,10 +58,14 @@ function remaining(deadline: number) {
     throw new Error("catalog inspection deadline exhausted; retain attempt");
   return Math.min(left, 90000);
 }
-function target(name: string) {
+const compactTarget = "policy/official/catalog.listings.compact.json";
+const checkpointTarget = "policy/official/catalog.cover-checkpoint.json";
+
+function target(name: string, cover: boolean) {
   return (
     name === "definitions/index.json" ||
     name === "policy/official/catalog.listings.json" ||
+    (cover && (name === compactTarget || name === checkpointTarget)) ||
     /^sha256\/[a-f0-9]{64}\.json$/u.test(name) ||
     /^policy\/official\/[a-z0-9][a-z0-9-]*(?:\.launch)?\.json$/u.test(name)
   );
@@ -69,7 +73,11 @@ function target(name: string) {
 
 /** Fixed Core producer bounds; this is not the larger historical TUF closure.
  * The downstream complete-site limit is independently smaller in file count. */
-export async function readCatalogPublicationBundle(directory: string, deadline: number) {
+export async function readCatalogPublicationBundle(
+  directory: string,
+  deadline: number,
+  cover = false,
+) {
   if (!path.isAbsolute(directory)) throw new Error("absolute catalog bundle required");
   const files = new Map<string, Buffer>();
   let total = 0,
@@ -100,18 +108,20 @@ export async function readCatalogPublicationBundle(directory: string, deadline: 
           !stat.isFile() ||
           stat.isSymbolicLink() ||
           stat.nlink !== 1 ||
-          !target(name)
+          !target(name, cover)
         )
           throw new Error("catalog bundle file identity differs");
         const bytes = await readControllerToolFile(
           filename,
-          name === "policy/official/catalog.listings.json"
+          name === "policy/official/catalog.listings.json" || name === compactTarget
             ? 8 * 1024 ** 2
-            : name.startsWith("policy/")
-              ? 65536
-              : name === "definitions/index.json"
-                ? catalogDefinitionIndexBytes
-                : catalogDefinitionContentBytes,
+            : name === checkpointTarget
+              ? 1024 * 1024
+              : name.startsWith("policy/")
+                ? 65536
+                : name === "definitions/index.json"
+                  ? catalogDefinitionIndexBytes
+                  : catalogDefinitionContentBytes,
         );
         total += bytes.length;
         if (total > 32 * 1024 ** 2 || files.size >= 16385)
