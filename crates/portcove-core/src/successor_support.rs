@@ -8,7 +8,6 @@ use crate::{
     Catalog, CatalogAdmissionMode, CatalogEvidenceRole, DefinitionAcquisitionScope, Library,
     Platform, PortSourceRole, PortcoveError, ReleaseChannel, Result, ScopedResolvedRelease,
     SourceCatalog, SourceEvidence, SourceEvidenceKind, SourceEvidenceOutcome, SourceEvidenceScope,
-    SourceReleasePolicy,
     definition_repository::publisher_policy::{
         CuratedArtifactOperation, acquisition_scope, require_curated_artifact_operation,
     },
@@ -157,7 +156,9 @@ pub(super) fn exact_source_contract<'a>(
             contract.port_id == port_id
                 && contract.role == PortSourceRole::Game
                 && contract.admission_mode == CatalogAdmissionMode::Enforced
-                && contract.release_policy == Some(SourceReleasePolicy::IntegrationContractV1)
+                && contract.evidence_gap.is_none()
+                && !contract.evidence_ids.is_empty()
+                && !contract.supported_variant_ids.is_empty()
                 && contract.applicability.iter().any(|binding| {
                     binding.upstream_ref == tag
                         && binding

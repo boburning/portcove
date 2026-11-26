@@ -3480,7 +3480,9 @@ provider. It checks exact grant, package
 and platform identity and derives a conservative setup, launch and
 player-data fingerprint from the typed operational rules and source graph.
 A changed operational field requires review. This first comparison covers a
-single invariant enforced game source contract with reviewed applicability,
+single invariant enforced game source contract with a reviewed artifact digest
+for each curated release. The reusable applicability inventory remains a separate
+preview. Core requires
 exact variant coverage and the latest paired signed predecessor observations
 under the same lifecycle check version. The
 predecessor's existing admission must still verify in its evidence library

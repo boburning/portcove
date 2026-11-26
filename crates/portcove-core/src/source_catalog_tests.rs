@@ -140,7 +140,6 @@ fn qualification(kind: SourceEvidenceKind, outcome: SourceEvidenceOutcome) -> So
 fn successor_subject_requires_the_exact_applicability_artifact() {
     let mut sources = fixture();
     let sha256 = "a".repeat(64);
-    sources.contracts[0].release_policy = Some(SourceReleasePolicy::IntegrationContractV1);
     for digest in [None, Some("b".repeat(64)), Some(sha256.to_uppercase())] {
         let matches = digest
             .as_deref()
@@ -166,6 +165,27 @@ fn successor_subject_requires_the_exact_applicability_artifact() {
             "sample-port",
             "fixture-v3",
             &sha256,
+        )
+        .is_err()
+    );
+    sources.contracts[0].evidence_gap = Some("awaiting review".into());
+    assert!(
+        crate::successor_support::exact_source_contract(
+            &sources,
+            "sample-port",
+            "fixture-v2",
+            &sha256
+        )
+        .is_err()
+    );
+    sources.contracts[0].evidence_gap = None;
+    sources.contracts[0].evidence_ids.clear();
+    assert!(
+        crate::successor_support::exact_source_contract(
+            &sources,
+            "sample-port",
+            "fixture-v2",
+            &sha256
         )
         .is_err()
     );

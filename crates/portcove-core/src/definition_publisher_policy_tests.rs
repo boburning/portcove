@@ -1241,7 +1241,30 @@ async fn successor_preparation_uses_authenticated_libraries_and_live_provider() 
     };
     set_pin(&mut authored, &mut pin);
     let source = authored.source_catalog.as_mut().unwrap();
-    source.contracts[0].release_policy = Some(crate::SourceReleasePolicy::IntegrationContractV1);
+    let reviewed_evidence = |id: &str, role, claim: &str| crate::CatalogEvidence {
+        id: id.into(),
+        role,
+        authority: "Synthetic successor fixture".into(),
+        authority_ref: "a".repeat(40),
+        reviewed_at: "2026-09-05".into(),
+        claim: claim.into(),
+        immutable_url: format!(
+            "https://github.com/fixture/tuf-metadata/blob/{}/{id}.json",
+            "a".repeat(40)
+        ),
+        live_url: None,
+    };
+    let source_review = reviewed_evidence(
+        "fixture-source-review",
+        crate::CatalogEvidenceRole::UpstreamSupport,
+        "Binds the isolated exact source fixture to its reviewed archive",
+    );
+    let contract = &mut source.contracts[0];
+    contract.evidence_gap = None;
+    contract.evidence_ids = vec![source_review.id.clone()];
+    contract.immutable_review_url = source_review.immutable_url.clone();
+    contract.live_review_url = None;
+    source.evidence.push(source_review);
     let identity = source
         .current_source_identities(&source.contracts[0])
         .unwrap()
@@ -1270,10 +1293,11 @@ async fn successor_preparation_uses_authenticated_libraries_and_live_provider() 
         observation(SourceEvidenceKind::HandsOn),
         observation(SourceEvidenceKind::AutomatedLifecycle),
     ];
-    let mut evidence = source.evidence[0].clone();
-    evidence.id = "fixture-qualification".into();
-    evidence.role = crate::CatalogEvidenceRole::PortcoveQualification;
-    source.evidence.push(evidence);
+    source.evidence.push(reviewed_evidence(
+        "fixture-qualification",
+        crate::CatalogEvidenceRole::PortcoveQualification,
+        "Attests the isolated lifecycle and hands-on observations for the predecessor",
+    ));
     let old_authored = Catalog::from_json(&serde_json::to_string(&authored).unwrap()).unwrap();
     let (fixture, key, root, _previous_dir, previous_library, previous, _) =
         managed_fixture_for_policy(old_authored.clone(), true).await;
