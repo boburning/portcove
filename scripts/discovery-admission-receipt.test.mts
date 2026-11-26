@@ -11,6 +11,10 @@ import {
   scheduledDiscoveryReplayReceipt,
   verifyScheduledDiscoveryReplay,
 } from "./discovery-admission-receipt.mts";
+import {
+  catalogAdmissionGitHub,
+  openCatalogAdmissionProposal,
+} from "./discovery-admission-github.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { orderedJsonSha256 } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -237,4 +241,137 @@ void test("admission registration output only accounts for added listings", () =
       ),
     /registration counts/u,
   );
+});
+
+void test("App proposal creation uses exact readback without replaying a mutation", async () => {
+  const exact = { url: "fixture" };
+  const verify = (rows: unknown[]) => {
+    assert.deepEqual(rows, [exact]);
+    return exact.url;
+  };
+  let lookedUp = 0;
+  let created = 0;
+  const result = await openCatalogAdmissionProposal({
+    lookup: async () => (++lookedUp === 1 ? [] : [exact]),
+    create: async () => {
+      created++;
+      throw new Error("Connection interrupted after creation.");
+    },
+    verify,
+  });
+  assert.equal(result, exact.url);
+  assert.equal(lookedUp, 2);
+  assert.equal(created, 1);
+  assert.equal(
+    await openCatalogAdmissionProposal({
+      lookup: async () => [exact],
+      create: async () =>
+        assert.fail("An exact existing pull request should not be created again."),
+      verify,
+    }),
+    exact.url,
+  );
+  await assert.rejects(
+    openCatalogAdmissionProposal({
+      lookup: async () => [],
+      create: async () => {
+        throw new Error("Permission denied.");
+      },
+      verify,
+    }),
+    /without exact remote readback/u,
+  );
+});
+
+void test("an SDK retry leaves independent allowance for exact post-creation readback", async () => {
+  const commit = "c".repeat(40);
+  const repo = "boburning/portcove";
+  const app = "catalog-admission";
+  const branch = "automation/catalog-admission-12-1";
+  const ref = `refs/heads/${branch}`;
+  const result = `https://github.com/${repo}/pull/22`;
+  const row = {
+    number: 22,
+    html_url: result,
+    head: { sha: commit, ref: branch, repo: { full_name: repo } },
+    base: { ref: "main", repo: { full_name: repo } },
+    user: { login: `${app}[bot]` },
+  };
+  let refReads = 0;
+  let posts = 0;
+  let lookups = 0;
+  const value = await catalogAdmissionGitHub(
+    "deliver",
+    {
+      DISCOVERY_RUN: "12",
+      DISCOVERY_ATTEMPT: "1",
+      EXPECTED_APP: app,
+      APP_SLUG: app,
+      GH_TOKEN: "fixture",
+      COMMIT: commit,
+      GITHUB_REPOSITORY: repo,
+    },
+    async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      assert.equal(url.origin, "https://api.github.com");
+      if (url.pathname.endsWith(branch)) {
+        if (++refReads === 1)
+          return Response.json({ message: "Transient server error" }, { status: 503 });
+        return Response.json({ ref, object: { sha: commit } });
+      }
+      assert.equal(url.pathname, `/repos/${repo}/pulls`);
+      if (init?.method === "POST") {
+        posts++;
+        assert.equal(typeof init.body, "string");
+        const body: unknown = JSON.parse(init.body as string);
+        assert.ok(isRecord(body) && body.draft === true);
+        return Response.json(row, { status: 201 });
+      }
+      lookups++;
+      return Response.json(posts ? [row] : []);
+    },
+  );
+  assert.equal(value, result);
+  assert.equal(refReads, 2);
+  assert.equal(lookups, 2);
+  assert.equal(posts, 1);
+});
+
+void test("proposal gate follows a numeric repository page without changing its scope", async () => {
+  let pages = 0;
+  const value = await catalogAdmissionGitHub(
+    "gate",
+    {
+      DISCOVERY_RUN: "12",
+      DISCOVERY_ATTEMPT: "1",
+      EXPECTED_APP: "catalog-admission",
+      GH_TOKEN: "fixture",
+      GITHUB_REPOSITORY: "boburning/portcove",
+    },
+    async (input) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      if (url.pathname.endsWith("/artifacts")) return Response.json({ total_count: 1 });
+      assert.equal(url.pathname, "/repos/boburning/portcove/pulls");
+      pages++;
+      if (pages === 1) {
+        return Response.json([], {
+          headers: {
+            link: '<https://api.github.com/repositories/1354613114/pulls?state=open&base=main&per_page=100&page=2>; rel="next"',
+          },
+        });
+      }
+      assert.equal(url.searchParams.get("page"), "2");
+      return Response.json([
+        {
+          user: { login: "catalog-admission[bot]" },
+          head: {
+            ref: "automation/catalog-admission-11-1",
+            repo: { full_name: "boburning/portcove" },
+          },
+        },
+      ]);
+    },
+  );
+  assert.equal(value, "An open catalog admission proposal is still in review.");
+  assert.equal(pages, 2);
 });

@@ -30,47 +30,35 @@ jobs:
       DISCOVERY_SOURCE: ${{ github.event.workflow_run.head_sha }}
       EXPECTED_APP: ${{ vars.CATALOG_ADMISSION_APP_SLUG }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
       - name: Check for eligible discovery work
         id: gate
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          [[ "$DISCOVERY_RUN" =~ ^[1-9][0-9]*$ ]]
-          [[ "$DISCOVERY_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
-          [[ "$DISCOVERY_SOURCE" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$EXPECTED_APP" =~ ^[a-z0-9][a-z0-9-]*$ ]]
-          receipt="listing-admission-replay-${DISCOVERY_RUN}-${DISCOVERY_ATTEMPT}"
-          count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$DISCOVERY_RUN/artifacts?name=$receipt" --jq .total_count)
-          if [[ "$count" == 0 ]]; then
-            echo 'No listing admission receipt for this scheduled discovery attempt.' >> "$GITHUB_STEP_SUMMARY"
+          [[ "$(git rev-parse HEAD)" == "$DISCOVERY_SOURCE" ]]
+          if [[ ! -f scripts/discovery-admission-github.mts ]]; then
+            echo 'Scheduled source predates the admission writer.' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          [[ "$count" == 1 ]]
-          # Avoid staging another batch while an appointed App proposal is open.
-          branch="automation/catalog-admission-$DISCOVERY_RUN-$DISCOVERY_ATTEMPT"
-          open=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=open&base=main&per_page=100" \
-            --jq ".[] | select(.head.ref | startswith(\"automation/catalog-admission-\")) |
-                  select(.head.ref != \"$branch\") | .user.login")
-          if grep -Fxq "$EXPECTED_APP[bot]" <<< "$open"; then
-            echo 'An open catalog admission proposal is still in review.' >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+          pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+          decision=$(node scripts/discovery-admission-github.mts gate)
+          if [[ "$decision" == eligible ]]; then
+            echo "eligible=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$decision" >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo "eligible=true" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: steps.gate.outputs.eligible == 'true'
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          persist-credentials: false
-          fetch-depth: 2
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        if: steps.gate.outputs.eligible == 'true'
-        with:
-          package_json_file: package.json
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: steps.gate.outputs.eligible == 'true'
-        with:
-          node-version-file: .node-version
       - name: Replay and commit the validated listing batch
         id: replay
         if: steps.gate.outputs.eligible == 'true'
@@ -80,7 +68,6 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(git rev-parse HEAD)" == "$DISCOVERY_SOURCE" ]]
-          pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
           work=$(mktemp -d)
           mkdir "$work/reader"
           node scripts/catalog-released-reader.mts acquire-scheduled "$work/reader" > "$work/reader.json"
@@ -127,20 +114,9 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "$COMMIT" ]]
           [[ "$(git rev-parse HEAD^)" == "$DISCOVERY_SOURCE" ]]
           branch="automation/catalog-admission-$DISCOVERY_RUN-$DISCOVERY_ATTEMPT"
-          lookup() {
-            gh api "repos/$GITHUB_REPOSITORY/pulls?state=all&base=main&head=boburning:$branch&per_page=100"
-          }
-          verify() {
-            jq -e --arg commit "$COMMIT" --arg login "$APP_SLUG[bot]" \
-              --arg repo "$GITHUB_REPOSITORY" --arg branch "$branch" \
-              'length == 1 and .[0].head.sha == $commit and .[0].user.login == $login and
-               .[0].base.repo.full_name == $repo and .[0].head.repo.full_name == $repo and
-               .[0].base.ref == "main" and .[0].head.ref == $branch' <<< "$1" > /dev/null
-          }
-          prior=$(lookup)
-          if jq -e 'length > 0' <<< "$prior" > /dev/null; then
-            verify "$prior"
-            jq -r '.[0].html_url' <<< "$prior" >> "$GITHUB_STEP_SUMMARY"
+          prior=$(node scripts/discovery-admission-github.mts prior)
+          if [[ -n "$prior" ]]; then
+            echo "$prior" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           branch_ref="refs/heads/$branch"
@@ -156,22 +132,5 @@ jobs:
           else
             [[ "$existing_ref" == "$COMMIT"$'\t'"$branch_ref" ]]
           fi
-          remote=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq .object.sha)
-          [[ "$remote" == "$COMMIT" ]]
-          body=$(mktemp)
-          {
-            printf '## Linked issue\n\nRefs #1422.\n\n## Outcome and scope\n\nAdd eligible listings from scheduled discovery.\n\n'
-            printf '## Verification\n\nReplayed the exact [scheduled discovery attempt](%s/%s/actions/runs/%s/attempts/%s) through released Core and catalog generation.\n\n' \
-              "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$DISCOVERY_RUN" "$DISCOVERY_ATTEMPT"
-            printf '## Review and risk\n\nThe batch adds descriptive listings and their derived counts. Independent review and required CI are pending.\n'
-          } > "$body"
-          creation=0
-          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" --draft \
-            --title "feat(catalog): admit scheduled discovery listings ($DISCOVERY_RUN/$DISCOVERY_ATTEMPT)" \
-            --body-file "$body" || creation=$?
-          delivered=$(lookup)
-          if ! verify "$delivered"; then
-            echo "Proposal creation exit $creation, exact remote readback not established." >&2
-            exit 1
-          fi
-          jq -r '.[0].html_url' <<< "$delivered" >> "$GITHUB_STEP_SUMMARY"
+          delivered=$(node scripts/discovery-admission-github.mts deliver)
+          echo "$delivered" >> "$GITHUB_STEP_SUMMARY"
