@@ -1,4 +1,5 @@
 use super::*;
+use portcove_listing_carrier::{COMPACT_TARGET, COVER_CHECKPOINT_TARGET, check_cover_checkpoint};
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Inspection {
@@ -10,6 +11,15 @@ struct Inspection {
     scope: String,
     #[serde(default)]
     listings: Option<ListingIdentity>,
+    #[serde(default)]
+    cover_checkpoint: Option<CoverCheckpointIdentity>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CoverCheckpointIdentity {
+    target: String,
+    sha256: String,
+    listing_decoded_sha256: String,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -309,16 +319,35 @@ pub(super) fn listing_targets(files: &Files) -> Result<ListingTargets> {
     Ok(ListingTargets { legacy, compact })
 }
 
+pub(super) fn checked_cover_checkpoint(files: &Files) -> Result<Option<(&[u8], String)>> {
+    let Some(cover) = files.get(COVER_CHECKPOINT_TARGET) else {
+        return Ok(None);
+    };
+    let compact = files.get(COMPACT_TARGET).ok_or_else(|| {
+        TufRepositoryError::Invalid("cover checkpoint has no active compact listing".into())
+    })?;
+    let listing = listing_revision(COMPACT_TARGET, compact)?;
+    check_cover_checkpoint(cover, &listing.decoded_sha256)
+        .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
+    Ok(Some((cover, listing.decoded_sha256)))
+}
+
 pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
     let report: Inspection = serde_json::from_slice(manifest)?;
     if !matches!(
         (
             report.publication_schema,
             report.listings.is_some(),
+            report.cover_checkpoint.is_some(),
             report.scope.as_str()
         ),
-        (1, false, "inert-managed-definition-publication-inspection")
-            | (2, true, "inert-catalog-publication-inspection")
+        (
+            1,
+            false,
+            false,
+            "inert-managed-definition-publication-inspection"
+        ) | (2, true, false, "inert-catalog-publication-inspection")
+            | (3, true, true, "inert-catalog-publication-inspection")
     ) || report.authority != "none"
         || report.files.is_empty()
         || report.files.len() > BUNDLE_FILES
@@ -367,6 +396,17 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
                 && listings.listing_count == active.listing_count
                 && listings.withdrawn_count == active.withdrawn_ids.len() => {}
         _ => return invalid("listing target/inspection identity differs"),
+    }
+    match (&report.cover_checkpoint, checked_cover_checkpoint(&files)?) {
+        (None, None) => {}
+        (Some(checkpoint), Some((bytes, listing)))
+            if checkpoint.target == COVER_CHECKPOINT_TARGET
+                && checkpoint.sha256 == sha(bytes)
+                && checkpoint.listing_decoded_sha256 == listing =>
+        {
+            allowed.insert(COVER_CHECKPOINT_TARGET.into());
+        }
+        _ => return invalid("cover checkpoint/inspection identity differs"),
     }
     let mut content = BTreeMap::new();
     for c in &index.contents {

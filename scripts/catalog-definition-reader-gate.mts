@@ -12,7 +12,9 @@ import {
   acquireCatalogReleasedReader,
   liveReleasedReaderSources,
   requireCurrentCatalogReaderSelection,
+  requireReleasedReaderReceipt,
 } from "./catalog-released-reader.mts";
+import { artworkCheckpointTarget } from "./listing-artwork-checkpoint.mts";
 import {
   compactListingDeliveryTarget,
   listingDeliveryTarget,
@@ -27,6 +29,7 @@ const run = promisify(execFile);
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const index = "definitions/index.json";
 const separateTargets = new Set([
+  artworkCheckpointTarget,
   listingDeliveryTarget,
   compactListingDeliveryTarget,
   "policy/official/catalog.history-checkpoint.json",
@@ -233,28 +236,7 @@ export function requireOperationalReaderProof(
     !digest.test(receipt.reader_sha256)
   )
     throw new Error("Released operational reader proof differs from the signed transition");
-  const reader = receipt.reader;
-  const commit = /^[a-f0-9]{40}$/u;
-  if (
-    !isRecord(reader) ||
-    typeof reader.version !== "string" ||
-    typeof reader.tag !== "string" ||
-    ![reader.feed_commit, reader.source, reader.tag_object].every(
-      (value) => typeof value === "string" && commit.test(value),
-    ) ||
-    ![reader.archive_sha256, reader.checksum_sha256].every(
-      (value) => typeof value === "string" && digest.test(value),
-    ) ||
-    typeof reader.release_id !== "number" ||
-    !Number.isSafeInteger(reader.release_id) ||
-    reader.release_id < 1 ||
-    typeof reader.archive_bytes !== "number" ||
-    !Number.isSafeInteger(reader.archive_bytes) ||
-    reader.archive_bytes < 1 ||
-    reader.archive_bytes > 64 * 1024 ** 2
-  )
-    throw new Error("Released operational reader proof has no verified release identity");
-  return reader;
+  return requireReleasedReaderReceipt(receipt.reader);
 }
 
 /** Run after assembling and staging exact signed bytes, before any Pages commit. */

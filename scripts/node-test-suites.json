@@ -314,6 +314,14 @@
       "ordinary_families": ["release-contract-tests"]
     },
     {
+      "file": "scripts/listing-artwork-checkpoint.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3511],
+        ["release-check", 4311]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-body-window.test.mts",
       "memberships": [
         ["catalog-full-2", 3508],

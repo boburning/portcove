@@ -10,6 +10,15 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import { parseCatalogSource, typedIgdbScene } from "./catalog-authoring.mts";
+import {
+  advanceArtworkCheckpoint,
+  artworkCheckpointMax,
+  artworkCheckpointTarget,
+  readArtworkCheckpoint,
+} from "./listing-artwork-checkpoint.mts";
+import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
+import { proveReleasedCoverInspection } from "./listing-cover-reader-proof.mts";
+import { readCatalogPublicationBundle } from "./release-catalog-inspection.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { compatibleGithubListingAssetUrl, observationHash } from "./upstream-observer.mts";
 import {
@@ -304,6 +313,8 @@ export function projectListingDelivery(
     withdrawals?: readonly string[];
     /** A tighter decoded bound (tests); never above the compact decoded maximum. */
     byteLimit?: number;
+    /** Exact cover decisions for this generation and its authenticated predecessor. */
+    coverCheckpoint?: ReturnType<typeof advanceArtworkCheckpoint>;
   } = {},
 ) {
   const {
@@ -312,6 +323,7 @@ export function projectListingDelivery(
     now = Date.now(),
     withdrawals = [],
     byteLimit = compactListingDecodedMaximum,
+    coverCheckpoint,
   } = options;
   const raw = directory(canonical);
   const previousDocument = previous
@@ -372,7 +384,8 @@ export function projectListingDelivery(
   const listings = baseline.listings
     .filter((listing) => !withdrawalSet.has(String(listing.id)))
     .map((listing) => {
-      const result = structuredClone(listing);
+      const declaration = declarations.get(listing.id)!;
+      const result = structuredClone(coverCheckpoint?.apply(listing, declaration) ?? listing);
       const old = previousListings.get(listing.id);
       let comparable = listing;
       // Pre-format-13 signed rows could not carry typed scenes.
@@ -389,6 +402,9 @@ export function projectListingDelivery(
         if (media.length > 0) comparable.media = media;
         else delete comparable.media;
       }
+      // Compare the prior signed declaration under its own cover decisions.
+      // Artwork withdrawal/restoration does not invalidate release observations.
+      if (coverCheckpoint) comparable = coverCheckpoint.applyPrevious(comparable, declaration);
       const prior =
         old &&
         listingDeclarationHash(old) === listingDeclarationHash(comparable) &&
@@ -613,10 +629,11 @@ function readDeliveryCarrier(wire: Buffer, carrier: string) {
 
 /** The caller must obtain this report from the existing compiled verifier.
  * No path is guessed, and an unreferenced blob is never a signed last-good. */
-export async function verifiedPriorListing(
+async function verifiedPriorTarget(
   prior: string,
   verification: unknown,
-  carrier = listingDeliveryTarget,
+  carrier: string,
+  byteLimit: number,
 ): Promise<Buffer | null> {
   if (
     !isRecord(verification) ||
@@ -633,10 +650,19 @@ export async function verifiedPriorListing(
   const entry = verifiedFiles.find((raw) => isRecord(raw) && raw.target === target);
   if (!isRecord(entry) || entry.sha256 !== identity)
     throw new Error("Prior listing is not referenced by verified repository inventory");
-  const bytes = await readControllerToolFile(path.join(prior, target), maximum);
+  const bytes = await readControllerToolFile(path.join(prior, target), byteLimit);
   if (bytes.length !== entry.bytes || hash(bytes) !== identity)
     throw new Error("Prior signed listing bytes differ");
-  readDeliveryCarrier(bytes, carrier);
+  return bytes;
+}
+
+export async function verifiedPriorListing(
+  prior: string,
+  verification: unknown,
+  carrier = listingDeliveryTarget,
+) {
+  const bytes = await verifiedPriorTarget(prior, verification, carrier, maximum);
+  if (bytes) readDeliveryCarrier(bytes, carrier);
   return bytes;
 }
 
@@ -821,6 +847,10 @@ export async function prepareObservationBundle(options: {
   root: string;
   offlineTargets: string;
   observe?: boolean;
+  /** Explicit protected first activation; subsequent renewals follow signed state. */
+  activateCoverCheckpoint?: boolean;
+  priorHistory?: string;
+  readCoverHealth?: typeof readHostedCoverHealth;
   /** Select and verify the reader from the protected Preview pointer
    * (`Catalog publish`). */
   officialReleasedReader?: boolean;
@@ -838,7 +868,11 @@ export async function prepareObservationBundle(options: {
   const automatic = options.officialReleasedReader === true;
   if (automatic && options.releasedReader)
     throw new Error("Official released-reader selection takes no explicit reader");
-  for (const target of [listingDeliveryTarget, compactListingDeliveryTarget])
+  for (const target of [
+    listingDeliveryTarget,
+    compactListingDeliveryTarget,
+    artworkCheckpointTarget,
+  ])
     if (existsSync(path.join(options.bundle, target)))
       throw new Error("Listing targets come only from observation projection, not the bundle");
   // The signer accepts compact delivery only beside the retained legacy target,
@@ -854,6 +888,18 @@ export async function prepareObservationBundle(options: {
   if (!Object.hasOwn(priorTargets, listingDeliveryTarget))
     throw new Error("Prior repository has no retained legacy listing target");
   const priorCompact = Object.hasOwn(priorTargets, compactListingDeliveryTarget);
+  const priorCoverDigest = priorTargets[artworkCheckpointTarget];
+  const coverEnabled = priorCoverDigest !== undefined || options.activateCoverCheckpoint === true;
+  if (
+    coverEnabled &&
+    (!automatic ||
+      !priorCompact ||
+      !options.priorHistory ||
+      !Object.hasOwn(priorTargets, "policy/official/catalog.history-checkpoint.json"))
+  )
+    throw new Error(
+      "Cover checkpoints require official reader selection and active authenticated compact history",
+    );
   mkdirSync(options.output, { recursive: true });
   const workspace = path.join(options.output, "observation-work");
   mkdirSync(workspace);
@@ -896,6 +942,7 @@ export async function prepareObservationBundle(options: {
   let legacyWire: Buffer;
   let compactWire: Buffer | null = null;
   let previous: Buffer;
+  let priorCover: Buffer | null = null;
   let renewal: ReturnType<typeof retainedListingRenewal> | undefined;
   let observerRevision = options.observe === false ? "offline" : "unavailable";
   // Why the prior signed repository could not be verified, when it could not.
@@ -916,6 +963,7 @@ export async function prepareObservationBundle(options: {
         offline_targets: path.resolve(options.offlineTargets),
         offline_targets_sha256: hash(top),
         repository: prior,
+        ...(coverEnabled ? { history_store: path.resolve(options.priorHistory!) } : {}),
       }),
     );
     const report: unknown = JSON.parse(
@@ -936,7 +984,29 @@ export async function prepareObservationBundle(options: {
     previous = compactWire
       ? readDeliveryCarrier(compactWire, compactListingDeliveryTarget).bytes
       : legacyWire;
+    if (priorCoverDigest !== undefined) {
+      priorCover = await verifiedPriorTarget(
+        prior,
+        report,
+        artworkCheckpointTarget,
+        artworkCheckpointMax,
+      );
+      if (!priorCover) throw new Error("Prior cover checkpoint is not referenced");
+      readArtworkCheckpoint(priorCover, previous);
+    }
   } catch (error) {
+    // Active checkpoints cannot be silently forgotten by an ordinary listing
+    // fallback. The existing prior pair can be renewed only for signer verification.
+    if (priorCoverDigest !== undefined) {
+      if (!/^[a-f0-9]{64}$/u.test(priorCoverDigest))
+        throw new Error("Historical cover checkpoint has no exact digest");
+      priorCover = await readControllerToolFile(
+        path.join(priorRepository, "targets", `${priorCoverDigest}.${artworkCheckpointTarget}`),
+        artworkCheckpointMax,
+      );
+      if (hash(priorCover) !== priorCoverDigest)
+        throw new Error("Historical cover checkpoint differs from its signed target");
+    }
     // The signer authenticates the historical targets before renewal. Never use
     // an unauthenticated observation, or replace a directory we could not read.
     const carrier = priorCompact ? compactListingDeliveryTarget : listingDeliveryTarget;
@@ -946,6 +1016,7 @@ export async function prepareObservationBundle(options: {
       : renewal.wire;
     compactWire = priorCompact ? renewal.wire : null;
     previous = renewal.bytes;
+    if (priorCover) readArtworkCheckpoint(priorCover, previous);
     priorUnverified = error instanceof Error ? error.message.slice(0, 300) : "verification failed";
     diagnostics.push(
       `retained exact previous listing bytes for historical signer verification; prior unavailable: ${priorUnverified}`,
@@ -958,6 +1029,13 @@ export async function prepareObservationBundle(options: {
   // Released-reader gate: the compact carrier is first published, or raised to
   // a newer format, only after the current released preview is verified to read
   // it. Otherwise the exact prior state is renewed and nothing new is published.
+  const acquireReader =
+    options.acquireReleasedReader ??
+    ((root: string) =>
+      acquireCatalogReleasedReader(
+        root,
+        liveReleasedReaderSources(process.cwd(), root, priorRepository),
+      ));
   let officialReader: AcquiredReleasedReader | undefined;
   let releasedReader: { version: string; sha256: string } | undefined;
   let readerUnavailable: string | undefined;
@@ -971,16 +1049,7 @@ export async function prepareObservationBundle(options: {
       if (automatic) {
         if (!liveListingReaderFloors.has(format))
           throw new Error(`Listing format ${format} has no declared released reader floor`);
-        officialReader = await (
-          options.acquireReleasedReader ??
-          ((root: string) =>
-            acquireCatalogReleasedReader(
-              root,
-              // The Pages worktree holding the prior: its checked-out commit,
-              // not a remote-tracking ref.
-              liveReleasedReaderSources(process.cwd(), root, priorRepository),
-            ))
-        )(workspace);
+        officialReader = await acquireReader(workspace);
         releasedReader = await probeReleasedReader(officialReader, format, workspace, environment);
         if (releasedReader.version !== officialReader.version)
           throw new Error("Released CLI capabilities version differs from its official release");
@@ -1046,6 +1115,24 @@ export async function prepareObservationBundle(options: {
       }
     }
   }
+  let coverCheckpoint: ReturnType<typeof advanceArtworkCheckpoint> | undefined;
+  if (coverEnabled && !renewal) {
+    let observations: ReturnType<typeof applicableCoverHealth> = [];
+    if (options.observe !== false) {
+      try {
+        const evidence = await (options.readCoverHealth ?? readHostedCoverHealth)();
+        if (evidence) observations = applicableCoverHealth(canonical, evidence);
+      } catch (error) {
+        diagnostics.push(
+          `cover observer unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "read failed"}`,
+        );
+      }
+    }
+    coverCheckpoint = advanceArtworkCheckpoint(
+      priorCover ? { bytes: priorCover, listing: previous } : null,
+      observations,
+    );
+  }
   // Every compact revision exceeds the frozen legacy revision, the signer's
   // replay floor for the first compact publication.
   let withdrawals: string[] = [];
@@ -1056,6 +1143,7 @@ export async function prepareObservationBundle(options: {
         compatible,
         now,
         withdrawals,
+        ...(coverCheckpoint ? { coverCheckpoint } : {}),
       }),
       legacyDocument.revision,
     );
@@ -1075,12 +1163,15 @@ export async function prepareObservationBundle(options: {
       writeFileSync(path.join(destinationRoot, compactListingDeliveryTarget), wire, {
         flag: "wx",
       });
+    const cover = renewal ? priorCover : (coverCheckpoint?.finish(projected.bytes) ?? null);
+    if (cover)
+      writeFileSync(path.join(destinationRoot, artworkCheckpointTarget), cover, { flag: "wx" });
     try {
       cli(["--json", "catalog", "inspect-definition-publication", destinationRoot]);
     } catch (error) {
       throw classifyCoreInspectionFailure(error);
     }
-    return wire;
+    return { wire, cover };
   };
   let projected:
     | Pick<
@@ -1163,10 +1254,40 @@ export async function prepareObservationBundle(options: {
     throw new Error("Canonical inputs changed during observation projection");
   const bundle = path.join(options.output, "bundle");
   let wire: Buffer | null = null;
+  let coverProof: Awaited<ReturnType<typeof proveReleasedCoverInspection>> | undefined;
   if (!stopped) {
     if (!projected) throw new Error("No listing projection was prepared");
     try {
-      wire = stage(projected, bundle);
+      const staged = stage(projected, bundle);
+      wire = staged.wire;
+      if (options.activateCoverCheckpoint && !staged.cover) {
+        throw new ListingPublicationStop(
+          "cover_evidence_unavailable",
+          "First cover checkpoint needs an accepted withdrawal from the completed artwork report",
+        );
+      }
+      if (
+        staged.cover &&
+        (!priorCover?.equals(staged.cover) || !wire || !compactWire?.equals(wire))
+      ) {
+        try {
+          const reader = officialReader ?? (await acquireReader(workspace));
+          const files = await readCatalogPublicationBundle(
+            bundle,
+            performance.now() + 90_000,
+            true,
+          );
+          coverProof = await proveReleasedCoverInspection(reader, workspace, bundle, files);
+        } catch (error) {
+          throw new ListingPublicationStop(
+            "cover_reader_unavailable",
+            "Exact staged cover transition could not be verified by the official released reader",
+            {
+              reason: error instanceof Error ? error.message.slice(0, 300) : "reader proof failed",
+            },
+          );
+        }
+      }
     } catch (error) {
       // Core refusing an exact prior renewal is never a listing-only stop.
       if (renewedBeforeProjection) throw error;
@@ -1186,7 +1307,7 @@ export async function prepareObservationBundle(options: {
     projected = renewal;
     // The renewal is the exact prior publication; Core refusing it is not a
     // listing-only failure and fails preparation.
-    wire = stage(renewal, bundle);
+    ({ wire } = stage(renewal, bundle));
   }
   if (!projected) throw new Error("No listing projection was prepared");
   const delivered = delivery(parseCatalogSource(projected.bytes.toString("utf8")));
@@ -1198,6 +1319,8 @@ export async function prepareObservationBundle(options: {
       (delivered.directory.format_version < 15 ? minimumLiveListingReader : null),
     revision: projected.revision,
     listing_format: delivered.directory.format_version,
+    ...(coverProof ? { released_cover_proof: coverProof } : {}),
+    ...(coverCheckpoint?.deferred ? { cover_scopes_deferred: coverCheckpoint.deferred } : {}),
     ...(releasedReader ? { released_reader: releasedReader } : {}),
     ...(officialReader && !stopped
       ? {
@@ -1306,6 +1429,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       "released-reader-sha256": { type: "string" },
       "official-released-reader": { type: "boolean", default: false },
       withdrawals: { type: "string" },
+      "activate-cover-checkpoint": { type: "boolean", default: false },
+      "prior-history": { type: "string" },
     },
   });
   for (const key of [
@@ -1335,6 +1460,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         offlineTargets: path.resolve(values["offline-targets"]!),
         observe: !values.offline,
         officialReleasedReader: values["official-released-reader"],
+        activateCoverCheckpoint: values["activate-cover-checkpoint"],
+        ...(values["prior-history"] ? { priorHistory: path.resolve(values["prior-history"]) } : {}),
         ...(values.withdrawals ? { withdrawals: path.resolve(values.withdrawals) } : {}),
         ...(values["released-reader"] && values["released-reader-sha256"]
           ? {

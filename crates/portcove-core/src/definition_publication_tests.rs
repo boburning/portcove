@@ -342,6 +342,58 @@ fn publication_inspects_the_compact_producer_body_and_retained_legacy_together()
 }
 
 #[test]
+fn cover_checkpoint_inspection_binds_the_exact_active_compact_directory() {
+    use portcove_listing_carrier::{COMPACT_TARGET, COVER_CHECKPOINT_TARGET, LEGACY_TARGET};
+    let index =
+        serde_json::to_vec(&json!({"index_schema":1,"definitions":[],"contents":[]})).unwrap();
+    let wire = include_bytes!("testdata/compact-listing-delivery.generated.json");
+    let legacy = include_bytes!("testdata/listing-observation-delivery.generated.json");
+    let (_, listing_digest) = portcove_listing_carrier::decode(wire).unwrap();
+    let mut files = BTreeMap::from([
+        ("definitions/index.json".into(), index),
+        (LEGACY_TARGET.into(), legacy.to_vec()),
+        (COMPACT_TARGET.into(), wire.to_vec()),
+    ]);
+    assert_eq!(
+        inspect_definition_publication_bytes(&files)
+            .unwrap()
+            .publication_schema,
+        2
+    );
+    let mut checkpoint = json!({
+        "checkpoint_schema": 1,
+        "listing_sha256": listing_digest,
+        "prior_checkpoint_sha256": null,
+        "entries": [{
+            "id": "new-unmanaged-port",
+            "scope": "a".repeat(64),
+            "image_id": "cover",
+            "prior_sha256": "b".repeat(64),
+            "observed_at": "2026-11-26T14:00:00.000Z",
+            "receipt": format!("sha256:{}", "c".repeat(64)),
+            "state": "gone",
+        }],
+    });
+    let bytes = serde_json::to_vec(&checkpoint).unwrap();
+    files.insert(COVER_CHECKPOINT_TARGET.into(), bytes.clone());
+    let report = inspect_definition_publication_bytes(&files).unwrap();
+    assert_eq!(report.publication_schema, 3);
+    let identity = report.cover_checkpoint.unwrap();
+    assert_eq!(identity.target, COVER_CHECKPOINT_TARGET);
+    assert_eq!(identity.sha256, hash(&bytes));
+    assert_eq!(identity.listing_decoded_sha256, listing_digest);
+    files.remove(COMPACT_TARGET);
+    assert!(inspect_definition_publication_bytes(&files).is_err());
+    files.insert(COMPACT_TARGET.into(), wire.to_vec());
+    checkpoint["listing_sha256"] = json!(hash(wire));
+    files.insert(
+        COVER_CHECKPOINT_TARGET.into(),
+        serde_json::to_vec(&checkpoint).unwrap(),
+    );
+    assert!(inspect_definition_publication_bytes(&files).is_err());
+}
+
+#[test]
 fn a_refused_listing_target_is_a_verification_refusal_for_either_carrier() {
     use base64::{Engine as _, engine::general_purpose::STANDARD};
     use flate2::{Compression, write::GzEncoder};

@@ -28,6 +28,11 @@ import {
   projectListingDelivery,
   publishedAbove,
 } from "./listing-observation-delivery.mts";
+import {
+  advanceArtworkCheckpoint,
+  artworkCheckpointTarget,
+  coverDeclarationScope,
+} from "./listing-artwork-checkpoint.mts";
 import { writeStubCli } from "./fixtures/listing-prepare-fixture.mts";
 import { acquireCatalogReleasedReader } from "./catalog-released-reader.mts";
 import { fixtureReleasedReaderSources } from "./fixtures/released-reader-fixture.mts";
@@ -168,6 +173,146 @@ void test("the rehearsal drives every activation step through preparation", asyn
     legacy_target_unchanged: true,
   });
   assert.match(report.preconditions.without_prior, /requires the prior signed repository/u);
+});
+
+void test("first cover checkpoint without an accepted withdrawal renews the exact compact publication", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const compact = encodeCompactListing(
+    wire({
+      ...document(legacyTarget),
+      revision: 2,
+      directory: canonical,
+    }),
+  );
+  const prior = writePriorRepository(path.join(fixture.root, "prior"), {
+    [listingDeliveryTarget]: legacyTarget,
+    [compactListingDeliveryTarget]: compact,
+    "policy/official/catalog.history-checkpoint.json": wire({}),
+  });
+  const output = path.join(fixture.root, "out");
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: fixture.canonical,
+    catalog: fixture.catalog,
+    prior,
+    priorHistory: path.join(fixture.root, "history"),
+    output,
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    observe: false,
+    officialReleasedReader: true,
+    activateCoverCheckpoint: true,
+    acquireReleasedReader: () =>
+      assert.fail("no release should be acquired without a cover transition"),
+  });
+  assert.equal(report.listing_publication_stopped?.code, "cover_evidence_unavailable");
+  assert.equal(report.released_cover_proof, undefined);
+  assertExactPriorRenewal(output, report, legacyTarget, compact);
+});
+
+void test("a released reader without cover support leaves the exact prior withdrawal published", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const artwork = {
+    game_id: 100,
+    cover_id: 1,
+    game_slug: "original",
+    match_kind: "underlying-game",
+    image_id: "cosample",
+    image_sha256: "a".repeat(64),
+  } as const;
+  const game = row("artwork-fixture", { original_game_title: "Original", artwork });
+  const directory = { ...canonical, listings: [...canonical.listings, game] };
+  const receipt = "sha256:" + "b".repeat(64);
+  const decisions = advanceArtworkCheckpoint(null, [
+    {
+      id: game.id,
+      artwork,
+      scope: coverDeclarationScope(game, artwork),
+      report: receipt,
+      status: "propose_fallback",
+      observed_at: "2026-11-26T12:00:00.000Z",
+    },
+  ]);
+  const oldDirectory = wire({
+    ...document(legacyTarget),
+    revision: 2,
+    directory: { ...directory, listings: [...canonical.listings, decisions.apply(game)] },
+  });
+  const compact = encodeCompactListing(oldDirectory);
+  const checkpoint = decisions.finish(oldDirectory);
+  assert.ok(checkpoint);
+  const prior = writePriorRepository(path.join(fixture.root, "prior"), {
+    [listingDeliveryTarget]: legacyTarget,
+    [compactListingDeliveryTarget]: compact,
+    [artworkCheckpointTarget]: checkpoint,
+    "policy/official/catalog.history-checkpoint.json": wire({}),
+  });
+  const output = path.join(fixture.root, "out");
+  let acquisitions = 0;
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: fixture.write("artwork.json", directory),
+    catalog: fixture.catalog,
+    prior,
+    priorHistory: path.join(fixture.root, "history"),
+    output,
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    readObservation: () =>
+      Promise.reject(new Error("No release observations in this cover fixture")),
+    readCoverHealth: () =>
+      Promise.resolve({
+        producerDirectory: directory,
+        facts: new Map([
+          [
+            `port:${game.id}@${artwork.image_id}`,
+            {
+              id: game.id,
+              artwork,
+              status: "unchanged",
+              observed_at: "2026-11-26T13:00:00.000Z",
+            },
+          ],
+        ]),
+        artifact: receipt,
+        producer: { workflow: "fixture", run: "1", attempt: "1", revision: "a".repeat(40) },
+        revision: "fixture",
+        rows: 1,
+        expected: 1,
+        complete: true,
+        gaps: [],
+        counts: { unchanged: 1, mismatch: 0, gone: 0, unavailable: 0, deferred: 0 },
+      }),
+    officialReleasedReader: true,
+    acquireReleasedReader: (root) => {
+      acquisitions++;
+      return acquireCatalogReleasedReader(
+        root,
+        fixtureReleasedReaderSources({
+          binary: Buffer.from(
+            readFileSync(fixture.cli, "utf8").replace(
+              "ok: true, command, data",
+              "ok: true, error: null, command, data",
+            ),
+          ),
+          version: "0.1.0",
+        }).sources,
+      );
+    },
+  });
+  assert.equal(acquisitions, 1);
+  assert.equal(report.listing_publication_stopped?.code, "cover_reader_unavailable");
+  assert.match(
+    String(report.listing_publication_stopped?.figures.reason),
+    /does not prove the required operational features/u,
+  );
+  assert.equal(report.released_cover_proof, undefined);
+  assertExactPriorRenewal(output, report, legacyTarget, compact);
+  assert.deepEqual(readFileSync(path.join(output, "bundle", artworkCheckpointTarget)), checkpoint);
 });
 
 void test("a projection stop renews the exact prior carriers instead of excluding candidates", async (t) => {

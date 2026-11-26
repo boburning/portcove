@@ -37,6 +37,10 @@ on:
         description: Owner activation only - create the first signed catalog history checkpoint
         type: boolean
         default: false
+      activate_cover_checkpoint:
+        description: Owner activation only - admit the first cover checkpoint after signed history and released reader support
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -168,8 +172,8 @@ jobs:
       - name: Require a compatible CI-green source
         if: steps.decide.outputs.publish == 'true'
         run: |
-          if [ ! -f scripts/catalog-pages-overlay.mts ] || [ ! -f scripts/catalog-definition-reader-gate.mts ]; then
-            echo "::error::Wait for a CI-green main commit that supports the catalog Pages overlay"
+          if [ ! -f scripts/catalog-pages-overlay.mts ] || [ ! -f scripts/catalog-definition-reader-gate.mts ] || [ ! -f scripts/listing-cover-reader-proof.mts ]; then
+            echo "::error::Wait for a CI-green main commit that supports guarded catalog publication"
             exit 1
           fi
           # History support is required only once history is requested or published.
@@ -193,8 +197,13 @@ jobs:
       - name: Project completed shared observations into the compact listing target
         id: observe
         if: steps.decide.outputs.publish == 'true'
+        env:
+          ACTIVATE_COVER_CHECKPOINT: ${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_cover_checkpoint == true }}
         run: |
           set -euo pipefail
+          cover_options=()
+          if [ -d site/catalog-history ]; then cover_options+=(--prior-history "$PWD/site/catalog-history"); fi
+          if [ "$ACTIVATE_COVER_CHECKPOINT" = true ]; then cover_options+=(--activate-cover-checkpoint); fi
           node scripts/listing-observation-delivery.mts \
             --bundle release/catalog-publication/bundle \
             --canonical crates/portcove-core/catalog/listings.json \
@@ -203,6 +212,7 @@ jobs:
             --cli target/release/portcove --tools target/release/portcove-release-tools \
             --root crates/portcove-core/catalog/official-definition-root.json \
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
+            "${cover_options[@]}" \
             --withdrawals crates/portcove-core/catalog/listing-withdrawals.json \
             --official-released-reader
           activation=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const report = JSON.parse(readFileSync(process.argv[1], "utf8")); if (report.released_reader_activation) process.stdout.write(JSON.stringify(report.released_reader_activation))' "$RUNNER_TEMP/observation-bundle/report.json")
@@ -409,6 +419,7 @@ jobs:
                 "$RUNNER_TEMP/catalog-work/site-history.json" > "$RUNNER_TEMP/catalog-work/site-history-report.json"
             fi
             node scripts/catalog-definition-reader-gate.mts recheck "$RUNNER_TEMP/catalog-work" site
+            node scripts/listing-cover-reader-proof.mts "$RUNNER_TEMP/catalog-work" site
             git -C site commit --quiet -m "Publish the official catalog from $COMMIT"
             # Bound the actual complete Pages tree, including the application and
             # browse output. Keep margin below GitHub Pages' published 1 GB limit.

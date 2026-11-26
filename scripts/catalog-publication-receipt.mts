@@ -11,6 +11,7 @@ import {
   publishedVersionsFromMetadata,
   publishedTargetsFromMetadata,
 } from "./catalog-publish.mts";
+import { artworkCheckpointMax, artworkCheckpointTarget } from "./listing-artwork-checkpoint.mts";
 import {
   compactListingDeliveryTarget,
   listingDeliveryMaximum,
@@ -58,6 +59,7 @@ function immutablePath({ target, sha256 }: Identity) {
 function targetLimit(target: string) {
   if (target === listingDeliveryTarget || target === compactListingDeliveryTarget)
     return listingDeliveryMaximum;
+  if (target === artworkCheckpointTarget) return artworkCheckpointMax;
   if (target.startsWith("policy/")) return 65_536;
   return target === index ? catalogDefinitionIndexBytes : catalogDefinitionContentBytes;
 }
@@ -79,6 +81,7 @@ async function readState(site: CatalogSource | null) {
       timestamp: null,
       index: null,
       listings: null,
+      coverCheckpoint: null,
       historyPointer: null,
       definitions: new Map<string, Definition>(),
     };
@@ -210,6 +213,9 @@ async function readState(site: CatalogSource | null) {
     listings: Object.hasOwn(targets, activeListingTarget)
       ? identity(targets, activeListingTarget)
       : null,
+    coverCheckpoint: Object.hasOwn(targets, artworkCheckpointTarget)
+      ? identity(targets, artworkCheckpointTarget)
+      : null,
     historyPointer: Object.hasOwn(targets, historyTarget) ? identity(targets, historyTarget) : null,
     definitions,
   };
@@ -257,13 +263,21 @@ export async function describeCatalogPublication(prior: CatalogSource | null, ne
     });
   const listingChanged = !isDeepStrictEqual(before.listings, after.listings);
   if (listingChanged) requireReadback(after.listings);
+  const coverChanged = !isDeepStrictEqual(before.coverCheckpoint, after.coverCheckpoint);
+  if (coverChanged) {
+    if (!after.coverCheckpoint || after.listings?.target !== compactListingDeliveryTarget)
+      throw new Error("Published cover checkpoint was dropped or has no active compact target");
+    requireReadback(after.coverCheckpoint);
+    requireReadback(after.listings);
+  }
   if (pending.size > 256 || changes.length > 128)
     throw new Error("publication receipt target count exceeds its bound");
-  const snapshot = ({ versions, timestamp, index, listings }: State) => ({
+  const snapshot = ({ versions, timestamp, index, listings, coverCheckpoint }: State) => ({
     versions,
     timestamp_sha256: timestamp,
     index,
     listings,
+    ...(coverCheckpoint ? { cover_checkpoint: coverCheckpoint } : {}),
   });
   return {
     prior: snapshot(before),
