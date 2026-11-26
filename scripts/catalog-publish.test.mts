@@ -1364,6 +1364,130 @@ void test("catalog keys reach only one signing step per role, from main", async 
   }
 });
 
+void test("signed projection recomputes shared covers without changing the release observation", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { checkedAuthoredPort } = await import("./catalog-authoring.mts");
+  const { indexSharedCoverRows, projectExactSharedCovers, retainSharedCoverDefaults } =
+    await import("./shared-cover-projection.mts");
+  const game = {
+    format_version: 1,
+    id: "shared-game",
+    evidence_urls: ["https://example.org/shared-game"],
+    source_editions: [
+      {
+        id: "edition-one",
+        system: "pc",
+        title: "Shared game",
+        evidence_urls: ["https://example.org/shared-edition"],
+      },
+    ],
+  };
+  const artwork = {
+    game_id: 70,
+    cover_id: 71,
+    image_id: "sharedcover",
+    image_sha256: "a".repeat(64),
+    game_slug: "shared-game",
+    match_kind: "underlying-game",
+  };
+  const recipient = { ...fixtureListing, original_game: game };
+  const donor = {
+    ...fixtureListing,
+    id: "artwork-donor",
+    name: "Shared cover donor",
+    project_url: "https://github.com/fixture/artwork-donor",
+    original_game: game,
+    artwork,
+  };
+  const canonical = { format_version: 15, listings: [recipient, donor] };
+  const candidate = {
+    ...recipient,
+    upstream_observation: fixturePolicy().listing_update.upstream_observation,
+  };
+  const authored = [recipient, donor].map((listing) =>
+    checkedAuthoredPort({ format_version: 1, listing }),
+  );
+  const initial = projectListingDelivery(canonical, [candidate], null);
+  const rows = (bytes: Buffer) =>
+    fixtureRecords(fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings);
+  const row = (bytes: Buffer) => requiredFixture(rows(bytes).find(({ id }) => id === recipient.id));
+  const project = (
+    previous: Buffer,
+    gone = new Set<string>(),
+    records = authored,
+    holdNewForImages = new Set<string>(),
+  ) =>
+    projectListingDelivery(canonical, [], previous, {
+      sharedCoverDefaults: projectExactSharedCovers({
+        live: indexSharedCoverRows(rows(previous)),
+        authored: records,
+        excludedPortIds: new Set(),
+        gone,
+        checked: new Map(),
+        deriveDefaultsForPublishedRecipients: true,
+        holdNewForImages,
+      }),
+    });
+  const admitted = project(initial.bytes);
+  assert.deepEqual(row(admitted.bytes).artwork, artwork);
+  assert.deepEqual(
+    row(admitted.bytes).upstream_observation,
+    row(initial.bytes).upstream_observation,
+  );
+  assert.deepEqual(
+    { ...row(admitted.bytes), artwork: undefined },
+    { ...row(initial.bytes), artwork: undefined },
+  );
+  assert.equal(project(admitted.bytes).changed, false);
+  const held = new Set([artwork.image_id]);
+  assert.equal(row(project(initial.bytes, new Set(), authored, held).bytes).artwork, undefined);
+  assert.equal(project(admitted.bytes, new Set(), authored, held).changed, false);
+
+  const retain = (previous: Buffer, gone = new Set<string>()) =>
+    projectListingDelivery(canonical, [], previous, {
+      sharedCoverDefaults: retainSharedCoverDefaults(
+        indexSharedCoverRows(rows(previous)),
+        canonical.listings,
+        gone,
+      ),
+    });
+  assert.equal(retain(admitted.bytes).changed, false);
+  assert.equal(retain(initial.bytes).changed, false);
+  for (const prevented of [
+    project(admitted.bytes, held),
+    retain(admitted.bytes, held),
+    ...[recipient.id, donor.id].map((excluded) =>
+      project(
+        admitted.bytes,
+        new Set(),
+        authored.map((record) =>
+          checkedAuthoredPort({
+            ...record,
+            ...(record.listing.id === excluded ? { igdb_no_shared_cover: true } : {}),
+          }),
+        ),
+      ),
+    ),
+  ]) {
+    assert.equal(row(prevented.bytes).artwork, undefined);
+    assert.deepEqual(
+      row(prevented.bytes).upstream_observation,
+      row(initial.bytes).upstream_observation,
+    );
+  }
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        format_version: 1,
+        listing: recipient,
+        igdb_no_shared_cover: false,
+      }),
+    /shared cover exclusion must be true/u,
+  );
+});
+
 void test("observer output is delivered as bounded compatible descriptive data with quiet replay and last-good retention", async () => {
   const { fixtureListing, fixturePolicy, fixtureDelivery } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
