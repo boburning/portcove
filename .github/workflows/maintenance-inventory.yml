@@ -388,6 +388,26 @@ jobs:
           manifest = load(work / "maintenance-backup/store/manifest.json") or {}
           server = load(evidence_dir / "server.json") or {}
           collected = load(evidence_dir / "collect.json") or {}
+          collect_outcome = os.environ["COLLECT_OUTCOME"]
+          collection = None
+          if collect_outcome == "success":
+              if os.environ["COLLECT_COMPLETED"] != "true":
+                  collect_outcome = "deferred"
+              else:
+                  collection = {"ledger_completion": "unknown"}
+                  if isinstance(collected, dict):
+                      failed_sources = collected.get("failed_sources")
+                      core_gaps = collected.get("core_gaps")
+                      if collected.get("outcome") == "coalesced":
+                          collection = {"ledger_completion": "coalesced"}
+                      elif (isinstance(failed_sources, list) and all(isinstance(name, str) for name in failed_sources)
+                            and len(failed_sources) == len(set(failed_sources))
+                            and type(core_gaps) is int and core_gaps >= 0):
+                          collection = {
+                              "ledger_completion": "incomplete" if failed_sources or core_gaps else "complete",
+                              "failed_source_count": len(failed_sources),
+                              "core_gaps": core_gaps,
+                          }
           times = {}
           if (evidence_dir / "step-times.tsv").is_file():
               for line in (evidence_dir / "step-times.tsv").read_text().splitlines():
@@ -403,10 +423,10 @@ jobs:
               "run": {"id": int(os.environ["RUN_ID"]), "attempt": int(os.environ["RUN_ATTEMPT"]),
                       "event": os.environ["EVENT_NAME"],
                       "head_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()},
-              "outcomes": {"collect": ("deferred" if os.environ["COLLECT_OUTCOME"] == "success"
-                                             and os.environ["COLLECT_COMPLETED"] != "true" else os.environ["COLLECT_OUTCOME"]), "report": os.environ["REPORT_OUTCOME"],
+              "outcomes": {"collect": collect_outcome, "report": os.environ["REPORT_OUTCOME"],
                            "backup": os.environ["BACKUP_OUTCOME"],
                            "public_summary": os.environ["PUBLIC_SUMMARY_OUTCOME"]},
+              "collection": collection,
               "purpose": os.environ["PORTCOVE_MAINTENANCE_PURPOSE"],
               "previous_verified_recovery": load(work / "maintenance-report/previous-recovery.json"),
               "provider_resource_evidence": "resource.jsonl" if (work / "maintenance-report/resource.jsonl").exists() else None,
@@ -432,9 +452,15 @@ jobs:
           }
           (work / "maintenance-report").mkdir(parents=True, exist_ok=True)
           (work / "maintenance-report/evidence.json").write_text(json.dumps(evidence, indent=2) + "\n")
+          collection_status = collect_outcome
+          if collection is not None:
+              collection_status += f" (ledger completion: {collection['ledger_completion']}"
+              if "failed_source_count" in collection:
+                  collection_status += f", {collection['failed_source_count']} failed sources, {collection['core_gaps']} Core gaps"
+              collection_status += ")"
           lines = ["## Maintenance inventory run evidence", "",
                    f"Run {evidence['run']['id']} attempt {evidence['run']['attempt']} ({evidence['run']['event']}) at `{evidence['run']['head_sha']}`.",
-                   f"Collection: {evidence['outcomes']['collect']}. Report generated {evidence['report_generated_at']}; "
+                   f"Collection: {collection_status}. Report generated {evidence['report_generated_at']}; "
                    f"{evidence['pending_changes']} pending changes.",
                    f"Database size: {evidence['database_size_bytes']} bytes; server {evidence['server_version_num']}; "
                    f"backup dump {(evidence['backup_dump'] or {}).get('bytes')} bytes.", "",
