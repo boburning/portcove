@@ -5,7 +5,7 @@ import { isRecord, errorCode } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 import {
   prepareCatalogArtwork,
-  artworkPreparationInput,
+  artworkPreparationInputs,
   ArtworkBatchExhausted,
   readArtworkJson,
   validArtworkMapping,
@@ -100,6 +100,69 @@ function replaceOwned(root: string, name: string, value: unknown) {
   writeFileSync(temporary, bytes, { flag: "wx", mode: 0o600 });
   renameSync(temporary, filename);
 }
+const artworkDueRoundName = "artwork-due-round.json";
+
+/** Save the round once and advance a small cursor between bounded passes. A
+ * newly due identity joins the next round without displacing retained work. */
+function boundedArtworkDuePass(
+  root: string,
+  dueIds: readonly string[],
+  runnable: ReadonlySet<string>,
+  limit: number,
+) {
+  const value = readOwned(root, artworkDueRoundName);
+  let round: { format: 1; ids_sha256: string; next: number } | undefined;
+  let ids: string[] = [];
+  if (value !== null) {
+    if (
+      !isRecord(value) ||
+      value.format !== 1 ||
+      typeof value.ids_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(value.ids_sha256) ||
+      typeof value.next !== "number" ||
+      !Number.isSafeInteger(value.next) ||
+      value.next < 0
+    )
+      throw new Error("Invalid retained artwork due cursor");
+    const cursorHash = observationHash(value);
+    const cursorReceipt = readOwned(root, `artwork-attempt-${cursorHash}.json`);
+    if (cursorReceipt === null || observationHash(cursorReceipt) !== cursorHash)
+      throw new Error("Retained artwork due cursor does not match its receipt");
+    const saved = readOwned(root, `artwork-due-ids-${value.ids_sha256}.json`);
+    if (
+      !Array.isArray(saved) ||
+      saved.some((id: unknown) => typeof id !== "string" || !safeId(id)) ||
+      new Set(saved).size !== saved.length ||
+      observationHash(saved) !== value.ids_sha256 ||
+      value.next > saved.length
+    )
+      throw new Error("Invalid retained artwork due workset");
+    ids = saved as string[];
+    round = { format: 1, ids_sha256: value.ids_sha256, next: value.next };
+  }
+  if (!round || round.next === ids.length) {
+    if (runnable.size === 0) return { selected: [], finish() {} };
+    ids = [...dueIds];
+    const ids_sha256 = observationHash(ids);
+    replaceOwned(root, `artwork-due-ids-${ids_sha256}.json`, ids);
+    round = { format: 1, ids_sha256, next: 0 };
+    replaceOwned(root, artworkDueRoundName, round);
+  }
+  const active = round;
+  const selected: string[] = [];
+  let next = active.next;
+  while (next < ids.length && selected.length < limit) {
+    const id = ids[next++]!;
+    if (runnable.has(id)) selected.push(id);
+  }
+  return {
+    selected,
+    finish() {
+      if (next !== active.next) replaceOwned(root, artworkDueRoundName, { ...active, next });
+    },
+  };
+}
+
 function itemStateName(id: string, refresh: boolean, maintenance: boolean) {
   const kind = maintenance ? "maintenance-" : refresh ? "refresh-" : "";
   return `artwork-${kind}progress-${id}.json`;
@@ -337,6 +400,7 @@ export async function prepareArtworkWorkset(
     maintenance?: boolean;
     revalidateAccepted?: boolean;
     retainedCoverLimit?: number;
+    dueCoverLimit?: number;
     now?: () => number;
     signal?: AbortSignal;
     onProgress?: (id: string) => void | Promise<void>;
@@ -345,12 +409,14 @@ export async function prepareArtworkWorkset(
   const now = options.now ?? Date.now;
   const maintenance = options.maintenance === true;
   const revalidateAccepted = maintenance || options.revalidateAccepted === true;
-  const limit = options.retainedCoverLimit;
+  const limit = options.dueCoverLimit ?? options.retainedCoverLimit;
+  if (options.dueCoverLimit !== undefined && options.retainedCoverLimit !== undefined)
+    throw new Error("Choose one bounded artwork workset scope");
   if (
     limit !== undefined &&
     (!options.maintenance || !Number.isSafeInteger(limit) || limit < 1 || limit > 400)
   )
-    throw new Error("Bounded retained artwork maintenance requires a limit from 1 through 400");
+    throw new Error("Bounded artwork maintenance requires a limit from 1 through 400");
   const providerAdmission = readOwned(options.root, "artwork-provider-admission.json");
   if (providerAdmission !== null) {
     if (
@@ -374,7 +440,9 @@ export async function prepareArtworkWorkset(
   const ports = new Map(catalog.ports.map((port) => [port.id, port]));
   const inspectedIds = options.maintenance
     ? catalog.ports
-        .filter((port) => limit === undefined || mappingImages(port).length > 0)
+        .filter(
+          (port) => options.retainedCoverLimit === undefined || mappingImages(port).length > 0,
+        )
         .map((port) => port.id)
     : [...(options.selectedPortIds ?? [])];
   if (
@@ -399,11 +467,12 @@ export async function prepareArtworkWorkset(
     );
   }
   const toolIdentity = tool.digest("hex");
-  const inputs = new Map<string, ReturnType<typeof artworkPreparationInput>>();
+  const prepareInput = artworkPreparationInputs(accepted, options.identities);
+  const inputs = new Map<string, ReturnType<typeof prepareInput>>();
   const baseKey = (id: string, refresh: boolean) => {
     let input = inputs.get(id);
     if (input === undefined) {
-      input = artworkPreparationInput(ports.get(id)!, accepted, options.identities);
+      input = prepareInput(ports.get(id)!);
       inputs.set(id, input);
     }
     return observationHash({
@@ -429,17 +498,11 @@ export async function prepareArtworkWorkset(
   );
   const due = (id: string) => {
     const state = states.get(id);
-    const image = mappingImage(
-      state?.input_sha256 === baseKey(id, true) ? state.result.port : ports.get(id)!,
-    );
-    const referenced = mappingImages(
-      state?.input_sha256 === baseKey(id, true) ? state.result.port : ports.get(id)!,
-    );
+    if (!state || state.input_sha256 !== baseKey(id, true)) return true;
+    const images = mappingImages(state.result.port);
     return (
-      !image ||
-      referenced.some((value) => gone.has(value)) ||
-      !state ||
-      state.input_sha256 !== baseKey(id, true) ||
+      images.length === 0 ||
+      images.some((value) => gone.has(value)) ||
       !currentLiveObservation(state, now())
     );
   };
@@ -455,7 +518,25 @@ export async function prepareArtworkWorkset(
             a.localeCompare(b),
         )
     : [...(options.selectedPortIds ?? [])];
-  const selected = limit === undefined ? dueIds : dueIds.slice(0, limit);
+  const bounded =
+    options.dueCoverLimit === undefined
+      ? undefined
+      : boundedArtworkDuePass(
+          options.root,
+          dueIds,
+          new Set(
+            dueIds.filter((id) => {
+              const state = states.get(id);
+              return (
+                !state?.retry_at ||
+                state.input_sha256 !== baseKey(id, true) ||
+                Date.parse(state.retry_at) <= now()
+              );
+            }),
+          ),
+          options.dueCoverLimit,
+        );
+  const selected = bounded?.selected ?? (limit === undefined ? dueIds : dueIds.slice(0, limit));
   if (
     new Set(selected).size !== selected.length ||
     selected.some((id) => !ports.has(id)) ||
@@ -654,6 +735,7 @@ export async function prepareArtworkWorkset(
       .length,
     ...memo.metrics,
   };
+  bounded?.finish();
   return {
     catalog: output,
     records: values,

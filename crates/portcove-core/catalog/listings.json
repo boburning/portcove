@@ -86011,22 +86011,23 @@
       "id": "pok-mon-blue-pokerecomp",
       "project_url": "https://github.com/Decryptu/pokerecomp",
       "name": "Pokémon Blue / PokeRecomp (Decryptu)",
-      "summary": "A native Godot 4 reimplementation of the Gen 1 and 2 Game Boy Color games. Not an emulator, bring your own ROM.",
+      "summary": "Play Pokémon Blue in the Godot 4 reimplementation of the Game Boy game. Use your own matching USA/Europe cartridge dump.",
       "issue_number": 6987,
       "listed_at": "2026-11-24",
       "original_game": {
         "format_version": 1,
         "id": "pokemon-blue",
         "evidence_urls": [
-          "https://github.com/Decryptu/pokerecomp"
+          "https://github.com/Decryptu/pokerecomp",
+          "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L46-L50"
         ],
         "source_editions": [
           {
-            "id": "pokemon-blue-game-boy-color",
-            "title": "Pokémon Blue (Game Boy Color)",
-            "system": "game-boy-color",
+            "id": "pokemon-blue-game-boy",
+            "title": "Pokémon Blue (Game Boy)",
+            "system": "game-boy",
             "evidence_urls": [
-              "https://github.com/Decryptu/pokerecomp"
+              "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L46-L50"
             ]
           }
         ]
@@ -86039,14 +86040,15 @@
       "id": "pok-mon-crystal-pokerecomp",
       "project_url": "https://github.com/Decryptu/pokerecomp",
       "name": "Pokémon Crystal / PokeRecomp (Decryptu)",
-      "summary": "A native Godot 4 reimplementation of the Gen 1 and 2 Game Boy Color games. Not an emulator, bring your own ROM.",
+      "summary": "Play Pokémon Crystal in the Godot 4 reimplementation of the Game Boy Color game. Use your own matching USA/Europe Rev 1 cartridge dump.",
       "issue_number": 6991,
       "listed_at": "2026-11-24",
       "original_game": {
         "format_version": 1,
         "id": "pokemon-crystal",
         "evidence_urls": [
-          "https://github.com/Decryptu/pokerecomp"
+          "https://github.com/Decryptu/pokerecomp",
+          "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L74-L78"
         ],
         "source_editions": [
           {
@@ -86054,7 +86056,7 @@
             "title": "Pokémon Crystal (Game Boy Color)",
             "system": "game-boy-color",
             "evidence_urls": [
-              "https://github.com/Decryptu/pokerecomp"
+              "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L74-L78"
             ]
           }
         ]
@@ -86067,14 +86069,15 @@
       "id": "pok-mon-gold-pokerecomp",
       "project_url": "https://github.com/Decryptu/pokerecomp",
       "name": "Pokémon Gold / PokeRecomp (Decryptu)",
-      "summary": "A native Godot 4 reimplementation of the Gen 1 and 2 Game Boy Color games. Not an emulator, bring your own ROM.",
+      "summary": "Play Pokémon Gold in the Godot 4 reimplementation of the Game Boy Color game. Use your own matching USA/Europe cartridge dump.",
       "issue_number": 6989,
       "listed_at": "2026-11-24",
       "original_game": {
         "format_version": 1,
         "id": "pokemon-gold",
         "evidence_urls": [
-          "https://github.com/Decryptu/pokerecomp"
+          "https://github.com/Decryptu/pokerecomp",
+          "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L60-L64"
         ],
         "source_editions": [
           {
@@ -86082,7 +86085,7 @@
             "title": "Pokémon Gold (Game Boy Color)",
             "system": "game-boy-color",
             "evidence_urls": [
-              "https://github.com/Decryptu/pokerecomp"
+              "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L60-L64"
             ]
           }
         ]
@@ -86160,22 +86163,23 @@
       "id": "pok-mon-red-pokerecomp",
       "project_url": "https://github.com/Decryptu/pokerecomp",
       "name": "Pokémon Red / PokeRecomp (Decryptu)",
-      "summary": "A native Godot 4 reimplementation of the Gen 1 and 2 Game Boy Color games. Not an emulator, bring your own ROM.",
+      "summary": "Play Pokémon Red in the Godot 4 reimplementation of the Game Boy game. Use your own matching USA/Europe cartridge dump.",
       "issue_number": 6986,
       "listed_at": "2026-11-24",
       "original_game": {
         "format_version": 1,
         "id": "pokemon-red",
         "evidence_urls": [
-          "https://github.com/Decryptu/pokerecomp"
+          "https://github.com/Decryptu/pokerecomp",
+          "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L39-L43"
         ],
         "source_editions": [
           {
-            "id": "pokemon-red-game-boy-color",
-            "title": "Pokémon Red (Game Boy Color)",
-            "system": "game-boy-color",
+            "id": "pokemon-red-game-boy",
+            "title": "Pokémon Red (Game Boy)",
+            "system": "game-boy",
             "evidence_urls": [
-              "https://github.com/Decryptu/pokerecomp"
+              "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L39-L43"
             ]
           }
         ]
@@ -86188,14 +86192,15 @@
       "id": "pok-mon-silver-pokerecomp",
       "project_url": "https://github.com/Decryptu/pokerecomp",
       "name": "Pokémon Silver / PokeRecomp (Decryptu)",
-      "summary": "A native Godot 4 reimplementation of the Gen 1 and 2 Game Boy Color games. Not an emulator, bring your own ROM.",
+      "summary": "Play Pokémon Silver in the Godot 4 reimplementation of the Game Boy Color game. Use your own matching USA/Europe cartridge dump.",
       "issue_number": 6990,
       "listed_at": "2026-11-24",
       "original_game": {
         "format_version": 1,
         "id": "pokemon-silver",
         "evidence_urls": [
-          "https://github.com/Decryptu/pokerecomp"
+          "https://github.com/Decryptu/pokerecomp",
+          "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L67-L71"
         ],
         "source_editions": [
           {
@@ -86203,7 +86208,7 @@
             "title": "Pokémon Silver (Game Boy Color)",
             "system": "game-boy-color",
             "evidence_urls": [
-              "https://github.com/Decryptu/pokerecomp"
+              "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L67-L71"
             ]
           }
         ]
@@ -86216,22 +86221,23 @@
       "id": "pok-mon-yellow-pokerecomp",
       "project_url": "https://github.com/Decryptu/pokerecomp",
       "name": "Pokémon Yellow / PokeRecomp (Decryptu)",
-      "summary": "A native Godot 4 reimplementation of the Gen 1 and 2 Game Boy Color games. Not an emulator, bring your own ROM.",
+      "summary": "Play Pokémon Yellow in the Godot 4 reimplementation of the Game Boy game. Use your own matching USA/Europe cartridge dump.",
       "issue_number": 6988,
       "listed_at": "2026-11-24",
       "original_game": {
         "format_version": 1,
         "id": "pokemon-yellow",
         "evidence_urls": [
-          "https://github.com/Decryptu/pokerecomp"
+          "https://github.com/Decryptu/pokerecomp",
+          "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L53-L57"
         ],
         "source_editions": [
           {
-            "id": "pokemon-yellow-game-boy-color",
-            "title": "Pokémon Yellow (Game Boy Color)",
-            "system": "game-boy-color",
+            "id": "pokemon-yellow-game-boy",
+            "title": "Pokémon Yellow (Game Boy)",
+            "system": "game-boy",
             "evidence_urls": [
-              "https://github.com/Decryptu/pokerecomp"
+              "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L53-L57"
             ]
           }
         ]

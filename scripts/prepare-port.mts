@@ -49,6 +49,7 @@ import { credentialFree } from "./catalog-released-reader.mts";
 import type { AcquiredReleasedReader } from "./catalog-released-reader.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { listedRepositories } from "./catalog-generated-registration.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
 import { indexSharedCoverRows, projectExactSharedCovers } from "./shared-cover-projection.mts";
 import {
   listingDeliveryMaximum,
@@ -2065,6 +2066,7 @@ export async function prepareArtworkBatch(
     maintenance?: boolean;
     revalidateAccepted?: boolean;
     retainedCoverLimit?: number;
+    dueCoverLimit?: number;
     now?: () => number;
     signal?: AbortSignal;
     onProgress?: (id: string) => void | Promise<void>;
@@ -2097,7 +2099,14 @@ export async function prepareArtworkBatch(
   const validatorIdentity = options.validatorCli
     ? hashCoreImageValidatorFile(options.validatorCli)
     : null;
+  const boundedDue = options.dueCoverLimit !== undefined;
+  const excluded = new Set(
+    boundedDue ? authored.records.filter(usesScummvmEngine).map(({ listing }) => listing.id) : [],
+  );
   const acceptedArtwork = artworkCatalog(authored.records);
+  const artworkScope = excluded.size
+    ? { ...acceptedArtwork, ports: acceptedArtwork.ports.filter(({ id }) => !excluded.has(id)) }
+    : acceptedArtwork;
   const identities = options.identities ?? {};
   openCheckpoint(root);
   try {
@@ -2133,7 +2142,7 @@ export async function prepareArtworkBatch(
     }
     if (artworkResult === undefined) {
       const inspector = artworkInspector(options, root, validatorIdentity);
-      const result = await prepareArtworkWorkset(acceptedArtwork, {
+      const result = await prepareArtworkWorkset(artworkScope, {
         root,
         inspector,
         identities,
@@ -2145,12 +2154,20 @@ export async function prepareArtworkBatch(
         ...(options.retainedCoverLimit === undefined
           ? {}
           : { retainedCoverLimit: options.retainedCoverLimit }),
+        ...(options.dueCoverLimit === undefined ? {} : { dueCoverLimit: options.dueCoverLimit }),
         ...(options.now ? { now: options.now } : {}),
         ...(options.signal ? { signal: options.signal } : {}),
         ...(options.onProgress ? { onProgress: options.onProgress } : {}),
       });
       artworkResult = {
         ...result,
+        catalog: {
+          ...result.catalog,
+          ports: [
+            ...result.catalog.ports,
+            ...acceptedArtwork.ports.filter(({ id }) => excluded.has(id)),
+          ],
+        },
         ...("providerMetrics" in inspector ? { provider_metrics: inspector.providerMetrics } : {}),
       };
       artworkReused = result.reused;
@@ -2159,10 +2176,11 @@ export async function prepareArtworkBatch(
       options,
       root,
       authored,
-      authored.records,
+      boundedDue ? authored.authored : authored.records,
       artworkResult,
       artworkReused,
       validatorIdentity,
+      boundedDue ? "cover-defaults" : "ordinary",
     );
     if (!isRecord(artworkResult) || !Array.isArray(artworkResult.records))
       throw new Error("Malformed artwork batch receipt.");
@@ -2194,6 +2212,7 @@ export async function prepareArtworkBatch(
           ? artworkResult.workset.selected_port_ids
           : [...selected],
       refresh_port_ids: options.maintenance ? "automatic-due-identities" : refreshPortIds,
+      ...(boundedDue ? { excluded_scummvm_count: excluded.size } : {}),
       continuation: artworkResult.continuation ?? null,
       pending_port_ids: pendingPortIds,
       ...prepared,
@@ -2231,6 +2250,7 @@ async function main() {
     "--verification-library",
     "--refresh-artwork",
     "--artwork-retained-limit",
+    "--artwork-due-limit",
     "--discovery-listings",
     "--discovery-listing-approval",
     "--discovery-automatic-scope",
@@ -2284,13 +2304,19 @@ async function main() {
     throw new Error("Shared cover reuse is an offline preparation route.");
   const refreshIds = values.get("--refresh-artwork");
   const retainedLimit = values.get("--artwork-retained-limit");
-  if (
-    retainedLimit !== undefined &&
-    (artworkIds !== "@due" ||
-      !/^[1-9][0-9]{0,2}$/u.test(retainedLimit) ||
-      Number(retainedLimit) > 400)
-  )
-    throw new Error("--artwork-retained-limit requires @due and a count from 1 through 400");
+  const dueLimit = values.get("--artwork-due-limit");
+  if (retainedLimit !== undefined && dueLimit !== undefined)
+    throw new Error("Choose either --artwork-due-limit or --artwork-retained-limit.");
+  for (const [name, count] of [
+    ["--artwork-retained-limit", retainedLimit],
+    ["--artwork-due-limit", dueLimit],
+  ] as const) {
+    if (
+      count !== undefined &&
+      (artworkIds !== "@due" || !/^[1-9][0-9]{0,2}$/u.test(count) || Number(count) > 400)
+    )
+      throw new Error(`${name} requires @due and a count from 1 through 400`);
+  }
   const observationHandoff = values.get("--listing-observations");
   const discoveryHandoff = values.get("--discovery-listings");
   const discoveryApproval = values.get("--discovery-listing-approval");
@@ -2380,6 +2406,7 @@ async function main() {
           "--artwork-ids",
           "--refresh-artwork",
           "--artwork-retained-limit",
+          "--artwork-due-limit",
           "--identities",
           "--validator-cli",
           "--credentials-file",
@@ -2481,6 +2508,7 @@ async function main() {
             : { selectedPortIds: artworkIds.split(",") }),
           ...(refreshIds ? { refreshPortIds: refreshIds.split(",") } : {}),
           ...(retainedLimit ? { retainedCoverLimit: Number(retainedLimit) } : {}),
+          ...(dueLimit ? { dueCoverLimit: Number(dueLimit) } : {}),
         })
       : await preparePort({
           ...common,

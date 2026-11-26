@@ -2233,6 +2233,14 @@ goes behind rows with older attempts so unresolved identity holds do not starve
 the rest of that workset. New and ambiguous cover identities keep their separate
 review path. Ordinary executable updates do not refresh artwork.
 
+Use `--artwork-due-limit COUNT` with `@due` to bound a pass across missing and
+retained covers. Choose one limit. The pass skips ScummVM, saves the current due IDs
+and advances through them across invocations. Later arrivals join the next round.
+Each completed result remains in the same checkpoint after interruption.
+An exact matching provider retry outside the current time is skipped for this
+pass and reconsidered later. The result counts due IDs outside the pass,
+including deferred work. The output remains a proposal for catalog review.
+
 A logical workset may exceed 400 IDs. The catalog generator's `--prepare-artwork`
 runs a larger workset as consecutive operations of at most 400 IDs over the same
 input, assembles the proposal per port and reconciles exact-image Gone observations
