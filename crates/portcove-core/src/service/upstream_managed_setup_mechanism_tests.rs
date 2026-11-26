@@ -413,7 +413,7 @@ async fn refusal_unsupported_platform_downloads_nothing() {
         vec![harness.package("v2.0.0", "success")],
     );
     let mut document = fixture::document();
-    let other = fixture::platforms()
+    let other = fixture::PLATFORMS
         .into_iter()
         .find(|platform| *platform != host())
         .unwrap();
