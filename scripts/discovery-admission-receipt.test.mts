@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import {
+  checkDiscoveryAdmissionPaths,
+  generatedAdmissionDirectory,
+  generatedAdmissionRegistration,
+  checkDiscoveryRegistrationDelta,
+} from "./discovery-admission-branch.mts";
+import {
   scheduledDiscoveryReplayReceipt,
   verifyScheduledDiscoveryReplay,
 } from "./discovery-admission-receipt.mts";
@@ -183,4 +189,52 @@ void test("refuses incomplete or mismatched origin and artifact evidence", async
     change(input);
     await assert.rejects(verifyScheduledDiscoveryReplay(`${run}/${attempt}`, input.read), expected);
   }
+});
+
+void test("an admission proposal can only add numeric upstream listings and regenerate their directory", () => {
+  const path = "crates/portcove-core/catalog/ports/github-52.json";
+  const staged = `A\0${path}\0`;
+  const projection = `M\0${generatedAdmissionDirectory}\0M\0${generatedAdmissionRegistration}\0`;
+  assert.deepEqual(checkDiscoveryAdmissionPaths(staged, false), [path]);
+  assert.deepEqual(checkDiscoveryAdmissionPaths(projection + staged, true), [path]);
+  for (const invalid of [
+    staged + "M\0.github/workflows/ci.yml\0",
+    staged + "A\0crates/portcove-core/catalog/ports/github-0.json\0",
+    `M\0${path}\0`,
+    `D\0${path}\0`,
+    staged + staged,
+    projection,
+    staged.slice(0, -1),
+  ]) {
+    assert.throws(() => checkDiscoveryAdmissionPaths(invalid, true), /admission/u);
+  }
+  assert.throws(() => checkDiscoveryAdmissionPaths(staged, true), /generated directory/u);
+  assert.throws(() => checkDiscoveryAdmissionPaths(staged + projection, false), /append-only/u);
+});
+
+void test("admission registration output only accounts for added listings", () => {
+  const before = {
+    enrollments: [],
+    blocked: { "no-observation": 8, "upstream-unavailable": 9, other: 2 },
+  };
+  const after = {
+    ...before,
+    blocked: { ...before.blocked, "no-observation": 9, "upstream-unavailable": 10 },
+  };
+  checkDiscoveryRegistrationDelta(before, after, 2);
+  assert.throws(() => checkDiscoveryRegistrationDelta(before, after, 1), /registration counts/u);
+  assert.throws(
+    () =>
+      checkDiscoveryRegistrationDelta(before, { ...after, enrollments: [{ id: "existing" }] }, 2),
+    /registration counts/u,
+  );
+  assert.throws(
+    () =>
+      checkDiscoveryRegistrationDelta(
+        before,
+        { ...after, blocked: { ...after.blocked, other: 3 } },
+        2,
+      ),
+    /registration counts/u,
+  );
 });

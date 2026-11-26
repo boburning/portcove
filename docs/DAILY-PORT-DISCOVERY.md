@@ -1152,6 +1152,27 @@ create issues, grant support, enable dispatch or introduce a new scheduler.
 trust the local source checkpoint as coverage, so those sources are collected
 again. A repeated import leaves the stored state unchanged.
 
+### Scheduled catalog proposals
+
+The Catalog admission workflow follows a completed scheduled Maintenance
+inventory run on `main`. It skips runs without a replay receipt and waits
+while a proposal by the appointed App is in review. The receipt verifier checks
+the exact producer and its artifact, then the workflow rebuilds the patch with
+the released Core reader. The prepared catalog and the normal generated listing
+directory must match. Only new repository-ID listing files and the generated
+listing directory can enter the proposal, along with the registration counts
+for those additions. GitHub runs the normal required
+checks through the existing draft, review and merge process.
+
+Keep the dedicated private App installed only on this repository, with Contents
+and Pull requests write access and no branch-rule bypass. Store its private key
+as `CATALOG_ADMISSION_APP_PRIVATE_KEY` in the `catalog-admission` environment,
+which allows only `main`. The repository variables
+`CATALOG_ADMISSION_APP_ID` and `CATALOG_ADMISSION_APP_SLUG` identify that App.
+Set `PORTCOVE_CATALOG_ADMISSION_ENABLED` to `true` after confirming the
+installation. The App token is requested after replay, generation and the
+staged-path check succeed.
+
 ### Local runner on the shared store
 
 When `PORTCOVE_MAINTENANCE_DATABASE_URL` is set for a local `run`, the shared

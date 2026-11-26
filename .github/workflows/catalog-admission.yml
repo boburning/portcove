@@ -1,0 +1,177 @@
+name: Catalog admission
+on:
+  workflow_run:
+    workflows: [Maintenance inventory]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: portcove-catalog-admission
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    if: >-
+      vars.PORTCOVE_CATALOG_ADMISSION_ENABLED == 'true' &&
+      github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' &&
+      github.event.workflow_run.event == 'schedule' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.id == github.event.repository.id
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    environment: catalog-admission
+    env:
+      DISCOVERY_RUN: ${{ github.event.workflow_run.id }}
+      DISCOVERY_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+      DISCOVERY_SOURCE: ${{ github.event.workflow_run.head_sha }}
+      EXPECTED_APP: ${{ vars.CATALOG_ADMISSION_APP_SLUG }}
+    steps:
+      - name: Check for eligible discovery work
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$DISCOVERY_RUN" =~ ^[1-9][0-9]*$ ]]
+          [[ "$DISCOVERY_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+          [[ "$DISCOVERY_SOURCE" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EXPECTED_APP" =~ ^[a-z0-9][a-z0-9-]*$ ]]
+          receipt="listing-admission-replay-${DISCOVERY_RUN}-${DISCOVERY_ATTEMPT}"
+          count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$DISCOVERY_RUN/artifacts?name=$receipt" --jq .total_count)
+          if [[ "$count" == 0 ]]; then
+            echo 'No listing admission receipt for this scheduled discovery attempt.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          [[ "$count" == 1 ]]
+          # Avoid staging another batch while an appointed App proposal is open.
+          branch="automation/catalog-admission-$DISCOVERY_RUN-$DISCOVERY_ATTEMPT"
+          open=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=open&base=main&per_page=100" \
+            --jq ".[] | select(.head.ref | startswith(\"automation/catalog-admission-\")) |
+                  select(.head.ref != \"$branch\") | .user.login")
+          if grep -Fxq "$EXPECTED_APP[bot]" <<< "$open"; then
+            echo 'An open catalog admission proposal is still in review.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.gate.outputs.eligible == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        if: steps.gate.outputs.eligible == 'true'
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.gate.outputs.eligible == 'true'
+        with:
+          node-version-file: .node-version
+      - name: Replay and commit the validated listing batch
+        id: replay
+        if: steps.gate.outputs.eligible == 'true'
+        timeout-minutes: 13
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$DISCOVERY_SOURCE" ]]
+          pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+          work=$(mktemp -d)
+          mkdir "$work/reader"
+          node scripts/catalog-released-reader.mts acquire-scheduled "$work/reader" > "$work/reader.json"
+          validator=$(jq -er '.cli' "$work/reader.json")
+          digest=$(jq -er '.sha256' "$work/reader.json")
+          [[ "$(sha256sum "$validator" | cut -d' ' -f1)" == "$digest" ]]
+          node scripts/prepare-port.mts --discovery-scheduled-run "$DISCOVERY_RUN/$DISCOVERY_ATTEMPT" \
+            --validator-cli "$validator" --output-dir "$work/replay" > "$work/replay.json"
+          node scripts/discovery-admission-branch.mts authored
+          node scripts/generate-catalog.mts
+          node scripts/generate-catalog.mts --check
+          cmp -- "$(jq -er '.files.listings' "$work/replay.json")" crates/portcove-core/catalog/listings.json
+          git add -- crates/portcove-core/catalog/listings.json \
+            crates/portcove-core/catalog/generated-registration.generated.json
+          node scripts/discovery-admission-branch.mts generated
+          git diff --quiet
+          [[ -z "$(git ls-files --others --exclude-standard)" ]]
+          git diff --cached --check
+          date=$(git show -s --format=%cI HEAD)
+          GIT_AUTHOR_DATE="$date" GIT_COMMITTER_DATE="$date" \
+            git -c core.hooksPath=/dev/null -c commit.gpgsign=false \
+            -c user.name='Portcove catalog admission' -c user.email='catalog-admission@users.noreply.github.com' \
+            commit --quiet -m "feat(catalog): admit scheduled discovery listings ($DISCOVERY_RUN/$DISCOVERY_ATTEMPT)"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Mint the App token for proposal delivery
+        if: steps.replay.outputs.commit != ''
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.CATALOG_ADMISSION_APP_ID }}
+          private-key: ${{ secrets.CATALOG_ADMISSION_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Open the exact batch proposal through the App
+        if: steps.replay.outputs.commit != ''
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs['app-slug'] }}
+          COMMIT: ${{ steps.replay.outputs.commit }}
+        run: |
+          set -euo pipefail
+          [[ "$COMMIT" =~ ^[0-9a-f]{40}$ && "$APP_SLUG" == "$EXPECTED_APP" ]]
+          [[ "$(git rev-parse HEAD)" == "$COMMIT" ]]
+          [[ "$(git rev-parse HEAD^)" == "$DISCOVERY_SOURCE" ]]
+          branch="automation/catalog-admission-$DISCOVERY_RUN-$DISCOVERY_ATTEMPT"
+          lookup() {
+            gh api "repos/$GITHUB_REPOSITORY/pulls?state=all&base=main&head=boburning:$branch&per_page=100"
+          }
+          verify() {
+            jq -e --arg commit "$COMMIT" --arg login "$APP_SLUG[bot]" \
+              --arg repo "$GITHUB_REPOSITORY" --arg branch "$branch" \
+              'length == 1 and .[0].head.sha == $commit and .[0].user.login == $login and
+               .[0].base.repo.full_name == $repo and .[0].head.repo.full_name == $repo and
+               .[0].base.ref == "main" and .[0].head.ref == $branch' <<< "$1" > /dev/null
+          }
+          prior=$(lookup)
+          if jq -e 'length > 0' <<< "$prior" > /dev/null; then
+            verify "$prior"
+            jq -r '.[0].html_url' <<< "$prior" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          branch_ref="refs/heads/$branch"
+          remote_repo="https://github.com/$GITHUB_REPOSITORY.git"
+          existing_ref=$(git ls-remote --refs "$remote_repo" "$branch_ref")
+          if [[ -z "$existing_ref" ]]; then
+            basic=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+            echo "::add-mask::$basic"
+            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.https://github.com/.extraheader \
+              GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $basic" \
+              git -c core.hooksPath=/dev/null push --quiet --no-verify \
+                --force-with-lease="$branch_ref:" "$remote_repo" "$COMMIT:$branch_ref"
+          else
+            [[ "$existing_ref" == "$COMMIT"$'\t'"$branch_ref" ]]
+          fi
+          remote=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq .object.sha)
+          [[ "$remote" == "$COMMIT" ]]
+          body=$(mktemp)
+          {
+            printf '## Linked issue\n\nRefs #1422.\n\n## Outcome and scope\n\nAdd eligible listings from scheduled discovery.\n\n'
+            printf '## Verification\n\nReplayed the exact [scheduled discovery attempt](%s/%s/actions/runs/%s/attempts/%s) through released Core and catalog generation.\n\n' \
+              "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$DISCOVERY_RUN" "$DISCOVERY_ATTEMPT"
+            printf '## Review and risk\n\nThe batch adds descriptive listings and their derived counts. Independent review and required CI are pending.\n'
+          } > "$body"
+          creation=0
+          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" --draft \
+            --title "feat(catalog): admit scheduled discovery listings ($DISCOVERY_RUN/$DISCOVERY_ATTEMPT)" \
+            --body-file "$body" || creation=$?
+          delivered=$(lookup)
+          if ! verify "$delivered"; then
+            echo "Proposal creation exit $creation, exact remote readback not established." >&2
+            exit 1
+          fi
+          jq -r '.[0].html_url' <<< "$delivered" >> "$GITHUB_STEP_SUMMARY"
