@@ -484,39 +484,48 @@ export class ArtworkBatchExhausted extends Error {
   }
 }
 
-/** Only the current port and equivalent accepted original-game mappings affect its preparation. */
-export function artworkPreparationInput(
-  port: ArtworkPort,
-  accepted: ArtworkCatalog,
-  identities: unknown,
-) {
-  const supplied = isRecord(identities) ? identities[port.id] : undefined;
-  const underlying = isRecord(supplied)
-    ? (supplied.underlying_game ?? port.underlying_game)
-    : port.underlying_game;
-  let original: DeclaredIdentity | null = null;
-  try {
-    if (underlying) original = declaredIdentity(underlying, "underlying-game");
-  } catch {
-    /* The raw declaration remains bound and produces the existing refusal. */
+/** Index the exact accepted inputs once per workset. Only the current port
+ * and equivalent accepted original-game mappings affect its preparation. */
+export function artworkPreparationInputs(accepted: ArtworkCatalog, identities: unknown) {
+  const originalKey = (id: number, slug: string) => JSON.stringify([id, slug]);
+  const ports = new Map<string, ArtworkPort>();
+  const originals = new Map<string, Map<string, IgdbArtwork>>();
+  for (const entry of accepted.ports) {
+    if (!ports.has(entry.id)) ports.set(entry.id, entry);
+    const mapping = entry.presentation?.artwork;
+    if (
+      entry.igdb_regional_cover ||
+      !validArtworkMapping(mapping) ||
+      mapping.match_kind !== "underlying-game"
+    )
+      continue;
+    const key = originalKey(mapping.game_id, mapping.game_slug);
+    const values = originals.get(key) ?? new Map<string, IgdbArtwork>();
+    values.set(JSON.stringify(mapping), mapping);
+    originals.set(key, values);
   }
-  const mappings = accepted.ports
-    .filter((entry) => !entry.igdb_regional_cover)
-    .map((entry) => entry.presentation?.artwork)
-    .filter(
-      (mapping) =>
-        validArtworkMapping(mapping) &&
-        mapping.match_kind === "underlying-game" &&
-        mapping.game_id === original?.game_id &&
-        mapping.game_slug === original?.slug,
-    );
-  return {
-    port,
-    accepted: accepted.ports.find((entry) => entry.id === port.id) ?? null,
-    supplied: supplied ?? null,
-    accepted_original_candidates: [
-      ...new Map(mappings.map((mapping) => [JSON.stringify(mapping), mapping])).values(),
-    ],
+
+  return (port: ArtworkPort) => {
+    const supplied = isRecord(identities) ? identities[port.id] : undefined;
+    const underlying = isRecord(supplied)
+      ? (supplied.underlying_game ?? port.underlying_game)
+      : port.underlying_game;
+    let original: DeclaredIdentity | null = null;
+    try {
+      if (underlying) original = declaredIdentity(underlying, "underlying-game");
+    } catch {
+      /* The raw declaration remains bound and produces the existing refusal. */
+    }
+    const mappings =
+      original?.game_id != null && original.slug != null
+        ? originals.get(originalKey(original.game_id, original.slug))
+        : undefined;
+    return {
+      port,
+      accepted: ports.get(port.id) ?? null,
+      supplied: supplied ?? null,
+      accepted_original_candidates: [...(mappings?.values() ?? [])],
+    };
   };
 }
 

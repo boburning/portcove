@@ -1166,6 +1166,130 @@ void test("bounded due maintenance rotates attempted retained covers without adm
   }
 });
 
+void test("bounded full artwork rounds finish older missing and retained work before new arrivals", async (t) => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-due-round-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const fixture = scalableArtworkFixture(5);
+  const all = fixture.catalog.ports;
+  all[2]!.presentation = {
+    artwork: {
+      game_id: 3,
+      cover_id: 3,
+      image_id: "scale2",
+      image_sha256: "d".repeat(64),
+      game_slug: "scale-2",
+      match_kind: "port",
+    },
+  };
+  let now = Date.parse("2026-11-21T00:00:00Z");
+  const options = {
+    root: scratch,
+    inspector: fixture.inspector,
+    validatorIdentity: null,
+    identities: {},
+    maintenance: true,
+    dueCoverLimit: 1,
+    now: () => now,
+  };
+  const firstCatalog = { ...fixture.catalog, ports: all.slice(0, 3) };
+  fixture.fail("Scale 0");
+  const first = await prepareArtworkWorkset(firstCatalog, options);
+  assert.deepEqual(first.workset.selected_port_ids, ["scale-0"]);
+  assert.deepEqual(first.continuation.pending_port_ids, ["scale-0"]);
+  assert.equal(first.continuation.unselected_due_count, 2);
+  assert.equal(first.continuation.complete, false);
+
+  now++;
+  const expanded = { ...fixture.catalog, ports: all.slice(0, 4) };
+  await assert.rejects(
+    prepareArtworkWorkset(expanded, {
+      ...options,
+      onProgress(id) {
+        assert.equal(id, "scale-1");
+        throw new Error("Stopped after per-item checkpoint");
+      },
+    }),
+    /Stopped after per-item checkpoint/,
+  );
+  assert.deepEqual(fixture.requests, ["Scale 0", "Scale 1"]);
+  now++;
+  const third = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(third.workset.selected_port_ids, ["scale-2"]);
+  assert.ok(third.workset.carried_port_ids.includes("scale-1"));
+  assert.equal(third.continuation.unselected_due_count, 3);
+  assert.equal(third.continuation.complete, false);
+  assert.deepEqual(fixture.requests, ["Scale 0", "Scale 1", "Scale 2"]);
+
+  fixture.fail(null);
+  const nextRound = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(nextRound.workset.selected_port_ids, ["scale-3"]);
+  assert.deepEqual(fixture.requests, ["Scale 0", "Scale 1", "Scale 2", "Scale 3"]);
+  const cursorPath = join(scratch, "artwork-due-round.json");
+  const retained = readFileSync(cursorPath, "utf8");
+  const cursor = JSON.parse(retained) as { next: number };
+  writeFileSync(cursorPath, JSON.stringify({ ...cursor, next: cursor.next + 1 }));
+  await assert.rejects(
+    prepareArtworkWorkset(fixture.catalog, options),
+    /artwork due cursor does not match its receipt/,
+  );
+  assert.equal(fixture.requests.length, 4);
+  writeFileSync(cursorPath, retained);
+
+  const secondArrival = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(secondArrival.workset.selected_port_ids, ["scale-4"]);
+  const olderRetry = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(olderRetry.workset.selected_port_ids, ["scale-0"]);
+  assert.equal(
+    olderRetry.records.find(({ port_id }) => port_id === "scale-0")?.mapping?.image_id,
+    "scale0",
+  );
+});
+
+void test("bounded artwork keeps provider backoff pending without consuming a later pass", async (t) => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-due-retry-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const fixture = scalableArtworkFixture(2);
+  let now = Date.parse("2026-11-21T00:00:00Z");
+  const retryAt = now + 60_000;
+  fixture.fail("Scale 0");
+  const options = {
+    root: scratch,
+    inspector: {
+      ...fixture.inspector,
+      batchStatus: () => ({
+        deadline: now + 10_000,
+        retry_at:
+          now < retryAt && fixture.requests.at(-1) === "Scale 0"
+            ? new Date(retryAt).toISOString()
+            : null,
+      }),
+    },
+    validatorIdentity: null,
+    identities: {},
+    maintenance: true,
+    dueCoverLimit: 1,
+    now: () => now,
+  };
+  const first = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(first.continuation.pending_port_ids, ["scale-0"]);
+  const second = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(second.workset.selected_port_ids, ["scale-1"]);
+  const deferred = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(deferred.workset.selected_port_ids, []);
+  assert.equal(deferred.continuation.unselected_due_count, 1);
+  assert.equal(deferred.continuation.complete, false);
+  assert.deepEqual(fixture.requests, ["Scale 0", "Scale 1"]);
+
+  now = retryAt;
+  fixture.fail(null);
+  const resumed = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(resumed.workset.selected_port_ids, ["scale-0"]);
+  assert.equal(resumed.continuation.complete, true);
+  assert.deepEqual(fixture.requests, ["Scale 0", "Scale 1", "Scale 0"]);
+});
+
 void test("due maintenance revalidates the same game and cover role", async () => {
   const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-retained-identity-"));
