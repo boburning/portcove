@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import type { AuthoredPort } from "./catalog-authoring.mts";
-import { reviewCoverReplacementBatch } from "./catalog-cover-replacement-review.mts";
+import {
+  readCoverPreparation,
+  requireReviewedListingCovers,
+  reviewCoverReplacementBatch,
+} from "./catalog-cover-replacement-review.mts";
+import { observationHash } from "./upstream-observer.mts";
 import { coverDeclarationScope } from "./listing-artwork-checkpoint.mts";
 import { replacementCoverPreimages } from "./listing-observation-delivery.mts";
 
@@ -221,4 +229,84 @@ void test("missing, foreign, restored, or withdrawn preimages cannot be reviewed
     () => replacementCoverPreimages(canonical, ...predecessor(declaration), ["example", "example"]),
     /unique/u,
   );
+});
+
+void test("an unchanged cover cannot carry unrelated changes into a review", () => {
+  const changed = { ...subject, listing: { ...subject.listing, original_game_title: "Different" } };
+  assert.throws(
+    () =>
+      prepare(
+        [changed],
+        [
+          {
+            ...record,
+            mapping: prior,
+            checks: {
+              ...record.checks,
+              content: { ...record.checks.content, sha256: prior.image_sha256 },
+            },
+          },
+        ],
+      ),
+    /outside the replacement/u,
+  );
+});
+
+void test("the candidate must appear in the exact listing and all preparation artifacts must remain bound", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "cover-review-artifacts-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  function write(name: string, product: unknown) {
+    const bytes = JSON.stringify(product, null, 2) + "\n";
+    const file = join(
+      root,
+      name + "-" + createHash("sha256").update(bytes).digest("hex") + ".json",
+    );
+    writeFileSync(file, bytes);
+    return file;
+  }
+  const authored = {
+    ...replacement,
+    listing: {
+      ...replacement.listing,
+      name: "Example",
+      summary: "A standalone game.",
+      project_url: "https://example.invalid/game",
+    },
+  };
+  const listings = { listings: [authored.listing] };
+  const report = {
+    files: {
+      artwork: write("artwork-evidence", { records: [record] }),
+      catalog: write("catalog", {}),
+      listings: write("listings", listings),
+      records: [{ id: "example", path: write("example", authored) }],
+    },
+    record_changes: [
+      {
+        id: "example",
+        action: "modified",
+        before_sha256: observationHash(subject),
+        after_sha256: observationHash(authored),
+        listing_fields: ["artwork"],
+        integration_changed: false,
+      },
+    ],
+  };
+  const result = { path: write("completion", report), report };
+  assert.deepEqual(readCoverPreparation(result).prepared, [authored]);
+  requireReviewedListingCovers(listings, prepare());
+  assert.throws(
+    () => requireReviewedListingCovers({ listings: [subject.listing] }, prepare()),
+    /Core-validated listing/u,
+  );
+  const changed = {
+    ...report,
+    record_changes: [{ ...report.record_changes[0]!, after_sha256: validator }],
+  };
+  assert.throws(
+    () => readCoverPreparation({ path: write("completion", changed), report: changed }),
+    /differs from its manifest/u,
+  );
+  writeFileSync(report.files.artwork, JSON.stringify({ records: [] }));
+  assert.throws(() => readCoverPreparation(result), /artifact changed/u);
 });

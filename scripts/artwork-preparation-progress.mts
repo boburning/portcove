@@ -335,6 +335,7 @@ export async function prepareArtworkWorkset(
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     maintenance?: boolean;
+    revalidateAccepted?: boolean;
     retainedCoverLimit?: number;
     now?: () => number;
     signal?: AbortSignal;
@@ -343,6 +344,7 @@ export async function prepareArtworkWorkset(
 ) {
   const now = options.now ?? Date.now;
   const maintenance = options.maintenance === true;
+  const revalidateAccepted = maintenance || options.revalidateAccepted === true;
   const limit = options.retainedCoverLimit;
   if (
     limit !== undefined &&
@@ -408,6 +410,7 @@ export async function prepareArtworkWorkset(
       input,
       refresh,
       maintenance,
+      revalidateAccepted,
       validator: options.validatorIdentity,
       tool: toolIdentity,
       // A newly verified image can restore an otherwise ambiguous original mapping.
@@ -519,7 +522,7 @@ export async function prepareArtworkWorkset(
       acceptedCatalog: accepted,
       selectedPortIds: batch,
       refreshPortIds: [...refreshing],
-      revalidateAccepted: maintenance,
+      revalidateAccepted,
       identities: isRecord(identities)
         ? Object.fromEntries(batch.map((id) => [id, identities[id]]))
         : undefined,

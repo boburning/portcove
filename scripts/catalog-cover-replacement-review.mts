@@ -11,11 +11,7 @@ import {
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { positiveId, validArtworkMapping } from "./catalog-cover-mapping.mts";
-import {
-  hashCoreImageValidatorFile,
-  readArtworkInput,
-  readArtworkJson,
-} from "./inspect-igdb-artwork.mts";
+import { hashCoreImageValidatorFile, readArtworkInput } from "./inspect-igdb-artwork.mts";
 import { readAuthenticatedCoverPreimages } from "./listing-observation-delivery.mts";
 import { prepareArtworkBatch } from "./prepare-port.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -122,7 +118,11 @@ export function reviewCoverReplacementBatch(
       throw new Error(
         `Cover observation is incomplete or differs from the accepted subject: ${id}`,
       );
-    if (!replacement || isDeepStrictEqual(proposedMapping, effective)) return [];
+    if (!replacement) return [];
+    const withPriorCover = { ...replacement, listing: { ...replacement.listing, artwork: prior } };
+    if (!isDeepStrictEqual(withPriorCover, record))
+      throw new Error("Cover proposal changed facts outside the replacement mapping: " + id);
+    if (isDeepStrictEqual(proposedMapping, effective)) return [];
     if (
       proposedMapping.cover_id === effective.cover_id ||
       proposedMapping.image_id === effective.image_id ||
@@ -131,9 +131,6 @@ export function reviewCoverReplacementBatch(
       throw new Error(`Changed effective cover bytes need independent source evidence: ${id}`);
     if (proposedMapping.cover_id === prior.cover_id || proposedMapping.image_id === prior.image_id)
       throw new Error(`Changed cover bytes need independent source evidence: ${id}`);
-    const withPriorCover = { ...replacement, listing: { ...replacement.listing, artwork: prior } };
-    if (!isDeepStrictEqual(withPriorCover, record) || isDeepStrictEqual(proposedMapping, prior))
-      throw new Error(`Cover proposal changed facts outside the replacement mapping: ${id}`);
     return [
       {
         port_id: id,
@@ -163,6 +160,71 @@ function git(directory: string, args: string[]) {
     timeout: 15000,
     maxBuffer: 1024 * 1024,
   }).trim();
+}
+
+function preparedArtifact(file: string, name: string) {
+  const { bytes } = readArtworkInput(file, maximumProduct);
+  const identity = sha(bytes);
+  if (path.basename(file) !== name + "-" + identity + ".json")
+    throw new Error("Prepared cover artifact changed: " + name);
+  return { bytes, identity };
+}
+
+type ArtworkBatch = Awaited<ReturnType<typeof prepareArtworkBatch>>;
+
+export function readCoverPreparation(result: {
+  path: string;
+  report: Pick<ArtworkBatch["report"], "files" | "record_changes">;
+}) {
+  const { report } = result;
+  const completion = preparedArtifact(result.path, "completion");
+  if (completion.identity !== sha(Buffer.from(JSON.stringify(report, null, 2) + "\n")))
+    throw new Error("Cover preparation manifest changed");
+  const artwork = preparedArtifact(report.files.artwork, "artwork-evidence");
+  const evidence = parseCatalogSource(artwork.bytes.toString("utf8"));
+  if (!isRecord(evidence) || !Array.isArray(evidence.records))
+    throw new Error("Cover replacement observation receipt is malformed.");
+  const changes = new Map(report.record_changes.map((change) => [change.id, change]));
+  if (changes.size !== report.record_changes.length || changes.size !== report.files.records.length)
+    throw new Error("Cover preparation inventories differ");
+  const prepared = report.files.records.map(({ id, path: file }) => {
+    const entry = changes.get(id);
+    const record = checkedAuthoredPort(
+      parseCatalogSource(preparedArtifact(file, id).bytes.toString("utf8")),
+      id,
+    );
+    if (!entry || observationHash(record) !== entry.after_sha256)
+      throw new Error("Cover preparation record differs from its manifest: " + id);
+    changes.delete(id);
+    return record;
+  });
+  const listings = preparedArtifact(report.files.listings, "listings");
+  return {
+    prepared,
+    records: evidence.records as unknown[],
+    completionSha: completion.identity,
+    evidenceSha: artwork.identity,
+    catalogSha: preparedArtifact(report.files.catalog, "catalog").identity,
+    listingsSha: listings.identity,
+    listings: parseCatalogSource(listings.bytes.toString("utf8")),
+  };
+}
+
+export function requireReviewedListingCovers(
+  listings: unknown,
+  replacements: ReturnType<typeof reviewCoverReplacementBatch>,
+) {
+  if (!isRecord(listings) || !Array.isArray(listings.listings))
+    throw new Error("Prepared listing coverage is malformed");
+  const entries = new Map<string, unknown>();
+  for (const row of listings.listings as unknown[]) {
+    if (!isRecord(row) || typeof row.id !== "string" || entries.has(row.id))
+      throw new Error("Prepared listing coverage contains an invalid identity");
+    entries.set(row.id, row.artwork);
+  }
+  for (const { port_id, candidate } of replacements)
+    if (!isDeepStrictEqual(entries.get(port_id), candidate))
+      throw new Error("Reviewed candidate differs from the Core-validated listing: " + port_id);
 }
 
 async function prepareReplacementReview(input: {
@@ -225,6 +287,7 @@ async function prepareReplacementReview(input: {
     identities,
     selectedPortIds: input.selected,
     refreshPortIds: input.selected,
+    revalidateAccepted: true,
   });
   requireSource();
   if (hashCoreImageValidatorFile(input.validatorCli) !== validatorSha)
@@ -232,24 +295,19 @@ async function prepareReplacementReview(input: {
   const { report } = result;
   if (report.pending_port_ids.length)
     throw new Error("Cover replacement evidence is incomplete; preparation evidence is retained.");
-  const evidenceBytes = readArtworkInput(report.files.artwork, maximumProduct).bytes;
-  const evidence = parseCatalogSource(evidenceBytes.toString("utf8"));
-  if (!isRecord(evidence) || !Array.isArray(evidence.records))
-    throw new Error("Cover replacement observation receipt is malformed.");
-  const prepared = report.files.records.map(({ path: file }) =>
-    checkedAuthoredPort(readArtworkJson(file)),
-  );
+  if (!isDeepStrictEqual(report.selected_port_ids, input.selected))
+    throw new Error("Cover preparation no longer matches the exact selected identities.");
+  const preparation = readCoverPreparation(result);
   const replacements = reviewCoverReplacementBatch(
     authored.records,
-    prepared,
+    preparation.prepared,
     input.selected,
-    evidence.records,
+    preparation.records,
     validatorSha,
     effective.preimages,
   );
   if (!replacements.length) throw new Error("No changed covers qualified for independent review.");
-  const catalogSha = sha(readArtworkInput(report.files.catalog, maximumProduct).bytes);
-  const listingsSha = sha(readArtworkInput(report.files.listings, maximumProduct).bytes);
+  requireReviewedListingCovers(preparation.listings, replacements);
   function requireInspection(receipt: unknown, expectedSha: string) {
     if (
       !isRecord(receipt) ||
@@ -258,8 +316,8 @@ async function prepareReplacementReview(input: {
     )
       throw new Error("Cover replacement Core validation differs from the exact proposal.");
   }
-  requireInspection(report.listing_validation, listingsSha);
-  if (report.operational_changed) requireInspection(report.validation, catalogSha);
+  requireInspection(report.listing_validation, preparation.listingsSha);
+  if (report.operational_changed) requireInspection(report.validation, preparation.catalogSha);
   const packet = {
     format_version: 1,
     rule,
@@ -271,10 +329,10 @@ async function prepareReplacementReview(input: {
     signed_prior_repository_sha256: effective.identity,
     authored_catalog_sha256: report.accepted_catalog_sha256,
     authored_listings_sha256: report.accepted_listings_sha256,
-    preparation_sha256: sha(readArtworkInput(result.path, maximumProduct).bytes),
-    artwork_evidence_sha256: sha(evidenceBytes),
-    proposed_catalog_sha256: catalogSha,
-    proposed_listings_sha256: listingsSha,
+    preparation_sha256: preparation.completionSha,
+    artwork_evidence_sha256: preparation.evidenceSha,
+    proposed_catalog_sha256: preparation.catalogSha,
+    proposed_listings_sha256: preparation.listingsSha,
     replacements,
   };
   const bytes = Buffer.from(JSON.stringify(packet, null, 2) + "\n");

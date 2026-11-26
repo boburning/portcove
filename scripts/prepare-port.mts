@@ -2063,6 +2063,7 @@ export async function prepareArtworkBatch(
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     maintenance?: boolean;
+    revalidateAccepted?: boolean;
     retainedCoverLimit?: number;
     now?: () => number;
     signal?: AbortSignal;
@@ -2088,6 +2089,11 @@ export async function prepareArtworkBatch(
     refreshPortIds.some((id) => !selected.has(id))
   )
     throw new Error("Artwork refresh requires unique IDs within the selected workset.");
+  if (
+    options.revalidateAccepted &&
+    (options.maintenance || refreshPortIds.length !== selected.size)
+  )
+    throw new Error("Exact artwork revalidation requires an explicit fully refreshed selection.");
   const validatorIdentity = options.validatorCli
     ? hashCoreImageValidatorFile(options.validatorCli)
     : null;
@@ -2135,6 +2141,7 @@ export async function prepareArtworkBatch(
         ...(options.selectedPortIds ? { selectedPortIds: options.selectedPortIds } : {}),
         refreshPortIds,
         ...(options.maintenance ? { maintenance: true } : {}),
+        ...(options.revalidateAccepted ? { revalidateAccepted: true } : {}),
         ...(options.retainedCoverLimit === undefined
           ? {}
           : { retainedCoverLimit: options.retainedCoverLimit }),
