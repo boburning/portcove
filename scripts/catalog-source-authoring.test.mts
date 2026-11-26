@@ -146,7 +146,11 @@ void test("automatic GitHub identities require repository-bound listing format 1
     ["https://github.com/example/kart", "https://github.com/example/Kart/releases"],
   ]) {
     assert.throws(
-      () => checkedAuthoredPort({ format_version: 1, listing: { ...listing, project_url, release_url } }),
+      () =>
+        checkedAuthoredPort({
+          format_version: 1,
+          listing: { ...listing, project_url, release_url },
+        }),
       /repository-bound listing/u,
     );
   }

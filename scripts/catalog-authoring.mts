@@ -730,8 +730,10 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   if (repositoryBoundListingId(listing.id)) {
     const project = listing.project_url.replace(/\/$/u, "");
     const release = listing.release_url?.replace(/\/$/u, "");
-    const canonicalProject = /^https:\/\/github\.com\/[A-Za-z0-9_-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/u;
-    const canonicalRelease = /^https:\/\/github\.com\/[A-Za-z0-9_-]{1,100}\/[A-Za-z0-9_.-]{1,100}(?:\/releases)?$/u;
+    const canonicalProject =
+      /^https:\/\/github\.com\/[A-Za-z0-9_-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/u;
+    const canonicalRelease =
+      /^https:\/\/github\.com\/[A-Za-z0-9_-]{1,100}\/[A-Za-z0-9_.-]{1,100}(?:\/releases)?$/u;
     const scope = project.toLowerCase();
     if (
       !canonicalProject.test(project) ||
