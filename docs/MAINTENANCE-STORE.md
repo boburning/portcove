@@ -1161,6 +1161,25 @@ nothing.
   roadmap identity no issue condition changes.
 - The condition records the source, the Project status or hold reason, and the
   issue's explicit blocker and resume condition when recorded (`null` otherwise).
+  For a Blocked issue without an explicit resume condition, existing GitHub
+  blocking relationships supply a sorted set of dependency issue references
+  with immutable node IDs and repository-qualified URLs. The report matches
+  each dependency's node ID, issue number, URL, and state against the complete
+  issue facts for the owner's repository. Legacy facts without identity and
+  dependencies outside that repository remain unknown. The report derives a wake signal:
+  `waiting` while a dependency is open, `review-ready` when every recorded
+  dependency is observed closed, and `unknown` when coverage or identity
+  disagrees. A dependency closing does not lift the hold, rewrite Project
+  fields, or replace an explicit owner condition. Deferred work never uses
+  dependency closure to change its authority.
+- The collection receipt includes a derived `backlog_lifecycle` summary when
+  the configured Project identity is known. The report uses complete repository
+  issue coverage and their memberships in that Project. It distinguishes neutral
+  Inbox and Triage Watchlist inventory, positive planning signals, missing
+  planning fields, active work, other dispositions, and unavailable membership.
+  Closed issues and known archived-only memberships are excluded.
+  Missing or ambiguous membership is reported, not interpreted as unassigned
+  work.
 - A complete read that no longer records a pending condition resolves it under
   its recorded authority, naming the observing run: `satisfied`
   (`condition-lifted`) when the Status or hold is gone, or `withdrawn`
