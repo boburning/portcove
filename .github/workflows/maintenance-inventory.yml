@@ -578,6 +578,7 @@ jobs:
         run: |
           node scripts/prepare-port.mts \
             --discovery-listings work/discovery-worker/listing-preview-handoff.json \
+            --discovery-automatic-scope true \
             --discovery-deadline-epoch-ms "$(((EPOCHSECONDS + 360) * 1000))" \
             --output-dir work/discovery-worker/listing-preview
       - name: Retain discovery result and status
