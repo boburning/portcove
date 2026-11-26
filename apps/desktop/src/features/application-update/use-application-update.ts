@@ -10,8 +10,11 @@ import { startManagedSubscription } from "../../shared/subscription-lifecycle";
 
 export type ApplicationUpdateAction = "check" | "save" | "install";
 
-type ApplicationUpdateFailure = {
-  action: ApplicationUpdateAction | "read";
+type ApplicationUpdateAttempt =
+  | { action: "check" | "save" }
+  | { action: "install"; version: string; generation: number };
+
+type ApplicationUpdateFailure = (ApplicationUpdateAttempt | { action: "read" }) & {
   error: unknown;
 };
 
@@ -66,13 +69,13 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
     };
   }, []);
 
-  const run = useCallback(async (action: ApplicationUpdateAction, task: () => Promise<void>) => {
-    setBusy(action);
+  const run = useCallback(async (attempt: ApplicationUpdateAttempt, task: () => Promise<void>) => {
+    setBusy(attempt.action);
     setFailure(undefined);
     try {
       await task();
     } catch (error) {
-      setFailure({ action, error });
+      setFailure({ ...attempt, error });
     } finally {
       setBusy(undefined);
       setProgress(undefined);
@@ -81,7 +84,7 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
 
   const check = useCallback(
     () =>
-      run("check", async () => {
+      run({ action: "check" }, async () => {
         setStatus(await desktopApi.checkApplicationUpdate());
       }),
     [run],
@@ -89,7 +92,7 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
 
   const savePreferences = useCallback(
     (next: ApplicationUpdatePreferences) =>
-      run("save", async () => {
+      run({ action: "save" }, async () => {
         setPreferences(await desktopApi.setApplicationUpdatePreferences(next));
       }),
     [run],
@@ -97,12 +100,13 @@ export function useApplicationUpdate(): ApplicationUpdateModel {
 
   const availableVersion = status?.available?.version;
   const install = useCallback(
-    (generation: number) =>
-      run("install", async () => {
-        if (!availableVersion) return;
+    (generation: number) => {
+      if (!availableVersion) return Promise.resolve();
+      return run({ action: "install", version: availableVersion, generation }, async () => {
         // On success the host restarts or hands over to the installer.
         await desktopApi.installApplicationUpdate(availableVersion, generation, setProgress);
-      }),
+      });
+    },
     [availableVersion, run],
   );
 

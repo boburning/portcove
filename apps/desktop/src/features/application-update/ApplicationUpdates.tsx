@@ -32,7 +32,11 @@ export function ApplicationUpdateSettings({
   const { status, preferences, busy, failure } = update;
   const failureMessage = failure?.error === undefined ? undefined : failureCopy(t, failure.error);
   const offerFailure =
-    failure?.action === "install" && status?.available ? failureMessage : undefined;
+    failure?.action === "install" &&
+    failure.version === status?.available?.version &&
+    failure.generation === generation
+      ? failureMessage
+      : undefined;
   const locked = disabled || busy !== undefined || Boolean(status?.installing);
   return (
     <SettingsRow
