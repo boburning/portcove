@@ -603,7 +603,10 @@ function DetailBody(model: {
     supported: boolean | "unavailable";
     github?: Pick<
       import("../types").ModSetupsView,
-      "github_release_url" | "github_native_import_offered" | "external_mod_portals"
+      | "github_release_url"
+      | "github_native_import_offered"
+      | "external_mod_portals"
+      | "mod_portal_preferences"
     >;
   }>();
   const [communitySource, setCommunitySource] = useState<{ key: string; url: string }>();
@@ -650,6 +653,7 @@ function DetailBody(model: {
   );
   const settingsDrafts = [...drafts.values()].filter(({ scope }) => scope === modsKey);
   const [reviewFromPlay, requestModReview] = useState(0);
+  const signedPortalFacts = model.displayPort?.listing?.mod_portals;
   useEffect(() => {
     let current = true;
     const managed = !external && Boolean(activeInstall);
@@ -674,7 +678,16 @@ function DetailBody(model: {
     return () => {
       current = false;
     };
-  }, [external, activeInstall, model.port.id, model.libraryGeneration, modsKey, modSupportRetry]);
+  }, [
+    external,
+    activeInstall,
+    model.port.id,
+    model.libraryGeneration,
+    modsKey,
+    modSupportRetry,
+    signedPortalFacts,
+    model.port.mod_sources,
+  ]);
   const modState = modSupport?.key === modsKey ? modSupport : undefined;
   const currentModSupport = modState?.supported;
   const modsAvailable = !external && Boolean(activeInstall) && currentModSupport === true;
@@ -862,12 +875,13 @@ function DetailBody(model: {
         ...(modsAvailable ||
         hasCommunitySource ||
         githubSource?.github_release_url ||
+        githubSource?.mod_portal_preferences ||
         externalModPortals.length > 0
           ? {
               mods: (
                 <>
                   <ExternalModPortals
-                    portals={externalModPortals}
+                    view={githubSource}
                     port={model.port.id}
                     generation={model.libraryGeneration}
                   />

@@ -68,6 +68,23 @@ pub(crate) async fn get_mod_setups(
 }
 
 #[tauri::command]
+pub(crate) async fn set_mod_portal_preferences(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    expected_revision: u64,
+    choices: portcove_core::ModPortalChoices,
+) -> DesktopResult<portcove_core::ModPortalsView> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .set_mod_portal_preferences(&port_id, expected_revision, choices)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn create_default_mod_setup(
     state: tauri::State<'_, DesktopState>,
     generation: u64,

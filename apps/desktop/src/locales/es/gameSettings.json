@@ -139,10 +139,14 @@
     "defaultRefreshRequired": "El perfil predeterminado aún registra una versión anterior del juego. Actualízalo antes de copiarlo o exportarlo.",
     "empty": "No hay mods. El juego se ejecuta sin cambios en este perfil.",
     "external": {
+      "automatic": "Usar sitios automáticos",
       "cached": "Se muestran resultados anteriores. La fuente no se pudo consultar ahora.",
+      "checkAgain": "Volver a consultar los sitios",
       "checked": "Consultado el {{date}}",
+      "edit": "Editar sitios de mods",
       "empty": "La fuente no devolvió resultados.",
       "heading": "Sitios de mods de la comunidad",
+      "hideSources": "Ocultar sitios automáticos",
       "incomplete": "Algunas entradas tenían datos ilegibles. Los resultados pueden estar incompletos.",
       "latest": "Ver lo más reciente en Quaddicted",
       "linkUnavailable": "El enlace ya no está confirmado. Actualiza los resultados antes de abrirlo.",
@@ -156,11 +160,16 @@
       "owner": "Elige, instala y actualiza los archivos fuera de Portcove.",
       "previous": "Resultados anteriores",
       "quaddicted": "Ver en Quaddicted",
+      "save": "Guardar sitios",
+      "saved": "Se guardaron los sitios de mods.",
+      "saveFailed": "No se pudieron guardar los sitios. Revisa la dirección o vuelve a abrir Mods.",
       "search": "Buscar en Quaddicted",
       "searchFilename": "Nombre de archivo",
       "site": "Explorar {{name}}",
       "unavailable": "No se pudo consultar la fuente. Inténtalo de nuevo o abre su sitio web.",
-      "unverifiedEngine": "Comprueba qué motores admite este archivo."
+      "unverifiedEngine": "Comprueba qué motores admite este archivo.",
+      "websiteName": "Nombre del sitio",
+      "websiteUrl": "Dirección del sitio"
     },
     "filePreservation": {
       "adopt": "Para un mod compatible, usa Añadir archivo de mod y elige este archivo guardado.",

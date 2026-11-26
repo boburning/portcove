@@ -2885,6 +2885,9 @@ pub struct ModSetupsView {
     /// Reviewed upstream browser routes for this port and host.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub external_mod_portals: Vec<crate::ExternalModPortal>,
+    /// Local descriptive link choices and the defaults they can hide.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_portal_preferences: Option<crate::ModPortalPreferenceView>,
     /// Count from the materialized revision, including disabled mods.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub applied_package_count: Option<usize>,
@@ -2904,6 +2907,7 @@ impl ModSetupsView {
         github_release_url: Option<String>,
         github_native_import_offered: bool,
         external_mod_portals: Vec<crate::ExternalModPortal>,
+        mod_portal_preferences: crate::ModPortalPreferenceView,
     ) -> Self {
         Self {
             port_id: port_id.into(),
@@ -2919,6 +2923,7 @@ impl ModSetupsView {
             github_release_url,
             github_native_import_offered,
             external_mod_portals,
+            mod_portal_preferences: Some(mod_portal_preferences),
             providers: Vec::new(),
             applied_package_count: None,
             current_install_id: None,
@@ -2942,20 +2947,23 @@ impl PortcoveService {
     pub fn preview_mod_handoff(&self, port_id: &str) -> Result<ModSetupsView> {
         let catalog = self.catalog();
         let platform = crate::Platform::current().ok();
-        let external_mod_portals = crate::external_mod_portal::portals(catalog, port_id, platform);
+        let crate::ModPortalsView {
+            external_mod_portals,
+            mod_portal_preferences,
+        } = self.effective_external_mod_portals(port_id, platform)?;
         let (url, native) = match catalog.port(port_id) {
             Ok(port) => (
                 crate::github_mods::github_mod_release_url(port, platform),
                 self.github_native_import(port, platform)?,
             ),
-            Err(_) if !external_mod_portals.is_empty() => (None, false),
-            Err(error) => return Err(error),
+            Err(_) => (None, false),
         };
         Ok(ModSetupsView::browse_only(
             port_id,
             url,
             native,
             external_mod_portals,
+            mod_portal_preferences,
         ))
     }
 
@@ -2971,17 +2979,17 @@ impl PortcoveService {
             crate::github_mods::github_mod_release_url(port, crate::Platform::current().ok());
         let github_native_import_offered =
             self.github_native_import(port, crate::Platform::current().ok())?;
-        let external_mod_portals = crate::external_mod_portal::portals(
-            self.catalog(),
-            port_id,
-            crate::Platform::current().ok(),
-        );
+        let crate::ModPortalsView {
+            external_mod_portals,
+            mod_portal_preferences,
+        } = self.effective_external_mod_portals(port_id, crate::Platform::current().ok())?;
         let Some(layout) = self.optional_deploy_layout(port_id)? else {
             return Ok(ModSetupsView::browse_only(
                 port_id,
                 github_release_url,
                 github_native_import_offered,
                 external_mod_portals,
+                mod_portal_preferences,
             ));
         };
         // Reviews abandoned without Cancel (a closed window, a changed setup)
@@ -3007,6 +3015,7 @@ impl PortcoveService {
             github_release_url,
             github_native_import_offered,
             external_mod_portals,
+            mod_portal_preferences: Some(mod_portal_preferences),
             held_updates,
             last_automatic_checks: last_checks.checks,
             last_automatic_checks_incomplete: last_checks.incomplete,

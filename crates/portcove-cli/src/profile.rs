@@ -251,6 +251,23 @@ pub(crate) enum ProfileCommand {
         /// Catalog port ID.
         port_id: String,
     },
+    /// Save the game's local mod website choices. Omit the website and hidden sources to reset.
+    SetModPortals {
+        /// Catalog port ID.
+        port_id: String,
+        /// Current mod website choice revision from `profile setups --json`.
+        #[arg(long)]
+        expected_revision: u64,
+        /// Public HTTPS website for this game.
+        #[arg(long, requires = "name")]
+        url: Option<String>,
+        /// Display name for the local website.
+        #[arg(long, requires = "url")]
+        name: Option<String>,
+        /// Exact automatic source ID to hide. Repeat to hide more than one.
+        #[arg(long)]
+        hide: Vec<String>,
+    },
     /// Export a profile revision as a shareable recipe: identity only, no files or saves.
     RecipeExport {
         /// Catalog port ID owning the profile.
@@ -484,6 +501,7 @@ impl ProfileCommand {
             Self::InspectModFile { .. } => "profile.inspect-mod-file",
             Self::PreserveModFile { .. } => "profile.preserve-mod-file",
             Self::Setups { .. } => "profile.setups",
+            Self::SetModPortals { .. } => "profile.set-mod-portals",
             Self::RecipeExport { .. } => "profile.recipe-export",
             Self::RecipeInspect { .. } => "profile.recipe-inspect",
             Self::RecipeAcquire { .. } => "profile.recipe-acquire",
@@ -1637,6 +1655,27 @@ pub(crate) async fn execute(
                 )
             },
         ),
+        ProfileCommand::SetModPortals {
+            port_id,
+            expected_revision,
+            url,
+            name: page_name,
+            hide,
+        } => {
+            let saved = service.set_mod_portal_preferences(
+                &port_id,
+                expected_revision,
+                portcove_core::ModPortalChoices {
+                    local_page: url
+                        .zip(page_name)
+                        .map(|(url, name)| portcove_core::LocalModPage { name, url }),
+                    hidden_sources: hide,
+                },
+            )?;
+            render_read_success(mode, name, saved, |_| {
+                "Saved local mod website choices".into()
+            })
+        }
         ProfileCommand::Setups { port_id } => {
             render_read_success(mode, name, service.mod_setups(&port_id)?, |view| {
                 let mut lines = view

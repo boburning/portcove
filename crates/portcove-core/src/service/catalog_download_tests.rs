@@ -2291,6 +2291,30 @@ fn workspace_retains_legacy_registered_description_without_new_listing_revalidat
         .library
         .register_external_runtime(&record, &legacy)
         .unwrap();
+    assert!(service.catalog().listing(&record.port_id).is_err());
+    let choice = service
+        .set_mod_portal_preferences(
+            &record.port_id,
+            0,
+            crate::ModPortalChoices {
+                local_page: Some(crate::LocalModPage {
+                    name: "My legacy game mods".into(),
+                    url: "https://mods.example.net/legacy".into(),
+                }),
+                hidden_sources: vec![],
+            },
+        )
+        .unwrap();
+    let reopened = PortcoveService::new_read_only(service.library.clone()).unwrap();
+    let mods = reopened.preview_mod_handoff(&record.port_id).unwrap();
+    assert_eq!(mods.external_mod_portals, choice.external_mod_portals);
+    assert!(!mods.supported);
+    assert!(
+        mods.mod_portal_preferences
+            .unwrap()
+            .automatic_sources
+            .is_empty()
+    );
     let snapshot = service.workspace_snapshot(10).unwrap();
     assert!(
         snapshot

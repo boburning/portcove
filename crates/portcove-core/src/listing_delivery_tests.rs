@@ -594,10 +594,17 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
     provision(&library, &root);
     refresh(&library, &fixture, &root).await.unwrap();
     let id = "new-unmanaged-port";
+    let service = PortcoveService::new(library.clone()).unwrap();
     assert!(
-        PortcoveService::new_read_only(library.clone())
-            .unwrap()
+        service
             .preview_mod_handoff(id)
+            .unwrap()
+            .external_mod_portals
+            .is_empty()
+    );
+    assert!(
+        service
+            .preview_mod_handoff("unrecognized-local-id")
             .is_err()
     );
 
@@ -663,30 +670,137 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
             .is_empty()
     );
 
+    let custom = crate::LocalModPage {
+        name: "My mod source".into(),
+        url: "https://mods.example.net/recomp".into(),
+    };
+    let service = PortcoveService::new(library.clone()).unwrap();
+    assert!(
+        service
+            .set_mod_portal_preferences(
+                id,
+                0,
+                crate::ModPortalChoices {
+                    local_page: Some(crate::LocalModPage {
+                        url: "https://127.0.0.1/".into(),
+                        ..custom.clone()
+                    }),
+                    hidden_sources: vec![],
+                }
+            )
+            .is_err()
+    );
+    assert!(
+        service
+            .set_mod_portal_preferences(
+                id,
+                0,
+                crate::ModPortalChoices {
+                    local_page: None,
+                    hidden_sources: vec!["other-game".into()],
+                }
+            )
+            .is_err()
+    );
+    let local = service
+        .set_mod_portal_preferences(
+            id,
+            0,
+            crate::ModPortalChoices {
+                local_page: Some(custom.clone()),
+                hidden_sources: vec!["nexus".into()],
+            },
+        )
+        .unwrap();
+    let local = local.mod_portal_preferences.preferences;
+    assert_eq!(local.revision, 1);
+    assert!(
+        service
+            .set_mod_portal_preferences(id, 0, crate::ModPortalChoices::default())
+            .is_err()
+    );
+    let recreated = PortcoveService::new_read_only(library.clone()).unwrap();
+    assert_eq!(recreated.mod_portal_preferences(id).unwrap(), local);
+    assert!(
+        recreated
+            .review_external_mod_source_page(id, "nexus", url)
+            .await
+            .is_err()
+    );
+    let handoff = recreated.preview_mod_handoff(id).unwrap();
+    assert_eq!(handoff.external_mod_portals.len(), 1);
+    let link = &handoff.external_mod_portals[0];
+    assert_eq!(link.url, custom.url);
+    assert_eq!(link.browser, None);
+    assert!(!link.browse_available);
+    assert!(!handoff.supported);
+    assert_eq!(
+        recreated
+            .review_external_mod_source_page(id, &link.source, &custom.url)
+            .await
+            .unwrap(),
+        custom.url,
+    );
+
     candidate["revision"] = json!(3);
     candidate["directory"]["listings"][0]["mod_portals"][0]["url"] =
         json!("https://wrong.example.com/");
     let root = publish_compact(&fixture, &key, 3, &candidate).await;
     assert!(refresh(&library, &fixture, &root).await.is_err());
     let service = PortcoveService::new_read_only(library.clone()).unwrap();
+    assert_eq!(service.mod_portal_preferences(id).unwrap(), local);
     assert_eq!(
         service
             .preview_mod_handoff(id)
             .unwrap()
             .external_mod_portals[0]
             .url,
-        url
+        custom.url
     );
 
+    // A valid changed default is retained underneath the local choice.
     candidate["revision"] = json!(4);
+    let revised_url = "https://www.nexusmods.com/examplegamev2";
+    candidate["directory"]["listings"][0]["mod_portals"][0]["url"] = json!(revised_url);
+    let root = publish_compact(&fixture, &key, 4, &candidate).await;
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let service = PortcoveService::new(library.clone()).unwrap();
+    assert_eq!(
+        service
+            .preview_mod_handoff(id)
+            .unwrap()
+            .external_mod_portals[0]
+            .url,
+        custom.url
+    );
+    let reset = service
+        .set_mod_portal_preferences(id, local.revision, crate::ModPortalChoices::default())
+        .unwrap();
+    assert_eq!(reset.mod_portal_preferences.preferences.revision, 2);
+    assert_eq!(
+        service
+            .preview_mod_handoff(id)
+            .unwrap()
+            .external_mod_portals[0]
+            .url,
+        revised_url
+    );
+
+    candidate["revision"] = json!(5);
     candidate["directory"]["listings"][0]
         .as_object_mut()
         .unwrap()
         .remove("mod_portals");
-    let root = publish_compact(&fixture, &key, 4, &candidate).await;
+    let root = publish_compact(&fixture, &key, 5, &candidate).await;
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let service = PortcoveService::new_read_only(library).unwrap();
-    assert!(service.preview_mod_handoff(id).is_err());
+    assert!(
+        service
+            .preview_mod_handoff(id)
+            .unwrap()
+            .external_mod_portals
+            .is_empty()
+    );
 }
 
 #[tokio::test]
