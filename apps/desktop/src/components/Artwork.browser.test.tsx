@@ -587,6 +587,55 @@ describe("local artwork controls", () => {
     },
   );
 
+  it.each([false, true])(
+    "settles focus after a second catalog cache replacement (player moved focus: %s)",
+    async (movedFocus) => {
+      const before = artworkState("sample", "cover");
+      const committed = artworkState("sample", "cover", 1, true);
+      let pendingRead: "first" | "latest" | undefined;
+      const reads = new Map<string, (result: ArtworkState) => void>();
+      vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) => {
+        if (slot !== "cover") return artworkState(port, slot);
+        if (!pendingRead) return before;
+        const label = pendingRead;
+        pendingRead = undefined;
+        return new Promise((resolve) => reads.set(label, resolve));
+      });
+      let completeImport!: (result: ArtworkState) => void;
+      const change = vi
+        .spyOn(desktopApi, "importArtwork")
+        .mockReturnValue(new Promise((resolve) => (completeImport = resolve)));
+      vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+      await render("sample", 7, "original-cover");
+      await open();
+      await chooseAndApplyLocal("cover");
+      expect(change).toHaveBeenCalledTimes(1);
+
+      pendingRead = "first";
+      await render("sample", 7, "intermediate-cover");
+      await expect.poll(() => reads.has("first")).toBe(true);
+      await act(async () => completeImport(committed));
+
+      pendingRead = "latest";
+      await render("sample", 7, "current-cover");
+      await expect.poll(() => reads.has("latest")).toBe(true);
+      await act(async () => reads.get("first")!(before));
+      await expect.element(page.getByText("Local image selected.")).toBeVisible();
+
+      const pickerControl = page.elementLocator(button("cover", "Choose local image"));
+      const close = page
+        .getByRole("dialog", { name: "Change artwork", exact: true })
+        .getByRole("button", { name: "Close", exact: true });
+      await expect.element(pickerControl).toBeDisabled();
+      if (movedFocus) (close.element() as HTMLButtonElement).focus();
+
+      await act(async () => reads.get("latest")!(committed));
+      await expect.element(pickerControl).toBeEnabled();
+      await expect.element(movedFocus ? close : pickerControl).toHaveFocus();
+      expect(change).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("lets players cancel a hide and refuses a staged choice after its revision changes", async () => {
     let state = artworkState("sample", "cover", 1, true);
     vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
