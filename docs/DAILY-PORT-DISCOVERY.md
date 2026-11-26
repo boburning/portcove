@@ -1092,8 +1092,17 @@ last successful package observation. A lead keeps its dated observations across
 a refresh and can be probed again in a later run. Provider-wide quota,
 authentication and transport failures still use the existing boundaries.
 
-The natural maintenance run can prepare listing additions from current
-positive release watches. It exports the committed discovery generation,
+The natural maintenance run can prepare listing additions from retained
+positive release watches. The collector keeps the observed release ID, response
+digest and exact repository path with the lead. The next run can reconsider
+that candidate after interrupted preparation or an unavailable release probe.
+A complete sampled response replaces the previous observation. A renamed
+repository needs a new observation at its verified path before preparation.
+The maintenance store keeps the preview's starting point and upper
+repository ID. Each admitted run starts after the preceding run's first
+candidate, so a full preparation window still gives the next candidate
+a turn. Newly observed higher IDs join the next sweep.
+The run exports the committed discovery generation,
 revision, release ID and digest of the observed release response for each
 selected repository. The preview runs only for a handoff whose digest matches
 the current collection result. The batch preparer checks the local catalog and

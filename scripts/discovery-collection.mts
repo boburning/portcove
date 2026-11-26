@@ -24,6 +24,7 @@ import {
   LeadSearchChanged,
   linkExternalHints,
   nextLeadPage,
+  observedLeadReleases,
   pendingLeads,
   resolveExternalHint,
   restartLeadSlice,
@@ -979,28 +980,9 @@ export async function collectLeadReleaseHints(host: DiscoveryCollectionHost, ear
     }
     const name = `lead-release-hint-${lead.id}`;
     host.save(name, data);
-    let assetsObserved: boolean;
+    let hints: ReturnType<typeof observedLeadReleases>;
     try {
-      if (!Array.isArray(data)) throw new Error("Malformed lead release hints");
-      // Validate the whole sampled response before accepting either result.
-      let found = false;
-      for (const raw of data as unknown[]) {
-        const release = object(raw);
-        if (typeof release.draft !== "boolean" || !Array.isArray(release.assets))
-          throw new Error("Malformed release record");
-        for (const rawAsset of release.assets as unknown[]) {
-          const asset = object(rawAsset);
-          if (typeof asset.state !== "string" || typeof asset.name !== "string")
-            throw new Error("Malformed release asset");
-          if (
-            !release.draft &&
-            asset.state === "uploaded" &&
-            /\.(?:zip|tar\.gz|AppImage|exe|msi|dmg)$/iu.test(asset.name)
-          )
-            found = true;
-        }
-      }
-      assetsObserved = found;
+      hints = observedLeadReleases(data, lead.url);
     } catch {
       lead.release_probe = { attempted_at: host.journal.started_at, outcome: "invalid-response" };
       malformed++;
@@ -1008,7 +990,7 @@ export async function collectLeadReleaseHints(host: DiscoveryCollectionHost, ear
       continue;
     }
     lead.release_hint = {
-      assets_observed: assetsObserved,
+      ...hints,
       observed_at: host.journal.started_at,
       evidence: path.join(host.runDir, `${name}.json`),
     };

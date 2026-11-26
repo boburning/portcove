@@ -28,7 +28,12 @@ import {
   leadPaths,
 } from "./discovery-external-lists.mts";
 import { discoveryGitHubScope } from "./discovery-github.mts";
-import { leadFamilyIds, parseLeadState, replaceLeadStateEnvelope } from "./discovery-leads.mts";
+import {
+  leadFamilyIds,
+  observedLeadReleases,
+  parseLeadState,
+  replaceLeadStateEnvelope,
+} from "./discovery-leads.mts";
 import type { DiscoveryLead, LeadState } from "./discovery-leads.mts";
 import type { CollectedSource, SourceContext } from "./daily-discovery-sources.mts";
 import {
@@ -104,6 +109,34 @@ export interface DiscoveryWorkerState {
   checkpoint: DiscoveryCheckpoint;
   research_progress: Record<string, unknown>;
   backoff_until?: string;
+  listing_preview_round?: ListingPreviewRound;
+}
+
+interface ListingPreviewRound {
+  run_started_at: string;
+  first_id: number;
+  through_id: number;
+}
+
+function readListingPreviewRound(value: unknown): ListingPreviewRound | undefined {
+  if (value === undefined) return undefined;
+  if (
+    !isRecord(value) ||
+    typeof value.run_started_at !== "string" ||
+    !Number.isFinite(Date.parse(value.run_started_at)) ||
+    typeof value.first_id !== "number" ||
+    typeof value.through_id !== "number" ||
+    !Number.isSafeInteger(value.first_id) ||
+    !Number.isSafeInteger(value.through_id) ||
+    value.first_id <= 0 ||
+    value.through_id < value.first_id
+  )
+    throw new Error("Invalid retained discovery preview round.");
+  return {
+    run_started_at: value.run_started_at,
+    first_id: value.first_id,
+    through_id: value.through_id,
+  };
 }
 
 export function parseWorkerState(value: unknown): DiscoveryWorkerState {
@@ -115,11 +148,59 @@ export function parseWorkerState(value: unknown): DiscoveryWorkerState {
     };
   if (value.format !== discoveryWorkerStateFormat)
     throw new Error("Stored discovery state has an unsupported format; preserve and reconcile");
+  const listingPreviewRound = readListingPreviewRound(value.listing_preview_round);
   return {
     leads: parseLeadState(value.leads),
     checkpoint: parseDiscoveryCheckpoint(value.checkpoint),
     research_progress: isRecord(value.research_progress) ? { ...value.research_progress } : {},
     ...(typeof value.backoff_until === "string" ? { backoff_until: value.backoff_until } : {}),
+    ...(listingPreviewRound ? { listing_preview_round: listingPreviewRound } : {}),
+  };
+}
+
+function listingCandidatePath(lead: DiscoveryLead, covered: ReadonlySet<string>) {
+  if (
+    (lead.status !== "pending" && lead.status !== "researched") ||
+    !lead.release_hint?.assets_observed
+  )
+    return undefined;
+  const project = externalRepository(lead.url);
+  if (project?.key !== lead.url.toLowerCase() || covered.has(project.key)) return undefined;
+  return project.key;
+}
+
+/** An admitted run advances past the previous round's first candidate. Freeze
+ * the upper ID until that cohort has had a turn so new arrivals cannot extend it.
+ */
+export function nextListingPreviewRound(
+  leads: LeadState,
+  previous: ListingPreviewRound | undefined,
+  startedAt: string,
+  covered: ReadonlySet<string>,
+): ListingPreviewRound | undefined {
+  if (previous?.run_started_at === startedAt) return undefined;
+  const eligible = Object.values(leads.records)
+    .filter((lead) => {
+      const project = listingCandidatePath(lead, covered);
+      return project && lead.release_hint?.desktop_release?.project_url === project;
+    })
+    .map(({ id }) => id)
+    .sort((a, b) => a - b);
+  if (previous) {
+    const first = eligible.find((id) => id > previous.first_id && id <= previous.through_id);
+    if (first !== undefined)
+      return {
+        run_started_at: startedAt,
+        first_id: first,
+        through_id: previous.through_id,
+      };
+  }
+  const first = eligible[0];
+  if (first === undefined) return undefined;
+  return {
+    run_started_at: startedAt,
+    first_id: first,
+    through_id: eligible.at(-1) ?? first,
   };
 }
 
@@ -228,6 +309,7 @@ export interface DiscoveryWorkerOptions {
    * an earlier pass (a release checked, a search window completed) is not redone.
    */
   runStartedAt?: string;
+  rotateListingPreview?: boolean;
   /** This pass's budget; its limits come from physical resources. */
   budget?: DiscoveryBudget;
   now?: () => number;
@@ -445,6 +527,7 @@ export async function runDiscoveryWorker(
     leads: { ...host.leads, records: {} },
     checkpoint: host.checkpoint,
     research_progress: state.research_progress,
+    ...(state.listing_preview_round ? { listing_preview_round: state.listing_preview_round } : {}),
     ...(budget.usage.backoff_until ? { backoff_until: budget.usage.backoff_until } : {}),
   });
   let lastCommit = now();
@@ -601,6 +684,28 @@ export async function runDiscoveryWorker(
       reason = `${error.reason}: ${error.message}`;
     } else outcome = "failed";
   }
+  if (
+    !stale &&
+    !halted &&
+    options.rotateListingPreview &&
+    (outcome === "complete" || outcome === "partial")
+  ) {
+    try {
+      const round = nextListingPreviewRound(
+        host.leads,
+        state.listing_preview_round,
+        runStartedAt,
+        options.covered(),
+      );
+      if (round) {
+        state.listing_preview_round = round;
+        dirty = true;
+      }
+    } catch (error) {
+      outcome = "failed";
+      reason = `retained listing selection failed: ${errorMessage(error).slice(0, 400)}`;
+    }
+  }
   if (stale) {
     outcome = "deferred";
     reason =
@@ -704,7 +809,7 @@ export interface DiscoveryPassOptions extends Omit<
   previewListings?: (preview: ReturnType<typeof scheduledListingPreview>) => void;
 }
 
-/** Select current watch evidence for the unsigned preparer. Release hints are leads;
+/** Select retained watch evidence for the unsigned preparer. Release hints are leads;
  * product scope, package eligibility and all catalog writes have separate owners. */
 export function scheduledListingPreview(
   retained: DiscoveryRetainedState,
@@ -713,36 +818,28 @@ export function scheduledListingPreview(
   sourceRevision: string,
   releaseEvidence: (repositoryId: number) => unknown,
 ) {
-  const { leads } = parseWorkerState(retained.state);
+  const { leads, listing_preview_round: round } = parseWorkerState(retained.state);
   const observed = Object.values(leads.records)
     .flatMap((lead) => {
-      if (lead.status !== "pending" && lead.status !== "researched") return [];
-      const hint = lead.release_hint;
-      if (!hint?.assets_observed || hint.observed_at !== runStartedAt) return [];
-      const upstream = externalRepository(lead.url);
-      if (!upstream || upstream.key !== lead.url.toLowerCase() || covered.has(upstream.key))
+      if (
+        round?.run_started_at === runStartedAt &&
+        (lead.id < round.first_id || lead.id > round.through_id)
+      )
         return [];
-      const releases = releaseEvidence(lead.id);
-      if (!Array.isArray(releases)) return [];
-      const matching = (releases as unknown[]).find(
-        (release) =>
-          isRecord(release) &&
-          release.draft === false &&
-          typeof release.html_url === "string" &&
-          externalRepository(release.html_url)?.key === upstream.key &&
-          typeof release.id === "number" &&
-          Number.isSafeInteger(release.id) &&
-          release.id > 0 &&
-          Array.isArray(release.assets) &&
-          (release.assets as unknown[]).some(
-            (asset) =>
-              isRecord(asset) &&
-              asset.state === "uploaded" &&
-              typeof asset.name === "string" &&
-              /\.(?:zip|tar\.gz|AppImage|exe|msi|dmg)$/iu.test(asset.name),
-          ),
-      );
-      if (!isRecord(matching)) return [];
+      const project = listingCandidatePath(lead, covered);
+      const hint = lead.release_hint;
+      if (!project || !hint) return [];
+      let release = hint.desktop_release;
+      // Older retained records never established a release identity. Reuse
+      // their provider response only if this run collected its exact bytes.
+      if (!release && hint.observed_at === runStartedAt) {
+        try {
+          release = observedLeadReleases(releaseEvidence(lead.id), lead.url).desktop_release;
+        } catch {
+          return [];
+        }
+      }
+      if (release?.project_url !== project) return [];
       return [
         {
           repository_id: lead.id,
@@ -750,8 +847,8 @@ export function scheduledListingPreview(
           lead_revision: lead.revision,
           observed_at: hint.observed_at,
           desktop_asset_hint: true,
-          release_id: matching.id,
-          release_response_sha256: sha256(releases),
+          release_id: release.release_id,
+          release_response_sha256: release.response_sha256,
         },
       ];
     })
@@ -779,8 +876,9 @@ export function scheduledListingPreview(
         attempt: retained.attempt,
       },
       run_started_at: runStartedAt,
+      ...(round?.run_started_at === runStartedAt ? { round } : {}),
       retained_record_count: Object.keys(leads.records).length,
-      selection: "current-positive-release-hints-for-unsigned-preparation",
+      selection: "retained-positive-release-hints-for-unsigned-preparation",
       evidence,
     },
   };
@@ -855,6 +953,7 @@ async function collectPasses(options: DiscoveryPassOptions) {
           budget,
           transferBytes: bytes,
           runStartedAt,
+          rotateListingPreview: options.previewListings !== undefined,
           ...(retained ? { retained } : {}),
           retain: (value) => {
             retained = value;

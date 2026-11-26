@@ -592,7 +592,15 @@ void test("early release probes share the existing budget and preserve failed ob
       return new Response(new Uint8Array([0xc3, 0x28]), {
         headers: { "content-type": "application/json" },
       });
-    return [{ draft: false, assets: [{ state: "uploaded", name: "native.zip" }] }];
+    if (endpoint.startsWith("repositories/5/")) return [];
+    return [
+      {
+        id: 400,
+        html_url: "https://github.com/ports/game-4/releases/tag/1",
+        draft: false,
+        assets: [{ state: "uploaded", name: "native.zip" }],
+      },
+    ];
   });
   const host = {
     leads: state,
@@ -649,6 +657,12 @@ void test("early release probes share the existing budget and preserve failed ob
   assert.equal(refreshed.records["3"]?.release_probe?.outcome, "invalid-response");
   assert.equal(refreshed.records["3"]?.release_hint?.observed_at, now);
   assert.equal(refreshed.records["4"]?.release_hint?.observed_at, later);
+  assert.equal(
+    parseLeadState(refreshed).records["4"]?.release_hint?.desktop_release?.release_id,
+    400,
+  );
+  assert.equal(refreshed.records["5"]?.release_hint?.assets_observed, false);
+  assert.equal(refreshed.records["5"]?.release_hint?.desktop_release, undefined);
   assert.deepEqual(
     parseLeadState(refreshed).records["1"]?.release_probe,
     refreshed.records["1"]?.release_probe,
