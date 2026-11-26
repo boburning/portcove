@@ -26,6 +26,7 @@ const _: () = assert!(
 /// Upper bound on a listing's funding links; GitHub's `FUNDING.yml` allows four custom ones.
 const MAX_FUNDING_URLS: usize = 12;
 pub(crate) const VERIFIED_EDITION_LISTING_FORMAT: u32 = 14;
+pub(crate) const MOD_PORTAL_LISTING_FORMAT: u32 = 16;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -58,6 +59,7 @@ impl From<&PortDefinition> for PortListing {
             issue_number: None,
             listed_at: None,
             funding_urls: None,
+            mod_portals: Vec::new(),
             platforms: port.platforms.clone(),
             availability: ListingAvailability::Unknown,
             download_block_reason: None,
@@ -183,13 +185,18 @@ pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=RESTRICTION_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=MOD_PORTAL_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 15",
+                "listing export supports formats 5 through 16",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < MOD_PORTAL_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                listing.mod_portals.clear();
+            }
+        }
         if format_version < RESTRICTION_LISTING_FORMAT {
             for listing in &mut document.listings {
                 // The validated legacy string remains the older readers' hold.
@@ -248,6 +255,13 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self
+            .listings
+            .iter()
+            .any(|listing| !listing.mod_portals.is_empty())
+        {
+            self.format_version = self.format_version.max(MOD_PORTAL_LISTING_FORMAT);
+        }
         if self
             .listings
             .iter()
@@ -390,11 +404,21 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=RESTRICTION_LISTING_FORMAT) {
+        if !matches!(self.format_version, 1..=MOD_PORTAL_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        if self.format_version < MOD_PORTAL_LISTING_FORMAT
+            && self
+                .listings
+                .iter()
+                .any(|listing| !listing.mod_portals.is_empty())
+        {
+            return Err(PortcoveError::unsupported(
+                "reviewed mod portals require listing format 16",
+            ));
         }
         if self.format_version < RESTRICTION_LISTING_FORMAT
             && self
@@ -882,6 +906,7 @@ impl PortListing {
     }
     pub fn validate(&self) -> Result<()> {
         self.validate_observation_metadata()?;
+        crate::mod_source::validate_listing_portals(&self.mod_portals)?;
         if let Some(date) = &self.listed_at
             && !valid_listed_at(date)
         {
@@ -1251,17 +1276,23 @@ impl Catalog {
                 let recommended_download_channel = listing.recommended_download_channel;
                 let release_url = listing.release_url.clone();
                 let setup_url = listing.setup_url.clone().or(projected.setup_url.clone());
-                let implementation = projected.implementation.clone().or_else(|| {
-                    (listing.project_url == projected.project_url
-                        && same_original_description(
-                            listing.original_game.as_ref(),
-                            projected.original_game.as_ref(),
-                        ))
-                    .then(|| listing.implementation.clone())
-                    .flatten()
-                });
+                let same_scope = listing.project_url == projected.project_url
+                    && same_original_description(
+                        listing.original_game.as_ref(),
+                        projected.original_game.as_ref(),
+                    );
+                let implementation = projected
+                    .implementation
+                    .clone()
+                    .or_else(|| same_scope.then(|| listing.implementation.clone()).flatten());
+                let mod_portals = if same_scope {
+                    std::mem::take(&mut listing.mod_portals)
+                } else {
+                    Vec::new()
+                };
                 *listing = PortListing {
                     implementation,
+                    mod_portals,
                     compatibility: listing.compatibility.clone(),
                     upstream_observation: listing.upstream_observation.clone(),
                     availability_override_reason: listing.availability_override_reason.clone(),
@@ -1870,7 +1901,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":16,"listings":[listing()]}),
+            json!({"format_version":17,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -2426,11 +2457,11 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         let mut future = document;
-        future.format_version = 16;
+        future.format_version = 17;
         future.promote_projected_format();
-        assert_eq!(future.format_version, 16);
+        assert_eq!(future.format_version, 17);
         assert!(future.validate().is_err());
-        assert!(parse(&value, 16).is_err());
+        assert!(parse(&value, 17).is_err());
     }
 
     #[test]

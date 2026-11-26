@@ -15,6 +15,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runCheckedGit } from "./checked-git.mts";
 import test from "node:test";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import { projectReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
@@ -819,7 +820,7 @@ void test("complete selected-release observations reuse exact assets and do not 
   }
 });
 
-void test("discovery listing batch keeps independent additions and never replaces accepted records", async () => {
+void test("discovery listing batch keeps independent additions and never replaces accepted records", async (context) => {
   const f = fixture();
   try {
     const claim = (id: string, repository: string, repository_id: number) => ({
@@ -840,6 +841,8 @@ void test("discovery listing batch keeps independent additions and never replace
         claim("third-new-port", "example/third", 125),
         claim("overlap-one", "example/overlap", 126),
         claim("overlap-two", "other/relocated", 126),
+        claim("launcher-as-port", "xander-haj/lawn", 127),
+        claim("release-mirror-as-port", "sonicdcer/DNZHRecomp", 128),
       ],
     };
     const options = {
@@ -863,7 +866,18 @@ void test("discovery listing batch keeps independent additions and never replace
     assert.equal(report.operational_changed, false);
     assert.deepEqual(
       report.outcomes.map(({ status }) => status),
-      ["already-cataloged", "held", "held", "prepared", "held", "prepared", "held", "held"],
+      [
+        "already-cataloged",
+        "held",
+        "held",
+        "prepared",
+        "held",
+        "prepared",
+        "held",
+        "held",
+        "held",
+        "held",
+      ],
     );
     assert.equal(f.requests.length, 3);
     assert.deepEqual(JSON.parse(readFileSync(report.files.records[0]!.path, "utf8")), {
@@ -873,6 +887,11 @@ void test("discovery listing batch keeps independent additions and never replace
         target_key: "first-new-port",
         origin: { project_url: project, repository: { host: "github.com", id: "123" } },
         decisions: [],
+      },
+      original_game_review: {
+        disposition: "unresolved",
+        reason: "Repository evidence does not establish an exact original game or source edition.",
+        evidence_urls: [project],
       },
       listing: {
         id: "first-new-port",
@@ -888,6 +907,71 @@ void test("discovery listing batch keeps independent additions and never replace
     assert.ok(isRecord(directory) && Array.isArray(directory.listings));
     assert.equal(directory.listings.length, accepted.directory.listings.length + 2);
     assert.equal(report.accepted_listings_sha256, observationHash(accepted.directory));
+    assert.equal(report.admission, null);
+    const approval = {
+      format: "portcove-discovery-listing-approval",
+      format_version: 1,
+      ...report.admission_binding,
+      approved_ids: ["third-new-port"],
+    };
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({ ...options, approval: { document: approval } }),
+      /requires a trusted Core validator/u,
+    );
+    const validatorCli = join(f.root, "selected-cli");
+    writeFileSync(validatorCli, "inert listing validator fixture");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        validatorCli,
+        approval: { document: { ...approval, source_sha256: "0".repeat(64) } },
+      }),
+      /does not match the handoff and catalog source/u,
+    );
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        validatorCli,
+        approval: { document: { ...approval, approved_ids: ["unknown-port"] } },
+      }),
+      /must name unique IDs from the exact handoff/u,
+    );
+    let approved;
+    context.mock.method(childProcess, "spawnSync", (artifact: string, args: string[]) => {
+      assert.equal(readFileSync(artifact, "utf8"), "inert listing validator fixture");
+      assert.deepEqual(args.slice(-3, -1), ["inspect-listings", "--path"]);
+      const data: unknown = JSON.parse(readFileSync(args.at(-1)!, "utf8"));
+      return { status: 0, signal: null, stdout: JSON.stringify({ data }), stderr: "" };
+    });
+    syncBuiltinESMExports();
+    try {
+      approved = await prepareDiscoveryListingAdditions({
+        ...options,
+        validatorCli,
+        approval: { document: approval },
+      });
+    } finally {
+      context.mock.restoreAll();
+      syncBuiltinESMExports();
+    }
+    assert.deepEqual(approved.report.changed_records, ["third-new-port"]);
+    assert.equal(
+      (approved.report.listing_validation as ListingReceipt).listings.length,
+      accepted.directory.listings.length + 1,
+    );
+    const admission = approved.report.admission;
+    assert.ok(admission);
+    const patch = readFileSync(admission.path);
+    assert.equal(createHash("sha256").update(patch).digest("hex"), admission.sha256);
+    const apply = childProcess.spawnSync("git", ["apply", "--numstat", admission.path], {
+      cwd: dirname(dirname(dirname(catalogRoot))),
+      encoding: "utf8",
+    });
+    assert.equal(apply.status, 0, apply.stderr);
+    assert.match(
+      apply.stdout.trim(),
+      /^\d+\t0\tcrates\/portcove-core\/catalog\/ports\/third-new-port\.json$/u,
+    );
     await assert.rejects(
       prepareDiscoveryListingAdditions({
         ...options,
@@ -898,7 +982,83 @@ void test("discovery listing batch keeps independent additions and never replace
       }),
       /requires a stable ID, public repository and evidence digest/u,
     );
-    assert.equal(f.requests.length, 3);
+    assert.equal(f.requests.length, 4);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery listing staging refuses stale or changed source before reading candidates", async () => {
+  const f = fixture();
+  try {
+    const repository = join(f.root, "checkout");
+    const catalog = join(repository, "crates", "portcove-core", "catalog");
+    mkdirSync(catalog, { recursive: true });
+    const git = (args: string[]) => runCheckedGit(args, { cwd: repository }).trim();
+    git(["init", "--quiet"]);
+    writeFileSync(join(repository, ".gitignore"), "ignored.json\n");
+    git(["add", ".gitignore"]);
+    git([
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "commit",
+      "-qm",
+      "fixture",
+    ]);
+    const revision = git(["rev-parse", "HEAD"]);
+    const validatorCli = join(f.root, "fixture-validator");
+    const options = {
+      catalogRoot: catalog,
+      outputDirectory: join(f.root, "output"),
+      handoff: null,
+      validatorCli,
+      approval: { document: null },
+      stage: { repository, revision },
+    };
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        stage: { repository, revision: "0".repeat(40) },
+      }),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /versioned discovery listing handoff/u,
+    );
+    const inheritedIndex = process.env.GIT_INDEX_FILE;
+    process.env.GIT_INDEX_FILE = join(f.root, "unrelated-index");
+    try {
+      await assert.rejects(
+        prepareDiscoveryListingAdditions(options),
+        /versioned discovery listing handoff/u,
+      );
+      assert.equal(existsSync(process.env.GIT_INDEX_FILE), false);
+    } finally {
+      if (inheritedIndex === undefined) delete process.env.GIT_INDEX_FILE;
+      else process.env.GIT_INDEX_FILE = inheritedIndex;
+    }
+    writeFileSync(join(catalog, "ignored.json"), "{}");
+    assert.equal(git(["status", "--porcelain=v1"]), "");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    rmSync(join(catalog, "ignored.json"));
+    writeFileSync(join(repository, ".gitignore"), "");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    git(["update-index", "--assume-unchanged", ".gitignore"]);
+    assert.equal(git(["status", "--porcelain=v1"]), "");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    assert.equal(existsSync(options.outputDirectory), false);
   } finally {
     f.clean();
   }

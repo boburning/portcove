@@ -126,7 +126,8 @@ mod mod_package;
 mod mod_provider;
 mod mod_source;
 pub use mod_source::{
-    ModCompanionLayout, ModPortalSite, ModSource, ModSourceAuthority, ModSourceKind,
+    ListingModPortal, ModCompanionLayout, ModPortalSite, ModSource, ModSourceAuthority,
+    ModSourceKind,
 };
 mod moddb_feed;
 mod native_mod_list;
