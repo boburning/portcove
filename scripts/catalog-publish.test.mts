@@ -1530,6 +1530,62 @@ void test("exact provider cross-links enrich the signed listing without changing
   ]);
 });
 
+void test("signed projection keeps release observations through authored artwork changes", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const artwork = {
+    game_id: 70,
+    cover_id: 71,
+    image_id: "fixturecover",
+    image_sha256: "a".repeat(64),
+    game_slug: "fixture-game",
+    match_kind: "underlying-game",
+  };
+  const priorListing = { ...fixtureListing, artwork };
+  const candidate = fixturePolicy(priorListing).listing_update;
+  const directory = (listing: Record<string, unknown>) => ({
+    format_version: 15,
+    listings: [listing],
+  });
+  const now = Date.parse("2026-11-10T00:01:00Z");
+  const initial = projectListingDelivery(directory(priorListing), [candidate], null, { now });
+  const view = (bytes: Buffer) =>
+    requiredFixture(
+      fixtureRecords(
+        fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings,
+      )[0],
+    );
+  const initialObservation = requiredFixture(view(initial.bytes).upstream_observation);
+  const steps = [
+    { ...fixtureListing, artwork: { ...artwork, cover_id: 72, image_id: "replacement" } },
+    { ...fixtureListing, collection_covers: [artwork] },
+    { ...fixtureListing, media: [{ id: "new-scene", role: "screenshot" }] },
+  ];
+  let previous = initial.bytes;
+  for (const listing of steps) {
+    const next = projectListingDelivery(directory(listing), [], previous, { now });
+    assert.equal(next.changed, true);
+    assert.deepEqual(view(next.bytes), { ...listing, upstream_observation: initialObservation });
+    previous = next.bytes;
+  }
+
+  const current = steps[steps.length - 1]!;
+  const pending = projectListingDelivery(directory(current), [candidate], null, { now });
+  assert.deepEqual(view(pending.bytes), { ...current, upstream_observation: initialObservation });
+
+  const releaseChanges = [
+    { ...current, project_url: "https://github.com/owner/different-game" },
+    { ...current, release_url: "https://github.com/owner/other-release-feed/releases" },
+    { ...current, download_block_reason: "An upstream package is restricted." },
+    { ...current, download_asset_hints: { "linux-x86-64": ["linux", "64"] } },
+  ];
+  for (const listing of releaseChanges) {
+    const next = projectListingDelivery(directory(listing), [candidate], previous, { now });
+    assert.deepEqual(view(next.bytes), listing);
+  }
+});
+
 void test("signed projection recomputes shared covers without changing the release observation", async () => {
   const { fixtureListing, fixturePolicy } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
@@ -2182,6 +2238,44 @@ void test("completed source observations stay bound to current canonical provide
     ).length,
     0,
     "an observation of a listing cannot acquire a new managed-route binding",
+  );
+
+  const managed = {
+    id: fixtureListing.id,
+    channels: ["stable"],
+    release: { repository: "owner/game" },
+  };
+  const managedInput = { ...input, catalog: { ...input.catalog, ports: [managed] } };
+  const artwork = {
+    game_id: 70,
+    cover_id: 71,
+    image_id: "fixturecover",
+    image_sha256: "a".repeat(64),
+    game_slug: "fixture-game",
+    match_kind: "underlying-game",
+  };
+  const illustrated = { ...fixtureListing, artwork };
+  const illustratedDirectory = { ...canonical, listings: [illustrated] };
+  const illustratedPort = { ...managed, presentation: { artwork } };
+  assert.deepEqual(
+    completedListingCandidates(managedInput, { ports: [illustratedPort] }, illustratedDirectory),
+    [policy.listing_update],
+  );
+  assert.deepEqual(
+    completedListingCandidates(
+      {
+        ...managedInput,
+        catalog: { ...input.catalog, ports: [illustratedPort], listings: [illustrated] },
+      },
+      { ports: [managed] },
+      canonical,
+    ),
+    [policy.listing_update],
+  );
+  const changedRelease = { ...illustratedPort, release: { repository: "owner/other-game" } };
+  assert.deepEqual(
+    completedListingCandidates(managedInput, { ports: [changedRelease] }, illustratedDirectory),
+    [],
   );
 });
 
