@@ -81,6 +81,7 @@ export function readArtworkCheckpoint(bytes: Buffer, listing: Buffer): Checkpoin
       (typeof raw.prior_checkpoint_sha256 !== "string" ||
         !digest.test(raw.prior_checkpoint_sha256))) ||
     !Array.isArray(raw.entries) ||
+    raw.entries.length === 0 ||
     raw.entries.length > maxRows
   )
     throw new Error("Cover checkpoint is unbound to the authenticated listing");
