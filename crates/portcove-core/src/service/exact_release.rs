@@ -247,6 +247,37 @@ mod tests {
         }
     }
 
+    const PREFERENCE_PORT: &str = "exact-release-preference-fixture";
+
+    fn preference_service(
+        library: Library,
+        provider: Arc<dyn crate::ReleaseProvider>,
+    ) -> PortcoveService {
+        let mut service = PortcoveService::with_provider(library, provider).unwrap();
+        let platform = Platform::current().unwrap();
+        let platform_key = serde_json::to_value(platform).unwrap();
+        let platform_key = platform_key.as_str().unwrap();
+        let catalog = serde_json::json!({
+            "schema_version": 1,
+            "source_profiles": [],
+            "ports": [{
+                "id": PREFERENCE_PORT,
+                "name": "Exact release preference fixture",
+                "summary": "Synthetic managed release route for the active test platform",
+                "project_url": "https://example.invalid/exact-release-preference",
+                "support_tier": "beta",
+                "channels": ["stable", "beta"],
+                "platforms": [platform],
+                "adapter": "staged-source-portable",
+                "release": {"repository": "fixture/exact-release-preference"},
+                "executable_hints": {(platform_key): ["game.exe"]},
+                "persistent_paths": ["saves"]
+            }]
+        });
+        service.replace_catalog_for_test(crate::Catalog::from_json(&catalog.to_string()).unwrap());
+        service
+    }
+
     /// Channel following passes a newer release whose players are only for
     /// another host (#8557); exact selection observes one tag.
     struct OtherHostStream(Releases);
@@ -317,13 +348,14 @@ mod tests {
         let library = Library::open(root.path()).unwrap();
         // The installation is the newer release this host can no longer get.
         let mut active = install("active", ReleaseChannel::Stable, root.path());
+        active.port_id = PREFERENCE_PORT.into();
         active.version = "v3.0.0".into();
         library.register_install(&active, true).unwrap();
-        let service = PortcoveService::with_provider(library, provider).unwrap();
+        let service = preference_service(library, provider);
 
         // Channel following keeps the installation instead of moving it to
         // the older release that has a package for this host.
-        let held = service.check_update(PORT).await.unwrap_err();
+        let held = service.check_update(PREFERENCE_PORT).await.unwrap_err();
         assert_eq!(
             held.details.get("update_hold").map(String::as_str),
             Some("installed-release-newer-than-host-candidate")
@@ -331,19 +363,22 @@ mod tests {
 
         // An explicit reviewed pin of an older release is the player's choice
         // and stays usable alongside the same stream.
-        let preview = service.review_exact_release(PORT, "v1.0.0").await.unwrap();
-        service
-            .pin_exact_release(PORT, "v1.0.0", &preview.review_sha256)
+        let preview = service
+            .review_exact_release(PREFERENCE_PORT, "v1.0.0")
             .await
             .unwrap();
-        let check = service.check_update(PORT).await.unwrap();
+        service
+            .pin_exact_release(PREFERENCE_PORT, "v1.0.0", &preview.review_sha256)
+            .await
+            .unwrap();
+        let check = service.check_update(PREFERENCE_PORT).await.unwrap();
         assert_eq!(check.release.version, "v1.0.0");
 
         // Following again restores the guard.
-        service.clear_exact_release(PORT).unwrap();
+        service.clear_exact_release(PREFERENCE_PORT).unwrap();
         assert_eq!(
             service
-                .check_update(PORT)
+                .check_update(PREFERENCE_PORT)
                 .await
                 .unwrap_err()
                 .details
@@ -360,25 +395,37 @@ mod tests {
             release_id: AtomicU64::new(3),
         });
         let library = Library::open(root.path()).unwrap();
-        let service = PortcoveService::with_provider(library, provider.clone()).unwrap();
-        let preview = service.review_exact_release(PORT, "v1.0.0").await.unwrap();
+        let service = preference_service(library, provider.clone());
+        let preview = service
+            .review_exact_release(PREFERENCE_PORT, "v1.0.0")
+            .await
+            .unwrap();
         provider.release_id.store(4, Ordering::SeqCst);
         assert!(
             service
-                .pin_exact_release(PORT, "v1.0.0", &preview.review_sha256)
+                .pin_exact_release(PREFERENCE_PORT, "v1.0.0", &preview.review_sha256)
                 .await
                 .is_err()
         );
-        assert!(service.status(PORT).unwrap().exact_release.is_none());
-        let preview = service.review_exact_release(PORT, "v1.0.0").await.unwrap();
+        assert!(
+            service
+                .status(PREFERENCE_PORT)
+                .unwrap()
+                .exact_release
+                .is_none()
+        );
+        let preview = service
+            .review_exact_release(PREFERENCE_PORT, "v1.0.0")
+            .await
+            .unwrap();
         let status = service
-            .pin_exact_release(PORT, "v1.0.0", &preview.review_sha256)
+            .pin_exact_release(PREFERENCE_PORT, "v1.0.0", &preview.review_sha256)
             .await
             .unwrap();
         assert_eq!(status.exact_release.as_ref(), Some(&preview.selection));
         assert_eq!(
             service
-                .set_channel(PORT, status.channel)
+                .set_channel(PREFERENCE_PORT, status.channel)
                 .unwrap()
                 .exact_release
                 .as_ref(),
@@ -387,25 +434,30 @@ mod tests {
         drop(service);
 
         let reopened = Library::open(root.path()).unwrap();
-        let service = PortcoveService::with_provider(reopened, provider.clone()).unwrap();
+        let service = preference_service(reopened, provider.clone());
         assert_eq!(
-            service.status(PORT).unwrap().exact_release,
+            service.status(PREFERENCE_PORT).unwrap().exact_release,
             Some(preview.selection)
         );
-        let check = service.check_update(PORT).await.unwrap();
+        let check = service.check_update(PREFERENCE_PORT).await.unwrap();
         assert_eq!(check.release.version, "v1.0.0");
         assert_eq!(check.channel_latest_version.as_deref(), Some("v2.0.0"));
         provider.release_id.store(6, Ordering::SeqCst);
-        assert!(service.check_update(PORT).await.is_err());
+        assert!(service.check_update(PREFERENCE_PORT).await.is_err());
         assert!(
             service
-                .clear_exact_release(PORT)
+                .clear_exact_release(PREFERENCE_PORT)
                 .unwrap()
                 .exact_release
                 .is_none()
         );
         assert_eq!(
-            service.check_update(PORT).await.unwrap().release.version,
+            service
+                .check_update(PREFERENCE_PORT)
+                .await
+                .unwrap()
+                .release
+                .version,
             "v2.0.0"
         );
     }
@@ -631,13 +683,16 @@ mod tests {
             release_id: AtomicU64::new(3),
         });
         let library = Library::open(root.path()).unwrap();
-        let service = PortcoveService::with_provider(library, provider).unwrap();
-        let preview = service.review_exact_release(PORT, "v1.0.0").await.unwrap();
-        let status = service
-            .pin_exact_release(PORT, "v1.0.0", &preview.review_sha256)
+        let service = preference_service(library, provider);
+        let preview = service
+            .review_exact_release(PREFERENCE_PORT, "v1.0.0")
             .await
             .unwrap();
-        let port = service.catalog.port(PORT).unwrap();
+        let status = service
+            .pin_exact_release(PREFERENCE_PORT, "v1.0.0", &preview.review_sha256)
+            .await
+            .unwrap();
+        let port = service.catalog.port(PREFERENCE_PORT).unwrap();
         let refused = service
             .resolve_release_for_status(
                 port,
@@ -654,7 +709,7 @@ mod tests {
         );
         // A stale review explains itself rather than reporting a generic conflict.
         let stale = service
-            .pin_exact_release(PORT, "v1.0.0", &preview.review_sha256)
+            .pin_exact_release(PREFERENCE_PORT, "v1.0.0", &preview.review_sha256)
             .await
             .unwrap_err();
         assert_eq!(presentation_key(&stale), "exact_release_review_changed");
