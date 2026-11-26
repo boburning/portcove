@@ -1173,6 +1173,16 @@ Set `PORTCOVE_CATALOG_ADMISSION_ENABLED` to `true` after confirming the
 installation. The App token is requested after replay, generation and the
 staged-path check succeed.
 
+Automatic scope uses a first-party declaration bound to the verified repository
+ID and the exact default-branch commit. The maintained `.recomp.json` and
+`.recomp-board.json` rules take precedence. A root `recomplauncher.json` can
+also identify a single-game project when it names the same repository, declares
+one required game input and lists bounded package-relative program candidates. Portcove
+records which source established scope and leaves game and edition matching to
+the existing authoring contracts. This scope check leaves launch arguments,
+configuration, loader claims and setup actions out of the generated listing.
+The ordinary reviewed route remains available for projects with other evidence.
+
 ### Local runner on the shared store
 
 When `PORTCOVE_MAINTENANCE_DATABASE_URL` is set for a local `run`, the shared
