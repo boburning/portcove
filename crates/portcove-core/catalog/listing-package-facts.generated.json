@@ -1,7 +1,233 @@
 {
   "format": 18,
   "generator": "scripts/listing-package-facts.mts",
-  "generated_at": "2026-11-23T00:00:00.000Z",
-  "entries": [],
-  "entries_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  "generated_at": "2026-11-26T13:30:24.000Z",
+  "entries": [
+    {
+      "port_id": "black-xbox-black-pc",
+      "provider": "github",
+      "repository": "Spark198rus/black-pc",
+      "repository_id": 1418928046,
+      "listing_words": [
+        "black",
+        "pc",
+        "xbox"
+      ],
+      "parser": "listing-package-facts",
+      "parser_version": 26,
+      "observation": {
+        "release_id": 445294172,
+        "tag": "v0.4.0",
+        "published_at": "2026-11-14T12:52:13.000Z",
+        "observed_at": "2026-11-23T19:57:19.502Z",
+        "coverage": "complete",
+        "assets_complete": true,
+        "assets_sha256": "267cd78dfae07312478110b8983edd691afc2272cc6bee9371b6a235c430da63"
+      },
+      "ineligible": null,
+      "unread_forms": [],
+      "observed_releases": [
+        {
+          "release_id": 412722328,
+          "tag": "v0.2.0",
+          "core_prerelease": false,
+          "prerelease": false,
+          "published_at": "2026-10-14T13:00:57.000Z",
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
+        },
+        {
+          "release_id": 422944745,
+          "tag": "v0.3.0",
+          "core_prerelease": false,
+          "prerelease": false,
+          "published_at": "2026-10-24T19:45:22.000Z",
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
+        },
+        {
+          "release_id": 445294172,
+          "tag": "v0.4.0",
+          "core_prerelease": false,
+          "prerelease": false,
+          "published_at": "2026-11-14T12:52:13.000Z",
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
+        }
+      ],
+      "other_packages": [],
+      "asset_names": [],
+      "refused_archives": [],
+      "attempt": null,
+      "artifacts": [
+        {
+          "asset_id": 747484774,
+          "name": "black-pc-0.4.0-win32.zip",
+          "size": 594123,
+          "sha256": "643e8492bcd8bd32fa45c0376384121db31b33b6b7cfe70b4251ae3799b5a365",
+          "role": "desktop-game-runtime",
+          "os": "windows",
+          "arch": "x86",
+          "source": {
+            "kind": "exact-release-structured",
+            "shape_version": 2,
+            "archive_sha256": "643e8492bcd8bd32fa45c0376384121db31b33b6b7cfe70b4251ae3799b5a365"
+          },
+          "name_suggestion": {
+            "rule_version": 1,
+            "role": "desktop-game-runtime",
+            "os": "windows",
+            "arch": "x86",
+            "tool_token": null,
+            "system_token": null
+          },
+          "players": [
+            {
+              "path": "port/black.exe",
+              "display_path": "port/black.exe",
+              "machine": "pe-x86",
+              "sha256": "16ae39dc22b12543f5906bc11d0999dca2a38e56bd7669bc630569b4d88bb540"
+            }
+          ],
+          "excluded_players": [],
+          "contradictory": false,
+          "toolchain_names": [],
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 4,
+            "source_leaves": 0
+          }
+        }
+      ]
+    },
+    {
+      "port_id": "cris9870-rock-n-roll-racing-snes-europe-native-recomp",
+      "provider": "github",
+      "repository": "Cris9870/rock-and-roll-racing-pc",
+      "repository_id": 1445985863,
+      "listing_words": [
+        "9870",
+        "cris",
+        "europe",
+        "n",
+        "native",
+        "pc",
+        "racing",
+        "recomp",
+        "rock",
+        "roll",
+        "snes"
+      ],
+      "parser": "listing-package-facts",
+      "parser_version": 26,
+      "observation": {
+        "release_id": 436699794,
+        "tag": "v1.0.4",
+        "published_at": "2026-11-06T15:56:08.000Z",
+        "observed_at": "2026-11-24T21:21:15.757Z",
+        "coverage": "complete",
+        "assets_complete": true,
+        "assets_sha256": "5d750f2d5edc56bb719374d142ae9c6979419c262d487362fd2f3bc078a1ea5c"
+      },
+      "ineligible": null,
+      "unread_forms": [],
+      "observed_releases": [
+        {
+          "release_id": 434273880,
+          "tag": "v1.0.1",
+          "core_prerelease": false,
+          "prerelease": false,
+          "published_at": "2026-11-04T18:09:49.000Z",
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
+        },
+        {
+          "release_id": 434288357,
+          "tag": "v1.0.2",
+          "core_prerelease": false,
+          "prerelease": false,
+          "published_at": "2026-11-04T18:23:00.000Z",
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
+        },
+        {
+          "release_id": 434292461,
+          "tag": "v1.0.3",
+          "core_prerelease": false,
+          "prerelease": false,
+          "published_at": "2026-11-04T18:27:05.000Z",
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
+        },
+        {
+          "release_id": 436699794,
+          "tag": "v1.0.4",
+          "core_prerelease": false,
+          "prerelease": false,
+          "published_at": "2026-11-06T15:56:08.000Z",
+          "packaged": true,
+          "text": "unobserved",
+          "title": null,
+          "statement": null
+        }
+      ],
+      "other_packages": [],
+      "asset_names": [],
+      "refused_archives": [],
+      "attempt": null,
+      "artifacts": [
+        {
+          "asset_id": 717678281,
+          "name": "RockAndRollRacingPC-windows.zip",
+          "size": 2230296,
+          "sha256": "9d40f04a4bd2324051198312529b136fe74aaf8155f249d314e29e7bad8860fd",
+          "role": "desktop-game-runtime",
+          "os": "windows",
+          "arch": "x86-64",
+          "source": {
+            "kind": "exact-release-structured",
+            "shape_version": 2,
+            "archive_sha256": "9d40f04a4bd2324051198312529b136fe74aaf8155f249d314e29e7bad8860fd"
+          },
+          "name_suggestion": {
+            "rule_version": 1,
+            "role": "desktop-game-runtime",
+            "os": "windows",
+            "arch": "unknown",
+            "tool_token": null,
+            "system_token": null
+          },
+          "players": [
+            {
+              "path": "rockandrollracingpc-1.0.4/rocknrollracingsnesrecomp.exe",
+              "display_path": "RockAndRollRacingPC-1.0.4/RockNRollRacingSNESRecomp.exe",
+              "machine": "pe-x86-64",
+              "sha256": "da08da51f6fd1271e0e33eac216cbb80f8e4d1bef2a8614d287a87722fb59c78"
+            }
+          ],
+          "excluded_players": [],
+          "contradictory": false,
+          "toolchain_names": [],
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 22,
+            "source_leaves": 0
+          }
+        }
+      ]
+    }
+  ],
+  "entries_sha256": "853b8d617af52cf65b97d979edd03baa37e0552ca678518d618fd4518858a4c8"
 }
