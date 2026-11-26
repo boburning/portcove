@@ -81,7 +81,8 @@ it.each([
     const panel = dialog.element();
 
     if (separateActions) {
-      const details = review.element().parentElement!;
+      const detailRegion = dialog.getByRole("region", { name: "Recovery details" });
+      const details = detailRegion.element() as HTMLElement;
       expect(details.scrollHeight).toBeGreaterThan(details.clientHeight);
       expect(details.scrollWidth).toBeLessThanOrEqual(details.clientWidth);
       const bounds = details.getBoundingClientRect();
@@ -94,8 +95,11 @@ it.each([
         path: `../../../../outputs/recovery-review/actions-${width}x${height}.png`,
         element: dialog,
       });
-      details.scrollTop = details.scrollHeight;
-      expect(details.scrollTop).toBeGreaterThan(0);
+      expect(details.tabIndex).toBe(0);
+      details.focus();
+      await expect.element(detailRegion).toHaveFocus();
+      await userEvent.keyboard("{PageDown}");
+      await expect.poll(() => details.scrollTop).toBeGreaterThan(0);
       expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(height);
     } else {
       expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight);
@@ -185,6 +189,7 @@ it.each([
 );
 
 it("waits for the copy worker to stop and offers continuation from its exact staging folder", async () => {
+  await page.viewport(320, 500);
   const staging = "D:/backups/.portcove-recovery-bundle-stage";
   let stopCopy!: () => void;
   const pending = new Promise<LibraryRecoveryBundle>((_resolve, reject) => {
@@ -249,6 +254,8 @@ it("waits for the copy worker to stop and offers continuation from its exact sta
       .toBeVisible();
     await page.getByRole("button", { name: "View recovery bundle operation", exact: true }).click();
     const cancelButton = dialog.getByRole("button", { name: "Cancel copy", exact: true });
+    await expect.element(cancelButton).toBeVisible();
+    expect(cancelButton.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(500);
     await cancelButton.click();
     expect(cancel).toHaveBeenCalledExactlyOnceWith("copy-operation");
     await expect.element(cancelButton).toBeDisabled();
