@@ -113,7 +113,7 @@ impl CatalogDownloadProvider {
 
     pub(super) async fn options(
         &self,
-        repository: &str,
+        (repository, github_repository_id): (&str, Option<u64>),
         selected: Option<&CatalogDownloadReleaseId>,
         channel: ReleaseChannel,
         rolling_tag: Option<&str>,
@@ -136,7 +136,7 @@ impl CatalogDownloadProvider {
                     .transpose()?;
                 let (candidates, coverage, releases, selected) = provider
                     .catalog_download_options_window(
-                        repository,
+                        (repository, github_repository_id),
                         selected,
                         channel,
                         rolling_tag,
@@ -159,6 +159,7 @@ impl CatalogDownloadProvider {
         repository: &str,
         release: &CatalogDownloadReleaseId,
         asset: &CatalogDownloadAssetId,
+        github_repository_id: Option<u64>,
     ) -> Result<CatalogDownloadCandidate> {
         asset.validate_for(release)?;
         match self {
@@ -172,6 +173,7 @@ impl CatalogDownloadProvider {
                         asset.github_id().ok_or_else(|| {
                             PortcoveError::verification("mixed download provider identity")
                         })?,
+                        github_repository_id,
                     )
                     .await
             }
@@ -188,6 +190,7 @@ impl CatalogDownloadProvider {
         repository: &str,
         release: &CatalogDownloadReleaseId,
         asset: &CatalogDownloadAssetId,
+        github_repository_id: Option<u64>,
     ) -> Result<String> {
         asset.validate_for(release)?;
         match self {
@@ -198,7 +201,7 @@ impl CatalogDownloadProvider {
                     ));
                 };
                 provider
-                    .catalog_release_notes_url(repository, release, asset)
+                    .catalog_release_notes_url(repository, release, asset, github_repository_id)
                     .await
             }
             Self::Gitlab(provider) => provider
@@ -208,20 +211,33 @@ impl CatalogDownloadProvider {
         }
     }
 
-    pub(super) fn client(
+    pub(super) fn transport(
         &self,
         repository: &str,
         candidate: &CatalogDownloadCandidate,
-    ) -> Result<reqwest::Client> {
+        github_repository_id: Option<u64>,
+    ) -> Result<(reqwest::Client, String)> {
         candidate.asset_id.validate_for(&candidate.release_id)?;
         match self {
-            Self::Github(provider) if candidate.release_id.github_id().is_some() => {
-                provider.catalog_download_client()
+            Self::Github(provider) if let Some(asset_id) = candidate.asset_id.github_id() => {
+                let download_url = match github_repository_id {
+                    Some(repository_id) => {
+                        provider.numeric_catalog_asset_url(repository_id, asset_id)
+                    }
+                    None => candidate.download_url.clone(),
+                };
+                Ok((
+                    provider.catalog_download_client(github_repository_id.is_some())?,
+                    download_url,
+                ))
             }
             Self::Github(_) => Err(PortcoveError::verification(
                 "GitHub transport cannot acquire a GitLab identity",
             )),
-            Self::Gitlab(provider) => provider.catalog_download_client(repository, candidate),
+            Self::Gitlab(provider) => Ok((
+                provider.catalog_download_client(repository, candidate)?,
+                candidate.download_url.clone(),
+            )),
         }
     }
 }

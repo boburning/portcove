@@ -456,8 +456,12 @@ upstream itself publishes and holds a package only for concrete reasons.
   integration does not cover, tier 3
   also covers the ordinary listing download from the upstream's own releases.
   Its accepted identity is that release location, checked against the
-  provider's published digest when there is one. Later releases stay offered
-  unless one bundles game data outside the owner exceptions or a verified
+  provider's published digest when there is one. Automatically admitted GitHub
+  listings use `github-<repository ID>`. Core binds live release lookup,
+  checksums and package transfer to that ID. If GitHub's asset URL identifies
+  a different repository path, review the upstream move before updating the
+  catalog URL. Later releases stay offered unless one bundles game data outside
+  the owner exceptions or a verified
   rights-holder request arrives; either restores the listing's download hold.
   Every migrated listing hold applies to every platform and release of the
   port, so a port keeps its hold while one platform's route, such as an
