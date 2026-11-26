@@ -8,6 +8,80 @@ import type { ArtworkPreparationOptions } from "./inspect-igdb-artwork.mts";
 
 import { requiredFixture, text, root } from "./fixtures/catalog-generator-fixtures.mts";
 
+void test("shared covers use the accepted provider asset identity through a slug rename", async () => {
+  const { checkedAuthoredPort } = await import("./catalog-authoring.mts");
+  const { indexSharedCoverRows, projectExactSharedCovers } =
+    await import("./shared-cover-projection.mts");
+  const game = {
+    format_version: 1,
+    id: "same-game",
+    evidence_urls: ["https://example.org/same-game"],
+    source_editions: [
+      {
+        id: "same-edition",
+        title: "Same game",
+        system: "pc",
+        evidence_urls: ["https://example.org/same-edition"],
+      },
+    ],
+  };
+  const cover = {
+    game_id: 2,
+    cover_id: 3,
+    image_id: "stablecover",
+    image_sha256: "a".repeat(64),
+    game_slug: "before-rename",
+    match_kind: "underlying-game" as const,
+  };
+  const listing = (id: string) => ({
+    id,
+    name: id,
+    summary: "Artwork identity fixture.",
+    project_url: `https://github.com/example/${id}`,
+    original_game: game,
+  });
+  const oldDonor = { ...listing("a-donor"), artwork: cover };
+  const renamedCover = { ...cover, game_slug: "after-rename" };
+  const newDonor = { ...listing("b-donor"), artwork: renamedCover };
+  const recipient = listing("recipient");
+  const derive = (
+    signed: readonly unknown[],
+    rows: readonly unknown[],
+    holdNewForImages = new Set<string>(),
+  ) =>
+    projectExactSharedCovers({
+      live: indexSharedCoverRows(signed),
+      authored: rows.map((row) => checkedAuthoredPort({ format_version: 1, listing: row })),
+      excludedPortIds: new Set(),
+      gone: new Set(),
+      checked: new Map(),
+      deriveDefaultsForPublishedRecipients: true,
+      holdNewForImages,
+    });
+
+  const currentAuthoring = [{ ...oldDonor, artwork: renamedCover }, newDonor, recipient];
+  const prior = [oldDonor, newDonor];
+  assert.deepEqual(derive(prior, currentAuthoring).proposals.get(recipient.id), cover);
+
+  // An image under a byte-change hold can continue serving its old recipients.
+  const hold = new Set([cover.image_id]);
+  assert.equal(derive(prior, currentAuthoring, hold).proposals.size, 0);
+  const previousRecipient = { ...recipient, artwork: renamedCover };
+  assert.deepEqual(
+    derive([...prior, previousRecipient], currentAuthoring, hold).proposals.get(recipient.id),
+    renamedCover,
+  );
+
+  const remapped = { ...previousRecipient, original_game: { ...game, id: "other-game" } };
+  assert.equal(derive([...prior, remapped], currentAuthoring, hold).proposals.size, 0);
+
+  // Different provider assets for the same edition are still ambiguous.
+  const conflicting = { ...newDonor, artwork: { ...renamedCover, cover_id: 4 } };
+  const result = derive([oldDonor, conflicting], [oldDonor, conflicting, recipient]);
+  assert.equal(result.proposals.size, 0);
+  assert.equal(result.outcomes.find(({ id }) => id === recipient.id)?.status, "ambiguous");
+});
+
 void test("a regional cover refresh refuses a mismatched localization and preserves accepted art", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
   const selection = {
