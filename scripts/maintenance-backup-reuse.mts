@@ -88,10 +88,12 @@ export class MaintenanceBackupDeferred extends MaintenanceStoreError {
   override name = "MaintenanceBackupDeferred";
   readonly requiredBytes: number;
   readonly reservedBytes: number;
-  constructor(requiredBytes: number, reservedBytes: number) {
+  readonly retryBytes: number;
+  constructor(requiredBytes: number, reservedBytes: number, retryBytes = requiredBytes) {
     super(`Backup payload ceiling ${requiredBytes} exceeds its ${reservedBytes}-byte reservation`);
     this.requiredBytes = requiredBytes;
     this.reservedBytes = reservedBytes;
+    this.retryBytes = retryBytes;
   }
 }
 
@@ -202,7 +204,7 @@ export async function retryBackupAdmission<T>(admit: (reservationBytes?: number)
     return await admit();
   } catch (error) {
     if (!(error instanceof MaintenanceBackupDeferred)) throw error;
-    return await admit(error.requiredBytes);
+    return await admit(error.retryBytes);
   }
 }
 
@@ -331,7 +333,21 @@ async function backupPrepared(
       );
       if (!Number.isSafeInteger(estimated) || estimated < 0)
         throw new MaintenanceStoreError("Invalid backup payload estimate");
-      if (estimated > reservedBytes) throw new MaintenanceBackupDeferred(estimated, reservedBytes);
+      if (estimated > reservedBytes) {
+        // The fresh admission adds a ledger row and settlement changes this attempt's row.
+        // Derive retry headroom from the observed maximum row envelope. The next snapshot
+        // still verifies its own complete ceiling before any export starts.
+        const ledgerRow = Number(
+          (
+            await query(`SELECT coalesce(max(octet_length(t::text)::bigint * 2 + 100), 0)
+          FROM portcove_maintenance_meta.resource_admissions t;`)
+          ).trim(),
+        );
+        const retryBytes = estimated + 2 * ledgerRow;
+        if (!Number.isSafeInteger(retryBytes) || retryBytes < estimated)
+          throw new MaintenanceStoreError("Invalid recovery retry estimate");
+        throw new MaintenanceBackupDeferred(estimated, reservedBytes, retryBytes);
+      }
       runTool(
         "pg_dump",
         [

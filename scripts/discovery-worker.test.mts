@@ -1437,10 +1437,10 @@ void test(
     incremental.finish(lease("4"), "complete", {});
 
     const bounded = postgresDiscoveryStore(environment, 1024, seedDb);
-    const paged = bounded.acquire(lease("5"), options);
-    assert.deepEqual(paged.state, state);
+    const pagedSeed = bounded.acquire(lease("5"), options);
+    assert.deepEqual(pagedSeed.state, state);
     assert.ok(
-      (paged.received_bytes ?? Infinity) < 2_000,
+      (pagedSeed.received_bytes ?? Infinity) < 2_000,
       "paging keeps oversized local seeds incremental",
     );
     assert.deepEqual(bounded.loadLeadRecords("primary").records, authoritative.records);
