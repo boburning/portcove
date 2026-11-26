@@ -44,6 +44,7 @@ const report = {
   released_validation: { status: "validated" },
   automatic_listed_date: "2026-11-26",
   handoff_semantic_sha256: orderedJsonSha256(handoff),
+  changed_records: ["github-42"],
 };
 const workflow = ".github/workflows/maintenance-inventory.yml";
 const context = {
@@ -156,6 +157,61 @@ void test("binds the exact scheduled job, artifact bytes and replay inputs despi
   });
 });
 
+void test("replay seals only candidates prepared before the preview deadline", async () => {
+  const later = {
+    ...handoff.candidates[0]!,
+    id: "github-43",
+    repository_id: 43,
+    project_url: "https://github.com/fixture/later",
+  };
+  const source = { ...handoff, candidates: [...handoff.candidates, later] };
+  const prepared = { ...report, handoff_semantic_sha256: orderedJsonSha256(source) };
+  const receipt = scheduledDiscoveryReplayReceipt(prepared, source, context);
+  assert.ok(receipt);
+  const document: unknown = JSON.parse(receipt.toString());
+  assert.ok(isRecord(document));
+  assert.equal(document.format_version, 2);
+  assert.equal(document.source_handoff_sha256, orderedJsonSha256(source));
+  assert.equal(document.handoff_sha256, orderedJsonSha256(handoff));
+  const retained = fixture();
+  retained.replaceZip(createAuditZip([[receiptFile, receipt]]));
+  assert.deepEqual(
+    (await verifyScheduledDiscoveryReplay(`${run}/${attempt}`, retained.read)).handoff,
+    handoff,
+  );
+  assert.throws(
+    () =>
+      scheduledDiscoveryReplayReceipt(
+        { ...prepared, changed_records: ["github-99"] },
+        source,
+        context,
+      ),
+    /prepared discovery candidates differ/iu,
+  );
+  assert.throws(
+    () =>
+      scheduledDiscoveryReplayReceipt(
+        { ...prepared, changed_records: ["github-42", "github-42"] },
+        source,
+        context,
+      ),
+    /unique prepared candidates/u,
+  );
+});
+
+void test("retained format-one replay receipts still bind their original handoff", async () => {
+  const retained = fixture();
+  const original: unknown = JSON.parse(retained.bytes.toString());
+  assert.ok(isRecord(original));
+  const legacy = { ...original, format_version: 1 };
+  delete legacy["source_handoff_sha256"];
+  retained.replaceZip(createAuditZip([[receiptFile, JSON.stringify(legacy)]]));
+  assert.deepEqual(
+    (await verifyScheduledDiscoveryReplay(`${run}/${attempt}`, retained.read)).handoff,
+    handoff,
+  );
+});
+
 void test("refuses incomplete or mismatched origin and artifact evidence", async () => {
   const cases: [RegExp, (input: ReturnType<typeof fixture>) => void][] = [
     [/completed scheduled/u, ({ runRecord }) => (runRecord.event = "workflow_dispatch")],
@@ -184,6 +240,15 @@ void test("refuses incomplete or mismatched origin and artifact evidence", async
           ...original,
           handoff: { ...handoff, candidates: [] },
         };
+        f.replaceZip(createAuditZip([[receiptFile, JSON.stringify(forged)]]));
+      },
+    ],
+    [
+      /differs from its scheduled source or handoff/u,
+      (f) => {
+        const original: unknown = JSON.parse(f.bytes.toString());
+        assert.ok(isRecord(original));
+        const forged = { ...original, source_handoff_sha256: "unknown" };
         f.replaceZip(createAuditZip([[receiptFile, JSON.stringify(forged)]]));
       },
     ],
