@@ -44,7 +44,9 @@ void test("native parser degradation cannot establish whole-Desktop qualificatio
       const configIndex = nativeArgs.indexOf("--config");
       if (configIndex !== -1) nativeArgs[configIndex + 1] = path.join(directory, ".fallowrc.json");
       assert.ok(nativeArgs.includes("--no-production"));
-      assert.ok(nativeArgs.includes("--no-type-aware"));
+      const typeAware = nativeArgs.includes("--fail-on-parse-error");
+      assert.equal(nativeArgs.includes("--type-aware"), typeAware);
+      assert.equal(nativeArgs.includes("--no-type-aware"), !typeAware);
       assert.ok(!nativeArgs.includes("--cloud"));
       const source = readFileSync(path.join(directory, "entry.ts"), "utf8");
       if (source.includes("broken") || source.includes("nested")) {
@@ -258,7 +260,8 @@ void test("selective routes preserve explicit full-branch review and bounded par
   for (const mode of ["desktop", "tooling", "css", "review"]) {
     const selected = fallowArguments(mode, "origin/main");
     assert.ok(selected.includes("--no-production"));
-    assert.ok(selected.includes("--no-type-aware"));
+    assert.equal(selected.includes("--type-aware"), mode === "desktop");
+    assert.equal(selected.includes("--no-type-aware"), mode !== "desktop");
     assert.ok(!selected.includes("--cloud"));
     assert.ok(!selected.includes("mcp"));
   }

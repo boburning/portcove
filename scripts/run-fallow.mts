@@ -139,7 +139,7 @@ export function fallowArguments(
   const common = [
     "--no-production",
     "--no-package-baselines",
-    "--no-type-aware",
+    mode === "desktop" ? "--type-aware" : "--no-type-aware",
     "--max-file-size",
     "5",
     "--threads",

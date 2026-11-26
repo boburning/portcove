@@ -561,11 +561,13 @@ conservative inventory may invalidate a report after unrelated repository edits;
 the measured October 19 cost was about 0.7 seconds per fingerprint, versus 0.5
 seconds for the former extension allowlist on the same checkout.
 
-Maintained routes explicitly select non-production, complete package scope,
-syntax-based analysis and the native 5 MB discovery limit. Conflicting inherited
-production/type-aware/size/package-baseline settings are normalized to those
-effective choices; an inherited `FALLOW_DIFF_FILE` is rejected because it would
-silently select a different scope. Native HEAD time supplies the historical
+Maintained routes select non-production, complete package scope and the native
+5 MB discovery limit. The whole-Desktop check uses type-aware analysis so the
+checker can follow class member use through React context. Tooling, CSS and review
+routes use syntax-based analysis. The Desktop check keeps private type-leak
+analysis outside its existing gate. All routes normalize inherited scope settings
+to their configured choices. They reject an inherited `FALLOW_DIFF_FILE`
+because it selects a different scope. Native HEAD time supplies the historical
 ranking clock. `PORTCOVE_FALLOW_THREADS` remains supported and bound to identity.
 `FALLOW_COVERAGE` / `health.coverage` and their coverage-root mapping are supported:
 the selected file or V8 directory's contents are hashed before and after analysis,
@@ -623,8 +625,9 @@ visible without native health thresholds becoming an additional quality gate.
 Use targeted type-aware analysis when exact symbol identity, re-exports, class
 contracts or affected consumers matter. First verify that the optional companion
 is available and compatible with the pinned release; do not assume plugin skill
-text or upstream main describes the installed binary. Everyday scans stay
-syntax-based and inexpensive. Keep native caches enabled per checkout/project,
+text or upstream main describes the installed binary. Use the syntax-based
+routes for inexpensive checks outside whole-Desktop qualification. Keep native
+caches enabled per checkout/project,
 set `PORTCOVE_FALLOW_THREADS` to bound parser threads (default 2) within existing
 resource controls, and reuse
 supported audit base caches. Do not share one absolute cache across worktrees.
