@@ -35,10 +35,13 @@ import {
   DiscoveryStoreRefused,
   discoveryStatusQuery,
   postgresDiscoveryStore,
+  measureDiscoverySeed,
   readDiscoverySnapshot,
+  requireStoredLeadId,
 } from "./discovery-store.mts";
 import type {
   DiscoveryKnownRevision,
+  DiscoverySeedPlan,
   DiscoveryLease,
   DiscoveryProviderObservation,
   DiscoveryStore,
@@ -118,6 +121,20 @@ export function parseWorkerState(value: unknown): DiscoveryWorkerState {
     research_progress: isRecord(value.research_progress) ? { ...value.research_progress } : {},
     ...(typeof value.backoff_until === "string" ? { backoff_until: value.backoff_until } : {}),
   };
+}
+
+function indexStoredLeadRecords(
+  rows: readonly unknown[],
+  recordDigests?: Map<string, string>,
+): Record<string, unknown> {
+  const records: Record<string, unknown> = {};
+  for (const row of rows) {
+    const id = String(requireStoredLeadId(row));
+    if (Object.hasOwn(records, id)) throw new Error(`Duplicate stored discovery lead id ${id}`);
+    records[id] = row;
+    recordDigests?.set(id, sha256(row));
+  }
+  return records;
 }
 
 const sorted = (values: readonly string[] | undefined) =>
@@ -338,39 +355,45 @@ export async function runDiscoveryWorker(
   // The store omits a revision this process committed and still holds in full.
   const reused = grant.unchanged === true && options.retained ? options.retained : undefined;
   options.retain?.(undefined);
-  const state = parseWorkerState(reused ? structuredClone(reused.state) : grant.state);
+  let state: DiscoveryWorkerState;
+  const recordDigests = new Map<string, string>();
   const grantDefinition = reused ? reused.definition : grant.definition_sha256;
   // Lead records live in rows; the state document carries everything else.
   // Records still embedded in an older document are kept and move into rows
   // with the first commit. Reused state already carries every stored record.
-  let loaded: { records: unknown[]; bytes: number };
+  let validationStage = "retained state could not be validated";
+  committed.received_bytes = grant.received_bytes ?? 0;
   try {
-    loaded = reused
+    state = parseWorkerState(reused ? structuredClone(reused.state) : grant.state);
+    validationStage = "lead records could not be loaded";
+    const loaded = reused
       ? { records: Object.values(state.leads.records), bytes: 0 }
       : options.store.loadLeadRecords(scope);
+    committed.received_bytes += loaded.bytes;
+    validationStage = "lead records could not be validated";
+    const storedRecords = indexStoredLeadRecords(loaded.records, recordDigests);
+    state.leads = parseLeadState({
+      ...state.leads,
+      records: { ...storedRecords, ...state.leads.records },
+    });
   } catch (error) {
-    // Close the attempt and release the lease rather than leaving them held.
-    const reason = `lead records could not be loaded: ${errorMessage(error).slice(0, 400)}`;
-    const failed = result("failed", { reason, attempt_id: lease.attempt });
+    // No malformed continuation may leave an owned attempt running or be reset.
+    const reason = `${validationStage}: ${errorMessage(error).slice(0, 400)}`;
+    const failed = result(error instanceof DiscoveryStoreRefused ? "deferred" : "failed", {
+      reason,
+      attempt_id: lease.attempt,
+    });
     try {
       const { notes: _notes, ...summary } = failed;
       options.store.finish(lease, "failed", summary);
     } catch (finishError) {
-      if (!(finishError instanceof DiscoveryStoreRefused)) throw finishError;
+      if (!(finishError instanceof DiscoveryStoreRefused))
+        throw new Error(`${reason}; lease cleanup failed: ${errorMessage(finishError)}`, {
+          cause: finishError,
+        });
     }
     return failed;
   }
-  const recordDigests = new Map<string, string>();
-  const storedRecords: Record<string, unknown> = {};
-  for (const raw of loaded.records)
-    if (isRecord(raw) && Number.isSafeInteger(raw.id)) {
-      storedRecords[String(raw.id)] = raw;
-      recordDigests.set(String(raw.id), sha256(raw));
-    }
-  state.leads = parseLeadState({
-    ...state.leads,
-    records: { ...storedRecords, ...state.leads.records },
-  });
   const initialDigest = learnedDigest({ leads: state.leads, checkpoint: state.checkpoint });
   let revision = grant.revision;
   // Stored state and its observations commit together, so everything in the
@@ -392,7 +415,6 @@ export async function runDiscoveryWorker(
     }
     return { observations, watches, records };
   };
-  committed.received_bytes = (grant.received_bytes ?? 0) + loaded.bytes;
   // State written under other collector definitions (for example an earlier
   // parser version) is not assumed to have rows under this one; the first commit
   // resends them and the store keeps one row per identical content.
@@ -1138,9 +1160,7 @@ export async function readStoredLeads(
     if (snapshot.outcome === "moved") continue;
     if (snapshot.outcome === "empty") return { outcome: "empty", bytes };
     const state = parseWorkerState(snapshot.state);
-    const records: Record<string, unknown> = {};
-    for (const raw of snapshot.records)
-      if (isRecord(raw) && Number.isSafeInteger(raw.id)) records[String(raw.id)] = raw;
+    const records = indexStoredLeadRecords(snapshot.records);
     return {
       outcome: "read",
       revision: snapshot.revision,
@@ -1154,8 +1174,12 @@ export async function readStoredLeads(
 
 /** Recent measured transfer and current state size, read before admission. */
 export const discoveryTransferForecastQuery = `SELECT json_build_object(
-  'state_bytes', coalesce((SELECT max(octet_length(state::text))
-    FROM portcove_maintenance.discovery_collection_state), 0),
+  'state_bytes', coalesce((SELECT max(octet_length(s.state::text) + coalesce(h.bytes, 0))
+    FROM portcove_maintenance.discovery_collection_state s
+    LEFT JOIN LATERAL (
+      SELECT sum(octet_length(to_jsonb(hint_key)::text) + octet_length(hint::text) + 8) + 32 AS bytes
+      FROM portcove_maintenance.discovery_external_hints WHERE scope = s.scope
+    ) h ON true), 0),
   'record_bytes', coalesce((SELECT sum(octet_length(record::text))
     FROM portcove_maintenance.discovery_lead_records), 0),
   -- Neon meters only what the database sends to the client.
@@ -1166,6 +1190,33 @@ export const discoveryTransferForecastQuery = `SELECT json_build_object(
       -- The passes of the last seven runs.
       SELECT runner FROM portcove_maintenance.discovery_collection_attempts
       GROUP BY runner ORDER BY max(acquisition) DESC LIMIT 7)), 0));`;
+
+/** Recent received bytes already include the cold acquire. Do not add a
+ * second cold acquire to that measurement; retain room for either complete
+ * read scenario plus acknowledgements and the existing protocol headroom. */
+export function discoveryPassReservation(
+  acquireBytes: number,
+  previousTransfer: number,
+  commits: number,
+) {
+  return Math.ceil(
+    Math.max(acquireBytes, previousTransfer) / 0.7 +
+      (commits * commitResponseAllowance) / 0.7 +
+      1024 * 1024,
+  );
+}
+
+/** Reserve the measured row deltas, compact grant envelope and ordinary acknowledgements. */
+export function discoverySeedReservation(
+  plan: Pick<DiscoverySeedPlan, "compactBytes" | "hintsBytes" | "leadsBytes">,
+  commits: number,
+) {
+  return discoveryPassReservation(
+    plan.compactBytes + plan.hintsBytes + plan.leadsBytes + commitResponseAllowance,
+    0,
+    commits,
+  );
+}
 
 /** Time to write the final state: a generous allowance proportional to its size. */
 export function finalizationMilliseconds(stateBytes: number) {
@@ -1338,12 +1389,21 @@ export async function discoveryWorkerMain(argv: string[]) {
   };
   try {
     // Size every pass from measured state and transfer rather than fixed limits.
+    const seed = process.env.PORTCOVE_DISCOVERY_SEED_URL
+      ? connectionFromEnvironment("PORTCOVE_DISCOVERY_SEED_URL")
+      : undefined;
+    delete process.env.PORTCOVE_DISCOVERY_SEED_URL;
+    let plan: DiscoverySeedPlan | null = null;
     let forecast: { state_bytes: number; record_bytes: number; previous_transfer_bytes: number };
     try {
       forecast = (await withMaintenanceAdmission(
         environment,
         "inspect",
-        () => queryJson(environment, discoveryTransferForecastQuery),
+        () => {
+          const forecast = queryJson(environment, discoveryTransferForecastQuery);
+          if (seed) plan = measureDiscoverySeed(environment, seed, discoveryWorkerScope);
+          return forecast;
+        },
         { request: requestKey("forecast") },
       )) as typeof forecast;
     } catch (error) {
@@ -1357,7 +1417,20 @@ export async function discoveryWorkerMain(argv: string[]) {
     const finalizationMs = finalizationMilliseconds(forecast.state_bytes + forecast.record_bytes);
     // A pass reads the whole state and its lead records once.
     let acquireBytes = forecast.state_bytes + forecast.record_bytes;
-    const store = postgresDiscoveryStore(environment);
+    const commits = Math.ceil(admissionTimeout / (3600 * 500)) + 1;
+    const measuredPlan = plan as DiscoverySeedPlan | null;
+    const selectedPlan =
+      measuredPlan &&
+      discoverySeedReservation(measuredPlan, commits) <
+        discoveryPassReservation(acquireBytes, forecast.previous_transfer_bytes, commits)
+        ? measuredPlan
+        : undefined;
+    const store = postgresDiscoveryStore(
+      environment,
+      undefined,
+      selectedPlan ? seed : undefined,
+      selectedPlan,
+    );
     const covered = (() => {
       let cache: Set<string> | undefined;
       return () => (cache ??= catalogCoveredHints());
@@ -1412,10 +1485,13 @@ export async function discoveryWorkerMain(argv: string[]) {
         // The largest response any pass of this run or a recent run received
         // covers growth, including a full read after another writer's commit.
         // The admission meters 70% of a reservation as payload.
-        const commits = Math.ceil(admissionTimeout / (3600 * 500)) + 1;
-        const reservationBytes = Math.ceil(
-          (acquireBytes + commits * commitResponseAllowance + previousTransfer) / 0.7 + 1024 * 1024,
-        );
+        // A measured initial delta cannot fall back to an unadmitted full read.
+        // Subsequent passes retain conservative complete-read admission.
+        const measuredDiscovery = pass === 1 && selectedPlan !== undefined;
+        const reservationBytes =
+          measuredDiscovery && selectedPlan
+            ? discoverySeedReservation(selectedPlan, commits)
+            : discoveryPassReservation(acquireBytes, previousTransfer, commits);
         try {
           const result = await withMaintenanceAdmission(
             environment,
@@ -1424,9 +1500,10 @@ export async function discoveryWorkerMain(argv: string[]) {
             {
               request: requestKey(`pass-${pass}`),
               reservationBytes,
+              measuredDiscovery,
               // The responses this pass received, with a protocol margin.
               estimate: (value) => 200_000 + Math.ceil(value.committed.received_bytes * 1.3),
-              completed: (value) => value.outcome !== "failed",
+              completed: (value) => value.outcome !== "failed" && value.outcome !== "deferred",
             },
           );
           previousTransfer = Math.max(previousTransfer, result.committed.received_bytes);

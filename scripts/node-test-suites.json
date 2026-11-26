@@ -1756,9 +1756,13 @@
             "ordinary maintenance report and history page preserve the full restored timeline",
             "maintenance store guards history and survives an independent PostgreSQL restore",
             "a receipt-only login can verify migrations and reserve handoffs through its explicit SQL role",
+            "revision-fenced discovery admission fits where its conservative default does not",
             "an interrupted maintenance migration leaves no partial schema and resumes cleanly",
             "a completed charge leaves the ledger once the provider counter has settled past it",
             "shared admissions fence concurrent callers and retain crash charges",
+            "recovery retries reserve and settle real ledger attempts without retrying uncertain transfers",
+            "recovery caps row-delta metadata against measured remaining response bytes",
+            "a pre-0011 portable backup restores and migrates normalized discovery hints",
             "recovery reconstruction reuses history and restores current state and sequences",
             "cutover admissions share their finite allowance across purposes"
           ],
