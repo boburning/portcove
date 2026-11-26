@@ -43,7 +43,7 @@ import {
 export { listingDeliveryTarget, ListingPublicationStop };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const legacyListingFormat = 11;
-const latestListingFormat = 15;
+const latestListingFormat = 16;
 interface Directory {
   format_version: number;
   listings: Record<string, unknown>[];
@@ -806,6 +806,9 @@ async function probeReleasedReader(
  * further listing changes (docs/SIGNED-CATALOG.md). Raised when a later reader
  * generation replaces the compact carrier. */
 export const minimumLiveListingReader = "0.1.0-preview.14";
+// Adding a successor changes the minimum for live updates on the one compact
+// target. Identify the first released reader for the new format before enabling it.
+const liveListingReaderFloors = new Map([[15, minimumLiveListingReader]]);
 
 export async function prepareObservationBundle(options: {
   bundle: string;
@@ -966,8 +969,8 @@ export async function prepareObservationBundle(options: {
   if (!renewal && activationNeeded) {
     try {
       if (automatic) {
-        if (format !== latestListingFormat)
-          throw new Error("Official activation targets listing format " + latestListingFormat);
+        if (!liveListingReaderFloors.has(format))
+          throw new Error(`Listing format ${format} has no declared released reader floor`);
         officialReader = await (
           options.acquireReleasedReader ??
           ((root: string) =>
@@ -1190,7 +1193,9 @@ export async function prepareObservationBundle(options: {
   const report = {
     bundle,
     carrier: wire ? "compact" : "legacy-renewal",
-    minimum_live_listing_reader: minimumLiveListingReader,
+    minimum_live_listing_reader:
+      liveListingReaderFloors.get(delivered.directory.format_version) ??
+      (delivered.directory.format_version < 15 ? minimumLiveListingReader : null),
     revision: projected.revision,
     listing_format: delivered.directory.format_version,
     ...(releasedReader ? { released_reader: releasedReader } : {}),
