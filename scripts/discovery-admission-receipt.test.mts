@@ -1,0 +1,187 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import test from "node:test";
+import {
+  scheduledDiscoveryReplayReceipt,
+  verifyScheduledDiscoveryReplay,
+} from "./discovery-admission-receipt.mts";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { orderedJsonSha256 } from "./json-values.mts";
+import { isRecord } from "./runtime-values.mts";
+
+const run = 159;
+const attempt = 2;
+const route = "repos/boburning/portcove/actions";
+const sourcePath = `${route}/runs/${run}/attempts/${attempt}`;
+const artifactPath = `${route}/runs/${run}/artifacts?name=listing-admission-replay-${run}-${attempt}&per_page=100`;
+const jobPath = `${sourcePath}/jobs?per_page=100`;
+const zipPath = `${route}/artifacts/13/zip`;
+const sourceRevision = "a".repeat(40);
+const handoff = {
+  format: "portcove-discovery-listing-handoff",
+  format_version: 1,
+  candidates: [
+    {
+      id: "github-42",
+      project_url: "https://github.com/fixture/example",
+      repository_id: 42,
+      evidence_sha256: "b".repeat(64),
+    },
+  ],
+};
+const report = {
+  admission: { sha256: "c".repeat(64) },
+  released_validation: { status: "validated" },
+  automatic_listed_date: "2026-11-26",
+  handoff_semantic_sha256: orderedJsonSha256(handoff),
+};
+const workflow = ".github/workflows/maintenance-inventory.yml";
+const context = {
+  GITHUB_EVENT_NAME: "schedule",
+  GITHUB_REPOSITORY: "boburning/portcove",
+  GITHUB_WORKFLOW_REF: `boburning/portcove/${workflow}@refs/heads/main`,
+  GITHUB_WORKFLOW_SHA: sourceRevision,
+  GITHUB_SHA: sourceRevision,
+  GITHUB_RUN_ID: String(run),
+  GITHUB_RUN_ATTEMPT: String(attempt),
+};
+const receiptFile = "listing-admission-replay.json";
+const sha256 = (value: Buffer) => createHash("sha256").update(value).digest("hex");
+
+function fixture() {
+  const bytes = scheduledDiscoveryReplayReceipt(report, handoff, context);
+  assert.ok(bytes);
+  const repositoryId = 1354613114;
+  const runRecord = {
+    id: run,
+    run_attempt: attempt,
+    workflow_id: 416797406,
+    path: workflow,
+    status: "completed",
+    event: "schedule",
+    conclusion: "failure",
+    head_branch: "main",
+    head_sha: sourceRevision,
+    repository: { id: repositoryId },
+    head_repository: { id: repositoryId },
+  };
+  const discover = {
+    name: "discover",
+    run_id: run,
+    run_attempt: attempt,
+    head_sha: sourceRevision,
+    conclusion: "success",
+    steps: [
+      {
+        name: "Prepare listing admission from scheduled discovery evidence",
+        conclusion: "success",
+      },
+      { name: "Retain scheduled listing admission replay receipt", conclusion: "success" },
+    ],
+  };
+  const jobs = { total_count: 2, jobs: [discover, { name: "collect", conclusion: "failure" }] };
+  let zip: Buffer = createAuditZip([[receiptFile, bytes, { descriptor: true }]]);
+  const artifact = {
+    name: `listing-admission-replay-${run}-${attempt}`,
+    id: 13,
+    expired: false,
+    digest: `sha256:${sha256(zip)}`,
+    workflow_run: {
+      id: run,
+      repository_id: repositoryId,
+      head_repository_id: repositoryId,
+      head_branch: "main",
+      head_sha: sourceRevision,
+    },
+  };
+  const artifacts = { total_count: 1, artifacts: [artifact] };
+  const responses = new Map<string, object>([
+    [sourcePath, runRecord],
+    [jobPath, jobs],
+    [artifactPath, artifacts],
+  ]);
+  const read = (path: string) => {
+    if (path === zipPath) return zip;
+    const response = responses.get(path);
+    assert.ok(response, `unexpected fetch of ${path}`);
+    return Buffer.from(JSON.stringify(response));
+  };
+  return {
+    read,
+    bytes,
+    runRecord,
+    discover,
+    jobs,
+    artifact,
+    artifacts,
+    replaceZip(archive: Buffer) {
+      zip = archive;
+      artifact.digest = `sha256:${sha256(zip)}`;
+    },
+  };
+}
+
+void test("seals only released-Core preparation from the scheduled source", () => {
+  assert.equal(
+    scheduledDiscoveryReplayReceipt({ ...report, admission: null }, handoff, context),
+    null,
+  );
+  assert.throws(
+    () =>
+      scheduledDiscoveryReplayReceipt(report, handoff, { ...context, GITHUB_EVENT_NAME: "push" }),
+    /approved read-only producer/u,
+  );
+  assert.throws(
+    () => scheduledDiscoveryReplayReceipt(report, { ...handoff, candidates: [] }, context),
+    /approved read-only producer/u,
+  );
+});
+
+void test("binds the exact scheduled job, artifact bytes and replay inputs despite an unrelated job failure", () => {
+  const { read } = fixture();
+  assert.deepEqual(verifyScheduledDiscoveryReplay(`${run}/${attempt}`, read), {
+    handoff,
+    revision: sourceRevision,
+    expectedPatchSha256: report.admission.sha256,
+    previewListedDate: report.automatic_listed_date,
+  });
+});
+
+void test("refuses incomplete or mismatched origin and artifact evidence", () => {
+  const cases: [RegExp, (input: ReturnType<typeof fixture>) => void][] = [
+    [/completed scheduled/u, ({ runRecord }) => (runRecord.event = "workflow_dispatch")],
+    [/completed scheduled/u, ({ runRecord }) => (runRecord.head_repository.id = 1)],
+    [/enumeration is incomplete/u, ({ jobs }) => (jobs.total_count = 101)],
+    [/successful scheduled discovery/u, ({ discover }) => (discover.run_attempt = 1)],
+    [/exactly one retained/u, ({ artifacts }) => (artifacts.total_count = 2)],
+    [/artifact metadata differs/u, ({ artifact }) => (artifact.expired = true)],
+    [/archive differs/u, ({ artifact }) => (artifact.digest = `sha256:${"d".repeat(64)}`)],
+    [
+      /ZIP rejected/u,
+      (f) =>
+        f.replaceZip(
+          createAuditZip([
+            [receiptFile, f.bytes],
+            ["extra.patch", "invalid"],
+          ]),
+        ),
+    ],
+    [
+      /differs from its scheduled source or handoff/u,
+      (f) => {
+        const original: unknown = JSON.parse(f.bytes.toString());
+        assert.ok(isRecord(original));
+        const forged = {
+          ...original,
+          handoff: { ...handoff, candidates: [] },
+        };
+        f.replaceZip(createAuditZip([[receiptFile, JSON.stringify(forged)]]));
+      },
+    ],
+  ];
+  for (const [expected, change] of cases) {
+    const input = fixture();
+    change(input);
+    assert.throws(() => verifyScheduledDiscoveryReplay(`${run}/${attempt}`, input.read), expected);
+  }
+});

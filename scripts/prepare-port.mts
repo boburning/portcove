@@ -26,6 +26,10 @@ import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { runCheckedGit } from "./checked-git.mts";
 import {
+  scheduledDiscoveryReplayReceipt,
+  verifyScheduledDiscoveryReplay,
+} from "./discovery-admission-receipt.mts";
+import {
   assembleCatalogRecords,
   compactGbaArchive,
   catalogSourceNames,
@@ -2225,6 +2229,8 @@ async function main() {
     "--discovery-stage-source",
     "--discovery-expected-patch-sha256",
     "--discovery-preview-listed-date",
+    "--discovery-scheduled-run",
+    "--discovery-write-replay-receipt",
     "--discovery-released-validator",
     "--discovery-deadline-epoch-ms",
     "--listing-observations",
@@ -2284,7 +2290,21 @@ async function main() {
   const discoveryStageSource = values.get("--discovery-stage-source");
   const discoveryExpectedPatch = values.get("--discovery-expected-patch-sha256");
   const discoveryPreviewListedDate = values.get("--discovery-preview-listed-date");
+  const scheduledRun = values.get("--discovery-scheduled-run");
+  const writeReplayReceipt = values.get("--discovery-write-replay-receipt");
   const releasedDiscoveryValidator = values.get("--discovery-released-validator");
+  if (
+    scheduledRun &&
+    (!values.has("--validator-cli") ||
+      [...values.keys()].some(
+        (name) => !["--discovery-scheduled-run", "--validator-cli", "--output-dir"].includes(name),
+      ))
+  )
+    throw new Error(
+      "Scheduled discovery replay requires only RUN/ATTEMPT and the trusted validator.",
+    );
+  if (writeReplayReceipt && (writeReplayReceipt !== "true" || !releasedDiscoveryValidator))
+    throw new Error("A scheduled replay receipt requires released discovery validation.");
   if (
     releasedDiscoveryValidator !== undefined &&
     (releasedDiscoveryValidator !== "true" ||
@@ -2324,6 +2344,7 @@ async function main() {
           "--discovery-stage-source",
           "--discovery-expected-patch-sha256",
           "--discovery-preview-listed-date",
+          "--discovery-write-replay-receipt",
           "--discovery-released-validator",
           "--discovery-deadline-epoch-ms",
           "--validator-cli",
@@ -2379,6 +2400,19 @@ async function main() {
     validatorCli: values.get("--validator-cli"),
     credentialsFile: values.get("--credentials-file"),
   };
+  if (scheduledRun) {
+    const { handoff, ...stage } = verifyScheduledDiscoveryReplay(scheduledRun);
+    printPreparationResult(
+      await prepareDiscoveryListingAdditions({
+        ...common,
+        handoff,
+        automaticScope: true,
+        facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
+        stage: { repository, ...stage },
+      }),
+    );
+    return;
+  }
   const handoffPath = discoveryHandoff ?? observationHandoff;
   const handoff = handoffPath
     ? parseCatalogSource(readArtworkInput(handoffPath, 16 * 1024 * 1024).bytes.toString("utf8"))
@@ -2482,6 +2516,13 @@ async function main() {
           releaseTag: values.get("--release-tag"),
           facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
         });
+  if (writeReplayReceipt) {
+    if (!("admission" in result.report))
+      throw new Error("Scheduled replay receipt has no discovery completion report.");
+    const receipt = scheduledDiscoveryReplayReceipt(result.report, handoff, process.env);
+    if (receipt)
+      retainArtifact(join(output, "listing-admission-replay.json"), receipt.toString("utf8"));
+  }
   printPreparationResult(result);
 }
 
