@@ -1363,8 +1363,18 @@ void test(
       observations: [],
       watches: [],
       leadRecords: [
-        { id: 42, repository: "new-owner/renamed", status: "pending", description: "native recompilation" },
-        { id: 43, repository: "owner/mixed", status: "pending", description: "recompiled framework" },
+        {
+          id: 42,
+          repository: "new-owner/renamed",
+          status: "pending",
+          description: "native recompilation",
+        },
+        {
+          id: 43,
+          repository: "owner/mixed",
+          status: "pending",
+          description: "recompiled framework",
+        },
         { id: 44, repository: "owner/tool", status: "pending", description: "asset extractor" },
         { id: 45, repository: "owner/empty", status: "pending", description: "" },
         { id: 46, repository: "owner/other", status: "held", description: "project" },
@@ -1448,11 +1458,21 @@ void test(
     };
     const review = status.lead_reconciliation;
     assert.equal(review.coverage, "retained-only");
-    assert.equal(review.cohorts.reduce((sum, row) => sum + row.leads, 0), 5);
+    assert.equal(
+      review.cohorts.reduce((sum, row) => sum + row.leads, 0),
+      5,
+    );
     assert.deepEqual(review.cohorts.map((row) => row.signal).sort(), [
-      "missing-description", "mixed-terms", "other", "port-terms", "tooling-terms",
+      "missing-description",
+      "mixed-terms",
+      "other",
+      "port-terms",
+      "tooling-terms",
     ]);
-    assert.deepEqual(review.retained_overlap_examples.map((row) => row.lead_id), [42, 43]);
+    assert.deepEqual(
+      review.retained_overlap_examples.map((row) => row.lead_id),
+      [42, 43],
+    );
     assert.deepEqual(review.research_examples.map((row) => row.lead_id).sort(), [44, 45]);
     const matched = review.cohorts.find((row) => row.signal === "port-terms");
     assert.equal(matched?.verified_intake, true);
@@ -1461,7 +1481,10 @@ void test(
     const partial = review.cohorts.find((row) => row.signal === "mixed-terms");
     assert.equal(partial?.upstream_seen, true);
     assert.equal(partial?.verified_intake, false);
-    assert.equal(review.cohorts.find((row) => row.signal === "tooling-terms")?.upstream_seen, false);
+    assert.equal(
+      review.cohorts.find((row) => row.signal === "tooling-terms")?.upstream_seen,
+      false,
+    );
     assert.equal(
       review.cohorts.find((row) => row.signal === "missing-description")?.upstream_seen,
       false,

@@ -872,7 +872,11 @@ export function renderDiscoveryStatus(status: Record<string, unknown>) {
     );
     for (const [signal, count] of [...signals].sort(([a], [b]) => a.localeCompare(b)))
       lines.push(`| ${signal} | ${count} |`);
-    lines.push("", "Bounded research and overlap examples are in the status JSON; dispatch remains disabled.", "");
+    lines.push(
+      "",
+      "Bounded research and overlap examples are in the status JSON; dispatch remains disabled.",
+      "",
+    );
   }
   if (sources.length) {
     lines.push("| Source | Status | Records |", "| --- | --- | --- |");
