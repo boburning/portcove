@@ -719,7 +719,7 @@ void test(
     assert.equal(
       queryJson(
         environment,
-        "SELECT state #> '{leads,external,hints}' IS NULL FROM portcove_maintenance.discovery_collection_state;",
+        "SELECT to_json(state #> '{leads,external,hints}' IS NULL) FROM portcove_maintenance.discovery_collection_state;",
       ),
       true,
     );
@@ -1318,7 +1318,7 @@ void test(
     const seeded = store.commit(owner, 3, input(state));
     assert.ok(seeded.bytes > 100_000);
     // A previous verified portable recovery provides a real cross-run seed.
-    const seedPath = path.join(fixture.root, "discovery-seed");
+    const seedPath = path.join(fixture.root, "discovery-seed-archive");
     await backup(environment, seedPath);
     const seedDb = fixture.start("discovery-seed").owner;
     restore(seedDb, seedPath);
