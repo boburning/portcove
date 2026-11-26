@@ -3971,6 +3971,7 @@ void test("backlog lifecycle cohorts preserve neutral watches and owner planning
     state: "OPEN",
     project: [{ project_id, archived: false, fields }],
   });
+  const { Priority: _priority, ...withoutPriority } = neutral;
   const issues = new Map<string, unknown>([
     ["issue:1", make(1, neutral)],
     ["issue:2", make(2, { ...neutral, Priority: "High" })],
@@ -3981,18 +3982,26 @@ void test("backlog lifecycle cohorts preserve neutral watches and owner planning
     ["issue:7", { ...make(7, neutral), blocked_by: [{ number: 2, state: "OPEN" }] }],
     ["issue:8", { ...make(8, neutral), state: "CLOSED" }],
     ["issue:9", make(9, { ...neutral, "Work type": "Bug" })],
+    ["issue:10", make(10, withoutPriority)],
+    [
+      "issue:11",
+      { ...make(11, neutral), project: [{ project_id: "P1", archived: true, fields: neutral }] },
+    ],
+    ["issue:12", make(12, { ...withoutPriority, Horizon: "Now" })],
   ]);
   const before = structuredClone(issues);
   const review = backlogLifecycleReview(issues, "P1");
+  assert.equal(review.scope, "Repository issues and their memberships in the configured Project");
   assert.equal(review.neutral_watchlist, 1);
-  assert.equal(review.watchlist_with_planning, 2);
+  assert.equal(review.watchlist_with_planning, 3);
+  assert.equal(review.watchlist_unknown_planning, 1);
   assert.equal(review.watchlist_active, 1);
   assert.equal(review.watchlist_other, 1);
   assert.equal(review.other_ports, 1);
   assert.equal(review.unknown_membership, 1);
   assert.equal(
     review.status_stage.reduce((sum, group) => sum + group.count, 0),
-    6,
+    8,
   );
   assert.deepEqual(issues, before);
 });

@@ -178,6 +178,7 @@ export function backlogLifecycleReview(
   const counts = {
     neutral_watchlist: 0,
     watchlist_with_planning: 0,
+    watchlist_unknown_planning: 0,
     watchlist_active: 0,
     watchlist_other: 0,
     other_ports: 0,
@@ -188,14 +189,16 @@ export function backlogLifecycleReview(
     if (!payload || typeof payload !== "object") continue;
     const fact = payload as IssueReconsiderationFact;
     if (fact.state !== "OPEN") continue;
-    const memberships = (fact.project ?? []).filter(
-      ({ archived, project_id }) => !archived && project_id === roadmapProjectId,
+    const configured = (fact.project ?? []).filter(
+      ({ project_id }) => project_id === roadmapProjectId,
     );
-    if (memberships.length !== 1) {
+    if (configured.length && configured.every(({ archived }) => archived === true)) continue;
+    const active = configured.filter(({ archived }) => archived === false);
+    if (active.length !== 1 || configured.some(({ archived }) => archived === undefined)) {
       counts.unknown_membership++;
       continue;
     }
-    const fields = memberships[0]?.fields ?? {};
+    const fields = active[0]?.fields ?? {};
     if (!fields["Work type"]) {
       counts.unknown_membership++;
       continue;
@@ -211,18 +214,24 @@ export function backlogLifecycleReview(
     else if (status === "In progress" || status === "Validating" || status === "Ready")
       counts.watchlist_active++;
     else if (status !== "Inbox" && status !== "Triage") counts.watchlist_other++;
-    else if (
-      fields.Priority === "None" &&
-      fields.Horizon === "Someday" &&
-      fields["Target release"] === "Unscheduled" &&
-      !fields["Release commitment"] &&
-      !dependencyIssues(fact).length
-    )
-      counts.neutral_watchlist++;
-    else counts.watchlist_with_planning++;
+    else {
+      const planning = [
+        [fields.Priority, "None"],
+        [fields.Horizon, "Someday"],
+        [fields["Target release"], "Unscheduled"],
+      ] as const;
+      if (
+        planning.some(([value, neutral]) => value && value !== neutral) ||
+        fields["Release commitment"] ||
+        dependencyIssues(fact).length
+      )
+        counts.watchlist_with_planning++;
+      else if (planning.every(([value]) => value)) counts.neutral_watchlist++;
+      else counts.watchlist_unknown_planning++;
+    }
   }
   return {
-    scope: "Complete configured Project read; derived cohorts only, no planning writes",
+    scope: "Repository issues and their memberships in the configured Project",
     ...counts,
     status_stage: [...statusStage.values()].sort(
       (a, b) => a.status.localeCompare(b.status, "en") || a.stage.localeCompare(b.stage, "en"),

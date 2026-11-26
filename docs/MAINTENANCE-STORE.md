@@ -1173,10 +1173,11 @@ nothing.
   fields, or replace an explicit owner condition. Deferred work never uses
   dependency closure to change its authority.
 - The collection receipt includes a derived `backlog_lifecycle` summary when
-  the configured Project identity is known. It separates neutral Inbox/Triage
-  Watchlist inventory from Watchlist records with planning commitments, active
-  work and other statuses, and reports the actual Status/Port stage counts.
-  It excludes closed and archived work and does not write planning fields.
+  the configured Project identity is known. The report uses complete repository
+  issue coverage and their memberships in that Project. It distinguishes neutral
+  Inbox and Triage Watchlist inventory, positive planning signals, missing
+  planning fields, active work, other dispositions, and unavailable membership.
+  Closed issues and known archived-only memberships are excluded.
   Missing or ambiguous membership is reported, not interpreted as unassigned
   work.
 - A complete read that no longer records a pending condition resolves it under
