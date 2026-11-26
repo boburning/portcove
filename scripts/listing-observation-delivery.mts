@@ -62,7 +62,7 @@ import {
 export { listingDeliveryTarget, ListingPublicationStop };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const legacyListingFormat = 11;
-const latestListingFormat = 16;
+const latestListingFormat = 17;
 /** Rehearse optional portal bytes through the same final acceptance as the base. */
 export async function stageModPortalProjection<T, R>(
   baseline: T,
