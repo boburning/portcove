@@ -1658,8 +1658,9 @@ mod tests {
             error.details["required_bytes"],
             plan.required_bytes.to_string()
         );
+        assert_eq!(error.details["available_bytes"], short.to_string());
         // Creation re-reviews under the same space and stops before staging.
-        crate::path::with_available_space(short, || {
+        let creation_error = crate::path::with_available_space(short, || {
             start_creation(
                 &source,
                 &destination,
@@ -1669,6 +1670,9 @@ mod tests {
             )
             .unwrap_err()
         });
+        assert_eq!(creation_error.code, error.code);
+        assert_eq!(creation_error.message, error.message);
+        assert_eq!(creation_error.details, error.details);
         assert!(!destination.exists());
         let parent = destination.parent().unwrap();
         assert!(
@@ -1679,6 +1683,17 @@ mod tests {
                 .starts_with(STAGING_PREFIX)),
             "no staging is created"
         );
+        crate::path::with_available_space(plan.required_bytes, || {
+            start_creation(
+                &source,
+                &destination,
+                &plan.plan_sha256,
+                &mut |_| Ok(()),
+                &|| Ok(()),
+            )
+            .unwrap()
+        });
+        assert!(destination.is_dir());
     }
 
     #[test]

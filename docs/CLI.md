@@ -1898,10 +1898,10 @@ profile, revision and retained-build reference keeps its own byte bound. Because
 import still decodes the whole document at once, Portcove admits a document only
 up to 1/32 of the computer's physical memory and refuses a larger one before
 reading it (`unsupported`, no changes, with `document_bytes` and
-`admission_budget_bytes`). Export applies the same limit, so an export always
-imports on the computer that wrote it; a computer with less memory can refuse an
-export another computer wrote. A chunked metadata format that removes this
-dependency on memory is tracked as follow-up work. The recovery
+`admission_budget_bytes`). Export uses the same metadata admission limit as
+import on a computer with unchanged physical memory. A computer with less
+memory can refuse a document exported on another computer. A chunked format
+that removes this dependency on memory is a separate follow-up. The recovery
 journal that carries the reviewed plan and content inventory has no size
 ceiling either and is read as a stream, so import and move recovery work at any
 size the library reaches. Source
