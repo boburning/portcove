@@ -1001,8 +1001,11 @@ void test("a first-party game desktop entry can establish source-port scope with
   for (const [index, scenario] of [
     { state: "eligible" },
     { state: "held", text: good.replace("Categories=Game", "Categories=Utility") },
+    { state: "held", text: good.replace("Categories=Game", "Categories=Utility\\;Game") },
     { state: "held", text: good.replace("fixture %F", "sh -c fixture") },
-    { state: "held", text: `${good}Exec=fixture\n` },
+    { state: "held", text: good.replace("fixture %F", "fix-ture") },
+    { state: "held", text: `${good}Exec = fixture\n` },
+    { state: "held", text: `${good}Hidden = true\n` },
     { state: "held", text: `${good}DBusActivatable=true\n` },
     { state: "restricted", text: good.replace("Name=Fixture", "Name=ScummVM fixture") },
     { state: "held", path: "tests/fixtures/fixture.desktop" },

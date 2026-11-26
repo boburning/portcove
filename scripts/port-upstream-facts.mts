@@ -123,22 +123,23 @@ function desktopEntryScopeEvidence(text: string, repository: string) {
     if (group !== "[Desktop Entry]") continue;
     const separator = line.indexOf("=");
     if (separator < 1) return undefined;
-    const key = line.slice(0, separator);
-    if (fields.has(key)) return undefined;
-    fields.set(key, line.slice(separator + 1));
+    const key = line.slice(0, separator).trim();
+    if (!key || fields.has(key)) return undefined;
+    fields.set(key, line.slice(separator + 1).trim());
   }
   const name = fields.get("Name");
+  const categories = fields.get("Categories") ?? "";
   const executable = /^([A-Za-z0-9][A-Za-z0-9_.-]{0,127})(?: +%[fFuU])?$/u.exec(
     fields.get("Exec") ?? "",
   )?.[1];
-  const identifier = (value: string) => value.toLowerCase().replace(/[-_.]/gu, "");
   if (
     entries !== 1 ||
     fields.get("Type") !== "Application" ||
     !name ||
     name.length > 256 ||
     /\p{Cc}/u.test(name) ||
-    !fields.get("Categories")?.split(";").includes("Game") ||
+    !/^[A-Za-z][A-Za-z0-9-]*(?:;[A-Za-z][A-Za-z0-9-]*)*;?$/u.test(categories) ||
+    !categories.split(";").includes("Game") ||
     ["Hidden", "NoDisplay", "Terminal", "DBusActivatable"].some(
       (key) => fields.has(key) && fields.get(key) !== "false",
     ) ||
@@ -146,7 +147,7 @@ function desktopEntryScopeEvidence(text: string, repository: string) {
     fields.has("NotShowIn") ||
     !executable ||
     (fields.has("TryExec") && fields.get("TryExec") !== executable) ||
-    identifier(executable) !== identifier(repository.split("/")[1] ?? "")
+    executable !== repository.split("/")[1]
   )
     return undefined;
   return {
