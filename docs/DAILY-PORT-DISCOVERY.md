@@ -1080,6 +1080,18 @@ collection and fails the job at the last committed page, so a store error is
 never recorded as a source outcome. `result.json` lists every pass with its
 outcome, `committed.state_bytes` and transfer.
 
+Before bulk community-list work, each admitted collector pass gives retained
+release probes an early turn. It stops starting probes when they consume a
+quarter of the pass's initial request, byte or time budget. Each request remains
+subject to the existing admission and persistence paths, and one response can
+cross the early byte or time threshold. The collector then continues normal
+collection and later release checks for newly found leads. Never-checked and
+longest-unchecked leads go first. Probes use GitHub's immutable repository ID.
+An inaccessible or malformed response records a retry clock and preserves the
+last successful package observation. A lead keeps its dated observations across
+a refresh and can be probed again in a later run. Provider-wide quota,
+authentication and transport failures still use the existing boundaries.
+
 The natural maintenance run can prepare unsigned listing previews from current
 positive release watches. It exports the committed discovery generation,
 revision, release ID and digest of the observed release response for each

@@ -58,6 +58,8 @@ export interface DiscoveryLead {
   external_lists?: string[];
   external_change?: { fingerprint: string; observed_at: string };
   release_hint?: { assets_observed: boolean; observed_at: string; evidence: string };
+  /** A failed read is a retry clock, not evidence that packages are absent. */
+  release_probe?: { attempted_at: string; outcome: "unavailable" | "invalid-response" };
 }
 export interface LeadBackfill {
   slice: LeadSlice;
@@ -270,6 +272,13 @@ export function parseLeadState(value: unknown): LeadState {
         typeof raw.release_hint.evidence !== "string")
     )
       throw new Error("Invalid lead release hint");
+    if (
+      raw.release_probe !== undefined &&
+      (!isRecord(raw.release_probe) ||
+        !clock(raw.release_probe.attempted_at) ||
+        !["unavailable", "invalid-response"].includes(String(raw.release_probe.outcome)))
+    )
+      throw new Error("Invalid lead release probe");
   }
   return structuredClone(value) as unknown as LeadState;
 }
@@ -361,6 +370,10 @@ export function retainLeadResults(
             ...(old?.search_families ? { search_families: old.search_families } : {}),
             ...(old?.external_lists ? { external_lists: old.external_lists } : {}),
             ...(old?.external_change ? { external_change: old.external_change } : {}),
+            // Release observations are dated evidence for the immutable repository,
+            // not a qualification of its current source revision or location.
+            ...(old?.release_hint ? { release_hint: old.release_hint } : {}),
+            ...(old?.release_probe ? { release_probe: old.release_probe } : {}),
           };
     if (family)
       next.records[String(id)]!.search_families = [
@@ -780,4 +793,27 @@ export function pendingLeads(
         a.observed_at.localeCompare(b.observed_at) ||
         a.id - b.id,
     );
+}
+
+/** Fair release-probe ordering includes failed attempts without overwriting the
+ * last successful package observation. A lead is not retried in the same run. */
+export function selectLeadReleaseChecks(
+  state: LeadState,
+  known: ReadonlySet<string>,
+  startedAt: string,
+  unattended: boolean,
+) {
+  const lastAttempt = (lead: DiscoveryLead) =>
+    [lead.release_hint?.observed_at ?? "", lead.release_probe?.attempted_at ?? ""].sort().at(-1)!;
+  const pending = pendingLeads(state, known, Date.parse(startedAt));
+  if (unattended)
+    return pending
+      .filter((lead) => lastAttempt(lead) < startedAt)
+      .toSorted((a, b) => lastAttempt(a).localeCompare(lastAttempt(b)) || a.id - b.id);
+  return pending
+    .filter((lead) => {
+      const at = lastAttempt(lead);
+      return !at || Date.parse(startedAt) - Date.parse(at) >= 7 * 86400000;
+    })
+    .slice(0, 4);
 }

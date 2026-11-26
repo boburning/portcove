@@ -383,7 +383,7 @@ async function providers(
       };
     if (/\/releases\?per_page=\d+$/u.test(endpoint)) {
       releaseReads.push(endpoint);
-      return endpoint.startsWith("repos/holdout/unseen-native-port/releases") ? releases() : [];
+      return endpoint.startsWith("repositories/9001/releases?") ? releases() : [];
     }
     return new Response(JSON.stringify({ message: "fixture" }), {
       status: 404,
