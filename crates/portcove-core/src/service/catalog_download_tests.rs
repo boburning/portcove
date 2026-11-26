@@ -1180,7 +1180,16 @@ impl GithubFixture {
         digest: Option<String>,
         sidecar: Option<String>,
     ) -> Self {
-        let release_path = format!("/repos/{repository}/releases");
+        Self::for_api_repository(&format!("/repos/{repository}"), bytes, digest, sidecar)
+    }
+
+    fn for_api_repository(
+        api_repository: &str,
+        bytes: Vec<u8>,
+        digest: Option<String>,
+        sidecar: Option<String>,
+    ) -> Self {
+        let release_path = format!("{api_repository}/releases");
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         listener.set_nonblocking(true).unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
@@ -1256,7 +1265,7 @@ impl GithubFixture {
                 // Deliberately omit embedded assets: the dedicated, paginated
                 // endpoint is the complete checksum authority, including sidecars.
                 let body = if path.contains("/assets?") {
-                    let release_id: u64 = url.path().split('/').nth(5).unwrap().parse().unwrap();
+                    let release_id: u64 = url.path().rsplit('/').nth(1).unwrap().parse().unwrap();
                     let inventory = thread_release_assets
                         .lock()
                         .unwrap()
@@ -1268,9 +1277,32 @@ impl GithubFixture {
                     serde_json::to_vec(&thread_releases.lock().unwrap()[0]).unwrap()
                 } else if path.starts_with(&format!("{release_path}?")) {
                     page_bytes(&thread_releases.lock().unwrap())
+                } else if path == format!("{release_path}/assets/11") {
+                    assert!(
+                        request
+                            .to_ascii_lowercase()
+                            .contains("accept: application/octet-stream")
+                    );
+                    bytes.clone()
+                } else if path == format!("{release_path}/assets/12") {
+                    assert!(
+                        request
+                            .to_ascii_lowercase()
+                            .contains("accept: application/octet-stream")
+                    );
+                    sidecar.clone().unwrap().into_bytes()
                 } else if path == "/download/game.zip" {
+                    assert!(
+                        !release_path.starts_with("/repositories/"),
+                        "numeric releases must not use a name-based transfer"
+                    );
+
                     bytes.clone()
                 } else if path == "/download/game.zip.sha256" {
+                    assert!(
+                        !release_path.starts_with("/repositories/"),
+                        "numeric releases must not use a name-based sidecar"
+                    );
                     sidecar.clone().unwrap().into_bytes()
                 } else {
                     panic!("unexpected fixture request: {path}")
@@ -3516,6 +3548,66 @@ fn shared_browse_observation(listing: &mut PortListing, status: &str, age_hours:
                 "size":42,"sha256":null,"platform_hints":[]}]
         }]
     })).unwrap());
+}
+
+#[tokio::test]
+async fn admitted_github_listing_browses_and_acquires_only_from_its_numeric_repository() {
+    for with_sidecar in [false, true] {
+        let (_temporary, mut service, mut request) = fixture();
+        let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
+        listing.id = "github-123".into();
+        request.port_id = listing.id.clone();
+        shared_browse_observation(&mut listing, "complete", 0);
+        service.catalog = service
+            .catalog
+            .with_listing_document(crate::CatalogListingDocument {
+                format_version: 15,
+                listings: vec![listing],
+            })
+            .unwrap();
+
+        // The observation claims repository 42. The only available release API
+        // is repository 123. A name-based request would reach an unrelated route.
+        let bytes = archive();
+        let expected = crate::signed_catalog::digest(&bytes);
+        let github = GithubFixture::for_api_repository(
+            "/repositories/123",
+            bytes,
+            None,
+            with_sidecar.then(|| format!("{expected}  game.zip\n")),
+        );
+        let options = service
+            .catalog_download_options_with_provider(
+                &request.port_id,
+                None,
+                None,
+                Some(&github.provider),
+            )
+            .await
+            .unwrap();
+        assert!(options.allowed);
+        assert_eq!(options.candidates.len(), 1 + usize::from(with_sidecar));
+        assert!(options.candidates[0].sha256.is_none());
+
+        let preview = service
+            .catalog_download_preview_with_provider(&request, &github.provider)
+            .await
+            .unwrap();
+        assert_eq!(
+            preview.artifact.sha256.as_deref(),
+            with_sidecar.then_some(expected.as_str())
+        );
+        let downloaded = service
+            .download_catalog_package_with_provider(
+                &request,
+                &preview.preview_sha256,
+                |_| {},
+                &github.provider,
+            )
+            .await
+            .unwrap();
+        assert_eq!(downloaded.archive_sha256, expected);
+    }
 }
 
 #[tokio::test]

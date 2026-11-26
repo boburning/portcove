@@ -531,6 +531,17 @@ fn stored_downloads_from(connection: &rusqlite::Connection) -> Result<Vec<Stored
     Ok(result)
 }
 
+/// The discovery admission contract reserves `github-<repository ID>` for
+/// canonical automatic listings. An observation may describe that repository,
+/// but cannot select another repository for live acquisition.
+fn admitted_github_repository_id(listing: &PortListing) -> Option<u64> {
+    let suffix = listing.id.strip_prefix("github-")?;
+    if suffix.starts_with('0') || !suffix.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    suffix.parse().ok()
+}
+
 impl PortcoveService {
     pub fn pending_setups(&self) -> Result<Vec<PendingSetupRecord>> {
         Self::pending_setups_from(&self.library.connection()?)
@@ -825,6 +836,7 @@ impl PortcoveService {
     ) -> Result<CatalogDownloadCandidates> {
         let channel = channel.unwrap_or(self.catalog_download_channel(port_id)?);
         let listing = self.catalog.listing(port_id)?;
+        let github_repository_id = admitted_github_repository_id(listing);
         let upstream_url = listing
             .release_url
             .as_ref()
@@ -884,7 +896,15 @@ impl PortcoveService {
         // enter the managed release resolver or the exact preview/download path.
         let observed = match provider {
             CatalogDownloadProvider::Github(provider)
-                if self.catalog.port(port_id).is_err() && release_window.is_none() =>
+                if self.catalog.port(port_id).is_err()
+                    && release_window.is_none()
+                    && github_repository_id.is_none_or(|expected| {
+                        listing
+                            .upstream_observation
+                            .as_ref()
+                            .and_then(|row| row.repository_id)
+                            == Some(expected)
+                    }) =>
             {
                 provider
                     .observed_catalog_download_options(
@@ -906,7 +926,7 @@ impl PortcoveService {
             None => {
                 provider
                     .options(
-                        repository.name(),
+                        (repository.name(), github_repository_id),
                         selected_release_id.as_ref(),
                         channel,
                         rolling_tag,
@@ -1018,7 +1038,12 @@ impl PortcoveService {
         self.require_download_available(port_id)?;
         let (repository, provider) = self.catalog_download_source(listing, provider)?;
         let release_url = provider
-            .candidate_release_notes_url(repository.name(), release_id, asset_id)
+            .candidate_release_notes_url(
+                repository.name(),
+                release_id,
+                asset_id,
+                admitted_github_repository_id(listing),
+            )
             .await?;
         if release_url != displayed_url {
             return Err(PortcoveError::conflict(
@@ -1071,7 +1096,12 @@ impl PortcoveService {
         let destination_path = self.download_destination(request)?;
         let (repository, provider) = self.catalog_download_source(listing, provider)?;
         let artifact = provider
-            .candidate(repository.name(), &request.release_id, &request.asset_id)
+            .candidate(
+                repository.name(),
+                &request.release_id,
+                &request.asset_id,
+                admitted_github_repository_id(listing),
+            )
             .await?;
         if request.extract_archive && !artifact.can_extract {
             return Err(PortcoveError::unsupported(
@@ -1235,6 +1265,7 @@ impl PortcoveService {
                 .try_lock_port(&request.port_id, "download-package")?;
             self.require_download_available(&request.port_id)?;
             let listing = self.catalog.listing(&request.port_id)?;
+            let github_repository_id = admitted_github_repository_id(listing);
             let repository = CatalogDownloadRepository::parse(
                 listing
                     .release_url
@@ -1308,15 +1339,20 @@ impl PortcoveService {
                         .known_catalog_artifact_hash(&request.port_id, &record.artifact)?
                         .unwrap_or_default(),
                 };
+                let (client, url) = provider.transport(
+                    repository.name(),
+                    &record.artifact,
+                    github_repository_id,
+                )?;
                 let artifact = crate::ReleaseAsset {
                     name: record.artifact.name.clone(),
-                    url: record.artifact.download_url.clone(),
+                    url,
                     size: record.artifact.size,
                     sha256: expected_sha256,
                 };
                 let source = stage.path().join("artifact.download");
                 Installer::download_with_client(
-                    &provider.client(repository.name(), &record.artifact)?,
+                    &client,
                     &artifact,
                     &source,
                     &operation,

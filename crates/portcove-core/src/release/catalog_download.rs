@@ -87,7 +87,7 @@ impl GithubReleaseProvider {
         Option<u64>,
     )> {
         self.catalog_download_options_window(
-            repository,
+            (repository, None),
             selected_id,
             channel,
             rolling_tag,
@@ -101,7 +101,7 @@ impl GithubReleaseProvider {
     /// can reach older releases by asking for a larger window.
     pub(crate) async fn catalog_download_options_window(
         &self,
-        repository: &str,
+        (repository, repository_id): (&str, Option<u64>),
         selected_id: Option<u64>,
         channel: ReleaseChannel,
         rolling_tag: Option<&str>,
@@ -113,17 +113,13 @@ impl GithubReleaseProvider {
         Vec<crate::CatalogDownloadRelease>,
         Option<u64>,
     )> {
+        let api_repository = self.catalog_download_api_repository(repository, repository_id);
         let window = window.clamp(RELEASE_LIMIT, MAX_RELEASE_WINDOW);
         let per_page = window.min(PROVIDER_PAGE_SIZE);
         let mut releases: Vec<GithubRelease> = Vec::new();
         let mut history_complete = false;
         for page in 1..=window.div_ceil(per_page) {
-            let url = paginated_url(
-                &format!("{}/repos/{repository}", self.api_root),
-                "releases",
-                page,
-                per_page,
-            )?;
+            let url = paginated_url(&api_repository, "releases", page, per_page)?;
             let current: Vec<GithubRelease> = self.get_json(&url).await?;
             if current.len() > per_page {
                 return Err(PortcoveError::verification(
@@ -156,9 +152,7 @@ impl GithubReleaseProvider {
                 || (channel == ReleaseChannel::Beta
                     && preferred.is_some_and(|release| !is_beta_release(release)))
             {
-                releases = self
-                    .releases(&format!("{}/repos/{repository}", self.api_root))
-                    .await?;
+                releases = self.releases(&api_repository).await?;
             }
         }
         if let Some(id) = selected_id {
@@ -167,10 +161,7 @@ impl GithubReleaseProvider {
             }
             if !releases.iter().any(|release| release.id == Some(id)) {
                 let release: GithubRelease = self
-                    .get_json(&format!(
-                        "{}/repos/{repository}/releases/{id}",
-                        self.api_root
-                    ))
+                    .get_json(&format!("{api_repository}/releases/{id}"))
                     .await?;
                 if release.id != Some(id) || release.draft {
                     return Err(PortcoveError::verification(
@@ -209,7 +200,7 @@ impl GithubReleaseProvider {
         let mut candidates = Vec::new();
         if let Some(release) = selected {
             let assets = self
-                .catalog_release_assets(repository, release.id.unwrap())
+                .release_assets_at(&api_repository, release.id.unwrap(), None)
                 .await?;
             let mut ids = std::collections::BTreeSet::new();
             for asset in &assets {
@@ -248,10 +239,18 @@ impl GithubReleaseProvider {
         ))
     }
 
-    pub(crate) fn catalog_download_client(&self) -> Result<reqwest::Client> {
+    pub(crate) fn catalog_download_client(&self, numeric_asset: bool) -> Result<reqwest::Client> {
+        let mut headers = reqwest::header::HeaderMap::new();
+        if numeric_asset {
+            headers.insert(
+                reqwest::header::ACCEPT,
+                reqwest::header::HeaderValue::from_static("application/octet-stream"),
+            );
+        }
         #[cfg(test)]
         let fixture_origin = self.api_root.clone();
         reqwest::Client::builder()
+            .default_headers(headers)
             .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
             .connect_timeout(self.network_bounds.connect)
             .read_timeout(self.network_bounds.read_idle)
@@ -259,7 +258,9 @@ impl GithubReleaseProvider {
                 if attempt.previous().len() >= 5 {
                     return attempt.error("GitHub download redirect limit exceeded");
                 }
-                let allowed = valid_download_origin(attempt.url());
+                // Numeric transfers must not redirect back to a mutable repository URL.
+                let allowed = valid_download_origin(attempt.url())
+                    && (!numeric_asset || attempt.url().host_str() != Some("github.com"));
                 #[cfg(test)]
                 let allowed = allowed || same_origin(attempt.url().as_str(), &fixture_origin);
                 if allowed {
@@ -352,13 +353,18 @@ impl GithubReleaseProvider {
         })
     }
 
-    async fn catalog_release_assets(
-        &self,
-        repository: &str,
-        release_id: u64,
-    ) -> Result<Vec<GithubAsset>> {
-        self.release_assets_scoped(repository, release_id, None)
-            .await
+    pub(crate) fn numeric_catalog_asset_url(&self, repository_id: u64, asset_id: u64) -> String {
+        format!(
+            "{}/repositories/{repository_id}/releases/assets/{asset_id}",
+            self.api_root
+        )
+    }
+
+    fn catalog_download_api_repository(&self, repository: &str, id: Option<u64>) -> String {
+        match id {
+            Some(id) => format!("{}/repositories/{id}", self.api_root),
+            None => format!("{}/repos/{repository}", self.api_root),
+        }
     }
 
     pub(super) async fn release_assets_scoped(
@@ -367,7 +373,18 @@ impl GithubReleaseProvider {
         release_id: u64,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<Vec<GithubAsset>> {
-        let root = format!("{}/repos/{repository}/releases/{release_id}", self.api_root);
+        let api_repository = self.catalog_download_api_repository(repository, None);
+        self.release_assets_at(&api_repository, release_id, scope)
+            .await
+    }
+
+    async fn release_assets_at(
+        &self,
+        api_repository: &str,
+        release_id: u64,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<Vec<GithubAsset>> {
+        let root = format!("{api_repository}/releases/{release_id}");
         let mut assets = Vec::new();
         // One page past GitHub's 1,000-asset maximum confirms the end of a full
         // inventory; anything on it exceeds the provider's own bound.
@@ -398,6 +415,7 @@ impl GithubReleaseProvider {
         repository: &str,
         release_id: u64,
         asset_id: u64,
+        repository_id: Option<u64>,
     ) -> Result<(GithubRelease, usize)> {
         if release_id == 0 || asset_id == 0 {
             return Err(PortcoveError::usage(
@@ -405,7 +423,8 @@ impl GithubReleaseProvider {
             ));
         }
         // Verify the exact immutable IDs against the configured repository.
-        let url = format!("{}/repos/{repository}/releases/{release_id}", self.api_root);
+        let api_repository = self.catalog_download_api_repository(repository, repository_id);
+        let url = format!("{api_repository}/releases/{release_id}");
         let mut release: GithubRelease = self.get_json(&url).await?;
         if release.id != Some(release_id) || release.draft || release.assets.len() > ASSET_LIMIT {
             return Err(PortcoveError::verification(
@@ -415,7 +434,9 @@ impl GithubReleaseProvider {
         // GitHub embeds only a partial asset collection on some release reads.
         // Sidecar absence is meaningful only after the dedicated collection has
         // been read to its bounded end.
-        release.assets = self.catalog_release_assets(repository, release_id).await?;
+        release.assets = self
+            .release_assets_at(&api_repository, release_id, None)
+            .await?;
         let mut matching = release
             .assets
             .iter()
@@ -437,9 +458,10 @@ impl GithubReleaseProvider {
         repository: &str,
         release_id: u64,
         asset_id: u64,
+        repository_id: Option<u64>,
     ) -> Result<String> {
         let (release, asset_index) = self
-            .catalog_release_asset(repository, release_id, asset_id)
+            .catalog_release_asset(repository, release_id, asset_id, repository_id)
             .await?;
         self.require_catalog_asset_url(
             repository,
@@ -453,9 +475,10 @@ impl GithubReleaseProvider {
         repository: &str,
         release_id: u64,
         asset_id: u64,
+        repository_id: Option<u64>,
     ) -> Result<CatalogDownloadCandidate> {
         let (release, asset_index) = self
-            .catalog_release_asset(repository, release_id, asset_id)
+            .catalog_release_asset(repository, release_id, asset_id, repository_id)
             .await?;
         let asset = &release.assets[asset_index];
         let mut candidate = self.catalog_candidate(repository, &release, asset)?;
@@ -465,10 +488,30 @@ impl GithubReleaseProvider {
             self.require_catalog_asset_url(repository, &other.browser_download_url)?;
         }
         let mut guarded = self.clone();
-        guarded.download_client = self.catalog_download_client()?;
+        guarded.download_client = self.catalog_download_client(repository_id.is_some())?;
+        let numeric_sidecars = if let Some(repository_id) = repository_id {
+            let (_, sidecars) = checksum_sidecars(&release.assets, asset)?;
+            Some(
+                sidecars
+                    .into_iter()
+                    .map(|sidecar| {
+                        let mut sidecar = sidecar.clone();
+                        let id = sidecar.id.filter(|id| *id > 0).ok_or_else(|| {
+                            PortcoveError::verification("release checksum asset has no stable ID")
+                        })?;
+                        sidecar.browser_download_url =
+                            self.numeric_catalog_asset_url(repository_id, id);
+                        Ok(sidecar)
+                    })
+                    .collect::<Result<Vec<_>>>()?,
+            )
+        } else {
+            None
+        };
+        let checksum_assets = numeric_sidecars.as_deref().unwrap_or(&release.assets);
         let sidecar = tokio::time::timeout(
             self.network_bounds.request,
-            guarded.checksum_from_sidecar(&release.assets, asset),
+            guarded.checksum_from_sidecar(checksum_assets, asset),
         )
         .await
         .map_err(|_| PortcoveError::network("upstream checksum metadata request timed out"))??;
@@ -622,7 +665,7 @@ mod tests {
         let provider = GithubReleaseProvider::with_api_root(root).unwrap();
         let (_, coverage, summaries, _) = provider
             .catalog_download_options_window(
-                "owner/game",
+                ("owner/game", None),
                 None,
                 ReleaseChannel::Stable,
                 None,
@@ -652,7 +695,7 @@ mod tests {
         let provider = GithubReleaseProvider::with_api_root(root).unwrap();
         let (_, coverage, summaries, _) = provider
             .catalog_download_options_window(
-                "owner/game",
+                ("owner/game", None),
                 None,
                 ReleaseChannel::Stable,
                 None,
