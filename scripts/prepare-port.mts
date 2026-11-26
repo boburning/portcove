@@ -68,6 +68,7 @@ import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-packag
 import {
   createIgdbInspector,
   createCoreImageValidator,
+  hashCoreImageValidatorFile,
   readArtworkJson,
   readArtworkInput,
 } from "./inspect-igdb-artwork.mts";
@@ -2088,7 +2089,7 @@ export async function prepareArtworkBatch(
   )
     throw new Error("Artwork refresh requires unique IDs within the selected workset.");
   const validatorIdentity = options.validatorCli
-    ? createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex")
+    ? hashCoreImageValidatorFile(options.validatorCli)
     : null;
   const acceptedArtwork = artworkCatalog(authored.records);
   const identities = options.identities ?? {};

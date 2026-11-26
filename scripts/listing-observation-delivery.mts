@@ -7,13 +7,14 @@ import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseArgs } from "node:util";
+import { isDeepStrictEqual, parseArgs } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import { parseCatalogSource, readCatalogSource, typedIgdbScene } from "./catalog-authoring.mts";
 import {
   advanceArtworkCheckpoint,
   artworkCheckpointMax,
   artworkCheckpointTarget,
+  coverDeclarationScope,
   readArtworkCheckpoint,
 } from "./listing-artwork-checkpoint.mts";
 import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
@@ -900,6 +901,129 @@ export const minimumLiveListingReader = "0.1.0-preview.14";
 // target. Identify the first released reader for the new format before enabling it.
 const liveListingReaderFloors = new Map([[15, minimumLiveListingReader]]);
 
+type ListingPriorInputs = {
+  tools: string;
+  root: string;
+  offlineTargets: string;
+};
+
+async function verifyListingObservationPrior(
+  inputs: ListingPriorInputs,
+  repository: string,
+  workspace: string,
+  history?: string,
+) {
+  const prior = path.join(workspace, "verified-prior");
+  copyPriorRepository(repository, prior);
+  const config = path.join(workspace, "verify.json");
+  const root = await readControllerToolFile(inputs.root, 1024 * 1024);
+  const top = await readControllerToolFile(inputs.offlineTargets, maximum);
+  writeFileSync(
+    config,
+    JSON.stringify({
+      schema_version: 1,
+      initial_root_profile: "single-owner-one-of-one-v1",
+      trusted_root: path.resolve(inputs.root),
+      trusted_root_sha256: hash(root),
+      offline_targets: path.resolve(inputs.offlineTargets),
+      offline_targets_sha256: hash(top),
+      repository: prior,
+      ...(history === undefined ? {} : { history_store: path.resolve(history) }),
+    }),
+    { flag: "wx" },
+  );
+  const report: unknown = JSON.parse(
+    execFileSync(inputs.tools, ["verify-definition-repository", config], {
+      env: isolatedEnvironment(workspace),
+      timeout: 90000,
+      maxBuffer: 4 * 1024 * 1024,
+      encoding: "utf8",
+    }),
+  );
+  return { prior, report };
+}
+
+export function replacementCoverPreimages(
+  canonical: unknown,
+  signedListing: Buffer,
+  signedCheckpoint: Buffer,
+  selected: readonly string[],
+) {
+  const declarations = new Map(directory(canonical).listings.map((row) => [row.id, row]));
+  const signed = delivery(parseCatalogSource(signedListing.toString("utf8")));
+  const assigned = new Map(signed.directory.listings.map((row) => [row.id, row]));
+  const checkpoint = advanceArtworkCheckpoint(
+    { bytes: signedCheckpoint, listing: signedListing },
+    [],
+  );
+  const preimages = new Map<string, unknown>();
+  if (!selected.length || selected.length > 32 || new Set(selected).size !== selected.length)
+    throw new Error("Cover replacement requires one to 32 unique signed predecessors");
+  for (const id of selected) {
+    const declaration = declarations.get(id);
+    const previous = assigned.get(id);
+    if (
+      !declaration ||
+      !previous ||
+      signed.withdrawn_ids.includes(id) ||
+      !validArtworkMapping(declaration.artwork) ||
+      declaration.artwork.match_kind !== "underlying-game" ||
+      declaration.collection_covers !== undefined ||
+      previous.collection_covers !== undefined ||
+      coverDeclarationScope(declaration, declaration.artwork) !==
+        coverDeclarationScope(previous, declaration.artwork) ||
+      !isDeepStrictEqual(previous.artwork, checkpoint.apply(declaration).artwork)
+    )
+      throw new Error("Selected cover does not match the authenticated preimage: " + id);
+    preimages.set(id, declaration.artwork);
+  }
+  return preimages;
+}
+
+/** Resolve review inputs only from the compiled verifier's exact signed targets. */
+export async function readAuthenticatedCoverPreimages(
+  inputs: ListingPriorInputs & {
+    repository: string;
+    workspace: string;
+    history: string;
+  },
+  canonical: unknown,
+  selected: readonly string[],
+) {
+  const { prior, report } = await verifyListingObservationPrior(
+    inputs,
+    inputs.repository,
+    inputs.workspace,
+    inputs.history,
+  );
+  if (
+    !isRecord(report) ||
+    typeof report.repository_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(report.repository_sha256)
+  )
+    throw new Error("Signed cover preimages require exact repository verification");
+  const wire = await verifiedPriorListing(prior, report, compactListingDeliveryTarget);
+  const checkpoint = await verifiedPriorTarget(
+    prior,
+    report,
+    artworkCheckpointTarget,
+    artworkCheckpointMax,
+  );
+  if (!wire || !checkpoint)
+    throw new Error(
+      "Cover replacement requires an authenticated compact catalog and cover checkpoint",
+    );
+  return {
+    preimages: replacementCoverPreimages(
+      canonical,
+      readDeliveryCarrier(wire, compactListingDeliveryTarget).bytes,
+      checkpoint,
+      selected,
+    ),
+    identity: report.repository_sha256,
+  };
+}
+
 export async function prepareObservationBundle(options: {
   bundle: string;
   canonical: string;
@@ -1013,31 +1137,11 @@ export async function prepareObservationBundle(options: {
   // Why the prior signed repository could not be verified, when it could not.
   let priorUnverified: string | undefined;
   try {
-    const prior = path.join(workspace, "verified-prior");
-    copyPriorRepository(options.prior, prior);
-    const config = path.join(workspace, "verify.json");
-    const root = await readControllerToolFile(options.root, 1024 * 1024),
-      top = await readControllerToolFile(options.offlineTargets, maximum);
-    writeFileSync(
-      config,
-      JSON.stringify({
-        schema_version: 1,
-        initial_root_profile: "single-owner-one-of-one-v1",
-        trusted_root: path.resolve(options.root),
-        trusted_root_sha256: hash(root),
-        offline_targets: path.resolve(options.offlineTargets),
-        offline_targets_sha256: hash(top),
-        repository: prior,
-        ...(coverEnabled ? { history_store: path.resolve(options.priorHistory!) } : {}),
-      }),
-    );
-    const report: unknown = JSON.parse(
-      execFileSync(options.tools, ["verify-definition-repository", config], {
-        env: environment,
-        timeout: 90000,
-        maxBuffer: 4 * 1024 * 1024,
-        encoding: "utf8",
-      }),
+    const { prior, report } = await verifyListingObservationPrior(
+      options,
+      priorRepository,
+      workspace,
+      coverEnabled ? options.priorHistory : undefined,
     );
     const legacy = await verifiedPriorListing(prior, report);
     if (!legacy) throw new Error("Prior legacy listing is not referenced");

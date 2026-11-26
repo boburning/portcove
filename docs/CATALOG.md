@@ -2194,6 +2194,21 @@ A durable withdrawal removes the donor and any resulting defaults. Restoration
 can make the same verified image eligible again. The publisher keeps release
 observations independently of a generated cover. Players can still choose or
 hide artwork in their own libraries.
+
+To prepare a replacement for an existing original-game cover, use
+`node scripts/catalog-cover-replacement-review.mts --help` for the command inputs.
+Use a clean checkout at the exact commit under review. Supply the retained signed
+repository, its authenticated history, and the trusted Core and release tools.
+Choose up to 32 exact port IDs and a new output directory outside the checkout.
+The predecessor must match the authored original-game cover or its exact
+withdrawal in the signed cover checkpoint.
+
+The command reuses the ordinary artwork preparation route. The review packet
+records the current and proposed image identities, the verified predecessor,
+and the hashes of the evidence. Its file name includes the packet's SHA-256.
+The packet records a proposal for independent review. Publication requires a
+separate protected approval.
+
 Due refresh of a retained cover revalidates its approved IGDB game ID, slug
 and cover role. An accepted mapping can be revalidated by exact ID and slug
 even when the listing lacks an original title. This does not establish a new
