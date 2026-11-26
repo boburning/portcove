@@ -5,8 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  type ReleaseAsset,
   type Runner,
   type ScanDependencies,
+  type ScanTarget,
   type UpstreamRelease,
   RECORDED_FAILURES,
   ScanError,
@@ -489,9 +491,10 @@ void test("unknown package metadata keeps ordinary retry age while proven replac
   const digestAsset = { ...sizeOnly, digest: `sha256:${"a".repeat(64)}` };
   const changedDigest = { ...digestAsset, digest: `sha256:${"b".repeat(64)}` };
   const unknown = { ...sizeOnly, size: null };
-  const competitor = assetKey(other, otherRelease.tag, otherRelease.assets[0]);
+  const otherAsset = otherRelease.assets[0];
+  const competitor = assetKey(other, otherRelease.tag, otherAsset);
 
-  for (const [current, previous, first] of [
+  const cases: [ReleaseAsset, [ReleaseAsset, number][], ScanTarget][] = [
     [sizeOnly, [[digestAsset, 7]], other],
     [digestAsset, [[sizeOnly, 7]], other],
     [digestAsset, [[unknown, 7]], other],
@@ -514,12 +517,12 @@ void test("unknown package metadata keeps ordinary retry age while proven replac
     [digestAsset, [[changedDigest, 7]], target],
     [{ ...digestAsset, size: 20 }, [[sizeOnly, 7]], target],
     [sizeOnly, [[{ ...digestAsset, name: "another.zip" }, 7]], target],
-  ] as const) {
+  ];
+  for (const [current, previous, first] of cases) {
     const attempted: string[] = [];
-    const deferredAttempts = new Map([
-      [competitor, 3],
-      ...previous.map(([asset, age]) => [assetKey(target, release.tag, asset), age] as const),
-    ]);
+    const deferredAttempts = new Map<string, number>([[competitor, 3]]);
+    for (const [asset, age] of previous)
+      deferredAttempts.set(assetKey(target, release.tag, asset), age);
     const result = await scan(
       [target, other],
       new Map(),
@@ -537,7 +540,7 @@ void test("unknown package metadata keeps ordinary retry age while proven replac
       },
       { maxAssets: 1, deferredAttempts },
     );
-    assert.deepEqual(attempted, [first === target ? current.name : otherRelease.assets[0]!.name]);
+    assert.deepEqual(attempted, [first === target ? current.name : otherAsset.name]);
     const checked = first === target ? assetKey(target, release.tag, current) : competitor;
     const currentRun = Math.max(...deferredAttempts.values()) + 1;
     assert.deepEqual(result.deferredAttempts, new Map(deferredAttempts).set(checked, currentRun));
