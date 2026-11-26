@@ -770,6 +770,14 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
         url: "https://mods.example.net/recomp".into(),
     };
     let service = PortcoveService::new(library.clone()).unwrap();
+    let portrait = player_files.path().join("my-portrait.png");
+    image::RgbImage::from_pixel(12, 18, image::Rgb([160, 80, 24]))
+        .save(&portrait)
+        .unwrap();
+    let artwork_choice = service
+        .import_artwork(registered_id, crate::ArtworkSlot::Cover, &portrait, 0)
+        .unwrap()
+        .choice;
     assert!(
         service
             .set_mod_portal_preferences(
@@ -857,9 +865,32 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
     candidate["revision"] = json!(4);
     let revised_url = "https://www.nexusmods.com/examplegamev2";
     candidate["directory"]["listings"][0]["mod_portals"][0]["url"] = json!(revised_url);
+    let cover = &mut candidate["directory"]["listings"][1]["artwork"];
+    cover["cover_id"] = json!(3);
+    cover["image_id"] = json!("co2abc");
+    cover["image_sha256"] = json!("6".repeat(64));
     let root = publish_compact(&fixture, &key, 4, &candidate).await;
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let service = PortcoveService::new(library.clone()).unwrap();
+    let artwork = service
+        .artwork(registered_id, crate::ArtworkSlot::Cover)
+        .unwrap();
+    assert_eq!(artwork.choice, artwork_choice);
+    assert!(matches!(
+        artwork.resolved_source,
+        crate::ArtworkResolvedSource::LocalImport { .. }
+    ));
+    let automatic = service
+        .reset_artwork(
+            registered_id,
+            crate::ArtworkSlot::Cover,
+            artwork_choice.revision,
+        )
+        .unwrap();
+    assert!(matches!(
+        automatic.resolved_source,
+        crate::ArtworkResolvedSource::IgdbCover { artwork, .. } if artwork.image_id == "co2abc"
+    ));
     assert_eq!(
         service
             .preview_mod_handoff(id)
