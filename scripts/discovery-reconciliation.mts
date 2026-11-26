@@ -8,11 +8,12 @@ export interface DiscoveryIdentity {
   repository_id?: number;
   game_key?: string;
 }
-export interface CanonicalDiscoveryIdentity extends DiscoveryIdentity {
-  issue: number;
+export type CanonicalDiscoveryIdentity = DiscoveryIdentity & {
   aliases?: string[];
-  state: "OPEN" | "CLOSED";
-}
+} & (
+    | { issue: number; state: "OPEN" | "CLOSED"; catalog_id?: string }
+    | { catalog_id: string; issue?: undefined; state?: undefined }
+  );
 export interface ReviewedDiscoveryIdentity extends DiscoveryIdentity {
   kind: "implementation" | "helper" | "framework";
   helper_for?: DiscoveryIdentity;
@@ -42,9 +43,15 @@ function canonicalIndex(canonical: readonly CanonicalDiscoveryIdentity[]) {
   for (const row of canonical) {
     identity(row);
     if (
-      !Number.isSafeInteger(row.issue) ||
-      row.issue <= 0 ||
-      !["OPEN", "CLOSED"].includes(row.state) ||
+      (row.issue === undefined
+        ? row.catalog_id === undefined || row.state !== undefined
+        : !Number.isSafeInteger(row.issue) ||
+          row.issue <= 0 ||
+          !["OPEN", "CLOSED"].includes(row.state)) ||
+      (row.catalog_id !== undefined &&
+        (typeof row.catalog_id !== "string" ||
+          row.catalog_id.length > 128 ||
+          !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(row.catalog_id))) ||
       (row.aliases?.length ?? 0) > 64
     )
       throw new Error("Invalid canonical discovery record");
@@ -64,6 +71,16 @@ function canonicalIndex(canonical: readonly CanonicalDiscoveryIdentity[]) {
     if (row.repository_id !== undefined) append(ids, row.repository_id, index);
   });
   return { rows: canonical, paths, ids };
+}
+
+function owners(rows: readonly CanonicalDiscoveryIdentity[]) {
+  const issues = [
+    ...new Set(rows.flatMap((row) => (row.issue === undefined ? [] : [row.issue]))),
+  ].sort((a, b) => a - b);
+  const catalogIds = [
+    ...new Set(rows.flatMap((row) => (row.catalog_id === undefined ? [] : [row.catalog_id]))),
+  ].sort();
+  return { issues, ...(catalogIds.length ? { catalog_ids: catalogIds } : {}) };
 }
 export function reconcileDiscoveryIdentity(
   candidate: ReviewedDiscoveryIdentity,
@@ -111,30 +128,41 @@ function reconcileIndexed(
   )
     return {
       disposition: "Identity conflict",
-      issues: matching.map((row) => row.issue),
+      ...owners(matching),
       reason: "A known path now resolves to a different immutable repository; review continuity",
     };
   const selected =
     target.game_key === undefined
       ? matching
       : matching.filter((row) => row.game_key === target.game_key || row.game_key === undefined);
-  const issues = [...new Set(selected.map((row) => row.issue))].sort((a, b) => a - b);
-  if (issues.length > 1)
+  const identified = owners(selected);
+  const ownerCount = new Set(
+    selected.map((row) =>
+      row.issue === undefined ? `catalog:${row.catalog_id}` : `issue:${row.issue}`,
+    ),
+  ).size;
+  if (ownerCount > 1 || (identified.catalog_ids?.length ?? 0) > 1)
     return {
       disposition: "Identity ambiguous",
-      issues,
+      ...identified,
       reason: "Resolve the game/edition within this shared implementation before intake",
     };
-  if (issues.length === 1)
+  if (ownerCount === 1)
     return {
       disposition: candidate.kind === "helper" ? "Alias/helper" : "Existing canonical owner",
-      issues,
+      ...identified,
       reason:
-        "Exact reviewed repository identity and game scope; closed/deferred ownership is retained",
+        target.repository_id !== undefined &&
+        target.game_key !== undefined &&
+        selected.some(
+          (row) => row.repository_id === target.repository_id && row.game_key === target.game_key,
+        )
+          ? "Exact reviewed repository identity and game scope; existing ownership is retained"
+          : "Existing ownership is retained while repository identity or game scope is unresolved",
     };
   return {
     disposition: candidate.kind === "helper" ? "Alias/helper" : "New canonical intake",
-    issues,
+    ...identified,
     reason:
       candidate.kind === "helper"
         ? "No independent port identity is granted to a helper"

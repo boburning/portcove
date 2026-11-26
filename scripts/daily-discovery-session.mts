@@ -1042,6 +1042,7 @@ export class DiscoverySession {
         repository: new URL(candidate.upstream).pathname.slice(1),
         repository_id: ids[0],
         kind: candidate.identity_kind ?? "implementation",
+        catalog_id: candidate.portKey,
         ...(candidate.game ? { game_key: discoveryGameKey(candidate.game) } : {}),
       },
       this.inventory.issues,

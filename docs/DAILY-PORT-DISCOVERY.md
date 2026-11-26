@@ -69,6 +69,10 @@ canonical owners before calling a candidate new. One exact, known-game owner is
 retained, including closed/deferred owners; ambiguous scope, conflicting IDs and
 orphaned catalog identities remain held. Distinct IDs within a proposal alone do
 not prove new implementations. Separate games sharing one repository remain separate.
+An accepted catalog record is an identity owner even when it has no issue.
+Intake preserves its catalog ID and checks its accepted repository lineage before
+creating an issue. A matching path with a conflicting repository ID holds for
+identity reconciliation.
 Primary-verified repository/game identity refines the generic title hint through
 creation and recovery. Equal display titles alone do not merge distinct known
 implementations; conflicting durable keys and unknown identities still hold.
