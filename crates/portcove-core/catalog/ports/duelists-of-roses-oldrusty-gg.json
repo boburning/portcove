@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "duelists-of-roses-oldrusty-gg",
+    "project_url": "https://github.com/oldrusty-gg/rust-yugi-dotr",
+    "name": "Yu-Gi-Oh Duelists of the Roses / oldrusty-gg",
+    "summary": "Yu-Gi-Oh! The Duelists of the Roses rewritten in Rust. Bring your own disc.",
+    "issue_number": 5629,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "yu-gi-oh-the-duelists-of-the-roses",
+      "evidence_urls": ["https://github.com/oldrusty-gg/rust-yugi-dotr"],
+      "source_editions": []
+    },
+    "original_game_title": "Yu-Gi-Oh! The Duelists of the Roses"
+  }
+}

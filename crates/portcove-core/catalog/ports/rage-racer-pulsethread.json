@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rage-racer-pulsethread",
+    "project_url": "https://github.com/pulsethread/rrpc",
+    "name": "Rage Racer / pulsethread native recomp",
+    "summary": "Experimental PC Port of Rage Racer",
+    "issue_number": 5626,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rage-racer",
+      "evidence_urls": ["https://github.com/pulsethread/rrpc"],
+      "source_editions": []
+    },
+    "original_game_title": "Rage Racer"
+  }
+}

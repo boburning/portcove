@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "aitorcachero-snatcher-mega-cd-dual-68k-z80-native-windows",
+    "project_url": "https://github.com/aitorcachero/Snatcher-Recomp",
+    "name": "Snatcher (Sega Mega-CD NTSC-U) / aitorcachero MegaCD-Recomp",
+    "summary": "Static recompilation of Snatcher (Sega Mega-CD NTSC-U) for Windows. Requires your own copy of the original game.",
+    "issue_number": 4764,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "snatcher",
+      "evidence_urls": ["https://github.com/aitorcachero/Snatcher-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Snatcher"
+  }
+}

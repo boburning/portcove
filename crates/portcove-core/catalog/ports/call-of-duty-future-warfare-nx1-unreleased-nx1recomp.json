@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "call-of-duty-future-warfare-nx1-unreleased-nx1recomp",
+    "project_url": "https://github.com/goshavindtburg/NX1recomp",
+    "name": "Call of Duty: Future Warfare (NX1, unreleased) / NX1recomp (goshavindtburg)",
+    "summary": "This is a static recompilation/PC port of Call of Duty: Future Warfare",
+    "issue_number": 7144,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "call-of-duty-future-warfare",
+      "evidence_urls": ["https://github.com/goshavindtburg/NX1recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Call of Duty: Future Warfare"
+  }
+}

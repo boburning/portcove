@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "death-rally-dreerally",
+    "project_url": "https://github.com/enriquesomolinos/DreeRally",
+    "name": "Death Rally / DreeRally (enriquesomolinos)",
+    "summary": "Death Rally engine reimplementation",
+    "issue_number": 6899,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "death-rally",
+      "evidence_urls": ["https://github.com/enriquesomolinos/DreeRally"],
+      "source_editions": []
+    },
+    "original_game_title": "Death Rally"
+  }
+}

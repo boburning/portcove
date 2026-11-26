@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "far-cry-instincts-evolution-bassobr",
+    "project_url": "https://github.com/bassobr/Far-Cry-Instincts-Evolution-Recomp",
+    "name": "Far Cry Instincts Evolution / Far-Cry-Instincts-Evolution-Recomp",
+    "summary": "Static recompilation of the original Xbox Far Cry Instincts Evolution into a native Windows x64 executable (Direct3D 11). Bring your own copy of the game; no game files included.",
+    "issue_number": 6626,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "far-cry-instincts-evolution",
+      "evidence_urls": ["https://github.com/bassobr/Far-Cry-Instincts-Evolution-Recomp"],
+      "source_editions": [
+        {
+          "id": "far-cry-instincts-evolution-xbox",
+          "title": "Far Cry Instincts: Evolution (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/bassobr/Far-Cry-Instincts-Evolution-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Far Cry Instincts: Evolution"
+  }
+}

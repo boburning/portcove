@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "age-of-empires-ii-the-age-of-kings-openaok",
+    "project_url": "https://github.com/Zaydme/openaok",
+    "name": "Age of Empires II The Age of Kings / OpenAoK",
+    "summary": "A free, open-source engine for Age of Empires II: The Age of Kings, on your desktop and in your pocket.",
+    "issue_number": 5756,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "age-of-empires-ii-the-age-of-kings",
+      "evidence_urls": ["https://github.com/Zaydme/openaok"],
+      "source_editions": []
+    },
+    "original_game_title": "Age of Empires II The Age of Kings"
+  }
+}

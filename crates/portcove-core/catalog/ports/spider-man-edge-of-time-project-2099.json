@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "spider-man-edge-of-time-project-2099",
+    "project_url": "https://github.com/GenryTheFox0/Project-2099",
+    "name": "Spider-Man: Edge of Time / Project 2099 (GenryTheFox0)",
+    "summary": "Unofficial Windows recompilation of Spider-Man: Edge of Time with PC controls, settings, localization, achievements and mod support.",
+    "issue_number": 6886,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "spider-man-edge-of-time",
+      "evidence_urls": ["https://github.com/GenryTheFox0/Project-2099"],
+      "source_editions": []
+    },
+    "original_game_title": "Spider-Man: Edge of Time"
+  }
+}

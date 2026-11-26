@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "007-agent-under-fire-hk21x",
+    "project_url": "https://github.com/hk21x/007-agentunderfire-recomp",
+    "name": "007: Agent Under Fire / hk21x",
+    "summary": "007 Agent Under Fire recomp from Xbox to PC Port.",
+    "issue_number": 5630,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "007-agent-under-fire",
+      "evidence_urls": ["https://github.com/hk21x/007-agentunderfire-recomp"],
+      "source_editions": [
+        {
+          "id": "007-agent-under-fire-xbox",
+          "title": "007: Agent Under Fire (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/hk21x/007-agentunderfire-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "007: Agent Under Fire"
+  }
+}

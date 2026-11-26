@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "starcraft-brood-war-hyperion",
+    "project_url": "https://github.com/Mad-Man-Dan/hyperion-public",
+    "name": "StarCraft: Brood War / Hyperion",
+    "summary": "A StarCraft Broodwar Source Port",
+    "issue_number": 5726,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "starcraft-brood-war",
+      "evidence_urls": ["https://github.com/Mad-Man-Dan/hyperion-public"],
+      "source_editions": []
+    },
+    "original_game_title": "StarCraft: Brood War"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "theme-park-theme-park-recomp",
+    "project_url": "https://github.com/sp00nznet/themepark-recomp",
+    "name": "Theme Park / Theme Park Recomp",
+    "summary": "Static recompilation of Bullfrog's Theme Park (DOS, 1994) to native Windows with pcrecomp. Bring your own GOG copy.",
+    "issue_number": 5585,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "theme-park",
+      "evidence_urls": ["https://github.com/sp00nznet/themepark-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Theme Park"
+  }
+}

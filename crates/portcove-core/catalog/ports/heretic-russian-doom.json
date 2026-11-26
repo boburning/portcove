@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "heretic-russian-doom",
+    "project_url": "https://github.com/Russian-Doom/russian-doom",
+    "name": "Heretic / Russian Doom (Russian-Doom)",
+    "summary": "A limit-removing source port of Doom, Heretic and Hexen. It has numerous vanilla bug fixes, enhanced 640x400 and 1280x800 rendering resolutions, improved game palettes and offers many optional aesthetic game enhancements along with the maximum possible translation to the Russian language.",
+    "issue_number": 7390,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "heretic",
+      "evidence_urls": ["https://github.com/Russian-Doom/russian-doom"],
+      "source_editions": []
+    },
+    "original_game_title": "Heretic"
+  }
+}

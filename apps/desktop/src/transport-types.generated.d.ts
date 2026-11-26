@@ -3989,6 +3989,10 @@ export interface PortListing {
   listed_at?: string | null;
   manual_setup?: ManualSetupGuide | null;
   media?: CatalogMediaAsset[];
+  /**
+   * Reviewed community links for this listing. Requires listing format 16.
+   */
+  mod_portals?: ListingModPortal[];
   name: string;
   original_game?: OriginalGameIdentity | null;
   original_game_title?: string | null;
@@ -4014,6 +4018,16 @@ export interface PortListing {
    */
   upstream_observation?: ListingUpstreamObservation | null;
   variant_label?: string | null;
+}
+/**
+ * A reviewed link to a mod community for this exact listing.
+ */
+export interface ListingModPortal {
+  id: string;
+  instructions: string;
+  name: string;
+  site: ModPortalSite;
+  url: string;
 }
 export interface ListingReleaseMaintenance {
   /**

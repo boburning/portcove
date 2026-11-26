@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nightmare-creatures-heromachine-linux",
+    "project_url": "https://github.com/Heromachine/NightmareCreatures-Recompilation",
+    "name": "Nightmare Creatures / Heromachine Recompilation",
+    "summary": "Static recompilation of Nightmare Creatures (PS1, 1997) to a native Linux build. Ships the tool, not the game: you supply your own disc.",
+    "issue_number": 6708,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nightmare-creatures",
+      "evidence_urls": ["https://github.com/Heromachine/NightmareCreatures-Recompilation"],
+      "source_editions": [
+        {
+          "id": "nightmare-creatures-playstation",
+          "title": "Nightmare Creatures (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/Heromachine/NightmareCreatures-Recompilation"]
+        }
+      ]
+    },
+    "original_game_title": "Nightmare Creatures"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "geometry-dash-cadence",
+    "project_url": "https://github.com/mark20142026/cadence",
+    "name": "Geometry Dash / Cadence",
+    "summary": "Unofficial from-scratch Rust reimplementation of Geometry Dash 2.2091 for desktop and the browser (wgpu: Metal, Vulkan, DX12, WebGPU). Physics checked step for step against the real game. Bring your own game files.",
+    "issue_number": 5821,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "geometry-dash",
+      "evidence_urls": ["https://github.com/mark20142026/cadence"],
+      "source_editions": []
+    },
+    "original_game_title": "Geometry Dash"
+  }
+}

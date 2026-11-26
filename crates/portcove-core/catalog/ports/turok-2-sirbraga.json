@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "turok-2-sirbraga",
+    "project_url": "https://github.com/SirBraga/turok2-recomp",
+    "name": "Turok 2: Seeds of Evil / SirBraga",
+    "summary": "Turok 2: Seeds of Evil — N64Recomp static PC port",
+    "issue_number": 5933,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "turok-2-seeds-of-evil",
+      "evidence_urls": ["https://github.com/SirBraga/turok2-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Turok 2: Seeds of Evil"
+  }
+}

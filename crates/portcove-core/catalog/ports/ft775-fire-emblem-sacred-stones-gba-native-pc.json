@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ft775-fire-emblem-sacred-stones-gba-native-pc",
+    "project_url": "https://github.com/FT775/fe8-pc-port",
+    "name": "Fire Emblem: The Sacred Stones (GBA USA) / FT775 native PC decomp port",
+    "summary": "PC port of Fire Emblem: The Sacred Stones (GBA, USA), built from the fireemblem8u decompilation. Bring your own ROM.",
+    "issue_number": 4341,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fire-emblem-the-sacred-stones",
+      "evidence_urls": ["https://github.com/FT775/fe8-pc-port"],
+      "source_editions": [
+        {
+          "id": "fire-emblem-the-sacred-stones-game-boy-advance",
+          "title": "Fire Emblem: The Sacred Stones (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": ["https://github.com/FT775/fe8-pc-port"]
+        }
+      ]
+    },
+    "original_game_title": "Fire Emblem: The Sacred Stones"
+  }
+}

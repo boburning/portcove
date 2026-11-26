@@ -33,6 +33,7 @@ import {
   machineSystem,
   registrationQueues,
   checkListingFactsTable,
+  refusalReceipt,
   digestOf,
   displayableName,
   emptyFactsTable,
@@ -58,12 +59,15 @@ import {
   gateStatement,
   gateListingWords,
   bodyFirstLine,
+  statementText,
   listingWords,
   listingCounts,
   productIdentity,
   releaseStatement,
   sourceArchive,
   textStatement,
+  observedTextStatement,
+  lineStatement,
   launcherProgram,
   programRoleWord,
   gateRoleProgram,
@@ -87,6 +91,7 @@ import {
   romanOf,
   laterRomanNumber,
   subtitleDroppedByName,
+  literalProgramName,
   nameInitialisms,
   reliefSpelling,
   dropsLinkedNumber,
@@ -131,7 +136,19 @@ import {
   type PlayerFact,
 } from "./catalog-generated-registration.mts";
 import { routeFitReport } from "./catalog-route-fit.mts";
-import { listingProviderIdentity } from "./listing-upstream-observation.mts";
+import {
+  listingProviderIdentity,
+  projectListingObservation,
+  withoutListingReleaseText,
+} from "./listing-upstream-observation.mts";
+import { withholdRefused } from "./listing-facts-batch.mts";
+import { accumulatedObservations } from "./listing-facts-observations.mts";
+import {
+  checkpoint as observerCheckpoint,
+  keyOf as observerKeyOf,
+  progress as observerProgress,
+} from "./fixtures/upstream-checkpoint-fixture.mts";
+import { observationHash, type ProviderObservation } from "./upstream-observer.mts";
 import {
   artifactFact,
   cliInspector,
@@ -322,10 +339,11 @@ function entry(
       {
         release_id: fields.release_id ?? 7,
         tag: fields.tag ?? "v1.0",
+        core_prerelease: false,
         prerelease: false,
         published_at: fields.published_at ?? "2026-11-01T00:00:00.000Z",
         packaged: true,
-        text: "unobserved" as const,
+        text: "observed" as const,
         title: null,
         statement: null,
       },
@@ -372,8 +390,12 @@ interface ReleaseSpec {
   provider_prerelease?: boolean;
   assets_complete?: boolean;
   assets: AssetSpec[];
-  /** The release's own name and body as the observer would report them; absent: unobserved. */
-  text?: { name: string | null; body: string | null };
+  /**
+   * The release's own name and body as the observer would report them
+   * absent:
+   * observed with neither; null: unobserved.
+   */
+  text?: { name: string | null; body: string | null } | null;
 }
 interface ObservationSpec {
   status?: string;
@@ -408,7 +430,12 @@ function observerReport(specs: Record<string, ObservationSpec>) {
             published_at: release.published_at ?? "2026-11-01T00:00:00Z",
             provider_prerelease: release.provider_prerelease ?? false,
             assets_complete: release.assets_complete ?? true,
-            ...(release.text ? { name: release.text.name, body: release.text.body } : {}),
+            ...(release.text === null
+              ? {}
+              : {
+                  name: release.text?.name ?? null,
+                  body: release.text?.body ?? null,
+                }),
             assets: release.assets.map((asset) => ({
               id: asset.id,
               name: asset.name,
@@ -455,6 +482,8 @@ async function derive(
     now?: string;
     /** Plan only: settle what needs no bytes and leave the rest pending. */
     plan?: boolean;
+    /** Core's name answers; by default only the recorded ones. */
+    classify?: NameClassifier;
   } = {},
 ): Promise<DeriveResult> {
   return await deriveListingFacts({
@@ -464,7 +493,7 @@ async function derive(
     ...(options.state ? { state: options.state } : {}),
     ...(options.plan ? { inspectBytes: false } : {}),
     inspect: listed(options.inspect ?? inspector()),
-    classify: coreClassifier,
+    classify: options.classify ?? coreClassifier,
     now: options.now ?? "2026-11-21T00:00:00.000Z",
   });
 }
@@ -3106,10 +3135,11 @@ void test("a release is bound to its product's release line (D2a: a tool's relea
   entryCopy.observed_releases.push({
     release_id: 99,
     tag: "v3.0-beta",
+    core_prerelease: true,
     prerelease: true,
     published_at: "2026-10-25T00:00:00.000Z",
     packaged: true,
-    text: "unobserved" as const,
+    text: "observed" as const,
     title: null,
     statement: null,
   });
@@ -3470,10 +3500,11 @@ void test("release lines are counted over stable releases; prereleases only prot
     items.map(([release_id, tag, prerelease, published_at]) => ({
       release_id,
       tag,
+      core_prerelease: prerelease,
       prerelease,
       published_at,
       packaged: true,
-      text: "unobserved" as const,
+      text: "observed" as const,
       title: null,
       statement: null,
     }));
@@ -3615,10 +3646,11 @@ void test("glued channel markers keep a stable release and its newer candidate o
     tags.map(([tag, prerelease], index) => ({
       release_id: 7 + index,
       tag,
+      core_prerelease: prerelease,
       prerelease,
       published_at: `2026-11-0${index + 1}T00:00:00.000Z`,
       packaged: true,
-      text: "unobserved" as const,
+      text: "observed" as const,
       title: null,
       statement: null,
     }));
@@ -3664,10 +3696,11 @@ void test("an unbound named release line enrolls only when it names the listed p
         observed_releases: tags.map((tag, index) => ({
           release_id: 7 + index,
           tag,
+          core_prerelease: false,
           prerelease: false,
           published_at: `2026-11-0${index + 1}T00:00:00.000Z`,
           packaged: true,
-          text: "unobserved" as const,
+          text: "observed" as const,
           title: null,
           statement: null,
         })),
@@ -3721,10 +3754,11 @@ void test("final short numbers and version-shaped product words keep products ap
     tags.map((tag, index) => ({
       release_id: 7 + index,
       tag,
+      core_prerelease: false,
       prerelease: false,
       published_at: `2026-11-0${index + 1}T00:00:00.000Z`,
       packaged: true,
-      text: "unobserved" as const,
+      text: "observed" as const,
       title: null,
       statement: null,
     }));
@@ -5710,7 +5744,7 @@ void test("a release whose title or first body line states a prerelease is never
   const id = "zz-stated-prerelease";
   type Text = ReleaseSpec["text"];
   const withText = (release: ReleaseSpec, text: Text): ReleaseSpec =>
-    text ? { ...release, text } : release;
+    text === undefined ? release : { ...release, text };
   const releases = (newest: Text, older?: Text) => [
     withText(releaseWith(1, "v1.0", "2026-10-01T00:00:00Z", [{ id: 11, name: windowsZip }]), older),
     withText(
@@ -5721,17 +5755,17 @@ void test("a release whose title or first body line states a prerelease is never
   const run = async (newest: ReleaseSpec["text"], older?: ReleaseSpec["text"]) =>
     (await derive([listing(id)], observerReport({ [id]: { releases: releases(newest, older) } })))
       .table.entries[0]!;
-  // The provider flags v3.0 stable, but its title says beta: v1.0 is offered.
+  // The provider flags v3.0 stable, but its title says beta: the worker
+  // chooses v1.0, and the fit never offers it on the words alone: it is
+  // withheld for a person to hand-check v3.0's text.
   const titled = await run({ name: "v3.0 Beta", body: "Notes" }, { name: "v1.0", body: null });
   assert.equal(titled.observation.tag, "v1.0");
   const newer = titled.observed_releases.find((release) => release.release_id === 2)!;
   assert.deepEqual(
-    [newer.text, newer.title, newer.statement, newer.prerelease],
-    ["observed", "v3.0 Beta", { field: "title", token: "beta" }, true],
+    [newer.text, newer.title, newer.statement, newer.core_prerelease, newer.prerelease],
+    ["observed", "v3.0 Beta", { field: "title", token: "beta" }, false, true],
   );
-  const decision = decide(listing(id), titled);
-  assert.ok(decision.fit);
-  assert.equal(decision.enrollment.release.tag, "v1.0");
+  assert.equal(reasonOf(decide(listing(id), titled)), "worded-prerelease-skipped");
   // The body's first heading says release candidate: the same.
   const bodied = await run({ name: "v3.0", body: "## Release Candidate 2\n\n- fixes" });
   assert.equal(bodied.observation.tag, "v1.0");
@@ -5747,12 +5781,15 @@ void test("a release whose title or first body line states a prerelease is never
   assert.equal(remark.observation.tag, "v3.0");
   assert.equal(remark.observed_releases.find((r) => r.release_id === 2)!.statement, null);
   // Unobserved text is UNKNOWN optional evidence, not a statement: it is
-  // recorded as such and queued for review.
-  const unobserved = await run(undefined);
+  // recorded as such, queued for review, and the release is never offered on
+  // unread text.
+  const unobserved = await run(null);
   assert.equal(unobserved.observation.tag, "v3.0");
   assert.equal(unobserved.observed_releases.find((r) => r.release_id === 2)!.text, "unobserved");
+  assert.equal(reasonOf(decide(listing(id), unobserved)), "release-text-unobserved");
   const generation = generateRegistrations([listing(id)], table(unobserved));
   assert.deepEqual(registrationQueues(generation).release_text_unobserved, [id]);
+  assert.equal(generation.enrollments.length, 0);
   assert.deepEqual(
     registrationQueues(generateRegistrations([listing(id)], table(titled))).release_statements,
     {
@@ -6668,6 +6705,23 @@ void test("fit and gate read release text alike over generated lines (F1)", () =
     ":",
     "<b>",
     "[link](https://x.io/rc1)",
+    "...",
+    "..",
+    "…",
+    "....",
+    "finally",
+    "<html>",
+    "</body>",
+    "<font color=red>",
+    "<style>x</style>",
+    "<Beta 3>",
+    '<a title="',
+    "<a title='",
+    '">',
+    "'>",
+    "\n\n",
+    "\r\n\r\n",
+    "\n",
   ];
   const repositories = ["fixture-owner/beta-squadron", "fixture-owner/game", "fixture-owner/rc"];
   const listings = [[], ["beta", "squadron"], ["game"], ["alpha"]];
@@ -7431,10 +7485,11 @@ void test("every fit withholding reason is restated by the gate or exempted with
   const release = (id: number, tag: string, at: string) => ({
     release_id: id,
     tag,
+    core_prerelease: false,
     prerelease: false,
     published_at: at,
     packaged: true,
-    text: "unobserved" as const,
+    text: "observed" as const,
     title: null,
     statement: null,
   });
@@ -7555,6 +7610,52 @@ void test("every fit withholding reason is restated by the gate or exempted with
     "ambiguous-release-line": [
       { facts: twoLines("level-editor-v2.0") },
       { facts: twoLines("tools-v3.1") },
+    ],
+    "release-text-unobserved": [
+      {
+        facts: with_({
+          observed_releases: [
+            { ...release(7, "v1.0", "2026-11-01T00:00:00.000Z"), text: "unobserved" as const },
+          ],
+        }),
+      },
+      {
+        facts: neutral({
+          observed_releases: [
+            release(6, "v0.9", "2026-10-01T00:00:00.000Z"),
+            { ...release(7, "v1.0", "2026-11-01T00:00:00.000Z"), text: "unobserved" as const },
+          ],
+        }),
+      },
+    ],
+    "worded-prerelease-skipped": [
+      // Faxanadu's measured shape: newer stable-flagged releases titled as an
+      // experimental mod are skipped by words alone; the older is not offered.
+      {
+        facts: with_({
+          observed_releases: [
+            release(7, "v1.0", "2026-11-01T00:00:00.000Z"),
+            {
+              ...release(8, "v2.4.0", "2026-11-05T00:00:00.000Z"),
+              prerelease: true,
+              title: "Faxanadu v2.4.0 experimental mod",
+              statement: { field: "title" as const, token: "experimental" as const },
+            },
+          ],
+        }),
+      },
+      {
+        facts: neutral({
+          observed_releases: [
+            release(7, "v1.0", "2026-11-01T00:00:00.000Z"),
+            {
+              ...release(9, "v1.1", "2026-11-09T00:00:00.000Z"),
+              prerelease: true,
+              statement: { field: "body-first-line" as const, token: "beta" as const },
+            },
+          ],
+        }),
+      },
     ],
     "other-package-form-beside-archive": [
       { facts: with_({ other_packages: [otherForm(19, "Tool-1.0-Setup.exe", W)] }) },
@@ -11024,10 +11125,11 @@ function handCheckCase(
         {
           release_id: 7,
           tag: "v1.0",
+          core_prerelease: false,
           prerelease: token !== null,
           published_at: "2026-11-01T00:00:00.000Z",
           packaged: true,
-          text: title === null ? "unobserved" : "observed",
+          text: "observed" as const,
           title,
           statement: token === null ? null : { field: "title", token },
         },
@@ -11159,8 +11261,10 @@ const HAND_CHECK_DECISIONS = [
   ["Game-v1.0-win64.zip", "Arc and Alphabet 1.0", "fit"],
   ["Game-v1.0-win64.zip", "Release 1.0", "fit"],
 ];
+// Re-pinned for generator 32: only each enrollment's recorded
+// `generator_version` and facts digest changed.
 const HAND_CHECK_ENROLLMENTS_SHA256 =
-  "b028f2e7b0cd5045f2dc92a123f1f8c7993d3276fe2b36b8954b806d1ebdc4b0";
+  "e1ec132da7e3596e93b4fcf02fecc7731855904752ba5beec84820eb837328ac";
 
 void test("a relieved name joins integer_as_version under the same condition as an equal name", () => {
   const relieved = { id: "zz-lantern", name: "Lantern: Echoes of Night" };
@@ -11198,4 +11302,932 @@ void test("a relieved name joins integer_as_version under the same condition as 
     "fixture-owner/zz-lantern",
   );
   assert.ok("product" in account && account.integerAsVersion && account.reliefs.length > 0);
+});
+
+// ---------------------------------------------------------------------------
+// Release text observed end to end (#1422): the observer carries each
+// release's title and body window through the handoff into the worker.
+
+/** A provider observation of one repository's releases, each titled and dated. */
+function textObservation(
+  repository: string,
+  releases: {
+    id: number;
+    tag: string;
+    at: string;
+    title: string | null;
+    body?: string | null;
+    prerelease?: boolean;
+  }[],
+): ProviderObservation {
+  const facts = {
+    repository: { id: 4242, full_name: repository, archived: false },
+    releases: releases.map((release) => ({
+      id: release.id,
+      tag_name: release.tag,
+      draft: false,
+      prerelease: release.prerelease ?? false,
+      created_at: release.at,
+      published_at: release.at,
+      text: {
+        title: release.title,
+        line: release.body ? bodyFirstLine(release.body) : null,
+        line_complete: true,
+      },
+      assets: [
+        {
+          id: release.id * 10 + 1,
+          name: windowsZip,
+          size: 100,
+          state: "uploaded",
+          digest: `sha256:${sha(`${repository}-${release.id}`)}`,
+          browser_download_url: `https://github.com/${repository}/releases/download/${release.tag}/${windowsZip}`,
+          created_at: release.at,
+          updated_at: release.at,
+        },
+      ],
+    })),
+  };
+  return {
+    format: 2,
+    config_sha256: sha("config"),
+    port_id: "observer",
+    started_at: "2026-11-20T00:00:00.000Z",
+    completed_at: "2026-11-20T00:00:00.000Z",
+    validation_started_at: "2026-11-20T00:00:00.000Z",
+    facts_sha256: observationHash(facts),
+    facts,
+    consumed: { requests: 1, response_bytes: 1, conditional_hits: 0 },
+    coverage: {
+      kind: "channel-candidate-assets",
+      complete_release_headers: true,
+      asset_release_ids: releases.map((release) => release.id),
+    },
+    authority: "provider-observation-only",
+  } as unknown as ProviderObservation;
+}
+/**
+ * One listing's projection retained in the observer's checkpoint, read back
+ * as the batch job reads it (`accumulatedObservations`). Without `withText`,
+ * the projection is one an observer retained before it kept release text.
+ */
+function throughHandoff(record: AuthoredPort, observation: ProviderObservation, withText = true) {
+  const policy = projectListingObservation(record.listing, observation, 12);
+  const retained = withText ? policy : withoutListingReleaseText(policy);
+  const repository = observation.facts.repository.full_name;
+  const handed = accumulatedObservations(
+    {
+      revision: "upstream-observer-run:1-1@fixture",
+      config_sha256: "a".repeat(64),
+      checkpoint: observerCheckpoint({
+        [observerKeyOf(repository)]: observerProgress(repository, [], {
+          repository_id: observation.facts.repository.id,
+          last_complete_facts_sha256: observation.facts_sha256,
+          last_complete_policies: [retained],
+        }),
+      }),
+      catalog: { ports: [], listings: [record.listing] },
+    },
+    { format_version: 11, listings: [record.listing] },
+  );
+  assert.deepEqual(handed.gaps, []);
+  return { listings: handed.listings };
+}
+
+void test("youkaicountry-yknytt: releases titled as betas are withheld once their text is observed (#1422 1)", async () => {
+  // Measured: all four visible releases are titled "vX beta" and none is
+  // flagged prerelease; with unobserved text the fit enrolled tag 0.7.3.
+  const id = "youkaicountry-yknytt";
+  const record = listing(id);
+  const repository = `fixture-owner/${id}`;
+  const observation = textObservation(repository, [
+    { id: 1, tag: "0.7.0", at: "2026-08-01T00:00:00Z", title: "v0.7.0 beta" },
+    { id: 2, tag: "0.7.1", at: "2026-09-01T00:00:00Z", title: "v0.7.1 beta" },
+    { id: 3, tag: "0.7.2", at: "2026-10-01T00:00:00Z", title: "v0.7.2 beta" },
+    { id: 4, tag: "0.7.3", at: "2026-11-01T00:00:00Z", title: "v0.7.3 beta" },
+  ]);
+  // The text travels beside (never inside) the Core-shaped observation.
+  const policy = projectListingObservation(record.listing, observation, 12);
+  assert.equal(
+    (policy.listing_update.upstream_observation.releases as Record<string, unknown>[]).some(
+      (release) => "name" in release || "body" in release || "text" in release,
+    ),
+    false,
+  );
+  const observed = await derive([record], throughHandoff(record, observation), undefined, {
+    classify: anyNameClassifier,
+  });
+  const facts = observed.table.entries[0]!;
+  assert.equal(facts.ineligible?.reason, "no-stable-release");
+  // An older handoff without release text: the same releases are recorded
+  // unobserved and the fit never offers them on unread text.
+  const unread = await derive([record], throughHandoff(record, observation, false), undefined, {
+    classify: anyNameClassifier,
+  });
+  const unreadFacts = unread.table.entries[0]!;
+  assert.equal(unreadFacts.observation.tag, "0.7.3");
+  assert.ok(unreadFacts.observed_releases.every((release) => release.text === "unobserved"));
+  assert.equal(reasonOf(decide(record, unreadFacts)), "release-text-unobserved");
+  assert.match(gateOn(record, unreadFacts), /own text nobody read/u);
+  // Text of other facts is never attached.
+  const stale = textObservation(repository, [
+    { id: 4, tag: "0.7.3", at: "2026-11-01T00:00:00Z", title: "v0.7.3" },
+  ]);
+  const report = throughHandoff(record, observation) as {
+    listings: { upstream_observation: Record<string, unknown> }[];
+  };
+  report.listings[0]!.upstream_observation.facts_sha256 = stale.facts_sha256;
+  const mismatched = await derive([record], report, undefined, { classify: anyNameClassifier });
+  assert.ok(mismatched.table.entries[0]!.observed_releases.every((r) => r.text === "unobserved"));
+});
+
+void test("Faxanadu: newer releases skipped by their words alone are hand-checked, never silently replaced (#1422 3a)", async () => {
+  const id = "faxanadu";
+  // Named `Game` so the shared fixture archive (`Game-v1.0-windows-x64.zip`)
+  // is the listing's own.
+  const record = listing(id, { name: "Game" });
+  const repository = `fixture-owner/${id}`;
+  const observation = textObservation(repository, [
+    { id: 1, tag: "v2.3.2", at: "2026-07-01T00:00:00Z", title: "v2.3.2" },
+    { id: 2, tag: "v2.3.3", at: "2026-08-01T00:00:00Z", title: "v2.3.3" },
+    { id: 3, tag: "v2.4.0", at: "2026-09-01T00:00:00Z", title: "Faxanadu v2.4.0 experimental mod" },
+    { id: 4, tag: "v2.5.0", at: "2026-10-01T00:00:00Z", title: "Faxanadu v2.5.0 experimental mod" },
+  ]);
+  const derived = await derive([record], throughHandoff(record, observation), undefined, {
+    classify: anyNameClassifier,
+  });
+  const facts = derived.table.entries[0]!;
+  // The worker still skips the worded releases for its choice ...
+  assert.equal(facts.observation.tag, "v2.3.3");
+  // ... but the fit withholds the older release and queues the newer ones.
+  const decision = decide(record, facts);
+  assert.equal(reasonOf(decision), "worded-prerelease-skipped");
+  assert.match((decision as { detail: string }).detail, /v2\.4\.0, v2\.5\.0/u);
+  assert.match(gateOn(record, facts), /only its own words call a prerelease/u);
+  const generation = generateRegistrations([record], table(facts));
+  assert.equal(generation.enrollments.length, 0);
+  assert.deepEqual(registrationQueues(generation).worded_prerelease_skipped, {
+    [id]: ["v2.4.0: title experimental", "v2.5.0: title experimental"],
+  });
+  // Flagged by the provider, the newer releases are prereleases by Core's
+  // own semantics: the older stable release is offered as before.
+  const flagged = textObservation(repository, [
+    { id: 2, tag: "v2.3.3", at: "2026-08-01T00:00:00Z", title: "v2.3.3" },
+    {
+      id: 4,
+      tag: "v2.5.0",
+      at: "2026-10-01T00:00:00Z",
+      title: "Faxanadu v2.5.0 experimental mod",
+      prerelease: true,
+    },
+  ]);
+  const offered = (
+    await derive([record], throughHandoff(record, flagged), undefined, {
+      classify: anyNameClassifier,
+    })
+  ).table.entries[0]!;
+  assert.equal(offered.observation.tag, "v2.3.3");
+  assert.ok(decide(record, offered).fit);
+  assert.equal(gateOn(record, offered), "accepted");
+});
+
+void test("a hyphenated status compound states a status: Alpha-Testing 0.0.11 (#1422 3b)", () => {
+  const repository = "fixture-owner/game";
+  for (const [line, token] of [
+    ["Alpha-Testing 0.0.11", "alpha"],
+    ["alpha-testing 0.0.11", "alpha"],
+    ["Beta-Test 3", "beta"],
+    ["Game 1.0 Beta-Test", "beta"],
+    ["Beta-Phase 2", "beta"],
+    ["Alpha-Stage build 4", "alpha"],
+    ["Open Beta-Testing 2", "beta"],
+    // Only a hyphen joins the compound, only the closed words, and a
+    // negation still states nothing.
+    ["Alpha Testing 0.0.11", null],
+    ["Alpha - Testing 0.0.11", null],
+    ["Alpha-Centauri 1.0", null],
+    ["Post-Beta-Testing 2", null],
+    ["Out of Beta-Testing 2", null],
+  ] as const) {
+    assert.equal(releaseStatement(line, repository), token, `fit: ${line}`);
+    assert.equal(gateStatement(line, repository), token, `gate: ${line}`);
+  }
+  // The product's own words still name the product before the first number.
+  const words = listingWords({ id: "zz-alpha", name: "Alpha Testing Grounds" });
+  assert.equal(releaseStatement("Alpha-Testing Grounds 1.0", repository, words), null);
+  assert.equal(gateStatement("Alpha-Testing Grounds 1.0", repository, words), null);
+});
+
+void test("the whole judged line of the whole body is read; text not kept is never read as stating nothing (#1422 1, 3)", () => {
+  const repository = "fixture-owner/game";
+  // Measured: bustagrooverecompiled-releases-brankomatija-bust-a-groove v0.1.0
+  // pastes about 47 KB of HTML notes whose first readable line ran 8,276
+  // characters, so the old 4,096-character window left it unobserved. The
+  // whole body is read now, and HTML block tags end a line.
+  const pasted = `<div><p><img src="cover.png" alt="Bust A Groove">${"<span>Recompiled from the original game.</span> ".repeat(200)}</p><p>Beta 2 of the recompilation</p></div>`;
+  assert.ok(pasted.length > 8_000);
+  assert.deepEqual(observedTextStatement("v0.1.0", pasted, false, repository), {
+    observed: true,
+    statement: null,
+  });
+  // The same long paragraph ending in a status is judged whole.
+  const paragraph = `${"<b>Many fixes.</b> ".repeat(500)}(beta)`;
+  assert.deepEqual(observedTextStatement("v0.1.0", paragraph, false, repository), {
+    observed: true,
+    statement: { field: "body-first-line", token: "beta" },
+  });
+  // A tag whose attributes continue on the next line never becomes the line.
+  assert.equal(bodyFirstLine('<img src="a"\nalt=x>\nBeta 3'), "Beta 3");
+  assert.deepEqual(observedTextStatement("v1", '<img src="a"\nalt=x>\nBeta 3', false, repository), {
+    observed: true,
+    statement: { field: "body-first-line", token: "beta" },
+  });
+  // Text a source did not keep (over its budget) states nothing either way.
+  assert.deepEqual(lineStatement(null, null, false, repository), { observed: false });
+  assert.deepEqual(observedTextStatement("v1.0", "Bug fixes.", true, repository), {
+    observed: false,
+  });
+  // A statement found still stands.
+  assert.deepEqual(lineStatement("v1.0 RC1", null, false, repository), {
+    observed: true,
+    statement: { field: "title", token: "release-candidate" },
+  });
+});
+
+void test("raw HTML is removed whether or not GitHub renders it; other angle brackets are text (#1422)", () => {
+  const repository = "fixture-owner/game";
+  // Found in review: a `<` with no rendered element after it reached a later
+  // blockquote `>` and erased the status between them.
+  for (const body of [
+    "Upgrade path: v1 <- Beta 2\n\n> Thanks to all testers",
+    "Build 5 (2 < 3, Beta)\n> quote",
+    "Requires Windows < 10 Beta 3\n\n- item\n> x",
+    "<Beta 3>",
+    // Found in review: wrapper tags GitHub strips without rendering them
+    // once became the judged line, so a beta read as stating nothing.
+    "<html>\r\n<body>\r\nBeta 2 of the game\r\n</body></html>",
+    "<html>\n<body>\nBeta 2",
+    "<center>\nBeta 2",
+    "<font color=red>\nBeta 2",
+    "<style>p { color: red }</style>\nBeta 2",
+    "<script>var beta;</script>\nBeta 2",
+    "<!DOCTYPE html>\nBeta 2",
+  ])
+    assert.deepEqual(
+      observedTextStatement("v1", body, false, repository),
+      { observed: true, statement: { field: "body-first-line", token: "beta" } },
+      JSON.stringify(body),
+    );
+  // Measured: brankomatija/BustAGrooveRecompiled-Releases v0.1.0 notes open
+  // with this shape; their first readable line is the game's name.
+  assert.equal(
+    bodyFirstLine(
+      '<html>\r\n<body>\r\n<!--StartFragment--><div style="text-align: center;"><h1>Bust A Groove Recompiled</h1><p>Beta 2</p></div>',
+    ),
+    "Bust A Groove Recompiled",
+  );
+  // Found in review: a quoted value never spans a blank line (the paragraph
+  // ends there), so it cannot hide the lines GitHub shows; the unclosed
+  // `<a title="` is then the text shown first.
+  for (const [quote, blank] of [
+    ['"', "\n\n"],
+    ["'", "\n\n"],
+    ['"', "\r\n\r\n"],
+    ["'", "\r\n \r\n"],
+  ] as const) {
+    const body = `<a title=${quote}${blank}Beta 2${blank}${quote}>\nStable release`;
+    assert.equal(bodyFirstLine(body), `<a title=${quote}`, JSON.stringify(body));
+    const line = `v1 <a title=${quote}${blank}Beta 2${blank}${quote}> ok`;
+    assert.equal(releaseStatement(line, repository), "beta", `fit: ${JSON.stringify(line)}`);
+    assert.equal(gateStatement(line, repository), "beta", `gate: ${JSON.stringify(line)}`);
+  }
+  // One line break inside a quoted value is still one tag.
+  assert.equal(bodyFirstLine('<a title="x\ny">\nBeta 3'), "Beta 3");
+  // A quoted attribute value may hold `>`.
+  assert.equal(bodyFirstLine('<a title="a>b">\nBeta 5'), "Beta 5");
+  // Comments and tags, also across one line break, state nothing.
+  assert.equal(
+    bodyFirstLine("<!-- Release notes generated using configuration -->\n## Beta 2"),
+    "Beta 2",
+  );
+  assert.equal(bodyFirstLine('<IMG src="a"\r\nalt=x>\nBeta 3'), "Beta 3");
+  assert.equal(bodyFirstLine("<b>\n\nBeta 4\n</b>"), "Beta 4");
+  // A span reaching a blank line is no tag: it stays text.
+  assert.equal(bodyFirstLine("<b\n\nBeta 3\n>"), "<b");
+  // An unclosed comment is text.
+  assert.equal(bodyFirstLine("<!-- Beta 5"), "<!-- Beta 5");
+  for (const [line, token] of [
+    ["v1 <- Beta 2", "beta"],
+    ["Game <b>1.0</b>", null],
+    ["Game 1.0 <sup>beta</sup>", "beta"],
+    ["Game <!-- beta --> 1.0", null],
+    // `<beta>` is a tag (GitHub removes it), `<Beta 3>` is not.
+    ["Game <beta> 1.0", null],
+    ["Game <Beta 3> 1.0", "beta"],
+    ["Game <center>1.0</center>", null],
+    ["Game <b class=x\n>1.0", null],
+    // Found in review: `İ` lowercases to two characters, which once shifted
+    // the `www.` removal; and names match in ASCII only, never by Unicode
+    // case folding (`ſ` is no `s`, the Kelvin sign no `k`).
+    ["rc1=<İwww.v1...v2İ", "release-candidate"],
+    ["v2 İwww.rc1", null],
+    ["v1 <ſpan Beta 2> notes", "beta"],
+    ["v1 <\u212Abd Beta 2>", "beta"],
+  ] as const) {
+    assert.equal(releaseStatement(line, repository), token, `fit: ${line}`);
+    assert.equal(gateStatement(line, repository), token, `gate: ${line}`);
+  }
+});
+
+void test("release text of any length is read in time linear in its length (#1422)", () => {
+  // Found in review: several removals were quadratic on untrusted text, so a
+  // 125,000-character body (the provider's maximum) took about 37 seconds.
+  // Each of these used to take seconds; read linearly, all take milliseconds.
+  const started = performance.now();
+  for (const unit of ["a", "![", "[", "[a](", "[a][", "<", "<b ", "<!--", "a.", "www.", "a://"]) {
+    const body = unit.repeat(Math.ceil(125_000 / unit.length));
+    bodyFirstLine(body);
+    statementText(body);
+  }
+  // A generous bound: quadratic reading takes minutes here.
+  assert.ok(performance.now() - started < 20_000);
+});
+
+void test("an ellipsis never erases a status word; only a range between two versions is removed (#1422)", () => {
+  const repository = "fixture-owner/game";
+  for (const [line, token] of [
+    ["v1.0 Beta...", "beta"],
+    ["v1.0 Beta...!", "beta"],
+    ["beta...v2", "beta"],
+    ["Beta..", "beta"],
+    ["Beta....", "beta"],
+    ["Beta…", "beta"],
+    ["v1.0...v1.1 beta", "beta"],
+    // Removed as a compare range: digits on both sides of the dots.
+    ["v0.9-beta...v1.0", null],
+    ["1.0-beta...1.0", null],
+    ["**Full Changelog**: https://github.com/o/r/compare/v0.9-beta...v1.0", null],
+    // A status word trailing off into an ellipsis stands wherever it is.
+    ["Beta... finally", "beta"],
+    ["Beta… finally", "beta"],
+    ["Beta.. finally", "beta"],
+    ["Beta.... finally", "beta"],
+    ["Alpha-Test... soon", "alpha"],
+    // Known limit: without the ellipsis the word does not stand.
+    ["Beta finally", null],
+    ["Beta. finally", null],
+    // An en dash joins a compound like a hyphen.
+    ["Beta–Test 3", "beta"],
+  ] as const) {
+    assert.equal(releaseStatement(line, repository), token, `fit: ${line}`);
+    assert.equal(gateStatement(line, repository), token, `gate: ${line}`);
+  }
+});
+
+void test("fit and gate agree on the release-text rules over generated release windows (#1422)", () => {
+  const random = seeded(1422);
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const lines = [
+    null,
+    "v1.1",
+    "v1.1 Beta",
+    "Game 1.1 experimental mod",
+    "Alpha-Testing 0.0.11",
+    "Alpha Testing 0.0.11",
+    "Out of beta",
+    "Beta-Test",
+    "Release 1.1",
+  ];
+  const statementOf = (title: string | null) => {
+    const token = title === null ? null : releaseStatement(title, `fixture-owner/${unseen}`);
+    return token === null ? null : { field: "title" as const, token };
+  };
+  let withheld = 0;
+  let accepted = 0;
+  for (let round = 0; round < 3000; round++) {
+    const count = 1 + Math.floor(random() * 4);
+    const releases = Array.from({ length: count }, (_, index) => {
+      const text = random() < 0.15 ? ("unobserved" as const) : ("observed" as const);
+      const title = text === "observed" ? pick(lines) : null;
+      const bodied = text === "observed" && title === null && random() < 0.3;
+      const statement = bodied
+        ? { field: "body-first-line" as const, token: pick(["beta", "alpha"] as const) }
+        : statementOf(title);
+      const core = random() < 0.2;
+      return {
+        release_id: 7 + index,
+        tag: `v1.${index}`,
+        core_prerelease: core,
+        prerelease: core || statement !== null,
+        published_at: `2026-1${pick(["0", "1"])}-0${1 + Math.floor(random() * 9)}T00:00:00.000Z`,
+        packaged: true,
+        text,
+        title,
+        statement,
+      };
+    });
+    const offered = pick(releases);
+    // The worker offers only a release its verdict calls stable.
+    if (offered.prerelease) continue;
+    const facts = entry(
+      [named(windowsZip, [player("Game/Game.exe")], 11, "windows")],
+      { release_id: offered.release_id, tag: offered.tag, published_at: offered.published_at },
+      unseen,
+      { observed_releases: releases },
+    );
+    const fit = decide(listing(), facts).fit;
+    const gate = gateOn(listing(), facts) === "accepted";
+    assert.equal(
+      gate,
+      fit,
+      JSON.stringify(
+        releases.map((r) => [
+          r.release_id,
+          r.core_prerelease,
+          r.text,
+          r.title,
+          r.statement?.token,
+          r.published_at,
+        ]),
+      ) + ` offered ${offered.release_id}`,
+    );
+    if (fit) accepted++;
+    else withheld++;
+  }
+  assert.ok(accepted > 100 && withheld > 100, `${accepted} accepted, ${withheld} withheld`);
+});
+
+void test("fit and gate read hyphenated status compounds alike over generated lines (#1422 3b)", () => {
+  const random = seeded(14223);
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const pieces = [
+    "alpha",
+    "Beta",
+    "testing",
+    "Test",
+    "tests",
+    "phase",
+    "stage",
+    "centauri",
+    "post",
+    "out",
+    "of",
+    "open",
+    "0.0.11",
+    "2",
+    "v1.0",
+    "build",
+    "release",
+    "(",
+    ")",
+    "_",
+    ".",
+    "._",
+    "-",
+    "--",
+    "game",
+    "...",
+    "..",
+    "....",
+    "\u2026",
+    "\u2013",
+    "v0.9",
+    "1.0",
+  ];
+  let stated = 0;
+  for (let round = 0; round < 20_000; round++) {
+    const line = Array.from({ length: 1 + Math.floor(random() * 6) }, () => pick(pieces))
+      .map(
+        (piece, index) =>
+          (index
+            ? pick(["-", "-", " ", "", " - ", "_-", "-.", "...", "\u2013", "..", " ..."])
+            : "") + piece,
+      )
+      .join("");
+    const words = pick([[], ["alpha", "testing"], ["game"]]);
+    const fit = releaseStatement(line, "fixture-owner/game", words);
+    assert.equal(gateStatement(line, "fixture-owner/game", words), fit, line);
+    if (fit !== null) stated++;
+  }
+  assert.ok(stated > 1000, `${stated} statements`);
+});
+
+void test("an identity withheld after reproduction stays withheld without downloading until its receipt changes (#1422 2)", async () => {
+  const downloads: string[] = [];
+  const inner = inspector({ [windowsZip]: [player("Game/Game.exe")] });
+  const inspect: TestInspector = async (asset, platform) => {
+    downloads.push(asset.name);
+    return await inner(asset, platform);
+  };
+  const first = await derive([listing()], observerReport({ [unseen]: {} }), undefined, { inspect });
+  assert.equal(first.table.entries[0]!.ineligible, null);
+  const { table } = withholdRefused(first.table, [
+    { port_id: unseen, reason: "mismatch", detail: "The provider no longer states it." },
+  ]);
+  const refused = table.entries[0]!;
+  assert.equal(refused.ineligible?.reason, "reproduction-refused");
+  // The receipt binds what the refusal was derived from without bytes.
+  assert.equal(
+    refused.ineligible?.receipt,
+    refusalReceipt({
+      repository_id: first.table.entries[0]!.repository_id,
+      release_id: first.table.entries[0]!.observation.release_id,
+      assets_sha256: first.table.entries[0]!.observation.assets_sha256,
+      observed_releases: first.table.entries[0]!.observed_releases,
+    }),
+  );
+  // The withheld identity offers nothing, and it is queued for a person.
+  const generation = generateRegistrations([listing()], table);
+  assert.equal(generation.enrollments.length, 0);
+  assert.deepEqual(registrationQueues(generation).reasons["reproduction-refused"], [unseen]);
+  // Unchanged receipt: reconfirmed, still withheld and queued, no download.
+  downloads.length = 0;
+  const same = await derive([listing()], observerReport({ [unseen]: {} }), table, {
+    inspect,
+    now: "2026-11-22T00:00:00.000Z",
+  });
+  assert.deepEqual(downloads, []);
+  assert.equal(same.table.entries[0]!.ineligible?.reason, "reproduction-refused");
+  assert.equal(outcome(same, unseen)?.outcome, "unchanged");
+  // Changed release text (another observed verdict) changes the receipt: the
+  // identity is inspected and derived again, and can land.
+  const changed = await derive(
+    [listing()],
+    observerReport({
+      [unseen]: {
+        releases: [{ ...defaultRelease(unseen), text: { name: "v1.0", body: "Notes" } }],
+      },
+    }),
+    table,
+    { inspect, now: "2026-11-22T00:00:00.000Z" },
+  );
+  assert.ok(downloads.length > 0);
+  assert.equal(changed.table.entries[0]!.ineligible, null);
+  // A refusal record without its receipt is refused by the facts check.
+  const forged = structuredClone(table);
+  delete forged.entries[0]!.ineligible!.receipt;
+  forged.entries_sha256 = digestOf(forged.entries);
+  assert.throws(() => checkListingFactsTable(forged), /ineligible/u);
+});
+
+/** The archive account of a measured identity in fit and gate, which must agree on the product. */
+function measuredAccount(
+  id: string,
+  name: string,
+  repository: string,
+  archive: string,
+  others: readonly Record<string, unknown>[] = [],
+) {
+  const record = listing(id, {
+    name,
+    original_game_title: name,
+    project_url: `https://github.com/${repository}`,
+  });
+  const fit = archiveNameAccount(archive, record.listing, repository, others);
+  const gate = gateArchiveAccount(archive, record.listing, repository, others);
+  assert.equal("product" in fit ? fit.product : null, gate, `fit and gate agree on ${archive}`);
+  return fit;
+}
+
+void test("generator 29: a carried number compares by value with a roman number of two or more letters, and nothing else gets through, in fit and gate (measured Saboteur II)", () => {
+  // Measured: "Saboteur II" in `petarov/saboteur2` was withheld
+  // `archive-name-unaccounted` (`saboteur-2`) while "Saboteur 2" enrolled.
+  for (const name of ["Saboteur II", "Saboteur 2"]) {
+    const fit = measuredAccount(
+      "petarov-saboteur2",
+      name,
+      "petarov/saboteur2",
+      "saboteur2-1.1-windows-x86_64.zip",
+    );
+    assert.ok("product" in fit && fit.product === "saboteur2", `${name}: ${JSON.stringify(fit)}`);
+  }
+  const literal = "saboteur2";
+  assert.equal(dropsLinkedNumber(literal, digitRuns(literal), [nameForm("Saboteur II")]), false);
+  // A different value, an absent number, a lone `V` or `X` (a letter's name)
+  // still drop the number.
+  const drops = (value: string, name: string) =>
+    dropsLinkedNumber(value, digitRuns(value), [nameForm(name)]);
+  assert.equal(drops("saboteur2", "Saboteur III"), true);
+  assert.equal(drops("saboteur3", "Saboteur II"), true);
+  assert.equal(drops("saboteur", "Saboteur II"), true);
+  assert.equal(drops("megaman10", "Mega Man X"), true);
+  assert.equal(drops("saboteur5", "Saboteur V"), true);
+  const rows: [string, string, string][] = [
+    ["Saboteur III", "saboteur2", "saboteur2-1.1-windows-x86_64.zip"],
+    ["Saboteur II", "saboteur3", "saboteur3-1.1-windows-x86_64.zip"],
+    ["Saboteur II", "saboteur", "saboteur-1.1-windows-x86_64.zip"],
+    ["Saboteur II", "saboteur", "saboteur3-1.1-windows-x86_64.zip"],
+    ["Saboteur V", "saboteur5", "saboteur5-1.1-windows-x86_64.zip"],
+    ["Mega Man X", "megaman10", "megaman10-1.0-windows.zip"],
+    ["Doom II", "doom", "doom-1.0-win64.zip"],
+    ["Doom XIX", "doom91", "doom91-1.0-win64.zip"],
+  ];
+  for (const [name, repository, archive] of rows) {
+    const fit = reliefAccount(name, repository, archive);
+    assert.ok(!("product" in fit), `${archive} for ${name} must withhold: ${JSON.stringify(fit)}`);
+  }
+});
+
+void test("generator 29: a title segment is queued as dropped only when every accepted spelling omits it (measured Bustin' Out and Hard Corps: Uprising)", () => {
+  const listed = (
+    parseCatalogSource(readFileSync(join(catalogRoot, "listings.json"), "utf8")) as {
+      listings: Record<string, unknown>[];
+    }
+  ).listings;
+  const measured = (id: string) => {
+    const found = listed.find((each) => each.id === id);
+    assert.ok(found, id);
+    return found;
+  };
+  const bustin = measured("abilliontokens-bustinout-recomp");
+  const hardCorps = measured("hard-corps-uprising-hard-corps-uprising-recompiled");
+  assert.equal(
+    bustin.name,
+    "The Sims: Bustin' Out — Original Xbox (The Sims: Bustin' Out - Static Recompilation)",
+  );
+  assert.equal(hardCorps.name, "Hard Corps: Uprising (Hard Corps: Uprising Recompiled)");
+  // The literal holds the subtitle (also as the program `hard_corps_uprising.exe`): not queued.
+  for (const literal of ["simsbustinout", "thesimsbustinout"])
+    assert.deepEqual(subtitleDroppedByName(literal, bustin), [], literal);
+  for (const path of ["hard_corps_uprising.exe", "HardCorpsUprising.exe"])
+    assert.deepEqual(subtitleDroppedByName(literalProgramName(path), hardCorps), [], path);
+  // The literal lacks the subtitle: still queued.
+  assert.deepEqual(subtitleDroppedByName("hardcorps", hardCorps), ["uprising"]);
+  assert.deepEqual(subtitleDroppedByName("sims", bustin), ["bustin out"]);
+  const cases: [Record<string, unknown>, string, string, string[]][] = [
+    [bustin, "abilliontokens/bustinout-recomp", "SimsBustinOut-windows-x64.zip", []],
+    [bustin, "abilliontokens/bustinout-recomp", "TheSimsBustinOut-windows-x64.zip", []],
+    [
+      hardCorps,
+      "saulob/hard-corps-uprising-recompiled",
+      "HardCorpsUprising-v0.7.1-windows-x64.zip",
+      [],
+    ],
+    [
+      hardCorps,
+      "saulob/hard-corps-uprising-recompiled",
+      "HardCorps-v0.7.1-windows-x64.zip",
+      ["uprising"],
+    ],
+  ];
+  for (const [record, repository, archive, dropped] of cases) {
+    const fit = measuredAccount(String(record.id), String(record.name), repository, archive);
+    assert.ok("product" in fit, `${archive}: ${JSON.stringify(fit)}`);
+    assert.deepEqual(fit.dropped, dropped, archive);
+    assert.equal(fit.franchise, dropped.length > 0, archive);
+  }
+});
+
+void test("random titles with a roman or digit number, and with an annotation repeating the subtitle: fit and gate agree, a carried number enrolls only at the same value, and a subtitle is queued exactly when the literal lacks it (generator 29 property)", () => {
+  let seed = 8_569_029;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const vocabulary = ["lantern", "storm", "hunter", "castle", "river", "orbit", "falcon", "ember"];
+  const camel = (words: readonly string[]) =>
+    words.map((word) => word[0]!.toUpperCase() + word.slice(1)).join("");
+  let enrolled = 0;
+  let withheld = 0;
+  let queued = 0;
+  let unqueued = 0;
+  for (let round = 0; round < 800; round++) {
+    const head = [
+      ...new Set(Array.from({ length: 1 + Math.floor(random() * 2) }, () => pick(vocabulary))),
+    ];
+    // The title's number in roman or digits, the archive's and repository's
+    // in digits, the same value or another.
+    const value = 2 + Math.floor(random() * 19);
+    const roman = romanOf(value);
+    const written = pick(["roman", "digits"] as const);
+    const titleNumber = written === "roman" ? pick([roman.toUpperCase(), roman]) : String(value);
+    const archiveValue = random() < 0.5 ? value : 2 + Math.floor(random() * 19);
+    const repository = `${head.join("")}${archiveValue}`;
+    const archive = `${camel(head)}${archiveValue}-1.1-windows-x86_64.zip`;
+    const title = `${camel(head)} ${titleNumber}`;
+    const fit = reliefAccount(title, repository, archive);
+    // A lone `V` or `X` is never carried by digits.
+    const expected = archiveValue === value && !(written === "roman" && roman.length < 2);
+    assert.equal("product" in fit, expected, `${archive} for ${title}: ${JSON.stringify(fit)}`);
+    if (expected) enrolled++;
+    else withheld++;
+    // A subtitle the annotation repeats: queued exactly when the literal lacks it.
+    const subtitle = [
+      ...new Set(Array.from({ length: 1 + Math.floor(random() * 2) }, () => pick(vocabulary))),
+    ].filter((word) => !head.includes(word));
+    if (!subtitle.length) continue;
+    const name = `${camel(head)}: ${camel(subtitle)} (${camel(head)}: ${camel(subtitle)} ${pick(["Recompiled", "Port", "Static Recompilation"])})`;
+    const keeps = random() < 0.5;
+    const literal = (keeps ? [...head, ...subtitle] : head).join("");
+    assert.deepEqual(
+      subtitleDroppedByName(literal, { name }),
+      keeps ? [] : [subtitle.join(" ")],
+      `${literal} for ${name}`,
+    );
+    const account = reliefAccount(
+      name,
+      `zz-p${round}-port`,
+      `${camel(keeps ? [...head, ...subtitle] : head)}-1.0-win64.zip`,
+    );
+    if ("product" in account) {
+      assert.deepEqual(account.dropped, keeps ? [] : [subtitle.join(" ")], `${literal} ${name}`);
+      if (keeps) unqueued++;
+      else queued++;
+    }
+  }
+  assert.ok(enrolled > 100 && withheld > 100, `${enrolled} enrolled, ${withheld} withheld`);
+  assert.ok(queued > 50 && unqueued > 50, `${queued} queued, ${unqueued} not queued`);
+});
+
+void test("an architecture word in a listing name's annotation names the build, not a sequel, in fit and gate (real petarov-saboteur2 listing)", () => {
+  const listed = (
+    parseCatalogSource(readFileSync(join(catalogRoot, "listings.json"), "utf8")) as {
+      listings: Record<string, unknown>[];
+    }
+  ).listings;
+  const saboteur = listed.find((each) => each.id === "petarov-saboteur2");
+  assert.ok(saboteur);
+  assert.equal(saboteur.name, "Saboteur II: Avenging Angel (Saboteur II x86-64 recomp)");
+  assert.equal(saboteur.project_url, "https://github.com/petarov/saboteur2");
+  for (const archive of ["saboteur2-1.1-windows-x86_64.zip", "saboteur2-1.0-win64.zip"]) {
+    const fit = archiveNameAccount(archive, saboteur, "petarov/saboteur2", listed);
+    const gate = gateArchiveAccount(archive, saboteur, "petarov/saboteur2", listed);
+    assert.ok(
+      "product" in fit && fit.product === "saboteur2",
+      `${archive}: ${JSON.stringify(fit)}`,
+    );
+    assert.equal(gate, "saboteur2", archive);
+  }
+  // The two other listed names whose annotation holds an architecture word
+  // (assumed archive names, not measured release assets).
+  for (const [id, repository, archive, product] of [
+    ["petarov-alleycat-exe", "petarov/alleycat.exe", "alleycat-1.0-windows-x86_64.zip", "alleycat"],
+    ["touhou-4-lotus-land-story-portable64", "N0zoM1z0/th04", "touhou4-1.0-win64.zip", "touhou4"],
+  ] as const) {
+    const record = listed.find((each) => each.id === id);
+    assert.ok(record, id);
+    const fit = archiveNameAccount(archive, record, repository, listed);
+    assert.ok("product" in fit && fit.product === product, `${archive}: ${JSON.stringify(fit)}`);
+    assert.equal(gateArchiveAccount(archive, record, repository, listed), product, archive);
+  }
+  // Every spelling of the architecture word, and the digit form of the title.
+  for (const name of [
+    "Saboteur 2: Avenging Angel (Saboteur 2 x86-64 recomp)",
+    "Saboteur II: Avenging Angel (Saboteur II x86_64 recomp)",
+    "Saboteur II (Saboteur II x64 recomp)",
+    "Saboteur II (Saboteur II Win64 port)",
+    "Saboteur II — amd64 recomp",
+    "Saboteur II (i386 build)",
+    "Saboteur II — Portable 64-bit",
+  ]) {
+    const fit = reliefAccount(name, "saboteur2", "saboteur2-1.1-windows-x86_64.zip");
+    assert.ok("product" in fit && fit.product === "saboteur2", `${name}: ${JSON.stringify(fit)}`);
+  }
+  // The title proper keeps every number rule, and an annotation number that
+  // spells no architecture word is still a number.
+  const rows: [string, string, string][] = [
+    ["Mario 64 (x86-64 recomp)", "mario", "mario-1.0-win64.zip"],
+    ["Lantern 64 (x64 recomp)", "lantern", "lantern-1.0-win64.zip"],
+    ["Rush 2049 (x64)", "rush", "rush-1.0-win64.zip"],
+    ["Lantern 64 (N64 recomp)", "lantern", "lantern-1.0-win64.zip"],
+    [
+      "Saboteur II: Avenging Angel (Saboteur II x86-64 recomp)",
+      "saboteur",
+      "saboteur-1.1-win64.zip",
+    ],
+    [
+      "Saboteur II: Avenging Angel (Saboteur II x86-64 recomp)",
+      "saboteur3",
+      "saboteur3-1.1-win64.zip",
+    ],
+    ["Saboteur II (Saboteur II 64 recomp)", "saboteur2", "saboteur2-1.1-win64.zip"],
+    ["Saboteur II (Saboteur II x65 recomp)", "saboteur2", "saboteur2-1.1-win64.zip"],
+  ];
+  for (const [name, repository, archive] of rows) {
+    const fit = reliefAccount(name, repository, archive);
+    assert.ok(!("product" in fit), `${archive} for ${name} must withhold: ${JSON.stringify(fit)}`);
+  }
+});
+
+void test("the F3 fallback compares a head number by value, and a subtitle spelled only without the first title segment stays queued", () => {
+  const rows: [string, string, string[]][] = [
+    ["Saboteur II: Avenging Angel", "saboteur2", ["avenging angel"]],
+    ["Saboteur 2: Avenging Angel", "saboteur2", ["avenging angel"]],
+    ["Lantern II: Storm", "lantern2", ["storm"]],
+    ["Rocky IV: The Return", "rocky4", ["the return"]],
+    ["Hunter XVII: Castle", "hunter17", ["castle"]],
+    // A different value or no number spells no head: nothing to report.
+    ["Lantern II: Storm", "lantern3", []],
+    ["Lantern II: Storm", "lantern", []],
+    // A lone `V` or `X` is never carried by digits.
+    ["Hunter X: Castle", "hunter10", []],
+    // The literal holds the subtitle.
+    ["Lantern II: Storm", "lantern2storm", []],
+    // "The Lantern" spelled with the head omitted is no spelling of the title.
+    ["Lantern: The Lantern", "lantern", ["the lantern"]],
+    ["Lantern: The Lantern", "lanternthelantern", []],
+  ];
+  for (const [name, literal, dropped] of rows)
+    assert.deepEqual(subtitleDroppedByName(literal, { name }), dropped, `${literal} for ${name}`);
+  assert.deepEqual(
+    subtitleDroppedByName("saboteur2", {
+      name: "Saboteur II: Avenging Angel (Saboteur II x86-64 recomp)",
+    }),
+    ["avenging angel"],
+  );
+});
+
+void test("random titles with a roman number of two or more letters and a subtitle: the F3 fallback queues the subtitle exactly when the literal carries the number by value and lacks the subtitle (generator 29 property)", () => {
+  let seed = 8_658_029;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const vocabulary = ["lantern", "storm", "hunter", "castle", "river", "orbit", "falcon", "ember"];
+  const camel = (words: readonly string[]) =>
+    words.map((word) => word[0]!.toUpperCase() + word.slice(1)).join(" ");
+  const values = Array.from({ length: 19 }, (_, at) => at + 2).filter(
+    (value) => romanOf(value).length >= 2,
+  );
+  const outcomes = { queued: 0, kept: 0, other: 0 };
+  for (let round = 0; round < 600; round++) {
+    const head = [
+      ...new Set(Array.from({ length: 1 + Math.floor(random() * 2) }, () => pick(vocabulary))),
+    ];
+    const subtitle = [
+      ...new Set(Array.from({ length: 1 + Math.floor(random() * 2) }, () => pick(vocabulary))),
+    ].filter((word) => !head.includes(word));
+    if (!subtitle.length) continue;
+    const value = pick(values);
+    const roman = romanOf(value);
+    const name = `${camel(head)} ${pick([roman.toUpperCase(), roman])}: ${camel(subtitle)}`;
+    const kind = pick(["queued", "kept", "other"] as const);
+    const literalValue = kind === "other" ? pick(values.filter((each) => each !== value)) : value;
+    const literal = `${head.join("")}${literalValue}${kind === "kept" ? subtitle.join("") : ""}`;
+    assert.deepEqual(
+      subtitleDroppedByName(literal, { name }),
+      kind === "queued" ? [subtitle.join(" ")] : [],
+      `${literal} for ${name}`,
+    );
+    // The digit form of the same name answers alike.
+    assert.deepEqual(
+      subtitleDroppedByName(literal, { name: `${camel(head)} ${value}: ${camel(subtitle)}` }),
+      kind === "queued" ? [subtitle.join(" ")] : [],
+      `${literal} for the digit form of ${name}`,
+    );
+    outcomes[kind]++;
+  }
+  assert.ok(
+    outcomes.queued > 100 && outcomes.kept > 100 && outcomes.other > 100,
+    JSON.stringify(outcomes),
+  );
+});
+
+void test("random names with an architecture word or a bare number in the annotation: fit and gate agree, and only the title's number decides (generator 29 property)", () => {
+  let seed = 8_658_064;
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const vocabulary = ["lantern", "storm", "hunter", "castle", "river", "orbit", "falcon", "ember"];
+  const architecture = [
+    "x86-64",
+    "x86_64",
+    "x64",
+    "Win64",
+    "win32",
+    "amd64",
+    "arm64",
+    "i386",
+    "64-bit",
+  ];
+  const counts = { enrolled: 0, withheld: 0 };
+  for (let round = 0; round < 500; round++) {
+    const word = pick(vocabulary);
+    const title = word[0]!.toUpperCase() + word.slice(1);
+    const value = 2 + Math.floor(random() * 18);
+    const numbered = random() < 0.6;
+    const number = numbered ? ` ${pick([String(value), romanOf(value).toUpperCase()])}` : "";
+    const lone = numbered && !/^\d/u.test(number.trim()) && romanOf(value).length < 2;
+    const architectural = random() < 0.7;
+    const tail = architectural ? pick(architecture) : pick(["64", "x65", "86"]);
+    const name = `${title}${number} (${title}${number} ${tail} ${pick(["recomp", "port"])})`;
+    const carried = numbered ? pick([value, value + 1]) : null;
+    const product = `${word}${carried ?? ""}`;
+    const fit = reliefAccount(name, product, `${product}-1.0-windows-x86_64.zip`);
+    // The annotation's architecture word never decides; a bare annotation
+    // number is a number the literal must carry.
+    const expected = architectural && (!numbered || (carried === value && !lone));
+    if (expected) {
+      assert.ok("product" in fit, `${product} for ${name}: ${JSON.stringify(fit)}`);
+      counts.enrolled++;
+    } else {
+      assert.ok(!("product" in fit), `${product} for ${name}: ${JSON.stringify(fit)}`);
+      counts.withheld++;
+    }
+  }
+  assert.ok(counts.enrolled > 100 && counts.withheld > 100, JSON.stringify(counts));
 });

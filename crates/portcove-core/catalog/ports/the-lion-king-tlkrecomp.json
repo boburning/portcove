@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-lion-king-tlkrecomp",
+    "project_url": "https://github.com/kinduff/TLKRecomp",
+    "name": "The Lion King / TLKRecomp",
+    "summary": "TLKRecomp is a static recompilation of The Lion King (SNES), built with snesrecomp",
+    "issue_number": 5456,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-lion-king",
+      "evidence_urls": ["https://github.com/kinduff/TLKRecomp"],
+      "source_editions": [
+        {
+          "id": "the-lion-king-super-nintendo",
+          "title": "The Lion King (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/kinduff/TLKRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "The Lion King"
+  }
+}

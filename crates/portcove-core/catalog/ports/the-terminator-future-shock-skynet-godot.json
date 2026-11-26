@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-terminator-future-shock-skynet-godot",
+    "project_url": "https://github.com/nautilusbits/skynet-godot",
+    "name": "The Terminator: Future Shock / skynet-godot (nautilusbits)",
+    "summary": "A Godot 4 port of Bethesda's 1996 XnGine shooters SkyNET and Future Shock - plays your own copy of the original game data.",
+    "issue_number": 6930,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-terminator-future-shock",
+      "evidence_urls": ["https://github.com/nautilusbits/skynet-godot"],
+      "source_editions": []
+    },
+    "original_game_title": "The Terminator: Future Shock"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "stuntman-lab0ulange",
+    "project_url": "https://github.com/lab0ulange/stuntman-pc",
+    "name": "Stuntman / LAB0ULANGE",
+    "summary": "Unofficial native Windows port of Stuntman (PS2, 2002) - bring your own disc",
+    "issue_number": 5515,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "stuntman",
+      "evidence_urls": ["https://github.com/lab0ulange/stuntman-pc"],
+      "source_editions": [
+        {
+          "id": "stuntman-playstation-2",
+          "title": "Stuntman (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/lab0ulange/stuntman-pc"]
+        }
+      ]
+    },
+    "original_game_title": "Stuntman"
+  }
+}

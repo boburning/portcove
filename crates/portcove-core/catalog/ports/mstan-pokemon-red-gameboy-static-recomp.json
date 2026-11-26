@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mstan-pokemon-red-gameboy-static-recomp",
+    "project_url": "https://github.com/mstan/PokemonRedAndBlueRecomp",
+    "name": "Pokémon Red (Game Boy) / mstan PokemonRedAndBlueRecomp",
+    "summary": "Pokémon Red & Blue recompiled for the Game Boy using a fork of gb-recompiled · Part of the R.A.I.D. community",
+    "issue_number": 6280,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-red",
+      "evidence_urls": ["https://github.com/mstan/PokemonRedAndBlueRecomp"],
+      "source_editions": [
+        {
+          "id": "pokemon-red-game-boy",
+          "title": "Pokémon Red (Game Boy)",
+          "system": "game-boy",
+          "evidence_urls": ["https://github.com/mstan/PokemonRedAndBlueRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Pokémon Red"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "papand7-battlefield-1943-x360-recomp-windows",
+    "project_url": "https://github.com/papand7/Battlefield-Recompilation-Project",
+    "name": "Battlefield 1943 / papand7 multi-game Xbox 360 recompiler",
+    "summary": "Installer that builds a native PC version of Battlefield 1943 from your own copy of the game.",
+    "issue_number": 5180,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "battlefield-1943",
+      "evidence_urls": ["https://github.com/papand7/Battlefield-Recompilation-Project"],
+      "source_editions": []
+    },
+    "original_game_title": "Battlefield 1943"
+  }
+}

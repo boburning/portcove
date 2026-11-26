@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-gunslingers-wii-sw7evn-rev1-recomp",
+    "project_url": "https://github.com/darkuni/gunslingers-recomp",
+    "name": "Gunslingers (Wii NTSC-U SW7EVN Rev 1) / darkuni static recomp",
+    "summary": "Static recompilation of Gunslingers for Windows and Linux.",
+    "issue_number": 5312,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gunslingers",
+      "evidence_urls": ["https://github.com/darkuni/gunslingers-recomp"],
+      "source_editions": [
+        {
+          "id": "gunslingers-wii",
+          "title": "Gunslingers (Wii)",
+          "system": "wii",
+          "evidence_urls": ["https://github.com/darkuni/gunslingers-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Gunslingers"
+  }
+}

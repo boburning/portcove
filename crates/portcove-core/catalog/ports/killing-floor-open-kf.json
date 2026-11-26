@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "killing-floor-open-kf",
+    "project_url": "https://github.com/Scronkfinkle/open-kf",
+    "name": "Killing Floor / Open KF",
+    "summary": "A from-scratch Rust + Bevy reimplementation of Killing Floor (2009)",
+    "issue_number": 5738,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "killing-floor",
+      "evidence_urls": ["https://github.com/Scronkfinkle/open-kf"],
+      "source_editions": []
+    },
+    "original_game_title": "Killing Floor"
+  }
+}

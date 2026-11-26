@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "project-gotham-racing-4-pgr4-regpu",
+    "project_url": "https://github.com/zer0ducksgiven/PGR4-ReGPU",
+    "name": "Project Gotham Racing 4 / PGR4 ReGPU (zer0ducksgiven)",
+    "summary": "Project Gotham Racing 4 PC port on ReGPU (XenonRecomp)",
+    "issue_number": 7242,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "project-gotham-racing-4",
+      "evidence_urls": ["https://github.com/zer0ducksgiven/PGR4-ReGPU"],
+      "source_editions": []
+    },
+    "original_game_title": "Project Gotham Racing 4"
+  }
+}

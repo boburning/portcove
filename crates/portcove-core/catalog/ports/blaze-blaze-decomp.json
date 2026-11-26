@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blaze-blaze-decomp",
+    "project_url": "https://github.com/pdromnt/blaze_decomp",
+    "name": "Blaze / blaze_decomp",
+    "summary": "A RE/Decomp of Blaze",
+    "issue_number": 5813,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "blaze",
+      "evidence_urls": ["https://github.com/pdromnt/blaze_decomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Blaze"
+  }
+}

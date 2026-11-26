@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kevinl50-formula-one-06-ps2-sces53950-win",
+    "project_url": "https://github.com/KevinL50-sysadmin/F1-06-PC",
+    "name": "Formula One 06 / KevinL50 native PS2Recomp",
+    "summary": "Native Windows port of Formula One 06 (PS2, PAL) by static recompilation. GPU rendering, PC options in the game's menus, wheel support, photo mode. Free fan project, not affiliated; bring your own disc.",
+    "issue_number": 5174,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "formula-one-06",
+      "evidence_urls": ["https://github.com/KevinL50-sysadmin/F1-06-PC"],
+      "source_editions": [
+        {
+          "id": "formula-one-06-playstation-2",
+          "title": "Formula One 06 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/KevinL50-sysadmin/F1-06-PC"]
+        }
+      ]
+    },
+    "original_game_title": "Formula One 06"
+  }
+}

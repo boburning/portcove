@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "king-s-quest-i-kings-quest-native",
+    "project_url": "https://github.com/Gl0ttis/kings-quest-native",
+    "name": "King's Quest I / kings-quest-native",
+    "summary": "Native ports of Sierra's King's Quest (1984), behaving as each original release did. No emulation; bring your own disks.",
+    "issue_number": 5462,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "kings-quest-i",
+      "evidence_urls": ["https://github.com/Gl0ttis/kings-quest-native"],
+      "source_editions": []
+    },
+    "original_game_title": "King's Quest I"
+  }
+}

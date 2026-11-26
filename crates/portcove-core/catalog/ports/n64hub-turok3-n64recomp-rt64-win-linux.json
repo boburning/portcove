@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "n64hub-turok3-n64recomp-rt64-win-linux",
+    "project_url": "https://github.com/n64hub/turok-3-recomp",
+    "name": "Turok 3: Shadow of Oblivion / n64hub N64Recomp",
+    "summary": "AI-written static recompilation of Turok 3: Shadow of Oblivion (N64, USA) for PC and the web. Bring your own ROM.",
+    "issue_number": 5188,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "turok-3-shadow-of-oblivion",
+      "evidence_urls": ["https://github.com/n64hub/turok-3-recomp"],
+      "source_editions": [
+        {
+          "id": "turok-3-shadow-of-oblivion-nintendo-64",
+          "title": "Turok 3: Shadow of Oblivion (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/n64hub/turok-3-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Turok 3: Shadow of Oblivion"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "paviv14-trauma-team-wii-us-suoe01-static-recomp",
+    "project_url": "https://github.com/paviv14/TraumaTeam-Resuscitated",
+    "name": "Trauma Team (Wii USA) / paviv14 TraumaTeam-Resuscitated",
+    "summary": "Unofficial native PC port of Trauma Team (Wii, 2010) via static recompilation. No game data included: requires your own copy.",
+    "issue_number": 6774,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "trauma-team",
+      "evidence_urls": ["https://github.com/paviv14/TraumaTeam-Resuscitated"],
+      "source_editions": [
+        {
+          "id": "trauma-team-wii",
+          "title": "Trauma Team (Wii)",
+          "system": "wii",
+          "evidence_urls": ["https://github.com/paviv14/TraumaTeam-Resuscitated"]
+        }
+      ]
+    },
+    "original_game_title": "Trauma Team"
+  }
+}

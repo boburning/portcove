@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "harry-potter-and-the-philosopher-s-stone-hp1-recompiled",
+    "project_url": "https://github.com/Barthes-Recompiled/HP1-Recompiled",
+    "name": "Harry Potter and the Philosopher's Stone / HP1 Recompiled (Philosopher's Stone) (Barthes-Recompiled)",
+    "summary": "Native PC recompilation of Harry Potter and the Philosopher's Stone. Bring your own copy of the game.",
+    "issue_number": 7231,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "unresolved",
+    "reason": "The upstream does not state which source edition (PC, PlayStation or console) it recompiles; the game identity stays unassigned until that is reviewed.",
+    "evidence_urls": ["https://github.com/Barthes-Recompiled/HP1-Recompiled"]
+  }
+}

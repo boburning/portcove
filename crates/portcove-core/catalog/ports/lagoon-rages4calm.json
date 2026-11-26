@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lagoon-rages4calm",
+    "project_url": "https://github.com/rages4calm/LagoonSNESRecomp",
+    "name": "Lagoon / rages4calm",
+    "summary": "Lagoon native port for Windows, Linux and macOS. Widescreen, square pixels, live zoom, D3D11, enhanced pixels, maps, QoL, X68000 music and achievements. Bring your own USA ROM. Full playthrough: https://www.youtube.com/watch?v=YdY6WtsjzGg",
+    "issue_number": 5920,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "lagoon",
+      "evidence_urls": ["https://github.com/rages4calm/LagoonSNESRecomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Lagoon"
+  }
+}

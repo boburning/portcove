@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-stadium-kyujo",
+    "project_url": "https://github.com/clearmoon247/Kyujo",
+    "name": "Pokemon Stadium (Kyujo) / Kyujo",
+    "summary": "Play the N64 classic Pokemon Stadium as a native program on Windows, Linux, Android and Nintendo Switch, from your own game file. No emulator: Kyujo runs the game's code and reproduces the console's hardware by hand.",
+    "issue_number": 6629,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-stadium",
+      "evidence_urls": ["https://github.com/clearmoon247/Kyujo"],
+      "source_editions": [
+        {
+          "id": "pokemon-stadium-nintendo-64",
+          "title": "Pokémon Stadium (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/clearmoon247/Kyujo"]
+        }
+      ]
+    },
+    "original_game_title": "Pokémon Stadium"
+  }
+}

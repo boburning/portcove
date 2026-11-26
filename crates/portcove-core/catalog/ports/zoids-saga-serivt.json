@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "zoids-saga-serivt",
+    "project_url": "https://github.com/serivt/re-zoids-saga",
+    "name": "Zoids Saga / serivt",
+    "summary": "A FOSS cross-platform reimplementation of Zoids Saga (GBA, Japan) in Rust, with localization support. Not an emulator or a ROM hack: bring your own ROM.",
+    "issue_number": 5562,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "zoids-saga",
+      "evidence_urls": ["https://github.com/serivt/re-zoids-saga"],
+      "source_editions": [
+        {
+          "id": "zoids-saga-game-boy-advance",
+          "title": "Zoids Saga (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": ["https://github.com/serivt/re-zoids-saga"]
+        }
+      ]
+    },
+    "original_game_title": "Zoids Saga"
+  }
+}

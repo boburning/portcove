@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "z-bitmap-brothers-rts-zod-sdl3",
+    "project_url": "https://github.com/fenio/zod",
+    "name": "Z (Bitmap Brothers RTS) / Zod (fenio)",
+    "summary": "Modernized SDL3 build of the Zod Engine (open-source remake of the 1996 RTS 'Z')",
+    "issue_number": 7153,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "z",
+      "evidence_urls": ["https://github.com/fenio/zod"],
+      "source_editions": []
+    },
+    "original_game_title": "Z"
+  }
+}

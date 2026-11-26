@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crusader-no-remorse-and-no-regret-no-more-regret",
+    "project_url": "https://github.com/sparkstar/no-more-regret",
+    "name": "Crusader: No Remorse and No Regret / no-more-regret",
+    "summary": "A decompiled, enhanced port of Crusader: No Remorse and No Regret to C++20 and SDL 3. Game data not included.",
+    "issue_number": 5432,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One port runs Crusader: No Remorse and Crusader: No Regret.",
+    "evidence_urls": ["https://github.com/sparkstar/no-more-regret"]
+  }
+}

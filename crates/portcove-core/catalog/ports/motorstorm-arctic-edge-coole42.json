@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "motorstorm-arctic-edge-coole42",
+    "project_url": "https://github.com/coole42-pixel/PSPRecomp-MSAE",
+    "name": "MotorStorm Arctic Edge / coole42-pixel PSP Recomp",
+    "summary": "Static recompilation of MotorStorm: Arctic Edge (PlayStation Portable).",
+    "issue_number": 5708,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "motorstorm-arctic-edge",
+      "evidence_urls": ["https://github.com/coole42-pixel/PSPRecomp-MSAE"],
+      "source_editions": [
+        {
+          "id": "motorstorm-arctic-edge-playstation-portable",
+          "title": "MotorStorm Arctic Edge (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": ["https://github.com/coole42-pixel/PSPRecomp-MSAE"]
+        }
+      ]
+    },
+    "original_game_title": "MotorStorm Arctic Edge"
+  }
+}

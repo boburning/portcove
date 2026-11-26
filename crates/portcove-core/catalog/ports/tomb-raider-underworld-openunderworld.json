@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tomb-raider-underworld-openunderworld",
+    "project_url": "https://github.com/sergen213/openunderworld",
+    "name": "Tomb Raider: Underworld / OpenUnderworld",
+    "summary": "Native Linux reimplementation of Tomb Raider: Underworld (cdc engine) — requires a legally owned copy",
+    "issue_number": 6711,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tomb-raider-underworld",
+      "evidence_urls": ["https://github.com/sergen213/openunderworld"],
+      "source_editions": []
+    },
+    "original_game_title": "Tomb Raider: Underworld"
+  }
+}

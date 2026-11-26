@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ratchet-clank-a-crack-in-time-racit",
+    "project_url": "https://github.com/HighDrexler/RACiT",
+    "name": "Ratchet & Clank Future: A Crack in Time / RACiT",
+    "summary": "RACiT.",
+    "issue_number": 6709,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank-future-a-crack-in-time",
+      "evidence_urls": ["https://github.com/HighDrexler/RACiT"],
+      "source_editions": []
+    },
+    "original_game_title": "Ratchet & Clank Future: A Crack in Time"
+  }
+}

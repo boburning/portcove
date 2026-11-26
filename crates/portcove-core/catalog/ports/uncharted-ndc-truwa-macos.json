@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "uncharted-ndc-truwa-macos",
+    "project_url": "https://github.com/truwa/nathan-drake-collection-macos",
+    "name": "Uncharted: The Nathan Drake Collection / truwa macOS packaging follow-up",
+    "summary": "Installer that builds a native PC version of Uncharted: The Nathan Drake Collection from your own copy of the game.",
+    "issue_number": 6039,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The Nathan Drake Collection contains three Uncharted games.",
+    "evidence_urls": ["https://github.com/truwa/nathan-drake-collection-macos"]
+  }
+}

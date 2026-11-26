@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-house-of-the-dead-overkill-wii-ntsc-u-rhoe8p",
+    "project_url": "https://github.com/darkuni/house-of-the-dead-overkill-recomp",
+    "name": "The House of the Dead: Overkill (Wii NTSC-U RHOE8P) / darkuni Wii static recomp",
+    "summary": "Static recompilation of The House of the Dead: Overkill (Wii).",
+    "issue_number": 4755,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-house-of-the-dead-overkill",
+      "evidence_urls": ["https://github.com/darkuni/house-of-the-dead-overkill-recomp"],
+      "source_editions": [
+        {
+          "id": "the-house-of-the-dead-overkill-wii",
+          "title": "The House of the Dead: Overkill (Wii)",
+          "system": "wii",
+          "evidence_urls": ["https://github.com/darkuni/house-of-the-dead-overkill-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "The House of the Dead: Overkill"
+  }
+}

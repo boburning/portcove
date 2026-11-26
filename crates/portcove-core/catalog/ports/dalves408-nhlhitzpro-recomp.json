@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dalves408-nhlhitzpro-recomp",
+    "project_url": "https://github.com/dalves408/nhlhitzpro-recomp",
+    "name": "NHL Hitz Pro (original Xbox USA) / nhlhitzpro-recomp (dalves408)",
+    "summary": "NHL Hitz Pro (Xbox, 2003) for Windows PC: a static recompilation with a Direct3D 11 renderer, 4-player controller support and an installer. Bring your own disc; no game content included.",
+    "issue_number": 4085,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nhl-hitz-pro",
+      "evidence_urls": ["https://github.com/dalves408/nhlhitzpro-recomp"],
+      "source_editions": [
+        {
+          "id": "nhl-hitz-pro-xbox",
+          "title": "NHL Hitz Pro (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/dalves408/nhlhitzpro-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "NHL Hitz Pro"
+  }
+}

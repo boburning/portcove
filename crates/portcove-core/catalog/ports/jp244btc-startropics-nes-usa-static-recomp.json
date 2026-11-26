@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jp244btc-startropics-nes-usa-static-recomp",
+    "project_url": "https://github.com/jp244btc/startropics-recomp",
+    "name": "StarTropics (NES USA) / jp244btc NES static recomp",
+    "summary": "Static recompilation of StarTropics for Windows, Linux and macOS. Requires your own copy of the original game.",
+    "issue_number": 4338,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "startropics",
+      "evidence_urls": ["https://github.com/jp244btc/startropics-recomp"],
+      "source_editions": [
+        {
+          "id": "startropics-nes",
+          "title": "StarTropics (NES)",
+          "system": "nes",
+          "evidence_urls": ["https://github.com/jp244btc/startropics-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "StarTropics"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-ii-miniquake2",
+    "project_url": "https://github.com/MiniLangProject/MiniQuake2",
+    "name": "Quake II / MiniQuake2",
+    "summary": "Playable MiniLang port of Quake II 3.19 for Windows x64, preserving Game API v3 and Protocol 34 compatibility.",
+    "issue_number": 6064,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-ii",
+      "evidence_urls": ["https://github.com/MiniLangProject/MiniQuake2"],
+      "source_editions": []
+    },
+    "original_game_title": "Quake II"
+  }
+}

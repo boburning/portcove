@@ -1594,9 +1594,37 @@ void test("format 15 restrictions require the released reader and never reach ol
   assert.deepEqual(decoded.directory.listings[0]!.restrictions, restrictions);
 
   assert.throws(
-    () => projectListingDelivery({ format_version: 16, listings: [current] }, [], null, { now: 0 }),
+    () => projectListingDelivery({ format_version: 17, listings: [current] }, [], null, { now: 0 }),
     /supported bounded canonical directory/u,
   );
+});
+
+void test("format-16 mod website changes preserve an independent signed release observation", async () => {
+  const { fixtureListing, fixtureDelivery } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const prior = fixtureDelivery();
+  const observation = decodedListingDelivery(prior).directory.listings[0]!.upstream_observation;
+  assert.ok(observation);
+  const modPortal = {
+    id: "community",
+    site: "community_site",
+    name: "Game mods",
+    url: "https://mods.example.com/",
+    instructions: "Read the community requirements.",
+  };
+  const added = { format_version: 16, listings: [{ ...fixtureListing, mod_portals: [modPortal] }] };
+  const first = projectListingDelivery(added, [], prior, { compatible: added, now: 0 });
+  assert.equal(first.retained, 1);
+  const selected = decodedListingDelivery(first.bytes).directory.listings[0]!;
+  assert.deepEqual(selected.upstream_observation, observation);
+  assert.deepEqual(selected.mod_portals, [modPortal]);
+
+  const removed = { format_version: 16, listings: [fixtureListing] };
+  const second = projectListingDelivery(removed, [], first.bytes, { compatible: removed, now: 0 });
+  const withdrawn = decodedListingDelivery(second.bytes).directory.listings[0]!;
+  assert.deepEqual(withdrawn.upstream_observation, observation);
+  assert.equal(withdrawn.mod_portals, undefined);
 });
 
 void test("complete format-13 compact snapshots keep authored scenes and format-12 explanations", async () => {

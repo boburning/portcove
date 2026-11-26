@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "street-fighter-alpha-warriors-dreams-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Street-Fighter-Alpha-Recomp-",
+    "name": "Street Fighter Alpha: Warriors’ Dreams / omegakatana92",
+    "summary": "A native PC port of Street Fighter Alpha: Warriors' Dreams (CPS-2), recompiled from the arcade board's code with cps2recomp - no emulator. Bring your own sfa ROM set.",
+    "issue_number": 5963,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "street-fighter-alpha-warriors-dreams",
+      "evidence_urls": ["https://github.com/omegakatana92/Street-Fighter-Alpha-Recomp-"],
+      "source_editions": []
+    },
+    "original_game_title": "Street Fighter Alpha: Warriors Dreams"
+  }
+}

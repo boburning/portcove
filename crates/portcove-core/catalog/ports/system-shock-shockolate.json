@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "system-shock-shockolate",
+    "project_url": "https://github.com/Interrupt/systemshock",
+    "name": "System Shock / Shockolate",
+    "summary": "Shockolate - A minimalist and cross platform System Shock source port.",
+    "issue_number": 5686,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "system-shock",
+      "evidence_urls": ["https://github.com/Interrupt/systemshock"],
+      "source_editions": []
+    },
+    "original_game_title": "System Shock"
+  }
+}

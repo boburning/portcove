@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "boss-rally-rally-builder",
+    "project_url": "https://github.com/jeff-strutb/brally",
+    "name": "Boss Rally / Rally Builder",
+    "summary": "A decompilation project of the Boss Rally / Top Gear Rally video game.",
+    "issue_number": 5634,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "boss-rally",
+      "evidence_urls": ["https://github.com/jeff-strutb/brally"],
+      "source_editions": []
+    },
+    "original_game_title": "Boss Rally"
+  }
+}

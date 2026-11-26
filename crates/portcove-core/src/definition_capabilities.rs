@@ -50,6 +50,7 @@ definition_features! {
     ModLoader => "mods.native-loader-binding-v1", "port.mod_loader";
     ProviderBindings => "mods.provider-bindings-v1", "port.mod_provider_bindings";
     ModSources => "mods.sources-v1", "port.mod_sources";
+    PlatformIndependentModPortals => "mods.platform-independent-portals-v1", "port.mod_sources.*.platforms";
     ExactReleaseExclusions => "release.exact-exclusions-v1", "port.release.exact_exclusions";
     ReviewedPackageLayouts => "native.package-layouts-v1", "port.reviewed_package_layouts";
     NativeTemporaryDataSiblings => "native.temporary-data-siblings-v1", "port.windows_temp_directory";

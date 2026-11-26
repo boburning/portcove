@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dead-nation-deadnation-pc",
+    "project_url": "https://github.com/rcostanza/dead-nation-ps4-recomp",
+    "name": "Dead Nation / rcostanza PS4 recomp",
+    "summary": "Dead Nation (PS4) - Recompiled to PC",
+    "issue_number": 6009,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-nation",
+      "evidence_urls": ["https://github.com/rcostanza/dead-nation-ps4-recomp"],
+      "source_editions": [
+        {
+          "id": "dead-nation-playstation-4",
+          "title": "Dead Nation (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": ["https://github.com/rcostanza/dead-nation-ps4-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Dead Nation"
+  }
+}

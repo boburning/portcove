@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "heavy-weapon-deluxe-heavy-weapon-port",
+    "project_url": "https://github.com/crusader290/Heavy-Weapon",
+    "name": "Heavy Weapon Deluxe / Heavy Weapon (crusader290)",
+    "summary": "A native source port of PopCap's arcade tank shooter Heavy Weapon Deluxe for Windows x64 and Linux x64, written in C++17 on SDL3 and OpenGL.",
+    "issue_number": 7270,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "heavy-weapon-deluxe",
+      "evidence_urls": ["https://github.com/crusader290/Heavy-Weapon"],
+      "source_editions": []
+    },
+    "original_game_title": "Heavy Weapon Deluxe"
+  }
+}

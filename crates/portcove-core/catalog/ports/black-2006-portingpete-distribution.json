@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "black-2006-portingpete-distribution",
+    "project_url": "https://github.com/portingpete/Black-2006-Recomp",
+    "name": "BLACK (2006 original Xbox) / portingpete maintained distribution",
+    "summary": "Native Windows recompilation of BLACK (2006) for original Xbox. Bring your own game files.",
+    "issue_number": 4390,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "black",
+      "evidence_urls": ["https://github.com/portingpete/Black-2006-Recomp"],
+      "source_editions": [
+        {
+          "id": "black-xbox",
+          "title": "BLACK (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/portingpete/Black-2006-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "BLACK"
+  }
+}

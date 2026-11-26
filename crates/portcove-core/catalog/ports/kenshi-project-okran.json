@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kenshi-project-okran",
+    "project_url": "https://github.com/brayniac6-glitch/Project-Okran",
+    "name": "Kenshi / Project Okran",
+    "summary": "An open rewrite of Kenshi in Rust and Bevy that plays from your own copy of the game (Kenshi required). Moddable.",
+    "issue_number": 5827,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "kenshi",
+      "evidence_urls": ["https://github.com/brayniac6-glitch/Project-Okran"],
+      "source_editions": []
+    },
+    "original_game_title": "Kenshi"
+  }
+}

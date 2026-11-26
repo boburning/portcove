@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "forza-motorsport-4-forza-motorsport-4-recomp",
+    "project_url": "https://github.com/0herculabs/hl360-forza4",
+    "name": "Forza Motorsport 4 / Forza Motorsport 4 Native PC (0herculabs)",
+    "summary": "Forza Motorsport 4 native on PC",
+    "issue_number": 7171,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "forza-motorsport-4",
+      "evidence_urls": ["https://github.com/0herculabs/hl360-forza4"],
+      "source_editions": []
+    },
+    "original_game_title": "Forza Motorsport 4"
+  }
+}

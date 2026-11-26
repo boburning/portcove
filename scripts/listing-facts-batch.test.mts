@@ -42,6 +42,7 @@ import {
 import {
   artifactFact,
   assetsDigest,
+  coreData,
   InspectionError,
   OverBudgetError,
   boundLinesOf,
@@ -107,6 +108,16 @@ import {
   inputsProblems,
   mergeMessage,
   withdrawalCauses,
+  identityRefusal,
+  OversizedResponseError,
+  systemicRefusal,
+  type Refusal,
+  inspectionRefusal,
+  GithubStatusError,
+  identityRefusals,
+  refusalRecord,
+  withholdRefused,
+  withheldSummary,
   parseProviderRelease,
   parseProviderReleaseList,
   parseRawDiff,
@@ -234,6 +245,7 @@ function fixture(id = unseen, players = [player("Game/Game.exe")], size = 4096) 
       {
         release_id: 8,
         tag: "v1.0",
+        core_prerelease: false,
         prerelease: false,
         published_at: "2026-11-01T00:00:00.000Z",
         packaged: true,
@@ -658,7 +670,65 @@ void test("an entry is reproduced only when its exact bytes rebuild byte-equal f
     classify: coreClassifier,
     boundLines: unbound([entry]),
   });
-  assert.equal(unavailable.refused[0]!.reason, "release-unavailable");
+  // An untyped failure is no statement of the provider's data: a fault of
+  // the job itself, which stops it instead of withholding the identity.
+  assert.equal(unavailable.refused[0]!.reason, "job-fault");
+  const listedAs = async (error: Error) =>
+    (
+      await reproduceFacts({
+        entries: [entry],
+        listReleases: async () => {
+          throw error;
+        },
+        inspect: inspector(players),
+        classify: coreClassifier,
+        boundLines: unbound([entry]),
+      })
+    ).refused[0]!.reason;
+  assert.equal(
+    await listedAs(new GithubStatusError("GET x answered 404.", 404)),
+    "release-unavailable",
+  );
+  assert.equal(
+    await listedAs(new GithubStatusError("GET x answered 410.", 410)),
+    "release-unavailable",
+  );
+  assert.equal(await listedAs(new GithubStatusError("GET x answered 401.", 401)), "job-fault");
+  assert.equal(await listedAs(new GithubStatusError("GET x answered 403.", 403)), "job-fault");
+  // Legal and provider blocks of the repository are its own condition.
+  assert.equal(
+    await listedAs(new GithubStatusError("GET x answered 451.", 451)),
+    "release-unavailable",
+  );
+  assert.equal(
+    await listedAs(new GithubStatusError("GET x answered 403.", 403, "Repository access blocked")),
+    "release-unavailable",
+  );
+  assert.equal(
+    await listedAs(new GithubStatusError("GET x answered 403.", 403, "Resource not accessible")),
+    "job-fault",
+  );
+  assert.equal(await listedAs(new TypeError("x is not a function")), "job-fault");
+  // Inspection: Core's verdict and typed failures are the identity's; the
+  // deadline is the runner's; anything untyped is the job's own fault.
+  assert.equal(inspectionRefusal(new InspectionError("Core refused.", true)), "core-refused");
+  assert.equal(
+    inspectionRefusal(new InspectionError("Download failed.", false, "core-unknown", "network")),
+    "transient",
+  );
+  assert.equal(
+    inspectionRefusal(new InspectionError("Killed.", false, "core-unknown", "over-budget")),
+    "over-budget",
+  );
+  assert.equal(
+    inspectionRefusal(
+      new InspectionError("No result.", false, "core-unknown", "unreadable-archive"),
+    ),
+    "asset-unavailable",
+  );
+  assert.equal(inspectionRefusal(new Error("spawn portcove ENOENT")), "job-fault");
+  assert.equal(await refusal(() => undefined, new Error("spawn portcove ENOENT")), "job-fault");
+  assert.equal(identityRefusal({ reason: "job-fault" }), false);
 });
 
 void test("a refused archive, the release's line facts and its installers are reproduced too (D2, D4, D5)", async () => {
@@ -876,6 +946,7 @@ void test("reproduction restates the observed releases from the release list (F8
   complete.observed_releases.unshift({
     release_id: 7,
     tag: "texture-studio-v1.0.0",
+    core_prerelease: false,
     prerelease: false,
     published_at: "2026-10-01T00:00:00.000Z",
     packaged: true,
@@ -929,6 +1000,7 @@ void test("reproduction proves the named release is still the newest stable one 
     copy.observed_releases.push({
       release_id: 9,
       tag,
+      core_prerelease: prerelease,
       prerelease,
       published_at: "2026-11-10T00:00:00.000Z",
       packaged: false,
@@ -1004,7 +1076,7 @@ void test("reproduction proves the named release is still the newest stable one 
     (await onLine(new Map([[unseen, "alphabet"]]))).refused[0]!.reason,
     "not-latest-stable",
   );
-  assert.equal((await onLine(new Map())).refused[0]!.reason, "mismatch");
+  assert.equal((await onLine(new Map())).refused[0]!.reason, "out-of-scope");
   // A newer tag Core cannot classify, a newest release without a parseable
   // time and an unreadable asset are unknown, never a fall-back.
   assert.equal(
@@ -1048,7 +1120,7 @@ void test("reproduction proves the named release is still the newest stable one 
         throw new Error("rate limited");
       })
     ).reason,
-    "release-unavailable",
+    "job-fault",
   );
   assert.equal(
     (await refused(async () => parseProviderReleaseList([{ id: 8 }]))).reason,
@@ -1473,7 +1545,7 @@ void test("each stop condition is detected and named", () => {
   assert.deepEqual(assess([record()]), []);
   assert.deepEqual(assess([], { gate: "refused" }), ["gate-refused"]);
   assert.deepEqual(assess([], { paths: "violated" }), ["path-allowlist"]);
-  assert.deepEqual(assess([], { reproduction: "refused" }), ["reproduction-refused"]);
+  assert.deepEqual(assess([], { reproduction: "refused" }), ["reproduction-unsound"]);
   assert.deepEqual(assess([], { summary: undefined }), ["worker-error"]);
   // One run whose deadlines left work pending but settled nothing stops
   // (formerly three consecutive runs).
@@ -1539,7 +1611,7 @@ void test("each stop condition is detected and named", () => {
     writeFileSync(file, JSON.stringify(["zz-a: mismatch: players differ"]));
     assert.deepEqual(
       assess([record()], { reproduction: "refused", details: reproductionDetails(file) }),
-      ["reproduction-refused"],
+      ["reproduction-unsound"],
     );
     assert.match(
       stopConditions({
@@ -1558,7 +1630,7 @@ void test("each stop condition is detected and named", () => {
     assert.deepEqual(reproductionDetails(join(directory, "missing.json")), {});
     // Upstream text never mentions anyone or formats the issue (A17).
     writeFileSync(file, JSON.stringify(["zz-a: mismatch: @someone `x` [link](y)"]));
-    const detail = reproductionDetails(file)["reproduction-refused"]!;
+    const detail = reproductionDetails(file)["reproduction-unsound"]!;
     assert.doesNotMatch(detail, /@someone/u);
     assert.match(detail, /`zz-a: mismatch: @\u200bsomeone 'x' \[link\]\(y\)`/u);
   } finally {
@@ -2191,6 +2263,23 @@ void test("the job reads every listing the observer has accumulated, not only th
   assert.equal(status(budget.id), "complete");
   assert.equal(status(changing.id), "complete");
   assert.deepEqual(gaps, ["owner/never: no completed observer scope"]);
+  // Two completed projections of one port in one source are never chosen
+  // between silently: the port is a gap.
+  const doubled = accumulatedObservations(
+    {
+      ...input,
+      checkpoint: checkpoint(
+        Object.fromEntries([
+          source(older, 43, {
+            last_complete_policies: [policyFor(older, 43), policyFor(older, 43)],
+          }),
+        ]),
+      ),
+    },
+    { format_version: 11, listings: [older] },
+  );
+  assert.deepEqual(doubled.listings, []);
+  assert.deepEqual(doubled.gaps, ["owner/older: older-run-port has 2 completed projections"]);
   // A repository GitHub renamed resolves to its new name in the observation;
   // the listing still names the one observed, so it stays observed (the
   // worker binds the repository id).
@@ -2546,6 +2635,25 @@ void test("only deliver and merge mint the App token, in the facts-batch environ
   assert.doesNotMatch(text, /Approve workflows|approval-required|close and reopen/iu);
 });
 
+void test("the shard plan ships the inspector without debug sections", () => {
+  const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
+    jobs: { prepare: { steps: { run?: string; with?: { name?: string } }[] } };
+  };
+  const steps = workflow.jobs.prepare.steps;
+  const build = steps.findIndex((step) =>
+    step.run?.includes("cargo build --locked -p portcove-cli"),
+  );
+  const upload = steps.findIndex((step) =>
+    step.with?.name?.startsWith("listing-facts-batch-plan-"),
+  );
+  assert.ok(build >= 0 && upload > build);
+  const script = steps[build]?.run ?? "";
+  assert.match(
+    script,
+    /cp target\/debug\/portcove "\$WORK\/cli\/portcove"[\s\S]*?strip --strip-debug "\$WORK\/cli\/portcove"/u,
+  );
+});
+
 void test("deliver and merge never execute batch or artifact content; the mint comes last (F1)", () => {
   const text = readFileSync(join(root, batchWorkflowPath), "utf8");
   type Step = { id?: string; name?: string; run?: string; uses?: string; with?: unknown };
@@ -2731,7 +2839,7 @@ void test("a change naming an entry outside the authored catalog is refused befo
   assert.deepEqual(log, []);
   assert.deepEqual(
     result.refused.map((refusal) => refusal.reason),
-    ["mismatch", "mismatch"],
+    ["out-of-scope", "out-of-scope"],
   );
   assert.equal(result.bytes, 0);
 });
@@ -2784,7 +2892,7 @@ void test("authored sources and their facts are separate changes; scope comes fr
   assert.deepEqual(log, []);
   assert.deepEqual(
     headOnly.refused.map((refusal) => refusal.reason),
-    ["mismatch"],
+    ["out-of-scope"],
   );
   // A facts entry for an identity the base already authors is reproduced.
   const authoredBase = [authored(unseen)];
@@ -3066,7 +3174,7 @@ void test("reproduction reads each repository's release list once and waits out 
         reproduction,
       }).conditions.map((condition) => condition.name);
     assert.deepEqual(conditions("transient"), []);
-    assert.deepEqual(conditions("refused"), ["reproduction-refused"]);
+    assert.deepEqual(conditions("refused"), ["reproduction-unsound"]);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -3358,7 +3466,17 @@ void test("a batch past either released-reader bound is never proposed; it stops
   assert.equal(combine.outputs!.capacity, "${{ steps.capacity.outputs.capacity }}");
   const decide = workflow.jobs.decide!;
   const ready = decide.steps.find((item) => item.id === "ready")!;
-  assert.equal(ready.env!.CAPACITY, "${{ needs.combine.outputs.capacity }}");
+  // The batch as it stands: combine's measure, or the re-check's after an
+  // identity was withheld (`withholdRefused`).
+  assert.equal(ready.env!.CAPACITY, "${{ steps.effective.outputs.capacity }}");
+  const effective = decide.steps.find((item) => item.id === "effective")!;
+  assert.equal(effective.env!.COMBINE_CAPACITY, "${{ needs.combine.outputs.capacity }}");
+  assert.equal(effective.env!.CAPACITY, "${{ steps.rechecked_capacity.outputs.capacity }}");
+  const recheck = decide.steps.find((item) => item.id === "rechecked_capacity")!;
+  assert.match(
+    recheck.run!,
+    /listing-facts-batch\.mts capacity --output "\$WORK\/capacity\.json"/u,
+  );
   assert.match(ready.run!, /\[ "\$CAPACITY" = ok \]/u);
   const assess = decide.steps.find((item) => item.id === "assess")!;
   assert.match(assess.run!, /--capacity "\$WORK\/capacity\.json"/u);
@@ -3682,4 +3800,331 @@ void test("reproduction restates a release's own text where the entry records it
     body: "Fixes.\n\nStill pre-release quality.",
   });
   assert.deepEqual(remark.verified, [unseen]);
+});
+
+void test("a reproduction refusal of one identity withholds only that identity; the job proceeds (#1422 2)", () => {
+  const ids = ["youkaicountry-yknytt", "zz-proceeds"];
+  const entries = ids.map((id) => fixture(id).entry);
+  const current: ListingFactsTable = {
+    ...emptyFactsTable("2026-11-20T00:00:00.000Z"),
+    entries,
+    entries_sha256: digestOf(entries),
+  };
+  // The measured refusal: the release list's title states a prerelease.
+  const refusal = {
+    port_id: "youkaicountry-yknytt",
+    reason: "mismatch" as const,
+    detail:
+      "Release 8 is recorded with unobserved text, but its text now states a prerelease; it is observed again.",
+  };
+  // Which refusals are a verdict on one identity, and which say the
+  // reproduction itself is unsound or only the runner's condition.
+  for (const reason of [
+    "release-unavailable",
+    "release-changed",
+    "not-latest-stable",
+    "asset-unavailable",
+    "core-refused",
+    "mismatch",
+  ] as const)
+    assert.equal(identityRefusal({ reason }), true, reason);
+  for (const reason of ["over-budget", "transient", "out-of-scope"] as const)
+    assert.equal(identityRefusal({ reason }), false, reason);
+  const { table, withheld } = withholdRefused(current, [refusal]);
+  assert.deepEqual(withheld, [refusal]);
+  const refused = table.entries.find((entry) => entry.port_id === refusal.port_id)!;
+  assert.equal(refused.ineligible?.reason, "reproduction-refused");
+  assert.match(refused.ineligible?.detail ?? "", /\(mismatch\)/u);
+  // The entry keeps the release it was refused for; the rest is untouched.
+  assert.deepEqual(refused.observation, entries[0]!.observation);
+  assert.deepEqual(refused.artifacts, []);
+  assert.deepEqual(
+    table.entries.find((entry) => entry.port_id === "zz-proceeds"),
+    entries[1],
+  );
+  assert.equal(table.entries_sha256, digestOf(table.entries));
+  // The same refusal again is the same entry: a reconfirmation, not churn.
+  assert.deepEqual(
+    withholdRefused(current, [{ ...refusal, detail: "Another provider message." }]).table,
+    table,
+  );
+  // A refusal that is not one identity's, or names nothing in the batch, or
+  // an entry that offers nothing, withholds nothing: the step fails.
+  assert.throws(
+    () => withholdRefused(current, [{ ...refusal, reason: "out-of-scope" }]),
+    /withholds no identity/u,
+  );
+  assert.throws(
+    () => withholdRefused(current, [{ ...refusal, reason: "transient" }]),
+    /withholds no identity/u,
+  );
+  assert.throws(
+    () => withholdRefused(current, [{ ...refusal, port_id: "zz-other" }]),
+    /outside this batch/u,
+  );
+  assert.throws(() => withholdRefused(table, [refusal]), /offers nothing/u);
+  // The worker summary reports the identity as ineligible for that reason.
+  const text = withheldSummary(
+    JSON.stringify({
+      ...summary(),
+      identities: ids.map((port_id) => ({ port_id, outcome: "complete" })),
+    }),
+    withheld,
+  );
+  const parsed = parseWorkerSummary(text);
+  assert.deepEqual(parsed.identities, [
+    { port_id: "youkaicountry-yknytt", outcome: "ineligible", reason: "reproduction-refused" },
+    { port_id: "zz-proceeds", outcome: "complete" },
+  ]);
+  assert.equal(parsed.ineligible["reproduction-refused"], 1);
+  // Its shard records the typed outcome as per identity: no stop, no transient.
+  const record = refusalRecord(1, [refusal]);
+  assert.equal(record.ok, true);
+  assert.equal(record.transient, false);
+  assert.deepEqual(record.refused, [refusal]);
+  // Out of scope, or a problem beside the refusals, is not per identity.
+  assert.equal(refusalRecord(1, [{ ...refusal, reason: "out-of-scope" }]).ok, false);
+  assert.equal(refusalRecord(2, [refusal]).ok, false);
+  // Transient beside identity refusals: the batch is retried, not stopped.
+  const mixed = refusalRecord(2, [
+    refusal,
+    { port_id: "zz-proceeds", reason: "transient", detail: "x" },
+  ]);
+  assert.deepEqual([mixed.ok, mixed.transient], [false, true]);
+  const directory = mkdtempSync(join(tmpdir(), "facts-withhold-"));
+  try {
+    const write = (name: string, value: unknown) =>
+      writeFileSync(join(directory, name), JSON.stringify(value));
+    write("refusals-0.json", refusalRecord(1, [refusal]));
+    write("refusals-1.json", refusalRecord(0, []));
+    assert.deepEqual(identityRefusals(directory, 2), [refusal]);
+    // An identity-only reproduction is not transient: the job proceeds.
+    assert.equal(reproductionTransient(directory, 2), false);
+    // A missing shard record, an older record without typed refusals, or an
+    // unsound record withholds nothing.
+    assert.throws(() => identityRefusals(directory, 3), /2 of 3/u);
+    write("refusals-1.json", { ok: true, transient: false, refusals: [] });
+    assert.throws(() => identityRefusals(directory, 2), /not per identity/u);
+    write("refusals-1.json", refusalRecord(1, [{ ...refusal, reason: "out-of-scope" }]));
+    assert.throws(() => identityRefusals(directory, 2), /not per identity/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+  // An identity withheld after reproduction is no stop condition; only an
+  // unsound reproduction is.
+  const conditions = (reproduction: "ok" | "refused") =>
+    stopConditions({
+      runId: "9",
+      now: "2026-11-21T00:00:00.000Z",
+      summary: parsed,
+      history: [],
+      versions: "v",
+      gate: "ok",
+      paths: "ok",
+      reproduction,
+    }).conditions.map((condition) => condition.name);
+  assert.deepEqual(conditions("ok"), []);
+  assert.deepEqual(conditions("refused"), ["reproduction-unsound"]);
+  // Withdrawing a route players already have because the job's own
+  // reproduction disagreed is held for a person (`withdrawal-held`).
+  const enrollments = (list: string[]) => ({ enrollments: list.map((port_id) => ({ port_id })) });
+  assert.deepEqual(
+    withdrawalCauses(enrollments(ids), enrollments(["zz-proceeds"]), current, table),
+    [{ port_id: "youkaicountry-yknytt", cause: "reproduction-refused" }],
+  );
+});
+
+void test("the decide job withholds refused identities and re-checks the batch before proposing it (#1422 2)", () => {
+  const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
+    jobs: Record<
+      string,
+      {
+        "timeout-minutes"?: number;
+        steps: {
+          id?: string;
+          if?: string;
+          run?: string;
+          env?: Record<string, string>;
+          "continue-on-error"?: boolean;
+        }[];
+      }
+    >;
+  };
+  const steps = workflow.jobs.decide!.steps;
+  const index = (id: string) => steps.findIndex((step) => step.id === id);
+  const withhold = steps[index("withhold")]!;
+  assert.match(withhold.run!, /listing-facts-batch\.mts withhold --base HEAD~1 --refusals/u);
+  assert.match(withhold.if!, /needs\.reproduce\.result == 'success'/u);
+  // Regenerated, then every check of the batch runs again before assess.
+  const order = [
+    "withhold",
+    "regenerate",
+    "rechecked_paths",
+    "rechecked_gate",
+    "rechecked_capacity",
+    "rechecked_checks",
+    "effective",
+    "assess",
+    "ready",
+  ].map(index);
+  assert.ok(
+    order.every((at, i) => at >= 0 && (i === 0 || at > order[i - 1]!)),
+    String(order),
+  );
+  assert.match(
+    steps[index("regenerate")]!.run!,
+    /generate-catalog\.mts[\s\S]*--amend[\s\S]*format-patch/u,
+  );
+  assert.match(steps[index("rechecked_gate")]!.run!, /generate-catalog\.mts --check/u);
+  assert.match(
+    steps[index("rechecked_checks")]!.run!,
+    /verify --base HEAD~1 --own-run true --reproduce false/u,
+  );
+  for (const id of ["rechecked_paths", "rechecked_gate", "rechecked_capacity", "rechecked_checks"])
+    assert.equal(steps[index(id)]!["continue-on-error"], true, id);
+  // A failed withhold is an unsound reproduction, and nothing is proposed.
+  const assess = steps[index("assess")]!;
+  assert.match(assess.env!.VERIFY!, /steps\.withhold\.outcome == 'failure'/u);
+  assert.match(assess.env!.PATHS!, /steps\.effective\.outputs\.paths/u);
+  assert.match(assess.env!.GATE!, /steps\.effective\.outputs\.gate/u);
+  const ready = steps[index("ready")]!;
+  assert.equal(ready.env!.MATERIAL, "${{ steps.effective.outputs.material }}");
+  assert.match(ready.env!.REPRODUCE!, /steps\.withhold\.outcome == 'failure' && 'failure'/u);
+});
+
+void test("repeat refusals wait behind other entries, and an unbuilt withheld batch is its own stop (#1422 2)", () => {
+  const ids = ["zz-a-refused", "zz-b", "zz-c"];
+  const fresh = ids.map((id) => fixture(id).entry);
+  const current = { ...emptyFactsTable(), entries: fresh, entries_sha256: digestOf(fresh) };
+  const refusedBefore = withholdRefused(current, [
+    { port_id: "zz-a-refused", reason: "mismatch", detail: "x" },
+  ]).table.entries[0]!;
+  const baseline = { ...emptyFactsTable(), entries: [refusedBefore] };
+  // With two slots, the identity refused on this same release again waits.
+  assert.deepEqual(carryOver(baseline, current, 2).carried, ["zz-a-refused"]);
+  // Head of line: even as the longest-waiting carried entry, the identity
+  // refused again for the same release waits behind the others, which land.
+  const waited = carryOver(baseline, current, 2, [
+    { since: "2026-11-01T00:00:00.000Z", entry: fresh[0]! },
+  ]);
+  assert.deepEqual(waited.carried, ["zz-a-refused"]);
+  assert.deepEqual(
+    waited.table.entries.map((entry) => entry.port_id),
+    ["zz-a-refused", "zz-b", "zz-c"],
+  );
+  assert.equal(waited.table.entries[0]!.ineligible?.reason, "reproduction-refused");
+  assert.deepEqual(
+    waited.table.entries.slice(1).map((entry) => entry.ineligible),
+    [null, null],
+  );
+  // Refused for an older release, it is no repeat: port_id order holds.
+  const olderRelease = structuredClone(refusedBefore);
+  olderRelease.observation.release_id = 7;
+  assert.deepEqual(
+    carryOver({ ...emptyFactsTable(), entries: [olderRelease] }, current, 2).carried,
+    ["zz-c"],
+  );
+  const conditions = stopConditions({
+    runId: "9",
+    now: "2026-11-21T00:00:00.000Z",
+    summary: summary(),
+    history: [],
+    versions: "v",
+    gate: "skipped",
+    paths: "skipped",
+    reproduction: "ok",
+    withheldRecheck: "regenerating the batch",
+  }).conditions;
+  assert.deepEqual(
+    conditions.map((condition) => condition.name),
+    ["withheld-batch-unchecked"],
+  );
+  assert.match(conditions[0]!.detail, /regenerating the batch failed/u);
+  const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
+    jobs: Record<string, { steps: { id?: string; run?: string; env?: Record<string, string> }[] }>;
+  };
+  const steps = workflow.jobs.decide!.steps;
+  const effective = steps.find((step) => step.id === "effective")!;
+  assert.equal(effective.env!.REQUEUED, "${{ steps.requeue.outcome }}");
+  assert.match(effective.run!, /paths=skipped/u);
+  assert.match(effective.run!, /recheck=regenerating the batch/u);
+  assert.match(effective.run!, /recheck=publishing its exception queues/u);
+  const assess = steps.find((step) => step.id === "assess")!;
+  assert.equal(assess.env!.RECHECK, "${{ steps.effective.outputs.recheck }}");
+  assert.match(assess.run!, /--withheld-recheck/u);
+});
+
+void test("every reproduction failure is classified: one identity's, the provider's condition, or the job's own fault (#1422 2)", async () => {
+  const { entry, players } = fixture();
+  const listedAs = async (error: Error) =>
+    (
+      await reproduceFacts({
+        entries: [entry],
+        listReleases: async () => {
+          throw error;
+        },
+        inspect: inspector(players),
+        classify: coreClassifier,
+        boundLines: unbound([entry]),
+      })
+    ).refused[0]!.reason;
+  const status = (code: number, message: string | null = null) =>
+    new GithubStatusError(`GET x answered ${code}.`, code, message);
+  // The release list: the repository's own condition withholds one identity;
+  // the provider's passing condition retries; anything else stops the job.
+  for (const [error, reason] of [
+    [status(401), "job-fault"],
+    [status(403, "Resource not accessible by integration"), "job-fault"],
+    [status(403, "Repository access blocked"), "release-unavailable"],
+    [status(404), "release-unavailable"],
+    [status(410), "release-unavailable"],
+    [status(451), "release-unavailable"],
+    [status(422), "job-fault"],
+    // Rate limits (403/429 with a wait), server errors, timeouts and a body
+    // that does not parse are retried inside `githubRequest`, then surface
+    // as transient.
+    [new TransientGithubError("rate limited (429)"), "transient"],
+    [new TransientGithubError("a server error (502)"), "transient"],
+    [new TransientGithubError("the request timed out"), "transient"],
+    [new TransientGithubError("the answer did not parse"), "transient"],
+    [new OversizedResponseError("GET x answered more than 8 MiB."), "release-unavailable"],
+    [new TypeError("x is not a function"), "job-fault"],
+  ] as const)
+    assert.equal(await listedAs(error), reason, `${error.constructor.name}: ${error.message}`);
+  // Core: a verdict on the bytes is the identity's; the CLI's own faults
+  // (it could not start, crashed or printed no envelope, or refused its own
+  // invocation) are the job's.
+  const run = (stdout: string, exited = true, unstarted = false) => {
+    try {
+      coreData({ stdout, exited, unstarted }, "inspection");
+      return "data";
+    } catch (error) {
+      return inspectionRefusal(error);
+    }
+  };
+  const envelope = (code: string) => JSON.stringify({ ok: false, error: { code } });
+  assert.equal(run("thread 'main' panicked at src/main.rs"), "job-fault");
+  assert.equal(run(envelope("usage")), "job-fault");
+  assert.equal(run("", false, true), "job-fault");
+  assert.equal(run(envelope("unsupported")), "core-refused");
+  assert.equal(run(envelope("verification")), "core-refused");
+  assert.equal(run("", false), "over-budget");
+  assert.equal(run(JSON.stringify({ ok: true, data: {} })), "data");
+});
+
+void test("refusals of every reproduced identity for one reason stop the job instead of withholding them all (#1422 2)", () => {
+  const refusal = (port_id: string, reason: Refusal["reason"] = "release-unavailable") => ({
+    port_id,
+    reason,
+    detail: "x",
+  });
+  // Every one of several identities refused alike: systemic.
+  assert.match(
+    systemicRefusal(3, [refusal("a"), refusal("b"), refusal("c")]) ?? "",
+    /Every one of the 3 reproduced identities/u,
+  );
+  // One identity, some identities, or mixed reasons: withheld one by one.
+  assert.equal(systemicRefusal(1, [refusal("a")]), undefined);
+  assert.equal(systemicRefusal(3, [refusal("a"), refusal("b")]), undefined);
+  assert.equal(systemicRefusal(2, [refusal("a"), refusal("b", "mismatch")]), undefined);
 });

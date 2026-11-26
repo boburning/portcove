@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blast-wind-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Blast-Wind-Recomp",
+    "name": "Blast Wind / omegakatana92 Saturn recomp",
+    "summary": "A native Windows x64 and Linux/Steam Deck port of Blast Wind (Japan) for the Sega Saturn, built by static recompilation with satrecomp. The SH-2 code is translated to C++ and runs on a custom machine with CD-DA and SCSP audio, launcher, saves and full controller support. No emulator, no BIOS and no game data: players supply their own disc. GPL-3.0.",
+    "issue_number": 5704,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "blast-wind",
+      "evidence_urls": ["https://github.com/omegakatana92/Blast-Wind-Recomp"],
+      "source_editions": [
+        {
+          "id": "blast-wind-sega-saturn",
+          "title": "Blast Wind (Sega Saturn)",
+          "system": "sega-saturn",
+          "evidence_urls": ["https://github.com/omegakatana92/Blast-Wind-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Blast Wind"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "shining-soul-ii-ss2recomp",
+    "project_url": "https://github.com/MatyMeatBoy/SS2Recomp",
+    "name": "Shining Soul II / SS2Recomp",
+    "summary": "Shining Soul II static recompilation with adaptive 16:9 widescreen and 2–4 player GBA link-cable netplay.",
+    "issue_number": 5995,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "shining-soul-ii",
+      "evidence_urls": ["https://github.com/MatyMeatBoy/SS2Recomp"],
+      "source_editions": [
+        {
+          "id": "shining-soul-ii-game-boy-advance",
+          "title": "Shining Soul II (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": ["https://github.com/MatyMeatBoy/SS2Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Shining Soul II"
+  }
+}

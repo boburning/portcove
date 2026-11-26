@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tiny-toon-buster-busts-loose-darhkfox",
+    "project_url": "https://github.com/Darhkfox/BusterBustsLoose",
+    "name": "Tiny Toon Adventures: Buster Busts Loose",
+    "summary": "Windows PC port of Tiny Toon Adventures: Buster Busts Loose! (SNES) with true widescreen, HUD re-anchoring, display options, cheats, level select and music player. Requires your own USA ROM.",
+    "issue_number": 5511,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tiny-toon-adventures-buster-busts-loose",
+      "evidence_urls": ["https://github.com/Darhkfox/BusterBustsLoose"],
+      "source_editions": [
+        {
+          "id": "tiny-toon-adventures-buster-busts-loose-super-nintendo",
+          "title": "Tiny Toon Adventures: Buster Busts Loose (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/Darhkfox/BusterBustsLoose"]
+        }
+      ]
+    },
+    "original_game_title": "Tiny Toon Adventures: Buster Busts Loose"
+  }
+}

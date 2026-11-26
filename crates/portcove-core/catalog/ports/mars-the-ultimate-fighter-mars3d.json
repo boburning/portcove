@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mars-the-ultimate-fighter-mars3d",
+    "project_url": "https://github.com/jval1972/Mars3D",
+    "name": "Mars - The Ultimate Fighter / Mars3D (jval1972)",
+    "summary": "Source port of the game \"Mars - The Ultimate Fighter\"",
+    "issue_number": 7327,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mars-the-ultimate-fighter",
+      "evidence_urls": ["https://github.com/jval1972/Mars3D"],
+      "source_editions": []
+    },
+    "original_game_title": "Mars - The Ultimate Fighter"
+  }
+}

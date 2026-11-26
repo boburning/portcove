@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crash-tag-team-racing-miguel0827",
+    "project_url": "https://github.com/Miguel0827/Crash-Tag-Team-Racing-PC",
+    "name": "Crash Tag Team Racing / Miguel0827",
+    "summary": "Native PC port of Crash Tag Team Racing (PS2) built with ps2-native-recomp. Bring your own disc. By NyxBorn.",
+    "issue_number": 5622,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-tag-team-racing",
+      "evidence_urls": ["https://github.com/Miguel0827/Crash-Tag-Team-Racing-PC"],
+      "source_editions": [
+        {
+          "id": "crash-tag-team-racing-playstation-2",
+          "title": "Crash Tag Team Racing (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/Miguel0827/Crash-Tag-Team-Racing-PC"]
+        }
+      ]
+    },
+    "original_game_title": "Crash Tag Team Racing"
+  }
+}

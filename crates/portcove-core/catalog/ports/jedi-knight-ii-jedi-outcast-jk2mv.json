@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jedi-knight-ii-jedi-outcast-jk2mv",
+    "project_url": "https://github.com/mvdevs/jk2mv",
+    "name": "Jedi Knight II Jedi Outcast / JK2MV",
+    "summary": "JK2MV - improved, modernized JK2 client and server",
+    "issue_number": 5682,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "jedi-knight-ii-jedi-outcast",
+      "evidence_urls": ["https://github.com/mvdevs/jk2mv"],
+      "source_editions": []
+    },
+    "original_game_title": "Jedi Knight II Jedi Outcast"
+  }
+}

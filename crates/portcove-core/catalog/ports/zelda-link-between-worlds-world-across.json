@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "zelda-link-between-worlds-world-across",
+    "project_url": "https://github.com/PaceTea/world-across",
+    "name": "The Legend of Zelda: A Link Between Worlds (World Across) / world-across",
+    "summary": "Native PC port of A Link Between Worlds (3DS) by static recompilation, with a GPU renderer. No game data included: bring your own dump.",
+    "issue_number": 6669,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-a-link-between-worlds",
+      "evidence_urls": ["https://github.com/PaceTea/world-across"],
+      "source_editions": []
+    },
+    "original_game_title": "The Legend of Zelda: A Link Between Worlds"
+  }
+}

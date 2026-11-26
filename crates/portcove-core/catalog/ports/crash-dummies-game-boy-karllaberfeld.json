@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crash-dummies-game-boy-karllaberfeld",
+    "project_url": "https://github.com/KarlLaberfeld/Crash-Dummies-Native",
+    "name": "The Incredible Crash Dummies (Game Boy) / KarlLaberfeld",
+    "summary": "Unofficial experimental Windows port of The Incredible Crash Dummies for Game Boy. Native C++/Win32, keyboard and XInput; original ROM required.",
+    "issue_number": 6615,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-incredible-crash-dummies",
+      "evidence_urls": ["https://github.com/KarlLaberfeld/Crash-Dummies-Native"],
+      "source_editions": [
+        {
+          "id": "the-incredible-crash-dummies-game-boy",
+          "title": "The Incredible Crash Dummies (Game Boy)",
+          "system": "game-boy",
+          "evidence_urls": ["https://github.com/KarlLaberfeld/Crash-Dummies-Native"]
+        }
+      ]
+    },
+    "original_game_title": "The Incredible Crash Dummies"
+  }
+}

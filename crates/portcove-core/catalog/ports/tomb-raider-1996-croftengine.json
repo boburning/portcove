@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tomb-raider-1996-croftengine",
+    "project_url": "https://github.com/stohrendorf/CroftEngine",
+    "name": "Tomb Raider (1996) / CroftEngine (stohrendorf)",
+    "summary": "An open-source Tomb Raider 1 engine remake",
+    "issue_number": 6974,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tomb-raider",
+      "evidence_urls": ["https://github.com/stohrendorf/CroftEngine"],
+      "source_editions": []
+    },
+    "original_game_title": "Tomb Raider"
+  }
+}

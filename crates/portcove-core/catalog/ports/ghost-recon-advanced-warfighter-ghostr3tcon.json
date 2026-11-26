@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ghost-recon-advanced-warfighter-ghostr3tcon",
+    "project_url": "https://github.com/q8itz/GhostR3tcon",
+    "name": "Ghost Recon Advanced Warfighter / GhostR3tcon",
+    "summary": "Ghost Recon Advanced Warfighter PC Port",
+    "issue_number": 5935,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ghost-recon-advanced-warfighter",
+      "evidence_urls": ["https://github.com/q8itz/GhostR3tcon"],
+      "source_editions": []
+    },
+    "original_game_title": "Ghost Recon Advanced Warfighter"
+  }
+}

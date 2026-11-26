@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ssx-on-tour-psp-highcmd",
+    "project_url": "https://github.com/highcmd/ssx-on-tour-psp-recomp",
+    "name": "SSX On Tour PSP / highcmd recomp",
+    "summary": "Static recompilation of SSX On Tour (PSP, ULUS-10042) to native Linux and Windows. Bring your own UMD dump; no game data included.",
+    "issue_number": 5639,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ssx-on-tour-psp",
+      "evidence_urls": ["https://github.com/highcmd/ssx-on-tour-psp-recomp"],
+      "source_editions": [
+        {
+          "id": "ssx-on-tour-psp-playstation-portable",
+          "title": "SSX On Tour PSP (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": ["https://github.com/highcmd/ssx-on-tour-psp-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "SSX On Tour PSP"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ninja-gaiden-ii-izunarecomp",
+    "project_url": "https://github.com/YaibaKamikaze/IzunaRecomp",
+    "name": "Ninja Gaiden II / IzunaRecomp",
+    "summary": "Static recompilation of Ninja Gaiden II.",
+    "issue_number": 6558,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ninja-gaiden-ii",
+      "evidence_urls": ["https://github.com/YaibaKamikaze/IzunaRecomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Ninja Gaiden II"
+  }
+}

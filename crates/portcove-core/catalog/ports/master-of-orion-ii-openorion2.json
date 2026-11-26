@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "master-of-orion-ii-openorion2",
+    "project_url": "https://github.com/openorion2/openorion2",
+    "name": "Master of Orion II / OpenOrion2",
+    "summary": "Open-source reimplementation of Master of Orion II: Battle at Antares (1996): plays like the original, with network play and an online lobby. Needs your own copy of the game.",
+    "issue_number": 5433,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "master-of-orion-ii",
+      "evidence_urls": ["https://github.com/openorion2/openorion2"],
+      "source_editions": []
+    },
+    "original_game_title": "Master of Orion II"
+  }
+}

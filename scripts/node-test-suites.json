@@ -306,6 +306,14 @@
       "ordinary_families": ["release-contract-tests"]
     },
     {
+      "file": "scripts/catalog-definition-requirements.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3510],
+        ["release-check", 4310]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-body-window.test.mts",
       "memberships": [
         ["catalog-full-2", 3508],
@@ -1749,6 +1757,7 @@
             "maintenance store guards history and survives an independent PostgreSQL restore",
             "a receipt-only login can verify migrations and reserve handoffs through its explicit SQL role",
             "an interrupted maintenance migration leaves no partial schema and resumes cleanly",
+            "a completed charge leaves the ledger once the provider counter has settled past it",
             "shared admissions fence concurrent callers and retain crash charges",
             "recovery reconstruction reuses history and restores current state and sequences",
             "cutover admissions share their finite allowance across purposes"
@@ -4342,6 +4351,13 @@
       "memberships": [
         ["catalog-full-2", 9690],
         ["roadmap-check", 190]
+      ]
+    },
+    {
+      "file": "scripts/hosted-discovery-receipt-wire.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9693],
+        ["roadmap-check", 193]
       ]
     },
     {

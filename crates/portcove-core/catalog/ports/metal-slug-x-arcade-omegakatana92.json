@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "metal-slug-x-arcade-omegakatana92",
+    "project_url": "https://github.com/omegakatana92/Metal-Slug-X-Recomp",
+    "name": "Metal Slug X arcade / omegakatana92",
+    "summary": "Native static recompilation of Metal Slug X (SNK, 1999) for Windows x64 and Steam Deck. The 68000 program is translated to C and runs against a Neo Geo MVS board model - no emulator frontend - with Z80/YM2610 sound, real BIOS boot, SDL2 video and input, 90.04% native coverage and 0 verify mismatches. Bring your own ROMs.",
+    "issue_number": 5632,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-slug-x-arcade",
+      "evidence_urls": ["https://github.com/omegakatana92/Metal-Slug-X-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Metal Slug X arcade"
+  }
+}

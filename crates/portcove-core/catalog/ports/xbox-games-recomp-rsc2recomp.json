@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "xbox-games-recomp-rsc2recomp",
+    "project_url": "https://github.com/xbox-games-recomp/rsc2recomp",
+    "name": "RalliSport Challenge 2 (original Xbox) / xbox-games-recomp Windows D3D11 recomp",
+    "summary": "Recompilation of Xbox title Rallisport Challenge 2 to work in Windows 10/11",
+    "issue_number": 4135,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rallisport-challenge-2",
+      "evidence_urls": ["https://github.com/xbox-games-recomp/rsc2recomp"],
+      "source_editions": [
+        {
+          "id": "rallisport-challenge-2-xbox",
+          "title": "RalliSport Challenge 2 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/xbox-games-recomp/rsc2recomp"]
+        }
+      ]
+    },
+    "original_game_title": "RalliSport Challenge 2"
+  }
+}

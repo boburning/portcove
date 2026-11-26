@@ -15,6 +15,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runCheckedGit } from "./checked-git.mts";
 import test from "node:test";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import { projectReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
@@ -25,6 +26,7 @@ import {
 } from "./port-upstream-facts.mts";
 import {
   preparePort,
+  prepareDiscoveryListingAdditions,
   prepareArtworkBatch,
   prepareListingObservations,
   portablePreparationFeedback,
@@ -818,6 +820,462 @@ void test("complete selected-release observations reuse exact assets and do not 
   }
 });
 
+void test("discovery listing batch keeps independent additions and never replaces accepted records", async (context) => {
+  const f = fixture();
+  try {
+    const claim = (id: string, repository: string, repository_id: number) => ({
+      id,
+      project_url: `https://github.com/${repository}`,
+      repository_id,
+      evidence_sha256: "a".repeat(64),
+    });
+    const handoff = {
+      format: "portcove-discovery-listing-handoff",
+      format_version: 1,
+      candidates: [
+        claim("dcs-moved", "moved/crawl", 23038334),
+        claim("dcs-reused", "crawl/crawl", 777),
+        claim("warioland4", "moved/crawl", 23038334),
+        claim("first-new-port", "example/fixture", metadata.id),
+        claim("second-new-port", "example/second", 124),
+        claim("third-new-port", "example/third", 125),
+        claim("overlap-one", "example/overlap", 126),
+        claim("overlap-two", "other/relocated", 126),
+        claim("launcher-as-port", "xander-haj/lawn", 127),
+        claim("release-mirror-as-port", "sonicdcer/DNZHRecomp", 128),
+      ],
+    };
+    const options = {
+      catalogRoot,
+      outputDirectory: join(f.root, "discovery-listings"),
+      handoff,
+      facts: {
+        now: () => Date.parse("2026-11-26T00:00:00Z"),
+        fetcher: f.fetcher((url) => {
+          if (url.endsWith("/example/fixture")) return json({ ...metadata, private: false });
+          if (url.endsWith("/example/second"))
+            return json({ ...metadata, id: 555, full_name: "example/second", private: false });
+          if (url.endsWith("/example/third"))
+            return json({ ...metadata, id: 125, full_name: "example/third", private: false });
+          return new Response(null, { status: 404 });
+        }),
+      },
+    };
+    const { report } = await prepareDiscoveryListingAdditions(options);
+    assert.deepEqual(report.changed_records, ["first-new-port", "third-new-port"]);
+    assert.equal(report.operational_changed, false);
+    assert.deepEqual(
+      report.outcomes.map(({ status }) => status),
+      [
+        "already-cataloged",
+        "held",
+        "held",
+        "prepared",
+        "held",
+        "prepared",
+        "held",
+        "held",
+        "held",
+        "held",
+      ],
+    );
+    assert.equal(f.requests.length, 3);
+    assert.deepEqual(JSON.parse(readFileSync(report.files.records[0]!.path, "utf8")), {
+      format_version: 1,
+      upstream_lineage: {
+        format_version: 1,
+        target_key: "first-new-port",
+        origin: { project_url: project, repository: { host: "github.com", id: "123" } },
+        decisions: [],
+      },
+      original_game_review: {
+        disposition: "unresolved",
+        reason: "Repository evidence does not establish an exact original game or source edition.",
+        evidence_urls: [project],
+      },
+      listing: {
+        id: "first-new-port",
+        name: "fixture",
+        project_url: project,
+        listed_at: "2026-11-26",
+        release_url: `${project}/releases`,
+        summary: metadata.description,
+      },
+    });
+    const accepted = readCatalogSource(catalogRoot);
+    const directory: unknown = JSON.parse(readFileSync(report.files.listings, "utf8"));
+    assert.ok(isRecord(directory) && Array.isArray(directory.listings));
+    assert.equal(directory.listings.length, accepted.directory.listings.length + 2);
+    assert.equal(report.accepted_listings_sha256, observationHash(accepted.directory));
+    assert.equal(report.admission, null);
+    const approval = {
+      format: "portcove-discovery-listing-approval",
+      format_version: 1,
+      ...report.admission_binding,
+      approved_ids: ["third-new-port"],
+    };
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({ ...options, approval: { document: approval } }),
+      /requires a trusted Core validator/u,
+    );
+    const validatorCli = join(f.root, "selected-cli");
+    writeFileSync(validatorCli, "inert listing validator fixture");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        validatorCli,
+        approval: { document: { ...approval, source_sha256: "0".repeat(64) } },
+      }),
+      /does not match the handoff and catalog source/u,
+    );
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        validatorCli,
+        approval: { document: { ...approval, approved_ids: ["unknown-port"] } },
+      }),
+      /must name unique IDs from the exact handoff/u,
+    );
+    let approved;
+    context.mock.method(childProcess, "spawnSync", (artifact: string, args: string[]) => {
+      assert.equal(readFileSync(artifact, "utf8"), "inert listing validator fixture");
+      assert.deepEqual(args.slice(-3, -1), ["inspect-listings", "--path"]);
+      const data: unknown = JSON.parse(readFileSync(args.at(-1)!, "utf8"));
+      return { status: 0, signal: null, stdout: JSON.stringify({ data }), stderr: "" };
+    });
+    syncBuiltinESMExports();
+    try {
+      approved = await prepareDiscoveryListingAdditions({
+        ...options,
+        validatorCli,
+        approval: { document: approval },
+      });
+    } finally {
+      context.mock.restoreAll();
+      syncBuiltinESMExports();
+    }
+    assert.deepEqual(approved.report.changed_records, ["third-new-port"]);
+    assert.equal(
+      (approved.report.listing_validation as ListingReceipt).listings.length,
+      accepted.directory.listings.length + 1,
+    );
+    const admission = approved.report.admission;
+    assert.ok(admission);
+    const patch = readFileSync(admission.path);
+    assert.equal(createHash("sha256").update(patch).digest("hex"), admission.sha256);
+    const apply = childProcess.spawnSync("git", ["apply", "--numstat", admission.path], {
+      cwd: dirname(dirname(dirname(catalogRoot))),
+      encoding: "utf8",
+    });
+    assert.equal(apply.status, 0, apply.stderr);
+    assert.match(
+      apply.stdout.trim(),
+      /^\d+\t0\tcrates\/portcove-core\/catalog\/ports\/third-new-port\.json$/u,
+    );
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        handoff: {
+          ...handoff,
+          candidates: [{ ...handoff.candidates[0], integration: { adapter: "native-portable" } }],
+        },
+      }),
+      /requires a stable ID, public repository and evidence digest/u,
+    );
+    assert.equal(f.requests.length, 4);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery listing staging refuses stale or changed source before reading candidates", async () => {
+  const f = fixture();
+  try {
+    const repository = join(f.root, "checkout");
+    const catalog = join(repository, "crates", "portcove-core", "catalog");
+    mkdirSync(catalog, { recursive: true });
+    const git = (args: string[]) => runCheckedGit(args, { cwd: repository }).trim();
+    git(["init", "--quiet"]);
+    writeFileSync(join(repository, ".gitignore"), "ignored.json\n");
+    git(["add", ".gitignore"]);
+    git([
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "commit",
+      "-qm",
+      "fixture",
+    ]);
+    const revision = git(["rev-parse", "HEAD"]);
+    const validatorCli = join(f.root, "fixture-validator");
+    const options = {
+      catalogRoot: catalog,
+      outputDirectory: join(f.root, "output"),
+      handoff: null,
+      validatorCli,
+      approval: { document: null },
+      stage: { repository, revision },
+    };
+    await assert.rejects(
+      prepareDiscoveryListingAdditions({
+        ...options,
+        stage: { repository, revision: "0".repeat(40) },
+      }),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /versioned discovery listing handoff/u,
+    );
+    const inheritedIndex = process.env.GIT_INDEX_FILE;
+    process.env.GIT_INDEX_FILE = join(f.root, "unrelated-index");
+    try {
+      await assert.rejects(
+        prepareDiscoveryListingAdditions(options),
+        /versioned discovery listing handoff/u,
+      );
+      assert.equal(existsSync(process.env.GIT_INDEX_FILE), false);
+    } finally {
+      if (inheritedIndex === undefined) delete process.env.GIT_INDEX_FILE;
+      else process.env.GIT_INDEX_FILE = inheritedIndex;
+    }
+    writeFileSync(join(catalog, "ignored.json"), "{}");
+    assert.equal(git(["status", "--porcelain=v1"]), "");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    rmSync(join(catalog, "ignored.json"));
+    writeFileSync(join(repository, ".gitignore"), "");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    git(["update-index", "--assume-unchanged", ".gitignore"]);
+    assert.equal(git(["status", "--porcelain=v1"]), "");
+    await assert.rejects(
+      prepareDiscoveryListingAdditions(options),
+      /clean checkout at the reviewed Git revision/u,
+    );
+    assert.equal(existsSync(options.outputDirectory), false);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery listing batch honors provider backoff across repositories", async () => {
+  const f = fixture();
+  try {
+    const { report } = await prepareDiscoveryListingAdditions({
+      catalogRoot,
+      outputDirectory: join(f.root, "discovery-backoff"),
+      handoff: {
+        format: "portcove-discovery-listing-handoff",
+        format_version: 1,
+        candidates: [123, 124, 23038334].map((repository_id) => ({
+          id: `discovery-${repository_id}`,
+          project_url:
+            repository_id === 23038334
+              ? "https://github.com/crawl/crawl"
+              : `https://github.com/example/port-${repository_id}`,
+          repository_id,
+          evidence_sha256: "a".repeat(64),
+        })),
+      },
+      facts: {
+        now: () => Date.parse("2026-11-26T00:00:00Z"),
+        fetcher: f.fetcher(
+          () =>
+            new Response(null, {
+              status: 429,
+              headers: { "Retry-After": "3600" },
+            }),
+        ),
+      },
+    });
+    assert.equal(f.requests.length, 1);
+    assert.deepEqual(report.changed_records, []);
+    assert.deepEqual(
+      report.outcomes.map((row) => [
+        row.status,
+        "retry_after" in row ? row.retry_after : undefined,
+      ]),
+      [
+        ["deferred", "2026-11-26T01:00:00.000Z"],
+        ["deferred", "2026-11-26T01:00:00.000Z"],
+        ["already-cataloged", undefined],
+      ],
+    );
+  } finally {
+    f.clean();
+  }
+});
+
+void test("scheduled discovery preparation retains completed work when the batch deadline arrives", async () => {
+  const f = fixture();
+  try {
+    let clock = Date.parse("2026-11-26T00:00:00Z");
+    const { report } = await prepareDiscoveryListingAdditions({
+      catalogRoot,
+      outputDirectory: join(f.root, "discovery-deadline"),
+      deadline: clock + 10,
+      handoff: {
+        format: "portcove-discovery-listing-handoff",
+        format_version: 1,
+        candidates: [123, 124].map((repository_id) => ({
+          id: `discovery-${repository_id}`,
+          project_url: repository_id === 123 ? project : "https://github.com/example/remaining",
+          repository_id,
+          evidence_sha256: "a".repeat(64),
+        })),
+      },
+      facts: {
+        now: () => clock,
+        fetcher: f.fetcher(() => {
+          clock += 20;
+          return json({ ...metadata, private: false });
+        }),
+      },
+    });
+    assert.deepEqual(report.changed_records, ["discovery-123"]);
+    assert.deepEqual(
+      report.outcomes.map(({ status }) => status),
+      ["prepared", "deferred"],
+    );
+    assert.equal(f.requests.length, 1);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery-bound preparation retains a public repository and its ongoing release feed", async () => {
+  const f = fixture();
+  try {
+    const result = await preparePort({
+      catalogRoot,
+      outputDirectory: join(f.root, "bound"),
+      projectUrl: "https://github.com/Example/Fixture/",
+      expectedRepositoryId: metadata.id,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?") ? json([]) : json({ ...metadata, private: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const record = checkedAuthoredPort(
+      JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+    );
+    assert.equal(record.listing.id, "fixture");
+    assert.equal(record.listing.release_url?.toLowerCase(), `${project}/releases`);
+    assert.deepEqual(record.upstream_lineage?.origin.repository, { host: "github.com", id: "123" });
+    assert.equal(record.listing.original_game, undefined);
+    assert.equal(record.listing.issue_number, undefined);
+    assert.equal(record.listing.availability, undefined);
+    assert.equal(record.listing.artwork, undefined);
+    assert.equal(record.integration, undefined);
+    assert.equal(f.requests.filter((url) => url.includes("/releases?")).length, 1);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery-bound preparation refuses changed or unverified provider identity before release reads", async () => {
+  const f = fixture();
+  try {
+    const mismatches = [
+      { ...metadata, private: false, id: 999 },
+      { ...metadata, private: false, full_name: "different/fixture" },
+      { ...metadata, private: undefined },
+      { ...metadata, private: false, id: undefined },
+    ];
+    for (const [index, provider] of mismatches.entries()) {
+      await assert.rejects(
+        preparePort({
+          catalogRoot,
+          outputDirectory: join(f.root, `mismatch-${index}`),
+          projectUrl: project,
+          expectedRepositoryId: metadata.id,
+          facts: { fetcher: f.fetcher(() => json(provider)) },
+        }),
+        /does not match the observed repository ID and location/u,
+      );
+    }
+    assert.equal(f.requests.length, mismatches.length);
+    assert.equal(
+      f.requests.some((url) => url.includes("/releases")),
+      false,
+    );
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery-bound release reads isolate repository IDs across a warm reused path", async () => {
+  const f = fixture();
+  try {
+    let currentId = metadata.id;
+    const options = {
+      projectUrl: project,
+      route: "download" as const,
+      cacheDirectory: join(f.root, "facts"),
+      fetcher: f.fetcher((url) =>
+        url.includes("/releases?")
+          ? json([{ tag_name: url.includes("/repositories/456/") ? "new-release" : "old-release" }])
+          : json({ ...metadata, id: currentId, private: false }),
+      ),
+    };
+    await collectPortFacts(options);
+    currentId = 456;
+    await assert.rejects(
+      collectPortFacts({ ...options, expectedRepositoryId: metadata.id }),
+      /does not match the observed repository ID and location/u,
+    );
+    assert.equal(f.requests.filter((url) => url.includes("/releases?")).length, 1);
+    const legacy = await collectPortFacts(options);
+    assert.equal(legacy.project?.status, "reused");
+    assert.deepEqual(legacy.project?.body, { ...metadata, private: false });
+    assert.deepEqual(legacy.release_candidates?.body, [{ tag_name: "old-release" }]);
+    const result = await collectPortFacts({ ...options, expectedRepositoryId: 456 });
+    assert.deepEqual(result.release_candidates?.body, [{ tag_name: "new-release" }]);
+    assert.match(result.release_candidates?.endpoint ?? "", /\/repositories\/456\/releases/u);
+    assert.equal(result.release_candidates?.status, "observed");
+    const warm = await collectPortFacts({ ...options, expectedRepositoryId: 456 });
+    assert.equal(warm.project?.status, "observed");
+    assert.equal(warm.release_candidates?.status, "reused");
+  } finally {
+    f.clean();
+  }
+});
+
+void test("discovery-bound preparation keeps a published external release source", async () => {
+  const f = fixture();
+  try {
+    const result = await preparePort({
+      catalogRoot,
+      outputDirectory: join(f.root, "external-source"),
+      projectUrl: "https://github.com/colobot/colobot",
+      expectedRepositoryId: metadata.id,
+      facts: {
+        fetcher: f.fetcher(() =>
+          json({ ...metadata, private: false, full_name: "colobot/colobot" }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    assert.equal(result.report.port_id, "colobot");
+    assert.deepEqual(result.report.changed_records, []);
+    assert.equal(f.requests.length, 1);
+    const upstream: unknown = JSON.parse(readFileSync(result.report.files.upstream, "utf8"));
+    assert.ok(isRecord(upstream));
+    assert.equal(upstream.release_repository, null);
+    assert.equal(upstream.release_candidates, undefined);
+  } finally {
+    f.clean();
+  }
+});
+
 void test("starts issue-free preparation from an official project and reviewed game identity", async () => {
   const f = fixture();
   try {
@@ -930,6 +1388,25 @@ void test("starts issue-free preparation from an official project and reviewed g
       originalGame: { ...otherGame, source_editions: [...otherGame.source_editions].reverse() },
     });
     assert.equal(reordered.report.port_id, newId);
+    await assert.rejects(
+      preparePort({
+        ...common,
+        expectedRepositoryId: metadata.id,
+        id: "duplicate-reviewed-game",
+        outputDirectory: join(f.root, "bound-duplicate"),
+        originalGame,
+      }),
+      /already have a stable listing/u,
+    );
+    await assert.rejects(
+      preparePort({
+        ...common,
+        expectedRepositoryId: 456,
+        id: record.listing.id,
+        outputDirectory: join(f.root, "bound-reused-source"),
+      }),
+      /contradicts retained lineage/u,
+    );
     await assert.rejects(
       preparePort({
         ...common,

@@ -1,4 +1,7 @@
-import { originalGamePreparationFeedback } from "./catalog-game-review.mts";
+import {
+  originalGamePreparationFeedback,
+  requireOriginalGameDecision,
+} from "./catalog-game-review.mts";
 import { listingDownloadBlockReason } from "./catalog-acquisition-restrictions.mts";
 import {
   acceptPackagePlayerObservation,
@@ -11,6 +14,7 @@ import {
   mkdtempSync,
   lstatSync,
   readFileSync,
+  realpathSync,
   writeFileSync,
   rmdirSync,
   readdirSync,
@@ -19,9 +23,11 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import { runCheckedGit } from "./checked-git.mts";
 import {
   assembleCatalogRecords,
   compactGbaArchive,
+  catalogSourceNames,
   listingDownloadAssetHints,
   checkedAuthoredPort,
   readCatalogSource,
@@ -35,9 +41,14 @@ import {
   managedSetupReleaseAdviceText,
 } from "./catalog-setup-release-advice.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
+import { listedRepositories } from "./catalog-generated-registration.mts";
 import { compactPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { compactN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
-import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
+import {
+  BoundRepositoryUnavailable,
+  collectPortFacts,
+  githubRepository,
+} from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import {
@@ -57,6 +68,8 @@ import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { collectSettingsSource, qualifySettingsObservation } from "./settings-qualification.mts";
 import { prepareSettingsCandidate } from "./prepare-settings-candidate.mts";
+import { reconcileDiscoverySnapshot } from "./discovery-reconciliation.mts";
+import type { CanonicalDiscoveryIdentity } from "./discovery-reconciliation.mts";
 import {
   assessUpstreamLineage,
   checkLineageChange,
@@ -71,6 +84,7 @@ interface PrepareOptions {
   packageObservation?: { receipt: unknown; reference: string };
   settingsNativeScope?: unknown;
   projectUrl?: string | undefined;
+  expectedRepositoryId?: number | undefined;
   issue?: string | undefined;
   id?: string | undefined;
   name?: string | undefined;
@@ -85,6 +99,7 @@ interface PrepareOptions {
   artwork?: Pick<ArtworkPreparationOptions, "inspectGame" | "inspectImage">;
 }
 const owner = { format_version: 1, tool: "portcove-prepare-port" };
+const repositoryCatalogPath = join("crates", "portcove-core", "catalog");
 type PackageFacts = Pick<
   Awaited<ReturnType<typeof collectPortFacts>>,
   "assets" | "assets_complete"
@@ -383,6 +398,11 @@ function openCheckpoint(directory: string) {
 function immutableJson(directory: string, name: string, value: unknown) {
   const bytes = `${JSON.stringify(value, null, 2)}\n`;
   const file = join(directory, `${name}-${createHash("sha256").update(bytes).digest("hex")}.json`);
+  retainArtifact(file, bytes);
+  return file;
+}
+
+function retainArtifact(file: string, bytes: string) {
   try {
     writeFileSync(file, bytes, { flag: "wx", mode: 0o600 });
   } catch (error) {
@@ -396,7 +416,6 @@ function immutableJson(directory: string, name: string, value: unknown) {
     )
       throw new Error("An existing preparation artifact differs; retained it for reconciliation.");
   }
-  return file;
 }
 function artworkCatalog(records: readonly AuthoredPort[]): ArtworkCatalog {
   return {
@@ -505,6 +524,7 @@ function preparedRecordOutputs(
   artworkResult: unknown,
   artworkReused: boolean,
   validatorIdentity: string | null,
+  listingOnlyAdmission = false,
 ) {
   if (
     !isRecord(artworkResult) ||
@@ -534,7 +554,17 @@ function preparedRecordOutputs(
   });
   const shared: Record<string, unknown> = structuredClone(authored.catalog);
   delete shared.ports;
-  const assembled = assembleCatalogRecords(shared, proposed);
+  const assembled = assembleCatalogRecords(
+    shared,
+    proposed,
+    listingOnlyAdmission ? authored.generation.facts : undefined,
+  );
+  if (listingOnlyAdmission) {
+    const currentIds = new Set(authored.directory.listings.map(({ id }) => id));
+    const retained = assembled.directory.listings.filter(({ id }) => currentIds.has(id));
+    if (observationHash(retained) !== observationHash(authored.directory.listings))
+      throw new Error("Discovery listing preparation changed an existing listing projection.");
+  }
   const acceptedCatalogHash = observationHash(authored.catalog);
   const operationalChanged = acceptedCatalogHash !== observationHash(assembled.catalog);
   let inspector: ReturnType<typeof coreProposalInspector> | undefined;
@@ -581,13 +611,21 @@ function preparedRecordOutputs(
         scope:
           "Listing structure checked locally; use --validator-cli or ordinary CI for Core validation.",
       };
+  const generatedIds = new Set(
+    listingOnlyAdmission ? assembled.generation.enrollments.map(({ port_id }) => port_id) : [],
+  );
   const compatibility = reviewCompatibilityFixture(
-    assembled.catalog,
+    {
+      ...assembled.catalog,
+      ports: assembled.catalog.ports.filter(({ id }) => !generatedIds.has(id)),
+    },
     readArtworkJson(join(options.catalogRoot, "catalog-schema1-fixture.json")),
     readFileSync(join(options.catalogRoot, "catalog-legacy-additions-fixture.json")),
   );
-  const acceptedRecords = new Map(authored.records.map((record) => [record.listing.id, record]));
-  const changed = assembled.records.flatMap((entry) => {
+  const currentRecords = listingOnlyAdmission ? authored.authored : authored.records;
+  const proposedRecords = listingOnlyAdmission ? assembled.authored : assembled.records;
+  const acceptedRecords = new Map(currentRecords.map((record) => [record.listing.id, record]));
+  const changed = proposedRecords.flatMap((entry) => {
     const before = acceptedRecords.get(entry.listing.id);
     const beforeHash = before ? observationHash(before) : null;
     const afterHash = observationHash(entry);
@@ -688,6 +726,12 @@ export async function preparePort(options: PrepareOptions) {
   const root = resolve(options.outputDirectory);
   const authored = readCatalogSource(options.catalogRoot);
   const explicit = options.record === undefined ? undefined : checkedAuthoredPort(options.record);
+  const expectedRepositoryId = options.expectedRepositoryId;
+  const bound = expectedRepositoryId !== undefined;
+  if (bound && (!options.projectUrl || options.issue || explicit))
+    throw new Error(
+      "A bound discovery input requires an official project URL without an issue or record override.",
+    );
   const originalGame = options.originalGame;
   if (originalGame !== undefined && (!options.projectUrl || options.issue))
     throw new Error("An original-game input starts preparation with an official project URL.");
@@ -701,7 +745,7 @@ export async function preparePort(options: PrepareOptions) {
     )
       throw new Error("The reviewed record and supplied game or edition identity differ.");
   }
-  const route = options.route ?? (originalGame === undefined ? "listing" : "download");
+  const route = options.route ?? (!bound && originalGame === undefined ? "listing" : "download");
   const validatorIdentity = options.validatorCli
     ? createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex")
     : null;
@@ -709,9 +753,9 @@ export async function preparePort(options: PrepareOptions) {
     throw new Error("Record and selected stable ID differ.");
   const selected = authored.records.find((record) => record.listing.id === options.id);
   const resolveIdentity = (projectUrl: string, issuePortId?: string) => {
-    const sourceKey = originalGame === undefined ? projectUrl : identityUrl(projectUrl);
-    const sameProject = (url: string) =>
-      sourceKey === (originalGame === undefined ? url : identityUrl(url));
+    const normalizeSource = bound || originalGame !== undefined;
+    const sourceKey = normalizeSource ? identityUrl(projectUrl) : projectUrl;
+    const sameProject = (url: string) => sourceKey === (normalizeSource ? identityUrl(url) : url);
     const matching = authored.records.filter((record) => sameProject(record.listing.project_url));
     const suppliedId = explicit?.listing.id ?? options.id ?? issuePortId;
     let matched: AuthoredPort | undefined;
@@ -752,6 +796,16 @@ export async function preparePort(options: PrepareOptions) {
     if (issuePortId && issuePortId !== id)
       throw new Error("Canonical issue and proposed stable ID differ.");
     const previous = authored.records.find((record) => record.listing.id === id);
+    if (bound && previous && !sameProject(previous.listing.project_url))
+      throw new Error("The stable implementation ID already belongs to another project.");
+    if (bound && !previous && !gameSelector && matching.length > 0)
+      throw new Error(
+        "The same project already has a catalog identity. Resolve its game scope before adding another listing.",
+      );
+    if (bound && !previous && gameSelector && matchReviewedGame(matching, gameSelector))
+      throw new Error(
+        "The game and source editions already have a stable listing at this project.",
+      );
     if (originalGame !== undefined && explicit) {
       if (!previous && explicit.listing.issue_number !== undefined)
         throw new Error("A new issue-free record cannot supply an unverified issue association.");
@@ -809,10 +863,35 @@ export async function preparePort(options: PrepareOptions) {
       );
     return { id, previous, base };
   };
+  const boundIdentity = bound ? resolveIdentity(options.projectUrl!) : undefined;
+  if (boundIdentity?.previous)
+    checkObservedRepository(boundIdentity.previous, expectedRepositoryId);
+  if (boundIdentity) {
+    const source = identityUrl(options.projectUrl!);
+    const repositoryId = String(expectedRepositoryId);
+    const retainedConflict = authored.records.some((entry) => {
+      const { current, history } = assessUpstreamLineage(entry);
+      if (
+        current.repository?.host === "github.com" &&
+        current.repository.id === repositoryId &&
+        identityUrl(current.project_url) === source
+      )
+        return false;
+      return history.some((upstream) => {
+        if (upstream.repository?.host !== "github.com") return false;
+        const sameSource = identityUrl(upstream.project_url) === source;
+        const sameRepository = upstream.repository.id === repositoryId;
+        return sameRepository !== sameSource;
+      });
+    });
+    if (retainedConflict)
+      throw new Error("This repository already has a retained origin. Review its lineage move.");
+  }
   openCheckpoint(root);
   try {
     const facts = await collectPortFacts({
       ...options.facts,
+      expectedRepositoryId,
       projectUrl:
         options.projectUrl ?? explicit?.listing.project_url ?? selected?.listing.project_url,
       issue: options.issue,
@@ -822,8 +901,13 @@ export async function preparePort(options: PrepareOptions) {
           : route,
       releaseTag: options.releaseTag,
       resolveReleaseUrl: ({ projectUrl, issuePortId }) => {
-        const { base } = resolveIdentity(projectUrl, issuePortId);
-        if (!base?.integration) return base?.listing.release_url;
+        const { base } = boundIdentity ?? resolveIdentity(projectUrl, issuePortId);
+        if (!base?.integration) {
+          const retainedUrl = base?.listing.release_url;
+          return bound && retainedUrl && new URL(retainedUrl).hostname !== "github.com"
+            ? null
+            : retainedUrl;
+        }
         const release = projectAuthoredPort(base)?.release;
         return isRecord(release) &&
           (release.provider === undefined || release.provider === "github") &&
@@ -833,9 +917,11 @@ export async function preparePort(options: PrepareOptions) {
       },
       cacheDirectory: join(root, "facts"),
     });
-    const { id, previous, base } = resolveIdentity(facts.project_url, facts.issue?.id);
+    const { id, previous, base } =
+      boundIdentity ?? resolveIdentity(facts.project_url, facts.issue?.id);
     const metadata = isRecord(facts.project?.body) ? facts.project.body : {};
     if (
+      !bound &&
       originalGame !== undefined &&
       facts.repository &&
       typeof metadata.full_name === "string" &&
@@ -864,6 +950,7 @@ export async function preparePort(options: PrepareOptions) {
         throw new Error("The reviewed record and provider repository identities differ.");
     }
     if (
+      !bound &&
       originalGame !== undefined &&
       !previous &&
       recordedRepositoryId &&
@@ -881,7 +968,10 @@ export async function preparePort(options: PrepareOptions) {
     const existingListedAt = base?.listing.listed_at ?? previous?.listing.listed_at;
     let record = checkedAuthoredPort({
       ...(base ?? { format_version: 1 }),
-      ...(originalGame !== undefined && !previous && !base?.upstream_lineage && recordedRepositoryId
+      ...((bound || originalGame !== undefined) &&
+      !previous &&
+      !base?.upstream_lineage &&
+      recordedRepositoryId
         ? {
             upstream_lineage: {
               format_version: 1,
@@ -898,8 +988,11 @@ export async function preparePort(options: PrepareOptions) {
         ...base?.listing,
         id,
         project_url:
-          (originalGame === undefined ? undefined : previous?.listing.project_url) ??
+          (bound || originalGame !== undefined ? previous?.listing.project_url : undefined) ??
           facts.project_url,
+        ...(bound && !previous && facts.repository
+          ? { release_url: `https://github.com/${facts.repository}/releases` }
+          : {}),
         name:
           options.name ??
           base?.listing.name ??
@@ -1167,6 +1260,384 @@ export async function preparePort(options: PrepareOptions) {
   }
 }
 
+function discoveryAdmissionSelection(
+  approval: unknown,
+  binding: { handoff_sha256: string; source_sha256: string },
+  candidateIds: ReadonlySet<string>,
+) {
+  if (
+    !isRecord(approval) ||
+    Object.keys(approval).length !== 5 ||
+    approval.format !== "portcove-discovery-listing-approval" ||
+    approval.format_version !== 1 ||
+    approval.handoff_sha256 !== binding.handoff_sha256 ||
+    approval.source_sha256 !== binding.source_sha256 ||
+    !Array.isArray(approval.approved_ids)
+  )
+    throw new Error("Discovery approval does not match the handoff and catalog source.");
+  const ids: unknown[] = approval.approved_ids;
+  if (
+    ids.length === 0 ||
+    new Set(ids).size !== ids.length ||
+    !ids.every((id): id is string => typeof id === "string" && candidateIds.has(id))
+  )
+    throw new Error("Discovery approval must name unique IDs from the exact handoff.");
+  return new Set(ids);
+}
+
+function discoveryAdmissionPatch(additions: readonly AuthoredPort[]) {
+  return additions
+    .map((entry) => {
+      const path = `crates/portcove-core/catalog/${catalogSourceNames.ports}/${entry.listing.id}.json`;
+      const lines = JSON.stringify(entry, null, 2).split("\n");
+      return [
+        `diff --git a/${path} b/${path}`,
+        "new file mode 100644",
+        "--- /dev/null",
+        `+++ b/${path}`,
+        `@@ -0,0 +1,${lines.length} @@`,
+        ...lines.map((line) => `+${line}`),
+        "",
+      ].join("\n");
+    })
+    .join("");
+}
+
+function checkDiscoveryStagingSource(repository: string, revision: string) {
+  if (!/^[a-f0-9]{40}$/u.test(revision))
+    throw new Error("Discovery staging requires a full reviewed Git revision.");
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => !name.toUpperCase().startsWith("GIT_")),
+  );
+  const options = { cwd: realpathSync(repository), env };
+  const root = runCheckedGit(["rev-parse", "--show-toplevel"], options).trim();
+  if (realpathSync(root) !== options.cwd)
+    throw new Error("Discovery staging requires the root of the reviewed Git checkout.");
+  const head = runCheckedGit(["rev-parse", "--verify", "HEAD"], options).trim();
+  const changes = runCheckedGit(["status", "--porcelain=v1", "--untracked-files=all"], options);
+  const ignored = runCheckedGit(
+    ["ls-files", "--others", "--ignored", "--exclude-standard", "--", repositoryCatalogPath],
+    options,
+  );
+  const index = runCheckedGit(["ls-files", "-z", "-v"], { ...options, maxBuffer: 8 * 1024 * 1024 });
+  if (head !== revision || changes || ignored || /(?:^|\0)[a-zS] /u.test(index))
+    throw new Error("Discovery staging requires a clean checkout at the reviewed Git revision.");
+  return options;
+}
+
+/** Prepare one append-only authoring proposal from a batch of discovery selections. */
+export async function prepareDiscoveryListingAdditions(
+  options: Pick<ArtworkOptions, "catalogRoot" | "outputDirectory" | "validatorCli"> & {
+    handoff: unknown;
+    facts?: PrepareOptions["facts"];
+    deadline?: number;
+    approval?: { document: unknown };
+    stage?: { repository: string; revision: string };
+  },
+) {
+  const started = process.hrtime.bigint();
+  const now = options.facts?.now ?? Date.now;
+  if (options.deadline !== undefined && !Number.isSafeInteger(options.deadline))
+    throw new Error("Discovery preparation deadline must be a finite epoch in milliseconds.");
+  if (options.approval && !options.validatorCli)
+    throw new Error("Discovery listing approval requires a trusted Core validator.");
+  const stage = options.stage;
+  if (stage) {
+    if (!options.approval) throw new Error("Discovery staging requires an approved catalog patch.");
+    if (
+      realpathSync(options.catalogRoot) !==
+      join(realpathSync(stage.repository), repositoryCatalogPath)
+    )
+      throw new Error("Discovery staging requires the catalog source from the same checkout.");
+    checkDiscoveryStagingSource(stage.repository, stage.revision);
+  }
+  const handoff = options.handoff;
+  if (
+    !isRecord(handoff) ||
+    handoff.format !== "portcove-discovery-listing-handoff" ||
+    handoff.format_version !== 1 ||
+    !Array.isArray(handoff.candidates) ||
+    Object.keys(handoff).some((key) => !["format", "format_version", "candidates"].includes(key))
+  )
+    throw new Error("A versioned discovery listing handoff is required.");
+  const candidates = (handoff.candidates as unknown[]).map((value) => {
+    if (
+      !isRecord(value) ||
+      Object.keys(value).some(
+        (key) => !["id", "project_url", "repository_id", "evidence_sha256"].includes(key),
+      ) ||
+      typeof value.id !== "string" ||
+      value.id.length > 128 ||
+      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value.id) ||
+      /^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])$/iu.test(value.id) ||
+      typeof value.project_url !== "string" ||
+      typeof value.repository_id !== "number" ||
+      !Number.isSafeInteger(value.repository_id) ||
+      value.repository_id <= 0 ||
+      typeof value.evidence_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(value.evidence_sha256)
+    )
+      throw new Error(
+        "A discovery listing requires a stable ID, public repository and evidence digest.",
+      );
+    const repository = githubRepository(value.project_url);
+    if (!repository || new URL(value.project_url).port)
+      throw new Error("Discovery listing preparation requires a public GitHub repository root.");
+    return {
+      key: value.id,
+      kind: "implementation" as const,
+      repository,
+      repository_id: value.repository_id,
+      evidence: value.evidence_sha256,
+    };
+  });
+  if (new Set(candidates.map(({ key }) => key)).size !== candidates.length)
+    throw new Error("Discovery listing handoff requires unique stable IDs.");
+
+  const authored = readCatalogSource(options.catalogRoot);
+  const admissionBinding = {
+    handoff_sha256: observationHash(handoff),
+    source_sha256: observationHash({
+      authored: authored.authored,
+      catalog: authored.catalog,
+      listing_package_facts: authored.generation.facts,
+    }),
+  };
+  const approved = options.approval
+    ? discoveryAdmissionSelection(
+        options.approval.document,
+        admissionBinding,
+        new Set(candidates.map(({ key }) => key)),
+      )
+    : undefined;
+  const knownPorts = new Set(authored.records.map(({ listing }) => listing.id));
+  const canonical: CanonicalDiscoveryIdentity[] = [];
+  for (const record of authored.records) {
+    const { current, history } = assessUpstreamLineage(record);
+    const lineagePaths = new Set<string>();
+    for (const upstream of history.length ? history : [current]) {
+      const url = identityUrl(upstream.project_url);
+      if (!/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(url)) continue;
+      lineagePaths.add(url.toLowerCase());
+      const repositoryId = Number(upstream.repository?.id);
+      canonical.push({
+        repository: url,
+        catalog_id: record.listing.id,
+        ...(upstream.repository?.host === "github.com" &&
+        Number.isSafeInteger(repositoryId) &&
+        repositoryId > 0
+          ? { repository_id: repositoryId }
+          : {}),
+      });
+    }
+    for (const repository of listedRepositories(record.listing)) {
+      const url = `https://github.com/${repository}`;
+      if (!lineagePaths.has(url))
+        canonical.push({ repository: url, catalog_id: record.listing.id });
+    }
+  }
+  const reconciled = new Map(
+    reconcileDiscoverySnapshot(candidates, canonical).map((result) => [result.key, result]),
+  );
+  const knownRepositoryIds = new Set(canonical.map(({ repository_id }) => repository_id));
+  const repositoryUses = new Map<string | number, number>();
+  for (const { repository, repository_id } of candidates)
+    for (const value of [repository.toLowerCase(), repository_id])
+      repositoryUses.set(value, (repositoryUses.get(value) ?? 0) + 1);
+  const root = resolve(options.outputDirectory);
+  const validatorIdentity = options.validatorCli
+    ? createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex")
+    : null;
+  openCheckpoint(root);
+  try {
+    const additions: AuthoredPort[] = [];
+    const outcomes = [];
+    let providerBackoff: BoundRepositoryUnavailable | undefined;
+    for (const candidate of candidates) {
+      const identity = reconciled.get(candidate.key)!;
+      const reported = {
+        id: candidate.key,
+        repository_id: candidate.repository_id,
+        evidence_sha256: candidate.evidence,
+      };
+      if (approved && !approved.has(candidate.key)) {
+        outcomes.push({ ...reported, status: "unselected" });
+        continue;
+      }
+      if (knownPorts.has(candidate.key) && !identity.catalog_ids?.includes(candidate.key)) {
+        outcomes.push({
+          ...reported,
+          status: "held",
+          reason: "The stable key belongs to a different accepted port.",
+        });
+        continue;
+      }
+      if (identity.disposition !== "New canonical intake") {
+        outcomes.push({
+          ...reported,
+          ...identity,
+          status:
+            identity.disposition === "Existing canonical owner" &&
+            knownRepositoryIds.has(candidate.repository_id)
+              ? "already-cataloged"
+              : "held",
+        });
+        continue;
+      }
+      if (
+        repositoryUses.get(candidate.repository.toLowerCase()) !== 1 ||
+        repositoryUses.get(candidate.repository_id) !== 1
+      ) {
+        outcomes.push({
+          ...reported,
+          status: "held",
+          reason: "Resolve the overlapping stable key or repository scope.",
+        });
+        continue;
+      }
+      if (providerBackoff?.retryAfter && Date.parse(providerBackoff.retryAfter) > now()) {
+        outcomes.push({
+          ...reported,
+          status: "deferred",
+          reason: providerBackoff.reason,
+          retry_after: providerBackoff.retryAfter,
+        });
+        continue;
+      }
+      if (options.deadline !== undefined && now() >= options.deadline) {
+        outcomes.push({ ...reported, status: "deferred", reason: "Preparation deadline reached." });
+        continue;
+      }
+      const projectUrl = `https://github.com/${candidate.repository}`;
+      let facts: Awaited<ReturnType<typeof collectPortFacts>>;
+      let entry: AuthoredPort;
+      try {
+        facts = await collectPortFacts({
+          ...options.facts,
+          projectUrl,
+          expectedRepositoryId: candidate.repository_id,
+          route: "listing",
+          cacheDirectory: join(root, "facts"),
+        });
+        const metadata = isRecord(facts.project?.body) ? facts.project.body : {};
+        const summary =
+          typeof metadata.description === "string"
+            ? metadata.description.replace(/\p{Cc}+/gu, " ").trim()
+            : "";
+        entry = checkedAuthoredPort({
+          format_version: 1,
+          upstream_lineage: {
+            format_version: 1,
+            target_key: candidate.key,
+            origin: {
+              project_url: projectUrl,
+              repository: { host: "github.com", id: String(candidate.repository_id) },
+            },
+            decisions: [],
+          },
+          original_game_review: {
+            disposition: "unresolved",
+            reason:
+              "Repository evidence does not establish an exact original game or source edition.",
+            evidence_urls: [projectUrl],
+          },
+          listing: {
+            id: candidate.key,
+            name: candidate.repository.split("/")[1],
+            project_url: projectUrl,
+            listed_at: facts.project?.observed_at?.slice(0, 10),
+            release_url: `${projectUrl}/releases`,
+            summary:
+              summary && Buffer.byteLength(summary) <= 4096
+                ? summary
+                : "Upstream project; setup requirements have not been reviewed.",
+          },
+        });
+      } catch (error) {
+        if (error instanceof BoundRepositoryUnavailable) {
+          if (error.retryAfter) providerBackoff = error;
+          outcomes.push({
+            ...reported,
+            status: error.retryAfter ? "deferred" : "unavailable",
+            reason: error.reason,
+            ...(error.retryAfter ? { retry_after: error.retryAfter } : {}),
+          });
+          continue;
+        }
+        outcomes.push({
+          ...reported,
+          status: "held",
+          reason: (error instanceof Error ? error.message : String(error)).slice(0, 500),
+        });
+        continue;
+      }
+      const receipt = immutableJson(root, `discovery-upstream-${candidate.key}`, facts);
+      requireOriginalGameDecision(entry);
+      additions.push(entry);
+      outcomes.push({ ...reported, status: "prepared", upstream_receipt: receipt });
+    }
+    const prepared = preparedRecordOutputs(
+      options,
+      root,
+      authored,
+      [...authored.authored, ...additions],
+      { catalog: artworkCatalog(authored.authored) },
+      true,
+      validatorIdentity,
+      true,
+    );
+    if (
+      prepared.operational_changed ||
+      prepared.record_changes.length !== additions.length ||
+      prepared.record_changes.some(
+        ({ action, integration_changed }) => action !== "added" || integration_changed,
+      )
+    )
+      throw new Error(
+        "Discovery listing preparation changed an accepted catalog record or integration.",
+      );
+    let admission: { path: string; sha256: string } | null = null;
+    if (approved && additions.length > 0) {
+      const patch = discoveryAdmissionPatch(additions);
+      const sha256 = createHash("sha256").update(patch).digest("hex");
+      const path = join(root, `discovery-listing-admission-${sha256}.patch`);
+      retainArtifact(path, patch);
+      admission = { path, sha256 };
+      if (stage) {
+        const gitOptions = checkDiscoveryStagingSource(stage.repository, stage.revision);
+        immutableJson(root, "staging-intent", {
+          format_version: 1,
+          source_revision: stage.revision,
+          patch: admission,
+          approved_ids: prepared.changed_records,
+        });
+        runCheckedGit(["apply", "--index"], { ...gitOptions, input: Buffer.from(patch) });
+      }
+    }
+    const report = {
+      format_version: 1,
+      route: "discovery-listings",
+      selected_port_ids: candidates.map(({ key }) => key),
+      handoff_semantic_sha256: admissionBinding.handoff_sha256,
+      admission_binding: admissionBinding,
+      admission,
+      staged_source_revision: stage && admission ? stage.revision : null,
+      outcomes,
+      ...prepared,
+      preparation_costs: preparationCosts(started),
+      next:
+        stage && admission
+          ? "Regenerate the catalog and run normal validation on the staged additions."
+          : admission
+            ? "Apply the patch to the reviewed source revision, regenerate the catalog and run normal validation."
+            : "Use the identity evidence to review eligible additions as a batch.",
+    };
+    return { report, path: immutableJson(root, "completion", report) };
+  } finally {
+    rmdirSync(join(root, "active.lock"));
+  }
+}
+
 /** Project retained descriptive observations through ordinary record preparation.
  * This neither collects provider facts nor accepts the proposed correction. */
 export function prepareListingObservations(
@@ -1414,6 +1885,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const values = new Map<string, string>();
   const allowed = new Set([
     "--project",
+    "--expected-repository-id",
     "--issue",
     "--id",
     "--name",
@@ -1429,6 +1901,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--artwork-ids",
     "--refresh-artwork",
     "--artwork-retained-limit",
+    "--discovery-listings",
+    "--discovery-listing-approval",
+    "--discovery-stage-source",
+    "--discovery-deadline-epoch-ms",
     "--listing-observations",
     "--package-observation",
     "--package-observation-reference",
@@ -1460,6 +1936,35 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   )
     throw new Error("--artwork-retained-limit requires @due and a count from 1 through 400");
   const observationHandoff = values.get("--listing-observations");
+  const discoveryHandoff = values.get("--discovery-listings");
+  const discoveryApproval = values.get("--discovery-listing-approval");
+  const discoveryStageSource = values.get("--discovery-stage-source");
+  const discoveryDeadline = values.get("--discovery-deadline-epoch-ms");
+  if (discoveryDeadline && !discoveryHandoff)
+    throw new Error("--discovery-deadline-epoch-ms requires --discovery-listings.");
+  if (discoveryApproval && (!discoveryHandoff || !values.get("--validator-cli")))
+    throw new Error(
+      "--discovery-listing-approval requires --discovery-listings and --validator-cli.",
+    );
+  if (discoveryStageSource && !discoveryApproval)
+    throw new Error("--discovery-stage-source requires --discovery-listing-approval.");
+  if (
+    discoveryHandoff &&
+    [...values.keys()].some(
+      (name) =>
+        ![
+          "--discovery-listings",
+          "--discovery-listing-approval",
+          "--discovery-stage-source",
+          "--discovery-deadline-epoch-ms",
+          "--validator-cli",
+          "--output-dir",
+        ].includes(name),
+    )
+  )
+    throw new Error(
+      "Discovery listing batches cannot mix issue, route, record or artwork options.",
+    );
   if (
     observationHandoff &&
     [...values.keys()].some(
@@ -1492,27 +1997,44 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (values.has("--package-observation") !== values.has("--package-observation-reference"))
     throw new Error("Package observations require their exact retained receipt reference.");
   const input = values.get("--record");
+  const repositoryId = values.get("--expected-repository-id");
+  if (repositoryId !== undefined && !/^[1-9][0-9]*$/u.test(repositoryId))
+    throw new Error("--expected-repository-id must be a positive decimal repository ID.");
   const originalGame = values.get("--original-game");
   const identities = values.get("--identities");
+  const repository = dirname(dirname(fileURLToPath(import.meta.url)));
   const common = {
-    catalogRoot: join(
-      dirname(dirname(fileURLToPath(import.meta.url))),
-      "crates",
-      "portcove-core",
-      "catalog",
-    ),
+    catalogRoot: join(repository, repositoryCatalogPath),
     outputDirectory: output,
     ...(identities ? { identities: readArtworkJson(identities, 1024 * 1024) } : {}),
     validatorCli: values.get("--validator-cli"),
     credentialsFile: values.get("--credentials-file"),
   };
-  const result = observationHandoff
-    ? prepareListingObservations({
-        ...common,
-        handoff: parseCatalogSource(
-          readArtworkInput(observationHandoff, 16 * 1024 * 1024).bytes.toString("utf8"),
-        ),
-      })
+  const handoffPath = discoveryHandoff ?? observationHandoff;
+  const handoff = handoffPath
+    ? parseCatalogSource(readArtworkInput(handoffPath, 16 * 1024 * 1024).bytes.toString("utf8"))
+    : undefined;
+  const result = handoffPath
+    ? discoveryHandoff
+      ? await prepareDiscoveryListingAdditions({
+          ...common,
+          facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
+          ...(discoveryDeadline ? { deadline: Number(discoveryDeadline) } : {}),
+          ...(discoveryStageSource
+            ? { stage: { repository, revision: discoveryStageSource } }
+            : {}),
+          ...(discoveryApproval
+            ? {
+                approval: {
+                  document: parseCatalogSource(
+                    readArtworkInput(discoveryApproval, 1024 * 1024).bytes.toString("utf8"),
+                  ),
+                },
+              }
+            : {}),
+          handoff,
+        })
+      : prepareListingObservations({ ...common, handoff })
     : artworkIds
       ? await prepareArtworkBatch({
           ...common,
@@ -1525,6 +2047,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       : await preparePort({
           ...common,
           projectUrl: values.get("--project"),
+          expectedRepositoryId: repositoryId === undefined ? undefined : Number(repositoryId),
           issue: values.get("--issue"),
           id: values.get("--id"),
           name: values.get("--name"),

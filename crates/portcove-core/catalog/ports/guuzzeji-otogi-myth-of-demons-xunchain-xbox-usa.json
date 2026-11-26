@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "guuzzeji-otogi-myth-of-demons-xunchain-xbox-usa",
+    "project_url": "https://github.com/Guuzzeji/otogi-xunchain",
+    "name": "Otogi: Myth of Demons (original Xbox USA) / Guuzzeji XUnchain native recomp",
+    "summary": "Otogi: Myth of Demons natively recompiled for Windows PC. Static recompilation of the original Xbox game (no emulator) with widescreen, high frame rates and up to 4x resolution. Bring your own disc.",
+    "issue_number": 4762,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "otogi-myth-of-demons",
+      "evidence_urls": ["https://github.com/Guuzzeji/otogi-xunchain"],
+      "source_editions": [
+        {
+          "id": "otogi-myth-of-demons-xbox",
+          "title": "Otogi: Myth of Demons (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/Guuzzeji/otogi-xunchain"]
+        }
+      ]
+    },
+    "original_game_title": "Otogi: Myth of Demons"
+  }
+}

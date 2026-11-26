@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "xdivorex-spiderman-2002-xbox-ntsc-static-pc",
+    "project_url": "https://github.com/xdivorex-gif/spiderman-2002-pc",
+    "name": "Spider-Man (2002 The Movie) (original Xbox NTSC) / xdivorex-gif xboxrecomp Windows port",
+    "summary": "Unofficial native Windows port of Spider-Man (2002, Xbox) by static recompilation. Bring your own copy of the game; no game content included.",
+    "issue_number": 4433,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "spider-man",
+      "evidence_urls": ["https://github.com/xdivorex-gif/spiderman-2002-pc"],
+      "source_editions": [
+        {
+          "id": "spider-man-xbox",
+          "title": "Spider-Man (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/xdivorex-gif/spiderman-2002-pc"]
+        }
+      ]
+    },
+    "original_game_title": "Spider-Man"
+  }
+}

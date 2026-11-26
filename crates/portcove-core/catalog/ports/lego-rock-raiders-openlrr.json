@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lego-rock-raiders-openlrr",
+    "project_url": "https://github.com/trigger-segfault/OpenLRR",
+    "name": "LEGO Rock Raiders / OpenLRR (trigger-segfault)",
+    "summary": "An open source re-implementation of LEGO Rock Raiders 🪨⛏",
+    "issue_number": 6901,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "lego-rock-raiders",
+      "evidence_urls": ["https://github.com/trigger-segfault/OpenLRR"],
+      "source_editions": []
+    },
+    "original_game_title": "LEGO Rock Raiders"
+  }
+}

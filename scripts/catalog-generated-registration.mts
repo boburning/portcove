@@ -125,13 +125,16 @@ import {
   listingReleaseLimit,
 } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
+import { bodyFirstLine, compareRange, statementText, withoutTags } from "./release-text.mts";
+
+export { bodyFirstLine, compareRange, statementText, withoutTags };
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 28;
+export const GENERATOR_VERSION = 32;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 23;
-export const FACTS_TABLE_FORMAT = 17;
+export const FACTS_PARSER_VERSION = 26;
+export const FACTS_TABLE_FORMAT = 18;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
 export const enrollmentTableName = "generated-registration.generated.json";
@@ -201,6 +204,9 @@ export const ineligibleReasons = [
   "repository-identity-changed",
   "observation-unavailable",
   "upstream-unavailable",
+  // The facts batch job's reproduction refused this identity's entry: it is
+  // withheld and re-derived every run until reproduction agrees.
+  "reproduction-refused",
 ] as const;
 export type IneligibleReason = (typeof ineligibleReasons)[number];
 
@@ -330,7 +336,17 @@ export interface ObservedReleaseFact {
   release_id: number;
   /** The tag as published, or null when it is not a bounded printable string. */
   tag: string | null;
-  /** Core's prerelease verdict, or null when Core did not classify the tag. */
+  /**
+   * Core's prerelease verdict from the provider flag and the tag alone, or
+   * null when Core did not classify the tag: whether the release is a
+   * prerelease without reading its own text.
+   */
+  core_prerelease: boolean | null;
+  /**
+   * The verdict the worker's newest-stable choice used: Core's, or a
+   * prerelease statement in the release's own text (`statement`); null when
+   * Core did not classify the tag.
+   */
   prerelease: boolean | null;
   published_at: string | null;
   /** Whether the release carries at least one package file. */
@@ -407,23 +423,6 @@ export function listingWords(listing: Record<string, unknown>): string[] {
 }
 /** At most this many listing words (each at most 64 characters) are recorded per entry. */
 export const maxListingWords = 64;
-/**
- * Release text with what never states anything about the release removed:
- * image references (`![alt](beta.png)`), HTML tags, link targets (the link
- * text stays), URLs, compare ranges (`v0.9-beta...v1.0`, as in a generated
- * "Full Changelog" line) and image file names.
- */
-export function statementText(line: string): string {
-  return line
-    .replace(/!\[[^\]]*\]\([^)]*\)/gu, " ")
-    .replace(/<[^>]*>/gu, " ")
-    .replace(/\[([^\]]*)\]\([^)]*\)/gu, "$1")
-    .replace(/\[([^\]]*)\]\[[^\]]*\]/gu, "$1")
-    .replace(/[A-Za-z][A-Za-z0-9+.-]*:\/\/\S*/gu, " ")
-    .replace(/(?<![A-Za-z0-9])www\.\S*/giu, " ")
-    .replace(/\S+\.{2,3}\S+/gu, " ")
-    .replace(/\S+\.(?:png|jpe?g|gif|webp|svg|ico|bmp)(?![A-Za-z0-9])/giu, " ");
-}
 /** Words between a status word and its version that keep them adjacent (`Beta build 7`). */
 export const statementConnectors = ["build", "version", "ver", "v", "no", "number"] as const;
 /**
@@ -482,28 +481,61 @@ export const statementFillers = [
   "first",
   ...statementQualifiers,
 ] as const;
+/**
+ * Words a hyphen joins after a status word into one compound status
+ * (`Alpha-Testing 0.0.11`, `Beta-Test`, `Beta-Phase 2`): the compound stands
+ * where its last word stands. Connector words and `release` already keep a
+ * status word adjacent to its version, hyphenated or not.
+ */
+export const statementCompoundWords = ["test", "testing", "tests", "phase", "stage"] as const;
 interface StatementWord {
   word: string;
   numeric: boolean;
   /** The index of the glued token (letters and digits joined by single `.` or `_`). */
   group: number;
   parenthesised: boolean;
+  /** The next word follows a single hyphen directly after this one (`alpha-testing`). */
+  hyphenated: boolean;
+  /** An ellipsis (`..`, `...`, `…`) directly follows this word (`Beta... finally`). */
+  ellipsis: boolean;
 }
 function statementWords(line: string): StatementWord[] {
   const words: StatementWord[] = [];
   let depth = 0;
   let group = 0;
-  for (const [token] of statementText(line)
-    .toLowerCase()
-    .matchAll(/[a-z0-9]+(?:[._][a-z0-9]+)*|[([{]|[)\]}]/gu)) {
-    if ("([{".includes(token)) depth++;
-    else if (")]}".includes(token)) depth = Math.max(0, depth - 1);
-    else {
+  let end = -1;
+  const text = statementText(line).toLowerCase();
+  for (const match of text.matchAll(/[a-z0-9]+(?:[._][a-z0-9]+)*|[([{]|[)\]}]/gu)) {
+    const token = match[0];
+    const start = match.index;
+    // A bracket between two words never lets a hyphen join them.
+    if ("([{".includes(token)) {
+      depth++;
+      end = -1;
+      continue;
+    } else if (")]}".includes(token)) {
+      depth = Math.max(0, depth - 1);
+      end = -1;
+      continue;
+    } else {
+      if (end >= 0 && ["-", "\u2013"].includes(text.slice(end, start)) && words.length)
+        words[words.length - 1]!.hyphenated = true;
       group++;
       for (const chunk of token.split(/[._]/u))
         for (const word of chunk.split(/(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])/u))
-          words.push({ word, numeric: /^[0-9]+$/u.test(word), group, parenthesised: depth > 0 });
+          words.push({
+            word,
+            numeric: /^[0-9]+$/u.test(word),
+            group,
+            parenthesised: depth > 0,
+            hyphenated: false,
+            ellipsis: false,
+          });
+      words[words.length - 1]!.ellipsis = /^(?:\.\.|\u2026)/u.test(
+        text.slice(start + token.length, start + token.length + 2),
+      );
     }
+    end = start + token.length;
   }
   return words;
 }
@@ -521,7 +553,8 @@ function statementWords(line: string): StatementWord[] {
  * `Pre-release build 7`, `Early access 0.3`, past a connector word,
  * `statementConnectors`) or directly after one (`v1.0 Beta`), as the line's
  * last word (`v1.0 Beta`, `Release candidate`), inside parentheses or
- * brackets (`(beta)`, `(unstable)`), or directly after a qualifier
+ * brackets (`(beta)`, `(unstable)`), directly before an ellipsis
+ * (`Beta... finally`, `Beta… finally`), or directly after a qualifier
  * (`statementQualifiers`: `Public beta test`); never anywhere in a sentence. A negation or past transition before it
  * (`statementNegators`, or `out of`) states nothing. The product's own words
  * (the repository name's words and `listingWords`) before the line's first
@@ -583,6 +616,8 @@ export function releaseStatement(
           ),
         ) ||
       words[first]!.parenthesised ||
+      // Trailing off into an ellipsis (`Beta... finally`).
+      words[last]!.ellipsis ||
       (statementQualifiers as readonly string[]).includes(words[first - 1]?.word ?? "")
     );
   };
@@ -628,23 +663,14 @@ export function releaseStatement(
     // `Not for production` states a prerelease wherever it stands.
     if (word === "not" && next === "for" && words[index + 2]?.word === "production")
       return "not-for-production";
+    // A hyphenated compound (`Alpha-Testing`) stands where its last word does.
+    while (
+      token !== null &&
+      words[last]!.hyphenated &&
+      (statementCompoundWords as readonly string[]).includes(words[last + 1]?.word ?? "")
+    )
+      last++;
     if (token !== null && !negated(index) && stands(index, last)) return token;
-  }
-  return null;
-}
-/**
- * The line of a release body that is judged: the first line, within the
- * first 4,096 characters, that holds a letter or digit once what states
- * nothing is removed (`statementText`) and leading Markdown heading, quote,
- * list and emphasis marks are removed, bounded to 256 characters; null when
- * there is none. A banner image or a bare link line is skipped.
- */
-export function bodyFirstLine(body: string): string | null {
-  for (const raw of body.slice(0, 4096).split(/\r?\n/u)) {
-    const line = statementText(raw)
-      .replace(/^[\s#>*_=~`-]+/u, "")
-      .trim();
-    if (/[A-Za-z0-9]/u.test(line)) return line.slice(0, 256);
   }
   return null;
 }
@@ -658,11 +684,48 @@ export function textStatement(
   repository: string,
   listing: readonly string[] = [],
 ): ReleaseStatement | null {
+  const judged = observedTextStatement(title, body, false, repository, listing);
+  return judged.observed ? judged.statement : null;
+}
+/**
+ * What a release's own text establishes from its whole body: `lineStatement`
+ * over the body's judged line (`bodyFirstLine`). `withheld` says the text was
+ * not kept whole (a source over its text budget), so absence is not read.
+ */
+export function observedTextStatement(
+  title: string | null,
+  body: string | null,
+  withheld: boolean,
+  repository: string,
+  listing: readonly string[] = [],
+): { observed: true; statement: ReleaseStatement | null } | { observed: false } {
+  return lineStatement(
+    title,
+    body === null ? null : bodyFirstLine(body),
+    !withheld,
+    repository,
+    listing,
+  );
+}
+/**
+ * What a release's kept text establishes: a statement (the title first, then
+ * the body's judged line), that it states none, or nothing at all
+ * (`observed: false`) when no statement was found in text that was not kept
+ * (`complete` false): absence is never inferred from text that was not read.
+ */
+export function lineStatement(
+  title: string | null,
+  line: string | null,
+  complete: boolean,
+  repository: string,
+  listing: readonly string[] = [],
+): { observed: true; statement: ReleaseStatement | null } | { observed: false } {
   const titled = title === null ? null : releaseStatement(title, repository, listing);
-  if (titled !== null) return { field: "title", token: titled };
-  const first = body === null ? null : bodyFirstLine(body);
-  const bodied = first === null ? null : releaseStatement(first, repository, listing);
-  return bodied === null ? null : { field: "body-first-line", token: bodied };
+  if (titled !== null) return { observed: true, statement: { field: "title", token: titled } };
+  const bodied = line === null ? null : releaseStatement(line, repository, listing);
+  if (bodied !== null)
+    return { observed: true, statement: { field: "body-first-line", token: bodied } };
+  return complete ? { observed: true, statement: null } : { observed: false };
 }
 /**
  * Whether a recorded release states a prerelease in its own text: its
@@ -863,6 +926,14 @@ export interface ListingFactsEntry {
      * null for every other reason.
      */
     cause: FailureCause | null;
+    /**
+     * For `reproduction-refused` only: the refusal receipt (`refusalReceipt`),
+     * the digest of everything the refused entry was derived from that needs
+     * no bytes. While the next observation derives the same receipt, the
+     * identity stays withheld without downloading again; any change to it
+     * re-derives the identity.
+     */
+    receipt?: string;
   } | null;
   /**
    * Package forms of the release's assets the worker does not read, sorted and
@@ -1102,7 +1173,17 @@ function checkReleaseFacts(entry: Record<string, unknown>, where: string) {
     if (!isRecord(release)) throw new Error(`${at} must be an object.`);
     exact(
       release,
-      ["release_id", "tag", "prerelease", "published_at", "packaged", "text", "title", "statement"],
+      [
+        "release_id",
+        "tag",
+        "core_prerelease",
+        "prerelease",
+        "published_at",
+        "packaged",
+        "text",
+        "title",
+        "statement",
+      ],
       at,
     );
     if (
@@ -1111,7 +1192,7 @@ function checkReleaseFacts(entry: Record<string, unknown>, where: string) {
         Number((releases[index - 1] as Record<string, unknown>).release_id) >=
           release.release_id) ||
       !(release.tag === null || bounded(release.tag, 256)) ||
-      !(release.prerelease === null || typeof release.prerelease === "boolean") ||
+      !(release.core_prerelease === null || typeof release.core_prerelease === "boolean") ||
       !(release.published_at === null || timestamp(release.published_at)) ||
       typeof release.packaged !== "boolean"
     )
@@ -1139,7 +1220,10 @@ function checkReleaseFacts(entry: Record<string, unknown>, where: string) {
       // A recorded title's statement is re-derived: it must be the one recorded.
       (titled !== null && (statement?.field !== "title" || statement.token !== titled)) ||
       (titled === null && release.title !== null && statement?.field === "title") ||
-      (statement !== null && release.prerelease === false)
+      (statement !== null && release.prerelease === false) ||
+      // The verdict is Core's, or a statement of the release's own text.
+      release.prerelease !==
+        (release.core_prerelease === null ? null : release.core_prerelease || statement !== null)
     )
       throw new Error(
         `${at} needs its release text observed or unobserved, a bounded title or null, and the prerelease statement that text makes, counted in its verdict.`,
@@ -1326,8 +1410,15 @@ export function checkListingFactsEntry(
     throw new Error(`${where}.observation needs a release identity and stated coverage.`);
   if (entry.ineligible !== null) {
     if (!isRecord(entry.ineligible)) throw new Error(`${where}.ineligible must be an object.`);
-    exact(entry.ineligible, ["reason", "detail", "cause"], `${where}.ineligible`);
+    exact(
+      entry.ineligible,
+      entry.ineligible.reason === "reproduction-refused"
+        ? ["reason", "detail", "cause", "receipt"]
+        : ["reason", "detail", "cause"],
+      `${where}.ineligible`,
+    );
     if (
+      (entry.ineligible.reason === "reproduction-refused" && !sha(entry.ineligible.receipt)) ||
       !(ineligibleReasons as readonly unknown[]).includes(entry.ineligible.reason) ||
       (entry.ineligible.reason === "repeated-inspection-failure"
         ? !(failureCauses as readonly unknown[]).includes(entry.ineligible.cause)
@@ -2124,13 +2215,90 @@ export function fitContext(records: readonly AuthoredPort[]): FitContext {
   };
 }
 
+/**
+ * The receipt of an entry reproduction refused: the repository id, the
+ * offered release, its asset list digest (each asset's id, name, size and
+ * provider SHA-256), the observed releases with their text verdicts, and the
+ * facts parser and generator versions. Everything in it is known from an
+ * observation without downloading.
+ */
+export function refusalReceipt(input: {
+  repository_id: number;
+  release_id: number | null;
+  assets_sha256: string;
+  observed_releases: readonly ObservedReleaseFact[];
+}): string {
+  return digestOf({
+    repository_id: input.repository_id,
+    release_id: input.release_id,
+    assets_sha256: input.assets_sha256,
+    observed_releases: input.observed_releases,
+    parser_version: FACTS_PARSER_VERSION,
+    generator_version: GENERATOR_VERSION,
+  });
+}
+/**
+ * Whether `release` comes before `other` in the worker's newest-stable order
+ * (`latestStable`): later publication, then higher id; an unknown time sorts
+ * oldest.
+ */
+export function newerInOrder(release: ObservedReleaseFact, other: ObservedReleaseFact): boolean {
+  const left = Date.parse(release.published_at ?? "") || 0;
+  const right = Date.parse(other.published_at ?? "") || 0;
+  return left > right || (left === right && release.release_id > other.release_id);
+}
+/**
+ * The releases newer than `chosen` on its line (the bound line, or every
+ * release when unbound) that the provider flag and Core call stable but
+ * whose own words state a prerelease: the worker skipped them by words alone.
+ */
+function skippedByWords(
+  record: AuthoredPort,
+  entry: ListingFactsEntry,
+  chosen: ObservedReleaseFact,
+): ObservedReleaseFact[] {
+  const bound = boundReleaseLine(record);
+  const own = listingWords(record.listing);
+  return entry.observed_releases.filter(
+    (release) =>
+      release.release_id !== chosen.release_id &&
+      (bound === null ||
+        releaseLine(release.tag, release.release_id, entry.repository) === bound) &&
+      newerInOrder(release, chosen) &&
+      release.core_prerelease === false &&
+      statesPrerelease(release, entry.repository, own),
+  );
+}
+/** The `worded_prerelease_skipped` queue's evidence for one withheld identity. */
+function wordedPrereleasesSkipped(record: AuthoredPort, entry: ListingFactsEntry): string[] {
+  const chosen = entry.observed_releases.find(
+    (release) => release.release_id === entry.observation.release_id,
+  );
+  return chosen
+    ? skippedByWords(record, entry, chosen).map((release) => {
+        const statement = release.statement ?? {
+          field: "title",
+          token: releaseStatement(release.title!, entry.repository, entry.listing_words)!,
+        };
+        return `${release.tag ?? `#${release.release_id}`}: ${statement.field} ${statement.token}`;
+      })
+    : [];
+}
 /** Why the observed releases do not tie this identity to one product's release, if they do not. */
 function releaseLineProblem(
   record: AuthoredPort,
   entry: ListingFactsEntry,
   context: FitContext,
 ):
-  | { reason: "shared-repository" | "ambiguous-release-line" | "no-stable-release"; detail: string }
+  | {
+      reason:
+        | "shared-repository"
+        | "ambiguous-release-line"
+        | "no-stable-release"
+        | "release-text-unobserved"
+        | "worded-prerelease-skipped";
+      detail: string;
+    }
   | undefined {
   const bound = boundReleaseLine(record);
   const sharing = (context.repositories.get(entry.repository.toLowerCase()) ?? []).filter(
@@ -2164,6 +2332,26 @@ function releaseLineProblem(
       reason: "no-stable-release",
       detail:
         "The offered release's own title or first body line states a prerelease (pre-release, release candidate, beta or alpha), although the provider flag says stable.",
+    };
+  // Unobserved text is UNKNOWN: the release could state a prerelease the
+  // reproduction would read, so it is never offered on unread text.
+  if (chosen.text !== "observed")
+    return {
+      reason: "release-text-unobserved",
+      detail:
+        "The offered release's own title and body were not observed (or its body's first line was cut before it was wholly read), so whether the release calls itself a prerelease is UNKNOWN.",
+    };
+  // A newer release on the offered line that the provider flag and its tag
+  // call stable but whose own words state a prerelease was skipped by words
+  // alone: words may withhold, never pick an older release. A person
+  // hand-checks the newer release's text first.
+  const skipped = skippedByWords(record, entry, chosen);
+  if (skipped.length)
+    return {
+      reason: "worded-prerelease-skipped",
+      detail: `${skipped.length} newer release(s) the provider and their tags call stable state a prerelease only in their own words (${skipped
+        .map((release) => release.tag ?? `#${release.release_id}`)
+        .join(", ")}), so the older release is not offered until a person hand-checks them.`,
     };
   // Lines are counted over stable packaged releases only (and releases whose
   // verdict Core did not give): a prerelease's tag noise never splits the
@@ -3844,6 +4032,21 @@ export const romanNumbers = [
   "xx",
 ] as const;
 const romanSet = new Set<string>(romanNumbers);
+/**
+ * Whether a literal carries a name's number word (`carried`, the literal's
+ * digit runs): the same digits, or a roman sequel number of two or more
+ * letters (`romanNumbers`) whose value the literal writes in digits, so
+ * `saboteur2` carries the `II` of "Saboteur II". Only the value counts: `3`
+ * never carries `II`. A lone `v` or `x` may be a letter's name ("Mega Man X")
+ * and a word outside `romanNumbers` (`mix`, `did`) no number, so neither is
+ * carried by digits.
+ */
+function carriesNumber(carried: ReadonlySet<string>, word: string): boolean {
+  if (carried.has(word)) return true;
+  if (!romanSet.has(word) || word.length < 2) return false;
+  const value = romanValue(word);
+  return value !== null && carried.has(String(value));
+}
 /** Whether a word can be the distinctive word of a partial name. */
 const distinctiveWord = (word: string) =>
   word.length >= 2 &&
@@ -3979,8 +4182,10 @@ export interface NameFormWord {
   sequel: boolean;
   /**
    * A number glued inside an annotation token of two or more letters
-   * (`BT2`, `OpenKai2`, an author handle such as `oric212`): it names the
-   * token, not a sequel, and never stops the annotation being omitted.
+   * (`BT2`, `OpenKai2`, an author handle such as `oric212`), or in an
+   * annotation's architecture word (`x86-64`, `x64`, `win64`:
+   * `annotationArchitecture`): it names the token or the build, not a
+   * sequel, and never stops the annotation being omitted.
    */
   token: boolean;
   /**
@@ -4215,16 +4420,49 @@ export function nameForm(value: string, handles: ReadonlySet<string> = noHandles
     word.optional = trailing && (word.descriptor || editionSuffixSet.has(word.word));
     word.pinned = word.descriptor && !word.optional;
   }
+  const architecture = annotationArchitecture(form, before);
   form.forEach((word, index) => {
     const next = form[index + 1];
     word.token =
       word.ordinal &&
       word.annotation &&
-      (word.glued || next?.glued === true) &&
-      chunkLetters[index]! >= 2;
+      (architecture.has(index) ||
+        ((word.glued || next?.glued === true) && chunkLetters[index]! >= 2));
     word.sequel = sequelOrdinal(form, index, before);
   });
   return form;
+}
+const programArchitectureSet = new Set<string>(programArchitectureWords);
+/**
+ * The positions of an annotation's architecture words (`programArchitectureWords`):
+ * a run of one chunk's pieces, or of pieces joined only by `-` or `_`, that
+ * spells one of them (`x86-64`, `x86_64`, `x64`, `win64`, `amd64`, `i386`).
+ * Their numbers name the build, not a sequel, so "Saboteur II: Avenging
+ * Angel (Saboteur II x86-64 recomp)" may omit its annotation like "Saboteur
+ * II (Saboteur II recomp)". Only an annotation: in the title proper "Mario
+ * 64" and "Rush 2049" keep every number rule.
+ */
+function annotationArchitecture(
+  form: readonly NameFormWord[],
+  before: readonly string[],
+): Set<number> {
+  const positions = new Set<number>();
+  for (let start = 0; start < form.length; start++) {
+    if (!form[start]!.annotation || form[start]!.glued) continue;
+    let joined = "";
+    let end = -1;
+    for (let at = start; at < form.length && at < start + 3; at++) {
+      const word = form[at]!;
+      if (at > start && !word.glued && before[at] !== "-" && before[at] !== "_") break;
+      joined += word.word;
+      if (form[at + 1]?.glued === true) continue;
+      if (programArchitectureSet.has(joined)) end = at;
+    }
+    if (end < 0) continue;
+    for (let at = start; at <= end; at++) positions.add(at);
+    start = end;
+  }
+  return positions;
 }
 /**
  * Whether a word of a name is a sequel number (N2): a number of one to three
@@ -4280,7 +4518,7 @@ const chunksOf = (text: string) =>
  * segments (nor a whole chunk of them) and names the author, not the game.
  * The id's first word is a handle when it is also no word or chunk of the
  * repository's name
- * (`alexbeav-suikoden-ii-recomp`, `abilliontokens-sims2-recomp`); the
+ * (alexbeav-suikoden-ii-recomp and abilliontokens-sims2-recomp); the
  * repository name's first word when the repository owner starts with it
  * (three or more letters: `owner/owner-game`). Initials come from title
  * words and the repository's name only, never from its owner.
@@ -4291,7 +4529,7 @@ export function authorHandles(
 ): ReadonlySet<string> {
   const [owner = "", name] = repository.split("/");
   // Title words, and each whole chunk of the title (`OpenGOAL` for the id
-  // `opengoal-jak1` of "OpenGOAL: Jak and Daxter").
+  // opengoal-jak1 of "OpenGOAL: Jak and Daxter").
   const titleText =
     typeof listing.name === "string" ? listing.name.split(annotationSeparator)[0]! : "";
   const title = new Set([...nameForm(titleText).map((word) => word.word), ...chunksOf(titleText)]);
@@ -4444,6 +4682,12 @@ const optionalBit = 32;
  */
 const droppedSegmentBit = (segment: number) => 1 << (6 + Math.min(segment, 24));
 /**
+ * The first title segment omitted whole: no subtitle, so it never takes a
+ * later segment off the D1 and F3 queues (`reliefDetail`). It uses segment
+ * 0's bit, which `droppedSegmentBit` never sets for a later segment.
+ */
+const firstSegmentOmittedBit = droppedSegmentBit(0);
+/**
  * The later title segments of a name (not the first, not an annotation)
  * that hold a word other than an optional trailing one: the subtitles a
  * partial name or an initialism may drop (D1).
@@ -4465,13 +4709,23 @@ function laterTitleSegments(form: readonly NameFormWord[]): Map<number, string> 
   return segments;
 }
 /**
+ * A name word as the digits a literal carries for it (`carriesNumber`): a
+ * roman sequel number of two or more letters whose value the literal writes
+ * in digits becomes that digit run; any other word is unchanged.
+ */
+function carriedByValue(carried: ReadonlySet<string>, word: NameFormWord): NameFormWord {
+  if (carried.has(word.word) || !carriesNumber(carried, word.word)) return word;
+  return { ...word, word: String(romanValue(word.word)), numeric: true };
+}
+/**
  * The later title segments of a listing's name that an accepted archive or
  * program literal drops (F3, `subtitle_dropped_by_repository_name`), for an
  * enrollment accepted because the literal equals the repository or id name
  * (modulo descriptors), so not relieved and not queued by D1: the segments a
  * relieved spelling of the listing name omits, or, when the name's own rules
  * refuse every spelling (a sequel subtitle), the segments after the longest
- * leading run of title segments the literal spells. Reporting only.
+ * leading run of title segments the literal spells, its numbers compared by
+ * value (`carriesNumber`). Reporting only.
  */
 export function subtitleDroppedByName(literal: string, listing: Record<string, unknown>): string[] {
   if (typeof listing.name !== "string" || literal === "") return [];
@@ -4482,8 +4736,15 @@ export function subtitleDroppedByName(literal: string, listing: Record<string, u
   const detail = reliefDetail(literal, digits, form);
   if (detail !== null) return detail.relieved ? detail.droppedSegments : [];
   const segments = [...later.keys()].toSorted((left, right) => right - left);
+  const carried = new Set(
+    [...digits].map(([start, length]) => literal.slice(start, start + length)),
+  );
   for (const segment of segments) {
-    const head = form.filter((word) => word.segment < segment && !word.annotation);
+    // A head number compares by value (`carriesNumber`): `saboteur2` spells
+    // the "Saboteur II" of "Saboteur II: Avenging Angel".
+    const head = form
+      .filter((word) => word.segment < segment && !word.annotation)
+      .map((word) => carriedByValue(carried, word));
     if (head.length && reliefDetail(literal, digits, head) !== null)
       return segments
         .filter((each) => each >= segment)
@@ -4521,7 +4782,8 @@ export function subtitleDroppedByName(literal: string, listing: Record<string, u
  * (`descriptorPlaces`) may stand anywhere their place allows. Leniently, the
  * number rules flag `droppedNumberBit` instead of refusing, and a digit run
  * may stand for no word; a number the literal `carried` is never flagged.
- * A later title segment omitted whole sets its `droppedSegmentBit` (D1).
+ * A later title segment omitted whole sets its `droppedSegmentBit` (D1),
+ * the first title segment omitted whole `firstSegmentOmittedBit`.
  */
 function subsequenceMasks(
   literal: string,
@@ -4543,7 +4805,7 @@ function subsequenceMasks(
     if (!word.sequel) continue;
     const exempt = word.annotation && literalNumbers.has(word.word);
     if (exempt) continue;
-    const flag = lenient ? (carried.has(word.word) ? 0 : droppedNumberBit) : null;
+    const flag = lenient ? (carriesNumber(carried, word.word) ? 0 : droppedNumberBit) : null;
     const known = segmentDrop.get(word.segment);
     segmentDrop.set(word.segment, known === null || flag === null ? null : (known ?? 0) | flag);
   }
@@ -4574,6 +4836,7 @@ function subsequenceMasks(
       }
       if (state !== 2 && subtitles.has(previous.segment))
         ended |= droppedSegmentBit(previous.segment);
+      if (state !== 2 && previous.segment === 0) ended |= firstSegmentOmittedBit;
     }
     if (position === literal.length && index === form.length) masks.add(ended);
     const run = digits.get(position);
@@ -4590,7 +4853,7 @@ function subsequenceMasks(
     const spelled = word.numeric
       ? digits.get(position) === word.word.length && literal.startsWith(word.word, position)
       : literal.startsWith(word.word, position);
-    const dropped = (number: string) => (carried.has(number) ? 0 : droppedNumberBit);
+    const dropped = (number: string) => (carriesNumber(carried, number) ? 0 : droppedNumberBit);
     if (word.optional) {
       for (const mask of visit(position, index + 1, false, current))
         masks.add(mask | optionalBit | ended);
@@ -4735,7 +4998,7 @@ function descriptorRun(literal: string): boolean {
  * (`initialismVetoWords`) is never one. Each maps to the words of its run,
  * joined. The later segments it omits are checked against the literal by
  * `laterSegmentsDroppable`. A name whose first word is an author handle
- * (`handle`, D3: `asii` never for the id `alexbeav-suikoden-ii-recomp`) has
+ * (`handle`, D3: `asii` never for the id alexbeav-suikoden-ii-recomp) has
  * none.
  */
 function initialismRuns(form: readonly NameFormWord[]): Map<string, string> {
@@ -4905,7 +5168,7 @@ export interface ReliefSpelling {
   /** For an initialism, the words of its run joined (`franchise_only_partial`). */
   initialismWords: string | null;
   /**
-   * The later title segments a relieved spelling omits whole, their words
+   * The later title segments every relieved spelling omits whole, their words
    * joined by spaces (D1, `franchise_only_partial`): "total destruction" for
    * `rampage` and "Rampage: Total Destruction".
    */
@@ -4938,8 +5201,18 @@ export function reliefDetail(
     };
   if (masks.length) {
     const relieved = !masks.some((mask) => !(mask & omittedBit));
-    // Every later title segment any accepted spelling omits whole.
-    const omitted = masks.reduce((union, mask) => union | mask, 0);
+    // Every later title segment all accepted spellings omit whole: one that
+    // keeps the segment shows the literal holds its words, as `hardcorpsuprising`
+    // holds "Uprising" although it can also spell "Hard Corps" with the
+    // annotation's "Uprising" in "Hard Corps: Uprising (Hard Corps: Uprising
+    // Recompiled)". Only a spelling that keeps the first title segment counts:
+    // `lantern` spelling only the subtitle of "Lantern: The Lantern" still
+    // drops it.
+    const keepFirst = masks.filter((mask) => !(mask & firstSegmentOmittedBit));
+    const omitted = (keepFirst.length ? keepFirst : masks).reduce(
+      (common, mask) => common & mask,
+      ~0,
+    );
     return {
       reliefs: masks.some((mask) => mask & descriptorBit)
         ? ["descriptor", "partial-name"]
@@ -5391,6 +5664,8 @@ export const blockedReasons = [
   "stale-facts",
   "shared-repository",
   "ambiguous-release-line",
+  "release-text-unobserved",
+  "worded-prerelease-skipped",
   "other-package-form-beside-archive",
   "no-player",
   "tool-not-game",
@@ -6193,6 +6468,16 @@ export interface RegistrationQueues {
    * did not report: the release-text rule is UNKNOWN for them, not passed.
    */
   release_text_unobserved: string[];
+  /**
+   * The `worded-prerelease-skipped` hand-check queue: per withheld identity,
+   * in port_id order, each newer release on its offered line that the
+   * provider flag and its tag call stable but whose own words state a
+   * prerelease, as `<tag or #id>: <field> <token>`. A person reads those
+   * releases' text: a release that is stable after all is a false positive
+   * of the words (the identity stays withheld until its text, the rule or
+   * the provider flag changes); a real prerelease confirms the withhold.
+   */
+  worded_prerelease_skipped: Record<string, string[]>;
 }
 
 export function registrationQueues(generation: Generation): RegistrationQueues {
@@ -6435,6 +6720,17 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
       )
       .map((entry) => entry.port_id)
       .toSorted(compareCodePoints),
+    worded_prerelease_skipped: Object.fromEntries(
+      generation.decisions
+        .filter((decision) => !decision.fit && decision.reason === "worded-prerelease-skipped")
+        .map((decision) => decision.port_id)
+        .toSorted(compareCodePoints)
+        .flatMap((id) => {
+          const entry = generation.facts.entries.find((candidate) => candidate.port_id === id);
+          const record = generation.records.find((candidate) => candidate.listing.id === id);
+          return entry && record ? [[id, wordedPrereleasesSkipped(record, entry)]] : [];
+        }),
+    ),
   };
 }
 /** A per-identity name list for every facts entry that has one, in port_id order. */
@@ -7672,6 +7968,40 @@ export function gateListingWords(listing: Record<string, unknown>): string[] {
       for (const word of gateNameWords(value)) if (word.length <= 64) words.add(word);
   return [...words].sort().slice(0, 64);
 }
+/** Whitespace inside a raw HTML tag: spaces and tabs, at most one line ending. */
+const gateTagSpace = "[ \\t]*(?:(?:\\r\\n|\\r|\\n)[ \\t]*)?";
+/** The same whitespace, not empty. */
+const gateTagSpaced = "(?:[ \\t]+(?:(?:\\r\\n|\\r|\\n)[ \\t]*)?|(?:\\r\\n|\\r|\\n)[ \\t]*)";
+/** A blank line: two line breaks with only spaces or tabs between. */
+const gateBlankLine = "(?:\\r\\n|\\r(?!\\n)|\\n)[ \\t]*(?:\\r\\n|\\r|\\n)";
+/**
+ * One attribute of a raw HTML open tag, with its leading whitespace. A
+ * quoted value holds no blank line: the paragraph ends there.
+ */
+const gateAttribute = `${gateTagSpaced}[A-Za-z_:][A-Za-z0-9_.:-]*(?:${gateTagSpace}=${gateTagSpace}(?:[^ \\t\\r\\n"'=<>\`]+|'(?:(?!${gateBlankLine})[^'])*'|"(?:(?!${gateBlankLine})[^"])*"))?`;
+/** A `script` or `style` element with its contents, up to its closing tag. */
+const gateRawText = (name: string) => {
+  const letters = name.replace(/[a-z]/gu, (letter) => `[${letter}${letter.toUpperCase()}]`);
+  return `<${letters}(?![A-Za-z0-9-])(?:${gateAttribute})*${gateTagSpace}\\/?>[\\s\\S]*?<\\/${letters}${gateTagSpace}>`;
+};
+/**
+ * Raw HTML, restated from `withoutMarkup` in CommonMark's grammar: a
+ * comment, a declaration, a processing instruction, a `script` or `style`
+ * element with its contents, a closing tag, or an open tag, whether or not
+ * GitHub renders the element.
+ */
+const gateMarkup = new RegExp(
+  [
+    "<!--[\\s\\S]*?-->",
+    "<![A-Za-z][^>]*>",
+    "<\\?[\\s\\S]*?\\?>",
+    gateRawText("script"),
+    gateRawText("style"),
+    `<\\/[A-Za-z][A-Za-z0-9-]*${gateTagSpace}>`,
+    `<[A-Za-z][A-Za-z0-9-]*(?:${gateAttribute})*${gateTagSpace}\\/?>`,
+  ].join("|"),
+  "gu",
+);
 /**
  * The prerelease statement token class a line of release text makes,
  * restated: see `releaseStatement` and `statementText`. Exported for its
@@ -7683,39 +8013,84 @@ export function gateStatement(
   listing: readonly string[] = [],
 ): string | null {
   const own = [...gateNameWords(repository.split("/")[1] ?? ""), ...listing];
-  // Image references, tags, link targets, URLs, compare ranges and image
-  // file names never state anything.
+  // Image references, raw HTML (comments, declarations and tags), link
+  // targets, URLs, compare ranges and image file names never state anything.
   const text = line
     .replace(/!\[[^\]]*\]\([^)]*\)/gu, " ")
-    .replace(/<[^>]*>/gu, " ")
+    .replace(gateMarkup, " ")
     .replace(/\[([^\]]*)\]\([^)]*\)/gu, "$1")
     .replace(/\[([^\]]*)\]\[[^\]]*\]/gu, "$1")
     .replace(/[A-Za-z][A-Za-z0-9+.-]*:\/\/\S*/gu, " ")
     .replace(/(?<![A-Za-z0-9])www\.\S*/giu, " ")
-    .replace(/\S+\.{2,3}\S+/gu, " ")
+    // A compare range: dots joining two version-like parts, each with a digit.
+    .split(/(\s+)/u)
+    .map((piece) => {
+      const range = /^(.+?)(\.{2,})(.+)$/su.exec(piece);
+      return range &&
+        !range[1]!.includes("..") &&
+        range[2]!.length <= 3 &&
+        /\d/u.test(range[1]!) &&
+        /\d/u.test(range[3]!)
+        ? " "
+        : piece;
+    })
+    .join("")
     .replace(/\S+\.(?:png|jpe?g|gif|webp|svg|ico|bmp)(?![A-Za-z0-9])/giu, " ")
     .toLowerCase();
-  const words: { text: string; number: boolean; token: number; inside: boolean }[] = [];
+  const words: {
+    text: string;
+    number: boolean;
+    token: number;
+    inside: boolean;
+    dash: boolean;
+    /** Two dots or `…` come right after the word. */
+    trail: boolean;
+  }[] = [];
   let depth = 0;
   let token = 0;
   let run = "";
+  // What stands between the previous run and this one: one hyphen joins them.
+  let between = "";
   const flush = () => {
-    // Letters and digits joined by one `.` or `_` are one glued token.
-    for (const piece of run.split(/[._]{2,}/u)) {
+    // A hyphen joins only a word that starts this run right after it.
+    let joins = (between === "-" || between === "\u2013") && /^[a-z0-9]/u.test(run);
+    let pushed = false;
+    // Letters and digits joined by one `.` or `_` are one glued token; the
+    // runs of two or more between them are kept to see an ellipsis.
+    const split = run.split(/([._]{2,})/u);
+    for (let at = 0; at < split.length; at += 2) {
+      const piece = split[at]!;
       const parts = piece.split(/[._]/u).flatMap((part) => part.match(/[a-z]+|[0-9]+/gu) ?? []);
-      if (!parts.length) continue;
-      token++;
-      for (const part of parts)
-        words.push({ text: part, number: /^[0-9]/u.test(part), token, inside: depth > 0 });
+      if (parts.length) {
+        if (joins && words.length) words[words.length - 1]!.dash = true;
+        pushed = true;
+        token++;
+        for (const part of parts)
+          words.push({
+            text: part,
+            number: /^[0-9]/u.test(part),
+            token,
+            inside: depth > 0,
+            dash: false,
+            trail: false,
+          });
+        if ((split[at + 1] ?? "").startsWith("..")) words[words.length - 1]!.trail = true;
+      }
+      joins = false;
     }
+    // The dots and underscores a run ends with stand between it and the next.
+    between = pushed ? /[._]*$/u.exec(run)![0] : between + run;
     run = "";
+    return pushed;
   };
   for (const character of text) {
     if (/[a-z0-9._]/u.test(character)) {
       run += character;
       continue;
     }
-    flush();
+    // A run ending in a word, then `…`: the word trails off.
+    if (flush() && between === "" && character === "\u2026") words[words.length - 1]!.trail = true;
+    between += character;
     if ("([{".includes(character)) depth++;
     else if (")]}".includes(character)) depth = depth > 0 ? depth - 1 : 0;
   }
@@ -7807,6 +8182,13 @@ export function gateStatement(
     if (here === "not" && next === "for" && words[index + 2]?.text === "production")
       return "not-for-production";
     if (found === null) continue;
+    // `alpha-testing`, `beta-test`, `beta-phase`: the hyphenated status
+    // compound ends at its last joined word.
+    while (
+      words[end]!.dash &&
+      ["test", "testing", "tests", "phase", "stage"].includes(words[end + 1]?.text ?? "")
+    )
+      end++;
     let back = index - 1;
     while (back >= 0 && fillers.includes(words[back]!.text)) back--;
     if (
@@ -7827,6 +8209,7 @@ export function gateStatement(
       words[index - 1]?.number === true ||
       words.slice(end + 1).every((word) => [...connectors, "release"].includes(word.text)) ||
       words[index]!.inside ||
+      words[end]!.trail ||
       (index > 0 && qualifiers.includes(words[index - 1]!.text))
     )
       return found;
@@ -8180,6 +8563,23 @@ function gateNameLists(listing: Record<string, unknown>, repository: string) {
     }
   return lists;
 }
+/** The architecture words a program name may carry, restated: see `programArchitectureWords`. */
+const gateArchitecture = [
+  "x86",
+  "x64",
+  "x8664",
+  "amd64",
+  "arm64",
+  "aarch64",
+  "i386",
+  "i686",
+  "64bit",
+  "32bit",
+  "win32",
+  "win64",
+  "universal",
+  "universal2",
+];
 /** The neutral archive words, restated: see `neutralArchiveWords`. */
 const gateNeutral = [
   ...gateTargets.filter((word) => word !== "32bit" && word !== "64bit"),
@@ -8320,6 +8720,17 @@ const gateRoman = [
   "xix",
   "xx",
 ];
+/**
+ * Whether a literal's digit runs (`carried`) carry a name's number word,
+ * restated: see `carriesNumber`. The same text, or a listed roman sequel
+ * number of two or more letters whose value one run writes in digits.
+ */
+function gateCarries(carried: readonly string[], text: string): boolean {
+  if (carried.includes(text)) return true;
+  if (text.length < 2 || !gateRoman.includes(text)) return false;
+  const value = gateRomanValue(text);
+  return value !== null && carried.includes(String(value));
+}
 /** Whether a word can be the distinctive word a partial name keeps, restated. */
 function gateDistinctive(word: string) {
   if (word.length < 2 || /^\d+$/u.test(word) || gateRoman.includes(word)) return false;
@@ -8566,7 +8977,10 @@ interface GateFormWord {
   article: boolean;
   /** A sequel number, restated: see `sequelOrdinal`. */
   sequel: boolean;
-  /** A number glued inside an annotation token of two or more letters. */
+  /**
+   * A number glued inside an annotation token of two or more letters, or in
+   * an annotation's architecture word (`x86-64`).
+   */
   token: boolean;
   /** The first word, an author handle: no initial from it (D3). */
   handle: boolean;
@@ -8828,6 +9242,24 @@ function gateForm(value: string, handles: readonly string[] = []): GateFormWord[
     const glued = word.glued || (later !== undefined && later.glued);
     word.token = word.number && word.annotation && glued && chunkLetterCounts[at]! >= 2;
   }
+  // An annotation's architecture word (`x86-64`, `x64`, `win64`): its pieces
+  // in one chunk or joined by `-` or `_`. Its numbers name the build.
+  for (let start = 0; start < words.length; start++) {
+    if (!words[start]!.annotation || words[start]!.glued) continue;
+    let joined = "";
+    let end = -1;
+    for (let at = start; at < words.length && at < start + 3; at++) {
+      const word = words[at]!;
+      if (at > start && !word.glued && separators[at] !== "-" && separators[at] !== "_") break;
+      joined += word.text;
+      const later = words[at + 1];
+      if (later !== undefined && later.glued) continue;
+      if (gateArchitecture.includes(joined)) end = at;
+    }
+    if (end < 0) continue;
+    for (let at = start; at <= end; at++) if (words[at]!.number) words[at]!.token = true;
+    start = end;
+  }
   for (let at = 0; at < words.length; at++) {
     const word = words[at]!;
     const prior = words[at - 1];
@@ -8897,7 +9329,7 @@ function gateSubsequence(
       if (word.segment !== segment || !word.sequel) continue;
       if (word.annotation && ownNumbers.includes(word.text)) continue;
       if (!lenient) return "refused";
-      if (!carried.includes(word.text)) cost = "n";
+      if (!gateCarries(carried, word.text)) cost = "n";
     }
     return cost;
   };
@@ -8944,7 +9376,7 @@ function gateSubsequence(
       const priorKept = !newSegment && keptBefore;
       let spells = literal.slice(at, at + current.text.length) === current.text;
       if (current.digits) spells &&= digitStarts.get(at) === current.text.length;
-      const mark = (number: string) => (carried.includes(number) ? "" : "n");
+      const mark = (number: string) => (gateCarries(carried, number) ? "" : "n");
       if (current.trailing) {
         for (const rest of walk(at, word + 1, false, state)) out.add(flags(rest, "p", ending));
         if (spells)
@@ -9819,22 +10251,7 @@ export function gateProgramAccounted(
   if (file.endsWith(".exe")) file = file.slice(0, -4);
   let literal = "";
   for (const character of file) if (/[a-z0-9]/u.test(character)) literal += character;
-  const architecture = [
-    "x86",
-    "x64",
-    "x8664",
-    "amd64",
-    "arm64",
-    "aarch64",
-    "i386",
-    "i686",
-    "64bit",
-    "32bit",
-    "win32",
-    "win64",
-    "universal",
-    "universal2",
-  ];
+  const architecture = gateArchitecture;
   // Whether a rest is a run of architecture words, tried left to right.
   const architectureRun = (rest: string): boolean => {
     if (rest === "") return true;
@@ -10055,7 +10472,32 @@ function gateEnrollmentProblems(
   )
     problems.push(`${id} offers a release its facts do not record as stable.`);
   else {
+    // Only observed text can show that the release does not call itself a
+    // prerelease.
+    if (offered.text !== "observed")
+      problems.push(`${id} offers a release whose own text nobody read.`);
     const line = gateLine(offered.tag, offered.release_id, entry.repository);
+    // A later release the provider and Core call stable, skipped only because
+    // its own words state a prerelease, is checked by a person first: the
+    // words never select the older release.
+    const offeredAt = Date.parse(offered.published_at ?? "") || 0;
+    for (const release of entry.observed_releases) {
+      const releaseAt = Date.parse(release.published_at ?? "") || 0;
+      const later =
+        releaseAt > offeredAt ||
+        (releaseAt === offeredAt && release.release_id > offered.release_id);
+      if (
+        later &&
+        release.core_prerelease === false &&
+        (bound === null || gateLine(release.tag, release.release_id, entry.repository) === bound) &&
+        gateStates(release, entry.repository, ownWords)
+      ) {
+        problems.push(
+          `${id} offers an older release past a later one that only its own words call a prerelease.`,
+        );
+        break;
+      }
+    }
     const lines = new Set([line]);
     // Lines over stable packaged releases (and unknown verdicts) only.
     for (const release of entry.observed_releases)

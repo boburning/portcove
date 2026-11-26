@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mvp-baseball-2005-mvp-baseball-2005-xbe-recomp",
+    "project_url": "https://github.com/maddog847/MVP-Baseball-2005-XBERecomp",
+    "name": "MVP Baseball 2005 / MVP Baseball 2005 XBE Recomp (maddog847)",
+    "summary": "Unofficial native Windows recompilation of MVP Baseball 2005 for Xbox, built with XboxXBERecomp. Public beta; original game files required.",
+    "issue_number": 7194,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mvp-baseball-2005",
+      "evidence_urls": ["https://github.com/maddog847/MVP-Baseball-2005-XBERecomp"],
+      "source_editions": [
+        {
+          "id": "mvp-baseball-2005-xbox",
+          "title": "MVP Baseball 2005 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/maddog847/MVP-Baseball-2005-XBERecomp"]
+        }
+      ]
+    },
+    "original_game_title": "MVP Baseball 2005"
+  }
+}

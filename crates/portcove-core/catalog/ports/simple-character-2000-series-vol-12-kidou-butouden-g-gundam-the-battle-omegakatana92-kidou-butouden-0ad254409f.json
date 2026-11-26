@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "simple-character-2000-series-vol-12-kidou-butouden-g-gundam-the-battle-omegakatana92-kidou-butouden-0ad254409f",
+    "project_url": "https://github.com/omegakatana92/Simple-Character-2000-Series-Vol.-12---Kidou-Butouden-G-Gundam---The-Battle",
+    "name": "Kidou Butouden G Gundam: The Battle / Simple-Character-2000-Series-Vol.-12---Kidou-Butouden-G-Gundam---The-Battle (omegakatana92)",
+    "summary": "A complete and playable PSX recompilation of Simple Character 2000 Series Vol. 12 - Kidou Butouden G Gundam - The Battle (Japan). Built using mstan's PSXRecomp tool. No original ROM, BIN, CUE, disc image, or copyrighted game assets are included.",
+    "issue_number": 3536,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "kidou-butouden-g-gundam-the-battle",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Simple-Character-2000-Series-Vol.-12---Kidou-Butouden-G-Gundam---The-Battle"
+      ],
+      "source_editions": [
+        {
+          "id": "kidou-butouden-g-gundam-the-battle-playstation",
+          "title": "Kidou Butouden G Gundam: The Battle (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/omegakatana92/Simple-Character-2000-Series-Vol.-12---Kidou-Butouden-G-Gundam---The-Battle"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Kidou Butouden G Gundam: The Battle"
+  }
+}

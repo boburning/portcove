@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "baroque-saturn-goodshepherd23",
+    "project_url": "https://github.com/goodshepherd23/Baroque-SaturnRecomp",
+    "name": "Baroque Saturn",
+    "summary": "Play Baroque (Sega Saturn, 1998) natively on Windows via the SaturnRecomp runtime. Build-from-source kit: bring your own disc and BIOS.",
+    "issue_number": 5531,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "baroque-saturn",
+      "evidence_urls": ["https://github.com/goodshepherd23/Baroque-SaturnRecomp"],
+      "source_editions": [
+        {
+          "id": "baroque-saturn-sega-saturn",
+          "title": "Baroque Saturn (Sega Saturn)",
+          "system": "sega-saturn",
+          "evidence_urls": ["https://github.com/goodshepherd23/Baroque-SaturnRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Baroque Saturn"
+  }
+}

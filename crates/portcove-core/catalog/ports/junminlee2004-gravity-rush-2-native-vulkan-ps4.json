@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "junminlee2004-gravity-rush-2-native-vulkan-ps4",
+    "project_url": "https://github.com/junminlee2004/GR2port",
+    "name": "Gravity Rush 2 / junminlee2004 GR2port",
+    "summary": "An unofficial, full-native PC port for Gravity Rush 2",
+    "issue_number": 5184,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gravity-rush-2",
+      "evidence_urls": ["https://github.com/junminlee2004/GR2port"],
+      "source_editions": []
+    },
+    "original_game_title": "Gravity Rush 2"
+  }
+}

@@ -1599,9 +1599,16 @@ run, attempt where needed, source revision and trigger. A successful delivery
 with a saved output can satisfy an equivalent request. Cancellation or an
 uncertain outcome leaves its full reservation charged for the period. A completed
 operation records a logical PostgreSQL response estimate with a protocol margin.
-It stays provisionally charged alongside the project meter until period reset
-because a rise in the meter can belong to another client. This deliberately
-overcounts overlap instead of treating an immediate API delta as command bytes.
+It stays charged alongside the project meter until the meter has settled past it:
+once a sample is taken at least two hours after the operation finished, the
+cumulative counter already includes that transfer, whichever client caused it,
+and the estimate is no longer added on top. Neon refreshes usage roughly every
+15 minutes. A recent completion is still charged in full, because a rise in the
+meter can belong to another client and an immediate API delta is never treated
+as command bytes. Running, cancelled and uncertain operations keep their full
+reservation for the period. The window assumes Neon's counter has not stalled for more than
+two hours. With the November cutover reading, whose sample time is fixed, an
+operation that finished after that sample never settles and stays charged.
 Evidence shows the difference that can be attributed only as a lower bound
 and leaves exact unattributed transfer unknown.
 

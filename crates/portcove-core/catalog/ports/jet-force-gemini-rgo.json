@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jet-force-gemini-rgo",
+    "project_url": "https://github.com/ravenx444/RGO-Recomp",
+    "name": "Jet Force Gemini / Rocket Group Orion",
+    "summary": "Rocket Group Orion (RGO): an open, unofficial PC recompilation with modern controls, widescreen and configurable gameplay. Your own supported ROM is required.",
+    "issue_number": 6603,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-force-gemini",
+      "evidence_urls": ["https://github.com/ravenx444/RGO-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Jet Force Gemini"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-bros-2-japan-fds-mstan",
+    "project_url": "https://github.com/mstan/SuperMarioBros2JapanFDSRecomp",
+    "name": "Super Mario Bros. 2 Japan FDS / mstan",
+    "summary": "Famicom Disk System static recompilation (nesrecomp cycle backend)",
+    "issue_number": 5698,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-bros-2-japan-fds",
+      "evidence_urls": ["https://github.com/mstan/SuperMarioBros2JapanFDSRecomp"],
+      "source_editions": [
+        {
+          "id": "super-mario-bros-2-japan-fds-nes",
+          "title": "Super Mario Bros. 2 Japan FDS (NES)",
+          "system": "nes",
+          "evidence_urls": ["https://github.com/mstan/SuperMarioBros2JapanFDSRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Super Mario Bros. 2 Japan FDS"
+  }
+}

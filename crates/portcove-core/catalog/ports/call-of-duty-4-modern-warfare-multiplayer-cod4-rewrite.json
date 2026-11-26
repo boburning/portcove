@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "call-of-duty-4-modern-warfare-multiplayer-cod4-rewrite",
+    "project_url": "https://github.com/Nilbong/COD4-Rewrite",
+    "name": "Call of Duty 4: Modern Warfare (multiplayer) / CoD4 Rewrite (Nilbong)",
+    "summary": "Call of Duty 4 multiplayer reimplemented in Rust on Bevy. Bring your own game files.",
+    "issue_number": 7090,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "call-of-duty-4-modern-warfare",
+      "evidence_urls": ["https://github.com/Nilbong/COD4-Rewrite"],
+      "source_editions": []
+    },
+    "original_game_title": "Call of Duty 4: Modern Warfare"
+  }
+}

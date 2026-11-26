@@ -217,7 +217,7 @@ export const partialProgressRules: readonly string[] = ["budget", "cancelled", "
  * through the ordinary exception path; the counter then stops at its cap.
  */
 export const quotaDeferralNotifyAfter = 3;
-const catalogCheckpointByteLimit = 32 * 1024 * 1024;
+export const catalogCheckpointByteLimit = 32 * 1024 * 1024;
 export interface CatalogObserverCheckpoint {
   format: 1;
   authority: "catalog-upstream-observation-only";
@@ -1428,6 +1428,9 @@ export async function advanceCatalogObservations(
             repository: source.repository,
             repository_id: progress.repository_id,
             asset_scope: "core-channel-candidates",
+            // Only descriptive listings' generated registration reads release
+            // text, so only their sources keep it.
+            ...(listingOnly(source) ? { release_text: "listing-window" as const } : {}),
             policy_input_sha256: observationHash(
               source.ports.map((port) => ({
                 id: port.id,

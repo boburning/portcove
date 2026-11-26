@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gunman-chronicles-gunman-recomp",
+    "project_url": "https://github.com/sp00nznet/gunman",
+    "name": "Gunman Chronicles / Gunman Recomp",
+    "summary": "A static recompilation project for Gunman Chronicles (2000)",
+    "issue_number": 5823,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gunman-chronicles",
+      "evidence_urls": ["https://github.com/sp00nznet/gunman"],
+      "source_editions": []
+    },
+    "original_game_title": "Gunman Chronicles"
+  }
+}

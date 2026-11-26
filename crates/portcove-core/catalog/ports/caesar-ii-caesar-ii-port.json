@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "caesar-ii-caesar-ii-port",
+    "project_url": "https://github.com/second-impressions/caesar2-port",
+    "name": "Caesar II / Caesar II Port",
+    "summary": "Portable continuation of the Caesar II source reconstruction",
+    "issue_number": 5739,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "caesar-ii",
+      "evidence_urls": ["https://github.com/second-impressions/caesar2-port"],
+      "source_editions": []
+    },
+    "original_game_title": "Caesar II"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "projectedan-outlaw-golf-2-original-xbox-ntsc-xbe-recomp",
+    "project_url": "https://github.com/projectedan/OutlawGolf2-XBE-Recomp",
+    "name": "Outlaw Golf 2 (original Xbox NTSC-U) / projectedan XBE Recomp",
+    "summary": "Outlaw Golf 2 Xbox Native Port",
+    "issue_number": 4935,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "outlaw-golf-2",
+      "evidence_urls": ["https://github.com/projectedan/OutlawGolf2-XBE-Recomp"],
+      "source_editions": [
+        {
+          "id": "outlaw-golf-2-xbox",
+          "title": "Outlaw Golf 2 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/projectedan/OutlawGolf2-XBE-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Outlaw Golf 2"
+  }
+}

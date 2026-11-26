@@ -504,7 +504,7 @@ Listing format 11 adds optional inert `collection_covers`: one to four distinct,
 reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
 individual `artwork` mapping. The field grants display only. Local artwork choices
 keep precedence. Exports to formats 5 through 10 omit the collection while retaining
-setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 14. An export without an explicit format carries the current directory format.
+setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 16. An export without an explicit format carries the current directory format.
 Retained user-selected listings with collections use envelope version 4. Earlier
 retained envelopes remain readable; a collection in an earlier envelope is refused.
 
@@ -528,13 +528,18 @@ through format 14 omit them and keep the derived `download_block_reason`, which
 always equals the explanation of the first download hold. See
 [acquisition restrictions](CATALOG.md#acquisition-restrictions).
 
+Listing format 16 adds reviewed mod website links that the Mods view can
+show for a listing-only port. Exports through format 15 omit the links.
+Pending setups and retained launch records use their existing formats.
+The current directory supplies links and withdrawals.
+
 The catalog listing document has its own format version. Readers accept formats
-1–15 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–16 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
 format 12 adds implementation descriptions, format 13 adds IGDB backgrounds and
 screenshots, format 14 adds verified source-edition bindings and format 15 adds
-typed acquisition restrictions. `catalog listings --format-version 8` preserves advice and
+typed acquisition restrictions. Format 16 adds mod website links. `catalog listings --format-version 8` preserves advice and
 GitLab observations and omits the date. Exports to 5/6 omit only
 inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
 only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted

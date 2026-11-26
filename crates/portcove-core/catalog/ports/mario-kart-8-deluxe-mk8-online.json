@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mario-kart-8-deluxe-mk8-online",
+    "project_url": "https://github.com/Vnnc1/MK8-online",
+    "name": "Mario Kart 8 Deluxe / MK8-online (Vnnc1)",
+    "summary": "Experimental static recompilation of Mario Kart 8 Deluxe 4.0.1 for Windows x64 and Linux amd64. Native Vulkan runtime, Mii creator, online play via Nextendo and Steam rooms. Bring your own game files and keys: no ROMs, assets or keys included.",
+    "issue_number": 7254,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-8-deluxe",
+      "evidence_urls": ["https://github.com/Vnnc1/MK8-online"],
+      "source_editions": []
+    },
+    "original_game_title": "Mario Kart 8 Deluxe"
+  }
+}

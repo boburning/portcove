@@ -591,6 +591,10 @@ export function renderRouteFitSummary(report: RouteFitReport): string {
             "offered release text not reported by the observer (UNKNOWN)",
             report.registration_queues.release_text_unobserved.length,
           ),
+          row(
+            "withheld past newer releases that only their words call prereleases",
+            Object.keys(report.registration_queues.worded_prerelease_skipped).length,
+          ),
         ]
       : []),
   ];

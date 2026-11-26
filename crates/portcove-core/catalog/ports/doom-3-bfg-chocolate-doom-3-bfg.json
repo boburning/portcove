@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-3-bfg-chocolate-doom-3-bfg",
+    "project_url": "https://github.com/klaussilveira/chocolate-doom3-bfg",
+    "name": "Doom 3 BFG / Chocolate Doom 3 BFG",
+    "summary": "Doom 3 BFG source port focused on preserving the original BFG experience",
+    "issue_number": 5769,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom-3-bfg",
+      "evidence_urls": ["https://github.com/klaussilveira/chocolate-doom3-bfg"],
+      "source_editions": []
+    },
+    "original_game_title": "Doom 3 BFG"
+  }
+}

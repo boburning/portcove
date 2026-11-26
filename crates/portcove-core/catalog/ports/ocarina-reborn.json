@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ocarina-reborn",
+    "project_url": "https://github.com/misterrageguy-cyber/OoT2026-PC-Recomp",
+    "name": "The Legend of Zelda: Ocarina of Time (Switch 2) / Ocarina Reborn",
+    "summary": "Ocarina of Time — PC Native Build. Website moved to ocarina-pc-native-build.github.io. Development progress and reported test results; no playable release yet.",
+    "issue_number": 6788,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-ocarina-of-time",
+      "evidence_urls": ["https://github.com/misterrageguy-cyber/OoT2026-PC-Recomp"],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-ocarina-of-time-nintendo-switch",
+          "title": "The Legend of Zelda: Ocarina of Time (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/misterrageguy-cyber/OoT2026-PC-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "The Legend of Zelda: Ocarina of Time"
+  }
+}

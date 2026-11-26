@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nox-nox-decomp",
+    "project_url": "https://github.com/sookyboo/nox-decomp",
+    "name": "Nox / Nox-Decomp",
+    "summary": "Unofficial stable Nox (2000) source port to Linux, PortMaster, SteamDeck and Windows",
+    "issue_number": 5776,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nox",
+      "evidence_urls": ["https://github.com/sookyboo/nox-decomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Nox"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "def-jam-fight-for-ny-comoria08",
+    "project_url": "https://github.com/comoria08/defjam_recomp",
+    "name": "Def Jam: Fight for NY / comoria08",
+    "summary": "Def Jam: Fight for NY (Xbox) - recompilation statique pour Windows",
+    "issue_number": 6604,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "def-jam-fight-for-ny",
+      "evidence_urls": ["https://github.com/comoria08/defjam_recomp"],
+      "source_editions": [
+        {
+          "id": "def-jam-fight-for-ny-xbox",
+          "title": "Def Jam: Fight for NY (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/comoria08/defjam_recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Def Jam: Fight for NY"
+  }
+}

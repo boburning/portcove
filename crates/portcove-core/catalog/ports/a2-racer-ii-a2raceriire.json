@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "a2-racer-ii-a2raceriire",
+    "project_url": "https://github.com/jjmhalew/A2RacerIIRE",
+    "name": "A2 Racer II / A2RacerIIRE",
+    "summary": "A reimplementation of the engine of A2 Racer II (Davilex Games, 1998)",
+    "issue_number": 6046,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "a2-racer-ii",
+      "evidence_urls": ["https://github.com/jjmhalew/A2RacerIIRE"],
+      "source_editions": []
+    },
+    "original_game_title": "A2 Racer II"
+  }
+}

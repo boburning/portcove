@@ -146,7 +146,7 @@ contract.
 ## A. Summary
 
 Section B holds 250 traced rows. Of these, 77 class-4 rows and 26 UNKNOWN rows
-have no open pull request. Appendix F has 419 rows of further named bounds.
+have no open pull request. Appendix F has 420 rows of further named bounds.
 
 | Area                      | Class 1 | Class 2 | Class 3 | Class 4 | UNKNOWN | Rows    |
 | ------------------------- | ------- | ------- | ------- | ------- | ------- | ------- |
@@ -165,7 +165,7 @@ have no open pull request. Appendix F has 419 rows of further named bounds.
 
 Rows by session: unassigned 162, #8634 24, #8633 14, #8637 11, #8641 9, #8640 8, #8638 5, #8632 5, #8619 3, #8661 3, #8630 3, #8635 1, #8631 1, #8626 1.
 
-Appendix F by class: class 1 25, class 2 145, class 3 109, class 4 119, class UNKNOWN 21.
+Appendix F by class: class 1 25, class 2 145, class 3 109, class 4 120, class UNKNOWN 21.
 
 **Defect found.** SC-16 is a class-2 defect, assigned to #8633. Store detection
 stops enumerating manifests and registry keys at its bounds, but
@@ -1074,6 +1074,7 @@ UNKNOWN and it needs tracing.
 | `maxDistinctPrograms`                      | `scripts/catalog-generated-registration.mts`                                      | 1 distinct program per platform's players; catalog pipeline                                           | 2       | Identity: more programs could be several titles                                                                                          | `ambiguous-player` / `several-programs`; identity withheld                      | Retain                                                                             |
 | `maxFactsAgeDays`                          | `scripts/catalog-generated-registration.mts`                                      | 30 days facts age vs table; catalog pipeline                                                          | 2       | Integrity: freshness bound on trusted release facts                                                                                      | `stale-facts`; not eligible until re-observed                                   | Retain                                                                             |
 | `maxListingWords`                          | `scripts/catalog-generated-registration.mts`                                      | 64 listing words per generated entry; catalog pipeline                                                | UNKNOWN | The producer silently keeps the first 64 sorted words; the validator refuses more. Settle by measuring the most words any listing yields | Extra words dropped from matching                                               | Needs measurement (#8630)                                                          |
+| `maximumBytes`                             | `scripts/catalog-definition-reader-gate.mts`                                      | 32 MiB across operational targets for one reader proof; catalog pipeline                              | 4       | Effective ceiling: one in-memory map consumes the whole operational target inventory without continuation                                | Reader proof or publication gate refuses                                        | Measure the operational inventory and review the whole-proof budget                |
 | `maxObservedReleases`                      | `scripts/catalog-generated-registration.mts`                                      | = `listingReleaseLimit` (4) releases per facts entry; catalog pipeline                                | 2       | Consistency with observer window; observer cannot record more                                                                            | Facts table rejected "bounded list" (unreachable)                               | Retain; window itself is DM-01                                                     |
 | `maxOtherPackages`                         | `scripts/catalog-generated-registration.mts`                                      | = `listingPackageLimit` (32) other packages; catalog pipeline                                         | 2       | Consistency with observer; the 32-asset ceiling is DM-01 (class 4)                                                                       | Facts table rejected (unreachable)                                              | Change with DM-01                                                                  |
 | `maxRefusedArchives`                       | `scripts/catalog-generated-registration.mts`                                      | = `listingPackageLimit` (32) refused archives; catalog pipeline                                       | 2       | Same consistency check; ceiling owned by DM-01                                                                                           | Facts table rejected (unreachable)                                              | Change with DM-01                                                                  |

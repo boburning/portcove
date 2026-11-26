@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "neverwinter-nights-enhanced-edition-openwinter",
+    "project_url": "https://github.com/Ambitosis/OpenWinter",
+    "name": "Neverwinter Nights Enhanced Edition / OpenWinter",
+    "summary": "An open-source engine for Neverwinter Nights: C# / .NET 10 server and Godot 4 client, compatible with existing modules and persistent worlds",
+    "issue_number": 5839,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "neverwinter-nights-enhanced-edition",
+      "evidence_urls": ["https://github.com/Ambitosis/OpenWinter"],
+      "source_editions": []
+    },
+    "original_game_title": "Neverwinter Nights Enhanced Edition"
+  }
+}

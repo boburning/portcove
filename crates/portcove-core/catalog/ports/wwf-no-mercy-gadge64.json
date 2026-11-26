@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wwf-no-mercy-gadge64",
+    "project_url": "https://github.com/Gadge64/WWFNoMercyRecomp",
+    "name": "WWF No Mercy / Gadge64",
+    "summary": "Native PC port of WWF No Mercy (N64) via static recompilation. No game assets included — bring your own ROM.",
+    "issue_number": 6616,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wwf-no-mercy",
+      "evidence_urls": ["https://github.com/Gadge64/WWFNoMercyRecomp"],
+      "source_editions": [
+        {
+          "id": "wwf-no-mercy-nintendo-64",
+          "title": "WWF No Mercy (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/Gadge64/WWFNoMercyRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "WWF No Mercy"
+  }
+}

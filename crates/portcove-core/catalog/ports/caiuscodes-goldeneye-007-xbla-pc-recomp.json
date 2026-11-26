@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "caiuscodes-goldeneye-007-xbla-pc-recomp",
+    "project_url": "https://github.com/CaiusCodes/GoldenEye-007-XBLA-PC-Recomp",
+    "name": "GoldenEye 007 — unreleased XBLA remaster (GoldenEye 007 XBLA PC Recomp)",
+    "summary": "Native Windows PC recompilation of the unreleased GoldenEye 007 Xbox 360/XBLA remaster using ReXGlue. Requires your own copy.",
+    "issue_number": 2757,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "goldeneye-007-unreleased-xbla-remaster",
+      "evidence_urls": ["https://github.com/CaiusCodes/GoldenEye-007-XBLA-PC-Recomp"],
+      "source_editions": [
+        {
+          "id": "goldeneye-007-unreleased-xbla-remaster-xbox-360",
+          "title": "GoldenEye 007 — unreleased XBLA remaster (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/CaiusCodes/GoldenEye-007-XBLA-PC-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "GoldenEye 007 — unreleased XBLA remaster"
+  }
+}

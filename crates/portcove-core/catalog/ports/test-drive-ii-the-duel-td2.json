@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "test-drive-ii-the-duel-td2",
+    "project_url": "https://github.com/Buyukcaglar/TD2",
+    "name": "Test Drive II: The Duel / TD2",
+    "summary": "Test Drive II (1989) as a native Windows game: EGA, CGA, Hercules and Amiga graphics switchable live, built on the Kylofon SDL3 port",
+    "issue_number": 5712,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "test-drive-ii-the-duel",
+      "evidence_urls": ["https://github.com/Buyukcaglar/TD2"],
+      "source_editions": [
+        {
+          "id": "test-drive-ii-the-duel-nintendo-switch",
+          "title": "Test Drive II: The Duel (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/Buyukcaglar/TD2"]
+        }
+      ]
+    },
+    "original_game_title": "Test Drive II: The Duel"
+  }
+}

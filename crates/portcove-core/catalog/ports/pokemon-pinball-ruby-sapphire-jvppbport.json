@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-pinball-ruby-sapphire-jvppbport",
+    "project_url": "https://github.com/jonnisvibes/jvppbport",
+    "name": "Pokémon Pinball: Ruby & Sapphire",
+    "summary": "A static camera, full table view port of PPB Ruby and Sapphire for the GBA on PC and Android!",
+    "issue_number": 5508,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-pinball-ruby-and-sapphire",
+      "evidence_urls": ["https://github.com/jonnisvibes/jvppbport"],
+      "source_editions": [
+        {
+          "id": "pokemon-pinball-ruby-and-sapphire-game-boy-advance",
+          "title": "Pokémon Pinball: Ruby & Sapphire (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": ["https://github.com/jonnisvibes/jvppbport"]
+        }
+      ]
+    },
+    "original_game_title": "Pokémon Pinball: Ruby & Sapphire"
+  }
+}

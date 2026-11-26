@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-the-x-files-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/the-x-files-recomp",
+    "name": "The X-Files / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of The X-Files (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6652,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-x-files",
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/the-x-files-recomp"],
+      "source_editions": [
+        {
+          "id": "the-x-files-playstation",
+          "title": "The X-Files (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/the-x-files-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "The X-Files"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gta-advance-advanceliberty-enhanced",
+    "project_url": "https://github.com/AnriTool/AdvanceLiberty-Enhanced",
+    "name": "Grand Theft Auto Advance / AdvanceLiberty Enhanced",
+    "summary": "Advance Liberty: Enhanced",
+    "issue_number": 5994,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-advance",
+      "evidence_urls": ["https://github.com/AnriTool/AdvanceLiberty-Enhanced"],
+      "source_editions": []
+    },
+    "original_game_title": "Grand Theft Auto Advance"
+  }
+}

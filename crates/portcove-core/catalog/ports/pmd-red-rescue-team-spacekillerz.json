@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pmd-red-rescue-team-spacekillerz",
+    "project_url": "https://github.com/Spacekillerz/PMDRedRescueTeamRecomp",
+    "name": "Pokémon Mystery Dungeon: Red Rescue Team / Spacekillerz",
+    "summary": "Native Linux and Steam Deck static recompilation of Pokemon Mystery Dungeon: Red Rescue Team (GBA) on gbarecomp",
+    "issue_number": 5977,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-mystery-dungeon-red-rescue-team",
+      "evidence_urls": ["https://github.com/Spacekillerz/PMDRedRescueTeamRecomp"],
+      "source_editions": [
+        {
+          "id": "pokemon-mystery-dungeon-red-rescue-team-game-boy-advance",
+          "title": "Pokémon Mystery Dungeon: Red Rescue Team (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": ["https://github.com/Spacekillerz/PMDRedRescueTeamRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Pokémon Mystery Dungeon: Red Rescue Team"
+  }
+}

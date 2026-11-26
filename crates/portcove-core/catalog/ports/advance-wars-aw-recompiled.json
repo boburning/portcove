@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "advance-wars-aw-recompiled",
+    "project_url": "https://github.com/sergiomanzur/AW-Recompiled",
+    "name": "Advance Wars / AW-Recompiled",
+    "summary": "Static recompilation of Advance Wars.",
+    "issue_number": 5899,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "advance-wars",
+      "evidence_urls": ["https://github.com/sergiomanzur/AW-Recompiled"],
+      "source_editions": []
+    },
+    "original_game_title": "Advance Wars"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "originalswayze-streets-of-rage-recomp",
+    "project_url": "https://github.com/OriginalSwayze/Streets-Of-Rage-Recomp",
+    "name": "Streets of Rage (Genesis World/Bare Knuckle) / OriginalSwayze native recomp",
+    "summary": "Installer that builds a native PC version of Streets of Rage (Genesis World/Bare Knuckle) from your own copy of the game.",
+    "issue_number": 4180,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "streets-of-rage",
+      "evidence_urls": ["https://github.com/OriginalSwayze/Streets-Of-Rage-Recomp"],
+      "source_editions": [
+        {
+          "id": "streets-of-rage-mega-drive-genesis",
+          "title": "Streets of Rage (Mega Drive / Genesis)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": ["https://github.com/OriginalSwayze/Streets-Of-Rage-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Streets of Rage"
+  }
+}

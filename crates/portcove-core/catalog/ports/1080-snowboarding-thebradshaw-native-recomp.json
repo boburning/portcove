@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "1080-snowboarding-thebradshaw-native-recomp",
+    "project_url": "https://github.com/thebradshaw/1080-Snowboarding-decomp",
+    "name": "1080 Snowboarding / thebradshaw native recomp",
+    "summary": "Creating the highest fidelity remaster of 1080 Snowboarding",
+    "issue_number": 5489,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "1080-snowboarding",
+      "evidence_urls": ["https://github.com/thebradshaw/1080-Snowboarding-decomp"],
+      "source_editions": []
+    },
+    "original_game_title": "1080° Snowboarding"
+  }
+}

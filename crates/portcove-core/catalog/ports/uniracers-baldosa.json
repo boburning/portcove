@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "uniracers-baldosa",
+    "project_url": "https://github.com/baldosa/uniracers-recomp",
+    "name": "Uniracers / baldosa",
+    "summary": "Static recompilation of Uniracers (Super Nintendo).",
+    "issue_number": 5936,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "uniracers",
+      "evidence_urls": ["https://github.com/baldosa/uniracers-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Uniracers"
+  }
+}

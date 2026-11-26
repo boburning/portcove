@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "undecuple-project-helghast-killzone-3",
+    "project_url": "https://github.com/undecuple/project-helghast",
+    "name": "Killzone 3 (PS3) / Project Helghast (undecuple)",
+    "summary": "Killzone 3 // Unofficial PC Port (static recompilation). Work in progress, partly playable. Builds on your PC from your own game.",
+    "issue_number": 3986,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "killzone-3",
+      "evidence_urls": ["https://github.com/undecuple/project-helghast"],
+      "source_editions": [
+        {
+          "id": "killzone-3-playstation-3",
+          "title": "Killzone 3 (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": ["https://github.com/undecuple/project-helghast"]
+        }
+      ]
+    },
+    "original_game_title": "Killzone 3"
+  }
+}

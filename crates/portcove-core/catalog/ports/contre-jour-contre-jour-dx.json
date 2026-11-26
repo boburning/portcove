@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "contre-jour-contre-jour-dx",
+    "project_url": "https://github.com/yell0wsuit/contrejour-dx",
+    "name": "Contre Jour / Contre Jour DX",
+    "summary": "Contre Jour DX, a fan-made enhancement of the Windows 8 version of Contre Jour. Also available on web!",
+    "issue_number": 5766,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "contre-jour",
+      "evidence_urls": ["https://github.com/yell0wsuit/contrejour-dx"],
+      "source_editions": []
+    },
+    "original_game_title": "Contre Jour"
+  }
+}

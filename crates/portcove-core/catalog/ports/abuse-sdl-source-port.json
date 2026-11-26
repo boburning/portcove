@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "abuse-sdl-source-port",
+    "project_url": "https://github.com/metinc/abuse",
+    "name": "Abuse / SDL source port",
+    "summary": "An enhanced version of Abuse based on the original source code that was released to the public domain. See the Changelog for details.",
+    "issue_number": 5728,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "abuse",
+      "evidence_urls": ["https://github.com/metinc/abuse"],
+      "source_editions": []
+    },
+    "original_game_title": "Abuse"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fight-night-champion-native-setup",
+    "project_url": "https://github.com/zonehammer/fightnight-recomp",
+    "name": "Fight Night Champion / native setup",
+    "summary": "Static recomp for the game Fight Night Champions on Xbox 360.",
+    "issue_number": 6552,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fight-night-champion",
+      "evidence_urls": ["https://github.com/zonehammer/fightnight-recomp"],
+      "source_editions": [
+        {
+          "id": "fight-night-champion-xbox-360",
+          "title": "Fight Night Champion (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/zonehammer/fightnight-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Fight Night Champion"
+  }
+}

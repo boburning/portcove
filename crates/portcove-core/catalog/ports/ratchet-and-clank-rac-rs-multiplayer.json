@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ratchet-and-clank-rac-rs-multiplayer",
+    "project_url": "https://github.com/adamlbunch/rac-rs-multiplayer",
+    "name": "Ratchet & Clank / RAC-RS Multiplayer",
+    "summary": "Online multiplayer for rac-rs, the Rust PC port of Ratchet & Clank (PS2). Based on AsobiCodes/rac-rs.",
+    "issue_number": 6691,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank",
+      "evidence_urls": ["https://github.com/adamlbunch/rac-rs-multiplayer"],
+      "source_editions": [
+        {
+          "id": "ratchet-and-clank-playstation-2",
+          "title": "Ratchet & Clank (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/adamlbunch/rac-rs-multiplayer"]
+        }
+      ]
+    },
+    "original_game_title": "Ratchet & Clank"
+  }
+}

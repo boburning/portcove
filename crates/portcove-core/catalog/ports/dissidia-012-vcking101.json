@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dissidia-012-vcking101",
+    "project_url": "https://github.com/VCKing101/Dissidia012-pc",
+    "name": "Dissidia 012 Duodecim / VCKing101 PortableKit",
+    "summary": "Native PC port of Dissidia 012 Duodecim.",
+    "issue_number": 5635,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dissidia-012-duodecim",
+      "evidence_urls": ["https://github.com/VCKing101/Dissidia012-pc"],
+      "source_editions": []
+    },
+    "original_game_title": "Dissidia 012 Duodecim"
+  }
+}

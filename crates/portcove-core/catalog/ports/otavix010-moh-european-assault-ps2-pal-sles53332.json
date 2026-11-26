@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "otavix010-moh-european-assault-ps2-pal-sles53332",
+    "project_url": "https://github.com/otavix010/moh-european-assault-pc",
+    "name": "Medal of Honor: European Assault (PS2 Europe SLES-53332) / otavix010 research recomp",
+    "summary": "Medal of Honor: European Assault (PS2, PAL): port nativo para PC por recompilação estática (PS2Recomp). Gera a partir da sua ISO. Em desenvolvimento.",
+    "issue_number": 6831,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "medal-of-honor-european-assault",
+      "evidence_urls": ["https://github.com/otavix010/moh-european-assault-pc"],
+      "source_editions": [
+        {
+          "id": "medal-of-honor-european-assault-playstation-2",
+          "title": "Medal of Honor: European Assault (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/otavix010/moh-european-assault-pc"]
+        }
+      ]
+    },
+    "original_game_title": "Medal of Honor: European Assault"
+  }
+}

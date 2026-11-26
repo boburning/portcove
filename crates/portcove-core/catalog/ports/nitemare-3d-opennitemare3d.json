@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nitemare-3d-opennitemare3d",
+    "project_url": "https://github.com/BBQGiraffe/OpenNitemare3D",
+    "name": "Nitemare 3D / OpenNitemare3D (BBQGiraffe)",
+    "summary": "reimplementation of the 1994 FPS Nitemare 3D",
+    "issue_number": 7331,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "nitemare-3d",
+      "evidence_urls": ["https://github.com/BBQGiraffe/OpenNitemare3D"],
+      "source_editions": []
+    },
+    "original_game_title": "Nitemare 3D"
+  }
+}

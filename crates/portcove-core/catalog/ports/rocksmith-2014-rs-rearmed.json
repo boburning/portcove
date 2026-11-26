@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rocksmith-2014-rs-rearmed",
+    "project_url": "https://github.com/bbelgg/rs-rearmed",
+    "name": "Rocksmith 2014 / RS Re-ARMed",
+    "summary": "Native Apple Silicon port of Rocksmith 2014, recompiled from your own copy of the game. Mac and Learn & Play editions, offline, no game files included.",
+    "issue_number": 6097,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rocksmith-2014",
+      "evidence_urls": ["https://github.com/bbelgg/rs-rearmed"],
+      "source_editions": []
+    },
+    "original_game_title": "Rocksmith 2014"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ramichaaben8-fifa-world-cup-2010-rexglue",
+    "project_url": "https://github.com/RamiChaaben8/Fifa_World_Cup_2010_PC_Port",
+    "name": "2010 FIFA World Cup South Africa (Xbox 360) / RamiChaaben8 ReXGlue PC port",
+    "summary": "Installer that builds a native PC version of 2010 FIFA World Cup South Africa (Xbox 360) from your own copy of the game.",
+    "issue_number": 4214,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "2010-fifa-world-cup-south-africa",
+      "evidence_urls": ["https://github.com/RamiChaaben8/Fifa_World_Cup_2010_PC_Port"],
+      "source_editions": [
+        {
+          "id": "2010-fifa-world-cup-south-africa-xbox-360",
+          "title": "2010 FIFA World Cup South Africa (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/RamiChaaben8/Fifa_World_Cup_2010_PC_Port"]
+        }
+      ]
+    },
+    "original_game_title": "2010 FIFA World Cup South Africa"
+  }
+}

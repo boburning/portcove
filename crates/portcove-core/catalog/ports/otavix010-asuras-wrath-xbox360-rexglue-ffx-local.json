@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "otavix010-asuras-wrath-xbox360-rexglue-ffx-local",
+    "project_url": "https://github.com/otavix010/asuras-wrath-pc",
+    "name": "Asura's Wrath (Xbox 360 World) / otavix010 ReXGlue/FFX local recomp",
+    "summary": "Asura's Wrath (Xbox 360) — port nativo para PC por recompilação estática (ReXGlue). Gera a partir da sua .iso.",
+    "issue_number": 6835,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "asuras-wrath",
+      "evidence_urls": ["https://github.com/otavix010/asuras-wrath-pc"],
+      "source_editions": [
+        {
+          "id": "asuras-wrath-xbox-360",
+          "title": "Asura's Wrath (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/otavix010/asuras-wrath-pc"]
+        }
+      ]
+    },
+    "original_game_title": "Asura's Wrath"
+  }
+}

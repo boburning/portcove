@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lomoxsoft-afro-samurai-x360-rexglue",
+    "project_url": "https://github.com/LomoXSoft/AfroSamuraiRecomp",
+    "name": "Afro Samurai (Xbox 360 Europe 4E4D07D8) / LomoXSoft AfroSamuraiRecomp",
+    "summary": "Unofficial static recompilation of Afro Samurai (Xbox 360) to native Windows x64 with ReXGlue. Source only: bring your own disc.",
+    "issue_number": 4345,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "afro-samurai",
+      "evidence_urls": ["https://github.com/LomoXSoft/AfroSamuraiRecomp"],
+      "source_editions": [
+        {
+          "id": "afro-samurai-xbox-360",
+          "title": "Afro Samurai (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/LomoXSoft/AfroSamuraiRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Afro Samurai"
+  }
+}

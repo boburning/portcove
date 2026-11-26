@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-fox-snes-mstan-recomp",
+    "project_url": "https://github.com/mstan/StarFoxSNESRecomp",
+    "name": "Star Fox / mstan SNES Recomp",
+    "summary": "Star Fox recompiled for the Super Nintendo using snesrecomp · Part of the R.A.I.D. community",
+    "issue_number": 5556,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-fox",
+      "evidence_urls": ["https://github.com/mstan/StarFoxSNESRecomp"],
+      "source_editions": [
+        {
+          "id": "star-fox-super-nintendo",
+          "title": "Star Fox (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/mstan/StarFoxSNESRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Star Fox"
+  }
+}

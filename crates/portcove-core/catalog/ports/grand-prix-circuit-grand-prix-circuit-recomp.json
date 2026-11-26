@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "grand-prix-circuit-grand-prix-circuit-recomp",
+    "project_url": "https://github.com/UgaTEC/grand-prix-circuit-recomp",
+    "name": "Grand Prix Circuit / Grand Prix Circuit Recomp",
+    "summary": "Grand Prix Circuit (1988) native 64-bit recompilation in Rust with 60 FPS spatial interpolation and Commodore 64 mode.",
+    "issue_number": 5751,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-prix-circuit",
+      "evidence_urls": ["https://github.com/UgaTEC/grand-prix-circuit-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Grand Prix Circuit"
+  }
+}

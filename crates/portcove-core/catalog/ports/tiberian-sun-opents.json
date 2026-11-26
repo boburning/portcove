@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tiberian-sun-opents",
+    "project_url": "https://github.com/OpenTS-Developers/OpenTS",
+    "name": "Command & Conquer: Tiberian Sun / OpenTS",
+    "summary": "A modern and faithful open source rebuild of the Tiberian Sun engine.",
+    "issue_number": 6060,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "command-and-conquer-tiberian-sun",
+      "evidence_urls": ["https://github.com/OpenTS-Developers/OpenTS"],
+      "source_editions": []
+    },
+    "original_game_title": "Command & Conquer: Tiberian Sun"
+  }
+}

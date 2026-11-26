@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-lost-in-shadow-wii-ntsc-u-sdwe18-rev1",
+    "project_url": "https://github.com/darkuni/lost-in-shadow-recomp",
+    "name": "Lost in Shadow (Wii NTSC-U SDWE18 Rev1) / darkuni Wii static recomp",
+    "summary": "Static recompilation of Lost in Shadow (Wii).",
+    "issue_number": 4753,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "lost-in-shadow",
+      "evidence_urls": ["https://github.com/darkuni/lost-in-shadow-recomp"],
+      "source_editions": [
+        {
+          "id": "lost-in-shadow-wii",
+          "title": "Lost in Shadow (Wii)",
+          "system": "wii",
+          "evidence_urls": ["https://github.com/darkuni/lost-in-shadow-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Lost in Shadow"
+  }
+}

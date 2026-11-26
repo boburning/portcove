@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-tenchu-2-birth-of-the-stealth-assassins-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/tenchu-2-birth-of-the-stealth-assassins-recomp",
+    "name": "Tenchu 2: Birth of the Stealth Assassins / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Tenchu 2: Birth of the Stealth Assassins (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6651,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tenchu-2-birth-of-the-stealth-assassins",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/tenchu-2-birth-of-the-stealth-assassins-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "tenchu-2-birth-of-the-stealth-assassins-playstation",
+          "title": "Tenchu 2: Birth of the Stealth Assassins (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/tenchu-2-birth-of-the-stealth-assassins-recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Tenchu 2: Birth of the Stealth Assassins"
+  }
+}

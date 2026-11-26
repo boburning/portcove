@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "zone-of-the-enders-yaz-myst",
+    "project_url": "https://github.com/yaz-myst/zoe-recompiled",
+    "name": "Zone of the Enders / Yaz-Myst",
+    "summary": "Zone of the Enders - Static Recompilation Project for PC",
+    "issue_number": 5523,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "zone-of-the-enders",
+      "evidence_urls": ["https://github.com/yaz-myst/zoe-recompiled"],
+      "source_editions": []
+    },
+    "original_game_title": "Zone of the Enders"
+  }
+}

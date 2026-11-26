@@ -1,5 +1,5 @@
 {
-  "format": 17,
+  "format": 18,
   "generator": "scripts/listing-package-facts.mts",
   "generated_at": "2026-11-21T00:00:00.000Z",
   "entries": [
@@ -16,7 +16,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 23,
+      "parser_version": 26,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -32,10 +32,11 @@
         {
           "release_id": 8,
           "tag": "v1.0",
+          "core_prerelease": false,
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
           "packaged": true,
-          "text": "unobserved",
+          "text": "observed",
           "title": null,
           "statement": null
         }
@@ -114,7 +115,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 23,
+      "parser_version": 26,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -130,10 +131,11 @@
         {
           "release_id": 8,
           "tag": "v1.0",
+          "core_prerelease": false,
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
           "packaged": true,
-          "text": "unobserved",
+          "text": "observed",
           "title": null,
           "statement": null
         }
@@ -198,7 +200,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 23,
+      "parser_version": 26,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -214,10 +216,11 @@
         {
           "release_id": 8,
           "tag": "v1.0",
+          "core_prerelease": false,
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
           "packaged": true,
-          "text": "unobserved",
+          "text": "observed",
           "title": null,
           "statement": null
         }
@@ -280,7 +283,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 23,
+      "parser_version": 26,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -296,10 +299,11 @@
         {
           "release_id": 8,
           "tag": "v1.0",
+          "core_prerelease": false,
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
           "packaged": true,
-          "text": "unobserved",
+          "text": "observed",
           "title": null,
           "statement": null
         }
@@ -368,7 +372,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 23,
+      "parser_version": 26,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -384,10 +388,11 @@
         {
           "release_id": 8,
           "tag": "v1.0",
+          "core_prerelease": false,
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
           "packaged": true,
-          "text": "unobserved",
+          "text": "observed",
           "title": null,
           "statement": null
         }
@@ -450,7 +455,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 23,
+      "parser_version": 26,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -466,10 +471,11 @@
         {
           "release_id": 8,
           "tag": "v1.0",
+          "core_prerelease": false,
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
           "packaged": true,
-          "text": "unobserved",
+          "text": "observed",
           "title": null,
           "statement": null
         }
@@ -532,7 +538,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 23,
+      "parser_version": 26,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -548,10 +554,11 @@
         {
           "release_id": 8,
           "tag": "v1.0",
+          "core_prerelease": false,
           "prerelease": false,
           "published_at": "2026-11-01T00:00:00.000Z",
           "packaged": true,
-          "text": "unobserved",
+          "text": "observed",
           "title": null,
           "statement": null
         }
@@ -602,5 +609,5 @@
       ]
     }
   ],
-  "entries_sha256": "2f2fa9f50edd441df8d80ed0c2024b9278fd6253219e5371b34b954e4b4142b5"
+  "entries_sha256": "b39b855cfd72db5c2b865d77a7238f2dc7f0f13fc6097008cd23d055e646a5c8"
 }

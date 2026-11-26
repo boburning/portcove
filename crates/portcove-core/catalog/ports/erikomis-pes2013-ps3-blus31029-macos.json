@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "erikomis-pes2013-ps3-blus31029-macos",
+    "project_url": "https://github.com/erikomis/pes2013-recomp",
+    "name": "Pro Evolution Soccer 2013 (PS3 BLUS31029 update 01.04) / erikomis macOS recomp",
+    "summary": "Recompilação estática do Pro Evolution Soccer 2013 (PS3, BLUS31029 01.04) para macOS nativo com ps3recomp",
+    "issue_number": 4584,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pro-evolution-soccer-2013",
+      "evidence_urls": ["https://github.com/erikomis/pes2013-recomp"],
+      "source_editions": [
+        {
+          "id": "pro-evolution-soccer-2013-playstation-3",
+          "title": "Pro Evolution Soccer 2013 (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": ["https://github.com/erikomis/pes2013-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Pro Evolution Soccer 2013"
+  }
+}

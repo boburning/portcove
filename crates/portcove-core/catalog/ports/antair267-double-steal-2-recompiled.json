@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "antair267-double-steal-2-recompiled",
+    "project_url": "https://github.com/AntAir267/double-steal-2-recompiled",
+    "name": "Double-S.T.E.A.L: The Second Clash (Xbox Japan En/Ja) / AntAir267 Linux recomp",
+    "summary": "An unofficial native Linux version of Double-S.T.E.A.L: The Second Clash (Xbox, 2004), recompiled from your own copy. Alpha. No game code or data included.",
+    "issue_number": 4182,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "double-s-t-e-a-l-the-second-clash",
+      "evidence_urls": ["https://github.com/AntAir267/double-steal-2-recompiled"],
+      "source_editions": [
+        {
+          "id": "double-s-t-e-a-l-the-second-clash-xbox",
+          "title": "Double-S.T.E.A.L: The Second Clash (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/AntAir267/double-steal-2-recompiled"]
+        }
+      ]
+    },
+    "original_game_title": "Double-S.T.E.A.L: The Second Clash"
+  }
+}

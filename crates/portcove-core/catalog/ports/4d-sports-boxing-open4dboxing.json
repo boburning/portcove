@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "4d-sports-boxing-open4dboxing",
+    "project_url": "https://github.com/ToolAssisted-run/Open4DBoxing",
+    "name": "4D Sports Boxing / Open4DBoxing",
+    "summary": "An unofficial reconstruction of 4D Sports Boxing (Distinctive Software, DOS, 1991)",
+    "issue_number": 5474,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "4d-sports-boxing",
+      "evidence_urls": ["https://github.com/ToolAssisted-run/Open4DBoxing"],
+      "source_editions": []
+    },
+    "original_game_title": "4D Sports Boxing"
+  }
+}

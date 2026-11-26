@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "richard-burns-rally-rerbr",
+    "project_url": "https://github.com/JodusNodus/rerbr",
+    "name": "Richard Burns Rally / ReRBR",
+    "summary": "Modern reimplementation of RBR. Run RBR natively on Linux, Mac and Windows",
+    "issue_number": 5844,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "richard-burns-rally",
+      "evidence_urls": ["https://github.com/JodusNodus/rerbr"],
+      "source_editions": []
+    },
+    "original_game_title": "Richard Burns Rally"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "aliens-versus-predator-avp-flat-and-vr-port",
+    "project_url": "https://github.com/Bassquake/Aliens-Versus-Predator-VR",
+    "name": "Aliens versus Predator / AVP flat and VR port",
+    "summary": "VR and flat ports of Aliens Versus Predator (1999). This is a fork of NakedAVP to use OpenXR for VR headets like the Meta Quest and PCVR as well as flat versions for PCs and various devices.",
+    "issue_number": 5654,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "aliens-versus-predator",
+      "evidence_urls": ["https://github.com/Bassquake/Aliens-Versus-Predator-VR"],
+      "source_editions": []
+    },
+    "original_game_title": "Aliens versus Predator"
+  }
+}
