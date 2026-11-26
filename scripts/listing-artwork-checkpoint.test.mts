@@ -493,6 +493,19 @@ void test("the released cover inspection must match exact staged bytes and the c
       ),
     /active compact directory/u,
   );
+  const missingLegacy = new Map(files);
+  missingLegacy.delete(listingDeliveryTarget);
+  assert.throws(() => exactCoverReaderPair(missingLegacy), /complete staged compact publication/u);
+  const replacedLegacy = new Map(files);
+  replacedLegacy.set(listingDeliveryTarget, Buffer.from("different frozen legacy bytes"));
+  const otherPair = exactCoverReaderPair(replacedLegacy);
+  assert.equal(otherPair.checkpoint_sha256, pair.checkpoint_sha256);
+  assert.equal(otherPair.listing_decoded_sha256, pair.listing_decoded_sha256);
+  assert.notEqual(otherPair.bundle_sha256, pair.bundle_sha256);
+  assert.throws(
+    () => requireExactReleasedCoverInspection(envelope(data), "", replacedLegacy),
+    /exact staged bundle/u,
+  );
   const changed = new Map(files);
   changed.set(compactListingDeliveryTarget, encodeCompactListing(baseline.bytes));
   assert.throws(() => requireExactReleasedCoverInspection(envelope(data), "", changed), /unbound/u);

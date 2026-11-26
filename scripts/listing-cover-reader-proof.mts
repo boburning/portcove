@@ -9,6 +9,7 @@ import { artworkCheckpointTarget, readArtworkCheckpoint } from "./listing-artwor
 import {
   compactListingDeliveryTarget,
   decodeRetainedCompactListing,
+  listingDeliveryTarget,
 } from "./listing-directory-carrier.mts";
 import { catalogPublicationInventory } from "./release-catalog-publication-contract.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
@@ -24,7 +25,7 @@ export function exactCoverReaderPair(files: ReadonlyMap<string, Buffer>) {
   const compact = files.get(compactListingDeliveryTarget);
   const checkpoint = files.get(artworkCheckpointTarget);
   const index = files.get("definitions/index.json");
-  if (!compact || !checkpoint || !index)
+  if (!compact || !checkpoint || !index || !files.has(listingDeliveryTarget))
     throw new Error("Released cover proof needs the complete staged compact publication bundle");
   const listing = decodeRetainedCompactListing(compact);
   readArtworkCheckpoint(checkpoint, listing);
@@ -34,6 +35,7 @@ export function exactCoverReaderPair(files: ReadonlyMap<string, Buffer>) {
     listing_decoded_sha256: sha(listing),
     checkpoint_sha256: sha(checkpoint),
     index_sha256: sha(index),
+    bundle_sha256: sha(Buffer.from(JSON.stringify(catalogPublicationInventory(files)))),
   };
 }
 
@@ -61,7 +63,8 @@ export function requireExactReleasedCoverInspection(
     data.authority !== "none" ||
     data.scope !== "inert-catalog-publication-inspection" ||
     data.index_sha256 !== pair.index_sha256 ||
-    JSON.stringify(data.files) !== JSON.stringify(catalogPublicationInventory(files))
+    !Array.isArray(data.files) ||
+    sha(Buffer.from(JSON.stringify(data.files))) !== pair.bundle_sha256
   )
     throw new Error("Released cover inspector did not bind the exact staged bundle");
   if (
