@@ -4,19 +4,24 @@
     "id": "pok-mon-silver-pokerecomp",
     "project_url": "https://github.com/Decryptu/pokerecomp",
     "name": "Pokémon Silver / PokeRecomp (Decryptu)",
-    "summary": "A native Godot 4 reimplementation of the Gen 1 and 2 Game Boy Color games. Not an emulator, bring your own ROM.",
+    "summary": "Play Pokémon Silver in the Godot 4 reimplementation of the Game Boy Color game. Use your own matching USA/Europe cartridge dump.",
     "issue_number": 6990,
     "listed_at": "2026-11-24",
     "original_game": {
       "format_version": 1,
       "id": "pokemon-silver",
-      "evidence_urls": ["https://github.com/Decryptu/pokerecomp"],
+      "evidence_urls": [
+        "https://github.com/Decryptu/pokerecomp",
+        "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L67-L71"
+      ],
       "source_editions": [
         {
           "id": "pokemon-silver-game-boy-color",
           "title": "Pokémon Silver (Game Boy Color)",
           "system": "game-boy-color",
-          "evidence_urls": ["https://github.com/Decryptu/pokerecomp"]
+          "evidence_urls": [
+            "https://github.com/Decryptu/pokerecomp/blob/452c2fb13f7f1b04a475540bb59e691b8b9c9f3e/game/rom/rom_registry.gd#L67-L71"
+          ]
         }
       ]
     },
