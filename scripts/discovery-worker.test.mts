@@ -728,6 +728,7 @@ void test("scheduled listing preview resumes retained release evidence and binds
       "9": lead(9, { release_hint: withoutAssets }),
       "10": lead(10, { manifest, release_hint: withoutAssets }),
       "11": lead(11, { status: "held", manifest, release_hint: withoutAssets }),
+      "12": lead(12, { search_families: ["source-port-topic"], release_hint: withoutAssets }),
     },
   };
   const sourceOnlyRound = nextListingPreviewRound(sourceOnlyLeads, undefined, start, covered);
@@ -744,14 +745,16 @@ void test("scheduled listing preview resumes retained release evidence and binds
   );
   assert.deepEqual(
     sourceOnlyPreview.handoff.candidates.map(({ id }) => id),
-    ["github-5", "github-7", "github-8"],
+    ["github-5", "github-7", "github-8", "github-12"],
   );
-  const [withPackage, withManifest, withCurated] = sourceOnlyPreview.receipt.evidence.map(
-    ({ input }) => input,
-  );
+  const [withPackage, withManifest, withCurated, withTopic] =
+    sourceOnlyPreview.receipt.evidence.map(({ input }) => input);
   assert.ok(withPackage?.desktop_asset_hint);
   assert.ok(withManifest && !withManifest.desktop_asset_hint);
   assert.ok(withCurated && !withCurated.desktop_asset_hint);
+  assert.ok(
+    withTopic && !withTopic.desktop_asset_hint && withTopic.scope.kind === "source-port-topic",
+  );
   assert.equal(withManifest.scope.kind, "retained-manifest");
   assert.deepEqual(withCurated.scope, {
     kind: "curated-source",

@@ -1197,6 +1197,16 @@ one required game input and lists bounded package-relative program candidates. P
 records which source established scope and leaves game and edition matching to
 the existing authoring contracts. This scope check leaves launch arguments,
 configuration, loader claims and setup actions out of the generated listing.
+
+Without one of those manifests, a current GitHub `source-port` topic and a
+single first-party [desktop game entry](https://specifications.freedesktop.org/desktop-entry/latest-single/)
+can establish one desktop implementation at the repository level. Preparation
+checks a complete default-branch tree and the exact entry bytes. It holds
+ambiguous trees, examples, hidden entries and entries that name a different
+program. This rule leaves original-game identity unresolved. After admission,
+the ordinary upstream package checks and restrictions govern acquisition.
+Search hints only nominate candidates for these fresh checks.
+
 The ordinary reviewed route remains available for projects with other evidence.
 
 ### Local runner on the shared store
