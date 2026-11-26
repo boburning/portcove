@@ -120,6 +120,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   igdb_regional_cover?: IgdbRegionalCover;
   /** Keep this variant out of the exact same-edition shared cover policy. */
   igdb_no_shared_cover?: true;
+  /** Suppress generated community browser links for this implementation. */
+  no_observed_mod_portals?: true;
   /** Ordered platforms with an independently reviewed flat, single-program archive. */
   reviewed_flat_package_layout_v1?: string[];
   /** Desktop review copy, outside signed and retained definition schemas. */
@@ -244,6 +246,8 @@ function publicUrl(value: unknown, field: string) {
     throw new Error(`Listing ${field} requires a credential-free HTTPS URL.`);
 }
 
+export const observedModPortalPrefix = "obs-ts-";
+
 function checkListingModPortals(value: unknown) {
   const hosts = new Map<string, string | null>([
     ["community_site", null],
@@ -260,6 +264,7 @@ function checkListingModPortals(value: unknown) {
       Object.keys(portal).length !== 5 ||
       !boundedText(portal.id, 64) ||
       !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(portal.id) ||
+      portal.id.startsWith(observedModPortalPrefix) ||
       ids.has(portal.id) ||
       typeof portal.site !== "string" ||
       !hosts.has(portal.site) ||
@@ -673,6 +678,8 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     throw new Error("Invalid authored cover collection.");
   if (value.igdb_no_shared_cover !== undefined && value.igdb_no_shared_cover !== true)
     throw new Error("An authored shared cover exclusion must be true.");
+  if (value.no_observed_mod_portals !== undefined && value.no_observed_mod_portals !== true)
+    throw new Error("An authored generated mod portal exclusion must be true.");
   const regional = value.igdb_regional_cover;
   if (regional !== undefined) {
     if (listing.collection_covers !== undefined)
