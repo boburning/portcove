@@ -34,8 +34,9 @@ const platformIndependentSource = {
 };
 
 type NamedFixture = boolean | "mod-source";
+type PsxTool = { platform: string; sha256: string };
 
-function heldProjection(named: NamedFixture = false) {
+function heldProjection(named: NamedFixture = false, tool?: PsxTool) {
   const authored = readFileSync(
     new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
   );
@@ -44,6 +45,7 @@ function heldProjection(named: NamedFixture = false) {
         ports: [
           {
             id: heldId,
+            ...(tool ? { adapter: "psx-recomp-managed", platforms: [tool.platform] } : {}),
             ...(named === "mod-source"
               ? { mod_sources: [platformIndependentSource] }
               : {
@@ -56,9 +58,10 @@ function heldProjection(named: NamedFixture = false) {
       })
     : authored;
   const template = json({
-    contract_schema: 3,
+    contract_schema: tool ? 4 : 3,
     representation: "catalog_projection",
     catalog: { schema_version: 2, source_catalog: {}, ports: [] },
+    ...(tool ? { tool_artifacts: [tool] } : {}),
   });
   return {
     catalog,
@@ -67,18 +70,24 @@ function heldProjection(named: NamedFixture = false) {
   };
 }
 
-async function fixture(named: NamedFixture = false) {
+async function fixture(named: NamedFixture = false, tool?: PsxTool) {
   const prior = await readCatalogPublicationBundle(bundle, performance.now() + 5000);
   const retained = [...prior.keys()].filter((name) => name.startsWith("sha256/"));
   assert.equal(retained.length, 2);
-  const { catalog, template, projection } = heldProjection(named);
+  const { catalog, template, projection } = heldProjection(named, tool);
   const projectionTarget = target(projection);
   // This held fixture exercises assembly only. It supplies no reviewed Shipwright
   // authority. Actual Core inspection still owns every schema and scope check.
   const held = json({
     definition_schema: named ? 4 : 3,
     ...(named === "mod-source"
-      ? { required_features: ["mods.platform-independent-portals-v1", "mods.sources-v1"] }
+      ? {
+          required_features: [
+            "mods.platform-independent-portals-v1",
+            "mods.sources-v1",
+            ...(tool ? ["tools.psx-toolchain-v1"] : []),
+          ],
+        }
       : named
         ? { required_features: ["runtime.reviewed-package-and-launch-v1"] }
         : {}),
@@ -553,4 +562,13 @@ void test("schema-4 PS1 tool generation accepts only the compiled exact pack for
     () => assembleReviewedPublication(f.prior, f.next, heldId, projection),
     /requires the named schema-4 reader/u,
   );
+
+  const withSource = await fixture("mod-source", tool);
+  const prepared = assembleReviewedPublication(
+    withSource.prior,
+    withSource.next,
+    heldId,
+    withSource.projection,
+  );
+  assert.deepEqual(prepared.files.get(withSource.projectionTarget), withSource.projection);
 });

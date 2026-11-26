@@ -307,13 +307,12 @@ export function assembleReviewedPublication(
       throw new Error(`${description} require schema 4 and the named reader`);
   }
   const modSources = ports.flatMap((port) =>
-    isRecord(port) && Array.isArray(port.mod_sources) ? port.mod_sources : [],
+    isRecord(port) && Array.isArray(port.mod_sources) ? (port.mod_sources as unknown[]) : [],
   );
   if (modSources.length > 0) {
-    named = true;
+    named ||= projected.contract_schema === 3;
     if (
       entry.definition_schema !== 4 ||
-      projected.contract_schema !== 3 ||
       !Array.isArray(entry.required_features) ||
       !entry.required_features.includes("mods.sources-v1")
     )
