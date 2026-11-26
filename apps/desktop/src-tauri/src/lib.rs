@@ -3182,6 +3182,7 @@ pub fn run() -> std::process::ExitCode {
             mod_file_commands::inspect_mod_file,
             mod_file_commands::preserve_mod_file,
             mod_setup_commands::get_mod_setups,
+            mod_setup_commands::set_mod_portal_preferences,
             mod_setup_commands::create_default_mod_setup,
             mod_setup_commands::copy_mod_setup,
             mod_setup_commands::create_clean_mod_setup,

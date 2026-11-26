@@ -134,8 +134,7 @@ export function advanceArtworkCheckpoint(
   observations: ReturnType<typeof applicableCoverHealth>,
 ) {
   const held = prior ? readArtworkCheckpoint(prior.bytes, prior.listing) : null;
-  const previousEntries = new Map(held?.entries.map((row) => [key(row), row]));
-  const entries = new Map(previousEntries);
+  const entries = new Map(held?.entries.map((row) => [key(row), row]));
   const reserved = (row: Row) =>
     Buffer.byteLength(JSON.stringify({ ...row, state: "restored" })) + 1;
   let reservation =
@@ -189,9 +188,6 @@ export function advanceArtworkCheckpoint(
     deferred: deferred.size,
     apply(listing: Record<string, unknown>, declaration = listing) {
       return applyCoverState(entries, listing, declaration);
-    },
-    applyPrevious(listing: Record<string, unknown>, declaration = listing) {
-      return applyCoverState(previousEntries, listing, declaration);
     },
     finish(listing: Buffer) {
       if (!sorted.length) return null;

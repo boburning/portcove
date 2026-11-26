@@ -77,6 +77,7 @@ export type GameSettingsChangeSetReview =
   Generated.TransportOutputs["game_settings_change_set_review"];
 export type GameSettingsEdit = Requests.TransportInputs["game_settings_edit"];
 export type GameUpdateAcquisition = Generated.TransportOutputs["game_update_acquisition"];
+export type ModPortalsView = Generated.TransportOutputs["mod_portals_view"];
 export type ModSetupsView = Generated.TransportOutputs["mod_setups_view"];
 export type ModSetupView = NonNullable<ModSetupsView["inventory"]>["profiles"][number];
 export type ModSetupOriginalReview = Generated.TransportOutputs["profile_original_review"];

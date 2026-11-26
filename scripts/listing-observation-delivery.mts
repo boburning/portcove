@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual, parseArgs } from "node:util";
 import { isRecord } from "./runtime-values.mts";
-import { parseCatalogSource, readCatalogSource, typedIgdbScene } from "./catalog-authoring.mts";
+import { parseCatalogSource, readCatalogSource } from "./catalog-authoring.mts";
 import {
   advanceArtworkCheckpoint,
   artworkCheckpointMax,
@@ -179,6 +179,29 @@ export async function isolateValidEnrichment<T>(
   return { admitted, excluded, validations };
 }
 
+// The publisher can reuse completed release facts after artwork changes without
+// reidentifying the observer's completed scopes or weakening managed policy.
+function withoutArtwork(record: Record<string, unknown>) {
+  const comparable = { ...record };
+  delete comparable.artwork;
+  delete comparable.collection_covers;
+  delete comparable.media;
+  return comparable;
+}
+
+function releaseObservationListingHash(listing: Record<string, unknown>) {
+  return listingDeclarationHash(withoutArtwork(listing));
+}
+
+function releaseObservationPortHash(port: Record<string, unknown> | undefined) {
+  if (!port || !isRecord(port.presentation)) return observationHash(port ?? null);
+  const comparable = { ...port };
+  const presentation = withoutArtwork(port.presentation);
+  if (Object.keys(presentation).length) comparable.presentation = presentation;
+  else delete comparable.presentation;
+  return observationHash(comparable);
+}
+
 /** Use validated checkpoint policies only when producer AND current canonical
  * declarations/operational facts still agree. An artifact never supplies facts
  * outside upstream_observation and cannot create an authored identity. */
@@ -218,9 +241,10 @@ export function completedListingCandidates(
       if (
         !canonicalListing ||
         !port.listing ||
-        listingDeclarationHash(port.listing) !== listingDeclarationHash(canonicalListing) ||
-        observationHash(originalPorts.get(port.id) ?? null) !==
-          observationHash(currentPorts.get(port.id) ?? null)
+        releaseObservationListingHash(port.listing) !==
+          releaseObservationListingHash(canonicalListing) ||
+        releaseObservationPortHash(originalPorts.get(port.id)) !==
+          releaseObservationPortHash(currentPorts.get(port.id))
       )
         continue;
       const policies = progress.last_complete_policies.filter(
@@ -230,8 +254,8 @@ export function completedListingCandidates(
       if (
         !policy ||
         !isRecord(policy.listing_update) ||
-        listingDeclarationHash(policy.listing_update) !==
-          listingDeclarationHash(canonicalListing) ||
+        releaseObservationListingHash(policy.listing_update) !==
+          releaseObservationListingHash(canonicalListing) ||
         !isRecord(policy.listing_update.upstream_observation)
       )
         continue;
@@ -349,10 +373,7 @@ export function projectListingDelivery(
     byteLimit?: number;
     /** Exact cover decisions for this generation and its authenticated predecessor. */
     coverCheckpoint?: ReturnType<typeof advanceArtworkCheckpoint>;
-    coverApprovals?: {
-      current: ReturnType<typeof readApprovedCoverJournal>;
-      previous: ReturnType<typeof readApprovedCoverJournal>;
-    };
+    coverApprovals?: ReturnType<typeof readApprovedCoverJournal>;
     sharedCoverDefaults?: ReturnType<typeof projectExactSharedCovers>;
     modPortalDefaults?: ReturnType<typeof listingModPortalDefaults>;
   } = {},
@@ -387,31 +408,21 @@ export function projectListingDelivery(
   const updates = new Map<string, Record<string, unknown>>();
   const declarations = new Map(raw.listings.map((listing) => [listing.id, listing]));
   const effectiveBaseline = coverApprovals
-    ? projectApprovedCovers(baseline, coverApprovals.current)
+    ? projectApprovedCovers(baseline, coverApprovals)
     : baseline;
-  const effectiveDeclarations = new Map(
-    (coverApprovals
-      ? projectApprovedCovers(raw, coverApprovals.current, baseline.listings)
-      : raw
-    ).listings.map((listing) => [listing.id, listing]),
-  );
-  const priorBaseline = new Map(
-    (coverApprovals
-      ? projectApprovedCovers(baseline, coverApprovals.previous)
-      : baseline
-    ).listings.map((listing) => [listing.id, listing]),
-  );
-  const priorDeclarations = new Map(
-    (coverApprovals
-      ? projectApprovedCovers(raw, coverApprovals.previous, baseline.listings)
-      : raw
-    ).listings.map((listing) => [listing.id, listing]),
-  );
+  const effectiveDeclarations = coverApprovals
+    ? new Map(
+        projectApprovedCovers(raw, coverApprovals, baseline.listings).listings.map((listing) => [
+          listing.id,
+          listing,
+        ]),
+      )
+    : declarations;
   for (const candidate of candidates) {
     const current = typeof candidate.id === "string" ? declarations.get(candidate.id) : undefined;
     if (
       !current ||
-      listingDeclarationHash(candidate) !== listingDeclarationHash(current) ||
+      releaseObservationListingHash(candidate) !== releaseObservationListingHash(current) ||
       !isRecord(candidate.upstream_observation)
     )
       continue;
@@ -456,36 +467,9 @@ export function projectListingDelivery(
       if (defaultCover && !declaration.artwork && !declaration.collection_covers)
         result.artwork = defaultCover;
       const old = previousListings.get(listing.id);
-      let priorDeclaration = old ? withoutGeneratedModPortals(old) : undefined;
-      if (old && !declaration.artwork && !declaration.collection_covers && sharedCoverDefaults) {
-        // For a listing without an authored cover, the previous generated
-        // cover is independent of its release evidence.
-        priorDeclaration = { ...priorDeclaration };
-        delete priorDeclaration.artwork;
-      }
-      let comparable = priorBaseline.get(listing.id)!;
-      // Pre-format-13 signed rows could not carry typed scenes.
-      if (
-        old &&
-        format >= 13 &&
-        previousDocument &&
-        previousDocument.directory.format_version < 13 &&
-        Array.isArray(comparable.media) &&
-        comparable.media.some(typedIgdbScene)
-      ) {
-        comparable = { ...comparable };
-        const media = (comparable.media as unknown[]).filter((asset) => !typedIgdbScene(asset));
-        if (media.length > 0) comparable.media = media;
-        else delete comparable.media;
-      }
-      // Compare the prior signed declaration under its own cover decisions.
-      // Artwork withdrawal/restoration does not invalidate release observations.
-      if (coverCheckpoint)
-        comparable = coverCheckpoint.applyPrevious(comparable, priorDeclarations.get(listing.id)!);
       const prior =
         old &&
-        priorDeclaration &&
-        listingDeclarationHash(priorDeclaration) === listingDeclarationHash(comparable) &&
+        releaseObservationListingHash(old) === releaseObservationListingHash(listing) &&
         isRecord(old.upstream_observation)
           ? old.upstream_observation
           : undefined;
@@ -1513,9 +1497,7 @@ export async function prepareObservationBundle(options: {
         now,
         withdrawals,
         ...(coverCheckpoint ? { coverCheckpoint } : {}),
-        ...(coverApprovals.approvals.length
-          ? { coverApprovals: { current: coverApprovals, previous: priorApprovals } }
-          : {}),
+        ...(coverApprovals.approvals.length ? { coverApprovals } : {}),
         ...(sharedCoverDefaults ? { sharedCoverDefaults } : {}),
         ...(portals ? { modPortalDefaults: portals } : {}),
       }),

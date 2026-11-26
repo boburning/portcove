@@ -448,16 +448,15 @@ void test("an approved replacement keeps release activity across Gone, renewal, 
     ],
     consumed_packets: [packet],
   });
-  const empty = readApprovedCoverJournal(undefined);
   const selected = projectListingDelivery(authored, [], original.bytes, {
-    coverApprovals: { current: journal, previous: empty },
+    coverApprovals: journal,
   });
   const project = (
     previous: Buffer,
     coverCheckpoint: ReturnType<typeof advanceArtworkCheckpoint>,
   ) =>
     projectListingDelivery(authored, [], previous, {
-      coverApprovals: { current: journal, previous: journal },
+      coverApprovals: journal,
       coverCheckpoint,
     });
   const read = (bytes: Buffer) => {

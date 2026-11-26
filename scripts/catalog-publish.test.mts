@@ -886,6 +886,18 @@ void test("the history bootstrap flag is reachable only from the manual dispatch
         type: "boolean",
         default: false,
       },
+      cover_replacement_packet: {
+        description: "Exact independently reviewed cover replacement packet JSON",
+        type: "string",
+      },
+      cover_replacement_sha256: {
+        description: "SHA-256 of the exact review packet bytes",
+        type: "string",
+      },
+      cover_replacement_preimages: {
+        description: "JSON mapping of all reviewed port IDs to their signed current cover digests",
+        type: "string",
+      },
     },
   });
   assert.equal(source.match(/--bootstrap-history/gu)?.length, 1);
@@ -1058,9 +1070,24 @@ void test("compact listing activation selects the released reader and rechecks i
   const steps = prepare.steps!;
   const observe = steps.find(({ id }) => id === "observe")!;
   assert.equal(observe.if, "steps.decide.outputs.publish == 'true'");
+  assert.match(
+    prepare.if!,
+    /!inputs\.cover_replacement_packet && !inputs\.cover_replacement_sha256 && !inputs\.cover_replacement_preimages[^]*github\.event_name == 'workflow_dispatch' && github\.actor_id == '43177418' &&[^]*github\.triggering_actor == github\.repository_owner/u,
+  );
+  assert.match(
+    steps.find(({ id }) => id === "prepare")!.run!,
+    /--cover-approval-report "\$RUNNER_TEMP\/observation-bundle\/report\.json"/u,
+  );
   assert.deepEqual(observe.env, {
     ACTIVATE_COVER_CHECKPOINT:
       "${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_cover_checkpoint == true }}",
+    PORTCOVE_COVER_REVIEW_PACKET:
+      "${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_packet || '' }}",
+    PORTCOVE_COVER_REVIEW_SHA256:
+      "${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_sha256 || '' }}",
+    PORTCOVE_COVER_REVIEW_PREIMAGES:
+      "${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_preimages || '' }}",
+    PORTCOVE_TRIGGERING_ACTOR: "${{ github.triggering_actor }}",
   });
   assert.match(
     observe.run!,
@@ -1528,6 +1555,62 @@ void test("exact provider cross-links enrich the signed listing without changing
     "Released reader refused the candidate",
     "Optional inspection timed out",
   ]);
+});
+
+void test("signed projection keeps release observations through authored artwork changes", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const artwork = {
+    game_id: 70,
+    cover_id: 71,
+    image_id: "fixturecover",
+    image_sha256: "a".repeat(64),
+    game_slug: "fixture-game",
+    match_kind: "underlying-game",
+  };
+  const priorListing = { ...fixtureListing, artwork };
+  const candidate = fixturePolicy(priorListing).listing_update;
+  const directory = (listing: Record<string, unknown>) => ({
+    format_version: 15,
+    listings: [listing],
+  });
+  const now = Date.parse("2026-11-10T00:01:00Z");
+  const initial = projectListingDelivery(directory(priorListing), [candidate], null, { now });
+  const view = (bytes: Buffer) =>
+    requiredFixture(
+      fixtureRecords(
+        fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings,
+      )[0],
+    );
+  const initialObservation = requiredFixture(view(initial.bytes).upstream_observation);
+  const steps = [
+    { ...fixtureListing, artwork: { ...artwork, cover_id: 72, image_id: "replacement" } },
+    { ...fixtureListing, collection_covers: [artwork] },
+    { ...fixtureListing, media: [{ id: "new-scene", role: "screenshot" }] },
+  ];
+  let previous = initial.bytes;
+  for (const listing of steps) {
+    const next = projectListingDelivery(directory(listing), [], previous, { now });
+    assert.equal(next.changed, true);
+    assert.deepEqual(view(next.bytes), { ...listing, upstream_observation: initialObservation });
+    previous = next.bytes;
+  }
+
+  const current = steps[steps.length - 1]!;
+  const pending = projectListingDelivery(directory(current), [candidate], null, { now });
+  assert.deepEqual(view(pending.bytes), { ...current, upstream_observation: initialObservation });
+
+  const releaseChanges = [
+    { ...current, project_url: "https://github.com/owner/different-game" },
+    { ...current, release_url: "https://github.com/owner/other-release-feed/releases" },
+    { ...current, download_block_reason: "An upstream package is restricted." },
+    { ...current, download_asset_hints: { "linux-x86-64": ["linux", "64"] } },
+  ];
+  for (const listing of releaseChanges) {
+    const next = projectListingDelivery(directory(listing), [candidate], previous, { now });
+    assert.deepEqual(view(next.bytes), listing);
+  }
 });
 
 void test("signed projection recomputes shared covers without changing the release observation", async () => {
@@ -2182,6 +2265,44 @@ void test("completed source observations stay bound to current canonical provide
     ).length,
     0,
     "an observation of a listing cannot acquire a new managed-route binding",
+  );
+
+  const managed = {
+    id: fixtureListing.id,
+    channels: ["stable"],
+    release: { repository: "owner/game" },
+  };
+  const managedInput = { ...input, catalog: { ...input.catalog, ports: [managed] } };
+  const artwork = {
+    game_id: 70,
+    cover_id: 71,
+    image_id: "fixturecover",
+    image_sha256: "a".repeat(64),
+    game_slug: "fixture-game",
+    match_kind: "underlying-game",
+  };
+  const illustrated = { ...fixtureListing, artwork };
+  const illustratedDirectory = { ...canonical, listings: [illustrated] };
+  const illustratedPort = { ...managed, presentation: { artwork } };
+  assert.deepEqual(
+    completedListingCandidates(managedInput, { ports: [illustratedPort] }, illustratedDirectory),
+    [policy.listing_update],
+  );
+  assert.deepEqual(
+    completedListingCandidates(
+      {
+        ...managedInput,
+        catalog: { ...input.catalog, ports: [illustratedPort], listings: [illustrated] },
+      },
+      { ports: [managed] },
+      canonical,
+    ),
+    [policy.listing_update],
+  );
+  const changedRelease = { ...illustratedPort, release: { repository: "owner/other-game" } };
+  assert.deepEqual(
+    completedListingCandidates(managedInput, { ports: [changedRelease] }, illustratedDirectory),
+    [],
   );
 });
 

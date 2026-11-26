@@ -167,7 +167,12 @@ export function ListingDetailPanel({
 }) {
   const { t } = useAppTranslation("installation");
   const listing = entry.listing;
-  const modPortals = useExternalModPortals(entry.id, generation);
+  const modPortals = useExternalModPortals(
+    entry.id,
+    generation,
+    listing?.mod_portals,
+    entry.definition?.mod_sources,
+  );
   const platforms = listing?.platforms ?? (entry.definition ? [] : entry.platforms);
   const updates = listing && upstreamUpdatesDestination(listing.project_url, listing.release_url);
   const registered = status?.external_runtime;
@@ -341,14 +346,10 @@ export function ListingDetailPanel({
           }
         >
           {(reveal) => ({
-            ...(modPortals.length
+            ...(modPortals?.mod_portal_preferences || modPortals?.external_mod_portals?.length
               ? {
                   mods: (
-                    <ExternalModPortals
-                      portals={modPortals}
-                      port={entry.id}
-                      generation={generation}
-                    />
+                    <ExternalModPortals view={modPortals} port={entry.id} generation={generation} />
                   ),
                 }
               : {}),

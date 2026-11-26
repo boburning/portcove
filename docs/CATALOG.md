@@ -2206,8 +2206,17 @@ withdrawal in the signed cover checkpoint.
 The command reuses the ordinary artwork preparation route. The review packet
 records the current and proposed image identities, the verified predecessor,
 and the hashes of the evidence. Its file name includes the packet's SHA-256.
-The packet records a proposal for independent review. Publication requires a
-separate protected approval.
+The packet records a proposal for independent review. After review, the
+repository owner starts a protected Catalog publish run from main. Supply the
+exact packet in `cover_replacement_packet` and its SHA-256 in
+`cover_replacement_sha256`. In `cover_replacement_preimages`, supply a JSON
+object that maps each proposed port ID to its reviewed current image SHA-256.
+
+The publisher checks the selected signed predecessor and verifies each
+replacement image again. It requires the released reader to inspect the exact
+candidate bundle. The signer records the approved packet on the compact target
+and carries that record forward through renewal. A later approval must identify
+the currently signed replacement as its predecessor.
 
 Due refresh of a retained cover revalidates its approved IGDB game ID, slug
 and cover role. An accepted mapping can be revalidated by exact ID and slug
