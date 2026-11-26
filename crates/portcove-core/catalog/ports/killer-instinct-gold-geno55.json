@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "killer-instinct-gold-geno55",
+    "project_url": "https://github.com/geno55/kigold-recomp",
+    "name": "Killer Instinct Gold / geno55",
+    "summary": "Static recompilation of Killer Instinct Gold (N64) for Windows, built on N64Recomp, N64ModernRuntime and RT64",
+    "issue_number": 5555,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "killer-instinct-gold",
+      "evidence_urls": ["https://github.com/geno55/kigold-recomp"],
+      "source_editions": [
+        {
+          "id": "killer-instinct-gold-nintendo-64",
+          "title": "Killer Instinct Gold (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/geno55/kigold-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Killer Instinct Gold"
+  }
+}

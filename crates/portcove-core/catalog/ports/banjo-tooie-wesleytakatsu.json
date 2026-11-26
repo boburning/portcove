@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "banjo-tooie-wesleytakatsu",
+    "project_url": "https://github.com/wesleytakatsu/TooieRecomp",
+    "name": "Banjo-Tooie / wesleytakatsu",
+    "summary": "Static recompilation of Banjo-Tooie.",
+    "issue_number": 5902,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "banjo-tooie",
+      "evidence_urls": ["https://github.com/wesleytakatsu/TooieRecomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Banjo-Tooie"
+  }
+}

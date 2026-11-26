@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "god-of-war-betrayal-samioan",
+    "project_url": "https://github.com/samioan/gow-betrayal-remastered",
+    "name": "God of War: Betrayal / samioan",
+    "summary": "God of War: Betrayal, remastered for Windows. A native PC port of the 2007 J2ME phone game with widescreen, high frame rates and gamepad support. Bring your own .jar.",
+    "issue_number": 6607,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-betrayal",
+      "evidence_urls": ["https://github.com/samioan/gow-betrayal-remastered"],
+      "source_editions": []
+    },
+    "original_game_title": "God of War: Betrayal"
+  }
+}

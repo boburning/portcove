@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mechwarrior-2-ghost-bear-s-legacy-gbl-port",
+    "project_url": "https://github.com/BatMahn/GBL-Port",
+    "name": "MechWarrior 2: Ghost Bear's Legacy / GBL-Port",
+    "summary": "Native port of MechWarrior 2: Ghost Bear's Legacy",
+    "issue_number": 5428,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mechwarrior-2-ghost-bears-legacy",
+      "evidence_urls": ["https://github.com/BatMahn/GBL-Port"],
+      "source_editions": []
+    },
+    "original_game_title": "MechWarrior 2: Ghost Bear's Legacy"
+  }
+}

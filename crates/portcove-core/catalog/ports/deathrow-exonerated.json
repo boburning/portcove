@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "deathrow-exonerated",
+    "project_url": "https://github.com/AsukaNeo/Exonerated",
+    "name": "Deathrow / Exonerated",
+    "summary": "Deathrow for the original Xbox, recompiled to run natively on Windows. Bring your own copy of the game.",
+    "issue_number": 5454,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "deathrow",
+      "evidence_urls": ["https://github.com/AsukaNeo/Exonerated"],
+      "source_editions": [
+        {
+          "id": "deathrow-xbox",
+          "title": "Deathrow (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/AsukaNeo/Exonerated"]
+        }
+      ]
+    },
+    "original_game_title": "Deathrow"
+  }
+}

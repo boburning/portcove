@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-dreams-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/dreams-recomp",
+    "name": "Dreams / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of Dreams (SLES-00714) (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6643,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dreams",
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/dreams-recomp"],
+      "source_editions": [
+        {
+          "id": "dreams-playstation",
+          "title": "Dreams (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/dreams-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Dreams"
+  }
+}

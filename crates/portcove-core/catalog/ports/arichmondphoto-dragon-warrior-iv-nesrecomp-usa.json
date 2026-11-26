@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "arichmondphoto-dragon-warrior-iv-nesrecomp-usa",
+    "project_url": "https://github.com/arichmondphoto/DragonWarrior4NESRecomp",
+    "name": "Dragon Warrior IV (NES USA) / arichmondphoto NESRecomp",
+    "summary": "A static recompilation of Dragon Warrior IV for the NES.",
+    "issue_number": 5317,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-warrior-iv",
+      "evidence_urls": ["https://github.com/arichmondphoto/DragonWarrior4NESRecomp"],
+      "source_editions": [
+        {
+          "id": "dragon-warrior-iv-nes",
+          "title": "Dragon Warrior IV (NES)",
+          "system": "nes",
+          "evidence_urls": ["https://github.com/arichmondphoto/DragonWarrior4NESRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Dragon Warrior IV"
+  }
+}

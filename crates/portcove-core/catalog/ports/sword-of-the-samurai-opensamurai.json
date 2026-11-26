@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sword-of-the-samurai-opensamurai",
+    "project_url": "https://github.com/ToolAssisted-run/OpenSamurai",
+    "name": "Sword of the Samurai / OpenSamurai",
+    "summary": "An unofficial source reconstruction of Sword of the Samurai (MicroProse, DOS 1989), in the spirit of SDLPoP2",
+    "issue_number": 5856,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sword-of-the-samurai",
+      "evidence_urls": ["https://github.com/ToolAssisted-run/OpenSamurai"],
+      "source_editions": []
+    },
+    "original_game_title": "Sword of the Samurai"
+  }
+}

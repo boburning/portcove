@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "einhander-darkuni",
+    "project_url": "https://github.com/darkuni/einhander-recomp",
+    "name": "Einhänder / darkuni native PS1 recomp",
+    "summary": "Static recompilation of Einhänder (PlayStation) for Windows.",
+    "issue_number": 5593,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "einhander",
+      "evidence_urls": ["https://github.com/darkuni/einhander-recomp"],
+      "source_editions": [
+        {
+          "id": "einhander-playstation",
+          "title": "Einhänder (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/darkuni/einhander-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Einhänder"
+  }
+}

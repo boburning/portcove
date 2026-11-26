@@ -100,6 +100,7 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // Implementation explanations are directory-only too. Keep earlier strict
         // retained-listing readers compatible without changing their launch contract.
         listing.implementation = None;
+        listing.mod_portals.clear();
         listing.media.retain(|asset| !asset.is_typed_igdb_scene());
         crate::catalog::listings::strip_verified_sources(&mut listing);
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
@@ -166,6 +167,7 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
                 .iter()
                 .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
             || crate::catalog::listings::has_verified_source_editions(&retained.listing)
+            || !retained.listing.mod_portals.is_empty()
             || retained.listing.id != port_id
         {
             return Err(PortcoveError::verification(
@@ -1767,13 +1769,25 @@ impl Library {
                     a.started_at, a.finished_at, a.cancellation_phase, a.cancel_requested,
                     a.failure_json,
                     a.status = 'running' AS is_current,
-                    a.status = 'failed' AS needs_attention,
+                    -- A check a provider rate limit stopped is not checked: it
+                    -- resumes after the reset and needs nothing from the player.
+                    a.status = 'failed' AND NOT (
+                      a.operation = 'check_update'
+                      AND CASE WHEN json_valid(a.failure_json)
+                        THEN json_extract(a.failure_json, '$.presentation.presentation_key') END
+                        = 'provider_rate_limited'
+                    ) AS needs_attention,
                     EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id
                       AND (lifecycle.kind <> 'acquire_update' OR json_extract(lifecycle.update_acquisition_json,'$.view.phase') <> 'acquired'))
                       AS recovery_required
              FROM activity_history AS a
              WHERE a.status = 'running'
-                OR a.status = 'failed'
+                OR (a.status = 'failed' AND NOT (
+                      a.operation = 'check_update'
+                      AND CASE WHEN json_valid(a.failure_json)
+                        THEN json_extract(a.failure_json, '$.presentation.presentation_key') END
+                        = 'provider_rate_limited'
+                    ))
                 OR EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id)
                 OR a.rowid IN (SELECT rowid FROM terminal_history)
              ORDER BY a.started_at DESC, a.rowid DESC",
@@ -1962,6 +1976,62 @@ impl Library {
             ));
         }
         Ok(snapshot)
+    }
+
+    /// When each port's update check last succeeded, from the durable snapshots.
+    pub(crate) fn update_checked_at(&self) -> Result<HashMap<String, i64>> {
+        let connection = self.connection()?;
+        let mut statement =
+            connection.prepare("SELECT port_id, checked_at FROM update_snapshots")?;
+        let rows = statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<rusqlite::Result<_>>().map_err(Into::into)
+    }
+
+    /// When each port's update check last reached a verdict (it succeeded, or failed
+    /// for a reason other than a provider rate limit), from the retained activity
+    /// history. A rate-limited or deferred attempt, a listing read only in part, a
+    /// cancellation and an interruption learned nothing, so they do not move the
+    /// game back in the order.
+    pub(crate) fn update_check_attempted_at(&self) -> Result<HashMap<String, i64>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT target_id, started_at, failure_json FROM activity_history
+             WHERE operation='check_update' AND status IN ('succeeded', 'failed')
+               AND target_id IS NOT NULL",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })?;
+        let mut attempted = HashMap::<String, i64>::new();
+        for row in rows {
+            let (port_id, started_at, failure) = row?;
+            let no_verdict = failure
+                .as_deref()
+                .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
+                .is_some_and(|failure| {
+                    failure
+                        .get("presentation")
+                        .and_then(|presentation| presentation.get("presentation_key"))
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|key| {
+                            matches!(
+                                key,
+                                "provider_rate_limited"
+                                    | "inventory_incomplete"
+                                    | "operation_interrupted"
+                            )
+                        })
+                });
+            if !no_verdict {
+                let latest = attempted.entry(port_id).or_insert(started_at);
+                *latest = (*latest).max(started_at);
+            }
+        }
+        Ok(attempted)
     }
 
     pub fn update_snapshot(&self, port_id: &str) -> Result<Option<UpdateSnapshot>> {
@@ -4015,6 +4085,29 @@ mod tests {
     }
 
     #[test]
+    fn a_retained_selection_does_not_carry_current_mod_portals() {
+        let id = "mod-portal-project";
+        let links = serde_json::json!([{
+            "id":"community", "site":"community_site", "name":"Game mods",
+            "url":"https://mods.example.com/", "instructions":"Read the community instructions."
+        }]);
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":id, "name":"Mod portal project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream", "mod_portals":links.clone()
+        }))
+        .unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, id).unwrap();
+        assert!(!content.contains("mod_portals"), "{content}");
+        let retained = decode_external_catalog(&content, id).unwrap();
+        assert!(retained.listing(id).unwrap().mod_portals.is_empty());
+
+        let mut invalid: serde_json::Value = serde_json::from_str(&content).unwrap();
+        invalid["listing"]["mod_portals"] = links;
+        assert!(decode_external_catalog(&invalid.to_string(), id).is_err());
+    }
+
+    #[test]
     fn a_retained_selection_does_not_carry_directory_implementation_descriptions() {
         let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
             "id":"described-project", "name":"Described project", "summary":"No operational integration.",
@@ -4357,6 +4450,97 @@ mod tests {
                 .is_err()
         );
         assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn a_rate_limited_update_check_is_not_checked_rather_than_needing_attention() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let finish = |operation, port: &str, error: PortcoveError| {
+            let activity = library
+                .begin_activity(operation, ActivityTargetKind::Port, Some(port))
+                .unwrap();
+            library
+                .finish_activity_report(
+                    &activity.id,
+                    ActivityStatus::Failed,
+                    Some(&error.message),
+                    Some(&error.report()),
+                )
+                .unwrap();
+            activity.id
+        };
+        let limited = || {
+            PortcoveError::network("GitHub API returned 403").with_known_cause(
+                crate::failure::KnownFailureCause::ProviderRequest {
+                    provider: crate::failure::FailureProvider::Github,
+                    status: 403,
+                    rate_limited: true,
+                    resets_at: Some(1_900_000_000),
+                },
+            )
+        };
+        let rate_limited_check = finish(ActivityOperation::CheckUpdate, "limited", limited());
+        // A listing a rate limit cut short reads as that rate limit.
+        let limited_listing = finish(
+            ActivityOperation::CheckUpdate,
+            "limited-listing",
+            crate::failure::inventory_incomplete_after(
+                crate::failure::FailureProvider::Gitlab,
+                "release history",
+                1,
+                None,
+                limited(),
+            ),
+        );
+        // A listing that stopped for another reason (a list that never ends)
+        // stays visible: it may keep happening and needs a look.
+        let incomplete = finish(
+            ActivityOperation::CheckUpdate,
+            "incomplete",
+            crate::failure::inventory_incomplete(
+                crate::failure::FailureProvider::Gitlab,
+                "release history",
+                3,
+                Some(2),
+            ),
+        );
+        let ordinary_failure = finish(
+            ActivityOperation::CheckUpdate,
+            "gone",
+            PortcoveError::network("the repository is gone"),
+        );
+        // The same rate limit on another operation is still that operation's failure.
+        let limited_install = finish(ActivityOperation::Install, "install", limited());
+
+        let feed = library.activity_feed(50).unwrap();
+        for not_attention in [&rate_limited_check, &limited_listing] {
+            assert!(
+                !feed.attention_required_activity_ids.contains(not_attention),
+                "{not_attention}"
+            );
+            // Still in the history, presented as the rate limit.
+            let record = feed
+                .records
+                .iter()
+                .find(|record| &record.id == not_attention)
+                .unwrap();
+            assert_eq!(
+                record
+                    .failure
+                    .as_ref()
+                    .unwrap()
+                    .presentation
+                    .presentation_key,
+                "provider_rate_limited"
+            );
+        }
+        for attention in [&incomplete, &ordinary_failure, &limited_install] {
+            assert!(
+                feed.attention_required_activity_ids.contains(attention),
+                "{attention}"
+            );
+        }
     }
 
     #[test]

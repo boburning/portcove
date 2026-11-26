@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blake-stone-blake-stone-recomp",
+    "project_url": "https://github.com/sp00nznet/blakestone",
+    "name": "Blake Stone / Blake Stone Recomp",
+    "summary": "Blake Stone: Aliens of Gold + Planet Strike, statically recompiled from the DOS executables to native Windows (pcrecomp). Bring your own game files.",
+    "issue_number": 5743,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "blake-stone",
+      "evidence_urls": ["https://github.com/sp00nznet/blakestone"],
+      "source_editions": []
+    },
+    "original_game_title": "Blake Stone"
+  }
+}

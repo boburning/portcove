@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "itar3-fable2recompmac-x360-apple-silicon-rexglue",
+    "project_url": "https://github.com/itar3/Fable2RecompMac",
+    "name": "Fable II / itar3 Fable2RecompMac (Apple Silicon)",
+    "summary": "Play Fable 2 (Fable II) natively on Mac: a native macOS port for Apple Silicon (M1, M2, M3, M4), not an emulator. Metal renderer, 60 fps at Retina resolution, keyboard and mouse or controller. Needs your own Fable II disc image and its Title Update 1. Not affiliated with Microsoft.",
+    "issue_number": 5171,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fable-ii",
+      "evidence_urls": ["https://github.com/itar3/Fable2RecompMac"],
+      "source_editions": []
+    },
+    "original_game_title": "Fable II"
+  }
+}

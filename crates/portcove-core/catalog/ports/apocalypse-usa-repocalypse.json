@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "apocalypse-usa-repocalypse",
+    "project_url": "https://github.com/MustafaSamer93/Apocalypse-PC-Native-Port",
+    "name": "Apocalypse USA / MustafaSamer93 Repocalypse",
+    "summary": "A Static Recomplation of PSX Game Apocalypse",
+    "issue_number": 5801,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "apocalypse-usa",
+      "evidence_urls": ["https://github.com/MustafaSamer93/Apocalypse-PC-Native-Port"],
+      "source_editions": [
+        {
+          "id": "apocalypse-usa-playstation",
+          "title": "Apocalypse USA (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/MustafaSamer93/Apocalypse-PC-Native-Port"]
+        }
+      ]
+    },
+    "original_game_title": "Apocalypse USA"
+  }
+}

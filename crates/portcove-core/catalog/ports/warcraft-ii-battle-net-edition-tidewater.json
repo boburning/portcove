@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "warcraft-ii-battle-net-edition-tidewater",
+    "project_url": "https://github.com/nlwstein/tidewater",
+    "name": "Warcraft II: Battle.net Edition / Tidewater",
+    "summary": "A from-scratch Rust reimplementation of the Warcraft II: Battle.net Edition engine (with Beyond the Dark Portal) that runs on your own copy of the game. Campaigns, custom games and LAN play on Windows, macOS, Linux, iOS and Android. No game data included.",
+    "issue_number": 5589,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "warcraft-ii-battle-net-edition",
+      "evidence_urls": ["https://github.com/nlwstein/tidewater"],
+      "source_editions": []
+    },
+    "original_game_title": "Warcraft II: Battle.net Edition"
+  }
+}

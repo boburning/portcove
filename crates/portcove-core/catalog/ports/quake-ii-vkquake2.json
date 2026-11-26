@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-ii-vkquake2",
+    "project_url": "https://github.com/kondrak/vkQuake2",
+    "name": "Quake II / vkQuake2",
+    "summary": "id Software's Quake 2 v3.21 with mission packs and Vulkan support (Windows, Linux, macOS, FreeBSD, Raspberry Pi 4)",
+    "issue_number": 5677,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-ii",
+      "evidence_urls": ["https://github.com/kondrak/vkQuake2"],
+      "source_editions": []
+    },
+    "original_game_title": "Quake II"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sp00nznet-sim-theme-park-gold-2-0-pcrecomp",
+    "project_url": "https://github.com/sp00nznet/simthemepark-recomp",
+    "name": "Sim Theme Park (PC USA Gold 2.0) / sp00nznet pcrecomp",
+    "summary": "Static recompilation of Sim Theme Park / Theme Park World (Bullfrog, 1999) to native C on pcrecomp native32. No game files or generated code included.",
+    "issue_number": 5873,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sim-theme-park",
+      "evidence_urls": ["https://github.com/sp00nznet/simthemepark-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Sim Theme Park"
+  }
+}

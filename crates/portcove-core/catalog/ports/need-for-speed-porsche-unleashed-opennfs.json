@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "need-for-speed-porsche-unleashed-opennfs",
+    "project_url": "https://github.com/OpenNFS/OpenNFS",
+    "name": "Need for Speed: Porsche Unleashed / OpenNFS (OpenNFS)",
+    "summary": "An attempt to recreate the classic Need for Speed Games (1-6), unpacking their original data files into a modern, scratch built engine.",
+    "issue_number": 6861,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-porsche-unleashed",
+      "evidence_urls": ["https://github.com/OpenNFS/OpenNFS"],
+      "source_editions": []
+    },
+    "original_game_title": "Need for Speed: Porsche Unleashed"
+  }
+}

@@ -53,8 +53,8 @@ mod webview_boundary_qualification;
 mod windows_installation;
 
 use transport::{
-    BatchOutcome, BootstrapStatus, DesktopError, DesktopWorkspaceSnapshot, InstallInput,
-    LaunchResult, SourceBatchOutcome,
+    BootstrapStatus, DesktopError, DesktopWorkspaceSnapshot, InstallInput, LaunchResult,
+    SourceBatchOutcome, UpdateCheckOutcome,
 };
 
 use std::{
@@ -1048,7 +1048,7 @@ async fn forecast_installed_update_checks(
 async fn check_installed(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
-) -> DesktopResult<Vec<BatchOutcome<UpdateCheck>>> {
+) -> DesktopResult<Vec<UpdateCheckOutcome>> {
     let state = state.inner().clone();
     blocking_async_service(state, move |service| async move {
         let installed = service
@@ -1064,21 +1064,27 @@ async fn check_installed(
         let mut outcomes = Vec::with_capacity(installed.len());
         for (port_id, result) in service.check_updates(installed).await? {
             outcomes.push(match result {
-                Ok(result) => BatchOutcome {
+                Ok(result) => UpdateCheckOutcome {
                     port_id,
                     ok: true,
                     result: Some(result),
                     error: None,
+                    deferred: None,
                 },
-                Err(error) => BatchOutcome {
+                Err(error) => UpdateCheckOutcome {
                     port_id,
                     ok: false,
                     result: None,
+                    deferred: error.update_check_deferral(),
                     error: Some(error.into()),
                 },
             });
         }
-        let success = outcomes.iter().all(|outcome| outcome.ok);
+        // Games a provider allowance deferred are unknown, not failed: they wait
+        // for the next check after the reset rather than failing the batch.
+        let success = outcomes
+            .iter()
+            .all(|outcome| outcome.ok || outcome.deferred.is_some());
         emit_operation(
             &app,
             operation.finished(if success {

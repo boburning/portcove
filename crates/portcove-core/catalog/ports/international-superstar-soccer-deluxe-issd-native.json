@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "international-superstar-soccer-deluxe-issd-native",
+    "project_url": "https://github.com/sergiomanzur/issd-native",
+    "name": "International Superstar Soccer Deluxe / ISSD Native (sergiomanzur)",
+    "summary": "AI-driven native recompilation project for ISS Deluxe on SNES",
+    "issue_number": 7174,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "international-superstar-soccer-deluxe",
+      "evidence_urls": ["https://github.com/sergiomanzur/issd-native"],
+      "source_editions": [
+        {
+          "id": "international-superstar-soccer-deluxe-super-nintendo",
+          "title": "International Superstar Soccer Deluxe (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/sergiomanzur/issd-native"]
+        }
+      ]
+    },
+    "original_game_title": "International Superstar Soccer Deluxe"
+  }
+}

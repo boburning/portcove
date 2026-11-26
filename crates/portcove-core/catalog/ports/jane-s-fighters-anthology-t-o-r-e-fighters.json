@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jane-s-fighters-anthology-t-o-r-e-fighters",
+    "project_url": "https://github.com/john-overton/T.O.R.E-Fighters",
+    "name": "Jane's Fighters Anthology / T.O.R.E-Fighters",
+    "summary": "A tastefully opinionated reverse engineered rebuild of sim class Jane's Fighters Anthology.",
+    "issue_number": 5573,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "janes-fighters-anthology",
+      "evidence_urls": ["https://github.com/john-overton/T.O.R.E-Fighters"],
+      "source_editions": []
+    },
+    "original_game_title": "Jane's Fighters Anthology"
+  }
+}

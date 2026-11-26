@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "christiansmmc-batman-begins-xbox-xberecomp-win",
+    "project_url": "https://github.com/christiansmmc/BatmanBeginsRecomp",
+    "name": "Batman Begins / christiansmmc Xbox XBERecomp",
+    "summary": "Unofficial native Windows port of Batman Begins (original Xbox) via static recompilation",
+    "issue_number": 5178,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "batman-begins",
+      "evidence_urls": ["https://github.com/christiansmmc/BatmanBeginsRecomp"],
+      "source_editions": [
+        {
+          "id": "batman-begins-xbox",
+          "title": "Batman Begins (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/christiansmmc/BatmanBeginsRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Batman Begins"
+  }
+}

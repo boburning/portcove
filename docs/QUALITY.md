@@ -68,6 +68,15 @@ and package tests and both executable adapter suites still run, along with
 catalog validation and workspace compilation. Mixed, unproven and
 qualification changes retain ordinary coverage.
 
+A new or removed bound constant needs a register edit in the same change.
+[`RESTRICTION-REGISTER.md`](RESTRICTION-REGISTER.md) names every production
+constant with a `MAX`, `LIMIT`, `BOUND`, `CAP` or `BUDGET` name segment in Rust,
+and every top-level TypeScript constant named like a bound (`maxItems`,
+`maximumBytes`, `requestLimit`, `pageBound`). Production sources select
+`scripts/check-document-links.test.mts`. It fails when a cited file or whole-word
+name disappears, and when a production bound constant is neither registered nor
+in its reviewed exclusions.
+
 Ordinary catalog changes are meant to be data-only. On pull requests, the CI plan
 job runs `scripts/catalog-rust-edit-report.mts` over the plan's complete changed-file
 list and, when port data under `crates/portcove-core/catalog/ports/` or `catalog.json`

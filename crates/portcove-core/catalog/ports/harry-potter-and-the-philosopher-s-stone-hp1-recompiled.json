@@ -1,0 +1,31 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "harry-potter-and-the-philosopher-s-stone-hp1-recompiled",
+    "project_url": "https://github.com/Barthes-Recompiled/HP1-Recompiled",
+    "name": "Harry Potter and the Philosopher's Stone / HP1 Recompiled (Philosopher's Stone) (Barthes-Recompiled)",
+    "summary": "Native PC recompilation of Harry Potter and the Philosopher's Stone. Bring your own copy of the game.",
+    "issue_number": 7231,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "harry-potter-and-the-philosophers-stone-console-2003",
+      "evidence_urls": [
+        "https://github.com/Barthes-Recompiled/HP1-Recompiled/blob/6d1ac181bf74fbbfd80a12fc9a489cce45d116fd/README.md",
+        "https://github.com/MiddleDucky/HP-PS-Xbox-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "harry-potter-and-the-philosophers-stone-console-2003-xbox",
+          "title": "Harry Potter and the Philosopher's Stone (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Barthes-Recompiled/HP1-Recompiled/blob/6d1ac181bf74fbbfd80a12fc9a489cce45d116fd/README.md",
+            "https://github.com/MiddleDucky/HP-PS-Xbox-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Harry Potter and the Philosopher's Stone"
+  }
+}

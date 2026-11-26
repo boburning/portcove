@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bassobr-far-cry-instincts-original-xbox-native-d3d11",
+    "project_url": "https://github.com/bassobr/Far-Cry-Instincts-Recomp",
+    "name": "Far Cry Instincts (original Xbox USA/Europe) / bassobr Far Cry Instincts Recomp",
+    "summary": "Static recompilation of the original Xbox Far Cry Instincts into a native Windows x64 executable (Direct3D 11). Bring your own copy of the game; no game files included.",
+    "issue_number": 4679,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "far-cry-instincts",
+      "evidence_urls": ["https://github.com/bassobr/Far-Cry-Instincts-Recomp"],
+      "source_editions": [
+        {
+          "id": "far-cry-instincts-xbox",
+          "title": "Far Cry Instincts (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/bassobr/Far-Cry-Instincts-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Far Cry Instincts"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-bros-smb-vanilla",
+    "project_url": "https://github.com/nukep/SMB-Vanilla",
+    "name": "Super Mario Bros. (NES) / SMB-Vanilla",
+    "summary": "A C decompilation and port of the NES games \"Super Mario Bros\" and \"Super Mario Bros: The Lost Levels\"",
+    "issue_number": 6605,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-bros",
+      "evidence_urls": ["https://github.com/nukep/SMB-Vanilla"],
+      "source_editions": [
+        {
+          "id": "super-mario-bros-nes",
+          "title": "Super Mario Bros. (NES)",
+          "system": "nes",
+          "evidence_urls": ["https://github.com/nukep/SMB-Vanilla"]
+        }
+      ]
+    },
+    "original_game_title": "Super Mario Bros."
+  }
+}

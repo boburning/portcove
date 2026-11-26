@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "grunttanamo-karpur-pokemon-violet-switch-4-0-0",
+    "project_url": "https://github.com/Grunttanamo/KarPur",
+    "name": "Pokémon Violet / KarPur Switch static recomp",
+    "summary": "Native Windows port of Pokémon Scarlet/Violet (Switch), static recompilation, built on LAS Recomp and TotK Recomp. No game files included.",
+    "issue_number": 6277,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-violet",
+      "evidence_urls": ["https://github.com/Grunttanamo/KarPur"],
+      "source_editions": [
+        {
+          "id": "pokemon-violet-nintendo-switch",
+          "title": "Pokémon Violet (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/Grunttanamo/KarPur"]
+        }
+      ]
+    },
+    "original_game_title": "Pokémon Violet"
+  }
+}

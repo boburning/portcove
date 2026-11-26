@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quakeworld-chocolate-quakeworld",
+    "project_url": "https://github.com/Henrique194/chocolate-quakeworld",
+    "name": "QuakeWorld / Chocolate QuakeWorld",
+    "summary": "Native PC port of QuakeWorld for Windows.",
+    "issue_number": 6054,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "quakeworld",
+      "evidence_urls": ["https://github.com/Henrique194/chocolate-quakeworld"],
+      "source_editions": []
+    },
+    "original_game_title": "QuakeWorld"
+  }
+}

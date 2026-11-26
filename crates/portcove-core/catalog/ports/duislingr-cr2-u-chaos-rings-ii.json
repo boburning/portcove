@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "duislingr-cr2-u-chaos-rings-ii",
+    "project_url": "https://github.com/DuIslingr/CR2-U",
+    "name": "Chaos Rings II / CR2-U (DuIslingr)",
+    "summary": "CR2-U - a from-scratch reimplementation of Chaos Rings II (iPad 2.1.0, Android 2.1.2, PS Vita). Bring your own copy; no game data included.",
+    "issue_number": 3795,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "chaos-rings-ii",
+      "evidence_urls": ["https://github.com/DuIslingr/CR2-U"],
+      "source_editions": []
+    },
+    "original_game_title": "Chaos Rings II"
+  }
+}

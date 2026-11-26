@@ -1,11 +1,12 @@
 import { mkdirSync, lstatSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createGitHubClient } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
+import { parseRecompManifest } from "./discovery-ecosystems.mts";
 
 const limits = { requests: 12, bytes: 8 * 1024 * 1024, milliseconds: 120000 };
 interface CachedFact {
@@ -29,6 +30,8 @@ interface FactResult {
 }
 export interface PortFactsOptions {
   projectUrl?: string | undefined;
+  expectedRepositoryId?: number | undefined;
+  discoveryScope?: boolean;
   issue?: string | undefined;
   route?: "listing" | "download";
   releaseTag?: string | undefined;
@@ -41,6 +44,151 @@ export interface PortFactsOptions {
   token?: string | undefined;
   now?: () => number;
   fetcher?: typeof fetch;
+}
+
+export const discoveryScopePolicy = "github-primary-single-game-manifest/1";
+
+async function observeDiscoveryScope(
+  project: unknown,
+  repositoryId: number,
+  read: (endpoint: string, hours?: number, reuseCached?: boolean) => Promise<FactResult>,
+) {
+  const outcome = (
+    state: "held" | "unavailable" | "restricted",
+    reason: string,
+    retryAfter?: string,
+  ) => ({
+    policy: discoveryScopePolicy,
+    state,
+    reason,
+    reconsider_on:
+      state === "unavailable" ? "provider-retry" : "upstream-evidence-or-scope-policy-change",
+    ...(retryAfter ? { retry_after: retryAfter } : {}),
+  });
+  if (
+    !isRecord(project) ||
+    project.fork !== false ||
+    project.mirror_url !== null ||
+    project.parent != null ||
+    project.source != null
+  )
+    return outcome("held", "independent-upstream-scope-unresolved");
+  const location = `repositories/${repositoryId}`;
+  // GitHub uses the current default branch when the sha parameter is absent.
+  const head = await read(`${location}/commits?per_page=1`, 1, false);
+  if (head.status === "unavailable")
+    return outcome("unavailable", head.reason ?? "default-commit-unobserved", head.retry_after);
+  const branchCommit: unknown =
+    Array.isArray(head.body) && head.body.length === 1 ? head.body[0] : undefined;
+  const commit = isRecord(branchCommit) ? branchCommit.sha : undefined;
+  const commitDetails = isRecord(branchCommit) ? branchCommit.commit : undefined;
+  const treeRef = isRecord(commitDetails) ? commitDetails.tree : undefined;
+  const treeId = isRecord(treeRef) ? treeRef.sha : undefined;
+  if (
+    typeof commit !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(commit) ||
+    typeof treeId !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(treeId)
+  )
+    return outcome("held", "default-commit-unresolved");
+  const tree = await read(`${location}/git/trees/${treeId}`, 24);
+  if (tree.status === "unavailable")
+    return outcome("unavailable", tree.reason ?? "default-tree-unobserved", tree.retry_after);
+  if (
+    !isRecord(tree.body) ||
+    tree.body.sha !== treeId ||
+    tree.body.truncated !== false ||
+    !Array.isArray(tree.body.tree)
+  )
+    return outcome("held", "default-tree-incomplete");
+  const rootEntries = (tree.body.tree as unknown[]).filter(
+    (entry): entry is Record<string, unknown> & { path: string } =>
+      isRecord(entry) && typeof entry.path === "string" && entry.path.length > 0,
+  );
+  if (
+    rootEntries.length !== tree.body.tree.length ||
+    new Set(rootEntries.map(({ path }) => path)).size !== rootEntries.length
+  )
+    return outcome("held", "default-tree-incomplete");
+  if (
+    rootEntries.some(({ path }) => typeof path === "string" && /^\.recomp-[2-9]\.json$/u.test(path))
+  )
+    return outcome("held", "multiple-manifest-subjects");
+  const manifestPath = rootEntries.some(({ path }) => path === ".recomp.json")
+    ? ".recomp.json"
+    : ".recomp-board.json";
+  const entries = rootEntries.filter(({ path }) => path === manifestPath);
+  if (!entries.length) return outcome("held", "optional-project-manifest-unavailable");
+  const manifestEntry = entries[0];
+  if (
+    entries.length !== 1 ||
+    !isRecord(manifestEntry) ||
+    manifestEntry.type !== "blob" ||
+    (manifestEntry.mode !== "100644" && manifestEntry.mode !== "100755") ||
+    typeof manifestEntry.sha !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(manifestEntry.sha)
+  )
+    return outcome("held", "unsupported-project-manifest-entry");
+  const fact = await read(`${location}/contents/${manifestPath}?ref=${commit}`, 24);
+  if (fact.status === "unavailable")
+    return outcome("unavailable", fact.reason ?? "project-manifest-unobserved", fact.retry_after);
+  const body = fact.body;
+  if (
+    !isRecord(body) ||
+    body.type !== "file" ||
+    body.path !== manifestPath ||
+    body.encoding !== "base64" ||
+    typeof body.content !== "string" ||
+    body.content.length > 90_000 ||
+    body.sha !== manifestEntry.sha
+  )
+    return outcome("held", "unsupported-project-manifest");
+  const encoded = body.content.replace(/[\r\n]/gu, "");
+  const bytes = Buffer.from(encoded, "base64");
+  if (
+    !bytes.length ||
+    bytes.length > 64 * 1024 ||
+    bytes.length !== body.size ||
+    bytes.toString("base64") !== encoded ||
+    createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex") !== body.sha
+  )
+    return outcome("held", "project-manifest-bytes-unverified");
+
+  let manifest: ReturnType<typeof parseRecompManifest>;
+  try {
+    manifest = parseRecompManifest(
+      JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
+    );
+  } catch {
+    return outcome("held", "unsupported-project-manifest");
+  }
+  if (
+    [manifest.game, ...manifest.systems, ...manifest.toolchains].some((value) =>
+      /\bscummvm\b/iu.test(value),
+    )
+  )
+    return outcome("restricted", "scummvm-out-of-scope");
+  return {
+    policy: discoveryScopePolicy,
+    state: "eligible" as const,
+    repository_id: repositoryId,
+    commit,
+    tree: treeId,
+    manifest_path: manifestPath,
+    manifest_blob: manifestEntry.sha,
+    manifest_sha256: createHash("sha256").update(bytes).digest("hex"),
+    manifest,
+  };
+}
+
+export class BoundRepositoryUnavailable extends Error {
+  readonly reason: string;
+  readonly retryAfter: string | undefined;
+  constructor(reason: string, retryAfter?: string) {
+    super(`Public repository metadata unavailable: ${reason}.`);
+    this.reason = reason;
+    this.retryAfter = retryAfter;
+  }
 }
 
 function checkedPublicUrl(value: string) {
@@ -131,6 +279,11 @@ function readCache(file: string, endpoint: string): CachedFact | undefined {
 
 /** Small route-specific reads. No release history, tag resolution, README or package execution. */
 export async function collectPortFacts(options: PortFactsOptions) {
+  const expectedId = options.expectedRepositoryId;
+  if (expectedId !== undefined && (!Number.isSafeInteger(expectedId) || expectedId <= 0))
+    throw new Error("Expected repository ID must be a positive GitHub repository ID.");
+  if (options.discoveryScope && expectedId === undefined)
+    throw new Error("Discovery scope needs an immutable GitHub repository identity.");
   if (options.releaseUrl !== undefined && options.resolveReleaseUrl)
     throw new Error(
       "Select either an explicit release provider or its canonical identity resolver.",
@@ -185,12 +338,14 @@ export async function collectPortFacts(options: PortFactsOptions) {
     lstatSync(options.cacheDirectory).isSymbolicLink()
   )
     throw new Error("Preparation cache must be a real directory.");
-  const read = async (endpoint: string, hours = 1): Promise<FactResult> => {
+  const read = async (endpoint: string, hours = 1, reuseCached = true): Promise<FactResult> => {
     const url = new URL(endpoint, "https://api.github.com/");
     if (url.origin !== "https://api.github.com") throw new Error("Unexpected facts provider.");
-    const file = join(options.cacheDirectory, `${observationHash(url.href)}.json`);
+    const pathHash = observationHash(url.href);
+    const cacheHash = expectedId === undefined ? pathHash : observationHash([expectedId, url.href]);
+    const file = join(options.cacheDirectory, `${cacheHash}.json`);
     const cached = readCache(file, url.href);
-    const retryFile = `${file}.retry`;
+    const retryFile = join(options.cacheDirectory, `${pathHash}.json.retry`);
     let retainedRetry: string | undefined;
     try {
       const info = lstatSync(retryFile);
@@ -210,6 +365,7 @@ export async function collectPortFacts(options: PortFactsOptions) {
     }
     let result: FactResult;
     if (
+      reuseCached &&
       cached &&
       Date.parse(cached.observed_at) <= now() &&
       Date.parse(cached.fresh_until) > now()
@@ -363,9 +519,31 @@ export async function collectPortFacts(options: PortFactsOptions) {
   }
   if (!projectUrl) throw new Error("A project URL or canonical issue is required.");
   const repository = githubRepository(projectUrl);
-  const project = repository ? await read(`repos/${repository}`, 24) : undefined;
+  if (expectedId !== undefined && !repository)
+    throw new Error("A bound repository ID requires a GitHub repository URL.");
+  // A path cache cannot prove who owns a mutable repository name now.
+  const project = repository
+    ? await read(`repos/${repository}`, 24, expectedId === undefined)
+    : undefined;
   if (isRecord(project?.body) && project.body.private === true)
     throw new Error("Private repository metadata cannot establish a public catalog origin.");
+  if (expectedId !== undefined && project?.status === "unavailable")
+    throw new BoundRepositoryUnavailable(project.reason ?? "unobserved", project.retry_after);
+  if (
+    expectedId !== undefined &&
+    (!isRecord(project?.body) ||
+      project.body.private !== false ||
+      project.body.id !== expectedId ||
+      typeof project.body.full_name !== "string" ||
+      project.body.full_name.toLowerCase() !== repository?.toLowerCase())
+  )
+    throw new Error(
+      "Public repository metadata does not match the observed repository ID and location.",
+    );
+  const discoveryScope =
+    options.discoveryScope && expectedId !== undefined
+      ? await observeDiscoveryScope(project?.body, expectedId, read)
+      : undefined;
   const releaseUrl =
     options.route === "download"
       ? options.resolveReleaseUrl
@@ -387,7 +565,7 @@ export async function collectPortFacts(options: PortFactsOptions) {
   const releaseProject = !releaseRepository
     ? undefined
     : relatedProvider
-      ? await read(`repos/${releaseRepository}`, 24)
+      ? await read(`repos/${releaseRepository}`, 24, expectedId === undefined)
       : project;
   if (
     relatedProvider &&
@@ -406,11 +584,15 @@ export async function collectPortFacts(options: PortFactsOptions) {
   const assets: unknown[] = [];
   let assetsComplete = false;
   if (options.route === "download" && releaseRepository) {
+    const releaseLocation =
+      expectedId === undefined
+        ? `repos/${releaseRepository}`
+        : `repositories/${relatedProvider && isRecord(releaseProject?.body) ? Number(releaseProject.body.id) : expectedId}`;
     if (options.releaseTag) {
       if (options.releaseTag.length > 255 || hasControl(options.releaseTag))
         throw new Error("Release tag is not bounded text.");
       release = await read(
-        `repos/${releaseRepository}/releases/tags/${encodeURIComponent(options.releaseTag)}`,
+        `${releaseLocation}/releases/tags/${encodeURIComponent(options.releaseTag)}`,
       );
       const value = release.body;
       if (isRecord(value) && (relatedProvider || typeof value.html_url === "string")) {
@@ -429,7 +611,7 @@ export async function collectPortFacts(options: PortFactsOptions) {
       ) {
         for (let page = 1; page <= 2; page++) {
           const fact = await read(
-            `repos/${releaseRepository}/releases/${Number(value.id)}/assets?per_page=100&page=${page}`,
+            `${releaseLocation}/releases/${Number(value.id)}/assets?per_page=100&page=${page}`,
           );
           if (!Array.isArray(fact.body)) break;
           const pageAssets: unknown[] = fact.body;
@@ -457,7 +639,7 @@ export async function collectPortFacts(options: PortFactsOptions) {
           }
         }
       }
-    } else candidates = await read(`repos/${releaseRepository}/releases?per_page=20&page=1`);
+    } else candidates = await read(`${releaseLocation}/releases?per_page=20&page=1`);
   }
   return {
     format_version: 1,
@@ -476,6 +658,7 @@ export async function collectPortFacts(options: PortFactsOptions) {
     assets,
     assets_complete: assetsComplete,
     observations,
+    ...(discoveryScope ? { discovery_scope: discoveryScope } : {}),
     usage: { ...budget.usage, limits },
     scope:
       "Bounded upstream metadata only. Release candidates are one current window; incomplete assets are Unknown. No package acquisition, qualification, execution, issue mutation or catalog admission.",

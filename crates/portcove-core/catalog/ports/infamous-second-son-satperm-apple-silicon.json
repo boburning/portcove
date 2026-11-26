@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "infamous-second-son-satperm-apple-silicon",
+    "project_url": "https://github.com/satperm/iss_mac_port",
+    "name": "inFAMOUS Second Son / ISS Mac Port / satperm",
+    "summary": "Native macOS port of inFAMOUS Second Son for Apple silicon Macs.",
+    "issue_number": 6695,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "infamous-second-son",
+      "evidence_urls": ["https://github.com/satperm/iss_mac_port"],
+      "source_editions": []
+    },
+    "original_game_title": "inFAMOUS Second Son"
+  }
+}

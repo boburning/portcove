@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mario-kart-super-circuit-mksc-neo",
+    "project_url": "https://github.com/arcanite24/mksc-neo",
+    "name": "Mario Kart: Super Circuit / MKSC Neo (arcanite24)",
+    "summary": "A native C/SDL3 re-implementation of Mario Kart: Super Circuit",
+    "issue_number": 7259,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-super-circuit",
+      "evidence_urls": ["https://github.com/arcanite24/mksc-neo"],
+      "source_editions": []
+    },
+    "original_game_title": "Mario Kart: Super Circuit"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "carmageddon-2-carpocalypse-2",
+    "project_url": "https://github.com/Link4Electronics/Carpocalypse2",
+    "name": "Carmageddon 2 / Carpocalypse 2",
+    "summary": "Decompilation and native port of Carmageddon 2",
+    "issue_number": 5763,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "carmageddon-2",
+      "evidence_urls": ["https://github.com/Link4Electronics/Carpocalypse2"],
+      "source_editions": []
+    },
+    "original_game_title": "Carmageddon 2"
+  }
+}

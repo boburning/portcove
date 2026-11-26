@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "omegakatana92-dodonpachi-original-world-arcade-decomp",
+    "project_url": "https://github.com/omegakatana92/Dodonpachi-Recomp",
+    "name": "DoDonPachi (1997 World arcade) / omegakatana92 arcade-decomp recomp",
+    "summary": "Native recompilation of DoDonPachi for Windows, Linux, and Steam Deck using arcade-decomp. Features a retro frontend, keyboard and controller support, and AppImage packaging. Experimental build with ongoing audio and performance improvements. Requires your own legally obtained ROM; no game assets included.",
+    "issue_number": 4752,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dodonpachi",
+      "evidence_urls": ["https://github.com/omegakatana92/Dodonpachi-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "DoDonPachi"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bonllavier-corruption-3-pc-metroid-prime-3",
+    "project_url": "https://github.com/bonllavier/Corruption_3-PC",
+    "name": "Metroid Prime 3: Corruption / Corruption_3-PC (bonllavier)",
+    "summary": "Native Windows and Linux port of Metroid Prime 3: Corruption (Wii, USA) and Prime Trilogy built with static recompilation, no emulator. Play with keyboard and mouse or a gamepad, with PC visual upgrades and RetroAchievements (casual mode). Requires your own disc.",
+    "issue_number": 3849,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "metroid-prime-3-corruption",
+      "evidence_urls": ["https://github.com/bonllavier/Corruption_3-PC"],
+      "source_editions": [
+        {
+          "id": "metroid-prime-3-corruption-wii",
+          "title": "Metroid Prime 3: Corruption (Wii)",
+          "system": "wii",
+          "evidence_urls": ["https://github.com/bonllavier/Corruption_3-PC"]
+        }
+      ]
+    },
+    "original_game_title": "Metroid Prime 3: Corruption"
+  }
+}

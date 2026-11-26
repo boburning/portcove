@@ -53,6 +53,7 @@ mod game_file_root;
 mod game_recommendations;
 mod game_settings;
 mod ghostship_data_store;
+mod github_request_budget;
 mod gitlab;
 mod historical_artifacts;
 mod host_preferences;
@@ -125,7 +126,8 @@ mod mod_package;
 mod mod_provider;
 mod mod_source;
 pub use mod_source::{
-    ModCompanionLayout, ModPortalSite, ModSource, ModSourceAuthority, ModSourceKind,
+    ListingModPortal, ModCompanionLayout, ModPortalSite, ModSource, ModSourceAuthority,
+    ModSourceKind,
 };
 mod moddb_feed;
 mod native_mod_list;

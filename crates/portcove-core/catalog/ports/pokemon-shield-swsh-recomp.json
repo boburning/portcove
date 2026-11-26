@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-shield-swsh-recomp",
+    "project_url": "https://github.com/raulzrrs/swsh-recomp",
+    "name": "Pokémon Shield (swsh-recomp)",
+    "summary": "Native Windows port of Pokémon Sword / Shield (Switch, 1.3.2) by static recompilation, built on Let's Go Recomp and LAS Recomp. No game files included.",
+    "issue_number": 2955,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-shield",
+      "evidence_urls": ["https://github.com/raulzrrs/swsh-recomp"],
+      "source_editions": [
+        {
+          "id": "pokemon-shield-nintendo-switch",
+          "title": "Pokémon Shield (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/raulzrrs/swsh-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Pokémon Shield"
+  }
+}

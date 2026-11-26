@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "call-of-duty-3-project-1944",
+    "project_url": "https://github.com/zenit2893-cmyk/Call-of-Duty-3-PC-Editon",
+    "name": "Call of Duty 3 / Project 1944 (zenit2893-cmyk)",
+    "summary": "Unofficial native Windows PC port of Call of Duty 3 (Xbox 360) via static recompilation. Bring your own game. EN · RU · UK.",
+    "issue_number": 7157,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "call-of-duty-3",
+      "evidence_urls": ["https://github.com/zenit2893-cmyk/Call-of-Duty-3-PC-Editon"],
+      "source_editions": [
+        {
+          "id": "call-of-duty-3-xbox-360",
+          "title": "Call of Duty 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/zenit2893-cmyk/Call-of-Duty-3-PC-Editon"]
+        }
+      ]
+    },
+    "original_game_title": "Call of Duty 3"
+  }
+}

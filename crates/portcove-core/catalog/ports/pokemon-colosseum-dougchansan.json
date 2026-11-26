@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-colosseum-dougchansan",
+    "project_url": "https://github.com/dougchansan/pkmn-colosseum-recomp",
+    "name": "Pokémon Colosseum / dougchansan",
+    "summary": "Source-only Pokemon Colosseum static recompilation with optional ultrawide, HD text, minimap, and 60 FPS modes",
+    "issue_number": 5548,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-colosseum",
+      "evidence_urls": ["https://github.com/dougchansan/pkmn-colosseum-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Pokémon Colosseum"
+  }
+}

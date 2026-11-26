@@ -58,7 +58,15 @@ import {
   reusableProviderObservation,
   validateObservationContinuation,
   checksumSourcesFromProjections,
+  releaseListFact,
+  releaseListFacts,
+  releaseTextWindow,
+  catalogCheckpointBytes,
+  modeledCatalogSources,
+  releaseTextSourceBytes,
 } from "./upstream-observer.mts";
+import { listingReleaseLimit } from "./listing-upstream-observation.mts";
+import { catalogCheckpointByteLimit } from "./catalog-upstream-observer.mts";
 import {
   advanceObservation,
   withCheckpointLock,
@@ -777,7 +785,7 @@ void test("unrelated GitHub counters do not invalidate exact observed release fa
           requiredFixture(
             arrayFixture(replies.get(`${root}/releases?per_page=100&page=1`).body)[0],
           ),
-        ).body = "untrusted release prose changed";
+        ).mentions_count = 7;
         objectFixture(
           requiredFixture(
             arrayFixture(replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body)[0],
@@ -793,6 +801,73 @@ void test("unrelated GitHub counters do not invalidate exact observed release fa
   assert.equal(page.representation, "observer-facts-v1");
   assert.equal(page.sha256, observationHash(changing.replies.get(root).body));
   assert.equal(page.facts_sha256, observationHash(page.body));
+  // A release's own text within the kept window is a fact (the generated
+  // registration rule reads it): a changed body is a concurrent change.
+  const changedText = fixture({
+    intercept: (_url, _options, count, replies) => {
+      const row = objectFixture(
+        requiredFixture(arrayFixture(replies.get(`${root}/releases?per_page=100&page=1`).body)[0]),
+      );
+      if (count === 1) {
+        row.name = "v1.0.0";
+        row.body = "Bug fixes";
+      }
+      if (count === 4) row.body = "Beta 2: changed release text";
+    },
+  });
+  const listingWindow = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+    release_text: "listing-window",
+  });
+  const everyRelease = async (observation: ProviderObservation) =>
+    observation.facts.releases.map((release) => release.id);
+  await assert.rejects(
+    observeUpstream(listingWindow, { fetch: changedText.fetch, selectAssetReleases: everyRelease }),
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "concurrent-change",
+  );
+  // A configuration without the listing window keeps no text: a body change
+  // stays unrelated, so managed sources' facts are unchanged.
+  const quietText = fixture({
+    intercept: (_url, _options, count, replies) => {
+      if (count === 4)
+        objectFixture(
+          requiredFixture(
+            arrayFixture(replies.get(`${root}/releases?per_page=100&page=1`).body)[0],
+          ),
+        ).body = "Beta 2: changed release text";
+    },
+  });
+  assert.equal(
+    (await observeUpstream(config, { fetch: quietText.fetch })).observation.facts_sha256,
+    baseline.observation.facts_sha256,
+  );
+  // The listing window keeps the text in the observation's facts.
+  const titled = fixture({
+    intercept: (_url, _options, count, replies) => {
+      if (count === 1)
+        objectFixture(
+          requiredFixture(
+            arrayFixture(replies.get(`${root}/releases?per_page=100&page=1`).body)[0],
+          ),
+        ).name = "v1.0.0 Beta";
+    },
+  });
+  const kept = await observeUpstream(listingWindow, {
+    fetch: titled.fetch,
+    selectAssetReleases: everyRelease,
+  });
+  assert.deepEqual(kept.observation.facts.releases[0]!.text, {
+    title: "v1.0.0 Beta",
+    line: null,
+    line_complete: true,
+  });
+  assert.throws(
+    () => validateObserverConfig({ ...config, release_text: "listing-window" }),
+    /observer configuration|release text/u,
+  );
   const changedAsset = fixture({
     intercept: (_url, _options, count, replies) => {
       if (count === 4)
@@ -2196,6 +2271,7 @@ void test("pure observer hashes load in a clean dependency-free checkout without
     "github-operation.mts",
     "json-values.mts",
     "runtime-values.mts",
+    "release-text.mts",
   ])
     await copyFile(new URL(file, import.meta.url), path.join(root, file));
   const result = execFileSync(
@@ -3215,4 +3291,163 @@ void test("a rate-limited single-port observation states unavailable coverage wi
     fetch: fixture().fetch,
   });
   assert.equal(legacyRead.report.transition, "deferred");
+});
+
+void test("release lists keep each newest release's own text, bounded to what the release-text rule reads", () => {
+  // The text window is the listing observation window, and the per-source
+  // text budget is the checkpoint's headroom shared by its modeled sources.
+  assert.equal(releaseTextWindow, listingReleaseLimit);
+  assert.equal(catalogCheckpointBytes, catalogCheckpointByteLimit);
+  assert.equal(
+    releaseTextSourceBytes,
+    Math.floor(catalogCheckpointByteLimit / 2 / 2 / modeledCatalogSources),
+  );
+  // Capacity: every modeled source at its full budget, in both copies,
+  // stays inside the half of the checkpoint the model leaves as headroom.
+  // The measured listing population (#1422 review: about 565 bytes per
+  // repository on average, at most about 4.2 KB, ~1,146 repositories) fits
+  // each source's share with room to spare.
+  assert.ok(releaseTextSourceBytes * modeledCatalogSources * 2 <= catalogCheckpointByteLimit / 2);
+  assert.ok(4_200 < releaseTextSourceBytes);
+  assert.ok(565 * 1_146 * 2 < catalogCheckpointByteLimit / 16);
+  const row = (id: number, published: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    tag_name: `v${id}`,
+    draft: false,
+    prerelease: false,
+    created_at: published,
+    published_at: published,
+    name: `Release ${id}`,
+    body: `Notes ${id}\nMore notes`,
+    ...extra,
+  });
+  const long = "x".repeat(5000);
+  const raw = [
+    row(1, "2026-01-01T00:00:00Z"),
+    row(2, "2026-02-01T00:00:00Z", { body: `<p>${"<b>x</b>".repeat(800)} beta</p>` }),
+    row(3, "2026-03-01T00:00:00Z", { name: null, body: null }),
+    row(4, "2026-04-01T00:00:00Z", {
+      body: '![banner](b.png)\r\n<img src="a"\r\nalt=x>\r\n## Beta 2 is here\r\nDetails',
+    }),
+    row(5, "2026-05-01T00:00:00Z", { draft: true, published_at: null }),
+    row(6, "2026-06-01T00:00:00Z"),
+  ];
+  const facts = releaseListFacts(raw, true);
+  const text = (id: number) => facts.find((fact) => fact.id === id)!.text;
+  // The newest four published releases keep text; a draft and older ones do not.
+  assert.equal(text(1), undefined);
+  assert.equal(text(5), undefined);
+  // Of a body only its judged line is kept: tags (also across lines) and
+  // banners never become it, and a long HTML line is judged whole.
+  assert.deepEqual(text(6), { title: "Release 6", line: "Notes 6", line_complete: true });
+  assert.deepEqual(text(4), { title: "Release 4", line: "Beta 2 is here", line_complete: true });
+  assert.deepEqual(text(3), { title: null, line: null, line_complete: true });
+  assert.match(text(2)!.line!, / beta$/u);
+  // Projection is idempotent: projected rows project to themselves.
+  assert.deepEqual(releaseListFacts(facts, true), facts);
+  // Without the listing window, no text is kept at all.
+  assert.equal("text" in releaseListFact(row(6, "2026-06-01T00:00:00Z"), false), false);
+  // A row stating neither field has no text (UNKNOWN, never empty text).
+  const { name: _name, body: _body, ...bare } = row(7, "2026-07-01T00:00:00Z");
+  assert.equal("text" in releaseListFact(bare), false);
+  // A source over its budget keeps no text: every kept row reads as
+  // unobserved and states how much it had; the outcome is idempotent too.
+  const heavy = releaseListFacts(
+    [1, 2, 3, 4].map((id) => row(id, `2026-0${id}-01T00:00:00Z`, { body: long })),
+    true,
+  );
+  for (const fact of heavy) {
+    assert.equal(fact.text?.line_complete, false);
+    assert.equal(fact.text?.line, null);
+    assert.ok((fact.text?.overflow_bytes ?? 0) > releaseTextSourceBytes);
+  }
+  assert.deepEqual(releaseListFacts(heavy, true), heavy);
+  // An over-long title counts against the same budget.
+  const titled = releaseListFacts(
+    [row(1, "2026-01-01T00:00:00Z", { name: long.repeat(2), body: null })],
+    true,
+  );
+  assert.equal(titled[0]!.text?.title, null);
+  // A projected row whose text is not a judged line or a budget overflow is refused.
+  for (const text of [
+    { title: null, line: "two\nlines", line_complete: true },
+    { title: null, line: null, line_complete: false },
+    { title: 7, line: null, line_complete: true },
+    { title: null, line: null },
+    { title: null, line: null, line_complete: false, overflow_bytes: 10 },
+  ])
+    assert.throws(
+      () => releaseListFact({ ...row(8, "2026-08-01T00:00:00Z"), text }),
+      /bounded projection/u,
+    );
+});
+
+void test("only the first release page keeps text, so a source stores one window of it (#1422)", async () => {
+  const listingWindow = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+    release_text: "listing-window",
+  });
+  const server = fixture();
+  // Page 1 holds one published release behind 99 drafts; the three newest
+  // published releases of the window are on page 2.
+  server.replies.set(`${root}/releases?per_page=100&page=1`, {
+    body: [
+      release(1, { name: "v1 Beta", body: "Notes" }),
+      ...Array.from({ length: 99 }, (_, index) =>
+        release(index + 2, { draft: true, published_at: null }),
+      ),
+    ],
+    link: `<${root}/releases?per_page=100&page=2>; rel="next"`,
+  });
+  server.replies.set(`${root}/releases?per_page=100&page=2`, {
+    body: [101, 102, 103].map((id) => release(id, { name: `v${id} Beta`, body: "Beta notes" })),
+    link: "",
+  });
+  const result = await observeUpstream(listingWindow, {
+    fetch: server.fetch,
+    selectAssetReleases: async () => [],
+  });
+  const texts = new Map(
+    result.observation.facts.releases.map((fact) => [fact.id, fact.text ?? null]),
+  );
+  assert.deepEqual(texts.get(1), { title: "v1 Beta", line: "Notes", line_complete: true });
+  // Inside the window but on page 2: no text, read as unobserved.
+  for (const id of [101, 102, 103]) assert.equal(texts.get(id), null, `release ${id}`);
+  const stored = arrayFixture(
+    requiredFixture(result.cache.pages[`${root}/releases?per_page=100&page=2`]).body,
+  );
+  assert.ok(stored.every((row) => !Object.hasOwn(objectFixture(row), "text")));
+});
+
+void test("release text outside the window is never read", () => {
+  const at = (day: number) => `2026-01-${String(day).padStart(2, "0")}T00:00:00Z`;
+  const rows = Array.from({ length: 6 }, (_, index) => {
+    const row: Record<string, unknown> = {
+      id: index + 1,
+      tag_name: `v${index + 1}`,
+      draft: false,
+      prerelease: false,
+      created_at: at(index + 1),
+      published_at: at(index + 1),
+      name: `Release ${index + 1}`,
+    };
+    // The two oldest rows' bodies fail if anything reads them.
+    Object.defineProperty(row, "body", {
+      enumerable: true,
+      get: () => {
+        if (index < 2) throw new Error(`body ${index + 1} was read`);
+        return "Notes";
+      },
+    });
+    return row;
+  });
+  const facts = releaseListFacts(rows, true);
+  assert.deepEqual(
+    facts.map((fact) => fact.text?.title ?? null),
+    [null, null, "Release 3", "Release 4", "Release 5", "Release 6"],
+  );
+  assert.ok(releaseListFacts(rows, false).every((fact) => !("text" in fact)));
 });

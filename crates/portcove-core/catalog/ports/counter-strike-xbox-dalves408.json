@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "counter-strike-xbox-dalves408",
+    "project_url": "https://github.com/dalves408/CounterStrikeXB",
+    "name": "Counter-Strike (CounterStrikeXB) / CounterStrikeXB",
+    "summary": "Original Xbox Counter-Strike (2003), statically recompiled to native Windows x64: D3D11 up to 4K, hi-res texture pack, Xbox and PlayStation controllers, System Link (LAN, VPN, xemu), and Xbox Live through Insignia. Bring your own disc.",
+    "issue_number": 6662,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "counter-strike",
+      "evidence_urls": ["https://github.com/dalves408/CounterStrikeXB"],
+      "source_editions": [
+        {
+          "id": "counter-strike-xbox",
+          "title": "Counter-Strike (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/dalves408/CounterStrikeXB"]
+        }
+      ]
+    },
+    "original_game_title": "Counter-Strike"
+  }
+}

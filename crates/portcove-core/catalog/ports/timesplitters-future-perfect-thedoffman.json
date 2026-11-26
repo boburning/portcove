@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "timesplitters-future-perfect-thedoffman",
+    "project_url": "https://github.com/TheDoffman/timesplitters-future-perfect-pc",
+    "name": "TimeSplitters: Future Perfect (original Xbox US) / TheDoffman maintained distribution",
+    "summary": "Experimental TimeSplitters: Future Perfect PC integration: keyboard and mouse controls, source patches, and build instructions. Requires your own Xbox game dump.",
+    "issue_number": 4389,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "timesplitters-future-perfect",
+      "evidence_urls": ["https://github.com/TheDoffman/timesplitters-future-perfect-pc"],
+      "source_editions": [
+        {
+          "id": "timesplitters-future-perfect-xbox",
+          "title": "TimeSplitters: Future Perfect (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/TheDoffman/timesplitters-future-perfect-pc"]
+        }
+      ]
+    },
+    "original_game_title": "TimeSplitters: Future Perfect"
+  }
+}

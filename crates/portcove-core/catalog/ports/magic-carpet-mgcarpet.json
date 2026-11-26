@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "magic-carpet-mgcarpet",
+    "project_url": "https://github.com/raincz/mgcarpet",
+    "name": "Magic Carpet / mgcarpet",
+    "summary": "Magic Carpet 1/Hidden Worlds/2 from-scratch engine port",
+    "issue_number": 5574,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "magic-carpet",
+      "evidence_urls": ["https://github.com/raincz/mgcarpet"],
+      "source_editions": []
+    },
+    "original_game_title": "Magic Carpet"
+  }
+}

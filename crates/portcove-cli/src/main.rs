@@ -82,6 +82,10 @@ struct PortBatchOutcome<T: JsonSchema> {
     ok: bool,
     result: Option<T>,
     error: Option<ApiError>,
+    /// An update check a provider request limit stopped: not checked, update state
+    /// unknown; the next check starts with it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    deferred: Option<portcove_core::UpdateCheckDeferral>,
 }
 
 impl<T: JsonSchema> PortBatchOutcome<T> {
@@ -91,6 +95,7 @@ impl<T: JsonSchema> PortBatchOutcome<T> {
             ok: true,
             result: Some(result),
             error: None,
+            deferred: None,
         }
     }
 
@@ -100,6 +105,15 @@ impl<T: JsonSchema> PortBatchOutcome<T> {
             ok: false,
             result: None,
             error: Some(api_error(error)),
+            deferred: None,
+        }
+    }
+
+    /// An update check failure, recording a request-limit deferral when it is one.
+    fn check_failure(port_id: String, error: &PortcoveError) -> Self {
+        Self {
+            deferred: error.update_check_deferral(),
+            ..Self::failure(port_id, error)
         }
     }
 }
@@ -2388,7 +2402,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     .into_iter()
                     .map(|(port_id, result)| match result {
                         Ok(result) => PortBatchOutcome::success(port_id, result),
-                        Err(error) => PortBatchOutcome::failure(port_id, &error),
+                        Err(error) => PortBatchOutcome::check_failure(port_id, &error),
                     })
                     .collect::<Vec<_>>();
                 render_read_success(mode, "check", checked, |results| {
@@ -5697,7 +5711,7 @@ mod tests {
         assert_eq!(capabilities.port_capability_schema, Some(1));
         assert_eq!(
             capabilities.listing_formats,
-            [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+            [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
         );
         assert_eq!(
             capabilities.listing_delivery_carriers,

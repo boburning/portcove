@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bloodborne-bbport-ayozetr-linux",
+    "project_url": "https://github.com/ayozetr/bloodborne_linux",
+    "name": "Bloodborne / bbport Linux AppImage / ayozetr",
+    "summary": "Bloodborne running natively on Linux and the Steam Deck, built on bbport: online play and Seamless Co-op, unlocked FPS, ultrawide, FSR and DLSS, any controller, trophies, Add to Steam and a self-updating AppImage. Requires your own legally dumped copy of the game.",
+    "issue_number": 6694,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": ["https://github.com/ayozetr/bloodborne_linux"],
+      "source_editions": []
+    },
+    "original_game_title": "Bloodborne"
+  }
+}

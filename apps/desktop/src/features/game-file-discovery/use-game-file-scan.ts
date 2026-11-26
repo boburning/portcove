@@ -25,7 +25,7 @@ export const gameFileScanLimits = {
   max_hash_bytes: 16 * 1024 * 1024 * 1024,
   max_candidates: 64,
 };
-export function availableRootCount(roots: readonly GameFileRoot[]) {
+function availableRootCount(roots: readonly GameFileRoot[]) {
   return roots.filter((root) => root.availability === "available").length;
 }
 

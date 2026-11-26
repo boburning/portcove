@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sid-meier-s-civilization-reciv",
+    "project_url": "https://github.com/sjmelia/reciv",
+    "name": "Sid Meier's Civilization / reciv",
+    "summary": "Civilization 1, recompiled for modern machines",
+    "issue_number": 5785,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sid-meiers-civilization",
+      "evidence_urls": ["https://github.com/sjmelia/reciv"],
+      "source_editions": []
+    },
+    "original_game_title": "Sid Meier's Civilization"
+  }
+}

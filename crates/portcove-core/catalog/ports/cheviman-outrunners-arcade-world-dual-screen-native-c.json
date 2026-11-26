@@ -1,0 +1,19 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cheviman-outrunners-arcade-world-dual-screen-native-c",
+    "project_url": "https://github.com/cheviman/outrunners-port",
+    "name": "OutRunners Arcade (Sega System Multi 32 World) / cheviman arcade-faithful port",
+    "summary": "Play the arcade-faithful OutRunners with both cabinet screens side by side, using your own World arcade ROM set.",
+    "variant_label": "Arcade dual-screen edition",
+    "issue_number": 4683,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "outrunners",
+      "evidence_urls": ["https://github.com/cheviman/outrunners-port"],
+      "source_editions": []
+    },
+    "original_game_title": "OutRunners Arcade"
+  }
+}

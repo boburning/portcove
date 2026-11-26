@@ -101,11 +101,18 @@ GRANT SELECT, INSERT ON portcove_maintenance_meta.resource_admissions
 GRANT UPDATE (outcome, finished_at, estimate_bytes) ON portcove_maintenance_meta.resource_admissions
   TO portcove_maintenance_executor;
 
+GRANT EXECUTE ON FUNCTION portcove_maintenance.discovery_expanded_state(text, jsonb)
+  TO portcove_maintenance_collector, portcove_maintenance_report, portcove_maintenance_executor;
+
 -- Unattended discovery collection writes only through its fenced functions,
 -- which check the lease, activation generation and expected revision.
 GRANT EXECUTE ON FUNCTION
   portcove_maintenance.discovery_acquire(text, uuid, uuid, integer, text, text, text),
+  portcove_maintenance.discovery_acquire_seeded(text, uuid, uuid, integer, text, text, text),
+  portcove_maintenance.discovery_acquire_planned(text, uuid, uuid, integer, text, text, text, bigint, bigint, text, bigint),
+  portcove_maintenance.discovery_acquire_known(text, uuid, uuid, integer, text, text, text, bigint, bigint, text, uuid),
   portcove_maintenance.discovery_commit(text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb),
+  portcove_maintenance.discovery_commit_hint_delta(text, uuid, uuid, bigint, text, jsonb, integer, jsonb, jsonb, jsonb, jsonb, jsonb),
   portcove_maintenance.discovery_finish(text, uuid, uuid, text, jsonb)
   TO portcove_maintenance_collector;
 GRANT SELECT ON portcove_maintenance_meta.discovery_intake_activation

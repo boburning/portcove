@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkwing-duck-fabiotc-recomp",
+    "project_url": "https://github.com/fabiotc/darkwing-duck-recomp",
+    "name": "Darkwing Duck / fabiotc",
+    "summary": "Darkwing Duck Recompilation",
+    "issue_number": 5554,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "darkwing-duck",
+      "evidence_urls": ["https://github.com/fabiotc/darkwing-duck-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Darkwing Duck"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "heroes-lore-wind-of-soltia-dima353",
+    "project_url": "https://github.com/Dima353/heroes_lore_decomp",
+    "name": "Heroes Lore: Wind of Soltia / Dima353",
+    "summary": "A decompilation-based native port of the J2ME action RPG Heroes Lore: Wind of Soltia",
+    "issue_number": 5941,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "heroes-lore-wind-of-soltia",
+      "evidence_urls": ["https://github.com/Dima353/heroes_lore_decomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Heroes Lore: Wind of Soltia"
+  }
+}

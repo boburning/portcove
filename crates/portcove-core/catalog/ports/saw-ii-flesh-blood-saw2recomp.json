@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "saw-ii-flesh-blood-saw2recomp",
+    "project_url": "https://github.com/Matt-code-d/Saw2Recomp",
+    "name": "Saw II: Flesh & Blood / Saw2Recomp (Matt-code-d)",
+    "summary": "Unofficial native PC recompilation of Saw II: Flesh & Blood (Xbox 360) using ReXGlue — BYO ISO.",
+    "issue_number": 7187,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "saw-ii-flesh-and-blood",
+      "evidence_urls": ["https://github.com/Matt-code-d/Saw2Recomp"],
+      "source_editions": [
+        {
+          "id": "saw-ii-flesh-and-blood-xbox-360",
+          "title": "Saw II: Flesh & Blood (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/Matt-code-d/Saw2Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Saw II: Flesh & Blood"
+  }
+}

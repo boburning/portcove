@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "descent-3-official-source-release-project",
+    "project_url": "https://github.com/DescentDevelopers/Descent3",
+    "name": "Descent 3 / Official source release project",
+    "summary": "Descent 3 by Outrage Entertainment",
+    "issue_number": 5716,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "descent-3",
+      "evidence_urls": ["https://github.com/DescentDevelopers/Descent3"],
+      "source_editions": []
+    },
+    "original_game_title": "Descent 3"
+  }
+}

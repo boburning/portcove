@@ -26,6 +26,7 @@ import {
 } from "./catalog-generated-registration.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
+import type { ModPortalSite } from "../apps/desktop/src/transport-types.generated.d.ts";
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -98,6 +99,13 @@ export interface AuthoredListing extends NamedRecord {
   listed_at?: string;
   /** Reviewed upstream support pages. Descriptive only; requires listing format 10. */
   funding_urls?: string[];
+  mod_portals?: {
+    id: string;
+    site: ModPortalSite;
+    name: string;
+    url: string;
+    instructions: string;
+  }[];
   release_url?: string;
   setup_url?: string;
   manual_setup?: unknown;
@@ -110,6 +118,10 @@ export interface AuthoredPort extends Record<string, unknown> {
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
   igdb_regional_cover?: IgdbRegionalCover;
+  /** Keep this variant out of the exact same-edition shared cover policy. */
+  igdb_no_shared_cover?: true;
+  /** Suppress generated community browser links for this implementation. */
+  no_observed_mod_portals?: true;
   /** Ordered platforms with an independently reviewed flat, single-program archive. */
   reviewed_flat_package_layout_v1?: string[];
   /** Desktop review copy, outside signed and retained definition schemas. */
@@ -186,6 +198,7 @@ const listingFields = new Set([
   "issue_number",
   "listed_at",
   "funding_urls",
+  "mod_portals",
   "release_url",
   "setup_url",
 ]);
@@ -231,6 +244,58 @@ function publicUrl(value: unknown, field: string) {
   }
   if (url.protocol !== "https:" || url.username || url.password)
     throw new Error(`Listing ${field} requires a credential-free HTTPS URL.`);
+}
+
+export const observedModPortalPrefix = "obs-ts-";
+
+function checkListingModPortals(value: unknown) {
+  const hosts = new Map<string, string | null>([
+    ["community_site", null],
+    ["mod_db", "www.moddb.com"],
+    ["mod_io", "mod.io"],
+    ["nexus_mods", "www.nexusmods.com"],
+  ]);
+  const ids = new Set<string>();
+  if (!Array.isArray(value) || value.length === 0 || value.length > 8)
+    throw new Error("Listing mod_portals requires one to eight reviewed community links.");
+  for (const portal of value as unknown[]) {
+    if (
+      !isRecord(portal) ||
+      Object.keys(portal).length !== 5 ||
+      !boundedText(portal.id, 64) ||
+      !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(portal.id) ||
+      portal.id.startsWith(observedModPortalPrefix) ||
+      ids.has(portal.id) ||
+      typeof portal.site !== "string" ||
+      !hosts.has(portal.site) ||
+      !boundedText(portal.name, 80) ||
+      !boundedText(portal.instructions, 400) ||
+      /[<>]/u.test(portal.name + portal.instructions) ||
+      !boundedText(portal.url, 256)
+    )
+      throw new Error("Invalid listing mod portal declaration.");
+    publicUrl(portal.url, "mod_portals");
+    const url = new URL(portal.url);
+    const host = hosts.get(portal.site);
+    if (
+      url.href !== portal.url ||
+      url.port ||
+      url.search ||
+      url.hash ||
+      portal.url.includes("?") ||
+      portal.url.includes("#") ||
+      /[\\%]/u.test(portal.url) ||
+      !url.hostname.includes(".") ||
+      /(?:\.localhost|\.local|\.internal)$/u.test(url.hostname) ||
+      /^\d+(?:\.\d+){3}$/u.test(url.hostname) ||
+      !url.hostname
+        .split(".")
+        .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(label)) ||
+      (host && url.hostname !== host)
+    )
+      throw new Error("Invalid listing mod portal URL.");
+    ids.add(portal.id);
+  }
 }
 
 function checkPlayerCopy(id: string, field: string, text: unknown) {
@@ -611,6 +676,10 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     (!validArtworkCollection(listing.collection_covers) || listing.artwork != null)
   )
     throw new Error("Invalid authored cover collection.");
+  if (value.igdb_no_shared_cover !== undefined && value.igdb_no_shared_cover !== true)
+    throw new Error("An authored shared cover exclusion must be true.");
+  if (value.no_observed_mod_portals !== undefined && value.no_observed_mod_portals !== true)
+    throw new Error("An authored generated mod portal exclusion must be true.");
   const regional = value.igdb_regional_cover;
   if (regional !== undefined) {
     if (listing.collection_covers !== undefined)
@@ -732,6 +801,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     throw new Error("Listing issue_number must be a positive integer.");
   if (listing.listed_at !== undefined && !isCalendarDate(listing.listed_at))
     throw new Error("Listing listed_at must be a real calendar date written YYYY-MM-DD.");
+  if (listing.mod_portals !== undefined) checkListingModPortals(listing.mod_portals);
   if (listing.funding_urls !== undefined) {
     const urls: unknown = listing.funding_urls;
     // Core treats an empty list as absent; authored files omit the field instead.
@@ -1092,7 +1162,7 @@ export function assembleCatalogRecords(
   const hasVerifiedEditions = listings.some((listing) =>
     listing.original_game?.source_editions.some((edition) => edition.verified_sources?.length),
   );
-  const format_version = typedRestrictions
+  const precedingFormat = typedRestrictions
     ? 15
     : hasVerifiedEditions
       ? 14
@@ -1132,6 +1202,9 @@ export function assembleCatalogRecords(
                                 )
                               ? 2
                               : 1;
+  const format_version = listings.some((listing) => listing.mod_portals?.length)
+    ? 16
+    : precedingFormat;
   return {
     records,
     /** The checked authored records before generated registration routes were added. */

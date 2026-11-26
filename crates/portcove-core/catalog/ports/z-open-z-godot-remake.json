@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "z-open-z-godot-remake",
+    "project_url": "https://github.com/sha5b/Z-Steel-Soldiers",
+    "name": "Z / Open Z Godot remake",
+    "summary": "Faithful fan remake of Z (The Bitmap Brothers, 1996) in Godot 4",
+    "issue_number": 5865,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "z",
+      "evidence_urls": ["https://github.com/sha5b/Z-Steel-Soldiers"],
+      "source_editions": []
+    },
+    "original_game_title": "Z"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mario910-buzz-quiz-world-ps3recomp",
+    "project_url": "https://github.com/mario910/buzz-quizworld-recomp",
+    "name": "Buzz!: Quiz World / mario910 PS3Recomp",
+    "summary": "Recompilation project for Buzz Quiz World game",
+    "issue_number": 8341,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "buzz-quiz-world",
+      "evidence_urls": ["https://github.com/mario910/buzz-quizworld-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Buzz!: Quiz World"
+  }
+}

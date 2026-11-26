@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "titanic-adventure-out-of-time-opentitanic",
+    "project_url": "https://github.com/wastelandgunner/OpenTitanic",
+    "name": "Titanic: Adventure Out of Time / OpenTitanic",
+    "summary": "Clean-room reimplementation of the 1996 Titanic: Adventure Out of Time engine, written by an AI. Bring your own copy of the game.",
+    "issue_number": 5586,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "titanic-adventure-out-of-time",
+      "evidence_urls": ["https://github.com/wastelandgunner/OpenTitanic"],
+      "source_editions": []
+    },
+    "original_game_title": "Titanic: Adventure Out of Time"
+  }
+}

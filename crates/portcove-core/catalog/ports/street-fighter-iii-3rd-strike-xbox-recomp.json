@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "street-fighter-iii-3rd-strike-xbox-recomp",
+    "project_url": "https://github.com/Manya3084/SF33RDSXBRecompo",
+    "name": "Street Fighter III: 3rd Strike / Xbox recomp",
+    "summary": "x86-64 port of Street Fighter III: 3rd Strike from the original Xbox. SDL3, Vulkan, OpenGL, OpenAL.",
+    "issue_number": 5931,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "street-fighter-iii-3rd-strike",
+      "evidence_urls": ["https://github.com/Manya3084/SF33RDSXBRecompo"],
+      "source_editions": [
+        {
+          "id": "street-fighter-iii-3rd-strike-xbox",
+          "title": "Street Fighter III: 3rd Strike (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/Manya3084/SF33RDSXBRecompo"]
+        }
+      ]
+    },
+    "original_game_title": "Street Fighter III: 3rd Strike"
+  }
+}

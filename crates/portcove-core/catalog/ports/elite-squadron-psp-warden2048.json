@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "elite-squadron-psp-warden2048",
+    "project_url": "https://github.com/Warden2048/swes-recompiled",
+    "name": "Star Wars Battlefront Elite Squadron PSP / Warden2048",
+    "summary": "Recompilation project for Star Wars Battlefront Elite Squadron",
+    "issue_number": 5617,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-battlefront-elite-squadron-psp",
+      "evidence_urls": ["https://github.com/Warden2048/swes-recompiled"],
+      "source_editions": []
+    },
+    "original_game_title": "Star Wars Battlefront Elite Squadron PSP"
+  }
+}

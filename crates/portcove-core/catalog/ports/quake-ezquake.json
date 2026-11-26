@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-ezquake",
+    "project_url": "https://github.com/QW-Group/ezquake-source",
+    "name": "Quake / ezQuake",
+    "summary": "ezQuake, a QuakeWorld source port focused on competitive multiplayer. Requires your own Quake game data.",
+    "issue_number": 5675,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": ["https://github.com/QW-Group/ezquake-source"],
+      "source_editions": []
+    },
+    "original_game_title": "Quake"
+  }
+}

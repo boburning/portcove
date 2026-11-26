@@ -3534,6 +3534,22 @@ mod tests {
         let failure = crate::TemporaryFailure::of(&error).unwrap();
         assert_eq!(failure.cause, crate::TemporaryCause::InventoryIncomplete);
         assert_eq!(failure.stated_reset, Some(1_900_000_000));
+        // A rate limit cut the walk short, so it stays a rate limit on GitLab's
+        // allowance: a bulk check defers the remaining games rather than sending
+        // them, and the game itself is not checked rather than failed.
+        assert!(crate::failure::is_rate_limited(&error));
+        assert_eq!(
+            crate::failure::rate_limited_provider(&error),
+            Some(crate::ReleaseSource::Gitlab)
+        );
+        let deferral = error.update_check_deferral().unwrap();
+        assert_eq!(
+            (deferral.resets_at, deferral.reset_reported),
+            (Some(1_900_000_000), true)
+        );
+        let follower = crate::failure::deferred_after(&error).unwrap();
+        assert!(crate::failure::is_rate_limited(&follower));
+        assert_eq!(follower.update_check_deferral(), Some(deferral));
         let saved = provider
             .load_walk(&GitlabReleaseProvider::walk_key(
                 &project_url,

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "army-of-two-devils-cartel-aytp",
+    "project_url": "https://github.com/Aytp-lab/Ueberkill---Army-of-Two-The-Devil-s-Cartel-PC-Port",
+    "name": "Army of Two: The Devil's Cartel / Ueberkill---Army-of-Two-The-Devil-s-Cartel-PC-Port",
+    "summary": "Another Vibecoded PC Port of Army of Two: The Devil's Cartel, with some ideas that hopefully make the game a bit better as a solo player, giving you the option to play as Bravo and Customizing your Partner. Still not perfect, but I am trying. Demo and DLC Goodies are already included on the disk, no need for DLC files.",
+    "issue_number": 6671,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "army-of-two-the-devils-cartel",
+      "evidence_urls": [
+        "https://github.com/Aytp-lab/Ueberkill---Army-of-Two-The-Devil-s-Cartel-PC-Port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Army of Two: The Devil's Cartel"
+  }
+}

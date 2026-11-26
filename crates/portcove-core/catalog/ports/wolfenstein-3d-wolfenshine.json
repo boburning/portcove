@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wolfenstein-3d-wolfenshine",
+    "project_url": "https://github.com/deanthecoder/Wolfenshine",
+    "name": "Wolfenstein 3D / Wolfenshine",
+    "summary": "A modern C# reimplementation of Wolfenstein 3D.",
+    "issue_number": 5864,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "wolfenstein-3d",
+      "evidence_urls": ["https://github.com/deanthecoder/Wolfenshine"],
+      "source_editions": []
+    },
+    "original_game_title": "Wolfenstein 3D"
+  }
+}

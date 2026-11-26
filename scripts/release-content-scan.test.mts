@@ -1,15 +1,25 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { crc32 } from "node:zlib";
 import {
+  loadReleaseScanCheckpoint,
+  releaseScanProducerQuery,
+  releaseScanSuccessQuery,
+} from "./release-content-checkpoint.mts";
+import {
+  type ReleaseAsset,
   type Runner,
   type ScanDependencies,
+  type ScanTarget,
   type UpstreamRelease,
   RECORDED_FAILURES,
   ScanError,
+  assetKey,
   hostedDependencies,
   main,
   readCheckpoint,
@@ -29,6 +39,345 @@ import {
   scan,
   scanTargets,
 } from "./release-content-scan.mts";
+
+function checkpointZip(contents: unknown) {
+  const bytes = Buffer.from(JSON.stringify(contents));
+  const name = Buffer.from("checkpoint.json");
+  const local = Buffer.alloc(30 + name.length);
+  local.writeUInt32LE(0x04034b50, 0);
+  local.writeUInt32LE(crc32(bytes), 14);
+  local.writeUInt32LE(bytes.length, 18);
+  local.writeUInt32LE(bytes.length, 22);
+  local.writeUInt16LE(name.length, 26);
+  name.copy(local, 30);
+  const central = Buffer.alloc(46 + name.length);
+  central.writeUInt32LE(0x02014b50, 0);
+  central.writeUInt32LE(crc32(bytes), 16);
+  central.writeUInt32LE(bytes.length, 20);
+  central.writeUInt32LE(bytes.length, 24);
+  central.writeUInt16LE(name.length, 28);
+  name.copy(central, 46);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(1, 8);
+  end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(central.length, 12);
+  end.writeUInt32LE(local.length + bytes.length, 16);
+  return Buffer.concat([local, bytes, central, end]);
+}
+
+const checkpointProducer = {
+  id: 123,
+  run_attempt: 2,
+  run_number: 26,
+  workflow_id: 417668017,
+  head_repository: { id: 1354613114 },
+  head_branch: "main",
+  event: "schedule",
+  status: "completed",
+  conclusion: "success",
+  head_sha: "e".repeat(40),
+  updated_at: "2026-11-26T09:46:22Z",
+};
+const nextScan = Date.parse("2026-11-26T16:00:00Z");
+const retainedScanKey = (name: string) => `r2|github|up/example|v1|${name}|20`;
+const checkpointDocument = {
+  format_version: 1,
+  records: [
+    {
+      key: retainedScanKey("record"),
+      id: "example",
+      platform: "linux-x86_64",
+      repository: "up/example",
+      tag: "v1",
+      asset: "record",
+      sha256: "a".repeat(64),
+      entries: 1,
+      heads_unread: 0,
+      heads_truncated: false,
+      rules: 2,
+      signals: [],
+      signal_count: 0,
+    },
+  ],
+  failures: [{ key: retainedScanKey("failure"), code: "asset-too-large", max_asset_bytes: 20 }],
+  retries: [{ key: retainedScanKey("retry"), rules: 2, checked_at: 1 }],
+  deferred_attempts: [
+    { key: retainedScanKey("deferred"), rules: 2, checked_at: 2, capacity_required: 1234 },
+  ],
+};
+const checkpointArchive = checkpointZip(checkpointDocument);
+const checkpointArtifact = {
+  name: "release-content-checkpoint-123-2",
+  id: 12,
+  expired: false,
+  size_in_bytes: checkpointArchive.length,
+  digest: `sha256:${createHash("sha256").update(checkpointArchive).digest("hex")}`,
+  workflow_run: {
+    id: 123,
+    repository_id: 1354613114,
+    head_repository_id: 1354613114,
+    head_branch: "main",
+    head_sha: checkpointProducer.head_sha,
+  },
+};
+
+void test("scan restores only the digest-bound artifact for the exact scheduled attempt", async (t) => {
+  const priorAttempt = { ...checkpointArtifact, id: 11, name: "release-content-checkpoint-123-1" };
+  const result = await loadReleaseScanCheckpoint(
+    async (endpoint) => {
+      if (endpoint === releaseScanProducerQuery)
+        return { total_count: 1, workflow_runs: [checkpointProducer] };
+      assert.equal(endpoint, "actions/runs/123/artifacts?per_page=100&page=1");
+      return { total_count: 2, artifacts: [priorAttempt, checkpointArtifact] };
+    },
+    async (id, size) => {
+      assert.equal(id, 12);
+      assert.equal(size, checkpointArchive.length);
+      return checkpointArchive;
+    },
+    nextScan,
+  );
+  assert.equal(result.source, "artifact");
+  assert.deepEqual(JSON.parse(result.checkpoint), checkpointDocument);
+  const directory = await mkdtemp(path.join(os.tmpdir(), "retained-scan-checkpoint-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "checkpoint.json");
+  await writeFile(file, result.checkpoint);
+  const restored = await readCheckpoint(file);
+  assert.equal(restored.records.get(retainedScanKey("record"))?.id, "example");
+  assert.equal(restored.failures.get(retainedScanKey("failure"))?.max_asset_bytes, 20);
+  assert.equal(restored.retries.get(retainedScanKey("retry")), 1);
+  assert.equal(restored.deferredAttempts.get(retainedScanKey("deferred")), 2);
+  assert.equal(restored.retentionRequired.get(retainedScanKey("deferred")), 1234);
+});
+
+void test("a first scheduled attempt starts empty only after a complete run lookup", async () => {
+  const running = {
+    ...checkpointProducer,
+    run_attempt: 1,
+    status: "in_progress",
+    conclusion: null,
+  };
+  const result = await loadReleaseScanCheckpoint(
+    async (endpoint) => {
+      assert.equal(endpoint, releaseScanProducerQuery);
+      return { total_count: 1, workflow_runs: [running] };
+    },
+    async () => assert.fail("a first schedule has no artifact to restore"),
+    nextScan,
+    { id: 123, number: 26, attempt: 1 },
+  );
+  assert.deepEqual(result, { source: "empty" });
+});
+
+void test("scan accepts the cache only for a verified legacy attempt", async () => {
+  const lookup = (stepName: string) =>
+    loadReleaseScanCheckpoint(
+      async (endpoint) => {
+        if (endpoint === releaseScanProducerQuery)
+          return { total_count: 1, workflow_runs: [checkpointProducer] };
+        if (endpoint === "actions/runs/123/artifacts?per_page=100&page=1")
+          return { total_count: 0, artifacts: [] };
+        assert.equal(endpoint, "actions/runs/123/attempts/2/jobs?per_page=100");
+        return {
+          total_count: 1,
+          jobs: [{ name: "scan", steps: [{ name: stepName, conclusion: "success" }] }],
+        };
+      },
+      async () => assert.fail("no artifact should be downloaded"),
+      nextScan,
+    );
+  assert.deepEqual(await lookup("Preserve scanned-asset checkpoint"), {
+    source: "legacy",
+    cache: "release-content-scan-v1-main-123-2",
+  });
+  await assert.rejects(lookup("Retain scheduled scan checkpoint"), /checkpoint absent/u);
+});
+
+void test("scan refuses unbound, ambiguous or corrupt checkpoint artifacts before reuse", async () => {
+  const lookup = (artifacts: unknown[], archive = checkpointArchive) =>
+    loadReleaseScanCheckpoint(
+      async (endpoint) =>
+        endpoint === releaseScanProducerQuery
+          ? { total_count: 1, workflow_runs: [checkpointProducer] }
+          : { total_count: artifacts.length, artifacts },
+      async () => archive,
+      nextScan,
+    );
+  await assert.rejects(
+    lookup([
+      { ...checkpointArtifact, workflow_run: { ...checkpointArtifact.workflow_run, id: 8 } },
+    ]),
+    /metadata is unbound/u,
+  );
+  await assert.rejects(
+    lookup([checkpointArtifact, { ...checkpointArtifact, id: 99 }]),
+    /duplicate checkpoint artifacts/u,
+  );
+  await assert.rejects(
+    lookup([checkpointArtifact], Buffer.alloc(checkpointArchive.length)),
+    /digest differs/u,
+  );
+  assert.deepEqual(await lookup([{ ...checkpointArtifact, expired: true }]), { source: "expired" });
+});
+
+void test("a failed intervening attempt does not hide the same run's last successful continuation", async () => {
+  const failed = { ...checkpointProducer, run_attempt: 3, conclusion: "failure" };
+  const running = {
+    ...checkpointProducer,
+    run_attempt: 4,
+    status: "in_progress",
+    conclusion: null,
+  };
+  const endpoints: string[] = [];
+  const result = await loadReleaseScanCheckpoint(
+    async (endpoint) => {
+      endpoints.push(endpoint);
+      if (endpoint === releaseScanProducerQuery)
+        return { total_count: 1, workflow_runs: [running] };
+      if (endpoint === "actions/runs/123/attempts/3") return failed;
+      if (endpoint === "actions/runs/123/attempts/2") return checkpointProducer;
+      assert.equal(endpoint, "actions/runs/123/artifacts?per_page=100&page=1");
+      return { total_count: 1, artifacts: [checkpointArtifact] };
+    },
+    async () => checkpointArchive,
+    nextScan,
+    { id: 123, number: 26, attempt: 4 },
+  );
+  assert.equal(result.source, "artifact");
+  assert.deepEqual(endpoints.slice(1, 3), [
+    "actions/runs/123/attempts/3",
+    "actions/runs/123/attempts/2",
+  ]);
+});
+
+void test("a historical schedule cannot publish a continuation over a newer producer", async () => {
+  await assert.rejects(
+    loadReleaseScanCheckpoint(
+      async (endpoint) => {
+        assert.equal(endpoint, releaseScanProducerQuery);
+        return { total_count: 1, workflow_runs: [checkpointProducer] };
+      },
+      async () => assert.fail("historical rerun should stop before download"),
+      nextScan,
+      { id: 102, number: 25, attempt: 2 },
+    ),
+    /newer schedule already advanced/u,
+  );
+});
+
+void test("a streak of failed schedules can still select a retained or expired successful producer", async () => {
+  const unsuccessful = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      ...checkpointProducer,
+      id: 124 + count - index,
+      run_number: 27 + count - index,
+      run_attempt: 1,
+      conclusion: "failure",
+    }));
+  for (const expired of [false, true]) {
+    const failed = unsuccessful(expired ? 160 : 21);
+    const oldRun = expired
+      ? { ...checkpointProducer, updated_at: "2026-10-01T00:00:00Z" }
+      : checkpointProducer;
+    const runs = [...failed, oldRun];
+    const result = await loadReleaseScanCheckpoint(
+      async (endpoint) => {
+        if (endpoint === releaseScanSuccessQuery) {
+          assert.equal(expired, true);
+          return { total_count: 1, workflow_runs: [oldRun] };
+        }
+        if (endpoint.startsWith(releaseScanProducerQuery)) {
+          const page = Number(
+            new URL(`https://example.invalid/${endpoint}`).searchParams.get("page") ?? 1,
+          );
+          return {
+            total_count: runs.length,
+            workflow_runs: runs.slice((page - 1) * 20, page * 20),
+          };
+        }
+        assert.equal(endpoint, "actions/runs/123/artifacts?per_page=100&page=1");
+        return expired
+          ? { total_count: 0, artifacts: [] }
+          : { total_count: 1, artifacts: [checkpointArtifact] };
+      },
+      async () => {
+        assert.equal(expired, false);
+        return checkpointArchive;
+      },
+      nextScan,
+    );
+    assert.equal(result.source, expired ? "expired" : "artifact");
+  }
+});
+
+void test("uncapped legacy signals survive migration into a verified checkpoint", async (t) => {
+  const [record] = checkpointDocument.records;
+  assert.ok(record);
+  const { signal_count: _count, ...legacy } = record;
+  const signals = Array.from({ length: SIGNAL_CAP + 2 }, (_, index) => ({
+    kind: "rom-or-disc-image",
+    path: `game-${index}.z64`,
+    reason: "Nintendo 64 ROM image",
+  }));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "legacy-scan-checkpoint-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "checkpoint.json");
+  await writeFile(
+    file,
+    JSON.stringify({ ...checkpointDocument, records: [{ ...legacy, signals }] }),
+  );
+  const imported = await readCheckpoint(file);
+  const normalized = imported.records.get(record.key);
+  assert.equal(normalized?.signal_count, signals.length);
+  assert.equal(normalized.signals.length, SIGNAL_CAP);
+  const archive = checkpointZip({ ...checkpointDocument, records: [...imported.records.values()] });
+  const retained = await loadReleaseScanCheckpoint(
+    async (endpoint) =>
+      endpoint === releaseScanProducerQuery
+        ? { total_count: 1, workflow_runs: [checkpointProducer] }
+        : {
+            total_count: 1,
+            artifacts: [
+              {
+                ...checkpointArtifact,
+                size_in_bytes: archive.length,
+                digest: `sha256:${createHash("sha256").update(archive).digest("hex")}`,
+              },
+            ],
+          },
+    async () => archive,
+    nextScan,
+  );
+  assert.equal(retained.source, "artifact");
+  await writeFile(file, retained.checkpoint);
+  assert.deepEqual((await readCheckpoint(file)).records.get(record.key), normalized);
+});
+
+void test("an artifact with a valid archive digest and malformed retained data is refused", async () => {
+  const archive = checkpointZip({ ...checkpointDocument, records: [{ key: "invalid" }] });
+  await assert.rejects(
+    loadReleaseScanCheckpoint(
+      async (endpoint) =>
+        endpoint === releaseScanProducerQuery
+          ? { total_count: 1, workflow_runs: [checkpointProducer] }
+          : {
+              total_count: 1,
+              artifacts: [
+                {
+                  ...checkpointArtifact,
+                  size_in_bytes: archive.length,
+                  digest: `sha256:${createHash("sha256").update(archive).digest("hex")}`,
+                },
+              ],
+            },
+      async () => archive,
+      nextScan,
+    ),
+    /invalid checkpoint document/u,
+  );
+});
 
 const listings = {
   listings: [
@@ -107,6 +456,55 @@ void test("channel and hint selection skip drafts, prereleases, symbols and ambi
 
 const header = Buffer.alloc(352);
 Buffer.from("24ffae51699aa2213d84820a84e409ad", "hex").copy(header, 0xc0);
+
+void test("a measured checkpoint capacity deferral prevents repeat downloads and preserves other progress", async () => {
+  const [large, small] = scanTargets(listings);
+  assert.ok(large && small);
+  const calls: string[] = [];
+  const deps = {
+    ...fakes(calls),
+    async list(_file: string, name: string) {
+      return name === "Code-1-windows-x64.zip"
+        ? [{ path: `${"long/".repeat(300)}game.z64`, size: 10 }]
+        : [];
+    },
+  };
+  const [initialRelease] = await deps.releases(large, Infinity);
+  const initialAsset = initialRelease?.assets[0];
+  assert.ok(initialRelease && initialAsset);
+  const largeKey = assetKey(large, initialRelease.tag, initialAsset);
+  const sibling = { ...large, id: "other-listing-for-same-asset" };
+  const first = await scan([large, sibling, small], new Map(), deps, { maxCheckpointBytes: 900 });
+  assert.deepEqual(
+    first.report.scanned.map(({ id }) => id),
+    [large.id, small.id],
+  );
+  assert.equal(first.checkpoint.size, 1);
+  assert.deepEqual(
+    first.report.findings.map(({ id }) => id),
+    [large.id, sibling.id],
+  );
+  assert.ok((first.retentionRequired.get(largeKey) ?? 0) > 900);
+  assert.equal(first.checkpoint.has(largeKey), false);
+  const second = await scan([large, small], first.checkpoint, deps, {
+    deferredAttempts: first.deferredAttempts,
+    retentionRequired: first.retentionRequired,
+    maxCheckpointBytes: 900,
+  });
+  assert.equal(second.report.reused, 1);
+  assert.equal(second.report.unscanned[0]?.code, "asset-budget");
+  assert.match(second.report.unscanned[0]?.reason ?? "", /retain the package scan checkpoint/u);
+  assert.deepEqual(second.checkpoint, first.checkpoint);
+  assert.equal(calls.filter((call) => call.startsWith("download")).length, 2);
+  const resumed = await scan([large, small], second.checkpoint, deps, {
+    deferredAttempts: second.deferredAttempts,
+    retentionRequired: second.retentionRequired,
+    maxCheckpointBytes: 3000,
+  });
+  assert.equal(resumed.checkpoint.has(largeKey), true);
+  assert.equal(resumed.retentionRequired.size, 0);
+  assert.equal(calls.filter((call) => call.startsWith("download")).length, 3);
+});
 
 function fakes(calls: string[]): ScanDependencies {
   const releases: Record<string, UpstreamRelease[]> = {
@@ -203,6 +601,372 @@ void test("a scan flags copied headers, records coverage and reuses its checkpoi
     ["header"],
   );
   assert.ok(!again.some((call) => call.startsWith("download")));
+});
+
+void test("transient failures rotate behind fresh assets and shared attempts stay unique", async (context) => {
+  const targets = scanTargets(listings);
+  const calls: string[] = [];
+  const original = fakes(calls);
+  const failing: ScanDependencies = {
+    ...original,
+    async download(asset, file, maximum, deadline) {
+      if (asset.name === "Code-1-windows-x64.zip") {
+        calls.push("transient failure");
+        throw new Error("temporary transfer interruption");
+      }
+      await original.download(asset, file, maximum, deadline);
+    },
+  };
+  const duplicate = { ...targets[0]!, id: "same-asset" };
+  const first = await scan([targets[0]!, duplicate, targets[1]!], new Map(), failing, {
+    maxAssets: 1,
+  });
+  assert.equal(first.report.scanned.length, 0);
+  assert.equal(first.deferredAttempts.size, 1);
+  assert.equal(calls.filter((call) => call === "transient failure").length, 1);
+  assert.equal(first.report.unscanned.filter(({ code }) => code === "scan-failed").length, 2);
+  const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-fair-"));
+  context.after(() => rm(dir, { recursive: true, force: true }));
+  const file = path.join(dir, "checkpoint.json");
+  const { RULES_VERSION } = await import("./release-content-signals.mts");
+  await writeFile(
+    file,
+    JSON.stringify({
+      format_version: 1,
+      deferred_attempts: [...first.deferredAttempts].map(([key, checked_at]) => ({
+        key,
+        checked_at,
+        rules: RULES_VERSION,
+      })),
+    }),
+  );
+  const retained = await readCheckpoint(file);
+  assert.deepEqual(retained.deferredAttempts, first.deferredAttempts);
+  const second = await scan(targets, first.checkpoint, failing, {
+    maxAssets: 1,
+    deferredAttempts: retained.deferredAttempts,
+  });
+  assert.deepEqual(
+    second.report.scanned.map(({ id }) => id),
+    ["header"],
+  );
+  assert.equal(calls.filter((call) => call === "transient failure").length, 1);
+  const third = await scan(targets, second.checkpoint, original, {
+    maxAssets: 1,
+    deferredAttempts: second.deferredAttempts,
+  });
+  assert.deepEqual(
+    third.report.scanned.map(({ id }) => id),
+    ["code-only"],
+  );
+  assert.equal(third.deferredAttempts.size, 0);
+});
+
+void test("a size-bound failure becomes an ordinary rotating attempt when its allowance grows", async () => {
+  const targets = scanTargets(listings);
+  const calls: string[] = [];
+  const original = fakes(calls);
+  const tooLarge: ScanDependencies = {
+    ...original,
+    async download() {
+      throw new ScanError("asset-too-large", "package exceeded the old allowance");
+    },
+  };
+  const first = await scan([targets[0]!], new Map(), tooLarge, {
+    maxAssetBytes: 10,
+  });
+  assert.equal(first.failures.size, 1);
+  const failing: ScanDependencies = {
+    ...original,
+    async download() {
+      throw new Error("temporary transfer interruption");
+    },
+  };
+  const second = await scan(targets, first.checkpoint, failing, {
+    maxAssets: 1,
+    maxAssetBytes: 100,
+    failures: first.failures,
+  });
+  assert.equal(second.failures.size, 0);
+  assert.equal(second.deferredAttempts.size, 1);
+  assert.equal(second.report.unscanned[0]?.code, "scan-failed");
+  const third = await scan(targets, second.checkpoint, original, {
+    maxAssets: 1,
+    maxAssetBytes: 100,
+    failures: second.failures,
+    deferredAttempts: second.deferredAttempts,
+  });
+  assert.deepEqual(
+    third.report.scanned.map(({ id }) => id),
+    ["header"],
+  );
+});
+
+void test("only the complete target inventory retires obsolete deferred attempts", async () => {
+  const [target, other] = scanTargets(listings);
+  assert.ok(target && other);
+  const deps = fakes([]);
+  const [release] = await deps.releases(target, Infinity);
+  assert.ok(release?.assets[0]);
+  const asset = release.assets[0];
+  const obsolete = assetKey(target, "old-tag", asset);
+  const current = assetKey(target, release.tag, asset);
+  const retiredRepository = assetKey({ ...target, repository: "up/held" }, "v1", asset);
+  const otherPlatform = { ...target, id: "another-port", platform: other.platform };
+  const deferredAttempts = new Map([
+    [obsolete, 1],
+    [current, 2],
+    [retiredRepository, 3],
+  ]);
+  const historical = await scan([{ ...target, repository: "up/held" }], new Map(), {
+    ...deps,
+    async releases() {
+      return [release];
+    },
+  });
+  const failures = new Map([
+    [
+      retiredRepository,
+      {
+        key: retiredRepository,
+        code: "asset-too-large" as const,
+        max_asset_bytes: 10,
+      },
+    ],
+  ]);
+  const retries = new Map([[retiredRepository, 4]]);
+
+  const scoped = await scan([target], new Map(), deps, { deferredAttempts, maxAssets: 0 });
+  assert.deepEqual(scoped.deferredAttempts, deferredAttempts);
+  const complete = await scan([target, otherPlatform], historical.checkpoint, deps, {
+    completeTargets: true,
+    deferredAttempts,
+    failures,
+    retries,
+    maxAssets: 0,
+  });
+  assert.deepEqual(complete.deferredAttempts, new Map([[current, 2]]));
+  assert.equal(complete.report.unscanned.length, 2);
+  assert.equal(deferredAttempts.size, 3);
+  assert.equal(historical.checkpoint.size, 1);
+  assert.deepEqual(complete.checkpoint, historical.checkpoint);
+  assert.deepEqual(complete.failures, failures);
+  assert.deepEqual(complete.retries, retries);
+});
+
+void test("unresolved sibling targets and missing identity metadata preserve deferred attempts", async () => {
+  const [target] = scanTargets(listings);
+  assert.ok(target);
+  const deps = fakes([]);
+  const [release] = await deps.releases(target, Infinity);
+  assert.ok(release?.assets[0]);
+  const asset = release.assets[0];
+  const oldDigest = `sha256:${"a".repeat(64)}`;
+  const digestKey = assetKey(target, release.tag, { ...asset, digest: oldDigest });
+  const sizeKey = assetKey(target, release.tag, asset);
+  const obsolete = assetKey(target, "old-tag", asset);
+  const deferredAttempts = new Map([
+    [obsolete, 1],
+    [digestKey, 2],
+    [sizeKey, 3],
+  ]);
+  const options = { completeTargets: true, deferredAttempts, maxAssets: 0 };
+  const unresolved = { ...target, id: "other-package", hints: ["unknown-asset"] };
+
+  const ambiguous = await scan([target, unresolved], new Map(), deps, options);
+  assert.deepEqual(ambiguous.deferredAttempts, deferredAttempts);
+  assert.equal(
+    ambiguous.report.unscanned.find(({ id }) => id === unresolved.id)?.code,
+    "no-single-asset",
+  );
+  const failed = await scan(
+    [target],
+    new Map(),
+    {
+      ...deps,
+      async releases() {
+        throw new ScanError("release-unavailable", "missing repository");
+      },
+    },
+    options,
+  );
+  assert.deepEqual(failed.deferredAttempts, deferredAttempts);
+  let now = 0;
+  const late = await scan(
+    [target],
+    new Map(),
+    {
+      ...deps,
+      async releases() {
+        now = 1;
+        return [release];
+      },
+    },
+    { ...options, deadline: 1, clock: () => now },
+  );
+  assert.deepEqual(late.deferredAttempts, deferredAttempts);
+  const withoutDigest = await scan([target], new Map(), deps, options);
+  assert.deepEqual(
+    withoutDigest.deferredAttempts,
+    new Map([
+      [digestKey, 2],
+      [sizeKey, 3],
+    ]),
+  );
+  const differentDigest = await scan(
+    [target],
+    new Map(),
+    {
+      ...deps,
+      async releases() {
+        return [{ ...release, assets: [{ ...asset, digest: `sha256:${"b".repeat(64)}` }] }];
+      },
+    },
+    options,
+  );
+  assert.deepEqual(differentDigest.deferredAttempts, new Map([[sizeKey, 3]]));
+});
+
+void test("hosted retirement needs a complete release page and asset list", async (context) => {
+  const [github, , gitlab] = scanTargets(listings);
+  assert.ok(github && gitlab);
+  const githubAsset = {
+    name: "Code-2-windows-x64.zip",
+    browser_download_url: "https://example.invalid/code",
+    state: "uploaded",
+  };
+  const githubRelease = { tag_name: "v2", draft: false, prerelease: false, assets: [githubAsset] };
+  const gitlabLink = { name: "Project-v2-Windows.zip", url: "https://example.invalid/project" };
+  const gitlabRelease = { tag_name: "v2", assets: { count: 1, sources: [], links: [gitlabLink] } };
+  let body: unknown;
+  let init: ResponseInit | undefined;
+  context.mock.method(globalThis, "fetch", async () => Response.json(body, init));
+
+  for (const [target, payload, response, preserve] of [
+    [github, [githubRelease], {}, false],
+    [
+      github,
+      [githubRelease],
+      { headers: { link: '<https://api.github.com/page/2>; rel="next"' } },
+      true,
+    ],
+    [github, [githubRelease], { status: 206 }, true],
+    [github, [{ ...githubRelease, draft: undefined }], {}, true],
+    [github, [{ ...githubRelease, assets: [githubAsset, { name: null }] }], {}, true],
+    [github, [{ ...githubRelease, assets: [{ ...githubAsset, state: "starter" }] }], {}, true],
+    [github, [githubRelease, githubRelease], {}, true],
+    [gitlab, [gitlabRelease], {}, false],
+    [gitlab, [gitlabRelease], { headers: { "x-next-page": "2" } }, true],
+    [gitlab, [{ ...gitlabRelease, assets: { ...gitlabRelease.assets, count: 2 } }], {}, true],
+  ] as const) {
+    body = payload;
+    init = response;
+    const key = assetKey(target, "v1", { name: "old.zip", url: "", size: null, digest: null });
+    const result = await scan([target], new Map(), hostedDependencies(), {
+      completeTargets: true,
+      deferredAttempts: new Map([[key, 7]]),
+      maxAssets: 0,
+    });
+    assert.equal(
+      result.deferredAttempts.get(key),
+      preserve ? 7 : undefined,
+      JSON.stringify({ payload, response }),
+    );
+  }
+});
+
+void test("unknown package metadata keeps ordinary retry age while proven replacements are fresh", async () => {
+  const [target, other] = scanTargets(listings);
+  assert.ok(target && other);
+  const deps = fakes([]);
+  const [release] = await deps.releases(target, Infinity);
+  const [otherRelease] = await deps.releases(other, Infinity);
+  assert.ok(release?.assets[0] && otherRelease?.assets[0]);
+  const sizeOnly = release.assets[0];
+  const digestAsset = { ...sizeOnly, digest: `sha256:${"a".repeat(64)}` };
+  const changedDigest = { ...digestAsset, digest: `sha256:${"b".repeat(64)}` };
+  const unknown = { ...sizeOnly, size: null };
+  const otherAsset = otherRelease.assets[0];
+  const competitor = assetKey(other, otherRelease.tag, otherAsset);
+
+  const cases: [ReleaseAsset, [ReleaseAsset, number][], ScanTarget][] = [
+    [sizeOnly, [[digestAsset, 7]], other],
+    [digestAsset, [[sizeOnly, 7]], other],
+    [digestAsset, [[unknown, 7]], other],
+    [
+      digestAsset,
+      [
+        [sizeOnly, 2],
+        [unknown, 7],
+      ],
+      other,
+    ],
+    [
+      digestAsset,
+      [
+        [sizeOnly, 7],
+        [digestAsset, 2],
+      ],
+      other,
+    ],
+    [digestAsset, [[changedDigest, 7]], target],
+    [{ ...digestAsset, size: 20 }, [[sizeOnly, 7]], target],
+    [sizeOnly, [[{ ...digestAsset, name: "another.zip" }, 7]], target],
+  ];
+  for (const [current, previous, first] of cases) {
+    const attempted: string[] = [];
+    const deferredAttempts = new Map<string, number>([[competitor, 3]]);
+    for (const [asset, age] of previous)
+      deferredAttempts.set(assetKey(target, release.tag, asset), age);
+    const result = await scan(
+      [target, other],
+      new Map(),
+      {
+        ...deps,
+        async releases(source, deadline) {
+          return source === target
+            ? [{ ...release, assets: [current] }]
+            : deps.releases(source, deadline);
+        },
+        async download(asset) {
+          attempted.push(asset.name);
+          throw new Error("temporary transfer interruption");
+        },
+      },
+      { maxAssets: 1, deferredAttempts },
+    );
+    assert.deepEqual(attempted, [first === target ? current.name : otherAsset.name]);
+    const checked: string = first === target ? assetKey(target, release.tag, current) : competitor;
+    const currentRun = Math.max(...deferredAttempts.values()) + 1;
+    assert.deepEqual(result.deferredAttempts, new Map(deferredAttempts).set(checked, currentRun));
+  }
+});
+
+void test("compatible retry ages do not broaden reuse beyond the exact asset key", async () => {
+  const [target] = scanTargets(listings);
+  assert.ok(target);
+  const deps = fakes([]);
+  const [release] = await deps.releases(target, Infinity);
+  assert.ok(release?.assets[0]);
+  const before = await scan([target], new Map(), deps);
+  const previousKey = assetKey(target, release.tag, release.assets[0]);
+  const withoutSize = { ...release.assets[0], size: null };
+  const currentKey = assetKey(target, release.tag, withoutSize);
+  const result = await scan(
+    [target],
+    before.checkpoint,
+    {
+      ...deps,
+      async releases() {
+        return [{ ...release, assets: [withoutSize] }];
+      },
+    },
+    { deferredAttempts: new Map([[previousKey, 7]]) },
+  );
+  assert.equal(result.report.reused, 0);
+  assert.equal(result.report.scanned[0]?.key, currentKey);
+  assert.deepEqual([...result.checkpoint.keys()], [previousKey, currentKey]);
+  assert.deepEqual(result.deferredAttempts, new Map([[previousKey, 7]]));
 });
 
 void test("budgets leave assets for a later run without guessing their contents", async () => {

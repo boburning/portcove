@@ -36,6 +36,10 @@ export function ModRecipeControl({
   const [allowCode, setAllowCode] = useState(false);
   const [name, setName] = useState("");
   const [pending, setPending] = useState<RecipeAction>();
+  const [pausePending, setPausePending] = useState(false);
+  const pauseAfterStep = useRef(false);
+  const pauseTrigger = useRef<HTMLButtonElement>(null);
+  const returnToRecipe = useRef(false);
   const [notice, setNotice] = useState<string>();
   const [failure, setFailure] = useState<string>();
   const nameId = useId();
@@ -74,6 +78,12 @@ export function ModRecipeControl({
     if (document.activeElement === document.body) openButton.current?.focus();
   }, [plan, locked]);
 
+  useEffect(() => {
+    if (pending || !returnToRecipe.current) return;
+    returnToRecipe.current = false;
+    if (document.activeElement === document.body) reviewHeading.current?.focus();
+  }, [pending]);
+
   function actionState(action: RecipeAction) {
     const active = pending === action;
     return { disabled: locked, focusableWhenDisabled: active, "aria-busy": active };
@@ -91,6 +101,9 @@ export function ModRecipeControl({
       }
     } finally {
       if (active.current) {
+        if (kind === "provider:all" && document.activeElement === pauseTrigger.current) {
+          returnToRecipe.current = true;
+        }
         setPending(undefined);
         onBusyChange(false);
       }
@@ -116,6 +129,7 @@ export function ModRecipeControl({
     focusOpenOnClose.current = reviewSection.current?.contains(document.activeElement) ?? false;
     showReview();
     setAllowCode(false);
+    setNotice(undefined);
   };
 
   const inspectRecipe = () =>
@@ -158,6 +172,8 @@ export function ModRecipeControl({
     void run("provider:all", async () => {
       setFailure(undefined);
       setAllowCode(false);
+      setPausePending(false);
+      pauseAfterStep.current = false;
       const total = plan.provider_checks?.length ?? 0;
       let current = review;
       let done = 0;
@@ -183,6 +199,10 @@ export function ModRecipeControl({
           return;
         }
         if (step.acquired.length === 0 || !current.plan.provider_checks?.length) return;
+        if (pauseAfterStep.current) {
+          setNotice(t("mods.recipe.checksPaused", { done, total }));
+          return;
+        }
       }
     });
   };
@@ -340,6 +360,21 @@ export function ModRecipeControl({
               onClick={(event) => checkAllProviders(event.currentTarget)}
             >
               {t("mods.recipe.checkAllProviders")}
+            </Button>
+          )}
+          {pending === "provider:all" && (
+            <Button
+              ref={pauseTrigger}
+              variant="outline"
+              disabled={pausePending}
+              focusableWhenDisabled
+              onClick={() => {
+                pauseAfterStep.current = true;
+                setPausePending(true);
+                setNotice(t("mods.recipe.finishingStep"));
+              }}
+            >
+              {t("mods.recipe.pauseChecks")}
             </Button>
           )}
           {profileId &&

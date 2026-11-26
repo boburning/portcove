@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rugrats-adventure-game-tm-x64",
+    "project_url": "https://github.com/tm-developments/rugrats_port",
+    "name": "Rugrats Adventure Game / T.M. DEVELOPMENTS x64",
+    "summary": "Rugrats Adventure Game (x64 port)",
+    "issue_number": 6731,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rugrats-adventure-game",
+      "evidence_urls": ["https://github.com/tm-developments/rugrats_port"],
+      "source_editions": []
+    },
+    "original_game_title": "Rugrats Adventure Game"
+  }
+}

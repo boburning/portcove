@@ -267,7 +267,33 @@
       "Patchwork.exe",
       "Doom2.exe",
       "doom2.exe",
-      "Deltaforce.exe"
+      "Deltaforce.exe",
+      "Crackdown.exe",
+      "DOA3.exe",
+      "crusader.exe",
+      "SealTeam.exe",
+      "CyberMage.exe",
+      "FZeroX.exe",
+      "MechAssault2.exe",
+      "itc.exe",
+      "Lantern.exe",
+      "Condemned2.exe",
+      "shadowsoftheempire.exe",
+      "Amped2Recomp.exe",
+      "SSX3Recomp.exe",
+      "Dora643.exe",
+      "CrackdownLauncher.exe",
+      "Crackdown-server.exe",
+      "CrackdownRecompiledServer.exe",
+      "Crackdown-debug.exe",
+      "StarWars.exe",
+      "StarWarsBattlefront.exe",
+      "LanternTwo.exe",
+      "CrackdownRecompiled.exe",
+      "crackdown-x64.exe",
+      "CrackdownServer.exe",
+      "cd.exe",
+      "shock.exe"
     ]
   },
   "output": {
@@ -1363,6 +1389,110 @@
       },
       {
         "name": "Deltaforce.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Crackdown.exe",
+        "tool_token": null
+      },
+      {
+        "name": "DOA3.exe",
+        "tool_token": null
+      },
+      {
+        "name": "crusader.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SealTeam.exe",
+        "tool_token": null
+      },
+      {
+        "name": "CyberMage.exe",
+        "tool_token": null
+      },
+      {
+        "name": "FZeroX.exe",
+        "tool_token": null
+      },
+      {
+        "name": "MechAssault2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "itc.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Lantern.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Condemned2.exe",
+        "tool_token": null
+      },
+      {
+        "name": "shadowsoftheempire.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Amped2Recomp.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SSX3Recomp.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Dora643.exe",
+        "tool_token": null
+      },
+      {
+        "name": "CrackdownLauncher.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Crackdown-server.exe",
+        "tool_token": "server"
+      },
+      {
+        "name": "CrackdownRecompiledServer.exe",
+        "tool_token": "server"
+      },
+      {
+        "name": "Crackdown-debug.exe",
+        "tool_token": null
+      },
+      {
+        "name": "StarWars.exe",
+        "tool_token": null
+      },
+      {
+        "name": "StarWarsBattlefront.exe",
+        "tool_token": null
+      },
+      {
+        "name": "LanternTwo.exe",
+        "tool_token": null
+      },
+      {
+        "name": "CrackdownRecompiled.exe",
+        "tool_token": null
+      },
+      {
+        "name": "crackdown-x64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "CrackdownServer.exe",
+        "tool_token": "server"
+      },
+      {
+        "name": "cd.exe",
+        "tool_token": null
+      },
+      {
+        "name": "shock.exe",
         "tool_token": null
       }
     ]

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rodoly-harvest-moon-animal-parade-wii-rbiee9-rev1",
+    "project_url": "https://github.com/RodoLy/HarvestMoonAnimalParadeRecomp",
+    "name": "Harvest Moon: Animal Parade (Wii USA) / RodoLy WiiCompiled recomp",
+    "summary": "Static recompilation of Harvest Moon: Animal Parade (Wii USA).",
+    "issue_number": 6776,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "harvest-moon-animal-parade",
+      "evidence_urls": ["https://github.com/RodoLy/HarvestMoonAnimalParadeRecomp"],
+      "source_editions": [
+        {
+          "id": "harvest-moon-animal-parade-wii",
+          "title": "Harvest Moon: Animal Parade (Wii)",
+          "system": "wii",
+          "evidence_urls": ["https://github.com/RodoLy/HarvestMoonAnimalParadeRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Harvest Moon: Animal Parade"
+  }
+}

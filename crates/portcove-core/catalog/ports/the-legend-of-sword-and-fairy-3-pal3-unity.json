@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-legend-of-sword-and-fairy-3-pal3-unity",
+    "project_url": "https://github.com/0x7c13/Pal3.Unity",
+    "name": "The Legend of Sword and Fairy 3 / PAL3 Unity",
+    "summary": "The Legend of Sword and Fairy 3 (仙剑奇侠传三) & The Legend of Sword and Fairy 3 Gaiden: Wenqing Pian (仙剑奇侠传三外传：问情篇) re-implementation using C#/Unity",
+    "issue_number": 5690,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-sword-and-fairy-3",
+      "evidence_urls": ["https://github.com/0x7c13/Pal3.Unity"],
+      "source_editions": []
+    },
+    "original_game_title": "The Legend of Sword and Fairy 3"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "diddy-kong-racing-sp00nznet",
+    "project_url": "https://github.com/sp00nznet/diddykongracing",
+    "name": "Diddy Kong Racing / sp00nznet",
+    "summary": "Native Windows port of Diddy Kong Racing (N64), statically recompiled with N64Recomp and rendered with RT64. Bring your own ROM.",
+    "issue_number": 6589,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "diddy-kong-racing",
+      "evidence_urls": ["https://github.com/sp00nznet/diddykongracing"],
+      "source_editions": [
+        {
+          "id": "diddy-kong-racing-nintendo-64",
+          "title": "Diddy Kong Racing (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/sp00nznet/diddykongracing"]
+        }
+      ]
+    },
+    "original_game_title": "Diddy Kong Racing"
+  }
+}

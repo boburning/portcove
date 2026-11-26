@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ultima-ii-sloppy-seconds-rebuild",
+    "project_url": "https://github.com/sloppy-seconds/ultima2-rebuild",
+    "name": "Ultima II: Revenge of the Enchantress / Ultima II Rebuild",
+    "summary": "Native PC port of Ultima II: Revenge of the Enchantress.",
+    "issue_number": 6058,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ultima-ii-revenge-of-the-enchantress",
+      "evidence_urls": ["https://github.com/sloppy-seconds/ultima2-rebuild"],
+      "source_editions": []
+    },
+    "original_game_title": "Ultima II: Revenge of the Enchantress"
+  }
+}

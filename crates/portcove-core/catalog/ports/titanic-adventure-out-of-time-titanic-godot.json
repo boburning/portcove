@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "titanic-adventure-out-of-time-titanic-godot",
+    "project_url": "https://github.com/itskenny0/titanic-godot",
+    "name": "Titanic: Adventure Out of Time / Titanic Godot",
+    "summary": "Unofficial Godot engine for Titanic: Adventure Out of Time, port of dreamREfactory. Bring your own game files.",
+    "issue_number": 6074,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "titanic-adventure-out-of-time",
+      "evidence_urls": ["https://github.com/itskenny0/titanic-godot"],
+      "source_editions": []
+    },
+    "original_game_title": "Titanic: Adventure Out of Time"
+  }
+}

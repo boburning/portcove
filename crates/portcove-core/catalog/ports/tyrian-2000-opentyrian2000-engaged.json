@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tyrian-2000-opentyrian2000-engaged",
+    "project_url": "https://github.com/wlfn1116/OpenTyrian2000-Engaged",
+    "name": "Tyrian 2000 / OpenTyrian2000 Engaged (wlfn1116)",
+    "summary": "An open-source port of the DOS shoot-'em-up Tyrian 2000, with added 16:9 widescreen support, display-rate motion, an Endless roguelite mode and online cross-platform play available across all modes",
+    "issue_number": 7152,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tyrian-2000",
+      "evidence_urls": ["https://github.com/wlfn1116/OpenTyrian2000-Engaged"],
+      "source_editions": []
+    },
+    "original_game_title": "Tyrian 2000"
+  }
+}

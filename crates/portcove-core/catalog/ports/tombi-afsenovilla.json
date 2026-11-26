@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tombi-afsenovilla",
+    "project_url": "https://github.com/afsenovilla/tombi-decomp",
+    "name": "Tombi! / afsenovilla",
+    "summary": "A matching decompilation of Tombi! (known as Tomba! in North America and Ore! Tomba in Japan) for the original PlayStation. The goal is C source code that compiles, with the game's original toolchain, into byte-identical machine code.",
+    "issue_number": 5522,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "tombi",
+      "evidence_urls": ["https://github.com/afsenovilla/tombi-decomp"],
+      "source_editions": [
+        {
+          "id": "tombi-playstation",
+          "title": "Tombi! (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/afsenovilla/tombi-decomp"]
+        }
+      ]
+    },
+    "original_game_title": "Tombi!"
+  }
+}

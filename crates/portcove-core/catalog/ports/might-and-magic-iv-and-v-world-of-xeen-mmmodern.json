@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "might-and-magic-iv-and-v-world-of-xeen-mmmodern",
+    "project_url": "https://github.com/carbiecarbie/MMModern",
+    "name": "Might and Magic IV and V: World of Xeen / MMModern",
+    "summary": "Open-source reimplementation of the Might and Magic IV/V engine",
+    "issue_number": 5713,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One port runs Might and Magic IV and V (World of Xeen).",
+    "evidence_urls": ["https://github.com/carbiecarbie/MMModern"]
+  }
+}

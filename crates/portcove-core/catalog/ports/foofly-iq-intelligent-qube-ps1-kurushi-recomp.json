@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "foofly-iq-intelligent-qube-ps1-kurushi-recomp",
+    "project_url": "https://github.com/foofly/KurushiRecomp",
+    "name": "I.Q.: Intelligent Qube (PS1 USA) / Kurushi Recompiled (foofly)",
+    "summary": "Static recompilation of I.Q.: Intelligent Qube for Windows, Linux and macOS. Requires your own copy of the original game.",
+    "issue_number": 4261,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "intelligent-qube",
+      "evidence_urls": ["https://github.com/foofly/KurushiRecomp"],
+      "source_editions": [
+        {
+          "id": "intelligent-qube-playstation",
+          "title": "Intelligent Qube (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/foofly/KurushiRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Intelligent Qube"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "serious-sam-advance-zynchromatik",
+    "project_url": "https://github.com/ZynChroMaTiK/ss-advance-decomp",
+    "name": "Serious Sam Advance / ZynChroMaTiK",
+    "summary": "Decompilation-based port of Serious Sam Advance.",
+    "issue_number": 5926,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "serious-sam-advance",
+      "evidence_urls": ["https://github.com/ZynChroMaTiK/ss-advance-decomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Serious Sam Advance"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-punch-out-tanooki-recomp",
+    "project_url": "https://github.com/TanookiStudios/SuperPunchOutRecomp",
+    "name": "Super Punch-Out!! / Tanooki Studios",
+    "summary": "Super Punch-Out!! (SNES), native for Mac, Windows and Linux. Free. Bring your own copy of the game.",
+    "issue_number": 5560,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-punch-out",
+      "evidence_urls": ["https://github.com/TanookiStudios/SuperPunchOutRecomp"],
+      "source_editions": [
+        {
+          "id": "super-punch-out-super-nintendo",
+          "title": "Super Punch-Out!! (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/TanookiStudios/SuperPunchOutRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Super Punch-Out!!"
+  }
+}

@@ -20,13 +20,21 @@ export interface ListingReceipt extends Record<string, unknown> {
   validator_artifact_sha256: string;
 }
 
-export function coreProposalInspector(cli: string, root: string) {
+export function coreProposalInspector(
+  cli: string,
+  root: string,
+  options?: { env: NodeJS.ProcessEnv; expectedSha256: string },
+) {
   const artifact = join(root, process.platform === "win32" ? "validator.exe" : "validator");
   copyFileSync(resolve(cli), artifact);
   chmodSync(artifact, 0o500);
   const artifactSha256 = createHash("sha256").update(readFileSync(artifact)).digest("hex");
+  if (options && artifactSha256 !== options.expectedSha256)
+    throw new Error("Prepared validator differs from the verified release.");
   const env = Object.fromEntries(
-    Object.entries(process.env).filter(([name]) => name.toUpperCase() !== "PORTCOVE_LIBRARY"),
+    Object.entries(options?.env ?? process.env).filter(
+      ([name]) => name.toUpperCase() !== "PORTCOVE_LIBRARY",
+    ),
   );
   const invoke = (
     name: string,

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rogue-galaxy-mathisto-hd",
+    "project_url": "https://github.com/mathisto/rogue-galaxy-hd",
+    "name": "Rogue Galaxy / Rogue Galaxy HD",
+    "summary": "Rogue Galaxy (PS2) as a native Windows game: 60 fps, ultrawide to 32:9, HD textures and cutscenes, built from your own disc. GPL-3.0.",
+    "issue_number": 6696,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rogue-galaxy",
+      "evidence_urls": ["https://github.com/mathisto/rogue-galaxy-hd"],
+      "source_editions": [
+        {
+          "id": "rogue-galaxy-playstation-2",
+          "title": "Rogue Galaxy (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": ["https://github.com/mathisto/rogue-galaxy-hd"]
+        }
+      ]
+    },
+    "original_game_title": "Rogue Galaxy"
+  }
+}

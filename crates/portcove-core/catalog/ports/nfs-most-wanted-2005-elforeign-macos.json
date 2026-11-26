@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nfs-most-wanted-2005-elforeign-macos",
+    "project_url": "https://github.com/elforeign/nfs-most-wanted-mac",
+    "name": "Need for Speed: Most Wanted (2005 PC) / Apple Silicon static recompilation",
+    "summary": "Need for Speed: Most Wanted (2005), native on Apple Silicon Macs by static recompilation. Bring your own PC game.",
+    "issue_number": 4388,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-most-wanted",
+      "evidence_urls": ["https://github.com/elforeign/nfs-most-wanted-mac"],
+      "source_editions": []
+    },
+    "original_game_title": "Need for Speed: Most Wanted"
+  }
+}

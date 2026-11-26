@@ -2921,6 +2921,21 @@ try {
         tool: required(values["preparation-tool"]),
       })
     : undefined;
+  if (
+    normalPackageSession ||
+    selection.selected_scenarios.includes("native-game-first-choice-and-restart")
+  ) {
+    // These two isolated qualification cases observe the candidate's embedded catalog.
+    await writeFile(
+      path.join(runtimeRoot, "preferences.json"),
+      JSON.stringify({
+        format_version: 1,
+        library_root: null,
+        official_catalog_automatic_updates: false,
+      }),
+      { flag: "wx" },
+    );
+  }
   await startDriver(firstOfflineCover?.environment);
   await connect();
   if (runnerMetadata.acceptance_bindings) {
@@ -3271,7 +3286,9 @@ try {
     const {
       readGameFirstCatalogObservation,
       readGameFirstRelationships,
+      readGameFirstSourcePopulation,
       inspectGameFirstRelationships,
+      assertEmbeddedGameFirstCatalog,
     } = await import("./desktop-game-first-test.mts");
     const readbacks: unknown[] = [];
     const report: Record<string, unknown> = {
@@ -3285,20 +3302,26 @@ try {
     };
     try {
       const relationships = await readGameFirstRelationships();
+      const source = await readGameFirstSourcePopulation(inputs);
       report.expected_baseline_sha256 = relationships.sha256;
+      report.source_definitions_sha256 = source.definitions.sha256;
+      report.source_listings_sha256 = source.listings.sha256;
       report.audited_revision = relationships.expected.audited_revision;
       const observation = await readGameFirstCatalogObservation(invoke, readbacks);
       report.catalog_digest = observation.workspace.catalog_digest ?? null;
       report.catalog_status = observation.catalog_status;
       report.listing_delivery_status = observation.listing_delivery_status;
       report.generation = observation.bootstrap.generation;
+      assertEmbeddedGameFirstCatalog(observation);
       const production = inspectGameFirstRelationships(
         observation.workspace,
         relationships.expected,
         observation.catalog_status.provenance,
+        source,
       );
       report.families = production.reviewed_families;
-      report.audited_records = production.provenance.length;
+      report.audited_records = production.audited_records;
+      report.loaded_records = production.provenance.length;
       report.provenance = production.provenance;
       report.outcome = "passed";
     } catch (error) {
@@ -5447,6 +5470,7 @@ try {
           selectedFixtureFamilies.has("preparation")
             ? preparationScenarios({
                 ...context,
+                sourcePopulationInputs: inputs,
                 interruptApplication:
                   process.platform === "linux"
                     ? interruptLinuxPreparation

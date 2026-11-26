@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fox-ranger-second-save-translation",
+    "project_url": "https://github.com/ACR-GD/fox-ranger-recomp-translation",
+    "name": "Fox Ranger / Second Save translation",
+    "summary": "Static recompilation of Fox Ranger (Soft Action, 1992, MS-DOS) for Windows, Linux and macOS. Requires your own copy of the original game.",
+    "issue_number": 5710,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "fox-ranger",
+      "evidence_urls": ["https://github.com/ACR-GD/fox-ranger-recomp-translation"],
+      "source_editions": []
+    },
+    "original_game_title": "Fox Ranger"
+  }
+}

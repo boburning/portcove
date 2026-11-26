@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "generals-zero-hour-gzh-neo",
+    "project_url": "https://github.com/gzhneo/Game",
+    "name": "Command & Conquer: Generals / Zero Hour / GZH Neo",
+    "summary": "Modernised Command & Conquer Generals and Zero Hour, built from EA's GPL source release: C++20, 64-bit, Direct3D 11 and Vulkan, new network play and AI. Source only – you need your own copy of the game. Not affiliated with EA.",
+    "issue_number": 5908,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "command-and-conquer-generals",
+      "evidence_urls": ["https://github.com/gzhneo/Game"],
+      "source_editions": []
+    },
+    "original_game_title": "Command & Conquer: Generals"
+  }
+}

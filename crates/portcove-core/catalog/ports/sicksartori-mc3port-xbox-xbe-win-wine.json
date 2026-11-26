@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sicksartori-mc3port-xbox-xbe-win-wine",
+    "project_url": "https://github.com/SickSartori/mc3port",
+    "name": "Midnight Club 3: DUB Edition Remix / SickSartori mc3port original Xbox",
+    "summary": "Midnight Club 3: DUB Edition Remix PC port. Unofficial native Windows and Linux (Wine) port of the Xbox game, with 60 fps, true 16:9 and up to 5K resolution. Bring your own disc image: no game files included.",
+    "issue_number": 5182,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "midnight-club-3-dub-edition",
+      "evidence_urls": ["https://github.com/SickSartori/mc3port"],
+      "source_editions": [
+        {
+          "id": "midnight-club-3-dub-edition-xbox",
+          "title": "Midnight Club 3: DUB Edition Remix (Xbox)",
+          "system": "xbox",
+          "evidence_urls": ["https://github.com/SickSartori/mc3port"]
+        }
+      ]
+    },
+    "original_game_title": "Midnight Club 3: DUB Edition Remix"
+  }
+}

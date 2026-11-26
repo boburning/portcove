@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "invictus-potens-smt4-recomp-shin-megami-tensei-iv",
+    "project_url": "https://github.com/Invictus-potens/smt4-recomp",
+    "name": "Shin Megami Tensei IV (3DS) / smt4-recomp (Invictus-potens)",
+    "summary": "Static recompilation glue for Shin Megami Tensei IV (3DS), on fearkov/3dsrecomp + fearkov/zakuro",
+    "issue_number": 3744,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "shin-megami-tensei-iv",
+      "evidence_urls": ["https://github.com/Invictus-potens/smt4-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Shin Megami Tensei IV"
+  }
+}

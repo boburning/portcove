@@ -22,6 +22,8 @@ const githubKey = (url: string) =>
     .replace(/\/$/u, "")
     .replace(/\.git$/iu, "")
     .toLowerCase();
+const repositoryKey = (value: string) =>
+  github(value) ? githubKey(value) : value.replace(/\.git\/?$|\/$/iu, "").toLowerCase();
 export function reviewedDiscoveryFamilyAliases(body: string) {
   const lines = body
     .split(/\r?\n/u)
@@ -37,16 +39,28 @@ export function reviewedDiscoveryFamilyAliases(body: string) {
     return { repository: match[1]!, repository_id: id };
   });
 }
+type IntakeIdentity = ReviewedDiscoveryIdentity & { catalog_id?: string };
+
 /** Additional duplicate protection only. Fresh complete issue coverage remains
  * mandatory at the caller; local lineage/cache observations cannot prove absence.
  */
 export function reconcileDiscoveryIntakeIdentity(
-  candidate: ReviewedDiscoveryIdentity,
+  candidate: IntakeIdentity,
   issues: readonly RoadmapIssueItem[],
   records: readonly AuthoredPort[],
   leads: readonly DiscoveryLead[],
 ) {
   const canonical: CanonicalDiscoveryIdentity[] = [];
+  const issueStates = new Map<number, "OPEN" | "CLOSED">();
+  const issueGameKeys = new Map<number, string[]>();
+  const authoredByIssue = new Map<number, AuthoredPort[]>();
+  for (const record of records) {
+    const number = record.listing.issue_number;
+    if (number === undefined) continue;
+    const owned = authoredByIssue.get(number) ?? [];
+    owned.push(record);
+    authoredByIssue.set(number, owned);
+  }
   for (const issue of issues) {
     const body = issue.body,
       title = issue.title,
@@ -61,7 +75,8 @@ export function reconcileDiscoveryIntakeIdentity(
     )
       throw new Error("Discovery identity guard requires complete open/closed issue bodies");
     if (!title.startsWith("[Port]") && !body.includes("<!-- portcove-port -->")) continue;
-    const authored = records.find((record) => record.listing.issue_number === number);
+    issueStates.set(number, state);
+    const authored = authoredByIssue.get(number)?.[0];
     const history = authored ? assessUpstreamLineage(authored).history : [];
     const urls = [
       ...new Set([
@@ -83,6 +98,7 @@ export function reconcileDiscoveryIntakeIdentity(
         ].flatMap((title) => (title ? [discoveryGameKey(title)] : [])),
       ),
     ];
+    issueGameKeys.set(number, gameKeys);
     for (const alias of aliases)
       for (const gameKey of gameKeys.length ? gameKeys : [undefined])
         canonical.push({
@@ -96,18 +112,30 @@ export function reconcileDiscoveryIntakeIdentity(
       const lineage = history.find(
         (row) => github(row.project_url) && githubKey(row.project_url) === key,
       );
-      const observed = leads.filter((row) =>
-        [row.repository, ...(row.aliases ?? [])].some((alias) => alias.toLowerCase() === key),
-      );
       const ids = [
         ...new Set([
           ...(lineage?.repository?.host === "github.com" ? [Number(lineage.repository.id)] : []),
           ...(bodyIds.length === 1 ? bodyIds : []),
-          ...observed.map((row) => row.id),
         ]),
       ].filter((id) => Number.isSafeInteger(id) && id > 0);
-      // Conflicting observations constrain that identity, not unrelated work.
-      for (const id of ids.length ? ids : [undefined])
+      // A retained observation may flag a reused legacy path. Only an accepted
+      // source binding can identify the owner after the repository moves.
+      const pathConflicts =
+        ids.length === 0 &&
+        candidate.repository_id !== undefined &&
+        repositoryKey(candidate.repository) === key
+          ? leads
+              .filter(
+                (row) =>
+                  row.id !== candidate.repository_id &&
+                  [row.repository, ...(row.aliases ?? [])].some(
+                    (alias) => repositoryKey(alias) === key,
+                  ),
+              )
+              .map((row) => row.id)
+          : [];
+      const bindings = [...new Set([...ids, ...pathConflicts])];
+      for (const id of bindings.length ? bindings : [undefined])
         for (const gameKey of gameKeys.length ? gameKeys : [undefined])
           canonical.push({
             repository: url,
@@ -118,7 +146,62 @@ export function reconcileDiscoveryIntakeIdentity(
           });
     }
   }
-  const result = reconcileDiscoveryIdentity(candidate, canonical);
+  for (const record of records) {
+    const { id, issue_number, original_game_title } = record.listing;
+    const { current, history } = assessUpstreamLineage(record);
+    const issueState = issue_number === undefined ? undefined : issueStates.get(issue_number);
+    const gameKeys = original_game_title
+      ? [discoveryGameKey(original_game_title)]
+      : issue_number !== undefined && authoredByIssue.get(issue_number)?.length === 1
+        ? (issueGameKeys.get(issue_number) ?? [])
+        : [];
+    for (const upstream of history.length ? history : [current]) {
+      if (!github(upstream.project_url)) continue;
+      const repositoryId = Number(upstream.repository?.id);
+      for (const gameKey of gameKeys.length ? gameKeys : [undefined])
+        canonical.push({
+          catalog_id: id,
+          repository: upstream.project_url,
+          ...(issue_number !== undefined && issueState
+            ? { issue: issue_number, state: issueState }
+            : {}),
+          ...(upstream.repository?.host === "github.com" &&
+          Number.isSafeInteger(repositoryId) &&
+          repositoryId > 0
+            ? { repository_id: repositoryId }
+            : {}),
+          ...(gameKey ? { game_key: gameKey } : {}),
+        });
+    }
+  }
+  const reconciled = reconcileDiscoveryIdentity(candidate, canonical);
+  const matchedCatalogs = "catalog_ids" in reconciled ? reconciled.catalog_ids : undefined;
+  const keyOwner = records.find((record) => record.listing.id === candidate.catalog_id);
+  const keyMatchesIssue =
+    keyOwner?.listing.issue_number !== undefined &&
+    !matchedCatalogs?.length &&
+    reconciled.disposition === "Existing canonical owner" &&
+    reconciled.issues.length === 1 &&
+    reconciled.issues[0] === keyOwner.listing.issue_number;
+  const result =
+    keyOwner && !matchedCatalogs?.includes(keyOwner.listing.id)
+      ? {
+          ...reconciled,
+          catalog_ids: [...(matchedCatalogs ?? []), keyOwner.listing.id].sort(),
+          ...(!keyMatchesIssue
+            ? {
+                disposition: "Identity conflict",
+                reason: `Catalog key ${keyOwner.listing.id} already has an accepted owner`,
+              }
+            : {}),
+        }
+      : reconciled;
+  const matchingCatalogs = "catalog_ids" in result ? result.catalog_ids : undefined;
+  const matchingOwners = canonical.filter(
+    (row) =>
+      (row.issue !== undefined && result.issues.includes(row.issue)) ||
+      (row.catalog_id !== undefined && matchingCatalogs?.includes(row.catalog_id)),
+  );
   // Candidate context only: source-family ownership and original-game grouping
   // remain separate reviewed decisions. Matching words never assign a game ID.
   const groupingCandidates = records
@@ -140,16 +223,15 @@ export function reconcileDiscoveryIntakeIdentity(
         "Review candidates only; canonical intake ownership and source compatibility are unchanged.",
       candidates: groupingCandidates,
     },
-    game_scope_known: canonical
-      .filter((row) => result.issues.includes(row.issue))
-      .every((row) => row.game_key !== undefined),
-    repository_identity_known: canonical
-      .filter((row) => result.issues.includes(row.issue))
-      .some((row) => row.repository_id === candidate.repository_id),
+    game_scope_known:
+      matchingOwners.length > 0 && matchingOwners.every((row) => row.game_key !== undefined),
+    repository_identity_known:
+      candidate.repository_id !== undefined &&
+      matchingOwners.some((row) => row.repository_id === candidate.repository_id),
   };
 }
 export function assertDiscoveryIntakeIdentity(
-  candidate: ReviewedDiscoveryIdentity,
+  candidate: IntakeIdentity,
   issues: readonly RoadmapIssueItem[],
   records: readonly AuthoredPort[],
   leads: readonly DiscoveryLead[],
@@ -157,7 +239,7 @@ export function assertDiscoveryIntakeIdentity(
   const result = reconcileDiscoveryIntakeIdentity(candidate, issues, records, leads);
   if (result.disposition !== "New canonical intake")
     throw new Error(
-      `Canonical discovery identity held: ${result.disposition}; issues ${result.issues.join(", ") || "none"}; ${result.reason}`,
+      `Canonical discovery identity held: ${result.disposition}; issues ${result.issues.join(", ") || "none"}; catalog ${result.catalog_ids?.join(", ") || "none"}; ${result.reason}`,
     );
   return result;
 }

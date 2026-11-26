@@ -1,4 +1,5 @@
-import { renameSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { renameSync, writeFileSync } from "node:fs";
 import { rename } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { errorCode } from "./runtime-values.mts";
@@ -40,4 +41,10 @@ export async function replacePreparedFile(prepared: string, target: string) {
       await delay(remainingSharingWait(error, attempt, deadline));
     }
   }
+}
+
+export function replaceJsonFileSync(target: string, value: unknown) {
+  const prepared = `${target}.${randomUUID()}.next`;
+  writeFileSync(prepared, JSON.stringify(value, null, 2), { flag: "wx" });
+  replacePreparedFileSync(prepared, target);
 }

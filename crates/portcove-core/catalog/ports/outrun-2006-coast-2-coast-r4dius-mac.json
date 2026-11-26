@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "outrun-2006-coast-2-coast-r4dius-mac",
+    "project_url": "https://github.com/r4dius/outrun2-decomp",
+    "name": "OutRun 2006: Coast 2 Coast / r4dius Apple Silicon",
+    "summary": "An OutRun 2006: Coast 2 Coast decomp ported to everything using AI",
+    "issue_number": 6736,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "outrun-2006-coast-2-coast",
+      "evidence_urls": ["https://github.com/r4dius/outrun2-decomp"],
+      "source_editions": []
+    },
+    "original_game_title": "OutRun 2006: Coast 2 Coast"
+  }
+}

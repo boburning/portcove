@@ -11266,6 +11266,35 @@
         ],
         "type": "string"
       },
+      "ListingModPortal": {
+        "additionalProperties": false,
+        "description": "A reviewed link to a mod community for this exact listing.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "site": {
+            "$ref": "#/$defs/ModPortalSite"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "site",
+          "name",
+          "url",
+          "instructions"
+        ],
+        "type": "object"
+      },
       "ListingObservationStatus": {
         "enum": [
           "complete",
@@ -11524,6 +11553,24 @@
         ],
         "type": "object"
       },
+      "ModPortalSite": {
+        "description": "Community mod sites that a link-out portal may point to. The host for each\nsite is fixed in Core; a definition cannot choose another host.",
+        "oneOf": [
+          {
+            "enum": [
+              "nexus_mods",
+              "mod_io",
+              "mod_db"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "community_site",
+            "description": "A site run for one game's community. Any public HTTPS host.",
+            "type": "string"
+          }
+        ]
+      },
       "OriginalEditionSourceBinding": {
         "additionalProperties": false,
         "description": "Exact correspondence to an identity in the reviewed source graph.",
@@ -11708,6 +11755,13 @@
           "media": {
             "items": {
               "$ref": "#/$defs/CatalogMediaAsset"
+            },
+            "type": "array"
+          },
+          "mod_portals": {
+            "description": "Reviewed community links for this listing. Requires listing format 16.",
+            "items": {
+              "$ref": "#/$defs/ListingModPortal"
             },
             "type": "array"
           },
@@ -12992,6 +13046,28 @@
         ],
         "type": "object"
       },
+      "UpdateCheckDeferral": {
+        "description": "An update check that did not run because a provider allowance or throttle\nstopped it (a refusal, a deferral within the same bulk check, or a rate-limited\nanswer). The game's update state is unknown, never \"checked\" or \"up to date\";\nthe next bulk check after `resets_at` starts with it.",
+        "properties": {
+          "reset_reported": {
+            "description": "True when the provider reported `resets_at`; false when Portcove estimated it.",
+            "type": "boolean"
+          },
+          "resets_at": {
+            "description": "When the allowance is expected to reopen, in Unix seconds, if known.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "resets_at",
+          "reset_reported"
+        ],
+        "type": "object"
+      },
       "UploaderContinuityBasis": {
         "enum": [
           "predates-baseline",
@@ -13064,6 +13140,17 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "deferred": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UpdateCheckDeferral"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "An update check a provider request limit stopped: not checked, update state\nunknown; the next check starts with it."
+      },
       "error": {
         "anyOf": [
           {
@@ -41117,6 +41204,35 @@
         ],
         "type": "string"
       },
+      "ListingModPortal": {
+        "additionalProperties": false,
+        "description": "A reviewed link to a mod community for this exact listing.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "site": {
+            "$ref": "#/$defs/ModPortalSite"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "site",
+          "name",
+          "url",
+          "instructions"
+        ],
+        "type": "object"
+      },
       "ListingObservationStatus": {
         "enum": [
           "complete",
@@ -41374,6 +41490,24 @@
           "instruction"
         ],
         "type": "object"
+      },
+      "ModPortalSite": {
+        "description": "Community mod sites that a link-out portal may point to. The host for each\nsite is fixed in Core; a definition cannot choose another host.",
+        "oneOf": [
+          {
+            "enum": [
+              "nexus_mods",
+              "mod_io",
+              "mod_db"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "community_site",
+            "description": "A site run for one game's community. Any public HTTPS host.",
+            "type": "string"
+          }
+        ]
       },
       "OriginalEditionSourceBinding": {
         "additionalProperties": false,
@@ -41890,6 +42024,13 @@
           "media": {
             "items": {
               "$ref": "#/$defs/CatalogMediaAsset"
+            },
+            "type": "array"
+          },
+          "mod_portals": {
+            "description": "Reviewed community links for this listing. Requires listing format 16.",
+            "items": {
+              "$ref": "#/$defs/ListingModPortal"
             },
             "type": "array"
           },
@@ -58598,6 +58739,28 @@
         ],
         "type": "object"
       },
+      "UpdateCheckDeferral": {
+        "description": "An update check that did not run because a provider allowance or throttle\nstopped it (a refusal, a deferral within the same bulk check, or a rate-limited\nanswer). The game's update state is unknown, never \"checked\" or \"up to date\";\nthe next bulk check after `resets_at` starts with it.",
+        "properties": {
+          "reset_reported": {
+            "description": "True when the provider reported `resets_at`; false when Portcove estimated it.",
+            "type": "boolean"
+          },
+          "resets_at": {
+            "description": "When the allowance is expected to reopen, in Unix seconds, if known.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "resets_at",
+          "reset_reported"
+        ],
+        "type": "object"
+      },
       "UpdatePolicy": {
         "enum": [
           "notify",
@@ -58678,6 +58841,17 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "deferred": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UpdateCheckDeferral"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "An update check a provider request limit stopped: not checked, update state\nunknown; the next check starts with it."
+      },
       "error": {
         "anyOf": [
           {
@@ -85934,10 +86108,43 @@
           "adopted_tree"
         ],
         "type": "string"
+      },
+      "UpdateCheckDeferral": {
+        "description": "An update check that did not run because a provider allowance or throttle\nstopped it (a refusal, a deferral within the same bulk check, or a rate-limited\nanswer). The game's update state is unknown, never \"checked\" or \"up to date\";\nthe next bulk check after `resets_at` starts with it.",
+        "properties": {
+          "reset_reported": {
+            "description": "True when the provider reported `resets_at`; false when Portcove estimated it.",
+            "type": "boolean"
+          },
+          "resets_at": {
+            "description": "When the allowance is expected to reopen, in Unix seconds, if known.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "resets_at",
+          "reset_reported"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "deferred": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UpdateCheckDeferral"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "An update check a provider request limit stopped: not checked, update state\nunknown; the next check starts with it."
+      },
       "error": {
         "anyOf": [
           {

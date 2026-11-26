@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "originalswayze-beyond-oasis-recomp",
+    "project_url": "https://github.com/OriginalSwayze/beyond-oasis-recomp",
+    "name": "Beyond Oasis (Genesis USA) / OriginalSwayze Beyond Oasis Recomp",
+    "summary": "Installer that builds a native PC version of Beyond Oasis (Genesis USA) from your own copy of the game.",
+    "issue_number": 4179,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "beyond-oasis",
+      "evidence_urls": ["https://github.com/OriginalSwayze/beyond-oasis-recomp"],
+      "source_editions": [
+        {
+          "id": "beyond-oasis-mega-drive-genesis",
+          "title": "Beyond Oasis (Mega Drive / Genesis)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": ["https://github.com/OriginalSwayze/beyond-oasis-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Beyond Oasis"
+  }
+}

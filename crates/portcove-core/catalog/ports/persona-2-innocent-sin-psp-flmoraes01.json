@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "persona-2-innocent-sin-psp-flmoraes01",
+    "project_url": "https://github.com/flmoraes01/Persona2ISRecompile",
+    "name": "Persona 2 Innocent Sin / flmoraes01 PSP Recompiled",
+    "summary": "Persona 2 Recompile Project",
+    "issue_number": 5808,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "persona-2-innocent-sin-psp",
+      "evidence_urls": ["https://github.com/flmoraes01/Persona2ISRecompile"],
+      "source_editions": []
+    },
+    "original_game_title": "Persona 2: Innocent Sin (PSP)"
+  }
+}

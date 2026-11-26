@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "n64hub-turok1-n64recomp-rt64-win-linux",
+    "project_url": "https://github.com/n64hub/turok-recomp",
+    "name": "Turok: Dinosaur Hunter / n64hub N64Recomp",
+    "summary": "AI-written static recompilation of Turok: Dinosaur Hunter (N64) for PC and the web. Bring your own ROM.",
+    "issue_number": 5185,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "turok-dinosaur-hunter",
+      "evidence_urls": ["https://github.com/n64hub/turok-recomp"],
+      "source_editions": [
+        {
+          "id": "turok-dinosaur-hunter-nintendo-64",
+          "title": "Turok: Dinosaur Hunter (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/n64hub/turok-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Turok: Dinosaur Hunter"
+  }
+}

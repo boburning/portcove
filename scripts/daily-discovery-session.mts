@@ -1,5 +1,5 @@
-import { replacePreparedFileSync } from "./prepared-file-replacement.mts";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { replaceJsonFileSync as atomic } from "./prepared-file-replacement.mts";
+import { readFileSync, existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -157,11 +157,6 @@ const text = (v: unknown) => {
   if (typeof v !== "string" || !v) throw new Error("Missing discovery message text");
   return v;
 };
-export function atomic(file: string, value: unknown) {
-  const temp = `${file}.${randomUUID()}.next`;
-  writeFileSync(temp, JSON.stringify(value, null, 2), { flag: "wx" });
-  replacePreparedFileSync(temp, file);
-}
 const discoveryMaterial = (v: Awaited<ReturnType<typeof investigateDiscoveryUpstream>>) =>
   observationHash({
     repository_id: v.metadata.id,
@@ -1042,6 +1037,7 @@ export class DiscoverySession {
         repository: new URL(candidate.upstream).pathname.slice(1),
         repository_id: ids[0],
         kind: candidate.identity_kind ?? "implementation",
+        catalog_id: candidate.portKey,
         ...(candidate.game ? { game_key: discoveryGameKey(candidate.game) } : {}),
       },
       this.inventory.issues,

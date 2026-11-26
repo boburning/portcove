@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "diablo-iii-switch-recomp-retrogameworld",
+    "project_url": "https://github.com/retrogameworld/Diablo-III-Switch-Recomp",
+    "name": "Diablo III: Eternal Collection (Switch 2.7.7) / Diablo III Switch Recomp (retrogameworld)",
+    "summary": "Static recompilation of Diablo III: Eternal Collection (Switch 2.7.7).",
+    "issue_number": 8646,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo-iii-eternal-collection",
+      "evidence_urls": ["https://github.com/retrogameworld/Diablo-III-Switch-Recomp"],
+      "source_editions": [
+        {
+          "id": "diablo-iii-eternal-collection-nintendo-switch",
+          "title": "Diablo III: Eternal Collection (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": ["https://github.com/retrogameworld/Diablo-III-Switch-Recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Diablo III: Eternal Collection"
+  }
+}

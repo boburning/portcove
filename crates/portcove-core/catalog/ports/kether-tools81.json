@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kether-tools81",
+    "project_url": "https://github.com/tools81/kether-static-recomp",
+    "name": "Kether / tools81",
+    "summary": "Static recompilation of Kether (Philips CD-i) for Windows - tools and runtime only, build from your own disc",
+    "issue_number": 5980,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "kether",
+      "evidence_urls": ["https://github.com/tools81/kether-static-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Kether"
+  }
+}

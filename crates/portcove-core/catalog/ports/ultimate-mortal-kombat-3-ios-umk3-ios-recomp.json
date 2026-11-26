@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ultimate-mortal-kombat-3-ios-umk3-ios-recomp",
+    "project_url": "https://github.com/MaryNCRT/Ultimate-Mortal-Kombat-3-iOS-Decompiled",
+    "name": "Ultimate Mortal Kombat 3 (iOS) / Ultimate Mortal Kombat 3 iOS Recomp (MaryNCRT)",
+    "summary": "Decompiled Ultimate Mortal Kombat 3 (iOS v1.2.59) with a playable native PC port featuring DirectX, Vulkan, OpenGL, widescreen support, HD textures, and multiplayer. Original game assets required.",
+    "issue_number": 6965,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ultimate-mortal-kombat-3",
+      "evidence_urls": ["https://github.com/MaryNCRT/Ultimate-Mortal-Kombat-3-iOS-Decompiled"],
+      "source_editions": []
+    },
+    "original_game_title": "Ultimate Mortal Kombat 3"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pac-man-atari-2600-pac2600comp",
+    "project_url": "https://github.com/coprsegrinder/Pac2600Comp",
+    "name": "Pac-Man (Atari 2600) / Pac2600Comp",
+    "summary": "Play the Atari 2600 Pac-Man on Windows with rebuilt game code, picture and sound, proved identical to the original. Needs your own copy of the game; the game is not included.",
+    "issue_number": 5607,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pac-man",
+      "evidence_urls": ["https://github.com/coprsegrinder/Pac2600Comp"],
+      "source_editions": []
+    },
+    "original_game_title": "Pac-Man"
+  }
+}

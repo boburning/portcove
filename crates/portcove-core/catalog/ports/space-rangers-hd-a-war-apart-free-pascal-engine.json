@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "space-rangers-hd-a-war-apart-free-pascal-engine",
+    "project_url": "https://github.com/pakompom/SpaceRangersHD_FPC",
+    "name": "Space Rangers HD: A War Apart / Free Pascal engine",
+    "summary": "A cross-platform port of Space Rangers HD: A War Apart based on the decompilation.",
+    "issue_number": 5851,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "space-rangers-hd-a-war-apart",
+      "evidence_urls": ["https://github.com/pakompom/SpaceRangersHD_FPC"],
+      "source_editions": []
+    },
+    "original_game_title": "Space Rangers HD: A War Apart"
+  }
+}

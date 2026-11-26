@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lego-loco-openlegoloco",
+    "project_url": "https://github.com/GuusSeldenthuis/LegoLoco",
+    "name": "LEGO Loco / OpenLEGO Loco",
+    "summary": "Faithful fan-made recreation of Lego Loco, A Lego-branded simulation game",
+    "issue_number": 6127,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "lego-loco",
+      "evidence_urls": ["https://github.com/GuusSeldenthuis/LegoLoco"],
+      "source_editions": []
+    },
+    "original_game_title": "LEGO Loco"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kingzmanh-star-trek-tng-a-final-unity-dos-native",
+    "project_url": "https://github.com/kingzmanh/star-trek-the-next-generation-a-final-unity-pc-native",
+    "name": "Star Trek: The Next Generation — A Final Unity (DOS CD) / kingzmanh native",
+    "summary": "Star Trek: The Next Generation - A Final Unity (1995, DOS) as a native Windows program: static x86->C recompilation, 2x-4x 3D rendering, full-size 16-bit movies. No game files included.",
+    "issue_number": 5016,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-trek-the-next-generation-a-final-unity",
+      "evidence_urls": [
+        "https://github.com/kingzmanh/star-trek-the-next-generation-a-final-unity-pc-native"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Star Trek: The Next Generation — A Final Unity"
+  }
+}

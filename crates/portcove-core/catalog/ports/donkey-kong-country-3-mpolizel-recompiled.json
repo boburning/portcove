@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "donkey-kong-country-3-mpolizel-recompiled",
+    "project_url": "https://github.com/mpolizel/DK3SNESRecomp",
+    "name": "Donkey Kong Country 3",
+    "summary": "Donkey Kong 3 SNES Recompilation",
+    "issue_number": 5504,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "donkey-kong-country-3",
+      "evidence_urls": ["https://github.com/mpolizel/DK3SNESRecomp"],
+      "source_editions": [
+        {
+          "id": "donkey-kong-country-3-super-nintendo",
+          "title": "Donkey Kong Country 3 (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": ["https://github.com/mpolizel/DK3SNESRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Donkey Kong Country 3"
+  }
+}

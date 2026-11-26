@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "prince-of-persia-2-the-shadow-and-the-flame-sdlpop2",
+    "project_url": "https://github.com/ToolAssisted-run/SDLPoP2",
+    "name": "Prince of Persia 2: The Shadow and the Flame / SDLPoP2",
+    "summary": "An unofficial source reconstruction of Prince of Persia 2 (DOS 1.0), in the spirit of SDLPoP",
+    "issue_number": 5473,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "prince-of-persia-2-the-shadow-and-the-flame",
+      "evidence_urls": ["https://github.com/ToolAssisted-run/SDLPoP2"],
+      "source_editions": []
+    },
+    "original_game_title": "Prince of Persia 2: The Shadow and the Flame"
+  }
+}

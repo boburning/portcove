@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-the-hedgehog-2006-soleanna-sonic06-recomp",
+    "project_url": "https://github.com/DrummingBird1/sonic06-recomp",
+    "name": "Sonic the Hedgehog (2006) / Soleanna (sonic06-recomp) (DrummingBird1)",
+    "summary": "Soleanna (sonic06-recomp): an unofficial PC port of Sonic the Hedgehog (2006), PS3 version, by static recompilation. No game files included: the launcher builds it from your own disc.",
+    "issue_number": 7236,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-the-hedgehog-2006",
+      "evidence_urls": ["https://github.com/DrummingBird1/sonic06-recomp"],
+      "source_editions": [
+        {
+          "id": "sonic-the-hedgehog-2006-playstation-3",
+          "title": "Sonic the Hedgehog (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": ["https://github.com/DrummingBird1/sonic06-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Sonic the Hedgehog (2006)"
+  },
+  "original_game_review": {
+    "disposition": "separate",
+    "reason": "Sonic the Hedgehog (2006) for Xbox 360 and PlayStation 3 is a different game from the 1991 Mega Drive Sonic the Hedgehog that shares its title.",
+    "evidence_urls": ["https://github.com/DrummingBird1/sonic06-recomp"]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dave-mirra-freestyle-bmx-open-freestyle-bmx",
+    "project_url": "https://github.com/DenzoNL/open-freestyle-bmx",
+    "name": "Dave Mirra Freestyle BMX / Open Freestyle BMX",
+    "summary": "A native, open-source port of the 2000 PC BMX classic: fully rewritten in C, verified against the original, 64-bit, SDL3. Windows and Android, any resolution and frame rate. Requires your own copy of the game.",
+    "issue_number": 5816,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dave-mirra-freestyle-bmx",
+      "evidence_urls": ["https://github.com/DenzoNL/open-freestyle-bmx"],
+      "source_editions": []
+    },
+    "original_game_title": "Dave Mirra Freestyle BMX"
+  }
+}

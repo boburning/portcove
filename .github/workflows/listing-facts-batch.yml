@@ -387,19 +387,20 @@ jobs:
           cargo build --locked -p portcove-cli
           mkdir -p "$WORK/cli"
           cp target/debug/portcove "$WORK/cli/portcove"
-      - name: Find the newest main observer handoff
+          # Every inspection and reproduction shard downloads this copy.
+          strip --strip-debug "$WORK/cli/portcove"
+      # Every listing the observer has accumulated: its checkpoint snapshot,
+      # not one rotating run's handoff, so a source observed in any earlier
+      # observer run reaches the worker.
+      - name: Read every listing observation the observer has accumulated
         id: observer
-        timeout-minutes: 2
-        run: node scripts/listing-facts-batch.mts observer-run --deadline-minutes 1
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          mkdir -p "$WORK/inputs"
+          node scripts/listing-facts-observations.mts --output "$WORK/inputs/observations.json"
         env:
           GITHUB_TOKEN: ${{ github.token }}
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        timeout-minutes: 5
-        with:
-          name: ${{ steps.observer.outputs.artifact }}
-          path: ${{ env.WORK }}/handoff
-          github-token: ${{ github.token }}
-          run-id: ${{ steps.observer.outputs.run_id }}
       - name: Restore the worker state and run history
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         timeout-minutes: 5
@@ -413,11 +414,10 @@ jobs:
         id: inputs
         timeout-minutes: 2
         env:
-          OBSERVER_RUN: ${{ steps.observer.outputs.run_id }}
+          OBSERVER_RUN: ${{ steps.observer.outputs.observer_revision }}
         run: |
           set -euo pipefail
           mkdir -p "$WORK/inputs" "$WORK/plan"
-          node scripts/listing-facts-batch.mts observations --handoff "$WORK/handoff" --output "$WORK/inputs/observations.json"
           if [ -f "$WORK/state.json" ]; then cp "$WORK/state.json" "$WORK/inputs/state-before.json"; else : > "$WORK/inputs/state-before.json"; fi
           if [ -f "$WORK/history.json" ]; then cp "$WORK/history.json" "$WORK/plan/history.json"; fi
           node scripts/listing-facts-batch.mts inputs --observations "$WORK/inputs/observations.json" \
@@ -585,8 +585,10 @@ jobs:
           node scripts/listing-package-facts.mts combine --plan "$WORK/plan/plan.json" --shards "$WORK/shards" \
             --state "$WORK/out/state.json" --report "$WORK/out/worker-report.json" > /dev/null
           # One batch lands only what its pull-request CI can reproduce inside
-          # one hour's reproduction share of the quota; the rest is carried.
-          node scripts/listing-facts-batch.mts carry --base HEAD --report "$WORK/out/worker-report.json" > /dev/null
+          # one hour's reproduction share of the quota; the rest is carried,
+          # longest wait first, with its receipts in the worker state.
+          node scripts/listing-facts-batch.mts carry --base HEAD --report "$WORK/out/worker-report.json" \
+            --state "$WORK/out/state.json" > /dev/null
           if [ -f "$WORK/plan/history.json" ]; then cp "$WORK/plan/history.json" "$WORK/out/history.json"; fi
           # The baseline is this checkout's main tip: compare as a local run.
           env -u GITHUB_EVENT_NAME node scripts/generate-catalog.mts > /dev/null
@@ -706,7 +708,8 @@ jobs:
     needs: [prepare, inspect, combine, reproduce]
     if: ${{ !cancelled() && needs.prepare.result != 'skipped' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 80
+    # The sum of its steps' budgets.
+    timeout-minutes: 120
     permissions:
       contents: read
     outputs:
@@ -757,14 +760,118 @@ jobs:
           git -c user.name='github-actions[bot]' \
             -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             am --quiet "$WORK/batch.patch"
-      - name: Assess the stop conditions
-        id: assess
+      # A reproduction refusal of one identity's facts withholds that identity
+      # alone (`withholdRefused`): its entry is recorded `reproduction-refused`,
+      # the catalog is regenerated and the whole batch is checked again below.
+      # A shard without its typed record fails this step: nothing is withheld
+      # and the run stops (`reproduction-unsound`).
+      - name: Withhold the identities their reproduction refused
+        id: withhold
+        if: needs.combine.result == 'success' && needs.reproduce.result == 'success'
+        continue-on-error: true
         timeout-minutes: 3
         env:
-          PATHS: ${{ needs.combine.outputs.paths == 'failure' && 'violated' || needs.combine.outputs.paths == 'success' && 'ok' || 'skipped' }}
-          GATE: ${{ needs.combine.outputs.gate == 'failure' && 'refused' || needs.combine.outputs.gate == 'success' && 'ok' || 'skipped' }}
-          VERIFY: ${{ (needs.combine.outputs.checks == 'failure' || needs.reproduce.result == 'failure' || needs.reproduce.result == 'cancelled') && 'refused' || 'ok' }}
           SHARDS: ${{ needs.combine.outputs.shards }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$WORK/refusals"
+          shard_count=$(node -e 'try{console.log(JSON.parse(process.argv[1]||"[]").length)}catch{console.log(0)}' "$SHARDS")
+          node scripts/listing-facts-batch.mts withhold --base HEAD~1 --refusals "$WORK/refusals" --shard-count "$shard_count" \
+            --report "$WORK/worker-report.json" --output "$WORK/withheld.json" > /dev/null
+      - name: Regenerate the batch without the withheld identities
+        id: regenerate
+        if: steps.withhold.outcome == 'success' && steps.withhold.outputs.withheld != '0'
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          # The baseline is this checkout's main tip: compare as a local run.
+          env -u GITHUB_EVENT_NAME node scripts/generate-catalog.mts > /dev/null
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit --quiet --allow-empty --amend --no-edit -a
+          node scripts/listing-facts-batch.mts delta --base HEAD~1 --output "$WORK/delta.json" > /dev/null
+          git format-patch -1 --stdout HEAD > "$WORK/batch.patch"
+      - name: Refuse paths outside the batch allowlist after withholding
+        id: rechecked_paths
+        if: steps.regenerate.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        run: node scripts/listing-facts-batch.mts paths --base HEAD~1
+      - name: Refuse a withheld generation the gate does not accept
+        id: rechecked_gate
+        if: steps.regenerate.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 10
+        run: GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check
+      - name: Check the withheld batch against the catalog capacity guards
+        id: rechecked_capacity
+        if: steps.regenerate.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 3
+        run: node scripts/listing-facts-batch.mts capacity --output "$WORK/capacity.json"
+      - name: Check separation, clock and canonical outputs after withholding
+        id: rechecked_checks
+        if: steps.regenerate.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 5
+        run: node scripts/listing-facts-batch.mts verify --base HEAD~1 --own-run true --reproduce false
+      # The withheld identities join the exception queues (`reproduction-refused`).
+      - name: Publish the exception queues of the withheld batch
+        id: requeue
+        if: steps.regenerate.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          node scripts/catalog-route-fit.mts --json --output "$WORK/route-fit.json"
+          node scripts/listing-facts-batch.mts queues --route-fit "$WORK/route-fit.json" --output "$WORK/queue-counts.json" > /dev/null
+      # The checks of the batch as it now stands: the re-checks when an
+      # identity was withheld, else combine's.
+      - name: Settle the checks of the batch as it stands
+        id: effective
+        if: ${{ !cancelled() }}
+        timeout-minutes: 2
+        env:
+          WITHHELD: ${{ steps.withhold.outcome == 'success' && steps.withhold.outputs.withheld != '0' && 'true' || 'false' }}
+          REGENERATED: ${{ steps.regenerate.outcome }}
+          REQUEUED: ${{ steps.requeue.outcome }}
+          COMBINE_PATHS: ${{ needs.combine.outputs.paths }}
+          COMBINE_GATE: ${{ needs.combine.outputs.gate }}
+          COMBINE_CHECKS: ${{ needs.combine.outputs.checks }}
+          COMBINE_CAPACITY: ${{ needs.combine.outputs.capacity }}
+          COMBINE_MATERIAL: ${{ needs.combine.outputs.material }}
+          PATHS: ${{ steps.rechecked_paths.outcome }}
+          GATE: ${{ steps.rechecked_gate.outcome }}
+          CHECKS: ${{ steps.rechecked_checks.outcome }}
+          CAPACITY: ${{ steps.rechecked_capacity.outputs.capacity }}
+          MATERIAL: ${{ steps.regenerate.outputs.material }}
+        run: |
+          set -euo pipefail
+          if [ "$WITHHELD" = true ]; then
+            if [ "$REGENERATED" != success ]; then
+              # The batch without the withheld identities could not be built:
+              # nothing was checked, and the stop names that step.
+              { echo "paths=skipped"; echo "gate=skipped"; echo "checks=skipped"; echo "capacity="; echo "material=false"; } >> "$GITHUB_OUTPUT"
+              echo "recheck=regenerating the batch" >> "$GITHUB_OUTPUT"
+            else
+              { echo "paths=$PATHS"; echo "gate=$GATE"; echo "checks=$CHECKS"; echo "capacity=$CAPACITY"; echo "material=$MATERIAL"; } >> "$GITHUB_OUTPUT"
+              # Its exception queues must name the withheld identities.
+              if [ "$REQUEUED" != success ]; then echo "recheck=publishing its exception queues" >> "$GITHUB_OUTPUT"; fi
+            fi
+          else
+            { echo "paths=$COMBINE_PATHS"; echo "gate=$COMBINE_GATE"; echo "checks=$COMBINE_CHECKS"; echo "capacity=$COMBINE_CAPACITY"; echo "material=$COMBINE_MATERIAL"; } >> "$GITHUB_OUTPUT"
+          fi
+      - name: Assess the stop conditions
+        id: assess
+        if: ${{ !cancelled() }}
+        timeout-minutes: 3
+        env:
+          PATHS: ${{ steps.effective.outputs.paths == 'failure' && 'violated' || steps.effective.outputs.paths == 'success' && 'ok' || 'skipped' }}
+          GATE: ${{ steps.effective.outputs.gate == 'failure' && 'refused' || steps.effective.outputs.gate == 'success' && 'ok' || 'skipped' }}
+          VERIFY: ${{ (steps.effective.outputs.checks == 'failure' || steps.withhold.outcome == 'failure' || needs.reproduce.result == 'failure' || needs.reproduce.result == 'cancelled') && 'refused' || 'ok' }}
+          SHARDS: ${{ needs.combine.outputs.shards }}
+          RECHECK: ${{ steps.effective.outputs.recheck }}
         run: |
           set -euo pipefail
           if [ ! -f "$WORK/history.json" ] && [ -f "$WORK/plan-artifact/plan/history.json" ]; then
@@ -777,12 +884,14 @@ jobs:
           if [ -f "$WORK/worker-report.json" ]; then report=(--worker-report "$WORK/worker-report.json"); fi
           capacity=()
           if [ -f "$WORK/capacity.json" ]; then capacity=(--capacity "$WORK/capacity.json"); fi
+          recheck=()
+          if [ -n "$RECHECK" ]; then recheck=(--withheld-recheck "$RECHECK"); fi
           mkdir -p "$WORK/refusals"
           # Every reproduction shard writes one refusal file; only when all of
           # them did, and each refused only for the runner's time, is the
           # refusal transient (no stop; the next run retries).
           shard_count=$(node -e 'try{console.log(JSON.parse(process.argv[1]||"[]").length)}catch{console.log(0)}' "$SHARDS")
-          node scripts/listing-facts-batch.mts assess "${report[@]}" "${delta[@]}" "${capacity[@]}" \
+          node scripts/listing-facts-batch.mts assess "${report[@]}" "${delta[@]}" "${capacity[@]}" "${recheck[@]}" \
             --history "$WORK/history.json" --run-id "$GITHUB_RUN_ID" --versions "$versions" \
             --gate "$GATE" --paths "$PATHS" --reproduction "$VERIFY" --refusals "$WORK/refusals" \
             --shard-count "$shard_count" --output "$WORK/conditions.json" > /dev/null
@@ -792,13 +901,13 @@ jobs:
         id: ready
         timeout-minutes: 2
         env:
-          PATHS: ${{ needs.combine.outputs.paths }}
-          GATE: ${{ needs.combine.outputs.gate }}
-          CHECKS: ${{ needs.combine.outputs.checks }}
-          CAPACITY: ${{ needs.combine.outputs.capacity }}
-          REPRODUCE: ${{ needs.reproduce.result }}
+          PATHS: ${{ steps.effective.outputs.paths }}
+          GATE: ${{ steps.effective.outputs.gate }}
+          CHECKS: ${{ steps.effective.outputs.checks }}
+          CAPACITY: ${{ steps.effective.outputs.capacity }}
+          REPRODUCE: ${{ steps.withhold.outcome == 'failure' && 'failure' || needs.reproduce.result }}
           STOP: ${{ steps.assess.outputs.stop }}
-          MATERIAL: ${{ needs.combine.outputs.material }}
+          MATERIAL: ${{ steps.effective.outputs.material }}
         run: |
           set -euo pipefail
           ready=false
@@ -834,6 +943,7 @@ jobs:
             ${{ env.WORK }}/conditions.json
             ${{ env.WORK }}/capacity.json
             ${{ env.WORK }}/queue-counts.json
+            ${{ env.WORK }}/withheld.json
           if-no-files-found: warn
           retention-days: 30
       - name: Retain the complete registration queues
@@ -865,7 +975,7 @@ jobs:
           hashFiles('work/listing-facts-batch/state.json') != '' &&
           steps.ready.outputs.ready != 'true' && steps.assess.outputs.stop == 'false' &&
           steps.assess.outputs.transient != 'true' &&
-          needs.combine.outputs.material == 'false' }}
+          steps.effective.outputs.material == 'false' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         timeout-minutes: 5
         with:

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "escape-velocity-nova-evnova-decomp",
+    "project_url": "https://github.com/wraitii/evnova-decomp",
+    "name": "Escape Velocity Nova / evnova-decomp",
+    "summary": "Reimplementation of the Escape Velocity Nova engine. SDL3 & multiplatform.",
+    "issue_number": 5460,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "escape-velocity-nova",
+      "evidence_urls": ["https://github.com/wraitii/evnova-decomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Escape Velocity Nova"
+  }
+}

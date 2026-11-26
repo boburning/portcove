@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ben-10-cosmic-recomp",
+    "project_url": "https://github.com/nour9264/Cosmic-Recomp-work",
+    "name": "Ben 10 Ultimate Alien: Cosmic Destruction / Cosmic Recomp",
+    "summary": "Static recompilation of Ben 10 Ultimate Alien: Cosmic Destruction for Windows. Requires your own copy of the original game.",
+    "issue_number": 6571,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ben-10-ultimate-alien-cosmic-destruction",
+      "evidence_urls": ["https://github.com/nour9264/Cosmic-Recomp-work"],
+      "source_editions": []
+    },
+    "original_game_title": "Ben 10 Ultimate Alien: Cosmic Destruction"
+  }
+}

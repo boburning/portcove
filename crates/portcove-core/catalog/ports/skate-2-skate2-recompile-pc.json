@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "skate-2-skate2-recompile-pc",
+    "project_url": "https://github.com/christianortel/skate2-recompile-pc",
+    "name": "Skate 2 / Skate 2 PC (christianortel)",
+    "summary": "Community Windows PC port of Skate 2, built with ReXGlue. Controller support, adjustable rendering quality, and unlocked FPS. Original game files required.",
+    "issue_number": 6946,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "skate-2",
+      "evidence_urls": ["https://github.com/christianortel/skate2-recompile-pc"],
+      "source_editions": []
+    },
+    "original_game_title": "Skate 2"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "xpxavierx-bleach-soul-resurreccion-ps3-blus30769-d3d12",
+    "project_url": "https://github.com/xPXavierx/bleach-soul-resurreccion-recomp",
+    "name": "Bleach: Soul Resurrección (PS3 BLUS30769 USA) / xPXavierx PS3Recomp",
+    "summary": "A static recompilation of Bleach: Soul Resurrección (PS3, BLUS30769) for Windows.",
+    "issue_number": 4749,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "bleach-soul-resurrecci-n",
+      "evidence_urls": ["https://github.com/xPXavierx/bleach-soul-resurreccion-recomp"],
+      "source_editions": [
+        {
+          "id": "bleach-soul-resurrecci-n-playstation-3",
+          "title": "Bleach: Soul Resurrección (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": ["https://github.com/xPXavierx/bleach-soul-resurreccion-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Bleach: Soul Resurrección"
+  }
+}

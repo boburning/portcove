@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gundam-wing-endless-duel-junior-jones",
+    "project_url": "https://github.com/Junior-Jones/Gundam-Wing-Endless-Duel-SNES-Static-Recomp",
+    "name": "Gundam Wing: Endless Duel / Junior-Jones",
+    "summary": "Static recompilation of Gundam Wing: Endless Duel (SNES) for Windows 10 and 11. ROM not included.",
+    "issue_number": 5965,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gundam-wing-endless-duel",
+      "evidence_urls": [
+        "https://github.com/Junior-Jones/Gundam-Wing-Endless-Duel-SNES-Static-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "gundam-wing-endless-duel-super-nintendo",
+          "title": "Gundam Wing: Endless Duel (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/Junior-Jones/Gundam-Wing-Endless-Duel-SNES-Static-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Gundam Wing: Endless Duel"
+  }
+}

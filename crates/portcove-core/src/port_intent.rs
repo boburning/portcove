@@ -2636,6 +2636,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_local_allowance_refusal_never_spends_a_setup_attempt() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let assessed = service.assess_port_intents().await.unwrap();
+        let PortReadiness::Ready { plan_sha256, .. } = &assessed.assessments[0].readiness else {
+            panic!("expected ready");
+        };
+        let reset = Library::now() + 30 * 60;
+        let refused = crate::PortcoveError::network("not sent").with_known_cause(
+            crate::failure::KnownFailureCause::ProviderAllowanceExhausted {
+                provider: crate::failure::FailureProvider::Github,
+                resets_at: Some(reset),
+                throttled: false,
+                reset_reported: true,
+                signed_in: Some(false),
+            },
+        );
+        for _ in 0..=MAX_STANDING_SETUP_ATTEMPTS {
+            service.remember_standing_failure(
+                PORT,
+                plan_sha256,
+                "not sent",
+                crate::TemporaryFailure::of(&refused),
+            );
+        }
+        let intent = service.library.port_intent(PORT).unwrap().unwrap();
+        assert_eq!(intent.failed_attempts, 0);
+        let retry = intent.temporary_retry.unwrap();
+        assert_eq!(retry.cause, crate::TemporaryCause::RateLimited);
+        assert!(retry.retry_after >= reset);
+    }
+
+    #[tokio::test]
     async fn a_lasting_failure_after_temporary_ones_keeps_its_limit() {
         let (_temporary, service) = ready_service().await;
         service
@@ -3507,6 +3542,7 @@ mod tests {
                 read: 2,
                 total: None,
                 resets_at: None,
+                rate_limit: None,
             });
         for _ in 0..=MAX_STANDING_SETUP_ATTEMPTS {
             service.remember_standing_failure(

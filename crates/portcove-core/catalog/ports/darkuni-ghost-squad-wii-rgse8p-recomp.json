@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-ghost-squad-wii-rgse8p-recomp",
+    "project_url": "https://github.com/darkuni/ghost-squad-recomp",
+    "name": "Ghost Squad (Wii NTSC-U RGSE8P) / darkuni static recomp",
+    "summary": "Static recompilation of Ghost Squad for Windows and Linux. Requires your own copy of the original game.",
+    "issue_number": 5311,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "ghost-squad",
+      "evidence_urls": ["https://github.com/darkuni/ghost-squad-recomp"],
+      "source_editions": [
+        {
+          "id": "ghost-squad-wii",
+          "title": "Ghost Squad (Wii)",
+          "system": "wii",
+          "evidence_urls": ["https://github.com/darkuni/ghost-squad-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Ghost Squad"
+  }
+}

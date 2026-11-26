@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darthmdev-pmd-skyrecompiled-nds-us",
+    "project_url": "https://github.com/DarthMDev/pmd-sky-recomp",
+    "name": "Pokémon Mystery Dungeon: Explorers of Sky (Nintendo DS USA) / DarthMDev SkyRecompiled",
+    "summary": "SkyRecompiled is a native ahead-of-time (AOT) static recompilation PC port of Pokémon Mystery Dungeon: Explorers of Sky, built on ndsrecomp and pmdsky-debug",
+    "issue_number": 4582,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-mystery-dungeon-explorers-of-sky",
+      "evidence_urls": ["https://github.com/DarthMDev/pmd-sky-recomp"],
+      "source_editions": [
+        {
+          "id": "pokemon-mystery-dungeon-explorers-of-sky-nintendo-ds",
+          "title": "Pokémon Mystery Dungeon: Explorers of Sky (Nintendo DS)",
+          "system": "nintendo-ds",
+          "evidence_urls": ["https://github.com/DarthMDev/pmd-sky-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Pokémon Mystery Dungeon: Explorers of Sky"
+  }
+}

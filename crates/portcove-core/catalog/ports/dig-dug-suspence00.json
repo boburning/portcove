@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dig-dug-suspence00",
+    "project_url": "https://github.com/Suspence00/digdug-decomp",
+    "name": "Dig Dug / Suspence00 Rust",
+    "summary": "Clean-room Rust decompilation and hardware implementation of Namco's Dig Dug (1982) triple-Z80 arcade system",
+    "issue_number": 5997,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "dig-dug",
+      "evidence_urls": ["https://github.com/Suspence00/digdug-decomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Dig Dug"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rise-2-resurrection-native-port",
+    "project_url": "https://github.com/ArthurReboulSalze/RiseOftheRobots2",
+    "name": "Rise 2: Resurrection / native port",
+    "summary": "Community C++/SDL2 port of Rise 2: Resurrection. Bring your own original game files.",
+    "issue_number": 5580,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "rise-2-resurrection",
+      "evidence_urls": ["https://github.com/ArthurReboulSalze/RiseOftheRobots2"],
+      "source_editions": []
+    },
+    "original_game_title": "Rise 2: Resurrection"
+  }
+}

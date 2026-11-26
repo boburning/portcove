@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mercurialw0rld-greenday-rock-band-xbox360-rexglue",
+    "project_url": "https://github.com/mercurialw0rld/greendayrockband-recomp",
+    "name": "Green Day: Rock Band (Xbox 360) / mercurialw0rld ReXGlue",
+    "summary": "A PC recompilation for Green Day: Rock Band from Xbox 360",
+    "issue_number": 4934,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "green-day-rock-band",
+      "evidence_urls": ["https://github.com/mercurialw0rld/greendayrockband-recomp"],
+      "source_editions": [
+        {
+          "id": "green-day-rock-band-xbox-360",
+          "title": "Green Day: Rock Band (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/mercurialw0rld/greendayrockband-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "Green Day: Rock Band"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sp00nznet-crazy-taxi-pc-us-2002-pcrecomp",
+    "project_url": "https://github.com/sp00nznet/crazytaxi-recomp",
+    "name": "Crazy Taxi (2002 Windows PC US) / sp00nznet pcrecomp",
+    "summary": "Crazy Taxi (PC, 2002) statically recompiled to native C with pcrecomp: plays to a fare",
+    "issue_number": 5869,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "crazy-taxi",
+      "evidence_urls": ["https://github.com/sp00nznet/crazytaxi-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Crazy Taxi"
+  }
+}

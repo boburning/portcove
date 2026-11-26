@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "akuji-the-heartless-fuzzybark",
+    "project_url": "https://github.com/fuzzybark/AkujiTheHeartlessRecomp",
+    "name": "Akuji the Heartless / Fuzzybark PSX recomp",
+    "summary": "An open-source native PC recompilation of Akuji: The Heartless, bringing the classic PlayStation game to Windows.",
+    "issue_number": 5703,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "akuji-the-heartless",
+      "evidence_urls": ["https://github.com/fuzzybark/AkujiTheHeartlessRecomp"],
+      "source_editions": [
+        {
+          "id": "akuji-the-heartless-playstation",
+          "title": "Akuji the Heartless (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/fuzzybark/AkujiTheHeartlessRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "Akuji the Heartless"
+  }
+}

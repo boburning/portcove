@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "aquaria-aquaria-ose",
+    "project_url": "https://github.com/AquariaOSE/Aquaria",
+    "name": "Aquaria / Aquaria OSE",
+    "summary": "Aquaria open source, forked from icculus.org due to inactivity. Has many enhancements compared to the original version.",
+    "issue_number": 5656,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "aquaria",
+      "evidence_urls": ["https://github.com/AquariaOSE/Aquaria"],
+      "source_editions": []
+    },
+    "original_game_title": "Aquaria"
+  }
+}

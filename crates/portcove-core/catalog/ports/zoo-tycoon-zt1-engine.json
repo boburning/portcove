@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "zoo-tycoon-zt1-engine",
+    "project_url": "https://github.com/AlexC1991/zt1-engine",
+    "name": "Zoo Tycoon / ZT1-Engine",
+    "summary": "Open-source engine for Zoo Tycoon 1 on modern Windows: the original game as the spec, open for everyone to play, mod and improve. Bring your own copy of the game.",
+    "issue_number": 5866,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "zoo-tycoon",
+      "evidence_urls": ["https://github.com/AlexC1991/zt1-engine"],
+      "source_editions": []
+    },
+    "original_game_title": "Zoo Tycoon"
+  }
+}

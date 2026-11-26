@@ -1401,6 +1401,12 @@ The maintained report
 publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
 main checkout installs frozen dependencies before the credentialed steps. Existing
 artifact-byte downloads remain staged acquisition work under the same owner.
+GitHub's run artifact list lags a just-finished upload, so the publish step re-reads
+its own uploaded state for up to six waits (60 seconds) while the list or archive
+lookup is 404, the list omits the artifact or it reports a total that differs from
+its items. It publishes only after
+the read-back bytes equal the candidate. Exhaustion names the collection and both
+numbers; the unchanged pointer lets the next publication replay the same receipts.
 
 Eligible reads have at most three total attempts; writes run once and require
 authoritative reconciliation after ambiguity. Reusing a logical request policy
@@ -3713,8 +3719,12 @@ The Windows normal-package case also reads the actual workspace catalog and
 catalog status, checks the reviewed original-game relationships, and retains
 `normal-package-game-first-catalog.json`. That artifact binds the loaded catalog
 digest, definition/listing provenance, independent relationship fixture, package
-and executable to the executing source revision. The fixture and oracle have
-immutable input custody. Existing packages use their own matching source and
+and executable to the executing source revision. It records the exact generated
+source document digests, checks the complete loaded population and original-game
+identities against those source documents, and checks the historical audit
+relationships among the independently reviewed entries. The isolated test profile
+turns off automatic catalog refresh so this verifies the embedded cohort. The
+source documents, fixture and oracle have immutable input custody. Existing packages use their own matching source and
 fixture; the verifier refuses a different candidate revision. A relationship
 failure fails the scenario and retains the readback. This read-only observation
 grants no source compatibility, installation permission or gameplay acceptance.

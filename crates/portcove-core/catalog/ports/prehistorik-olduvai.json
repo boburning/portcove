@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "prehistorik-olduvai",
+    "project_url": "https://github.com/ksokolowski/olduvai",
+    "name": "Prehistorik / Olduvai",
+    "summary": "From-scratch C++/SDL2 reimplementation of the Prehistorik (1991) engine — bring your own game files.",
+    "issue_number": 5777,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "prehistorik",
+      "evidence_urls": ["https://github.com/ksokolowski/olduvai"],
+      "source_editions": []
+    },
+    "original_game_title": "Prehistorik"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "torchlight-torchlight-rekindled",
+    "project_url": "https://github.com/GreenSwampDweller/torchlight-rekindled",
+    "name": "Torchlight / Torchlight Rekindled",
+    "summary": "Torchlight build for modern portable systems",
+    "issue_number": 5861,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "torchlight",
+      "evidence_urls": ["https://github.com/GreenSwampDweller/torchlight-rekindled"],
+      "source_editions": []
+    },
+    "original_game_title": "Torchlight"
+  }
+}

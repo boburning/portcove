@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "touhou-reiiden-reiidenport",
+    "project_url": "https://github.com/Felipe-Gomes-Amorim/touhou-reiiden-port",
+    "name": "Touhou Reiiden: The Highly Responsive to Prayers / ReiidenPort",
+    "summary": "Unofficial fan port of Touhou Reiiden (PC-98) in C#. Requires your own copy of the game. No game data included.",
+    "issue_number": 5998,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "touhou-reiiden-the-highly-responsive-to-prayers",
+      "evidence_urls": ["https://github.com/Felipe-Gomes-Amorim/touhou-reiiden-port"],
+      "source_editions": []
+    },
+    "original_game_title": "Touhou Reiiden: The Highly Responsive to Prayers"
+  }
+}

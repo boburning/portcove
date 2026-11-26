@@ -9,15 +9,45 @@ import { commandSurfaceCommands } from "../../use-command-surface";
 import { filterCommands } from "../../components/CommandPalette";
 import { gameGroupId, gameGroupTitle, groupCatalog } from "./original-game";
 
-const entries = catalogEntries(
-  embedded as unknown as CatalogDocument,
-  directory as unknown as CatalogListingDocument,
-  [],
-  [],
-);
+const canonicalDefinitions = embedded as unknown as CatalogDocument;
+const canonicalDirectory = directory as unknown as CatalogListingDocument;
+const entries = catalogEntries(canonicalDefinitions, canonicalDirectory, [], []);
 const groups = groupCatalog(entries);
 // Frozen independently reviewed relationships, never generated from the tested output.
 const reviewed = expected.families;
+const auditedPortIds = new Set(expected.audited_port_ids);
+
+function auditedMembers(ids: readonly string[], selected?: string) {
+  return ids.filter((id) => auditedPortIds.has(id) || id === selected).sort();
+}
+
+function declaredGroups(ports: readonly PortDefinition[]) {
+  const declarations = new Map(canonicalDirectory.listings.map((row) => [row.id, row]));
+  const definitions = new Map(ports.map((row) => [row.id, row]));
+  const expectedGroups = new Map<string, string[]>();
+  for (const id of new Set([...declarations.keys(), ...definitions.keys()])) {
+    const listing = declarations.get(id);
+    const original = definitions.get(id)?.presentation?.original_game ?? listing?.original_game;
+    const key = original ? `game:${original.id}` : `port:${id}`;
+    const members = expectedGroups.get(key) ?? [];
+    members.push(id);
+    expectedGroups.set(key, members);
+  }
+  return [...expectedGroups]
+    .map(([id, members]) => ({ id, members: members.sort() }))
+    .sort((left, right) => left.id.localeCompare(right.id));
+}
+
+function projectedGroups(actual: typeof groups) {
+  return actual
+    .map((group) => ({ id: group.id, members: group.ports.map(({ id }) => id).sort() }))
+    .sort((left, right) => left.id.localeCompare(right.id));
+}
+
+it("projects the full current catalog by its declared original-game identities", () => {
+  expect(projectedGroups(groups)).toEqual(declaredGroups(canonicalDefinitions.ports));
+});
+
 const stagedLeaves = import.meta.glob<{ port: PortDefinition }>(
   "../../../../../release/catalog-publication/bundle/sha256/*.json",
   { eager: true, import: "default" },
@@ -35,16 +65,13 @@ it.each(definitionIndex.definitions.map((row) => [row.stable_id, row.target] as 
     const game = selectedExtra?.game_id ?? canonical?.presentation?.original_game?.id;
     const title = selectedExtra?.game_title ?? canonical?.presentation?.original_game_title;
     const reviewedFamily = Object.entries(reviewed).find(([key]) => key === game)?.[1];
-    const projected = catalogEntries(
-      {
-        ...embedded,
-        ports: [...embedded.ports.filter((entry) => entry.id !== id), port],
-      } as unknown as CatalogDocument,
-      directory as unknown as CatalogListingDocument,
-      [],
-      [],
-    );
+    const selectedDefinitions = {
+      ...canonicalDefinitions,
+      ports: [...canonicalDefinitions.ports.filter((entry) => entry.id !== id), port],
+    };
+    const projected = catalogEntries(selectedDefinitions, canonicalDirectory, [], []);
     const selectedGroups = groupCatalog(projected);
+    expect(projectedGroups(selectedGroups)).toEqual(declaredGroups(selectedDefinitions.ports));
     const selected = projected.find((entry) => entry.id === id);
     expect(selected?.definition).toBe(port);
     expect(selected?.source_profile).toBe(port.source_profile);
@@ -55,7 +82,9 @@ it.each(definitionIndex.definitions.map((row) => [row.stable_id, row.target] as 
     const expectedPortIds = reviewedProject
       ? [id]
       : (selectedExtra?.family_port_ids ?? reviewedFamily ?? [id]);
-    expect(group?.ports.map((entry) => entry.id).sort()).toEqual([...expectedPortIds].sort());
+    expect(auditedMembers(group?.ports.map((entry) => entry.id) ?? [], id)).toEqual(
+      [...expectedPortIds].sort(),
+    );
     expect(title).toBeDefined();
     expect(group && gameGroupTitle(group)).toBe(title);
     const original = selected?.presentation?.original_game;
@@ -79,7 +108,7 @@ it.each(Object.entries(reviewed))(
   (id, expected) => {
     const matches = groups.filter((group) => group.id === `game:${id}`);
     expect(matches).toHaveLength(1);
-    expect(matches[0]!.ports.map((port) => port.id).sort()).toEqual([...expected].sort());
+    expect(auditedMembers(matches[0]!.ports.map((port) => port.id))).toEqual([...expected].sort());
     for (const member of expected)
       expect(entries.filter((entry) => entry.id === member)).toHaveLength(1);
   },
@@ -160,10 +189,7 @@ it.each(["Roll Away", "KulaQuest"])(
     });
     expect(filterCommands(commands, query).map(({ id }) => id)).toEqual(["game:kula-world"]);
     expect(
-      groups
-        .find(({ id }) => id === "game:kula-world")!
-        .ports.map(({ id }) => id)
-        .sort(),
+      auditedMembers(groups.find(({ id }) => id === "game:kula-world")!.ports.map(({ id }) => id)),
     ).toEqual([...reviewed["kula-world"]].sort());
   },
 );

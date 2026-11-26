@@ -96,7 +96,8 @@ import {
   channelOnlyTag,
   listingCounts,
   listingWords,
-  textStatement,
+  lineStatement,
+  refusalReceipt,
   failureCauses,
   compareCodePoints,
   type FailureCause,
@@ -131,6 +132,7 @@ import {
   listingReleaseLimit,
 } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
+import { releaseTextFact, type ReleaseTextFact } from "./upstream-observer.mts";
 
 export interface RetryItem {
   port_id: string;
@@ -148,6 +150,23 @@ export interface WorkerState {
   pending: string[];
   /** Transiently incomplete identities, retried oldest first. */
   retry: RetryItem[];
+  /**
+   * Entries the scheduled job derived but carried to a later batch
+   * (`scripts/listing-facts-batch.mts` `carryOver`), oldest wait first. Each
+   * keeps when it was first carried (`since`, so a later batch lands the
+   * longest-waiting entries first) and the entry it derived, whose artifacts
+   * are inspection receipts per digest-bound archive: reused like a committed
+   * entry's (`reusable`) while the repository id and the parser version still
+   * match, so an unchanged release is not downloaded again. Its refusals are
+   * not reused: an ineligible verdict lands without reproduction.
+   * A receipt grants nothing: a carried entry is reproduced from its bytes
+   * when its batch lands, like any other. Absent when nothing is carried.
+   */
+  carried?: CarriedItem[];
+}
+export interface CarriedItem {
+  since: string;
+  entry: ListingFactsEntry;
 }
 export const initialState = (): WorkerState => ({ format: 3, pending: [], retry: [] });
 
@@ -168,11 +187,12 @@ export interface ObservedRelease {
   /** Asset records in this release the worker cannot read; never dropped silently. */
   malformed_assets: number;
   /**
-   * The release's own text as the observer reported it (its name and body),
-   * or null when the report carries neither field: UNKNOWN optional
-   * evidence. Only `textStatement` reads the body; it is never recorded.
+   * The release's own text as the observer reported it (its name and its
+   * body's judged line, `bodyFirstLine`, and whether that text was kept
+   * whole), or null when the report carries neither: UNKNOWN optional
+   * evidence. The line is never recorded; only the statement it makes is.
    */
-  text: { title: string | null; body: string | null } | null;
+  text: ReleaseTextFact | null;
 }
 /**
  * A failed inspection. `permanent` failures are not retried for this release:
@@ -377,6 +397,28 @@ export function unreadableReleases(
   return undefined;
 }
 
+/**
+ * A release's own text as an observer report (or the provider) states it.
+ * The observer's kept text (`name`, `body_line`, `body_line_complete`) is
+ * the judged line already; a whole `body` (the provider's own release, or an
+ * older report) is read to its judged line here (`releaseTextFact`), so both
+ * read alike. Null when the report states no text at all.
+ */
+export function reportedText(release: Record<string, unknown>): ReleaseTextFact | null {
+  if (Object.hasOwn(release, "body_line") || Object.hasOwn(release, "body_line_complete"))
+    return {
+      title: typeof release.name === "string" ? release.name : null,
+      line: typeof release.body_line === "string" ? release.body_line : null,
+      line_complete: release.body_line_complete === true,
+    };
+  return (
+    releaseTextFact({
+      ...(Object.hasOwn(release, "name") ? { name: release.name } : {}),
+      ...(Object.hasOwn(release, "body") ? { body: release.body } : {}),
+    }) ?? null
+  );
+}
+
 function releasesOf(observation: Record<string, unknown>): ObservedRelease[] {
   return (Array.isArray(observation.releases) ? observation.releases : []).flatMap(
     (release: unknown) =>
@@ -392,13 +434,7 @@ function releasesOf(observation: Record<string, unknown>): ObservedRelease[] {
               published_at: typeof release.published_at === "string" ? release.published_at : null,
               provider_prerelease: release.provider_prerelease === true,
               assets_complete: release.assets_complete === true,
-              text:
-                Object.hasOwn(release, "name") || Object.hasOwn(release, "body")
-                  ? {
-                      title: typeof release.name === "string" ? release.name : null,
-                      body: typeof release.body === "string" ? release.body : null,
-                    }
-                  : null,
+              text: reportedText(release),
               malformed_assets: release.assets.filter((asset: unknown) => !readableAsset(asset))
                 .length,
               assets: release.assets.flatMap((asset: unknown) =>
@@ -513,13 +549,15 @@ export const containerNames = (release: ObservedRelease | undefined) =>
     .map((asset) => asset.name);
 /**
  * Observed releases as the facts record them, in ascending release id: the
- * tag, Core's prerelease verdict (null when Core gave none), the publication
+ * tag, Core's verdict from the provider flag and tag alone (`core_prerelease`,
+ * null when Core gave none), the verdict with the release's own text
+ * (`prerelease`: Core's, or a statement the text makes), the publication
  * time and whether a package file is among the assets. Null fields are
  * unknown.
  */
 export const observedReleaseFacts = (
   releases: readonly ObservedRelease[],
-  prerelease: (release: ObservedRelease) => boolean | undefined,
+  core: (release: ObservedRelease) => boolean | undefined,
   repository: string,
   listing: readonly string[] = [],
 ): ObservedReleaseFact[] =>
@@ -527,34 +565,48 @@ export const observedReleaseFacts = (
     .toSorted((left, right) => left.id - right.id)
     .map((release) => {
       const published = Date.parse(release.published_at ?? "");
+      const text = releaseTextFacts(release, repository, listing);
+      const verdict = core(release);
       return {
         release_id: release.id,
         tag: recordedTag(release.version),
-        prerelease: prerelease(release) ?? null,
+        core_prerelease: verdict ?? null,
+        prerelease: verdict === undefined ? null : verdict || text.statement !== null,
         published_at: Number.isNaN(published) ? null : new Date(published).toISOString(),
         packaged: release.assets.some((asset) => packageFormOf(asset.name) !== undefined),
-        ...releaseTextFacts(release, repository, listing),
+        ...text,
       };
     });
 /**
- * What the facts record of a release's own text: whether the observer
- * reported it, the title when it is bounded printable text (`recordedTag`'s
- * class), and the prerelease statement the title or the body's first line
- * makes (`textStatement`, with the listing's own words, `listingWords`).
- * The body is never recorded.
+ * What the facts record of a release's own text: whether it is observed, the
+ * title when it is bounded printable text (`recordedTag`'s class), and the
+ * prerelease statement the title or the body's judged line makes
+ * (`lineStatement`, with the listing's own words, `listingWords`). Text the
+ * observer did not report, or did not keep (its source over its text
+ * budget) while nothing states a prerelease, is `unobserved`: absence is
+ * never inferred from it. The body is never recorded.
  */
 export const releaseTextFacts = (
   release: ObservedRelease,
   repository: string,
   listing: readonly string[] = [],
-): Pick<ObservedReleaseFact, "text" | "title" | "statement"> =>
-  release.text === null
-    ? { text: "unobserved", title: null, statement: null }
-    : {
+): Pick<ObservedReleaseFact, "text" | "title" | "statement"> => {
+  if (release.text === null) return { text: "unobserved", title: null, statement: null };
+  const judged = lineStatement(
+    release.text.title,
+    release.text.line,
+    release.text.line_complete,
+    repository,
+    listing,
+  );
+  return judged.observed
+    ? {
         text: "observed",
         title: release.text.title === null ? null : recordedTag(release.text.title),
-        statement: textStatement(release.text.title, release.text.body, repository, listing),
-      };
+        statement: judged.statement,
+      }
+    : { text: "unobserved", title: null, statement: null };
+};
 /**
  * The releases a listing observation keeps from a provider list: the newest
  * `listingReleaseLimit` by publication time (then id), each with at most
@@ -969,6 +1021,8 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   const retry = new Map(
     state.retry.filter((item) => candidates.has(item.port_id)).map((item) => [item.port_id, item]),
   );
+  /** Inspection receipts of carried entries (`WorkerState.carried`). */
+  const receipts = new Map((state.carried ?? []).map((item) => [item.entry.port_id, item]));
   const observed = observations(
     only === undefined ? candidates : new Map([...candidates].filter(([id]) => only.has(id))),
     inputs.observerReport,
@@ -1067,7 +1121,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   const observedReleasesOf = (id: string): ObservedReleaseFact[] =>
     observedReleaseFacts(
       observed.get(id)!.releases,
-      verdictOf(id),
+      (release) => names.prerelease(release),
       candidates.get(id)!,
       wordsOf(id),
     );
@@ -1376,8 +1430,21 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         entry.observation.release_id === release.id &&
         entry.observation.assets_sha256 === fingerprint,
     );
+    // A reproduction refusal stays while its receipt holds (the same
+    // release, assets, observed release text verdicts and rule versions):
+    // reconfirmed without downloading. Any change derives it again.
+    const refusalHolds =
+      same?.ineligible?.reason !== "reproduction-refused" ||
+      same.ineligible.receipt ===
+        refusalReceipt({
+          repository_id: repositoryId,
+          release_id: release.id,
+          assets_sha256: fingerprint,
+          observed_releases: observedReleasesOf(id),
+        });
     if (
       same?.ineligible &&
+      refusalHolds &&
       !["observation-unavailable", "repository-identity-changed"].includes(same.ineligible.reason)
     ) {
       // Completed ineligible for this exact release: reconfirm, do not retry.
@@ -1466,11 +1533,19 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     // accumulates. Several archives for one platform are judged by the fit
     // rule (`ambiguous-artifact`), never by a count.
     const digestBound = archives as (ObservedAsset & { sha256: string })[];
+    const receipt = receipts.get(id)?.entry;
+    const receipted =
+      receipt?.repository_id === repositoryId && receipt.parser_version === FACTS_PARSER_VERSION
+        ? receipt
+        : undefined;
     const reusable = new Map(
-      [prior]
+      [prior, receipted]
         .flatMap((entry) => entry?.artifacts ?? [])
         .map((artifact) => [`${artifact.asset_id}/${artifact.sha256}`, artifact] as const),
     );
+    // A carried refusal is not reused: an ineligible verdict needs no
+    // reproduction, so only a committed (reproduced) refusal may stand for
+    // bytes not read again.
     const reusableRefusals = new Map(
       [prior]
         .flatMap((entry) => entry?.refused_archives ?? [])
@@ -1716,6 +1791,8 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       retry: [...retry.values()]
         .filter((item) => !entries.get(item.port_id)?.ineligible)
         .toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
+      // Only the scheduled job's carry step rewrites the carried entries.
+      ...(state.carried?.length ? { carried: state.carried } : {}),
     },
     report,
     ineligible: ineligibleCounts,
@@ -1803,6 +1880,8 @@ export function combineShards(
           shard.result.state.retry.filter((item) => owner.get(item.port_id) === shard.result),
         ),
       ].toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
+      // Shards only read the carried entries; the carry step rewrites them.
+      ...(plan.state.carried?.length ? { carried: plan.state.carried } : {}),
     },
     report: report.toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
     ineligible,
@@ -1836,7 +1915,24 @@ function sanitizeState(state: WorkerState): WorkerState {
         Number(item.failures) > 0 &&
         (item.cause === undefined || (failureCauses as readonly unknown[]).includes(item.cause)),
     ),
+    ...carriedOf(state.carried),
   };
+}
+/** The well-formed carried items (`WorkerState.carried`); a malformed one is dropped and re-read. */
+function carriedOf(value: unknown): Pick<WorkerState, "carried"> {
+  const carried = (Array.isArray(value) ? value : []).filter(
+    (item: unknown): item is CarriedItem => {
+      if (!isRecord(item) || typeof item.since !== "string" || Number.isNaN(Date.parse(item.since)))
+        return false;
+      try {
+        checkListingFactsEntry(item.entry, "A carried entry");
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  );
+  return carried.length ? { carried } : {};
 }
 
 // ---------------------------------------------------------------------------
@@ -1865,7 +1961,16 @@ export interface CoreRun {
   stdout: string;
   /** The process ran to an exit code (not killed or failed to start). */
   exited: boolean;
+  /** The CLI could not be started at all (missing, not executable). */
+  unstarted?: boolean;
 }
+/**
+ * A fault of the Core CLI itself, not of the bytes it was given: it could not
+ * be started, it crashed or printed no JSON envelope, or it refused its own
+ * invocation (`usage`). The worker treats it like any inspection failure it
+ * retries; the batch job's reproduction treats it as a fault of the job.
+ */
+export class CoreToolError extends InspectionError {}
 /**
  * Run the Portcove CLI with its temporary directory inside `scratch`, which
  * the caller deletes, so a killed run (timeout) cannot leak Core's workspace.
@@ -1899,6 +2004,8 @@ export async function runCore(
           stdout: String(stdout ?? ""),
           exited:
             !failure || (!failure.killed && !failure.signal && typeof failure.code === "number"),
+          // A system error code (`ENOENT`, `EACCES`) means it never ran.
+          unstarted: typeof failure?.code === "string",
         });
       },
     );
@@ -1907,16 +2014,22 @@ export async function runCore(
 
 /** Core's JSON envelope: its data, or the failure as an `InspectionError`. Exported for its unit test. */
 export function coreData(run: CoreRun, what: string): Record<string, unknown> {
+  if (run.unstarted)
+    throw new CoreToolError(
+      `The Core CLI could not be started for ${what}.`,
+      false,
+      "core-unknown",
+      "over-budget",
+    );
   let parsed: unknown;
   try {
     parsed = JSON.parse(run.stdout);
   } catch {
-    throw new InspectionError(
-      `Core gave no ${what} result.`,
-      false,
-      "core-unknown",
-      run.exited ? "unreadable-archive" : "over-budget",
-    );
+    // An exited run without its JSON envelope is the CLI's own fault.
+    const cause = run.exited ? "unreadable-archive" : "over-budget";
+    if (run.exited)
+      throw new CoreToolError(`Core gave no ${what} result.`, false, "core-unknown", cause);
+    throw new InspectionError(`Core gave no ${what} result.`, false, "core-unknown", cause);
   }
   if (isRecord(parsed) && parsed.ok === true && isRecord(parsed.data)) return parsed.data;
   // The runner's disk ran out while Core extracted the archive: a real
@@ -1934,6 +2047,10 @@ export function coreData(run: CoreRun, what: string): Record<string, unknown> {
   // Core ran and refused these bytes: the same bytes are refused again. A
   // run that was killed (its timeout) settles nothing about the bytes.
   const refusal = refusalClassOf(error?.code);
+  // Core refused its own invocation (a version or argument mismatch): no
+  // verdict on these bytes.
+  if (refusal === "core-usage" && run.exited)
+    throw new CoreToolError(`Core refused the invocation during ${what}.`, true, refusal, refusal);
   throw new InspectionError(
     `Core refused the archive during ${what}.`,
     run.exited,

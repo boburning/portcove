@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "castlevania-loi-ggmartinez",
+    "project_url": "https://github.com/ggMartinez/CastlevaniaLOI-PC",
+    "name": "Castlevania Lament of Innocence / ggMartinez PS2 native",
+    "summary": "Castlevania: Lament of Innocence ported to PC",
+    "issue_number": 5651,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-lament-of-innocence",
+      "evidence_urls": ["https://github.com/ggMartinez/CastlevaniaLOI-PC"],
+      "source_editions": []
+    },
+    "original_game_title": "Castlevania Lament of Innocence"
+  }
+}

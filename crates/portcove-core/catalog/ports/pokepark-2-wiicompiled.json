@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokepark-2-wiicompiled",
+    "project_url": "https://github.com/MildRain479/PokePark-2-Wiicompiled",
+    "name": "PokéPark 2 / WiiCompiled",
+    "summary": "A static recompilation of PokéPark 2: Wonders Beyond for PC and Android, originally created for the Nintendo Wii with reconfigured controls, options, and performance to make the game in-line with modern PC releases.",
+    "issue_number": 6546,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokepark-2",
+      "evidence_urls": ["https://github.com/MildRain479/PokePark-2-Wiicompiled"],
+      "source_editions": [
+        {
+          "id": "pokepark-2-wii",
+          "title": "PokéPark 2 (Wii)",
+          "system": "wii",
+          "evidence_urls": ["https://github.com/MildRain479/PokePark-2-Wiicompiled"]
+        }
+      ]
+    },
+    "original_game_title": "PokéPark 2"
+  }
+}

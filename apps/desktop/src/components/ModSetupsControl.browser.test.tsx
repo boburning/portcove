@@ -1918,7 +1918,7 @@ it.each(["accepted", "refused"] as const)(
   },
 );
 
-it("checks every missing recipe mod in bounded steps past the former 32-file bound", async () => {
+function recipeStepFixture() {
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
   vi.spyOn(picker, "pickModRecipePath").mockResolvedValue("/picked/setup.json");
   const ids = Array.from({ length: 40 }, (_, index) => `mod-${index}.nrm`);
@@ -1954,6 +1954,11 @@ it("checks every missing recipe mod in bounded steps past the former 32-file bou
     acquired: ids.slice(done - 8, done),
   }));
   const acquire = vi.spyOn(desktopApi, "acquireModRecipePackages");
+  return { acquire, steps, first };
+}
+
+it("checks every missing recipe mod in bounded steps past the former 32-file bound", async () => {
+  const { acquire, steps, first } = recipeStepFixture();
   for (const step of steps) acquire.mockResolvedValueOnce(step);
   await render();
   await page.getByRole("button", { name: "Open setup recipe…" }).click();
@@ -1963,6 +1968,35 @@ it("checks every missing recipe mod in bounded steps past the former 32-file bou
   expect(acquire).toHaveBeenNthCalledWith(1, "shipwright", expect.any(String), first, 7);
   expect(acquire).toHaveBeenNthCalledWith(5, "shipwright", expect.any(String), steps[3]!.review, 7);
   await expect.element(page.getByRole("textbox", { name: "Name for the new setup" })).toBeVisible();
+});
+
+it("pauses after the in-flight recipe step and continues from its exact acquired prefix", async () => {
+  const { acquire, steps, first } = recipeStepFixture();
+  let complete!: () => void;
+  acquire.mockReturnValueOnce(
+    new Promise((resolve) => {
+      complete = () => resolve(steps[0]!);
+    }),
+  );
+  for (const step of steps.slice(1)) acquire.mockResolvedValueOnce(step);
+
+  await render();
+  await page.getByRole("button", { name: "Open setup recipe…" }).click();
+  const check = page.getByRole("button", { name: "Check the provider for every missing mod" });
+  await check.click();
+  await page.getByRole("button", { name: "Pause after this step" }).click();
+  await expect.element(page.getByText("Finishing this step before pausing…")).toBeVisible();
+  await act(async () => complete());
+  await expect.element(page.getByText(/^Paused after checking 8 of 40 mods/)).toBeVisible();
+  await expect.element(page.getByRole("heading", { name: "Recipe review" })).toHaveFocus();
+  expect(acquire).toHaveBeenCalledExactlyOnceWith("shipwright", "default", first, 7);
+
+  await check.click();
+  await expect.element(page.getByRole("textbox", { name: "Name for the new setup" })).toBeVisible();
+  expect(acquire).toHaveBeenCalledTimes(5);
+  expect(acquire).toHaveBeenNthCalledWith(2, "shipwright", "default", steps[0]!.review, 7);
+  await page.getByRole("button", { name: "Close review" }).click();
+  await expect.element(page.getByText(/mods checked with the provider/)).not.toBeInTheDocument();
 });
 
 it("stops checking recipe mods at a failed step and keeps what was checked", async () => {
@@ -2366,7 +2400,7 @@ it.each(["Browse mods", "Installed mods"] as const)(
   },
 );
 
-it("filters pending provider and local additions and counts them only after Apply", async () => {
+async function applyAndCheckStaleInventory() {
   fixtureProviderMods();
   const initial = view({ provider: "gamebanana", applied_package_count: 2 });
   const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue(initial);
@@ -2388,10 +2422,56 @@ it("filters pending provider and local additions and counts them only after Appl
     native_id: "ui.o2r",
     needs_code_permission: false,
   });
-  vi.spyOn(desktopApi, "applyModSetupDraft").mockImplementation(async () => {
-    read.mockResolvedValue(view({ provider: "gamebanana", applied_package_count: 4 }));
-    return {} as Awaited<ReturnType<typeof desktopApi.applyModSetupDraft>>;
-  });
+  const refreshed = (revision: number, digest: string, count = 4) => {
+    const current = setup("default", "Default", revision, [
+      ["hd.o2r", true],
+      ["sfx.otr", false],
+      ["ui.o2r", true],
+      ["retro-hud.otr", true],
+    ]);
+    return view({
+      provider: "gamebanana",
+      applied_package_count: count,
+      inventory: {
+        port_id: "shipwright",
+        profiles: [
+          {
+            ...current,
+            build_availability: "verified",
+            profile: {
+              ...current.profile,
+              created_at: 1,
+              updated_at: revision,
+              intent: { update_policy: "keep_current" },
+            },
+            revision: {
+              ...current.revision,
+              build: {
+                artifact: { asset_name: "test.zip", sha256: "b".repeat(64), size: 1 },
+                definition: null,
+                install_id: "fixture-install",
+                installed_contract_sha256: "c".repeat(64),
+                manifest_sha256: "e".repeat(64),
+                platform: "windows-x86-64",
+                port_id: "shipwright",
+                runtime: null,
+                selected_executable: "game.exe",
+              },
+              created_at: revision,
+              digest,
+              originals: [],
+              parent_revision: revision - 1,
+              save_group: "default",
+            },
+          },
+        ],
+      },
+      live: { ...initial.live!, revision },
+    });
+  };
+  const digest = "d".repeat(64);
+  const committed = refreshed(4, digest).inventory!.profiles[0]!.revision;
+  const apply = vi.spyOn(desktopApi, "applyModSetupDraft").mockResolvedValue(committed);
   const host = await render();
   const click = async (label: string) => act(async () => button(host, label).click());
   await click("Browse mods");
@@ -2429,7 +2509,64 @@ it("filters pending provider and local additions and counts them only after Appl
   await click("Review changes");
   await click("Check files");
   await click("Apply changes");
+  const applied = page.getByText("Setup changes applied.", { exact: true });
+  const stale = page.getByText("Portcove couldn’t confirm the current setup. Read setups again.");
+  const heading = page.getByRole("heading", { name: "Setups and mods" });
+  await expect.element(applied).toBeVisible();
+  await expect.element(stale).toBeVisible();
+  await expect.element(heading).toHaveFocus();
+  await expect
+    .element(page.getByRole("button", { name: "Installed mods 2" }))
+    .not.toBeInTheDocument();
+
+  read.mockRejectedValue(new Error("Setup read interrupted"));
+  await click("Read setups again");
+  await expect.element(page.getByRole("alert")).toHaveTextContent("Setup read interrupted");
+  await expect.element(applied).toBeVisible();
+  await expect.element(heading).toHaveFocus();
+
+  read.mockResolvedValue(refreshed(4, "e".repeat(64)));
+  await click("Read setups again");
+  await expect.element(stale).toBeVisible();
+  read.mockResolvedValue(refreshed(5, "f".repeat(64), 3));
+  await click("Read setups again");
+  await expect.element(stale).toBeVisible();
+
+  return { applied, apply, click, heading, initial, read, refreshed, stale };
+}
+
+it("reveals coherent later inventory only after one apply and a successful read", async () => {
+  const { apply, click, heading, read, refreshed, stale } = await applyAndCheckStaleInventory();
+  read.mockResolvedValue(refreshed(5, "f".repeat(64)));
+  await click("Read setups again");
   await expect.element(page.getByRole("button", { name: "Installed mods 4" })).toBeVisible();
+  await expect.element(heading).toHaveFocus();
+  await expect.element(stale).not.toBeInTheDocument();
+  expect(apply).toHaveBeenCalledTimes(1);
+});
+
+it("keeps a pending apply receipt and its read within the original library generation", async () => {
+  const { applied, apply, click, initial, read, refreshed } = await applyAndCheckStaleInventory();
+  let finishPriorRead!: (value: ModSetupsView) => void;
+  read.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finishPriorRead = resolve;
+    }),
+  );
+  await click("Read setups again");
+  expect(read).toHaveBeenLastCalledWith("shipwright", 7);
+
+  read.mockResolvedValue(initial);
+  const root = mounted.at(-1)!.root;
+  await act(async () =>
+    root.render(<ModSetupsControl portId="shipwright" generation={8} busy={false} />),
+  );
+  await expect.element(page.getByRole("button", { name: "Installed mods 2" })).toBeVisible();
+  await act(async () => finishPriorRead(refreshed(5, "f".repeat(64))));
+  expect(read).toHaveBeenCalledWith("shipwright", 8);
+  await expect.element(applied).not.toBeInTheDocument();
+  await expect.element(page.getByRole("button", { name: "Installed mods 2" })).toBeVisible();
+  expect(apply).toHaveBeenCalledTimes(1);
 });
 
 it("keeps the draft until the exact recovered apply revision is materialized", async () => {

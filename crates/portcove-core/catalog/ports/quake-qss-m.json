@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-qss-m",
+    "project_url": "https://github.com/timbergeron/QSS-M",
+    "name": "Quake / QSS-M",
+    "summary": "QSS-M, a port of ID Software's original Quake, evolved from Quake 1.09 to Fitzquake, Quakespasm, Quakespasm Spiked, and now Quakespasm Spiked Multiplayer. NetQuake competitive multiplayer clients began with ProQuake, progressed to Qrack or Mark V, and arrived at QSS-M, thanks to voluntary contributions",
+    "issue_number": 5779,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": ["https://github.com/timbergeron/QSS-M"],
+      "source_editions": []
+    },
+    "original_game_title": "Quake"
+  }
+}

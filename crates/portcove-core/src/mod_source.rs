@@ -49,6 +49,33 @@ pub enum ModPortalSite {
     CommunitySite,
 }
 
+/// A reviewed link to a mod community for this exact listing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListingModPortal {
+    pub id: String,
+    pub site: ModPortalSite,
+    pub name: String,
+    pub url: String,
+    pub instructions: String,
+}
+
+pub(crate) fn validate_listing_portals(portals: &[ListingModPortal]) -> Result<()> {
+    let mut ids = std::collections::HashSet::new();
+    if portals.len() > MAX_SOURCES
+        || !portals.iter().all(|portal| {
+            valid_id(&portal.id)
+                && ids.insert(&portal.id)
+                && valid_text(&portal.name, MAX_NAME_BYTES)
+                && valid_text(&portal.instructions, MAX_INSTRUCTION_BYTES)
+                && checked_url(&portal.url, portal_host(portal.site)).is_some()
+        })
+    {
+        return Err(PortcoveError::verification("invalid listing mod portals"));
+    }
+    Ok(())
+}
+
 /// Exact companion files one reviewed platform loads beside a Recomp mod.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -123,6 +150,10 @@ impl ModSource {
                 format!("https://github.com/{repository}/releases")
             }
         }
+    }
+
+    pub(crate) fn is_platform_independent_portal(&self) -> bool {
+        self.platforms.is_empty() && matches!(self.source, ModSourceKind::ExternalPortal { .. })
     }
 
     pub(crate) fn offered_on(&self, platform: Platform) -> bool {
@@ -405,9 +436,13 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         if grants_install(source) {
             return Err(invalid(port, "a mod source cannot carry install authority"));
         }
-        if source.platforms.is_empty() || !source.platforms.windows(2).all(|pair| pair[0] < pair[1])
+        if (source.platforms.is_empty() && !source.is_platform_independent_portal())
+            || !source.platforms.windows(2).all(|pair| pair[0] < pair[1])
         {
-            return Err(invalid(port, "platforms must be a sorted, non-empty set"));
+            return Err(invalid(
+                port,
+                "platforms must be sorted and may be empty only for an external portal",
+            ));
         }
         let github = matches!(source.source, ModSourceKind::GithubRelease { .. });
         let described = match (&source.name, &source.instructions) {

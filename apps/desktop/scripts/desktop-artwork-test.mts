@@ -498,11 +498,17 @@ export async function artworkScenario({
             10_000,
           );
           assert.deepEqual(await state(slot), previous);
-          await click(
-            By.xpath(
-              '//form[.//h4[normalize-space(.)="Review Cover image"]]//button[normalize-space(.)="Apply"]',
-            ),
+          // Job 137084499604 reached this review while artwork reads still took
+          // 17.7 s. Wait for this form's actual Apply control before clicking once.
+          const applyCover = By.xpath(
+            '//form[.//h4[normalize-space(.)="Review Cover image"]]//button[normalize-space(.)="Apply" and not(@disabled) and not(@aria-disabled="true")]',
           );
+          await browser.wait(
+            until.elementLocated(applyCover),
+            45_000,
+            "The reviewed Cover Apply control did not become actionable",
+          );
+          await click(applyCover);
         }
         // Hosted Windows job 136791041646 committed the Cover but still had an
         // earlier 16.35 s read and an in-flight thumbnail. Observe the exact

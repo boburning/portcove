@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "command-conquer-generals-and-zero-hour-generalsx",
+    "project_url": "https://github.com/fbraz3/GeneralsX",
+    "name": "Command & Conquer: Generals and Zero Hour / GeneralsX",
+    "summary": "Command and Conquer: Generals - Zero Hour",
+    "issue_number": 5764,
+    "listed_at": "2026-11-24"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "One port runs Command & Conquer: Generals and its Zero Hour expansion.",
+    "evidence_urls": ["https://github.com/fbraz3/GeneralsX"]
+  }
+}

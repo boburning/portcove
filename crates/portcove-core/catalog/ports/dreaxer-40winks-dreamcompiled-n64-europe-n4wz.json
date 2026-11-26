@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dreaxer-40winks-dreamcompiled-n64-europe-n4wz",
+    "project_url": "https://github.com/DreaXer/40WinksRecomp",
+    "name": "40 Winks (N64 Europe Piko N4WZ) / DreaXer Dreamcompiled",
+    "summary": "Native PC build of 40 Winks (Nintendo 64, Europe) made by static recompilation. Bring your own copy of the game.",
+    "issue_number": 5316,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "40-winks",
+      "evidence_urls": ["https://github.com/DreaXer/40WinksRecomp"],
+      "source_editions": [
+        {
+          "id": "40-winks-nintendo-64",
+          "title": "40 Winks (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": ["https://github.com/DreaXer/40WinksRecomp"]
+        }
+      ]
+    },
+    "original_game_title": "40 Winks"
+  }
+}

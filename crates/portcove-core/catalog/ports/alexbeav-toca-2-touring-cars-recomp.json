@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-toca-2-touring-cars-recomp",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/toca-2-touring-cars-recomp",
+    "name": "TOCA 2 Touring Cars / Alexbeavs PSXRecomp",
+    "summary": "Static recompilation of TOCA 2 Touring Cars (PlayStation). Owned-input kit: you supply your own disc and BIOS.",
+    "issue_number": 6653,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "toca-2-touring-cars",
+      "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/toca-2-touring-cars-recomp"],
+      "source_editions": [
+        {
+          "id": "toca-2-touring-cars-playstation",
+          "title": "TOCA 2 Touring Cars (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/alexbeavs-ps1-ports/toca-2-touring-cars-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "TOCA 2 Touring Cars"
+  }
+}

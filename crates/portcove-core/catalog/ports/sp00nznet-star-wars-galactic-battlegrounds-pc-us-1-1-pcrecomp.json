@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sp00nznet-star-wars-galactic-battlegrounds-pc-us-1-1-pcrecomp",
+    "project_url": "https://github.com/sp00nznet/swgb-recomp",
+    "name": "Star Wars: Galactic Battlegrounds (2001 PC US v1.1) / sp00nznet pcrecomp",
+    "summary": "Static recompilation of Star Wars: Galactic Battlegrounds (2001, Genie engine) to native C on pcrecomp native32. Bring your own copy.",
+    "issue_number": 5871,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-galactic-battlegrounds",
+      "evidence_urls": ["https://github.com/sp00nznet/swgb-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Star Wars: Galactic Battlegrounds"
+  }
+}

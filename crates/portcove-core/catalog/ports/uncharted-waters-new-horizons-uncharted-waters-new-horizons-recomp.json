@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "uncharted-waters-new-horizons-uncharted-waters-new-horizons-recomp",
+    "project_url": "https://github.com/Junior-Jones/Uncharted-Waters-New-Horizons-SNES-Static-Recomp",
+    "name": "Uncharted Waters: New Horizons / Uncharted Waters: New Horizons SNES Static Recomp (Junior-Jones)",
+    "summary": "Static recompilation of Uncharted Waters: New Horizons (SNES) for Windows 10 and 11. ROM not included.",
+    "issue_number": 7229,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "uncharted-waters-new-horizons",
+      "evidence_urls": [
+        "https://github.com/Junior-Jones/Uncharted-Waters-New-Horizons-SNES-Static-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "uncharted-waters-new-horizons-super-nintendo",
+          "title": "Uncharted Waters: New Horizons (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/Junior-Jones/Uncharted-Waters-New-Horizons-SNES-Static-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Uncharted Waters: New Horizons"
+  }
+}

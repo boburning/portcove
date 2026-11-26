@@ -126,6 +126,7 @@ would change and stays proposed until its own pull requests land.
 
 - [Supported capability contracts as the unit of integration](design/INTEGRATION-CONTRACTS.md)
 - [Scaling signed catalog distribution](design/CATALOG-DISTRIBUTION-SCALING.md)
+- [Automatic managed acquisition from upstream releases](design/AUTOMATIC-MANAGED-ACQUISITION.md)
 
 ## Historical evidence
 

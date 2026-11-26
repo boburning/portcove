@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gorky-17-opengorky",
+    "project_url": "https://github.com/m1ome/opengorky",
+    "name": "Gorky 17 / OpenGorky",
+    "summary": "Open-source reimplementation of the Gorky 17 (Odium) engine in Zig + SDL3. Requires original game files.",
+    "issue_number": 5484,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "gorky-17",
+      "evidence_urls": ["https://github.com/m1ome/opengorky"],
+      "source_editions": []
+    },
+    "original_game_title": "Gorky 17"
+  }
+}

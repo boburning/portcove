@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-torneko-the-last-hope-ps1-slus01181-recomp",
+    "project_url": "https://github.com/darkuni/Torneko-recomp",
+    "name": "World of Dragon Warrior: Torneko — The Last Hope (PS1 NTSC-U) / darkuni",
+    "summary": "A recompilation of a PS1 game.",
+    "issue_number": 5020,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "world-of-dragon-warrior-torneko-the-last-hope",
+      "evidence_urls": ["https://github.com/darkuni/Torneko-recomp"],
+      "source_editions": [
+        {
+          "id": "world-of-dragon-warrior-torneko-the-last-hope-playstation",
+          "title": "World of Dragon Warrior: Torneko — The Last Hope (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/darkuni/Torneko-recomp"]
+        }
+      ]
+    },
+    "original_game_title": "World of Dragon Warrior: Torneko — The Last Hope"
+  }
+}

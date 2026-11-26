@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "simpsons-road-rage-ramadeusxd",
+    "project_url": "https://github.com/RamadeusXD/The-Simpsons-Road-Rage-25th-Anniversary-PC-Edition",
+    "name": "The Simpsons Road Rage / RamadeusXD",
+    "summary": "A native PC port of The Simpsons Road Rage of the Xbox port from 2001 for Windows enhaunced features and quality of life updates",
+    "issue_number": 6582,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-simpsons-road-rage",
+      "evidence_urls": [
+        "https://github.com/RamadeusXD/The-Simpsons-Road-Rage-25th-Anniversary-PC-Edition"
+      ],
+      "source_editions": [
+        {
+          "id": "the-simpsons-road-rage-xbox",
+          "title": "The Simpsons Road Rage (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/RamadeusXD/The-Simpsons-Road-Rage-25th-Anniversary-PC-Edition"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "The Simpsons Road Rage"
+  }
+}

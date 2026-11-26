@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sim-theme-park-stp-tpw-launcher",
+    "project_url": "https://github.com/ThemeParkWorldDecomp/tpw-port",
+    "name": "Sim Theme Park / STP-TPW Launcher",
+    "summary": "Sim Theme Park (AKA Theme Park World, 1999) playable port for Apple Silicon Macs and 64-bit Windows: host platform layer, launcher and the port's fixes over the tpw-decomp submodule (100% of functions translated).",
+    "issue_number": 5846,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "sim-theme-park",
+      "evidence_urls": ["https://github.com/ThemeParkWorldDecomp/tpw-port"],
+      "source_editions": []
+    },
+    "original_game_title": "Sim Theme Park"
+  }
+}

@@ -217,7 +217,7 @@ export const partialProgressRules: readonly string[] = ["budget", "cancelled", "
  * through the ordinary exception path; the counter then stops at its cap.
  */
 export const quotaDeferralNotifyAfter = 3;
-const catalogCheckpointByteLimit = 32 * 1024 * 1024;
+export const catalogCheckpointByteLimit = 32 * 1024 * 1024;
 export interface CatalogObserverCheckpoint {
   format: 1;
   authority: "catalog-upstream-observation-only";
@@ -949,13 +949,22 @@ export async function advanceCatalogObservations(
     Math.min(template.budget.requests, requestCeiling) > 1 &&
     (!state.mod_provider_registry || Date.parse(state.mod_provider_registry.next_due_at) <= now())
   ) {
+    const retainedRegistry = state.mod_provider_registry;
+    const retainedConflicts = retainedRegistry?.identity_conflicts;
+    const conflictReserve =
+      retainedConflicts &&
+      Buffer.byteLength(JSON.stringify(retainedConflicts)) >
+        Buffer.byteLength(JSON.stringify("unknown"))
+        ? retainedConflicts
+        : "unknown";
     // Reserve space for Retry-After before spending the request. The longest
     // ISO representation covers even a provider delay in an extended year.
     if (
       registryFits({
-        last_complete: state.mod_provider_registry?.last_complete ?? null,
+        last_complete: retainedRegistry?.last_complete ?? null,
+        ...(retainedRegistry?.last_complete ? { identity_conflicts: conflictReserve } : {}),
         next_due_at: "+275760-09-13T00:00:00.000Z",
-        exception: "rate-limit",
+        exception: retainedRegistry?.last_complete ? "identity-changed" : "rate-limit",
       })
     ) {
       const result = await observeModProviderRegistry(state.mod_provider_registry, {
@@ -969,8 +978,16 @@ export async function advanceCatalogObservations(
       });
       requests++;
       responseBytes += result.bytes;
-      if (result.progress.exception === "rate-limit") {
-        state.mod_provider_registry = result.progress;
+      if (
+        result.progress.exception === "rate-limit" ||
+        result.progress.exception === "identity-changed"
+      ) {
+        // Record known identity invalidation before unrelated release progress
+        // can consume the remaining checkpoint. The compact marker was reserved
+        // before the request and safely suspends all links if details cannot fit.
+        state.mod_provider_registry = registryFits(result.progress)
+          ? result.progress
+          : { ...result.progress, identity_conflicts: "unknown" };
         await commitCheckpoint();
       } else if (!options.signal?.aborted) registryProgress = result.progress;
     } else {
@@ -1428,6 +1445,9 @@ export async function advanceCatalogObservations(
             repository: source.repository,
             repository_id: progress.repository_id,
             asset_scope: "core-channel-candidates",
+            // Only descriptive listings' generated registration reads release
+            // text, so only their sources keep it.
+            ...(listingOnly(source) ? { release_text: "listing-window" as const } : {}),
             policy_input_sha256: observationHash(
               source.ports.map((port) => ({
                 id: port.id,

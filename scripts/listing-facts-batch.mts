@@ -3,11 +3,14 @@
 // pull-request side that holds every facts-table change to the same rules.
 //
 // The job runs the facts worker (`scripts/listing-package-facts.mts`) over
-// the whole candidate set, sharded across a job matrix, regenerates the
-// catalog and proposes one batch: every entry that needs no reproduction, and
-// at most half an hour's reproduction share of those that do (`carryOver`:
-// the job and the batch's CI each reproduce them, possibly in one hour); the
-// rest is carried to the next batch, never dropped. Nothing here is a
+// the whole candidate set, with every listing observation the observer's
+// checkpoint has accumulated (`scripts/listing-facts-observations.mts`),
+// sharded across a job matrix, regenerates the catalog and proposes one
+// batch: every entry that needs no reproduction, and those that do while
+// their reproduction requests fit one batch's share of the hourly quota
+// (`carryOver`: the job and the batch's CI each reproduce them, possibly in
+// one hour). The rest is carried to the next batch, longest wait first, with
+// its inspection receipts, never dropped. Nothing here is a
 // second status or backlog authority: the facts table, the enrollment table
 // and `catalog-route-fit.mts --json` stay the record; the job keeps only the
 // worker state and a short run history in its cache.
@@ -50,15 +53,16 @@
 //     [--reproduce false | --shard I] [--deadline-minutes M]
 //   node scripts/listing-facts-batch.mts worker-shards --needs FILE --directory DIR
 //   node scripts/listing-facts-batch.mts paths [--base REV] [--head REV]
-//   node scripts/listing-facts-batch.mts observations --handoff DIR --output FILE
 //   node scripts/listing-facts-batch.mts inputs --observations FILE --state FILE \
-//     --observer-run ID --source-commit SHA --run-id ID --output FILE
+//     --observer-run REVISION --source-commit SHA --run-id ID --output FILE
+//     (the observations come from `scripts/listing-facts-observations.mts`:
+//     every listing the observer's checkpoint has accumulated)
 //   node scripts/listing-facts-batch.mts assess --worker-report FILE --history FILE \
 //     --run-id ID [--gate ok|refused] [--paths ok|violated] [--reproduction ok|refused] \
 //     [--facts FILE] [--now ISO]
-//   node scripts/listing-facts-batch.mts carry --report FILE [--base REV]
+//   node scripts/listing-facts-batch.mts carry --report FILE --state FILE [--base REV]
 //   node scripts/listing-facts-batch.mts capacity --output FILE
-//   node scripts/listing-facts-batch.mts delta|versions|observer-run|open-pull-request …
+//   node scripts/listing-facts-batch.mts delta|versions|open-pull-request …
 //   node scripts/listing-facts-batch.mts merge-intent|collect …   (job plumbing)
 //   node scripts/listing-facts-batch.mts queues --route-fit FILE [--output FILE]
 //   node scripts/listing-facts-batch.mts issues --conditions FILE [--unfiled FILE]  (GitHub writes)
@@ -85,7 +89,14 @@ import { fileURLToPath } from "node:url";
 import { inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { parseCatalogSource, readCatalogSource, type AuthoredPort } from "./catalog-authoring.mts";
-import { capacityConstant, catalogSizeBounds, catalogSizeGuard } from "./catalog-capacity.mts";
+import {
+  catalogSizeBounds,
+  catalogSizeGuard,
+  listingDeliveryBounds,
+  listingDirectoryMeasures,
+  withdrawalIdentities,
+  type CapacityMeasure,
+} from "./catalog-capacity.mts";
 import {
   checkListingFactsTable,
   compareCodePoints,
@@ -103,8 +114,10 @@ import {
   githubTokenHourlyRequests,
   reproductionBatchEntries,
   reproductionHourlyRequests,
+  reproductionsPerBatch,
   toolchainNames,
   listingCounts,
+  refusalReceipt,
   reproductionPlan,
   sameExceptReconfirmation,
   type ArtifactFactV2,
@@ -125,6 +138,7 @@ import {
   listingOnly,
   cliClassifier,
   cliInspector,
+  CoreToolError,
   InspectionError,
   isArchive,
   latestStable,
@@ -133,15 +147,18 @@ import {
   readerPlatform,
   recordedTag,
   releaseTextFacts,
+  reportedText,
   safeText,
   unreadableReleases,
   type ByteInspector,
   type NameClassifier,
   type ObservedAsset,
+  type CarriedItem,
   type ObservedRelease,
+  type WorkerState,
 } from "./listing-package-facts.mts";
 import { isRecord } from "./runtime-values.mts";
-import { listingDeliveryMaximum } from "./listing-directory-carrier.mts";
+import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -515,9 +532,24 @@ export type RefusalReason =
   | "not-latest-stable"
   | "asset-unavailable"
   | "core-refused"
-  | "mismatch";
+  | "mismatch"
+  | "out-of-scope"
+  | "job-fault";
 /** Refusals that are the runner's time or the provider's condition: retried, never a stop. */
 export const transientReasons: readonly RefusalReason[] = ["over-budget", "transient"];
+/**
+ * Whether a refusal is a verdict on one identity's facts, which withholds
+ * only that identity (`withholdRefused`): every refusal but the runner's or
+ * provider's condition (`transientReasons`) and an entry outside the
+ * authored candidate scope (`out-of-scope`) or a fault of the job's own
+ * code, CLI or credentials (`job-fault`: an error that is no statement of the
+ * provider's data or of Core's verdict on the bytes), which say the
+ * reproduction itself is unsound.
+ */
+export const identityRefusal = (refusal: Pick<Refusal, "reason">) =>
+  !transientReasons.includes(refusal.reason) &&
+  refusal.reason !== "out-of-scope" &&
+  refusal.reason !== "job-fault";
 export interface Refusal {
   port_id: string;
   reason: RefusalReason;
@@ -709,7 +741,7 @@ export async function reproduceFacts(inputs: {
       verified,
       refused: inputs.entries.map((entry) => ({
         port_id: entry.port_id,
-        reason: "mismatch" as const,
+        reason: "out-of-scope" as const,
         detail: inputs.boundLines.has(entry.port_id)
           ? "Another entry of this change names no authored listing-only identity."
           : "The entry's listing is not an authored listing-only identity.",
@@ -768,7 +800,7 @@ export async function reproduceFacts(inputs: {
           detail: `The release list could not be read: ${error.message}`,
         };
       return {
-        reason: "release-unavailable",
+        reason: providerStatement(error) ? "release-unavailable" : "job-fault",
         detail: `The release list could not be read: ${error instanceof Error ? error.message : "unknown error"}`,
       };
     }
@@ -816,7 +848,7 @@ export async function reproduceFacts(inputs: {
         size,
         sha256,
       })),
-      text: { title: release.name, body: release.body },
+      text: reportedText({ name: release.name, body: release.body }),
     };
     const stating = [reproduced, ...observerWindow(listed.releases)].find(unobservedStatement);
     if (stating)
@@ -901,7 +933,12 @@ export async function reproduceFacts(inputs: {
     });
     if (
       JSON.stringify(
-        observedReleaseFacts(window, verdict, entry.repository, entry.listing_words),
+        observedReleaseFacts(
+          window,
+          (item) => names.prerelease(item),
+          entry.repository,
+          entry.listing_words,
+        ),
       ) !== JSON.stringify(entry.observed_releases)
     )
       return {
@@ -966,13 +1003,8 @@ export async function reproduceFacts(inputs: {
         counts = listingCounts(inspection.leaves);
       } catch (error) {
         if (error instanceof OverBudgetError) throw error;
-        const permanent = error instanceof InspectionError && error.permanent;
         return {
-          reason: permanent
-            ? "core-refused"
-            : transientInspection(error)
-              ? "transient"
-              : "asset-unavailable",
+          reason: inspectionRefusal(error),
           detail: `${artifact.name}: ${error instanceof Error ? error.message : "inspection failed"}`,
         };
       }
@@ -1026,18 +1058,19 @@ export async function reproduceFacts(inputs: {
         outcome = "inspected";
       } catch (error) {
         if (error instanceof OverBudgetError) throw error;
+        const reason = inspectionRefusal(error);
         outcome =
-          error instanceof InspectionError && error.permanent
+          reason === "core-refused" && error instanceof InspectionError
             ? error.refusal
-            : transientInspection(error)
-              ? "transient"
-              : "unavailable";
+            : reason === "asset-unavailable"
+              ? "unavailable"
+              : reason;
       }
       if (outcome !== archive.refusal)
         return {
           reason:
-            outcome === "transient"
-              ? "transient"
+            outcome === "transient" || outcome === "over-budget" || outcome === "job-fault"
+              ? outcome
               : outcome === "unavailable"
                 ? "asset-unavailable"
                 : "mismatch",
@@ -1139,7 +1172,50 @@ export function quotaResumeAt(
     : now + githubFirstRetryMs;
 }
 /** A response past `githubResponseBytes`: the provider's answer, never retried. */
-class OversizedResponseError extends Error {}
+export class OversizedResponseError extends Error {}
+/** A provider answer with a non-success status that no retry applies to. */
+export class GithubStatusError extends Error {
+  readonly status: number;
+  /** The provider's own `message`, when its answer states one. */
+  readonly providerMessage: string | null;
+  constructor(message: string, status: number, providerMessage: string | null = null) {
+    super(message);
+    this.status = status;
+    this.providerMessage = providerMessage;
+  }
+}
+/** Provider data that does not have the shape the provider states it in. */
+export class ProviderDataError extends Error {}
+/**
+ * Whether a failed release-list read states something about the
+ * repository's own data: it is gone (404, 410), blocked for legal reasons
+ * (451) or by the provider ("Repository access blocked", 403), its answer
+ * is larger than any release page, or its records are malformed. Any other
+ * failure (an authorization refusal, a fault in the job's own code) is no
+ * verdict on the identity (`job-fault`).
+ */
+export const providerStatement = (error: unknown) =>
+  (error instanceof GithubStatusError &&
+    ([404, 410, 451].includes(error.status) ||
+      (error.status === 403 && /repository access blocked/iu.test(error.providerMessage ?? "")))) ||
+  error instanceof ProviderDataError ||
+  error instanceof OversizedResponseError;
+/**
+ * The refusal reason of a failed inspection: Core's permanent verdict
+ * (`core-refused`), the runner's or provider's condition (`transient`), the
+ * shard's deadline (`over-budget`), another typed inspection failure of
+ * these bytes (`asset-unavailable`), or anything else, which is a fault of the
+ * job's own code or CLI (`job-fault`): an untyped error, or a Core CLI that
+ * could not start, crashed, printed no JSON envelope or refused its own
+ * invocation (`CoreToolError`).
+ */
+export function inspectionRefusal(error: unknown): RefusalReason {
+  if (!(error instanceof InspectionError) || error instanceof CoreToolError) return "job-fault";
+  if (error.permanent) return "core-refused";
+  if (transientInspection(error)) return "transient";
+  if (error.cause === "over-budget") return "over-budget";
+  return "asset-unavailable";
+}
 /**
  * A response body read up to `githubResponseBytes`: reading stops, and the
  * request fails, as soon as the bound is passed, so an oversized answer is
@@ -1264,7 +1340,20 @@ export async function githubRequest(
       stated = false;
       continue;
     }
-    if (!response.ok) throw new Error(`${method} ${url} answered ${response.status}.`);
+    if (!response.ok) {
+      let providerSays: string | null = null;
+      try {
+        const parsed: unknown = JSON.parse(body.toString("utf8"));
+        if (isRecord(parsed) && typeof parsed.message === "string") providerSays = parsed.message;
+      } catch {
+        providerSays = null;
+      }
+      throw new GithubStatusError(
+        `${method} ${url} answered ${response.status}.`,
+        response.status,
+        providerSays,
+      );
+    }
     if (!body.length) return null;
     try {
       return JSON.parse(body.toString("utf8")) as unknown;
@@ -1320,7 +1409,7 @@ export function githubReleaseLister(
  */
 export function parseProviderReleaseList(value: unknown): ProviderReleaseList {
   if (!Array.isArray(value) || value.length > releaseListPage)
-    throw new Error("The provider release list is malformed.");
+    throw new ProviderDataError("The provider release list is malformed.");
   const releases = value.map((release: unknown): ObservedRelease & { draft: boolean } => {
     if (
       !isRecord(release) ||
@@ -1332,7 +1421,7 @@ export function parseProviderReleaseList(value: unknown): ProviderReleaseList {
       !(release.published_at === null || typeof release.published_at === "string") ||
       !Array.isArray(release.assets)
     )
-      throw new Error("A provider release list record is malformed.");
+      throw new ProviderDataError("A provider release list record is malformed.");
     const readable = (asset: unknown): asset is Record<string, unknown> =>
       isRecord(asset) &&
       Number.isSafeInteger(asset.id) &&
@@ -1349,10 +1438,7 @@ export function parseProviderReleaseList(value: unknown): ProviderReleaseList {
       draft: release.draft,
       assets_complete: true,
       malformed_assets: release.assets.length - assets.length,
-      text: {
-        title: typeof release.name === "string" ? release.name : null,
-        body: typeof release.body === "string" ? release.body : null,
-      },
+      text: reportedText(release),
       assets: assets.map((asset) => ({
         id: Number(asset.id),
         name: String(asset.name),
@@ -1647,36 +1733,6 @@ export function artifactFiles(archive: Buffer, allowed: readonly string[]): Map<
 export const inputsArtifactFiles = (archive: Buffer) =>
   artifactFiles(archive, ["inputs.json", "observations.json", "state-before.json"]);
 
-// ---------------------------------------------------------------------------
-// Observations: the observer's retained handoff, as the worker's report.
-
-/**
- * The listing observations of an observer handoff directory (one JSON file
- * per provider source, each with `descriptive_listing_candidates`), as a
- * worker report `{ listings }`. Files are read in name order; a listing seen
- * twice keeps its first observation. The handoff is this repository's own
- * observer artifact; its size is the observer's, with no bound of its own.
- */
-export function handoffObservations(directory: string) {
-  const listings: unknown[] = [];
-  const seen = new Set<string>();
-  const files = readdirSync(directory)
-    .filter((name) => name.endsWith(".json") && name !== "summary.json")
-    .toSorted();
-  for (const name of files) {
-    const file = path.join(directory, name);
-    const report: unknown = JSON.parse(readFileSync(file, "utf8"));
-    if (!isRecord(report) || !Array.isArray(report.descriptive_listing_candidates)) continue;
-    for (const candidate of report.descriptive_listing_candidates as unknown[]) {
-      if (!isRecord(candidate) || typeof candidate.id !== "string" || seen.has(candidate.id))
-        continue;
-      seen.add(candidate.id);
-      listings.push({ id: candidate.id, upstream_observation: candidate.upstream_observation });
-    }
-  }
-  return { listings };
-}
-
 /**
  * Reconfirmed facts older than this are refreshed by a batch even when
  * nothing else changed: half the facts age, so the batch and the person who
@@ -1738,6 +1794,7 @@ export type WithdrawalCause =
   | "rule-version"
   | "observation-unavailable"
   | "inspection-failure"
+  | "reproduction-refused"
   | "not-reobserved";
 export function withdrawalCauses(
   previousEnrollments: unknown,
@@ -1768,6 +1825,10 @@ export function withdrawalCauses(
     if (reason === "observation-unavailable") return "observation-unavailable" as const;
     if (reason === "repeated-inspection-failure" || reason === "invalid-facts")
       return "inspection-failure" as const;
+    // A route players have is never withdrawn unattended because the job's
+    // own reproduction disagreed: that is how a reproduction fault would
+    // withdraw offered games.
+    if (reason === "reproduction-refused") return "reproduction-refused" as const;
     return sameExceptReconfirmation(prior, next)
       ? ("not-reobserved" as const)
       : ("upstream" as const);
@@ -1837,31 +1898,76 @@ export function batchPullBody(input: {
 // Carry-over: a batch lands only what its pull-request CI can reproduce.
 
 /**
- * The batch a run may propose: at most `limit` entries that need reproduction
- * (`reproductionBatchEntries`: one hour's reproduction share of the quota
- * divided by the two reproductions each entry gets, the job's own and the
- * batch pull request's CI, which may fall in one hour), so neither waits for
- * a quota reset and each CI shard
- * keeps its whole deadline. Entries past the limit, in port_id order, are
- * carried: each keeps its baseline entry (or stays absent when it is new), so
- * the next run derives it again and a later batch lands it. Carried work is
- * never dropped and never reported complete (`carriedSummary`). Entries that
- * need no reproduction (reconfirmations, ineligible verdicts) always land.
+ * REST requests one entry's reproduction costs: its repository's release
+ * list, read once per repository per shard (`githubReleaseLister`), so at
+ * most one per entry. Downloads are not REST requests.
+ */
+export const reproductionRequestsPerEntry = 1;
+/**
+ * The REST requests one batch's reproductions may spend: one hour's
+ * reproduction share of the built-in token's quota
+ * (`reproductionHourlyRequests`) divided by the reproductions each batch
+ * gets (`reproductionsPerBatch`: the job's own and its pull request's CI,
+ * which may fall in one hour). Within it neither waits for a quota reset,
+ * so each CI shard keeps its whole deadline and the worker's per-identity
+ * budget (`identityBudgetMinutes`) stays what CI can reproduce. A class 3
+ * budget of an external resource (docs/RESTRICTION-REGISTER.md DM-07).
+ */
+export const reproductionBatchRequests = reproductionHourlyRequests / reproductionsPerBatch;
+
+/**
+ * The batch a run may propose: entries that need reproduction while their
+ * requests fit `requests` (`reproductionBatchRequests`). Entries carried by
+ * an earlier run go first, longest wait first (`waiting`, the worker state's
+ * `carried`), then the rest in port_id order, so an identity late in the
+ * alphabet is never starved by newer ones: each batch lands the oldest
+ * waiting entries, and every carried entry lands within its queue position
+ * divided by one batch's entries. The rest is carried: each keeps its
+ * baseline entry (or stays absent when it is new), so the next scheduled run
+ * derives it again, reusing its inspection receipts (`waiting` returned,
+ * saved as the worker state's `carried`), and a later batch lands it.
+ * Carried work is never dropped and never reported complete
+ * (`carriedSummary`). Entries that need no reproduction (reconfirmations,
+ * ineligible verdicts) always land.
  */
 export function carryOver(
   baseline: unknown,
   current: ListingFactsTable,
-  limit: number = reproductionBatchEntries,
-): { table: ListingFactsTable; carried: string[] } {
+  requests: number = reproductionBatchRequests,
+  waiting: readonly CarriedItem[] = [],
+): { table: ListingFactsTable; carried: string[]; waiting: CarriedItem[] } {
   const plan = reproductionPlan(baseline, current);
-  if (plan.entries.length <= limit) return { table: current, carried: [] };
-  const carried = new Set(plan.entries.slice(limit).map((entry) => entry.port_id));
+  const since = new Map(waiting.map((item) => [item.entry.port_id, item.since] as const));
+  const order = (id: string) => {
+    const at = since.get(id);
+    return at === undefined ? Number.POSITIVE_INFINITY : Date.parse(at);
+  };
   const before = new Map(
     (isRecord(baseline) && Array.isArray(baseline.entries)
       ? (baseline.entries as ListingFactsEntry[])
       : []
     ).map((entry) => [entry.port_id, entry]),
   );
+  // An entry whose same release reproduction already refused waits behind
+  // every other, however long it has waited: a refusal that recurs never
+  // holds another identity's slot.
+  const refusedAgain = (entry: ListingFactsEntry) => {
+    const prior = before.get(entry.port_id);
+    return (
+      prior?.ineligible?.reason === "reproduction-refused" &&
+      prior.observation.release_id === entry.observation.release_id
+    );
+  };
+  const ordered = plan.entries.toSorted(
+    (left, right) =>
+      Number(refusedAgain(left)) - Number(refusedAgain(right)) ||
+      order(left.port_id) - order(right.port_id) ||
+      compareCodePoints(left.port_id, right.port_id),
+  );
+  const admitted = Math.max(0, Math.floor(requests / reproductionRequestsPerEntry));
+  const carriedEntries = ordered.slice(admitted);
+  if (!carriedEntries.length) return { table: current, carried: [], waiting: [] };
+  const carried = new Set(carriedEntries.map((entry) => entry.port_id));
   const entries = current.entries.flatMap((entry) => {
     if (!carried.has(entry.port_id)) return [entry];
     const prior = before.get(entry.port_id);
@@ -1869,7 +1975,14 @@ export function carryOver(
   });
   const table = { ...current, entries, entries_sha256: digestOf(entries) };
   checkListingFactsTable(table);
-  return { table, carried: [...carried].toSorted(compareCodePoints) };
+  return {
+    table,
+    carried: [...carried].toSorted(compareCodePoints),
+    waiting: carriedEntries.map((entry) => ({
+      since: since.get(entry.port_id) ?? current.generated_at,
+      entry,
+    })),
+  };
 }
 /**
  * The worker summary with carried identities marked: each carried row's
@@ -1917,24 +2030,35 @@ export interface CapacityRow {
   ok: boolean;
 }
 
+/** The listing text row's name, shared with `catalog-capacity`. */
+const listingTextRow = "generated listings.json bytes";
+
 /**
- * The batch against both released-reader bounds, at Core's supported share
- * (`CATALOG_SUPPORTED_CAPACITY_PERCENT`, 85%):
+ * The batch against the bounds its required `catalog-capacity --check`
+ * enforces, at Core's supported share (`CATALOG_SUPPORTED_CAPACITY_PERCENT`, 85%):
  *  - `MAX_CATALOG_BYTES` (16 MiB): the generated catalog, its compact and
  *    signed-envelope forms (`catalogSizeGuard`), and the binding measure, the
  *    JSON-escaped retained installed contract, estimated as the escaped
  *    `catalog.json` text plus `retainedContractReserveBytes`;
- *  - the canonical `listings.json` against the listing publisher's 8 MiB
- *    canonical read (`listingDeliveryMaximum`) and Core's inspection text
- *    bound (`MAX_LISTING_DIRECTORY_TEXT_BYTES`).
- * Released readers refuse more than the bound, so a batch past a ceiling is
- * never proposed: its required check would fail.
+ *  - the canonical `listings.json` against Core's listing directory text
+ *    bound (`MAX_LISTING_DIRECTORY_TEXT_BYTES`, `listingDirectoryTextMaximum`),
+ *    the one bound every tool that reads the canonical text follows (Core's
+ *    inspection, the listing publisher's canonical read and this job). A test
+ *    pins the constant to Core; this is a working-memory bound, not a
+ *    released-reader bound;
+ *  - `listingDelivery`: the projections of that directory released readers
+ *    bound (the compact carrier's decoded, wire and record bytes, the
+ *    listing and withdrawal counts and the element budget, each with its own
+ *    margin, and the frozen legacy target, informational only), exactly the
+ *    other listing rows of `catalog-capacity` (`listingDirectoryMeasures`).
+ * The required check refuses a batch past any of these ceilings, so such a
+ * batch is never proposed.
  */
 export function batchCapacity(input: {
   catalogText: string;
   listingBytes: number;
   signedCatalogSource: string;
-  listingSource: string;
+  listingDelivery: readonly CapacityMeasure[];
 }): { ok: boolean; percent: number; rows: CapacityRow[] } {
   const bounds = catalogSizeBounds(input.signedCatalogSource);
   const guard = catalogSizeGuard(
@@ -1943,17 +2067,12 @@ export function batchCapacity(input: {
     bounds,
     [
       [
-        "generated listings.json bytes",
+        listingTextRow,
         input.listingBytes,
-        listingDeliveryMaximum,
-        "listing publisher canonical read bound",
+        listingDirectoryTextMaximum,
+        "Core listing directory text bound",
       ],
-      [
-        "generated listings.json inspection bytes",
-        input.listingBytes,
-        capacityConstant(input.listingSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
-        "Core listing inspection bound",
-      ],
+      ...input.listingDelivery.filter(([name]) => name !== listingTextRow),
     ],
   );
   const ceiling = Math.floor((bounds.current * bounds.percent) / 100);
@@ -2000,7 +2119,8 @@ export function capacityDetail(result: ReturnType<typeof batchCapacity>): string
 export const stopConditionNames = [
   "gate-refused",
   "catalog-capacity",
-  "reproduction-refused",
+  "reproduction-unsound",
+  "withheld-batch-unchecked",
   "reproduction-transient",
   "path-allowlist",
   "required-check-failed",
@@ -2118,6 +2238,11 @@ export function stopConditions(input: {
   paths: "ok" | "violated" | "skipped";
   /** `transient`: refused only for the runner's time (`reproductionTransient`), no stop. */
   reproduction: "ok" | "refused" | "transient" | "skipped";
+  /**
+   * The step that failed while the batch was rebuilt without the identities
+   * reproduction refused (`withholdRefused`), when one did.
+   */
+  withheldRecheck?: string;
   delta?: { added: number; withdrawn: number; changed: number };
   /** Withdrawals no upstream fact explains (`withdrawalCauses`). */
   held?: readonly { port_id: string; cause: string }[];
@@ -2133,8 +2258,21 @@ export function stopConditions(input: {
   if (input.capacity) add("catalog-capacity", input.capacity);
   if (input.paths === "violated")
     add("path-allowlist", "The batch changed a path outside the generated-file allowlist.");
+  // Refusals of single identities withhold those identities and never stop
+  // the job (`withholdRefused`). What is left refused is the reproduction
+  // itself: an entry outside the authored candidate scope, a change that
+  // also edits authored sources, or a shard that ended without its typed
+  // per-identity record.
+  if (input.withheldRecheck)
+    add(
+      "withheld-batch-unchecked",
+      `Reproduction refused single identities, but the batch without them could not be completed (${input.withheldRecheck} failed), so nothing was proposed.`,
+    );
   if (input.reproduction === "refused")
-    add("reproduction-refused", "CI could not reproduce an eligible entry from its exact bytes.");
+    add(
+      "reproduction-unsound",
+      "The reproduction gave no per-identity outcome: an entry outside the authored candidate scope, a change that also edits authored sources, a fault of the job's own code, CLI or credentials, or a shard that ended without its typed record.",
+    );
   if (!input.summary) {
     add("worker-error", "The facts worker failed before writing its summary.");
     return { conditions, record: undefined };
@@ -2341,18 +2479,181 @@ function refusalFiles(file: string) {
         .map((name) => path.join(file, name))
     : [file];
 }
-/** One refusal file: `{ ok, transient, refusals }`, or an array of refusal lines. */
-function readRefusals(name: string): { ok: boolean; transient: boolean; refusals: unknown[] } {
+/**
+ * One reproduction shard's refusal record: `ok` when nothing but refusals of
+ * single identities is left (`identityRefusal`, which the job withholds);
+ * `transient` when every refusal is that or the runner's or provider's
+ * condition, and at least one is the latter; `refused`, every typed
+ * refusal; `refusals`, at most five of them as lines for a stop issue.
+ */
+export function refusalRecord(problems: number, refused: readonly Refusal[]) {
+  const scoped = problems === refused.length;
+  return {
+    ok: problems === 0 || (scoped && refused.every((refusal) => identityRefusal(refusal))),
+    transient:
+      scoped &&
+      refused.some((refusal) => transientReasons.includes(refusal.reason)) &&
+      refused.every(
+        (refusal) => transientReasons.includes(refusal.reason) || identityRefusal(refusal),
+      ),
+    refused: refused.map(({ port_id, reason, detail }) => ({ port_id, reason, detail })),
+    refusals: refused.slice(0, 5).map((r) => `${r.port_id}: ${r.reason}: ${r.detail}`),
+  };
+}
+/** One refusal file: `{ ok, transient, refused, refusals }`, or an array of refusal lines. */
+function readRefusals(name: string): {
+  ok: boolean;
+  transient: boolean;
+  refused: Refusal[] | undefined;
+  refusals: unknown[];
+} {
   const parsed: unknown = JSON.parse(readFileSync(name, "utf8"));
   if (Array.isArray(parsed))
-    return { ok: parsed.length === 0, transient: false, refusals: parsed as unknown[] };
+    return {
+      ok: parsed.length === 0,
+      transient: false,
+      refused: undefined,
+      refusals: parsed as unknown[],
+    };
   if (isRecord(parsed) && Array.isArray(parsed.refusals))
     return {
       ok: parsed.ok === true,
       transient: parsed.transient === true,
+      refused: Array.isArray(parsed.refused)
+        ? (parsed.refused as unknown[]).map((item) => {
+            if (
+              !isRecord(item) ||
+              typeof item.port_id !== "string" ||
+              typeof item.reason !== "string" ||
+              typeof item.detail !== "string"
+            )
+              throw new Error(`${name} holds a malformed refusal.`);
+            return { port_id: item.port_id, reason: item.reason, detail: item.detail } as Refusal;
+          })
+        : undefined,
       refusals: parsed.refusals as unknown[],
     };
-  return { ok: false, transient: false, refusals: [] };
+  return { ok: false, transient: false, refused: undefined, refusals: [] };
+}
+/**
+ * The identity refusals of a reproduction whose every one of `shards`
+ * shards recorded its typed outcome and none was left unsound: each is a
+ * verdict on one identity's facts (`identityRefusal`). Throws when a shard's
+ * record is missing or malformed, or a shard left a problem that is not such
+ * a refusal: the reproduction is then not a per-identity outcome.
+ */
+export function identityRefusals(file: string, shards: number): Refusal[] {
+  const files = refusalFiles(file);
+  if (files.length !== shards)
+    throw new Error(`${files.length} of ${shards} reproduction shards recorded their outcome.`);
+  return files.flatMap((name) => {
+    const record = readRefusals(name);
+    if (!record.ok || record.refused === undefined)
+      throw new Error(`${path.basename(name)} records a reproduction that is not per identity.`);
+    if (!record.refused.every((refusal) => identityRefusal(refusal)))
+      throw new Error(`${path.basename(name)} records a refusal that is not one identity's.`);
+    return record.refused;
+  });
+}
+/**
+ * Why a reproduction's refusals look systemic rather than one identity's
+ * each: more than one identity was reproduced and every one was refused for
+ * the same reason. A single repository's 404 cannot be told apart from a
+ * fault that sends every request to a wrong URL or identity; when all agree,
+ * the job stops (`reproduction-unsound`) instead of withholding them all.
+ */
+export function systemicRefusal(
+  reproduced: number,
+  refusals: readonly Refusal[],
+): string | undefined {
+  const reasons = new Set(refusals.map((refusal) => refusal.reason));
+  const identities = new Set(refusals.map((refusal) => refusal.port_id));
+  if (reproduced > 1 && identities.size === reproduced && reasons.size === 1)
+    return `Every one of the ${reproduced} reproduced identities was refused for the same reason (${[...reasons][0]}): a fault of the job, not ${reproduced} upstream changes.`;
+  return undefined;
+}
+/**
+ * The batch with each identity its reproduction refused withheld: its entry
+ * becomes ineligible `reproduction-refused` for the same observed release,
+ * naming the refusal reason, so the generated catalog offers nothing for it
+ * while every other identity of the batch proceeds. Only an eligible entry
+ * of this batch is withheld; a refusal naming anything else is an error.
+ * The full refusal (its provider detail) stays in the run's records; the
+ * entry's detail names only the reason, so a repeated refusal of the same
+ * release is a reconfirmation, not a new change.
+ */
+export function withholdRefused(
+  current: ListingFactsTable,
+  refusals: readonly Refusal[],
+): { table: ListingFactsTable; withheld: Refusal[] } {
+  const byId = new Map<string, Refusal>();
+  for (const refusal of refusals) {
+    if (!identityRefusal(refusal))
+      throw new Error(`${refusal.port_id}: a ${refusal.reason} refusal withholds no identity.`);
+    if (!byId.has(refusal.port_id)) byId.set(refusal.port_id, refusal);
+  }
+  const entries = current.entries.map((entry) => {
+    const refusal = byId.get(entry.port_id);
+    if (!refusal) return entry;
+    if (entry.ineligible !== null)
+      throw new Error(`${entry.port_id}: reproduction refused an entry that offers nothing.`);
+    byId.delete(entry.port_id);
+    const withheld: ListingFactsEntry = {
+      ...entry,
+      ineligible: {
+        reason: "reproduction-refused",
+        detail: `Reproduction from the provider and the exact bytes refused this entry (${refusal.reason}); a person hand-checks it, and it is derived and reproduced again once its release, assets, release text or rule versions change.`,
+        cause: null,
+        receipt: refusalReceipt({
+          repository_id: entry.repository_id,
+          release_id: entry.observation.release_id,
+          assets_sha256: entry.observation.assets_sha256,
+          observed_releases: entry.observed_releases,
+        }),
+      },
+      observed_releases: [],
+      other_packages: [],
+      asset_names: [],
+      refused_archives: [],
+      attempt: null,
+      artifacts: [],
+    };
+    return withheld;
+  });
+  if (byId.size)
+    throw new Error(`Refusals name identities outside this batch: ${[...byId.keys()].join(", ")}.`);
+  const table = { ...current, entries, entries_sha256: digestOf(entries) };
+  checkListingFactsTable(table);
+  return {
+    table,
+    withheld: refusals.filter(
+      (refusal, index) => refusals.findIndex((item) => item.port_id === refusal.port_id) === index,
+    ),
+  };
+}
+/**
+ * The worker summary with withheld identities marked: each row becomes
+ * `ineligible` for `reproduction-refused`, and the count by reason follows.
+ */
+export function withheldSummary(text: string, withheld: readonly Refusal[]): string {
+  const value = JSON.parse(text) as Record<string, unknown>;
+  const ids = new Set(withheld.map((refusal) => refusal.port_id));
+  const identities = Array.isArray(value.identities)
+    ? (value.identities as { port_id: string; outcome: string; reason?: string }[])
+    : [];
+  const ineligible = isRecord(value.ineligible) ? { ...value.ineligible } : {};
+  ineligible["reproduction-refused"] =
+    Number(ineligible["reproduction-refused"] ?? 0) +
+    identities.filter((row) => ids.has(row.port_id)).length;
+  return `${JSON.stringify({
+    ...value,
+    ineligible,
+    identities: identities.map((row) =>
+      ids.has(row.port_id)
+        ? { ...row, outcome: "ineligible", reason: "reproduction-refused" }
+        : row,
+    ),
+  })}\n`;
 }
 export function reproductionDetails(file: string | undefined) {
   if (!file) return {};
@@ -2363,7 +2664,7 @@ export function reproductionDetails(file: string | undefined) {
     if (!lines.length) return {};
     const listed = lines.map((line) => `- ${inertText(String(line).slice(0, 400))}`).join("\n");
     return {
-      "reproduction-refused": `CI could not reproduce these eligible entries from their exact bytes:\n${listed}`,
+      "reproduction-unsound": `The reproduction gave no per-identity outcome; its records name:\n${listed}`,
       "reproduction-transient": `CI could not reproduce this batch for transient reasons on two consecutive runs; the latest causes:\n${listed}`,
     };
   } catch {
@@ -3078,18 +3379,23 @@ async function main(argv: string[]): Promise<string> {
       // The stop issue names the refused entries (at most five). A shard
       // whose only problems are over-budget refusals (its deadline, a quota
       // wait included) is transient: the runner's time, never the facts.
+      // Only refusals, every one a verdict on its own identity: the job
+      // withholds those identities and proceeds with the rest
+      // (`withholdRefused`). Pull-request CI, the merge authority, refuses
+      // the change instead.
+      const onlyIdentities =
+        problems.length > 0 &&
+        problems.length === refused.length &&
+        refused.every((refusal) => identityRefusal(refusal));
       if (option.refusals)
         writeFileSync(
           option.refusals,
-          `${JSON.stringify({
-            ok: problems.length === 0,
-            transient:
-              problems.length > 0 &&
-              problems.length === refused.length &&
-              refused.every((refusal) => transientReasons.includes(refusal.reason)),
-            refusals: refused.slice(0, 5).map((r) => `${r.port_id}: ${r.reason}: ${r.detail}`),
-          })}\n`,
+          `${JSON.stringify(refusalRecord(problems.length, refused))}\n`,
         );
+      if (onlyIdentities && option["own-run"] === "true" && option.refusals)
+        return `Listing facts change verified except ${refused.length} identity refusal(s), each withheld by the job: ${refused
+          .map((refusal) => `${refusal.port_id} (${refusal.reason})`)
+          .join(", ")}.\n`;
       if (
         problems.length &&
         problems.length === refused.length &&
@@ -3117,14 +3423,6 @@ async function main(argv: string[]): Promise<string> {
         );
       output("shards", JSON.stringify(shards.map((_, index) => index)));
       return `${needs.length} identities need bytes in ${shards.length} shard(s).\n`;
-    }
-    case "observations": {
-      if (!option.handoff || !option.output)
-        throw new Error("observations needs --handoff and --output.");
-      const report = handoffObservations(option.handoff);
-      writeFileSync(option.output, `${JSON.stringify(report)}\n`);
-      output("observed", String(report.listings.length));
-      return `${report.listings.length} listing observations.\n`;
     }
     case "inputs": {
       for (const name of [
@@ -3232,6 +3530,7 @@ async function main(argv: string[]): Promise<string> {
             : ((option.reproduction as "ok" | "refused" | "skipped") ?? "skipped"),
         ...(delta ? { delta, held: delta.held ?? [] } : {}),
         ...capacityInput(option.capacity),
+        ...(option["withheld-recheck"] ? { withheldRecheck: option["withheld-recheck"] } : {}),
         details: reproductionDetails(option.refusals),
       });
       if (record)
@@ -3266,35 +3565,118 @@ async function main(argv: string[]): Promise<string> {
       // Before generation: keep in this batch only what its pull-request CI
       // and the job can both reproduce within one hour's reproduction share.
       if (!option.report) throw new Error("carry needs --report.");
-      const { table, carried } = carryOver(baselineFacts(option.base), currentFacts());
+      const state = option.state
+        ? (JSON.parse(readFileSync(option.state, "utf8")) as WorkerState)
+        : undefined;
+      const { table, carried, waiting } = carryOver(
+        baselineFacts(option.base),
+        currentFacts(),
+        reproductionBatchRequests,
+        state?.carried ?? [],
+      );
+      if (state && option.state) {
+        // The carried entries, with their first carry time and receipts,
+        // are the next run's queue; an empty queue leaves no field.
+        const { carried: _previous, ...rest } = state;
+        writeFileSync(
+          option.state,
+          `${JSON.stringify(waiting.length ? { ...rest, carried: waiting } : rest)}\n`,
+        );
+      }
       if (carried.length) {
         writeFileSync(path.join(root, factsTablePath), `${JSON.stringify(table, null, 2)}\n`);
         writeFileSync(option.report, carriedSummary(readFileSync(option.report, "utf8"), carried));
         summary(
-          `Carried ${carried.length} entries to the next batch: this batch lands at most ${reproductionBatchEntries} entries that need reproduction.`,
+          `Carried ${carried.length} entries to the next batch, longest-waiting first: this batch's reproductions spend at most ${reproductionBatchRequests} REST requests (${reproductionBatchEntries} entries).`,
         );
       }
       output("carried", String(carried.length));
       return `${JSON.stringify({ carried: carried.length })}\n`;
     }
+    case "withhold": {
+      // After reproduction: each identity a shard refused on its own facts
+      // is withheld (`withholdRefused`); the caller regenerates the catalog
+      // and checks the batch again. Every shard must have recorded its typed
+      // outcome, or nothing is withheld and the step fails.
+      if (!option.refusals || !option.report || !option.output)
+        throw new Error("withhold needs --refusals, --report and --output.");
+      const shards = Number(option["shard-count"]);
+      if (!(Number.isSafeInteger(shards) && shards > 0))
+        throw new Error("withhold needs --shard-count, the number of reproduction shards.");
+      const refusals = identityRefusals(option.refusals, shards);
+      const reproduced = reproductionPlan(
+        baselineFacts(baselineRevision(option.base)),
+        currentFacts(),
+      ).entries.length;
+      const systemic = systemicRefusal(reproduced, refusals);
+      if (systemic) throw new Error(systemic);
+      const { table, withheld } = withholdRefused(currentFacts(), refusals);
+      if (withheld.length) {
+        writeFileSync(path.join(root, factsTablePath), `${JSON.stringify(table, null, 2)}\n`);
+        writeFileSync(
+          option.report,
+          withheldSummary(readFileSync(option.report, "utf8"), withheld),
+        );
+        summary(
+          `### Withheld after reproduction\n\n${withheld
+            .map(
+              (refusal) =>
+                `- ${inertText(refusal.port_id)}: ${inertText(refusal.reason)}: ${inertText(refusal.detail)}`,
+            )
+            .join("\n")}`,
+        );
+      }
+      writeFileSync(option.output, `${JSON.stringify({ withheld })}\n`);
+      output("withheld", String(withheld.length));
+      return `${JSON.stringify({ withheld: withheld.length })}\n`;
+    }
     case "capacity": {
       // The regenerated catalog against both released-reader bounds, before
       // any pull request exists. Records the result; the stop is `assess`'s.
       if (!option.output) throw new Error("capacity needs --output.");
+      const listingsPath = path.join(root, "crates/portcove-core/catalog/listings.json");
+      const listingBytes = statSync(listingsPath).size;
+      // The delivery projections are measured only within the text bound; past
+      // it the text row already refuses the batch.
+      // The same measures, bounds and committed withdrawals as
+      // `catalog-capacity --check`.
+      const listingDelivery =
+        listingBytes > listingDirectoryTextMaximum
+          ? []
+          : listingDirectoryMeasures(
+              readFileSync(listingsPath),
+              listingDeliveryBounds(
+                readFileSync(path.join(root, "crates/portcove-listing-carrier/src/lib.rs"), "utf8"),
+                readFileSync(
+                  path.join(root, "crates/portcove-core/src/catalog/listings.rs"),
+                  "utf8",
+                ),
+                readFileSync(
+                  path.join(root, "crates/portcove-core/src/listing_delivery.rs"),
+                  "utf8",
+                ),
+              ),
+              undefined,
+              withdrawalIdentities(
+                JSON.parse(
+                  readFileSync(
+                    path.join(root, "crates/portcove-core/catalog/listing-withdrawals.json"),
+                    "utf8",
+                  ),
+                ),
+              ),
+            );
       const result = batchCapacity({
         catalogText: readFileSync(
           path.join(root, "crates/portcove-core/catalog/catalog.json"),
           "utf8",
         ),
-        listingBytes: statSync(path.join(root, "crates/portcove-core/catalog/listings.json")).size,
+        listingBytes,
         signedCatalogSource: readFileSync(
           path.join(root, "crates/portcove-core/src/signed_catalog.rs"),
           "utf8",
         ),
-        listingSource: readFileSync(
-          path.join(root, "crates/portcove-core/src/catalog/listings.rs"),
-          "utf8",
-        ),
+        listingDelivery,
       });
       const detail = capacityDetail(result) ?? null;
       writeFileSync(option.output, `${JSON.stringify({ ...result, detail })}\n`);
@@ -3485,36 +3867,6 @@ async function main(argv: string[]): Promise<string> {
       output("changed", String(delta.added + delta.withdrawn + delta.changed > 0));
       output("material", String(materialChange(baselineFacts(base), currentFacts(), delta)));
       return `${JSON.stringify(delta)}\n`;
-    }
-    case "observer-run": {
-      // The newest main observer run that retained a catalog handoff.
-      const runs = await githubJson(
-        `https://api.github.com/repos/${repository()}/actions/workflows/configured-upstream-observer.yml/runs?branch=main&status=completed&per_page=20`,
-        token(),
-      );
-      const list = isRecord(runs) && Array.isArray(runs.workflow_runs) ? runs.workflow_runs : [];
-      for (const run of list as unknown[]) {
-        if (!isRecord(run) || !Number.isSafeInteger(run.id) || run.head_branch !== "main") continue;
-        const artifacts = await githubJson(
-          `https://api.github.com/repos/${repository()}/actions/runs/${Number(run.id)}/artifacts?per_page=100`,
-          token(),
-        );
-        const handoff = (
-          isRecord(artifacts) && Array.isArray(artifacts.artifacts) ? artifacts.artifacts : []
-        ).find(
-          (artifact: unknown) =>
-            isRecord(artifact) &&
-            typeof artifact.name === "string" &&
-            artifact.name.startsWith(`catalog-upstream-observations-${Number(run.id)}-`) &&
-            artifact.expired !== true,
-        ) as Record<string, unknown> | undefined;
-        if (handoff) {
-          output("run_id", String(run.id));
-          output("artifact", String(handoff.name));
-          return `${JSON.stringify({ run_id: run.id, artifact: handoff.name })}\n`;
-        }
-      }
-      throw new Error("No recent main observer run retained a catalog observation handoff.");
     }
     case "open-pull-request": {
       for (const name of ["branch", "run-url", "delta", "reproduced"])

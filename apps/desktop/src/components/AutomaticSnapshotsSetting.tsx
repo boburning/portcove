@@ -34,7 +34,7 @@ function useAutomaticSnapshots(
     | ({
         generation: number;
         summary: string | undefined;
-      } & ({ action: "read" } | { action: "save"; attempted: boolean }))
+      } & ({ action: "read" } | { action: "save"; attempted: boolean; readbackFailed?: boolean }))
     | undefined
   >();
   const [savingGeneration, setSavingGeneration] = useState<number>();
@@ -59,8 +59,12 @@ function useAutomaticSnapshots(
         }
       },
       (value) => {
-        if (request.current === current)
-          setProblem({ generation, action: "read", summary: failurePresentation(value)?.summary });
+        if (request.current !== current) return;
+        setProblem((previous) =>
+          previous?.generation === generation && previous.action === "save"
+            ? { ...previous, readbackFailed: true }
+            : { generation, action: "read", summary: failurePresentation(value)?.summary },
+        );
       },
     );
     return () => {
@@ -197,10 +201,18 @@ function SnapshotPolicySetting() {
         {problem && (
           <div className="flex flex-wrap items-center gap-2">
             <p role="alert">
-              {problem.summary ??
-                (problem.action === "read"
-                  ? t("automaticSnapshots.readFailed")
-                  : t("automaticSnapshots.saveFailed"))}
+              {problem.action === "save" && problem.readbackFailed && enabled === undefined
+                ? t(
+                    problem.attempted
+                      ? "automaticSnapshots.enableUnconfirmed"
+                      : "automaticSnapshots.disableUnconfirmed",
+                  )
+                : (problem.summary ??
+                  t(
+                    problem.action === "read"
+                      ? "automaticSnapshots.readFailed"
+                      : "automaticSnapshots.saveFailed",
+                  ))}
             </p>
             {enabled === undefined && (
               <Button variant="outline" onClick={retry}>

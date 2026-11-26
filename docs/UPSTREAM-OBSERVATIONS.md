@@ -575,6 +575,13 @@ reports coverage across configured sources. Historical fallback policies retain 
 and are explicitly held as unknown current state. No automatic acceptance,
 publication, signing or player update eligibility follows from this handoff.
 
+A handoff holds only the sources its run attempted, so consumers that need
+every source read the retained checkpoint snapshot instead
+(`readUpstreamObservations`): the maintenance inventory, the listing delivery
+and the listing facts batch job
+([accumulated observations](CATALOG.md#accumulated-observations)), which
+projects each completed source to its last complete listing observation.
+
 Each source operation admits response bytes, including identity lookups, while
 reading. Its finite byte envelope does not cap cumulative catalog-session work:
 further bounded operations continue while actual quota and runtime remain.
@@ -1368,6 +1375,32 @@ attempt status. A first failure has no successful observation or invented digest
 Collection never accepts, signs or publishes these candidates. Actual protected
 provisioning and unchanged-client production acceptance remain #534/#246 work.
 
+A source whose consumers are all descriptive listings also keeps each of its
+four newest published releases' own text, for generated registration's
+release-text rule only: its observer configuration says so
+(`release_text: "listing-window"`, so its checkpoints are its own), and its
+facts keep the release name and, of the body, only the first line the rule
+judges, looked for in the whole body (`text: { title, line, line_complete }`).
+Only the first release list page keeps text (the provider lists releases
+newest first); a window release on a later page reads as unobserved text, so
+the stored pages and the projection each hold at most one window.
+The kept text of one source is bounded by the checkpoint's capacity
+(`releaseTextSourceBytes`, 32 MiB ÷ 2 ÷ 2 ÷ 1,295 sources, a bounded unit);
+over it, each kept release records only a typed overflow with its size
+(`overflow_bytes`), which reads as unobserved text, never as a statement
+either way. A change to the kept text during an observation is a concurrent change
+like any other fact. Managed sources keep no release text: their facts,
+checkpoints and Core projections are unchanged. The text travels beside the
+candidates, never inside `upstream_observation`, whose shape Core's signed
+listing accepts: each listing projection carries `listing_release_text`
+(format 1) bound to its observation's facts digest. The checkpoint's
+`last_complete_policies` keep it with each projection, which is where the
+facts batch reads it; the handoff's `catalog_policies` omit it. A reader
+attaches text only to the observation whose digest it names; a projection
+without it reads as unobserved text. The text is unsigned, untrusted upstream content, never shown to
+players and never accepted into a listing
+([release text statements](CATALOG.md#release-text-statements)).
+
 The same report carries `descriptive_listing_preimages`, keyed by stable ID and
 binding the prior accepted observation hash. Feed a retained source report to
 `prepare-port.mts --listing-observations REPORT --validator-cli TRUSTED_CLI
@@ -1412,10 +1445,24 @@ is review evidence, so a person confirms it and, unless the material falls
 under a rights-basis owner exception, sets the listing's
 `download_block_reason` in a reviewed change.
 
-Each scanned asset is remembered in a cached checkpoint by rules version,
+Each scanned asset is remembered in a checkpoint by rules version,
 provider, repository, tag, name and, where the provider gives them, digest or
 size, so a successfully scanned
-release is downloaded once; a rules change rescans. Each scheduled run has an
+release is downloaded once; a rules change rescans. Scheduled runs retain the
+checkpoint separately from the report for 30 days. The next scan verifies the
+latest successful scheduled main run, its exact attempt, and the checkpoint
+archive digest before reusing that continuation. A missing checkpoint from a
+legacy producer can use the old cache during rollout. A missing or invalid
+checkpoint from an artifact-producing run stops the scan while that artifact
+is within retention. Confirmed expiry starts a fresh scan under the same
+budgets. Manual runs can read the checkpoint and only scheduled runs advance it.
+A rerun reuses its own previous successful attempt when available. A historical
+rerun stops if a newer schedule already advanced the checkpoint. The retained
+checkpoint uses the existing 8 MiB artifact receive budget. The scan preserves
+retained records at that bound. If a package result needs more space, it records
+the measured requirement and defers a new transfer until that result can fit.
+
+Each scheduled run has an
 asset budget of 160 packages that counts every attempt, a 40 GB byte budget
 that counts failed transfers too, and a 75-minute deadline that also caps every release read (each at
 most one minute), download, listing and file read, so a slow provider or
@@ -1424,7 +1471,16 @@ deadline; those targets are reported as `time-budget`. Targets that need no
 further I/O keep their outcome after the deadline: a resolved skip, a package
 reused from the checkpoint, a remembered failure, or a remembered unlistable
 retry, which stays `unlistable`. Targets that share one package
-re-check it once per run. Every target not scanned
+attempt it once per run, including transient failures. The existing checkpoint
+retains ordinary transient attempt order: fresh assets and the oldest deferred
+attempts take precedence on the next run, without increasing any budget.
+When a provider changes the digest or size metadata it supplies without proving
+that the package changed, the next attempt still uses the package's previous order.
+Successful scans and persistent failures leave that rotation. The scheduled run uses
+`--complete-targets` with the canonical listings. It drops deferred attempts for
+repositories with no remaining targets, or when every target for a repository resolves
+to a different package from a complete release read. Scoped scans and failed,
+incomplete or ambiguous reads preserve the previous attempt order. Every target not scanned
 is reported with a stable code. Persistent targets are reported as not
 scannable: `no-release`,
 `no-single-asset`, `release-unavailable` (the release read answers with a
@@ -1552,23 +1608,17 @@ It uses one gzip stream in a versioned JSON envelope with the decoded size and
 SHA-256. The carrier has an eight-MiB limit and the decoded directory has a
 32-MiB limit. Compact delivery retains all applicable canonical listings,
 including implementation explanations and reviewed IGDB scenes when present.
-The existing policy role signs the exact carrier bytes. The last verified legacy
-directory remains signed for older clients and its bytes stay fixed. Later
-observations update only the compact target. Both carriers share a revision
-floor and must decode to the same bytes at equal revisions. The scheduled
-publisher keeps the existing representation until its first compact publication
-is explicitly enabled. First activation and later format upgrades require the
-reviewed released CLI and its exact SHA-256. The preparation command checks
-that reader's carrier and directory-format capabilities before making a bundle.
-The publisher records the verified reader version and digest. After activation,
-the legacy target follows the [legacy-hold policy](SIGNED-CATALOG.md#legacy-holds-after-compact-activation):
-it changes only to add a safety withdrawal or a download hold, advances above
-the current revision and preserves the other signed legacy rows. The compact
-successor carries the same withdrawals, preserves its other rows and prior
-withdrawals, and publishes above the legacy successor. Compact preparation
-excludes and reports an observer candidate that fails Core validation; the
-definitions and the remaining candidates still publish. Legacy preparation
-keeps its fallback and publishes none of the candidates in that case.
+The existing policy role signs the exact carrier bytes. The legacy
+directory stays signed for older clients with its last bytes and never changes
+again; compact delivery is the only live listing carrier
+([minimum supported preview](SIGNED-CATALOG.md#compact-listing-delivery-and-the-minimum-supported-preview)).
+Both carriers share a revision floor and must decode to the same bytes at
+equal revisions. First compact publication and later format upgrades wait until
+the publisher has verified the current released preview reader. Until then,
+the publisher renews the prior listing targets exactly. The preparation report
+records the verified reader version and digest. Compact preparation excludes
+and reports an observer candidate that fails Core validation; the definitions
+and the remaining candidates still publish.
 If prior metadata has expired, the publisher first renews the exact known
 targets through historical signature verification.
 

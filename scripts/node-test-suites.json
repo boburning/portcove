@@ -306,6 +306,22 @@
       "ordinary_families": ["release-contract-tests"]
     },
     {
+      "file": "scripts/catalog-definition-requirements.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3510],
+        ["release-check", 4310]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
+      "file": "scripts/listing-artwork-checkpoint.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3511],
+        ["release-check", 4311]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-body-window.test.mts",
       "memberships": [
         ["catalog-full-2", 3508],
@@ -701,7 +717,8 @@
       "memberships": [
         ["catalog-full-2", 5200],
         ["repository-tools-2", 800]
-      ]
+      ],
+      "ordinary_families": ["restriction-register-tests"]
     },
     {
       "file": "scripts/check-fallow-report.test.mts",
@@ -1747,13 +1764,25 @@
             "ordinary maintenance report and history page preserve the full restored timeline",
             "maintenance store guards history and survives an independent PostgreSQL restore",
             "a receipt-only login can verify migrations and reserve handoffs through its explicit SQL role",
+            "revision-fenced discovery admission fits where its conservative default does not",
             "an interrupted maintenance migration leaves no partial schema and resumes cleanly",
+            "a completed charge leaves the ledger once the provider counter has settled past it",
             "shared admissions fence concurrent callers and retain crash charges",
+            "recovery retries reserve and settle real ledger attempts without retrying uncertain transfers",
+            "recovery caps row-delta metadata against measured remaining response bytes",
+            "a pre-0011 portable backup restores and migrates normalized discovery hints",
             "recovery reconstruction reuses history and restores current state and sequences",
             "cutover admissions share their finite allowance across purposes"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
+      ]
+    },
+    {
+      "file": "scripts/discovery-admission-receipt.test.mts",
+      "memberships": [
+        ["catalog-full", 1282],
+        ["repository-tools", 418]
       ]
     },
     {
@@ -1777,7 +1806,10 @@
             "local lead state imports once with its recorded strength",
             "a local runner reads the shared store's leads without a lease and keeps its research",
             "stored collector state is not capped at a fixed size",
-            "stored lead records round-trip through PostgreSQL and unchanged rows are not rewritten"
+            "stored lead records round-trip through PostgreSQL and unchanged rows are not rewritten",
+            "the status export reports an unmigrated store instead of failing",
+            "the store omits state only for the exact revision, generation and definition a caller holds",
+            "status reconciliation distinguishes retained repository evidence from research signals"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
@@ -4339,6 +4371,13 @@
       "memberships": [
         ["catalog-full-2", 9690],
         ["roadmap-check", 190]
+      ]
+    },
+    {
+      "file": "scripts/hosted-discovery-receipt-wire.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9693],
+        ["roadmap-check", 193]
       ]
     },
     {

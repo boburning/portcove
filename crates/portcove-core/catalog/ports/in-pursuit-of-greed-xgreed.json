@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "in-pursuit-of-greed-xgreed",
+    "project_url": "https://github.com/jval1972/xGreed",
+    "name": "In Pursuit of Greed / xGreed (jval1972)",
+    "summary": "xGreed - Source Port of the game \"In Pursuit of Greed\"",
+    "issue_number": 7045,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "in-pursuit-of-greed",
+      "evidence_urls": ["https://github.com/jval1972/xGreed"],
+      "source_editions": []
+    },
+    "original_game_title": "In Pursuit of Greed"
+  }
+}

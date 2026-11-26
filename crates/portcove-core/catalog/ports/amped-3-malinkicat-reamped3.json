@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "amped-3-malinkicat-reamped3",
+    "project_url": "https://github.com/malinkicat/ReAmped3",
+    "name": "Amped 3 / ReAmped3",
+    "summary": "ReAmped 3: native PC port of Amped 3 (Xbox 360) via static recompilation (ReXGlue). Bring your own disc.",
+    "issue_number": 5631,
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "amped-3",
+      "evidence_urls": ["https://github.com/malinkicat/ReAmped3"],
+      "source_editions": [
+        {
+          "id": "amped-3-xbox-360",
+          "title": "Amped 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/malinkicat/ReAmped3"]
+        }
+      ]
+    },
+    "original_game_title": "Amped 3"
+  }
+}
