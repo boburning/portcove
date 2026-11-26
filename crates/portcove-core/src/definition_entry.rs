@@ -321,6 +321,16 @@ impl DefinitionContentIndex {
                 ));
             }
             require_feature(required_features.as_ref(), Feature::ModSources)?;
+            if port
+                .mod_sources
+                .iter()
+                .any(crate::ModSource::is_platform_independent_portal)
+            {
+                require_feature(
+                    required_features.as_ref(),
+                    Feature::PlatformIndependentModPortals,
+                )?;
+            }
             crate::mod_source::validate(&port)?;
         }
         port.release.validate_github_streams(&port.platforms)?;

@@ -43,7 +43,7 @@ pub struct ExternalModPortal {
 
 fn portal(
     port: &PortDefinition,
-    platform: Platform,
+    platform: Option<Platform>,
     source: &crate::ModSource,
 ) -> Option<ExternalModPortal> {
     let (site, browser, browse_available) = match &source.source {
@@ -60,12 +60,15 @@ fn portal(
         ModSourceKind::Quaddicted { .. } => (
             ExternalModSite::Quaddicted,
             Some(ExternalModBrowser::Quaddicted),
-            crate::mod_source::quaddicted(port, platform).is_some(),
+            platform
+                .is_some_and(|platform| crate::mod_source::quaddicted(port, platform).is_some()),
         ),
         ModSourceKind::ModDbFeed { .. } => (
             ExternalModSite::ModDb,
             Some(ExternalModBrowser::ModDbFeed),
-            crate::quake_mod_browser::moddb_scope(port, platform).is_some(),
+            platform.is_some_and(|platform| {
+                crate::quake_mod_browser::moddb_scope(port, platform).is_some()
+            }),
         ),
         // GitHub release sources have their own view and inspection route.
         ModSourceKind::GithubRelease { .. } => return None,
@@ -86,13 +89,17 @@ pub(crate) fn portals(
     id: &str,
     platform: Option<Platform>,
 ) -> Vec<ExternalModPortal> {
-    let (Some(platform), Ok(port)) = (platform, catalog.port(id)) else {
+    let Ok(port) = catalog.port(id) else {
         return Vec::new();
     };
-    if !crate::mod_source::presented_on(catalog, port, platform) {
-        return Vec::new();
-    }
-    crate::mod_source::declared(port, platform)
+    let presented_platform =
+        platform.filter(|platform| crate::mod_source::presented_on(catalog, port, *platform));
+    port.mod_sources
+        .iter()
+        .filter(|source| {
+            source.is_platform_independent_portal()
+                || presented_platform.is_some_and(|platform| source.offered_on(platform))
+        })
         .filter_map(|source| portal(port, platform, source))
         .collect()
 }
@@ -105,8 +112,8 @@ impl crate::PortcoveService {
         source: &str,
         url: &str,
     ) -> crate::Result<String> {
-        let platform = Platform::current()?;
-        let capability = portals(self.catalog(), port_id, Some(platform))
+        let platform = Platform::current().ok();
+        let capability = portals(self.catalog(), port_id, platform)
             .into_iter()
             .find(|portal| portal.source == source)
             .ok_or_else(|| {
@@ -115,7 +122,9 @@ impl crate::PortcoveService {
         if capability.url == url {
             return Ok(capability.url);
         }
-        if capability.browse_available {
+        if capability.browse_available
+            && let Some(platform) = platform
+        {
             match capability.browser {
                 Some(ExternalModBrowser::Quaddicted) => {
                     return self.review_quaddicted_page(port_id, platform, url).await;
