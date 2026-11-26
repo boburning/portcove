@@ -1513,6 +1513,8 @@ void test("interruption and cancellation retain completed pages without repeatin
   });
   assert.equal(interrupted.report.observation, null);
   assert.equal(interrupted.report.continuation?.retained_pages, 1);
+  assert.equal(interrupted.report.attempt_provider_usage?.requests, 1);
+  assert.ok(requiredFixture(interrupted.report.attempt_provider_usage).response_bytes > 0);
   const recovered = await advanceObservation(config, interrupted.checkpoint, {
     fetch: server.fetch,
     project,

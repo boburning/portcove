@@ -74,7 +74,7 @@ interface Checkpoint {
   exception: CheckpointException | null;
   continuation?: ObservationContinuation;
 }
-export interface AdvanceOptions extends Omit<ObserveOptions, "cache"> {
+export interface AdvanceOptions extends Omit<ObserveOptions, "cache" | "onAttemptUsage"> {
   project: (observation: Observation) => unknown;
   reprojectFreshFacts?: boolean;
   catalogIds?: string[];
@@ -350,13 +350,16 @@ export async function advanceObservation(
         ...options,
         cache: next.last_complete?.cache,
         continuation: next.continuation,
+        onAttemptUsage: (usage) => {
+          attemptProviderUsage = usage;
+        },
         onCheckpoint: async (continuation) => {
           next.continuation = structuredClone(continuation);
           await options.onCheckpoint?.(structuredClone(continuation));
           await options.commitContinuation?.(structuredClone(next));
         },
       });
-      attemptProviderUsage = result.observation.batch_consumed ?? null;
+      attemptProviderUsage ??= result.observation.batch_consumed ?? null;
       failedPolicyInput = result.observation;
       if (options.signal?.aborted)
         throw new ObservationFailure("cancelled", "Observation cancelled before Core projection");
@@ -399,8 +402,6 @@ export async function advanceObservation(
       delete next.continuation;
       failedPolicyInput = null;
     } catch (error) {
-      if (error instanceof ObservationFailure)
-        attemptProviderUsage ??= error.batchConsumed ?? null;
       if (error instanceof ObservationFailure && error.continuation)
         next.continuation = error.continuation;
       // Stated incomplete coverage keeps the accepted cursor where it was.
