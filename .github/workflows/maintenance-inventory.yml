@@ -509,6 +509,8 @@ jobs:
       PORTCOVE_MAINTENANCE_PURPOSE: ${{ inputs.purpose || 'schedule' }}
       PORTCOVE_MAINTENANCE_RESOURCE_EVIDENCE: ${{ github.workspace }}/work/discovery-worker/resource.jsonl
     steps:
+      - name: Record the discovery job clock
+        run: echo "PORTCOVE_DISCOVERY_JOB_STARTED_EPOCH=$EPOCHSECONDS" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -569,7 +571,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           rc=0
-          export PORTCOVE_DISCOVERY_DEADLINE_EPOCH=$((EPOCHSECONDS + 330 * 60))
+          # The optional recovery seed shares the job clock. Keep time for the
+          # final database commit, status export, preparation and artifact upload.
+          export PORTCOVE_DISCOVERY_DEADLINE_EPOCH=$((PORTCOVE_DISCOVERY_JOB_STARTED_EPOCH + 330 * 60))
           node scripts/discovery-worker.mts collect --output work/discovery-worker || rc=$?
           if [[ "$rc" == 75 ]]; then
             echo 'Discovery collection deferred; the retained continuation resumes on the next run.' >> "$GITHUB_STEP_SUMMARY"
@@ -602,19 +606,21 @@ jobs:
             cat work/discovery-worker/status.md >> "$GITHUB_STEP_SUMMARY"
           fi
           [[ "$rc" == 0 || "$rc" == 75 ]]
-      - name: Preview unsigned listings from scheduled discovery evidence
+      - name: Prepare listing admission from scheduled discovery evidence
         if: >-
           !cancelled() && github.event_name == 'schedule' &&
           steps.discover.outcome == 'success' &&
           steps.discover.outputs.listing_preview == 'true'
-        timeout-minutes: 8
+        # Allow the last bounded provider request, reader verification and Core inspection to finish.
+        timeout-minutes: 11
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/prepare-port.mts \
             --discovery-listings work/discovery-worker/listing-preview-handoff.json \
             --discovery-automatic-scope true \
-            --discovery-deadline-epoch-ms "$(((EPOCHSECONDS + 360) * 1000))" \
+            --discovery-released-validator true \
+            --discovery-deadline-epoch-ms "$(((EPOCHSECONDS + 240) * 1000))" \
             --output-dir work/discovery-worker/listing-preview
       - name: Retain discovery result and status
         if: ${{ !cancelled() && hashFiles('work/discovery-worker/*.json') != '' }}
@@ -631,6 +637,7 @@ jobs:
             work/discovery-worker/listing-preview/completion-*.json
             work/discovery-worker/listing-preview/github-*.json
             work/discovery-worker/listing-preview/discovery-upstream-*.json
+            work/discovery-worker/listing-preview/discovery-listing-admission-*.patch
           if-no-files-found: warn
           retention-days: 30
 

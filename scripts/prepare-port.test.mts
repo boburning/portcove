@@ -1017,18 +1017,36 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     const handoff = { format: "portcove-discovery-listing-handoff", format_version: 1, candidates };
     const validatorCli = join(f.root, "fixture-cli");
     writeFileSync(validatorCli, "inert");
-    context.mock.method(childProcess, "spawnSync", (_artifact: string, args: string[]) => {
-      assert.deepEqual(args.slice(-3, -1), ["inspect-listings", "--path"]);
-      const data: unknown = JSON.parse(readFileSync(args.at(-1)!, "utf8"));
-      return { status: 0, signal: null, stdout: JSON.stringify({ data }), stderr: "" };
-    });
+    let refuse = false;
+    context.mock.method(
+      childProcess,
+      "spawnSync",
+      (_artifact: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
+        assert.deepEqual(Object.keys(options.env).sort(), ["HOME", "PATH", "TMPDIR"]);
+        if (refuse)
+          return { status: 1, signal: null, stdout: "", stderr: "fixture refuses this format" };
+        assert.deepEqual(args.slice(-3, -1), ["inspect-listings", "--path"]);
+        const data: unknown = JSON.parse(readFileSync(args.at(-1)!, "utf8"));
+        return { status: 0, signal: null, stdout: JSON.stringify({ data }), stderr: "" };
+      },
+    );
     syncBuiltinESMExports();
-    const { report } = await prepareDiscoveryListingAdditions({
+    let validatorRequests = 0;
+    const options: Parameters<typeof prepareDiscoveryListingAdditions>[0] = {
       catalogRoot,
       outputDirectory: join(f.root, "automatic-scope"),
       handoff,
       automaticScope: true,
-      validatorCli,
+      acquireValidator: async () => {
+        assert.ok(f.requests.length > 0);
+        validatorRequests++;
+        return {
+          cli: validatorCli,
+          receipt: { version: "fixture" },
+          sha256: createHash("sha256").update("inert").digest("hex"),
+          version: "fixture",
+        };
+      },
       facts: {
         now: () => Date.parse("2026-11-26T00:00:00Z"),
         fetcher: f.fetcher((url) => {
@@ -1102,7 +1120,8 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
           });
         }),
       },
-    });
+    };
+    const { report } = await prepareDiscoveryListingAdditions(options);
     assert.deepEqual(report.changed_records, ["github-80000", "github-80005"]);
     assert.deepEqual(
       report.outcomes.map(({ status }) => status),
@@ -1123,6 +1142,41 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     );
     assert.equal(report.automatic_scope_policy, "github-primary-single-game-manifest/1");
     assert.ok(report.admission);
+    assert.deepEqual(report.released_validation, {
+      status: "validated",
+      receipt: { version: "fixture" },
+    });
+    const held = await prepareDiscoveryListingAdditions({
+      ...options,
+      outputDirectory: join(f.root, "held-only"),
+      handoff: { ...handoff, candidates: [candidates[1]] },
+    });
+    assert.equal(validatorRequests, 1);
+    assert.equal(held.report.released_validation, undefined);
+    assert.equal(held.report.admission, null);
+    context.mock.method(console, "error", () => {});
+    const deferred = await prepareDiscoveryListingAdditions({
+      ...options,
+      outputDirectory: join(f.root, "validator-unavailable"),
+      handoff: { ...handoff, candidates: [candidates[0]] },
+      async acquireValidator() {
+        throw new Error("Fixture reader acquisition failed");
+      },
+    });
+    assert.deepEqual(deferred.report.released_validation, { status: "deferred-unavailable" });
+    assert.deepEqual(deferred.report.changed_records, ["github-80000"]);
+    assert.equal(deferred.report.admission, null);
+    refuse = true;
+    const independent = await prepareDiscoveryListingAdditions({
+      ...options,
+      outputDirectory: join(f.root, "core-refuses-format"),
+      handoff: { ...handoff, candidates: [candidates[0]] },
+    });
+    assert.deepEqual(independent.report.released_validation, {
+      status: "deferred-core-inspection",
+    });
+    assert.deepEqual(independent.report.changed_records, ["github-80000"]);
+    assert.equal(independent.report.admission, null);
     assert.equal(report.operational_changed, false);
     const result = checkedAuthoredPort(
       JSON.parse(readFileSync(report.files.records[0]!.path, "utf8")),

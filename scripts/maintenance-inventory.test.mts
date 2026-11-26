@@ -349,9 +349,16 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.match(previewStep.if!, /github.event_name == 'schedule'/u);
   assert.match(previewStep.if!, /steps.discover.outcome == 'success'/u);
   assert.match(previewStep.if!, /steps.discover.outputs.listing_preview == 'true'/u);
+  assert.match(
+    discover.steps[0]?.run ?? "",
+    /PORTCOVE_DISCOVERY_JOB_STARTED_EPOCH=\$EPOCHSECONDS/u,
+  );
+  assert.match(discoveryStep.run!, /PORTCOVE_DISCOVERY_JOB_STARTED_EPOCH \+ 330 \* 60/u);
   assert.match(discoveryStep.run!, /listing_preview_sha256/u);
   assert.match(discoveryStep.run!, /createHash\("sha256"\)/u);
   assert.match(previewStep.run!, /--discovery-deadline-epoch-ms/u);
+  assert.match(previewStep.run!, /--discovery-released-validator true/u);
+  assert.doesNotMatch(previewStep.run!, /--discovery-stage-source/u);
   assert.deepEqual(previewStep.env, { GH_TOKEN: "${{ github.token }}" });
   const previewGate = discoveryStep.run!.match(/node -e '([^']+)' >> "\$GITHUB_OUTPUT"/u)?.[1];
   assert.ok(previewGate);

@@ -23,7 +23,7 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { runCheckedGit } from "./checked-git.mts";
 import {
   assembleCatalogRecords,
@@ -42,6 +42,8 @@ import {
   managedSetupReleaseAdvice,
   managedSetupReleaseAdviceText,
 } from "./catalog-setup-release-advice.mts";
+import { credentialFree } from "./catalog-released-reader.mts";
+import type { AcquiredReleasedReader } from "./catalog-released-reader.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { listedRepositories } from "./catalog-generated-registration.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
@@ -1340,6 +1342,39 @@ function checkDiscoveryStagingSource(repository: string, revision: string) {
   return options;
 }
 
+function acquireDiscoveryValidator(privateRoot: string): AcquiredReleasedReader {
+  const environment = credentialFree(process.env);
+  for (const name of Object.keys(environment))
+    if (name.toUpperCase().startsWith("GIT_")) delete environment[name];
+  const value: unknown = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("./catalog-released-reader.mts", import.meta.url)),
+        "acquire-scheduled",
+        privateRoot,
+      ],
+      {
+        cwd: privateRoot,
+        env: environment,
+        encoding: "utf8",
+        timeout: 120_000,
+        maxBuffer: 64 * 1024,
+        windowsHide: true,
+      },
+    ),
+  );
+  if (
+    !isRecord(value) ||
+    typeof value.cli !== "string" ||
+    typeof value.sha256 !== "string" ||
+    typeof value.version !== "string" ||
+    !isRecord(value.receipt)
+  )
+    throw new Error("Malformed released Core receipt.");
+  return { cli: value.cli, sha256: value.sha256, version: value.version, receipt: value.receipt };
+}
+
 /** Prepare one append-only authoring proposal from a batch of discovery selections. */
 export async function prepareDiscoveryListingAdditions(
   options: Pick<ArtworkOptions, "catalogRoot" | "outputDirectory" | "validatorCli"> & {
@@ -1348,6 +1383,9 @@ export async function prepareDiscoveryListingAdditions(
     deadline?: number;
     approval?: { document: unknown };
     automaticScope?: boolean;
+    acquireValidator?: (
+      privateRoot: string,
+    ) => AcquiredReleasedReader | Promise<AcquiredReleasedReader>;
     stage?: { repository: string; revision: string };
   },
 ) {
@@ -1359,6 +1397,13 @@ export async function prepareDiscoveryListingAdditions(
     throw new Error("Discovery listing approval requires a trusted Core validator.");
   if (options.approval && options.automaticScope)
     throw new Error("Choose either reviewed approval or automatic discovery scope.");
+  if (
+    options.acquireValidator &&
+    (!options.automaticScope || options.validatorCli || options.stage)
+  )
+    throw new Error(
+      "Released discovery validation requires automatic scope without local staging.",
+    );
   const stage = options.stage;
   if (stage) {
     if ((!options.approval && !options.automaticScope) || !options.validatorCli)
@@ -1468,9 +1513,6 @@ export async function prepareDiscoveryListingAdditions(
     for (const value of [repository.toLowerCase(), repository_id])
       repositoryUses.set(value, (repositoryUses.get(value) ?? 0) + 1);
   const root = resolve(options.outputDirectory);
-  const validatorIdentity = options.validatorCli
-    ? createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex")
-    : null;
   openCheckpoint(root);
   try {
     const additions: AuthoredPort[] = [];
@@ -1629,6 +1671,9 @@ export async function prepareDiscoveryListingAdditions(
         upstream_receipt: receipt,
       });
     }
+    const validatorIdentity = options.validatorCli
+      ? createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex")
+      : null;
     const prepared = preparedRecordOutputs(
       options,
       root,
@@ -1649,8 +1694,42 @@ export async function prepareDiscoveryListingAdditions(
       throw new Error(
         "Discovery listing preparation changed an accepted catalog record or integration.",
       );
+    let releasedValidation:
+      | { status: "validated"; receipt: Record<string, unknown> }
+      | { status: "deferred-unavailable" | "deferred-core-inspection" }
+      | undefined;
+    if (options.acquireValidator && additions.length > 0) {
+      const privateRoot = mkdtempSync(join(root, "released-core-"));
+      let reader: AcquiredReleasedReader | undefined;
+      try {
+        reader = await options.acquireValidator(privateRoot);
+      } catch (error) {
+        console.error("Released Core is unavailable for discovery validation:", error);
+        releasedValidation = { status: "deferred-unavailable" };
+      }
+      if (reader) {
+        try {
+          const inspector = coreProposalInspector(reader.cli, privateRoot, {
+            env: { PATH: process.env.PATH, HOME: privateRoot, TMPDIR: privateRoot },
+            expectedSha256: reader.sha256,
+          });
+          const bytes = readFileSync(prepared.files.listings);
+          const { listings, ...inspection } = inspector.inspectListings("listings", bytes);
+          prepared.listing_validation = { ...inspection, listing_count: listings.length };
+          releasedValidation = { status: "validated", receipt: reader.receipt };
+        } catch (error) {
+          console.error("Released Core could not validate the prepared listings:", error);
+          releasedValidation = { status: "deferred-core-inspection" };
+        }
+      }
+    }
     let admission: { path: string; sha256: string } | null = null;
-    if ((approved || (options.automaticScope && options.validatorCli)) && additions.length > 0) {
+    if (
+      (approved ||
+        (options.automaticScope && options.validatorCli) ||
+        releasedValidation?.status === "validated") &&
+      additions.length > 0
+    ) {
       const patch = discoveryAdmissionPatch(additions);
       const sha256 = createHash("sha256").update(patch).digest("hex");
       const path = join(root, `discovery-listing-admission-${sha256}.patch`);
@@ -1677,6 +1756,7 @@ export async function prepareDiscoveryListingAdditions(
       admission,
       staged_source_revision: stage && admission ? stage.revision : null,
       outcomes,
+      ...(releasedValidation ? { released_validation: releasedValidation } : {}),
       ...prepared,
       preparation_costs: preparationCosts(started),
       next:
@@ -2180,6 +2260,7 @@ async function main() {
     "--discovery-listing-approval",
     "--discovery-automatic-scope",
     "--discovery-stage-source",
+    "--discovery-released-validator",
     "--discovery-deadline-epoch-ms",
     "--listing-observations",
     "--package-observation",
@@ -2236,6 +2317,17 @@ async function main() {
   const discoveryApproval = values.get("--discovery-listing-approval");
   const automaticDiscoveryScope = values.get("--discovery-automatic-scope");
   const discoveryStageSource = values.get("--discovery-stage-source");
+  const releasedDiscoveryValidator = values.get("--discovery-released-validator");
+  if (
+    releasedDiscoveryValidator !== undefined &&
+    (releasedDiscoveryValidator !== "true" ||
+      !automaticDiscoveryScope ||
+      values.has("--validator-cli") ||
+      discoveryStageSource)
+  )
+    throw new Error(
+      "--discovery-released-validator takes true with automatic scope without local validation or staging.",
+    );
   const discoveryDeadline = values.get("--discovery-deadline-epoch-ms");
   if (discoveryDeadline && !discoveryHandoff)
     throw new Error("--discovery-deadline-epoch-ms requires --discovery-listings.");
@@ -2259,6 +2351,7 @@ async function main() {
           "--discovery-listing-approval",
           "--discovery-automatic-scope",
           "--discovery-stage-source",
+          "--discovery-released-validator",
           "--discovery-deadline-epoch-ms",
           "--validator-cli",
           "--output-dir",
@@ -2333,6 +2426,11 @@ async function main() {
           ...common,
           facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
           ...(automaticDiscoveryScope ? { automaticScope: true } : {}),
+          ...(releasedDiscoveryValidator
+            ? {
+                acquireValidator: acquireDiscoveryValidator,
+              }
+            : {}),
           ...(discoveryDeadline ? { deadline: Number(discoveryDeadline) } : {}),
           ...(discoveryStageSource
             ? { stage: { repository, revision: discoveryStageSource } }
