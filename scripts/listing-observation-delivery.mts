@@ -9,7 +9,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual, parseArgs } from "node:util";
 import { isRecord } from "./runtime-values.mts";
-import { parseCatalogSource, readCatalogSource } from "./catalog-authoring.mts";
+import {
+  admittedGithubRepositoryId,
+  parseCatalogSource,
+  readCatalogSource,
+} from "./catalog-authoring.mts";
 import {
   advanceArtworkCheckpoint,
   artworkCheckpointMax,
@@ -71,7 +75,7 @@ import {
 export { listingDeliveryTarget, ListingPublicationStop };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const legacyListingFormat = 11;
-const latestListingFormat = 16;
+const latestListingFormat = 17;
 /** Rehearse optional portal bytes through the same final acceptance as the base. */
 export async function stageModPortalProjection<T, R>(
   baseline: T,
@@ -193,6 +197,14 @@ function releaseObservationListingHash(listing: Record<string, unknown>) {
   return listingDeclarationHash(withoutArtwork(listing));
 }
 
+function matchesAdmittedRepository(listingId: string, observation: Record<string, unknown>) {
+  const repositoryId = admittedGithubRepositoryId(listingId);
+  return (
+    repositoryId === undefined ||
+    (observation.provider === "github" && observation.repository_id === repositoryId)
+  );
+}
+
 function releaseObservationPortHash(port: Record<string, unknown> | undefined) {
   if (!port || !isRecord(port.presentation)) return observationHash(port ?? null);
   const comparable = { ...port };
@@ -259,6 +271,10 @@ export function completedListingCandidates(
         !isRecord(policy.listing_update.upstream_observation)
       )
         continue;
+      if (!matchesAdmittedRepository(port.id, policy.listing_update.upstream_observation)) {
+        gaps.push(`${port.id}: observer result names a different GitHub repository ID`);
+        continue;
+      }
       // These are the completed observation's original coverage and clocks, not
       // a fresh provider check. Failed later attempts do not re-date this record.
       candidates.push(policy.listing_update);
@@ -423,7 +439,8 @@ export function projectListingDelivery(
     if (
       !current ||
       releaseObservationListingHash(candidate) !== releaseObservationListingHash(current) ||
-      !isRecord(candidate.upstream_observation)
+      !isRecord(candidate.upstream_observation) ||
+      !matchesAdmittedRepository(String(current.id), candidate.upstream_observation)
     )
       continue;
     if (updates.has(String(candidate.id)))
@@ -471,7 +488,8 @@ export function projectListingDelivery(
       const prior =
         old &&
         releaseObservationListingHash(old) === releaseObservationListingHash(listing) &&
-        isRecord(old.upstream_observation)
+        isRecord(old.upstream_observation) &&
+        matchesAdmittedRepository(String(listing.id), old.upstream_observation)
           ? old.upstream_observation
           : undefined;
       const authored = isRecord(result.upstream_observation)

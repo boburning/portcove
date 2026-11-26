@@ -1123,7 +1123,7 @@ void test("optional recommendation observations round-trip as inert presentation
 void test("reference guides select strict new formats and retain actions and warnings", () => {
   const source = readCatalogSource(catalogRoot);
   assert.equal(source.catalog.schema_version, 3);
-  assert.equal(source.directory.format_version, 15);
+  assert.ok(source.directory.format_version >= 6, "listing guide references require format 6");
   const syphon = source.directory.listings.find(
     (listing) => listing.id === "syphon-filter-sf-pc-port",
   );

@@ -233,8 +233,10 @@ function boundedText(value: unknown, maximum: number): value is string {
   return true;
 }
 
-function repositoryBoundListingId(id: string): boolean {
-  return /^github-[1-9][0-9]*$/u.test(id) && Number.isSafeInteger(Number(id.slice(7)));
+export function admittedGithubRepositoryId(id: string): number | undefined {
+  if (!/^github-[1-9][0-9]*$/u.test(id)) return undefined;
+  const repositoryId = Number(id.slice(7));
+  return Number.isSafeInteger(repositoryId) ? repositoryId : undefined;
 }
 
 function publicUrl(value: unknown, field: string) {
@@ -729,7 +731,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   const releaseUrl =
     listing.release_url === undefined ? undefined : publicUrl(listing.release_url, "release_url");
   if (listing.setup_url !== undefined) publicUrl(listing.setup_url, "setup_url");
-  if (repositoryBoundListingId(listing.id)) {
+  if (admittedGithubRepositoryId(listing.id) !== undefined) {
     const project = projectUrl.replace(/\/$/u, "");
     const release = releaseUrl?.replace(/\/$/u, "");
     const canonicalProject =
@@ -1227,7 +1229,9 @@ export function assembleCatalogRecords(
                                 )
                               ? 2
                               : 1;
-  const format_version = listings.some((listing) => repositoryBoundListingId(listing.id))
+  const format_version = listings.some(
+    (listing) => admittedGithubRepositoryId(listing.id) !== undefined,
+  )
     ? 17
     : listings.some((listing) => listing.mod_portals?.length)
       ? 16

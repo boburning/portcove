@@ -3558,16 +3558,29 @@ async fn admitted_github_listing_browses_and_acquires_only_from_its_numeric_repo
         listing.id = "github-123".into();
         request.port_id = listing.id.clone();
         shared_browse_observation(&mut listing, "complete", 0);
+        let format_version = crate::catalog::listings::REPOSITORY_BOUND_LISTING_FORMAT;
+        assert!(
+            service
+                .catalog
+                .clone()
+                .with_listing_document(crate::CatalogListingDocument {
+                    format_version,
+                    listings: vec![listing.clone()],
+                })
+                .is_err(),
+            "an observation from repository 42 must not belong to the listing for repository 123"
+        );
+        listing.upstream_observation = None;
         service.catalog = service
             .catalog
             .with_listing_document(crate::CatalogListingDocument {
-                format_version: crate::catalog::listings::REPOSITORY_BOUND_LISTING_FORMAT,
+                format_version,
                 listings: vec![listing],
             })
             .unwrap();
 
-        // The observation claims repository 42. The only available release API
-        // is repository 123. A name-based request would reach an unrelated route.
+        // The only available release API is repository 123. A name-based
+        // request would reach an unrelated route.
         let bytes = archive();
         let expected = crate::signed_catalog::digest(&bytes);
         let github = GithubFixture::for_api_repository(

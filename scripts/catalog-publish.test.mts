@@ -2145,7 +2145,7 @@ void test("format 15 restrictions require the released reader and never reach ol
   assert.deepEqual(decoded.directory.listings[0]!.restrictions, restrictions);
 
   assert.throws(
-    () => projectListingDelivery({ format_version: 17, listings: [current] }, [], null, { now: 0 }),
+    () => projectListingDelivery({ format_version: 18, listings: [current] }, [], null, { now: 0 }),
     /supported bounded canonical directory/u,
   );
 });
@@ -2176,6 +2176,85 @@ void test("format-16 mod website changes preserve an independent signed release 
   const withdrawn = decodedListingDelivery(second.bytes).directory.listings[0]!;
   assert.deepEqual(withdrawn.upstream_observation, observation);
   assert.equal(withdrawn.mod_portals, undefined);
+});
+
+void test("format 17 projects a new repository-bound listing and preserves earlier release facts", async () => {
+  const { fixtureListing, fixtureDelivery, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery, requireCompactListingReader } =
+    await import("./listing-observation-delivery.mts");
+  const { compactListingCarrier, encodeCompactListing, decodeRetainedCompactListing } =
+    await import("./listing-directory-carrier.mts");
+  const reader = {
+    ok: true,
+    command: "capabilities",
+    data: {
+      product: "Portcove",
+      product_version: "fixture",
+      listing_formats: [15, 16],
+      listing_delivery_carriers: [compactListingCarrier],
+    },
+  };
+  assert.throws(() => requireCompactListingReader(reader, 17), /listing format 17/u);
+  reader.data.listing_formats.push(17);
+  assert.equal(requireCompactListingReader(reader, 17), "fixture");
+
+  const prior = fixtureDelivery();
+  const priorRow = decodedListingDelivery(prior).directory.listings[0]!;
+  const admitted = {
+    ...fixtureListing,
+    id: "github-890",
+    project_url: "https://github.com/owner/new-port",
+  };
+  const canonical = { format_version: 17, listings: [fixtureListing, admitted] };
+  const candidate = fixturePolicy(admitted, { id: 890, name: "owner/new-port" }).listing_update;
+  const reusedPath = fixturePolicy(admitted, { id: 891, name: "owner/new-port" }).listing_update;
+  const projected = projectListingDelivery(canonical, [reusedPath, candidate], prior, {
+    compatible: canonical,
+    now: 0,
+  });
+  const decoded = decodedListingDelivery(
+    decodeRetainedCompactListing(encodeCompactListing(projected.bytes)),
+  );
+  assert.equal(decoded.directory.format_version, 17);
+  assert.deepEqual(
+    decoded.directory.listings.find((row) => row.id === priorRow.id),
+    priorRow,
+  );
+  const newRow = decoded.directory.listings.find((row) => row.id === admitted.id);
+  assert.ok(newRow);
+  assert.partialDeepStrictEqual(newRow.upstream_observation, {
+    repository_id: 890,
+    status: "complete",
+    releases: [
+      { assets: [{ url: `${admitted.project_url}/releases/download/v1.0/game-windows-x64.zip` }] },
+    ],
+  });
+  assert.equal(newRow.artwork, undefined);
+  assert.equal(newRow.mod_portals, undefined);
+  const replay = projectListingDelivery(canonical, [reusedPath], projected.bytes, {
+    compatible: canonical,
+    now: 0,
+  });
+  assert.deepEqual(replay.bytes, projected.bytes);
+
+  const badPrior = structuredClone(decoded);
+  badPrior.directory.listings.find((row) => row.id === admitted.id)!.upstream_observation =
+    reusedPath.upstream_observation;
+  const repaired = projectListingDelivery(
+    canonical,
+    [reusedPath],
+    Buffer.from(JSON.stringify(badPrior)),
+    {
+      compatible: canonical,
+      now: 0,
+    },
+  );
+  assert.equal(repaired.delivered_records, 2);
+  assert.deepEqual(
+    decodedListingDelivery(repaired.bytes).directory.listings.find((row) => row.id === admitted.id),
+    admitted,
+  );
 });
 
 void test("complete format-13 compact snapshots keep authored scenes and format-12 explanations", async () => {
@@ -2471,6 +2550,35 @@ void test("completed source observations stay bound to current canonical provide
     completedListingCandidates(managedInput, { ports: [changedRelease] }, illustratedDirectory),
     [],
   );
+
+  const reusedPath = { ...fixtureListing, id: "github-891" };
+  const correctIdentity = { ...fixtureListing, id: "github-42" };
+  const matching = fixturePolicy(correctIdentity);
+  const mismatch = fixturePolicy(reusedPath);
+  const listings = [reusedPath, correctIdentity];
+  const gaps: string[] = [];
+  const reusedPathInput = {
+    ...input,
+    catalog: { ports: [], listings },
+    checkpoint: checkpoint({
+      [keyOf("owner/game")]: progress("owner/game", [], {
+        repository_id: 42,
+        last_complete_facts_sha256: matching.facts_sha256,
+        last_complete_policies: [mismatch, matching],
+      }),
+    }),
+  };
+  assert.deepEqual(
+    completedListingCandidates(
+      reusedPathInput,
+      { ports: [] },
+      { format_version: 17, listings },
+      Date.now(),
+      gaps,
+    ),
+    [matching.listing_update],
+  );
+  assert.deepEqual(gaps, ["github-891: observer result names a different GitHub repository ID"]);
 });
 
 void test("compact publication rebinds the exact decoded directory to its separate retained physical identity", async (t) => {

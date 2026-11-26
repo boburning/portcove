@@ -825,7 +825,12 @@ impl PortListing {
             } else {
                 !observation.repository.eq_ignore_ascii_case(repository)
             }
-            || observation.repository_id.is_some_and(|id| !identity(id))
+            || observation.repository_id.is_some_and(|observed| {
+                !identity(observed)
+                    || self
+                        .admitted_github_repository_id()
+                        .is_some_and(|expected| observed != expected)
+            })
             || !(1..=4).contains(&observation.release_limit)
             || observation.releases.len() > observation.release_limit
         {
@@ -2382,6 +2387,20 @@ mod observation_metadata_tests {
             &json!({"format_version":format,"listings":[value]}).to_string(),
         )
     }
+
+    #[test]
+    fn repository_bound_listing_observations_reject_reused_github_paths() {
+        let mut value = listing();
+        value["id"] = json!("github-7");
+        assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
+
+        value["upstream_observation"]["repository_id"] = json!(8);
+        assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_err());
+
+        value["id"] = json!("observed-project");
+        assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
+    }
+
     #[test]
     fn descriptive_observation_has_an_explicit_format_fence_and_retains_no_managed_authority() {
         let value = listing();
