@@ -248,6 +248,7 @@ function publicUrl(value: unknown, field: string) {
   }
   if (url.protocol !== "https:" || url.username || url.password)
     throw new Error(`Listing ${field} requires a credential-free HTTPS URL.`);
+  return value;
 }
 
 export const observedModPortalPrefix = "obs-ts-";
@@ -724,12 +725,13 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     listing.manual_setup,
     value.route_facts_v1 !== undefined,
   );
-  publicUrl(listing.project_url, "project_url");
-  for (const field of ["release_url", "setup_url"] as const)
-    if (listing[field] !== undefined) publicUrl(listing[field], field);
+  const projectUrl = publicUrl(listing.project_url, "project_url");
+  const releaseUrl =
+    listing.release_url === undefined ? undefined : publicUrl(listing.release_url, "release_url");
+  if (listing.setup_url !== undefined) publicUrl(listing.setup_url, "setup_url");
   if (repositoryBoundListingId(listing.id)) {
-    const project = listing.project_url.replace(/\/$/u, "");
-    const release = listing.release_url?.replace(/\/$/u, "");
+    const project = projectUrl.replace(/\/$/u, "");
+    const release = releaseUrl?.replace(/\/$/u, "");
     const canonicalProject =
       /^https:\/\/github\.com\/[A-Za-z0-9_-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/u;
     const canonicalRelease =
