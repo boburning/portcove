@@ -134,10 +134,14 @@
     "defaultRefreshRequired": "Default still records an older game version. Refresh it before copying or exporting this setup.",
     "empty": "No mods. The game plays without changes in this setup.",
     "external": {
+      "automatic": "Use automatic websites",
       "cached": "Showing earlier results. The source could not be checked now.",
+      "checkAgain": "Check websites again",
       "checked": "Checked {{date}}",
+      "edit": "Edit mod websites",
       "empty": "The source returned no results.",
       "heading": "Community mod websites",
+      "hideSources": "Hide automatic websites",
       "incomplete": "Some entries had unreadable details. The results may be incomplete.",
       "latest": "Show newest on Quaddicted",
       "linkUnavailable": "This link is no longer confirmed. Refresh the results before opening it.",
@@ -151,11 +155,16 @@
       "owner": "You choose, install and update files outside Portcove.",
       "previous": "Previous results",
       "quaddicted": "View on Quaddicted",
+      "save": "Save websites",
+      "saved": "Mod websites saved.",
+      "saveFailed": "The website choices could not be saved. Check the address or reopen Mods to try again.",
       "search": "Search Quaddicted",
       "searchFilename": "Filename",
       "site": "Browse {{name}}",
       "unavailable": "Couldn’t read this source. Try again or open its website.",
-      "unverifiedEngine": "Check which engines this file supports."
+      "unverifiedEngine": "Check which engines this file supports.",
+      "websiteName": "Website name",
+      "websiteUrl": "Website address"
     },
     "filePreservation": {
       "adopt": "For a supported mod, use Add mod file and choose this saved file.",

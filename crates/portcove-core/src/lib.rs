@@ -118,7 +118,12 @@ mod dfu_mod;
 mod disc_filesystem;
 mod disc_product;
 mod external_mod_portal;
-pub use external_mod_portal::{ExternalModBrowser, ExternalModPortal, ExternalModSite};
+pub use external_mod_portal::{
+    AutomaticModPortal, ExternalModBrowser, ExternalModPortal, ExternalModSite,
+    ModPortalPreferenceView, ModPortalsView,
+};
+mod mod_portal_preferences;
+pub use mod_portal_preferences::{LocalModPage, ModPortalChoices, ModPortalPreferences};
 mod gamebanana;
 mod github_mods;
 mod jakmods;

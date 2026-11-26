@@ -415,6 +415,18 @@ export const desktopApi = {
       generation,
       ...(browseOnly ? { browseOnly } : {}),
     }),
+  setModPortalPreferences: (
+    portId: string,
+    generation: number,
+    expectedRevision: number,
+    choices: import("./types").ModPortalsView["mod_portal_preferences"]["preferences"]["choices"],
+  ) =>
+    invoke<import("./types").ModPortalsView>("set_mod_portal_preferences", {
+      portId,
+      generation,
+      expectedRevision,
+      choices,
+    }),
   reviewModSetupOriginal: (target: import("./types").ModSetupOriginalTarget) =>
     invoke<import("./types").ModSetupOriginalReview>("review_mod_setup_original", target),
   selectModSetupOriginal: (target: import("./types").ModSetupOriginalTarget, instanceId: string) =>
