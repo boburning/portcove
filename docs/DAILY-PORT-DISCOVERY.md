@@ -1080,6 +1080,20 @@ collection and fails the job at the last committed page, so a store error is
 never recorded as a source outcome. `result.json` lists every pass with its
 outcome, `committed.state_bytes` and transfer.
 
+The natural maintenance run can prepare unsigned listing previews from current
+positive release watches. It exports the committed discovery generation,
+revision, release ID and digest of the observed release response for each
+selected repository. The preview runs only for a handoff whose digest matches
+the current collection result. The batch preparer checks the local catalog and
+revalidates public repository identity through the read-only GitHub credential.
+It records unresolved candidates and
+provider and deadline deferrals alongside successful proposals. The scheduler
+retains the handoff, evidence, completion report and individual proposed
+records in the discovery artifact. The aggregate preview files stay on the
+runner. A release
+hint is a reason to review a candidate. Canonical admission and signed
+publication retain their separate decision paths.
+
 A lead whose recent releases have no uploaded desktop asset gets a
 `no-native-package` watch (`waiting`). When a later run sees uploaded desktop
 assets for the same provider ID, the watch becomes `due` in a new episode. This
