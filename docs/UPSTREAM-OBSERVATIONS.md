@@ -1460,7 +1460,11 @@ retry, which stays `unlistable`. Targets that share one package
 attempt it once per run, including transient failures. The existing checkpoint
 retains ordinary transient attempt order: fresh assets and the oldest deferred
 attempts take precedence on the next run, without increasing any budget.
-Successful scans and persistent failures leave that rotation. Every target not scanned
+Successful scans and persistent failures leave that rotation. The scheduled run uses
+`--complete-targets` with the canonical listings. It drops deferred attempts for
+repositories with no remaining targets, or when every target for a repository resolves
+to a different package from a complete release read. Scoped scans and failed,
+incomplete or ambiguous reads preserve the previous attempt order. Every target not scanned
 is reported with a stable code. Persistent targets are reported as not
 scannable: `no-release`,
 `no-single-asset`, `release-unavailable` (the release read answers with a
