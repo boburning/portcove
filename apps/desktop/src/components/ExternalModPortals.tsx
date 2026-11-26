@@ -186,7 +186,6 @@ function ModPortalEditor({
           id={`${field}-url`}
           name="url"
           type="url"
-          autoCapitalize="none"
           spellCheck={false}
           maxLength={256}
           value={current.url}
