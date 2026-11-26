@@ -1356,29 +1356,30 @@ void test(
     const store = postgresDiscoveryStore(environment);
     const owner = lease("1");
     store.acquire(owner, options);
+    const leadRecords = [
+      {
+        id: 42,
+        repository: "new-owner/renamed",
+        status: "pending",
+        description: "native recompilation",
+      },
+      {
+        id: 43,
+        repository: "owner/mixed",
+        status: "pending",
+        description: "recompiled framework",
+      },
+      { id: 44, repository: "owner/tool", status: "pending", description: "asset extractor" },
+      { id: 45, repository: "owner/empty", status: "pending", description: "" },
+      { id: 46, repository: "owner/other", status: "held", description: "project" },
+    ];
     store.commit(owner, 0, {
       definition: hex("d"),
       leaseSeconds: 600,
       state: {},
       observations: [],
       watches: [],
-      leadRecords: [
-        {
-          id: 42,
-          repository: "new-owner/renamed",
-          status: "pending",
-          description: "native recompilation",
-        },
-        {
-          id: 43,
-          repository: "owner/mixed",
-          status: "pending",
-          description: "recompiled framework",
-        },
-        { id: 44, repository: "owner/tool", status: "pending", description: "asset extractor" },
-        { id: 45, repository: "owner/empty", status: "pending", description: "" },
-        { id: 46, repository: "owner/other", status: "held", description: "project" },
-      ],
+      leadRecords,
     });
     runSql(
       environment,
@@ -1473,7 +1474,10 @@ void test(
       review.retained_overlap_examples.map((row) => row.lead_id),
       [42, 43],
     );
-    assert.deepEqual(review.research_examples.map((row) => row.lead_id).sort(), [44, 45]);
+    assert.deepEqual(
+      review.research_examples.map((row) => row.lead_id).sort((a, b) => a - b),
+      [44, 45],
+    );
     const matched = review.cohorts.find((row) => row.signal === "port-terms");
     assert.equal(matched?.verified_intake, true);
     assert.equal(matched?.prepared_intake, true);
