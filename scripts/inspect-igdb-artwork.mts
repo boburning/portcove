@@ -20,7 +20,7 @@ import type {
   CatalogMediaSubject,
 } from "../apps/desktop/src/transport-types.generated.d.ts";
 import {
-  readFileSync,
+  constants,
   writeFileSync,
   mkdtempSync,
   mkdirSync,
@@ -1998,6 +1998,52 @@ function normalizedArtworkTypeName(value: unknown): string | undefined {
     return value.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
 }
 
+/** Hash a stable, nonempty validator executable through one regular-file
+ * descriptor. Unlike JSON or controller payload reads, this needs no whole-file
+ * byte envelope: memory stays bounded independently of the compiled CLI size. */
+export function hashCoreImageValidatorFile(file: string) {
+  const fd = openSync(
+    file,
+    constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+  );
+  try {
+    const before = fstatSync(fd, { bigint: true });
+    if (!before.isFile() || before.size <= 0n)
+      throw new Error("Core image validator must be a nonempty regular file.");
+    const buffer = Buffer.alloc(1024 * 1024);
+    const hash = createHash("sha256");
+    let length = 0n;
+    for (;;) {
+      // Read at most the original extent plus one byte to detect growth.
+      const remaining = before.size - length + 1n;
+      const read = readSync(
+        fd,
+        buffer,
+        0,
+        Number(remaining < BigInt(buffer.length) ? remaining : BigInt(buffer.length)),
+        null,
+      );
+      if (!read) break;
+      length += BigInt(read);
+      if (length > before.size) throw new Error("Core image validator changed while hashing.");
+      hash.update(buffer.subarray(0, read));
+    }
+    const after = fstatSync(fd, { bigint: true });
+    if (
+      length !== before.size ||
+      after.size !== before.size ||
+      after.dev !== before.dev ||
+      after.ino !== before.ino ||
+      after.mtimeNs !== before.mtimeNs ||
+      after.ctimeNs !== before.ctimeNs
+    )
+      throw new Error("Core image validator changed while hashing.");
+    return hash.digest("hex");
+  } finally {
+    closeSync(fd);
+  }
+}
+
 // Reuse the actual core decoder through its existing CLI import into a fresh
 // task-owned library. No user library/choice or arbitrary provider command.
 export function createCoreImageValidator(
@@ -2010,7 +2056,7 @@ export function createCoreImageValidator(
   const artifact = join(root, process.platform === "win32" ? "validator.exe" : "validator");
   copyFileSync(resolve(cli), artifact);
   chmodSync(artifact, 0o500);
-  const artifactSha256 = createHash("sha256").update(readFileSync(artifact)).digest("hex");
+  const artifactSha256 = hashCoreImageValidatorFile(artifact);
   if (expectedSha256 !== undefined && artifactSha256 !== expectedSha256)
     throw new Error("Core image validator changed during preparation.");
   let ordinal = 0;
