@@ -292,12 +292,16 @@ export function operationReservation(
   reservationBytes?: number,
   measuredDiscovery = false,
 ) {
-  if (reservationBytes !== undefined &&
-    (!Number.isSafeInteger(reservationBytes) || reservationBytes <= 0))
+  if (
+    reservationBytes !== undefined &&
+    (!Number.isSafeInteger(reservationBytes) || reservationBytes <= 0)
+  )
     throw new MaintenanceStoreError("Invalid maintenance reservation size");
   if (measuredDiscovery) {
     if (operation !== "discovery" || reservationBytes === undefined)
-      throw new MaintenanceStoreError("Measured discovery admission requires a discovery response bound");
+      throw new MaintenanceStoreError(
+        "Measured discovery admission requires a discovery response bound",
+      );
     return reservationBytes;
   }
   return Math.max(costs[operation], reservationBytes ?? 0);
@@ -330,7 +334,9 @@ export function policyLimits(
     reserve_bytes: reserve,
     future_daily_recovery_bytes: scheduled,
     operation_reservation_bytes: reservation,
-    reservation_basis: measuredDiscovery ? "revision-fenced-discovery" : "conservative-default-or-larger",
+    reservation_basis: measuredDiscovery
+      ? "revision-fenced-discovery"
+      : "conservative-default-or-larger",
     ceiling_bytes: operatingCeiling - chargeableForecast - bootstrapAllowance,
     cutover_allowance_bytes: meter.sampleOrigin === "november-cutover" ? transitionAllowance : null,
     recurring_monthly_projection_bytes: 31 * (recoveryDailyForecast + costs.collect),
@@ -357,7 +363,13 @@ export function acquireMaintenanceReservation(
 ) {
   const { meter, operation, request, revision, reason } = input;
   const now = input.now ?? Date.now();
-  const limits = policyLimits(meter, operation, now, input.reservationBytes, input.measuredDiscovery);
+  const limits = policyLimits(
+    meter,
+    operation,
+    now,
+    input.reservationBytes,
+    input.measuredDiscovery,
+  );
   const reserved = limits.operation_reservation_bytes;
   const age = now - Date.parse(meter.sampledAt);
   const useCutover = meter.sampleOrigin === "november-cutover";
@@ -593,7 +605,11 @@ export async function runAdmittedMaintenance<T>(
   environment: NodeJS.ProcessEnv,
   admission: ReturnType<typeof acquireMaintenanceReservation>,
   callback: (bytes: number, deadline: number) => Promise<T> | T,
-  options: { estimate?: (value: T) => number; completed?: (value: T) => boolean; executor?: boolean } = {},
+  options: {
+    estimate?: (value: T) => number;
+    completed?: (value: T) => boolean;
+    executor?: boolean;
+  } = {},
 ): Promise<T> {
   if (!admission.attempt_id) throw new MaintenanceResourceDeferred(admission.reason);
   const { operation, request, revision, meter, trigger: reason } = admission;

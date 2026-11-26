@@ -680,7 +680,10 @@ void test(
     assert.throws(() => migrate(store.owner, migrations), /latest_run.*does not exist/u);
     assert.equal(migrationStatus(store.owner, migrations).schema_version, real.length);
     assert.match(
-      runSql(store.owner, "SELECT to_regprocedure('portcove_maintenance.latest_run(text)') IS NOT NULL;"),
+      runSql(
+        store.owner,
+        "SELECT to_regprocedure('portcove_maintenance.latest_run(text)') IS NOT NULL;",
+      ),
       /t/u,
     );
 
@@ -690,7 +693,10 @@ void test(
     );
     assert.deepEqual(migrate(store.owner, migrations).newly_applied, [real.length + 1]);
     assert.match(
-      runSql(store.owner, "SELECT has_function_privilege('portcove_maintenance_collector', 'portcove_maintenance.latest_run(text)', 'EXECUTE');"),
+      runSql(
+        store.owner,
+        "SELECT has_function_privilege('portcove_maintenance_collector', 'portcove_maintenance.latest_run(text)', 'EXECUTE');",
+      ),
       /t/u,
     );
     writeFileSync(
@@ -763,12 +769,17 @@ void test(
     meter.transferBytes = policyLimits(meter, "discovery", Date.now()).ceiling_bytes - 5_000_000;
     const input = { meter, operation: "discovery" as const, reason: "test measured discovery" };
     const ordinary = acquireMaintenanceReservation(owner, {
-      ...input, request: "ordinary-discovery", reservationBytes: 1_625_000,
+      ...input,
+      request: "ordinary-discovery",
+      reservationBytes: 1_625_000,
     });
     assert.equal(ordinary.attempt_id, null);
     assert.equal(ordinary.operation_reservation_bytes, 16_000_000);
     const measured = acquireMaintenanceReservation(owner, {
-      ...input, request: "measured-discovery", reservationBytes: 1_625_000, measuredDiscovery: true,
+      ...input,
+      request: "measured-discovery",
+      reservationBytes: 1_625_000,
+      measuredDiscovery: true,
     });
     assert.ok(measured.attempt_id);
     assert.equal(measured.operation_reservation_bytes, 1_625_000);
@@ -787,13 +798,31 @@ void test("measured discovery can reserve below the bootstrap estimate without c
   assert.equal(measuredLimits.reservation_basis, "revision-fenced-discovery");
   assert.equal(measuredLimits.ceiling_bytes, defaultLimits.ceiling_bytes);
   assert.equal(measuredLimits.reserve_bytes, defaultLimits.reserve_bytes);
-  assert.equal(measuredLimits.future_daily_recovery_bytes, defaultLimits.future_daily_recovery_bytes);
-  assert.equal(policyLimits(meter, "discovery", now, 24_000_000).operation_reservation_bytes, 24_000_000);
-  assert.equal(policyLimits(meter, "recovery", now, 1_625_000).operation_reservation_bytes, 48_000_000);
+  assert.equal(
+    measuredLimits.future_daily_recovery_bytes,
+    defaultLimits.future_daily_recovery_bytes,
+  );
+  assert.equal(
+    policyLimits(meter, "discovery", now, 24_000_000).operation_reservation_bytes,
+    24_000_000,
+  );
+  assert.equal(
+    policyLimits(meter, "recovery", now, 1_625_000).operation_reservation_bytes,
+    48_000_000,
+  );
   for (const bad of [0, -1, Infinity, NaN, 1.5])
-    assert.throws(() => policyLimits(meter, "discovery", now, bad, true), /Invalid maintenance reservation/u);
-  assert.throws(() => policyLimits(meter, "recovery", now, 1_625_000, true), /requires a discovery response bound/u);
-  assert.throws(() => policyLimits(meter, "discovery", now, undefined, true), /requires a discovery response bound/u);
+    assert.throws(
+      () => policyLimits(meter, "discovery", now, bad, true),
+      /Invalid maintenance reservation/u,
+    );
+  assert.throws(
+    () => policyLimits(meter, "recovery", now, 1_625_000, true),
+    /requires a discovery response bound/u,
+  );
+  assert.throws(
+    () => policyLimits(meter, "discovery", now, undefined, true),
+    /requires a discovery response bound/u,
+  );
 });
 
 void test("Neon Free readings preserve missing dimensions and require an active period", () => {
@@ -1110,62 +1139,94 @@ void test(
     const prefixDatabase = scratch.start("prefix").owner;
     const target = scratch.start("target").owner;
     migrate(source);
-    runSql(source, `INSERT INTO portcove_maintenance.discovery_collection_state
+    runSql(
+      source,
+      `INSERT INTO portcove_maintenance.discovery_collection_state
       (scope, definition_sha256, revision, state, state_sha256, updated_at)
       VALUES ('primary', '${hex("a")}', 0,
-        jsonb_build_object('payload', repeat('x', 25000000)), '${hex("b")}', clock_timestamp());`);
+        jsonb_build_object('payload', repeat('x', 25000000)), '${hex("b")}', clock_timestamp());`,
+    );
     const output = path.join(fixture.root, "admitted-backup");
     const recover = createBackupRecovery({ source, prefixDatabase, target, output });
     const meter = testMeter(0);
     const reserve = (request: string, reservationBytes?: number, reading = meter) =>
       acquireMaintenanceReservation(source, {
-        meter: reading, request, operation: "recovery", reason: "test",
+        meter: reading,
+        request,
+        operation: "recovery",
+        reason: "test",
         ...(reservationBytes === undefined ? {} : { reservationBytes }),
       });
-    const ledger = (request: string) => queryJson(source, `SELECT json_agg(
+    const ledger = (request: string) =>
+      queryJson(
+        source,
+        `SELECT json_agg(
       json_build_object('outcome', outcome, 'reserved', reserved_bytes, 'estimate', estimate_bytes)
       ORDER BY started_at, attempt_id) FROM portcove_maintenance_meta.resource_admissions
-      WHERE request_key = '${request}';`) as { outcome: string; reserved: number; estimate: number | null }[];
+      WHERE request_key = '${request}';`,
+      ) as { outcome: string; reserved: number; estimate: number | null }[];
     const result = await retryBackupAdmission((bytes) =>
       runAdmittedMaintenance(source, reserve("real-recovery", bytes), recover, {
-        estimate: ({ transfer }) => 2_000_000 + Math.ceil(1.25 *
-          (transfer.history_copy_bytes + transfer.other_table_copy_bytes +
-           transfer.row_delta_copy_bytes + transfer.row_delta_plan_bytes)),
+        estimate: ({ transfer }) =>
+          2_000_000 +
+          Math.ceil(
+            1.25 *
+              (transfer.history_copy_bytes +
+                transfer.other_table_copy_bytes +
+                transfer.row_delta_copy_bytes +
+                transfer.row_delta_plan_bytes),
+          ),
       }),
     );
     assert.equal(result.reused, false);
     const rows = ledger("real-recovery");
-    assert.deepEqual(rows.map(({ outcome }) => outcome), ["deferred", "completed"]);
+    assert.deepEqual(
+      rows.map(({ outcome }) => outcome),
+      ["deferred", "completed"],
+    );
     assert.ok(rows[0]!.estimate! < rows[0]!.reserved);
     assert.ok(rows[1]!.reserved > rows[0]!.reserved);
     assert.equal(result.transfer.reserved_bytes, rows[1]!.reserved);
     assert.ok(rows[1]!.estimate! > 0);
 
     let calls = 0;
-    await assert.rejects(retryBackupAdmission((bytes) =>
-      runAdmittedMaintenance(source, reserve("uncertain", bytes), () => {
-        calls++;
-        throw new Error("uncertain export");
-      }),
-    ), /uncertain export/u);
+    await assert.rejects(
+      retryBackupAdmission((bytes) =>
+        runAdmittedMaintenance(source, reserve("uncertain", bytes), () => {
+          calls++;
+          throw new Error("uncertain export");
+        }),
+      ),
+      /uncertain export/u,
+    );
     assert.equal(calls, 1);
-    assert.deepEqual(ledger("uncertain").map(({ outcome, estimate }) => ({ outcome, estimate })),
-      [{ outcome: "failed", estimate: null }]);
+    assert.deepEqual(
+      ledger("uncertain").map(({ outcome, estimate }) => ({ outcome, estimate })),
+      [{ outcome: "failed", estimate: null }],
+    );
 
     // Leave enough for an ordinary reservation, but not for its measured larger retry.
     const ceiling = policyLimits(meter, "recovery", Date.now()).ceiling_bytes;
     const charged = rows[0]!.estimate! + rows[1]!.estimate! + ledger("uncertain")[0]!.reserved;
     const constrained = { ...meter, transferBytes: ceiling - charged - 49_000_000 };
     let exports = 0;
-    await assert.rejects(retryBackupAdmission((bytes) =>
-      runAdmittedMaintenance(source, reserve("denied-retry", bytes, constrained), () => {
-        exports++;
-        throw new MaintenanceBackupDeferred(60_000_000, 48_000_000);
-      }),
-    ), MaintenanceResourceDeferred);
+    await assert.rejects(
+      retryBackupAdmission((bytes) =>
+        runAdmittedMaintenance(source, reserve("denied-retry", bytes, constrained), () => {
+          exports++;
+          throw new MaintenanceBackupDeferred(60_000_000, 48_000_000);
+        }),
+      ),
+      MaintenanceResourceDeferred,
+    );
     assert.equal(exports, 1);
-    assert.deepEqual(ledger("denied-retry").map(({ outcome, reserved }) => ({ outcome, reserved })),
-      [{ outcome: "deferred", reserved: 48_000_000 }, { outcome: "deferred", reserved: 0 }]);
+    assert.deepEqual(
+      ledger("denied-retry").map(({ outcome, reserved }) => ({ outcome, reserved })),
+      [
+        { outcome: "deferred", reserved: 48_000_000 },
+        { outcome: "deferred", reserved: 0 },
+      ],
+    );
   },
 );
 
@@ -1185,7 +1246,9 @@ void test(
     }
     assert.equal(migrationStatus(source, directory).schema_version, 10);
     runSql(source, seed);
-    runSql(source, `INSERT INTO portcove_maintenance.discovery_collection_state
+    runSql(
+      source,
+      `INSERT INTO portcove_maintenance.discovery_collection_state
       (scope, definition_sha256, revision, state, state_sha256, updated_at)
       SELECT scope, '${hex("a")}', 4, state,
         encode(sha256(convert_to(state::text, 'UTF8')), 'hex'), clock_timestamp()
@@ -1193,7 +1256,8 @@ void test(
         ('primary', '{"cursor":"next","leads":{"external":{"hints":{"one":{"repo":"a/b"},"two":{"repo":"c/d"}},"checked":2}}}'::jsonb),
         ('empty', '{"leads":{"external":{"hints":{},"checked":0}}}'::jsonb),
         ('plain', '{"cursor":"unchanged"}'::jsonb)
-      ) AS states(scope, state);`);
+      ) AS states(scope, state);`,
+    );
     const logical = runSql(
       source,
       "SELECT jsonb_object_agg(scope, state) FROM portcove_maintenance.discovery_collection_state;",
@@ -1206,24 +1270,43 @@ void test(
     const restored = restore(target, archive);
     assert.equal(restored.verified, true);
     assert.equal(restored.sequences_verified, true);
-    assert.deepEqual(restored.migrated, readMigrations().filter(({ version }) => version > 10).map(({ version }) => version));
+    assert.deepEqual(
+      restored.migrated,
+      readMigrations()
+        .filter(({ version }) => version > 10)
+        .map(({ version }) => version),
+    );
     assert.equal(restored.tables["portcove_maintenance.discovery_external_hints"]?.rows, 2);
     assert.deepEqual(
-      JSON.parse(runSql(target, `SELECT jsonb_object_agg(scope,
+      JSON.parse(
+        runSql(
+          target,
+          `SELECT jsonb_object_agg(scope,
         portcove_maintenance.discovery_expanded_state(scope, state))
-        FROM portcove_maintenance.discovery_collection_state;`)),
+        FROM portcove_maintenance.discovery_collection_state;`,
+        ),
+      ),
       JSON.parse(logical),
     );
     assert.equal(
-      runSql(target, "SELECT collection_active FROM portcove_maintenance_meta.discovery_intake_activation;").trim(),
+      runSql(
+        target,
+        "SELECT collection_active FROM portcove_maintenance_meta.discovery_intake_activation;",
+      ).trim(),
       "f",
     );
     assert.equal(
-      runSql(target, "SELECT collection_generation FROM portcove_maintenance_meta.discovery_intake_activation;").trim(),
+      runSql(
+        target,
+        "SELECT collection_generation FROM portcove_maintenance_meta.discovery_intake_activation;",
+      ).trim(),
       "2",
     );
     assert.equal(
-      runSql(target, "SELECT has_function_privilege('portcove_maintenance_collector', 'portcove_maintenance.discovery_acquire_compact(text,uuid,uuid,integer,text,text,text)', 'EXECUTE');").trim(),
+      runSql(
+        target,
+        "SELECT has_function_privilege('portcove_maintenance_collector', 'portcove_maintenance.discovery_acquire_compact(text,uuid,uuid,integer,text,text,text)', 'EXECUTE');",
+      ).trim(),
       "f",
     );
   },
@@ -1245,7 +1328,9 @@ void test(
     runSql(source, seed);
     // A large unchanged discovery state would exceed the ordinary test
     // reservation if sent again, even though its complete digest matches.
-    runSql(source, `INSERT INTO portcove_maintenance.discovery_collection_state
+    runSql(
+      source,
+      `INSERT INTO portcove_maintenance.discovery_collection_state
       (scope, definition_sha256, revision, state, state_sha256, updated_at)
       VALUES ('primary', '${hex("a")}', 0, jsonb_build_object('fixture', repeat('x', 3000000)),
         '${hex("b")}', clock_timestamp());
@@ -1254,14 +1339,18 @@ void test(
       VALUES ('00000000-0000-4000-8000-000000000001', 'primary', 1, 1, 'test', 'test', clock_timestamp(), clock_timestamp(), 'complete');
       INSERT INTO portcove_maintenance.discovery_lead_records (scope, lead_id, record, updated_attempt_id)
       SELECT 'primary', i, jsonb_build_object('id', i, 'payload', repeat('y', 30000)),
-        '00000000-0000-4000-8000-000000000001'::uuid FROM generate_series(1, 100) i;`);
+        '00000000-0000-4000-8000-000000000001'::uuid FROM generate_series(1, 100) i;`,
+    );
     const previous = path.join(fixture.root, "previous");
     await backup(source, previous);
-    runSql(source, `UPDATE portcove_maintenance.discovery_lead_records
+    runSql(
+      source,
+      `UPDATE portcove_maintenance.discovery_lead_records
       SET record = jsonb_build_object('id', 1, 'payload', 'changed') WHERE scope = 'primary' AND lead_id = 1;
       DELETE FROM portcove_maintenance.discovery_lead_records WHERE scope = 'primary' AND lead_id = 2;
       INSERT INTO portcove_maintenance.discovery_lead_records (scope, lead_id, record, updated_attempt_id)
-      VALUES ('primary', 101, '{"id":101,"payload":"new"}', '00000000-0000-4000-8000-000000000001');`);
+      VALUES ('primary', 101, '{"id":101,"payload":"new"}', '00000000-0000-4000-8000-000000000001');`,
+    );
     runSql(source, executorSeed);
     runSql(
       source,
@@ -1292,7 +1381,13 @@ void test(
       /Protected table inventory/u,
     );
     runSql(source, "DROP TABLE portcove_maintenance.unexpected;");
-    const recover = createBackupRecovery({ source, prefixDatabase: prefix, target, previous, output });
+    const recover = createBackupRecovery({
+      source,
+      prefixDatabase: prefix,
+      target,
+      previous,
+      output,
+    });
     let required = 0;
     await assert.rejects(recover(2_000_000), (error: unknown) => {
       if (!(error instanceof MaintenanceBackupDeferred)) return false;
@@ -1302,18 +1397,34 @@ void test(
     });
     // Same verified local seed, fresh production snapshot, newly sized allowance.
     const result = await recover(required + 100_000);
-    const measurement = { host: source.PGHOST!, payloadBytes: 0, byteLimit: 2_000_000, deadline: Date.now() + 60_000 };
-    await maintenanceTransfer.run(measurement, () => withExportedSnapshot(source, async (_snapshot, query) => {
-      const response = await query("SELECT repeat('x', 10000);");
-      assert.ok(response.length >= 10_000);
-    }));
-    assert.ok(measurement.payloadBytes >= 10_000, "exported-snapshot responses are charged to admission");
+    const measurement = {
+      host: source.PGHOST!,
+      payloadBytes: 0,
+      byteLimit: 2_000_000,
+      deadline: Date.now() + 60_000,
+    };
+    await maintenanceTransfer.run(measurement, () =>
+      withExportedSnapshot(source, async (_snapshot, query) => {
+        const response = await query("SELECT repeat('x', 10000);");
+        assert.ok(response.length >= 10_000);
+      }),
+    );
+    assert.ok(
+      measurement.payloadBytes >= 10_000,
+      "exported-snapshot responses are charged to admission",
+    );
     assert.ok(result.transfer.history_copy_bytes > 0 && result.transfer.history_copy_bytes < 250);
-    assert.ok(result.transfer.reused_tables.includes("portcove_maintenance.discovery_collection_state"));
+    assert.ok(
+      result.transfer.reused_tables.includes("portcove_maintenance.discovery_collection_state"),
+    );
     assert.ok(!result.transfer.reused_tables.includes("portcove_maintenance.collection_runs"));
     assert.ok(result.transfer.estimated_payload_ceiling < 5_000_000);
-    assert.deepEqual(result.transfer.row_delta_tables, [{ table: "portcove_maintenance.discovery_lead_records", changed_or_removed_keys: 3 }]);
-    assert.ok(result.transfer.row_delta_copy_bytes > 0 && result.transfer.row_delta_copy_bytes < 1000);
+    assert.deepEqual(result.transfer.row_delta_tables, [
+      { table: "portcove_maintenance.discovery_lead_records", changed_or_removed_keys: 3 },
+    ]);
+    assert.ok(
+      result.transfer.row_delta_copy_bytes > 0 && result.transfer.row_delta_copy_bytes < 1000,
+    );
     assert.ok(result.transfer.row_delta_plan_bytes > 0);
     assert.equal(result.manifest.sequences?.[0]?.last_value, "5001");
     const restored = restore(proof, output);

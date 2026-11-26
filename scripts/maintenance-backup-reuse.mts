@@ -36,8 +36,14 @@ const activation = "portcove_maintenance_meta.discovery_intake_activation";
  * while the digest covers the entire row including its mutable columns. */
 const discoveryDeltaTables = [
   { table: schema + ".discovery_lead_records", key: "jsonb_build_array(t.scope, t.lead_id)::text" },
-  { table: schema + ".discovery_external_hints", key: "jsonb_build_array(t.scope, t.hint_key)::text" },
-  { table: schema + ".discovery_observations", key: "jsonb_build_array(t.provider, t.provider_id, t.parser_version, t.content_sha256)::text" },
+  {
+    table: schema + ".discovery_external_hints",
+    key: "jsonb_build_array(t.scope, t.hint_key)::text",
+  },
+  {
+    table: schema + ".discovery_observations",
+    key: "jsonb_build_array(t.provider, t.provider_id, t.parser_version, t.content_sha256)::text",
+  },
 ] as const;
 type DeltaTable = (typeof discoveryDeltaTables)[number];
 type RowDelta = { table: DeltaTable; keys: string[] };
@@ -131,15 +137,21 @@ function copyTo(
 
 /** Bound transfer before fetching data, from the same snapshot that supplies it. */
 function exportCeiling(
-  through: readonly string[], reused: ReadonlySet<string>, deltas: readonly RowDelta[], planBytes: number,
+  through: readonly string[],
+  reused: ReadonlySet<string>,
+  deltas: readonly RowDelta[],
+  planBytes: number,
 ) {
   const sources = [...storeTables.map(([table]) => table), activation]
     .filter((table) => !reused.has(table))
     .map((table) => {
       const index = history.findIndex(([name]) => table === `${schema}.${name}`);
       const delta = deltas.find((entry) => entry.table.table === table);
-      const where = delta ? ` WHERE ${deltaPredicate(delta, false)}`
-        : index < 0 ? "" : ` WHERE ${history[index]![1]} > ${through[index]}`;
+      const where = delta
+        ? ` WHERE ${deltaPredicate(delta, false)}`
+        : index < 0
+          ? ""
+          : ` WHERE ${history[index]![1]} > ${through[index]}`;
       // Allow for text COPY escaping, row framing and query/transport overhead.
       return `(SELECT coalesce(sum(octet_length(t::text)::bigint * 2 + 100), 0) FROM ${table} t${where})`;
     });
@@ -166,16 +178,22 @@ interface BackupReuseOptions {
 /** A retry may reuse only a seed restored by this invocation into its own
  * scratch database. No caller-provided manifest or remote cache is trusted. */
 export function createBackupRecovery(options: Omit<BackupReuseOptions, "reservedBytes">) {
-  let seed: { base: ReturnType<typeof readBackupManifest> | undefined; localTables: StoreDigest | undefined } | undefined;
-  return (reservedBytes: number) => backupPrepared({ ...options, reservedBytes }, () => {
-    if (!seed) {
-      const previous = options.previous;
-      const base = previous ? readBackupManifest(previous) : undefined;
-      const localTables = previous ? restore(options.prefixDatabase, previous).tables : undefined;
-      seed = { base, localTables };
-    }
-    return seed;
-  });
+  let seed:
+    | {
+        base: ReturnType<typeof readBackupManifest> | undefined;
+        localTables: StoreDigest | undefined;
+      }
+    | undefined;
+  return (reservedBytes: number) =>
+    backupPrepared({ ...options, reservedBytes }, () => {
+      if (!seed) {
+        const previous = options.previous;
+        const base = previous ? readBackupManifest(previous) : undefined;
+        const localTables = previous ? restore(options.prefixDatabase, previous).tables : undefined;
+        seed = { base, localTables };
+      }
+      return seed;
+    });
 }
 
 /** Retry only a measured pre-export deferral, using a fresh ledger admission. */
@@ -192,10 +210,13 @@ export function backupReusingHistory({ reservedBytes, ...options }: BackupReuseO
   return createBackupRecovery(options)(reservedBytes);
 }
 
-async function backupPrepared(options: BackupReuseOptions, prepareSeed: () => {
-  base: ReturnType<typeof readBackupManifest> | undefined;
-  localTables: StoreDigest | undefined;
-}) {
+async function backupPrepared(
+  options: BackupReuseOptions,
+  prepareSeed: () => {
+    base: ReturnType<typeof readBackupManifest> | undefined;
+    localTables: StoreDigest | undefined;
+  },
+) {
   const { source, prefixDatabase, target, previous, output, reservedBytes } = options;
   if (existsSync(output)) throw new MaintenanceStoreError("Backup destination already exists");
   for (const environment of [prefixDatabase, target]) {
@@ -256,7 +277,8 @@ async function backupPrepared(options: BackupReuseOptions, prepareSeed: () => {
       const reusedTables = new Set<string>();
       for (const [table] of storeTables) {
         if (history.some(([name]) => table === `${schema}.${name}`)) continue;
-        const local = localTables?.[table], remote = tables[table];
+        const local = localTables?.[table],
+          remote = tables[table];
         if (local && remote && local.rows === remote.rows && local.sha256 === remote.sha256)
           reusedTables.add(table);
       }
@@ -284,7 +306,10 @@ async function backupPrepared(options: BackupReuseOptions, prepareSeed: () => {
       const metadataAllowance = Math.floor(reservedBytes * 0.7);
       for (const table of discoveryDeltaTables) {
         if (!localTables?.[table.table]?.rows || reusedTables.has(table.table)) continue;
-        const remaining = Math.min(metadataAllowance - planBytes, reservedBytes - 2_000_000 - planBytes);
+        const remaining = Math.min(
+          metadataAllowance - planBytes,
+          reservedBytes - 2_000_000 - planBytes,
+        );
         if (remaining <= 0) break;
         const localLimit = backupFingerprintResponseLimit(remaining);
         const local = queryJson(
@@ -301,11 +326,12 @@ async function backupPrepared(options: BackupReuseOptions, prepareSeed: () => {
           throw new MaintenanceStoreError("Malformed discovery row delta");
         deltas.push({ table, keys: keys as string[] });
       }
-      const estimated = Number((await query(exportCeiling(through, reusedTables, deltas, planBytes))).trim());
+      const estimated = Number(
+        (await query(exportCeiling(through, reusedTables, deltas, planBytes))).trim(),
+      );
       if (!Number.isSafeInteger(estimated) || estimated < 0)
         throw new MaintenanceStoreError("Invalid backup payload estimate");
-      if (estimated > reservedBytes)
-        throw new MaintenanceBackupDeferred(estimated, reservedBytes);
+      if (estimated > reservedBytes) throw new MaintenanceBackupDeferred(estimated, reservedBytes);
       runTool(
         "pg_dump",
         [
@@ -330,12 +356,25 @@ async function backupPrepared(options: BackupReuseOptions, prepareSeed: () => {
           snapshot,
         );
       for (const delta of deltas)
-        copyTo(source, `SELECT t.* FROM ${delta.table.table} t WHERE ${deltaPredicate(delta, false)}`,
-          path.join(work, `${delta.table.table}-delta.tsv`), snapshot);
+        copyTo(
+          source,
+          `SELECT t.* FROM ${delta.table.table} t WHERE ${deltaPredicate(delta, false)}`,
+          path.join(work, `${delta.table.table}-delta.tsv`),
+          snapshot,
+        );
       // Sequences are not MVCC. Sample after COPY so values are at least as new
       // as all included rows, even if another collector took tickets meanwhile.
       const state = JSON.parse(await query(sequenceStateQuery)) as SequenceState;
-      return { reused: false as const, tables, through, estimated, state, reusedTables, deltas, planBytes };
+      return {
+        reused: false as const,
+        tables,
+        through,
+        estimated,
+        state,
+        reusedTables,
+        deltas,
+        planBytes,
+      };
     });
     if (captured.reused)
       return {
@@ -396,7 +435,11 @@ async function backupPrepared(options: BackupReuseOptions, prepareSeed: () => {
     for (const delta of captured.deltas) {
       const table = delta.table.table;
       const file = path.join(work, `${table}-unchanged.tsv`);
-      copyTo(prefixDatabase, `SELECT t.* FROM ${table} t WHERE ${deltaPredicate(delta, true)}`, file);
+      copyTo(
+        prefixDatabase,
+        `SELECT t.* FROM ${table} t WHERE ${deltaPredicate(delta, true)}`,
+        file,
+      );
       for (const part of [file, path.join(work, `${table}-delta.tsv`)])
         load.push("-c", `\\copy ${table} FROM ${sqlLiteral(part)}`);
     }
@@ -435,8 +478,14 @@ async function backupPrepared(options: BackupReuseOptions, prepareSeed: () => {
       // SQL rendering includes sequence statements and headers. It approximates COPY bytes.
       other_table_copy_bytes: statSync(scripts[1]!).size,
       reused_tables: [...captured.reusedTables].sort(),
-      row_delta_tables: captured.deltas.map(({ table, keys }) => ({ table: table.table, changed_or_removed_keys: keys.length })),
-      row_delta_copy_bytes: captured.deltas.reduce((bytes, { table }) => bytes + statSync(path.join(work, `${table.table}-delta.tsv`)).size, 0),
+      row_delta_tables: captured.deltas.map(({ table, keys }) => ({
+        table: table.table,
+        changed_or_removed_keys: keys.length,
+      })),
+      row_delta_copy_bytes: captured.deltas.reduce(
+        (bytes, { table }) => bytes + statSync(path.join(work, `${table.table}-delta.tsv`)).size,
+        0,
+      ),
       row_delta_plan_bytes: captured.planBytes,
       method: "logical-copy-payload-plus-unmeasured-postgresql-and-tls-overhead",
     };

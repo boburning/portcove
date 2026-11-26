@@ -45,7 +45,15 @@ import {
 import { overlayLocalResearch } from "./discovery-leads.mts";
 import type { DiscoveryLead } from "./discovery-leads.mts";
 import { selectExternalResolutions } from "./discovery-external-lists.mts";
-import { backup, migrate, migrationTransaction, queryJson, readMigrations, restore, runSql } from "./maintenance-store.mts";
+import {
+  backup,
+  migrate,
+  migrationTransaction,
+  queryJson,
+  readMigrations,
+  restore,
+  runSql,
+} from "./maintenance-store.mts";
 
 const server = postgresServer();
 const hex = (digit: string) => digit.repeat(64);
@@ -634,12 +642,23 @@ void test(
     assert.ok(split);
     for (const migration of migrations.filter(({ version }) => version < split.version))
       runSql(legacy, migrationTransaction(migration));
-    const old = { leads: { external: { lists: {}, hints: { "legacy-key": { title: "legacy" } } } } };
-    runSql(legacy, `INSERT INTO portcove_maintenance.discovery_collection_state
+    const old = {
+      leads: { external: { lists: {}, hints: { "legacy-key": { title: "legacy" } } } },
+    };
+    runSql(
+      legacy,
+      `INSERT INTO portcove_maintenance.discovery_collection_state
       (scope, definition_sha256, revision, state, state_sha256, updated_at)
-      VALUES ('primary', '${hex("d")}', 0, '${JSON.stringify(old)}'::jsonb, '${hex("a")}', clock_timestamp());`);
+      VALUES ('primary', '${hex("d")}', 0, '${JSON.stringify(old)}'::jsonb, '${hex("a")}', clock_timestamp());`,
+    );
     migrate(legacy);
-    assert.deepEqual(queryJson(legacy, "SELECT portcove_maintenance.discovery_expanded_state(scope, state) FROM portcove_maintenance.discovery_collection_state;"), old);
+    assert.deepEqual(
+      queryJson(
+        legacy,
+        "SELECT portcove_maintenance.discovery_expanded_state(scope, state) FROM portcove_maintenance.discovery_collection_state;",
+      ),
+      old,
+    );
     assert.equal(count(legacy, "discovery_external_hints"), 1);
     const environment = fixture.start("snapshot").owner;
     migrate(environment);
@@ -664,7 +683,10 @@ void test(
       state: {
         format: 1,
         leads: {
-          format: 1, next_family: 3, slices: {}, records: {},
+          format: 1,
+          next_family: 3,
+          slices: {},
+          records: {},
           external: {
             lists: {},
             hints: {
@@ -694,7 +716,13 @@ void test(
     assert.equal(read.leads.next_family, 3, "the store's continuation comes along");
     assert.equal(read.leads.external?.hints["https://github.com/ports/game-1"]?.title, "Game");
     assert.equal(count(environment, "discovery_external_hints"), 1);
-    assert.equal(queryJson(environment, "SELECT state #> '{leads,external,hints}' IS NULL FROM portcove_maintenance.discovery_collection_state;"), true);
+    assert.equal(
+      queryJson(
+        environment,
+        "SELECT state #> '{leads,external,hints}' IS NULL FROM portcove_maintenance.discovery_collection_state;",
+      ),
+      true,
+    );
     store.finish(owner, "complete", {});
     const next = lease("2");
     const grant = store.acquire(next, options);
@@ -1257,14 +1285,25 @@ void test(
       true,
     );
 
-    const state = { leads: { external: { lists: {}, hints: {
-      keep: { payload: "x".repeat(100_000) },
-      change: { title: "old" },
-      remove: { title: "old" },
-    } as Record<string, unknown> } } };
+    const state = {
+      leads: {
+        external: {
+          lists: {},
+          hints: {
+            keep: { payload: "x".repeat(100_000) },
+            change: { title: "old" },
+            remove: { title: "old" },
+          } as Record<string, unknown>,
+        },
+      },
+    };
     const input = (nextState: Record<string, unknown>) => ({
-      definition: options.definition, leaseSeconds: 600,
-      state: nextState, observations: [], watches: [], leadRecords: [],
+      definition: options.definition,
+      leaseSeconds: 600,
+      state: nextState,
+      observations: [],
+      watches: [],
+      leadRecords: [],
     });
     const seeded = store.commit(owner, 3, input(state));
     assert.ok(seeded.bytes > 100_000);
@@ -1273,25 +1312,43 @@ void test(
     await backup(environment, seedPath);
     const seedDb = fixture.start("discovery-seed").owner;
     restore(seedDb, seedPath);
-    const before = queryJson(environment,
-      "SELECT to_json(xmin::text) FROM portcove_maintenance.discovery_external_hints WHERE hint_key = 'keep';");
+    const before = queryJson(
+      environment,
+      "SELECT to_json(xmin::text) FROM portcove_maintenance.discovery_external_hints WHERE hint_key = 'keep';",
+    );
     state.leads.external.hints.change = { title: "new" };
     delete state.leads.external.hints.remove;
     state.leads.external.hints.add = { title: "added" };
     const changed = store.commit(owner, seeded.revision, input(state));
     assert.ok(changed.bytes < 2_000, "unchanged large hint is not sent again");
     assert.equal(count(environment, "discovery_external_hints"), 3);
-    assert.deepEqual(queryJson(environment,
-      "SELECT to_json(xmin::text) FROM portcove_maintenance.discovery_external_hints WHERE hint_key = 'keep';"), before);
-    assert.deepEqual(queryJson(environment,
-      "SELECT portcove_maintenance.discovery_expanded_state(scope, state) FROM portcove_maintenance.discovery_collection_state;"), state);
+    assert.deepEqual(
+      queryJson(
+        environment,
+        "SELECT to_json(xmin::text) FROM portcove_maintenance.discovery_external_hints WHERE hint_key = 'keep';",
+      ),
+      before,
+    );
+    assert.deepEqual(
+      queryJson(
+        environment,
+        "SELECT portcove_maintenance.discovery_expanded_state(scope, state) FROM portcove_maintenance.discovery_collection_state;",
+      ),
+      state,
+    );
 
     const oldAttempt = owner.attempt;
     store.finish(owner, "complete", {});
     const next = lease("2");
-    const warm = store.acquire(next, { ...options, known: {
-      revision: changed.revision, generation: 1, definition: options.definition, attempt: oldAttempt,
-    } });
+    const warm = store.acquire(next, {
+      ...options,
+      known: {
+        revision: changed.revision,
+        generation: 1,
+        definition: options.definition,
+        attempt: oldAttempt,
+      },
+    });
     assert.equal(warm.unchanged, true);
     assert.ok((warm.received_bytes ?? Infinity) < 2_000);
     const quiet = store.commit(next, warm.revision, input(state));
@@ -1299,14 +1356,23 @@ void test(
     assert.throws(() => store.commit(owner, changed.revision, input({})), DiscoveryStoreRefused);
     store.finish(next, "complete", {});
     const coldStore = postgresDiscoveryStore(environment, 1024);
-    const cold = coldStore.acquire(lease("3"), { ...options, known: {
-      revision: quiet.revision, generation: 1, definition: options.definition, attempt: oldAttempt,
-    } });
+    const cold = coldStore.acquire(lease("3"), {
+      ...options,
+      known: {
+        revision: quiet.revision,
+        generation: 1,
+        definition: options.definition,
+        attempt: oldAttempt,
+      },
+    });
     assert.notEqual(cold.unchanged, true, "a different commit attempt forces full read");
     assert.deepEqual(cold.state, state);
     assert.equal(
       cold.state_sha256,
-      queryJson(environment, "SELECT to_json(state_sha256) FROM portcove_maintenance.discovery_collection_state;"),
+      queryJson(
+        environment,
+        "SELECT to_json(state_sha256) FROM portcove_maintenance.discovery_collection_state;",
+      ),
       "invalidated warm acquisition returns the compact digest, with hints hydrated separately",
     );
     coldStore.finish(lease("3"), "complete", {});
@@ -1325,16 +1391,27 @@ void test(
 
     // Alter the seed's rows after verification to prove their actual contents,
     // not its claimed revision, are compared against production.
-    runSql(seedDb, `UPDATE portcove_maintenance.discovery_external_hints
-      SET hint = '{"payload":"tampered"}' WHERE hint_key = 'change';`);
-    runSql(seedDb, `UPDATE portcove_maintenance.discovery_lead_records
-      SET record = '{"id":77,"repository":"wrong/game"}' WHERE lead_id = 77;`);
-    runSql(environment, `DELETE FROM portcove_maintenance.discovery_lead_records WHERE lead_id = 1000;`);
+    runSql(
+      seedDb,
+      `UPDATE portcove_maintenance.discovery_external_hints
+      SET hint = '{"payload":"tampered"}' WHERE hint_key = 'change';`,
+    );
+    runSql(
+      seedDb,
+      `UPDATE portcove_maintenance.discovery_lead_records
+      SET record = '{"id":77,"repository":"wrong/game"}' WHERE lead_id = 77;`,
+    );
+    runSql(
+      environment,
+      `DELETE FROM portcove_maintenance.discovery_lead_records WHERE lead_id = 1000;`,
+    );
     const incremental = postgresDiscoveryStore(environment, undefined, seedDb);
     const crossRun = incremental.acquire(lease("4"), options);
     assert.deepEqual(crossRun.state, state);
-    assert.ok((crossRun.received_bytes ?? Infinity) < 2_000,
-      "unchanged large hints stay local on a cold process read");
+    assert.ok(
+      (crossRun.received_bytes ?? Infinity) < 2_000,
+      "unchanged large hints stay local on a cold process read",
+    );
     const loaded = incremental.loadLeadRecords("primary");
     const authoritative = store.loadLeadRecords("primary");
     assert.deepEqual(loaded.records, authoritative.records);
@@ -1344,12 +1421,24 @@ void test(
     incremental.finish(lease("4"), "complete", {});
 
     const bounded = postgresDiscoveryStore(environment, 1024, seedDb);
-    const fallback = bounded.acquire(lease("5"), options);
-    assert.deepEqual(fallback.state, state, "oversized seed uses complete production read");
+    const paged = bounded.acquire(lease("5"), options);
+    assert.deepEqual(paged.state, state);
+    assert.ok(
+      (paged.received_bytes ?? Infinity) < 2_000,
+      "paging keeps oversized local seeds incremental",
+    );
     assert.deepEqual(bounded.loadLeadRecords("primary").records, authoritative.records);
     bounded.finish(lease("5"), "complete", {});
 
-    const measured = measureDiscoverySeed(environment, seedDb, "primary");
+    // An oversized remote delta still uses the complete paged read when unplanned.
+    const tiny = postgresDiscoveryStore(environment, 32, seedDb);
+    const fallback = tiny.acquire(lease("13"), options);
+    assert.deepEqual(fallback.state, state);
+    assert.ok((fallback.received_bytes ?? 0) > 100_000);
+    assert.deepEqual(tiny.loadLeadRecords("primary").records, authoritative.records);
+    tiny.finish(lease("13"), "complete", {});
+
+    const measured = measureDiscoverySeed(environment, seedDb, "primary", 1024);
     assert.ok(measured);
     assert.ok(measured.hintsBytes < 2_000);
     assert.ok(measured.leadsBytes < authoritative.bytes);
@@ -1364,9 +1453,12 @@ void test(
     const expiring = postgresDiscoveryStore(environment, 1024);
     const expiredLease = lease("10");
     const expiringGrant = expiring.acquire(expiredLease, options);
-    runSql(environment, `UPDATE portcove_maintenance.discovery_collection_state
+    runSql(
+      environment,
+      `UPDATE portcove_maintenance.discovery_collection_state
       SET lease_expires_at = clock_timestamp() - interval '1 second'
-      WHERE scope = 'primary';`);
+      WHERE scope = 'primary';`,
+    );
     assert.throws(() => expiring.loadLeadRecords("primary"), DiscoveryStoreRefused);
     assert.throws(
       () => expiring.commit(expiredLease, expiringGrant.revision, input(state)),
@@ -1380,8 +1472,11 @@ void test(
     const generationStore = postgresDiscoveryStore(environment, undefined, seedDb, generationPlan);
     const generationLease = lease("11");
     const generationGrant = generationStore.acquire(generationLease, options);
-    runSql(environment, `UPDATE portcove_maintenance_meta.discovery_intake_activation
-      SET collection_generation = collection_generation + 1;`);
+    runSql(
+      environment,
+      `UPDATE portcove_maintenance_meta.discovery_intake_activation
+      SET collection_generation = collection_generation + 1;`,
+    );
     assert.throws(() => generationStore.loadLeadRecords("primary"), DiscoveryStoreRefused);
     assert.throws(
       () => generationStore.commit(generationLease, generationGrant.revision, input(state)),
@@ -1403,8 +1498,14 @@ void test(
     store.finish(lease("7"), "complete", {});
     const stale = postgresDiscoveryStore(environment, undefined, seedDb, stalePlan);
     assert.throws(() => stale.acquire(lease("8"), options), DiscoveryStoreRefused);
-    assert.equal(queryJson(environment, "SELECT count(*) FROM portcove_maintenance.discovery_collection_attempts WHERE outcome = 'running';"), 0,
-      "moved plan rolls back acquisition before returning any payload");
+    assert.equal(
+      queryJson(
+        environment,
+        "SELECT count(*) FROM portcove_maintenance.discovery_collection_attempts WHERE outcome = 'running';",
+      ),
+      0,
+      "moved plan rolls back acquisition before returning any payload",
+    );
   },
 );
 

@@ -106,11 +106,13 @@ confirmed client baseline is available, it submits the complete logical state
 instead. An exact retained revision reacquire omits the state without rebuilding
 the hint document on the server. For cold hosted reads, the discovery job can reuse the existing independently
 verified recovery artifact. It restores the seed in a separate local PostgreSQL
-instance without production credentials and computes fingerprints from the
-actual restored hint and lead payloads. After fenced compact acquisition, the
+instance without production credentials and reads bounded primary-key pages
+containing actual restored hint and lead payloads with their fingerprints.
+After fenced compact acquisition, the
 production database compares those fingerprints and returns changed/new rows
 and removed keys. The current continuation always comes from production.
-An unavailable seed or oversized seed/delta falls back to the complete read;
+An unavailable seed, a seed row beyond the local client response limit, or an
+oversized delta falls back to the complete read when admission permits it;
 no additional public cache or artifact is published. Initial admission can instead use a measured seed plan: a single read-only
 statement returns the exact delta JSON sizes and the production revision,
 activation generation and definition. The collector uses the same frozen seed

@@ -370,7 +370,8 @@ export async function runDiscoveryWorker(
     // No malformed continuation may leave an owned attempt running or be reset.
     const reason = `${validationStage}: ${errorMessage(error).slice(0, 400)}`;
     const failed = result(error instanceof DiscoveryStoreRefused ? "deferred" : "failed", {
-      reason, attempt_id: lease.attempt,
+      reason,
+      attempt_id: lease.attempt,
     });
     try {
       const { notes: _notes, ...summary } = failed;
@@ -1055,16 +1056,28 @@ export const discoveryTransferForecastQuery = `SELECT json_build_object(
 /** Recent received bytes already include the cold acquire. Do not add a
  * second cold acquire to that measurement; retain room for either complete
  * read scenario plus acknowledgements and the existing protocol headroom. */
-export function discoveryPassReservation(acquireBytes: number, previousTransfer: number, commits: number) {
+export function discoveryPassReservation(
+  acquireBytes: number,
+  previousTransfer: number,
+  commits: number,
+) {
   return Math.ceil(
     Math.max(acquireBytes, previousTransfer) / 0.7 +
-      (commits * commitResponseAllowance) / 0.7 + 1024 * 1024,
+      (commits * commitResponseAllowance) / 0.7 +
+      1024 * 1024,
   );
 }
 
 /** Reserve the measured row deltas, compact grant envelope and ordinary acknowledgements. */
-export function discoverySeedReservation(plan: Pick<DiscoverySeedPlan, "compactBytes" | "hintsBytes" | "leadsBytes">, commits: number) {
-  return discoveryPassReservation(plan.compactBytes + plan.hintsBytes + plan.leadsBytes + commitResponseAllowance, 0, commits);
+export function discoverySeedReservation(
+  plan: Pick<DiscoverySeedPlan, "compactBytes" | "hintsBytes" | "leadsBytes">,
+  commits: number,
+) {
+  return discoveryPassReservation(
+    plan.compactBytes + plan.hintsBytes + plan.leadsBytes + commitResponseAllowance,
+    0,
+    commits,
+  );
 }
 
 /** Time to write the final state: a generous allowance proportional to its size. */
@@ -1239,7 +1252,8 @@ export async function discoveryWorkerMain(argv: string[]) {
   try {
     // Size every pass from measured state and transfer rather than fixed limits.
     const seed = process.env.PORTCOVE_DISCOVERY_SEED_URL
-      ? connectionFromEnvironment("PORTCOVE_DISCOVERY_SEED_URL") : undefined;
+      ? connectionFromEnvironment("PORTCOVE_DISCOVERY_SEED_URL")
+      : undefined;
     delete process.env.PORTCOVE_DISCOVERY_SEED_URL;
     let plan: DiscoverySeedPlan | null = null;
     let forecast: { state_bytes: number; record_bytes: number; previous_transfer_bytes: number };
@@ -1267,9 +1281,12 @@ export async function discoveryWorkerMain(argv: string[]) {
     let acquireBytes = forecast.state_bytes + forecast.record_bytes;
     const commits = Math.ceil(admissionTimeout / (3600 * 500)) + 1;
     const measuredPlan = plan as DiscoverySeedPlan | null;
-    const selectedPlan = measuredPlan && discoverySeedReservation(measuredPlan, commits) <
-      discoveryPassReservation(acquireBytes, forecast.previous_transfer_bytes, commits)
-      ? measuredPlan : undefined;
+    const selectedPlan =
+      measuredPlan &&
+      discoverySeedReservation(measuredPlan, commits) <
+        discoveryPassReservation(acquireBytes, forecast.previous_transfer_bytes, commits)
+        ? measuredPlan
+        : undefined;
     const store = postgresDiscoveryStore(environment, undefined, seed, selectedPlan);
     const covered = (() => {
       let cache: Set<string> | undefined;
@@ -1312,9 +1329,10 @@ export async function discoveryWorkerMain(argv: string[]) {
         // A measured initial delta cannot fall back to an unadmitted full read.
         // Subsequent passes retain conservative complete-read admission.
         const measuredDiscovery = pass === 1 && selectedPlan !== undefined;
-        const reservationBytes = measuredDiscovery && selectedPlan
-          ? discoverySeedReservation(selectedPlan, commits)
-          : discoveryPassReservation(acquireBytes, previousTransfer, commits);
+        const reservationBytes =
+          measuredDiscovery && selectedPlan
+            ? discoverySeedReservation(selectedPlan, commits)
+            : discoveryPassReservation(acquireBytes, previousTransfer, commits);
         try {
           const result = await withMaintenanceAdmission(
             environment,

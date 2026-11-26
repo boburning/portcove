@@ -958,14 +958,18 @@ async function runStoreCommand(
     );
   else if (command === "backup-reusing-history") {
     if (!output) throw new MaintenanceStoreError("backup-reusing-history requires --output DIR");
-    const { createBackupRecovery, retryBackupAdmission } = await import("./maintenance-backup-reuse.mts");
+    const { createBackupRecovery, retryBackupAdmission } =
+      await import("./maintenance-backup-reuse.mts");
     const prefixDatabase = connectionFromEnvironment("PORTCOVE_MAINTENANCE_PREFIX_URL");
     const target = connectionFromEnvironment("PORTCOVE_MAINTENANCE_SCRATCH_URL");
     delete process.env.PORTCOVE_MAINTENANCE_PREFIX_URL;
     delete process.env.PORTCOVE_MAINTENANCE_SCRATCH_URL;
-    const operation = !input || recoveryEnvelope === "full"
-      ? "recovery-full"
-      : recoveryEnvelope === "catchup" ? "recovery-catchup" : "recovery";
+    const operation =
+      !input || recoveryEnvelope === "full"
+        ? "recovery-full"
+        : recoveryEnvelope === "catchup"
+          ? "recovery-catchup"
+          : "recovery";
     const recover = createBackupRecovery({
       source: environment,
       prefixDatabase,
@@ -979,8 +983,13 @@ async function runStoreCommand(
         ...(reservationBytes === undefined ? {} : { reservationBytes }),
         estimate: ({ transfer }) =>
           2_000_000 +
-          Math.ceil(1.25 * (transfer.history_copy_bytes + transfer.other_table_copy_bytes +
-            transfer.row_delta_copy_bytes + transfer.row_delta_plan_bytes)),
+          Math.ceil(
+            1.25 *
+              (transfer.history_copy_bytes +
+                transfer.other_table_copy_bytes +
+                transfer.row_delta_copy_bytes +
+                transfer.row_delta_plan_bytes),
+          ),
       });
     result = await retryBackupAdmission(admit);
   } else if (command === "backup") {
