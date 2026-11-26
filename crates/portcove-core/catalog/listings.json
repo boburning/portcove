@@ -20854,7 +20854,17 @@
           "https://github.com/gemrb/gemrb",
           "https://www.beamdog.com/games/baldurs-gate-2-enhanced/"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "baldur-s-gate-ii-shadows-of-amn-pc",
+            "title": "Baldur's Gate II: Shadows of Amn (original PC edition)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+              "https://gemrb.org/Features.html#status"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -31621,7 +31631,16 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa2/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-alpha-2-cps2-sfa2u",
+            "title": "Street Fighter Alpha 2 (CPS-2, USA 960430, sfa2u)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa2/README.md#L242-L244"
+            ]
+          }
+        ]
       }
     },
     {
@@ -68807,7 +68826,17 @@
         "evidence_urls": [
           "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "marvel-ultimate-alliance-2-xbox-360",
+            "title": "Marvel: Ultimate Alliance 2 (Xbox 360, Media ID 39B3E2C9)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/README.md",
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/mua2.manifest.toml"
+            ]
+          }
+        ]
       },
       "original_game_title": "Marvel: Ultimate Alliance 2",
       "platforms": [],
@@ -68827,7 +68856,17 @@
         "evidence_urls": [
           "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "marvel-ultimate-alliance-gold-edition-xbox-360",
+            "title": "Marvel: Ultimate Alliance Gold Edition (Xbox 360, Media ID 5A20A6D4)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/README.md",
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/mua1-gold.manifest.toml"
+            ]
+          }
+        ]
       },
       "original_game_title": "Marvel: Ultimate Alliance — Gold Edition",
       "platforms": [],
@@ -68847,7 +68886,17 @@
         "evidence_urls": [
           "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "marvel-ultimate-alliance-xbox-360",
+            "title": "Marvel: Ultimate Alliance (Xbox 360, Media ID 26848425)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/README.md",
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/mua1.manifest.toml"
+            ]
+          }
+        ]
       },
       "original_game_title": "Marvel: Ultimate Alliance",
       "platforms": [],
@@ -108880,7 +108929,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-zero-2-alpha-cps2-sfz2al",
+            "title": "Street Fighter Zero 2 Alpha (CPS-2, Asia 960826, sfz2al)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/README.md#L154-L155",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/recomp.json#L4-L6"
+            ]
+          }
+        ]
       }
     },
     {
