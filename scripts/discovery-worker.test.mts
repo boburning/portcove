@@ -1237,15 +1237,25 @@ void test(
     const owner = lease("1");
     store.acquire(owner, options);
     const record = { id: 77, repository: "ports/game", url: "https://github.com/ports/game" };
+    const dated = {
+      id: 78,
+      repository: "ports/another-game",
+      release_hint: {
+        assets_observed: true,
+        observed_at: "2026-11-01T05:00:00.000Z",
+        evidence: "release-sample.json",
+      },
+      release_probe: { attempted_at: "2026-11-02T05:00:00.000Z", outcome: "unavailable" },
+    };
     store.commit(owner, 0, {
       definition: hex("d"),
       leaseSeconds: 600,
       state: {},
       observations: [],
       watches: [],
-      leadRecords: [record],
+      leadRecords: [record, dated],
     });
-    assert.deepEqual(store.loadLeadRecords("primary").records, [record]);
+    assert.deepEqual(store.loadLeadRecords("primary").records, [record, dated]);
     // Many records read back completely across small pages, in key order.
     const many = Array.from({ length: 25 }, (_, index) => ({
       id: 1000 + index,
@@ -1262,7 +1272,7 @@ void test(
     const paged = postgresDiscoveryStore(environment, 1024).loadLeadRecords("primary");
     assert.deepEqual(
       (paged.records as { id: number }[]).map((r) => r.id),
-      [77, ...many.map((r) => r.id)],
+      [77, 78, ...many.map((r) => r.id)],
     );
     store.commit(owner, 2, {
       definition: hex("d"),
@@ -1350,6 +1360,7 @@ void test(
       },
     });
     assert.equal(warm.unchanged, true);
+    assert.deepEqual(store.loadLeadRecords("primary").records[1], dated);
     assert.ok((warm.received_bytes ?? Infinity) < 2_000);
     const quiet = store.commit(next, warm.revision, input(state));
     assert.ok(quiet.bytes < 2_000, "confirmed warm baseline also sends only changes");
@@ -1418,6 +1429,11 @@ void test(
     assert.ok(loaded.bytes < authoritative.bytes);
     assert.ok(!loaded.records.some((row) => (row as { id: number }).id === 1000));
     assert.deepEqual(loaded.records[0], record);
+    assert.deepEqual(
+      loaded.records[1],
+      dated,
+      "seed reuse retains both dated release observations",
+    );
     incremental.finish(lease("4"), "complete", {});
 
     const bounded = postgresDiscoveryStore(environment, 1024, seedDb);
