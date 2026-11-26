@@ -617,7 +617,9 @@ mod tests {
         assert!(dated.export_format(14).is_ok());
         assert!(dated.export_format(15).is_ok());
         assert!(dated.export_format(16).is_ok());
-        assert!(dated.export_format(17).is_err());
+        let latest = crate::catalog::listings::REPOSITORY_BOUND_LISTING_FORMAT;
+        assert!(dated.export_format(latest).is_ok());
+        assert!(dated.export_format(latest + 1).is_err());
     }
 
     fn funded_listing(urls: &[&str]) -> crate::PortListing {

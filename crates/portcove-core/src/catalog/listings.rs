@@ -2519,12 +2519,14 @@ mod observation_metadata_tests {
         let retained = Catalog::for_user_selected_listing(document.listings[0].clone()).unwrap();
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
+        assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
+        let unsupported_format = REPOSITORY_BOUND_LISTING_FORMAT + 1;
         let mut future = document;
-        future.format_version = 17;
+        future.format_version = unsupported_format;
         future.promote_projected_format();
-        assert_eq!(future.format_version, 17);
+        assert_eq!(future.format_version, unsupported_format);
         assert!(future.validate().is_err());
-        assert!(parse(&value, 17).is_err());
+        assert!(parse(&value, unsupported_format).is_err());
     }
 
     #[test]
