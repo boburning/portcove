@@ -1163,9 +1163,10 @@ nothing.
   issue's explicit blocker and resume condition when recorded (`null` otherwise).
   For a Blocked issue without an explicit resume condition, existing GitHub
   blocking relationships supply a sorted set of dependency issue references
-  with immutable node IDs and repository-qualified URLs. Number-only legacy
-  facts and external dependencies without matching retained identity remain
-  unknown. The report derives a wake signal from complete issue facts:
+  with immutable node IDs and repository-qualified URLs. The report matches
+  each dependency's node ID, issue number, URL, and state against the complete
+  issue facts for the owner's repository. Legacy facts without identity and
+  dependencies outside that repository remain unknown. The report derives a wake signal:
   `waiting` while a dependency is open, `review-ready` when every recorded
   dependency is observed closed, and `unknown` when coverage or identity
   disagrees. A dependency closing does not lift the hold, rewrite Project

@@ -17,6 +17,7 @@
  * stays two entries in history.
  */
 import { createHash } from "node:crypto";
+import { isRecord } from "./runtime-values.mts";
 
 export type ReconsiderationSource = "issues-project" | "core-target-routes";
 
@@ -56,6 +57,7 @@ function desired(
 interface IssueReconsiderationFact {
   number?: number;
   node_id?: string;
+  url?: string;
   state?: string;
   project?: { project_id?: string; archived?: boolean; fields?: Record<string, string> }[];
   reconsideration?: { blocker: string | null; resume_condition: string } | null;
@@ -63,14 +65,26 @@ interface IssueReconsiderationFact {
 }
 
 function dependencyIssues(fact: IssueReconsiderationFact): number[] {
-  return [...new Set(
-    (fact.blocked_by ?? [])
-      .filter(({ number }) => typeof number === "number" && Number.isSafeInteger(number) && number > 0)
-      .map(({ number }) => number!),
-  )].sort((a, b) => a - b);
+  return [
+    ...new Set(
+      (fact.blocked_by ?? [])
+        .filter(
+          ({ number }) => typeof number === "number" && Number.isSafeInteger(number) && number > 0,
+        )
+        .map(({ number }) => number!),
+    ),
+  ].sort((a, b) => a - b);
 }
 
 type DependencyRef = { number: number; node_id: string; url: string };
+
+function issueRepository(url: string | undefined, number: number | undefined): string | undefined {
+  const match =
+    typeof url === "string"
+      ? /^https:\/\/github\.com\/([a-z0-9_.-]+\/[a-z0-9_.-]+)\/issues\/([0-9]+)$/iu.exec(url)
+      : null;
+  return match?.[2] === String(number) ? match[1]?.toLowerCase() : undefined;
+}
 
 function dependencyRefs(fact: IssueReconsiderationFact): DependencyRef[] | undefined {
   const edges = fact.blocked_by ?? [];
@@ -84,15 +98,13 @@ function dependencyRefs(fact: IssueReconsiderationFact): DependencyRef[] | undef
       !edge.node_id ||
       edge.node_id === fact.node_id ||
       typeof edge.url !== "string" ||
-      !/^https:\/\/github\.com\/[a-z0-9_.-]+\/[a-z0-9_.-]+\/issues\/[0-9]+$/iu.test(edge.url) ||
+      !issueRepository(edge.url, edge.number) ||
       refs.some((ref) => ref.node_id === edge.node_id)
     )
       return undefined;
     refs.push({ number: edge.number, node_id: edge.node_id, url: edge.url });
   }
-  return refs.sort(
-    (a, b) => a.number - b.number || a.node_id.localeCompare(b.node_id, "en"),
-  );
+  return refs.sort((a, b) => a.number - b.number || a.node_id.localeCompare(b.node_id, "en"));
 }
 
 /** A complete owner read may identify a review opportunity, never lift a hold.
@@ -103,8 +115,12 @@ export function dependencyWake(
   issues: ReadonlyMap<string, unknown>,
   complete: boolean,
 ): "waiting" | "review-ready" | "unknown" | null {
-  if (condition.source !== "issues-project" || condition.project_status !== "Blocked" ||
-      !Array.isArray(condition.dependency_issues) || !condition.dependency_issues.length)
+  if (
+    condition.source !== "issues-project" ||
+    condition.project_status !== "Blocked" ||
+    !Array.isArray(condition.dependency_issues) ||
+    !condition.dependency_issues.length
+  )
     return null;
   if (!complete || !issue || typeof issue !== "object") return "unknown";
   const fact = issue as IssueReconsiderationFact;
@@ -112,18 +128,24 @@ export function dependencyWake(
   const ids = dependencyIssues(fact);
   if (JSON.stringify(ids) !== JSON.stringify(condition.dependency_issues)) return "unknown";
   const refs = dependencyRefs(fact);
-  if (!refs?.length || !Array.isArray(condition.dependency_refs) ||
-      condition.dependency_refs.length !== refs.length)
+  if (
+    !refs?.length ||
+    !Array.isArray(condition.dependency_refs) ||
+    condition.dependency_refs.length !== refs.length
+  )
     return "unknown";
+  const repository = issueRepository(fact.url, fact.number);
+  if (!repository) return "unknown";
   // JSONB may reorder object keys; compare individual identity fields.
   for (const [index, ref] of refs.entries()) {
-    const prior = condition.dependency_refs[index];
+    const prior: unknown = condition.dependency_refs[index];
     if (
-      !prior ||
+      !isRecord(prior) ||
       prior.number !== ref.number ||
       prior.node_id !== ref.node_id ||
       prior.url !== ref.url
-    ) return "unknown";
+    )
+      return "unknown";
   }
   const states = refs.map((ref) => {
     const linked = issues.get(`issue:${ref.number}`) as IssueReconsiderationFact | undefined;
@@ -131,12 +153,20 @@ export function dependencyWake(
     if (
       linked?.number !== ref.number ||
       linked.node_id !== ref.node_id ||
+      issueRepository(ref.url, ref.number) !== repository ||
+      typeof linked.url !== "string" ||
+      linked.url.toLowerCase() !== ref.url.toLowerCase() ||
       !edge ||
       edge.state !== linked.state
-    ) return "unknown";
+    )
+      return "unknown";
     return linked.state === "OPEN" || linked.state === "CLOSED" ? linked.state : "unknown";
   });
-  return states.includes("unknown") ? "unknown" : states.includes("OPEN") ? "waiting" : "review-ready";
+  return states.includes("unknown")
+    ? "unknown"
+    : states.includes("OPEN")
+      ? "waiting"
+      : "review-ready";
 }
 
 /** Derived queue cohorts from the exact configured Project, not a second planning
@@ -181,9 +211,13 @@ export function backlogLifecycleReview(
     else if (status === "In progress" || status === "Validating" || status === "Ready")
       counts.watchlist_active++;
     else if (status !== "Inbox" && status !== "Triage") counts.watchlist_other++;
-    else if (fields.Priority === "None" && fields.Horizon === "Someday" &&
-      fields["Target release"] === "Unscheduled" && !fields["Release commitment"] &&
-      !dependencyIssues(fact).length)
+    else if (
+      fields.Priority === "None" &&
+      fields.Horizon === "Someday" &&
+      fields["Target release"] === "Unscheduled" &&
+      !fields["Release commitment"] &&
+      !dependencyIssues(fact).length
+    )
       counts.neutral_watchlist++;
     else counts.watchlist_with_planning++;
   }

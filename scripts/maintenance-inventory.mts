@@ -821,6 +821,7 @@ export interface IssueInventory {
     id: string;
     number: number;
     title: string;
+    url?: string;
     state: string;
     body?: string;
     blockedBy?: {
@@ -871,6 +872,7 @@ export function issueFacts(inventory: IssueInventory) {
         number: issue.number,
         node_id: issue.id,
         title: issue.title,
+        url: issue.url,
         state: issue.state,
         catalog_ids: [...new Set(portCatalogMarkers(issue.body))].sort(),
         port_keys: [...new Set(portKeyMarkers(issue.body))].sort(),
@@ -3813,7 +3815,12 @@ export function buildReport(
         data.subjects as Parameters<typeof deferralChanges>[1],
       ).map((entry) => {
         if (entry.status !== "pending") return entry;
-        const wake = dependencyWake(entry.condition, issues.get(entry.subject_key), issues, complete);
+        const wake = dependencyWake(
+          entry.condition,
+          issues.get(entry.subject_key),
+          issues,
+          complete,
+        );
         return wake === null ? entry : { ...entry, dependency_wake: wake };
       });
     })(),
@@ -3916,15 +3923,24 @@ function reconsiderationSection(report: InventoryReport) {
           ? "No explicit resume condition recorded on the issue."
           : "";
     const hold = typeof value.acquisition_hold === "string" ? value.acquisition_hold : "";
-    const dependencyLabels = Array.isArray(value.dependency_refs)
-      ? value.dependency_refs.map((ref) => String(ref.url))
-      : Array.isArray(value.dependency_issues)
-        ? value.dependency_issues.map((id) => `#${id}`)
-        : [];
+    const dependencyUrls = Array.isArray(value.dependency_refs)
+      ? value.dependency_refs.flatMap((ref: unknown) =>
+          isRecord(ref) && typeof ref.url === "string" ? [ref.url] : [],
+        )
+      : [];
+    const dependencyLabels =
+      dependencyUrls.length || !Array.isArray(value.dependency_issues)
+        ? dependencyUrls
+        : value.dependency_issues.map((id) => `#${id}`);
     const dependency = dependencyLabels.length
       ? `Recorded dependency issues: ${dependencyLabels.join(", ")}. ${entry.dependency_wake === "review-ready" ? "All observed closed; owner review is due." : entry.dependency_wake === "waiting" ? "Waiting for dependencies." : "Current readiness is unknown."}`
       : "";
-    return [hold, typeof value.blocker === "string" ? `Blocker: ${value.blocker}` : "", resume, dependency]
+    return [
+      hold,
+      typeof value.blocker === "string" ? `Blocker: ${value.blocker}` : "",
+      resume,
+      dependency,
+    ]
       .filter(Boolean)
       .map(escapeHtml)
       .join("<br>");
