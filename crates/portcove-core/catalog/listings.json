@@ -28658,7 +28658,8 @@
       "id": "cheviman-outrunners-arcade-world-dual-screen-native-c",
       "project_url": "https://github.com/cheviman/outrunners-port",
       "name": "OutRunners Arcade (Sega System Multi 32 World) / cheviman arcade-faithful port",
-      "summary": "Native port of OutRunners (Sega arcade, 1992) for PC and consoles, built on the verified C decompilation cheviman/outrunners-decomp. Bring your own ROM.",
+      "summary": "Play the arcade-faithful OutRunners with both cabinet screens side by side, using your own World arcade ROM set.",
+      "variant_label": "Arcade dual-screen edition",
       "issue_number": 4683,
       "listed_at": "2026-11-24",
       "original_game": {
@@ -28677,7 +28678,8 @@
       "id": "cheviman-outrunners-console-style-home-native-c",
       "project_url": "https://github.com/cheviman/outrunners-port",
       "name": "OutRunners (1992 arcade-derived home variant) / cheviman console-style native game",
-      "summary": "Native port of OutRunners (Sega arcade, 1992) for PC and consoles, built on the verified C decompilation cheviman/outrunners-decomp. Bring your own ROM.",
+      "summary": "Play the home-style OutRunners adaptation using your own World arcade ROM set.",
+      "variant_label": "Console-style edition",
       "issue_number": 4684,
       "listed_at": "2026-11-24",
       "original_game": {
@@ -55826,6 +55828,26 @@
       "summary": "Native PC recompilation of Harry Potter and the Chamber of Secrets. Bring your own copy of the game.",
       "issue_number": 7234,
       "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "harry-potter-and-the-chamber-of-secrets-console-2002",
+        "evidence_urls": [
+          "https://github.com/Barthes-Recompiled/HP2-Recompiled/blob/b1b060dd0937bc9535bd460835d13b97f56c473a/README.md",
+          "https://github.com/MiddleDucky/HP-COS-Xbox-Recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "harry-potter-and-the-chamber-of-secrets-console-2002-xbox",
+            "title": "Harry Potter and the Chamber of Secrets (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/Barthes-Recompiled/HP2-Recompiled/blob/b1b060dd0937bc9535bd460835d13b97f56c473a/README.md",
+              "https://github.com/MiddleDucky/HP-COS-Xbox-Recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Harry Potter and the Chamber of Secrets",
       "platforms": [],
       "availability": "unknown"
     },
@@ -55836,6 +55858,26 @@
       "summary": "Native PC recompilation of Harry Potter and the Philosopher's Stone. Bring your own copy of the game.",
       "issue_number": 7231,
       "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "harry-potter-and-the-philosophers-stone-console-2003",
+        "evidence_urls": [
+          "https://github.com/Barthes-Recompiled/HP1-Recompiled/blob/6d1ac181bf74fbbfd80a12fc9a489cce45d116fd/README.md",
+          "https://github.com/MiddleDucky/HP-PS-Xbox-Recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "harry-potter-and-the-philosophers-stone-console-2003-xbox",
+            "title": "Harry Potter and the Philosopher's Stone (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/Barthes-Recompiled/HP1-Recompiled/blob/6d1ac181bf74fbbfd80a12fc9a489cce45d116fd/README.md",
+              "https://github.com/MiddleDucky/HP-PS-Xbox-Recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Harry Potter and the Philosopher's Stone",
       "platforms": [],
       "availability": "unknown"
     },
@@ -55846,6 +55888,26 @@
       "summary": "Native PC recompilation of Harry Potter and the Prisoner of Azkaban. Bring your own copy of the game.",
       "issue_number": 7232,
       "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "harry-potter-and-the-prisoner-of-azkaban",
+        "evidence_urls": [
+          "https://github.com/Barthes-Recompiled/HP3-Recompiled/blob/ecd59ade77c33b865de577346e8715db10857cd7/README.md",
+          "https://github.com/MiddleDucky/HP-POA-Xbox-Recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "harry-potter-and-the-prisoner-of-azkaban-xbox",
+            "title": "Harry Potter and the Prisoner of Azkaban (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/Barthes-Recompiled/HP3-Recompiled/blob/ecd59ade77c33b865de577346e8715db10857cd7/README.md",
+              "https://github.com/MiddleDucky/HP-POA-Xbox-Recomp"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Harry Potter and the Prisoner of Azkaban",
       "platforms": [],
       "availability": "unknown"
     },
@@ -55913,6 +55975,24 @@
       "summary": "Native PC port of Harry Potter and the Chamber of Secrets for macOS. Requires your own copy of the original game.",
       "issue_number": 6096,
       "listed_at": "2026-11-24",
+      "original_game": {
+        "format_version": 1,
+        "id": "harry-potter-and-the-chamber-of-secrets-pc-2002",
+        "evidence_urls": [
+          "https://github.com/cefege/harry-potter-2-chamber-of-secrets-pc/blob/74aa4c3affb5237467058e82724487e12bdd2507/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "harry-potter-and-the-chamber-of-secrets-pc-2002-windows",
+            "title": "Harry Potter and the Chamber of Secrets (2002 Windows PC game)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/cefege/harry-potter-2-chamber-of-secrets-pc/blob/74aa4c3affb5237467058e82724487e12bdd2507/README.md"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Harry Potter and the Chamber of Secrets (PC, 2002)",
       "platforms": [],
       "availability": "unknown"
     },
@@ -68737,7 +68817,8 @@
       "id": "marvel-ultimate-alliance-gold-edition-mua-bundle-recompiled",
       "project_url": "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled",
       "name": "Marvel: Ultimate Alliance — Gold Edition / Marvel Ultimate Alliance Bundle Recompiled (saulob)",
-      "summary": "Marvel Ultimate Alliance 1, Gold Edition and 2 native PC ports via static recompilation, in one bundle with high frame rates, 4K rendering, ultrawide, HD Text, TRG launcher, and experimental Linux/Steam Deck support",
+      "summary": "Play the Xbox 360 Gold Edition of Marvel: Ultimate Alliance in the shared recompiled launcher using your own Gold Edition game files.",
+      "variant_label": "Xbox 360 Gold Edition",
       "issue_number": 7189,
       "listed_at": "2026-11-24",
       "original_game": {
@@ -68756,7 +68837,8 @@
       "id": "marvel-ultimate-alliance-mua-bundle-recompiled",
       "project_url": "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled",
       "name": "Marvel: Ultimate Alliance / Marvel Ultimate Alliance Bundle Recompiled (saulob)",
-      "summary": "Marvel Ultimate Alliance 1, Gold Edition and 2 native PC ports via static recompilation, in one bundle with high frame rates, 4K rendering, ultrawide, HD Text, TRG launcher, and experimental Linux/Steam Deck support",
+      "summary": "Play the original Xbox 360 edition of Marvel: Ultimate Alliance in the shared recompiled launcher using your own game files.",
+      "variant_label": "Original Xbox 360 edition",
       "issue_number": 7190,
       "listed_at": "2026-11-24",
       "original_game": {

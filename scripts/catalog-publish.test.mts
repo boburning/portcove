@@ -1364,6 +1364,296 @@ void test("catalog keys reach only one signing step per role, from main", async 
   }
 });
 
+void test("exact provider cross-links enrich the signed listing without changing package authority", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const {
+    stageModPortalProjection,
+    CoreInspectionRefusal,
+    ListingPublicationStop,
+    projectListingDelivery,
+  } = await import("./listing-observation-delivery.mts");
+  const { listingModPortalDefaults } = await import("./listing-mod-portal-projection.mts");
+  const { observationHash } = await import("./upstream-observer.mts");
+  const { thunderstoreRegistryUrl } = await import("./upstream-mod-provider-registry.mts");
+  const now = Date.parse("2026-11-26T00:00:00Z");
+  const community = {
+    community: "current-community",
+    game_uuid: "12345678-1111-2222-3333-123456789abc",
+    listed: true,
+    gamebanana_game: 12345,
+  };
+  const registry = (
+    communities: (Omit<typeof community, "listed"> & { listed: boolean | null })[] = [community],
+  ) => ({
+    exception: null,
+    next_due_at: "2026-11-26T12:00:00Z",
+    last_complete: {
+      format: 1,
+      schema: "0.3.0",
+      source: thunderstoreRegistryUrl,
+      observed_at: "2026-11-25T00:00:00Z",
+      expires_at: "2026-11-27T00:00:00Z",
+      response_sha256: "a".repeat(64),
+      communities_sha256: observationHash(communities),
+      communities,
+    },
+  });
+  const catalog = {
+    ports: [
+      {
+        id: fixtureListing.id,
+        mod_provider_bindings: [{ provider: "gamebanana", game_id: 12345 }],
+      },
+    ],
+  };
+  const port = { ...fixtureListing };
+  const unrelated = {
+    ...port,
+    id: "other-implementation",
+    project_url: "https://github.com/fixture/other",
+  };
+  const canonical = { format_version: 16, listings: [port, unrelated] };
+  const observation = fixturePolicy().listing_update.upstream_observation;
+  const packageCandidate = { ...port, upstream_observation: observation };
+  const rows = (bytes: Buffer) =>
+    fixtureRecords(fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings);
+  const row = (bytes: Buffer) => requiredFixture(rows(bytes).find(({ id }) => id === port.id));
+  const packageOnly = projectListingDelivery(canonical, [packageCandidate], null);
+  const first = projectListingDelivery(canonical, [packageCandidate], null, {
+    modPortalDefaults: listingModPortalDefaults(catalog, registry(), new Set(), now),
+  });
+  assert.equal(first.generated_mod_portals, 1);
+  assert.match(
+    JSON.stringify(row(first.bytes).mod_portals),
+    /thunderstore\.io\/c\/current-community/u,
+  );
+  assert.deepEqual(
+    row(first.bytes).upstream_observation,
+    row(packageOnly.bytes).upstream_observation,
+  );
+  assert.equal(rows(first.bytes).find(({ id }) => id === unrelated.id)?.mod_portals, undefined);
+
+  const outage = projectListingDelivery(canonical, [], first.bytes, {
+    modPortalDefaults: listingModPortalDefaults(
+      catalog,
+      { ...registry(), exception: "unavailable" },
+      new Set(),
+      now,
+    ),
+  });
+  assert.equal(outage.changed, false);
+  assert.equal(outage.retained, 1);
+  const ambiguousRegistry = registry([
+    {
+      ...community,
+      community: "another-community",
+      game_uuid: "22345678-1111-2222-3333-123456789abc",
+    },
+    community,
+  ]);
+  const ambiguous = listingModPortalDefaults(catalog, ambiguousRegistry, new Set(), now);
+  assert.equal(ambiguous(port, undefined), undefined);
+  assert.ok(ambiguous(port, row(first.bytes)), "provider still confirms the published association");
+  const unknownVisibility = listingModPortalDefaults(
+    catalog,
+    registry([{ ...community, listed: null }]),
+    new Set(),
+    now,
+  );
+  assert.equal(unknownVisibility(port, undefined), undefined);
+  assert.ok(unknownVisibility(port, row(first.bytes)));
+  const conflicting = (identity_conflicts: string[]) =>
+    listingModPortalDefaults(
+      catalog,
+      { ...ambiguousRegistry, exception: "identity-changed", identity_conflicts },
+      new Set(),
+      now,
+    );
+  assert.equal(conflicting(["current-community"])(port, row(first.bytes)), undefined);
+  assert.ok(conflicting(["another-community"])(port, row(first.bytes)));
+  const defaults = listingModPortalDefaults(catalog, registry(), new Set(), now);
+  assert.equal(
+    defaults(
+      { ...port, mod_portals: [{ url: "https://THUNDERSTORE.IO/c/reviewed/" }] },
+      row(first.bytes),
+    ),
+    undefined,
+    "an authored provider link takes precedence",
+  );
+  const withdrawn = projectListingDelivery(canonical, [], first.bytes, {
+    modPortalDefaults: listingModPortalDefaults(
+      catalog,
+      registry([{ ...community, listed: false }]),
+      new Set(),
+      now,
+    ),
+  });
+  assert.equal(row(withdrawn.bytes).mod_portals, undefined);
+  assert.deepEqual(
+    row(withdrawn.bytes).upstream_observation,
+    row(packageOnly.bytes).upstream_observation,
+  );
+  const excluded = listingModPortalDefaults(catalog, registry(), new Set([port.id]), now);
+  assert.equal(excluded(port, row(first.bytes)), undefined);
+
+  const capped = projectListingDelivery(canonical, [packageCandidate], null, {
+    byteLimit: packageOnly.bytes.length,
+    modPortalDefaults: listingModPortalDefaults(catalog, registry(), new Set(), now),
+  });
+  assert.equal(capped.deferred_mod_portals, 1);
+  assert.deepEqual(capped.bytes, packageOnly.bytes);
+  const reasons: string[] = [];
+  for (const error of [
+    new ListingPublicationStop("transport_bound", "encoded candidate too large", {}),
+    new CoreInspectionRefusal("Core refused the optional mod website"),
+    new ListingPublicationStop(
+      "cover_reader_unavailable",
+      "Released reader refused the candidate",
+      {},
+    ),
+    new Error("Optional inspection timed out"),
+  ]) {
+    const accepted = await stageModPortalProjection(
+      packageOnly,
+      () => first,
+      (candidate) => (candidate === first ? Promise.reject(error) : Promise.resolve("base stage")),
+      (reason) => reasons.push(reason),
+    );
+    assert.deepEqual(accepted, { projection: packageOnly, staged: "base stage" });
+  }
+  assert.deepEqual(reasons, [
+    "encoded candidate too large",
+    "Core refused the optional mod website",
+    "Released reader refused the candidate",
+    "Optional inspection timed out",
+  ]);
+});
+
+void test("signed projection recomputes shared covers without changing the release observation", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { checkedAuthoredPort } = await import("./catalog-authoring.mts");
+  const { indexSharedCoverRows, projectExactSharedCovers, retainSharedCoverDefaults } =
+    await import("./shared-cover-projection.mts");
+  const game = {
+    format_version: 1,
+    id: "shared-game",
+    evidence_urls: ["https://example.org/shared-game"],
+    source_editions: [
+      {
+        id: "edition-one",
+        system: "pc",
+        title: "Shared game",
+        evidence_urls: ["https://example.org/shared-edition"],
+      },
+    ],
+  };
+  const artwork = {
+    game_id: 70,
+    cover_id: 71,
+    image_id: "sharedcover",
+    image_sha256: "a".repeat(64),
+    game_slug: "shared-game",
+    match_kind: "underlying-game",
+  };
+  const recipient = { ...fixtureListing, original_game: game };
+  const donor = {
+    ...fixtureListing,
+    id: "artwork-donor",
+    name: "Shared cover donor",
+    project_url: "https://github.com/fixture/artwork-donor",
+    original_game: game,
+    artwork,
+  };
+  const canonical = { format_version: 15, listings: [recipient, donor] };
+  const candidate = {
+    ...recipient,
+    upstream_observation: fixturePolicy().listing_update.upstream_observation,
+  };
+  const authored = [recipient, donor].map((listing) =>
+    checkedAuthoredPort({ format_version: 1, listing }),
+  );
+  const initial = projectListingDelivery(canonical, [candidate], null);
+  const rows = (bytes: Buffer) =>
+    fixtureRecords(fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings);
+  const row = (bytes: Buffer) => requiredFixture(rows(bytes).find(({ id }) => id === recipient.id));
+  const project = (
+    previous: Buffer,
+    gone = new Set<string>(),
+    records = authored,
+    holdNewForImages = new Set<string>(),
+  ) =>
+    projectListingDelivery(canonical, [], previous, {
+      sharedCoverDefaults: projectExactSharedCovers({
+        live: indexSharedCoverRows(rows(previous)),
+        authored: records,
+        excludedPortIds: new Set(),
+        gone,
+        checked: new Map(),
+        deriveDefaultsForPublishedRecipients: true,
+        holdNewForImages,
+      }),
+    });
+  const admitted = project(initial.bytes);
+  assert.deepEqual(row(admitted.bytes).artwork, artwork);
+  assert.deepEqual(
+    row(admitted.bytes).upstream_observation,
+    row(initial.bytes).upstream_observation,
+  );
+  assert.deepEqual(
+    { ...row(admitted.bytes), artwork: undefined },
+    { ...row(initial.bytes), artwork: undefined },
+  );
+  assert.equal(project(admitted.bytes).changed, false);
+  const held = new Set([artwork.image_id]);
+  assert.equal(row(project(initial.bytes, new Set(), authored, held).bytes).artwork, undefined);
+  assert.equal(project(admitted.bytes, new Set(), authored, held).changed, false);
+
+  const retain = (previous: Buffer, gone = new Set<string>()) =>
+    projectListingDelivery(canonical, [], previous, {
+      sharedCoverDefaults: retainSharedCoverDefaults(
+        indexSharedCoverRows(rows(previous)),
+        canonical.listings,
+        gone,
+      ),
+    });
+  assert.equal(retain(admitted.bytes).changed, false);
+  assert.equal(retain(initial.bytes).changed, false);
+  for (const prevented of [
+    project(admitted.bytes, held),
+    retain(admitted.bytes, held),
+    ...[recipient.id, donor.id].map((excluded) =>
+      project(
+        admitted.bytes,
+        new Set(),
+        authored.map((record) =>
+          checkedAuthoredPort({
+            ...record,
+            ...(record.listing.id === excluded ? { igdb_no_shared_cover: true } : {}),
+          }),
+        ),
+      ),
+    ),
+  ]) {
+    assert.equal(row(prevented.bytes).artwork, undefined);
+    assert.deepEqual(
+      row(prevented.bytes).upstream_observation,
+      row(initial.bytes).upstream_observation,
+    );
+  }
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        format_version: 1,
+        listing: recipient,
+        igdb_no_shared_cover: false,
+      }),
+    /shared cover exclusion must be true/u,
+  );
+});
+
 void test("observer output is delivered as bounded compatible descriptive data with quiet replay and last-good retention", async () => {
   const { fixtureListing, fixturePolicy, fixtureDelivery } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");

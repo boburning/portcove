@@ -2933,6 +2933,21 @@ to see the reviewed browser links for the current host. A game can offer these
 links before it has an installed runtime or a managed mod setup. You choose,
 install and update files outside Portcove.
 
+Use **Edit mod websites** in Mods to add a website or hide one of the
+automatic links. Portcove stores these choices for this game in the current
+library. Use **Use automatic websites** to clear your choices and show the
+latest accepted links.
+
+To set the same choices from the CLI, get the current
+`mod_portal_preferences.preferences.revision` from `profile setups --json`.
+Pass the complete set of website choices to `profile set-mod-portals`.
+Omit the website and all hide options to reset the choices.
+
+```sh
+portcove --library PATH profile set-mod-portals PORT_ID --expected-revision 0 --name "My community" --url https://mods.example.net/game
+portcove --library PATH profile set-mod-portals PORT_ID --expected-revision 1
+```
+
 - Daggerfall Unity links to Nexus. Choose the matching game version and operating
   system. Follow the mod's instructions in a separate Daggerfall Unity copy.
   Place `.dfmod` files in `StreamingAssets/Mods`. [Daggerfall Workshop setup](https://www.dfworkshop.net/projects/daggerfall-unity/modding/)

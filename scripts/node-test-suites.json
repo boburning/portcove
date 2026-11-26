@@ -1779,6 +1779,13 @@
       ]
     },
     {
+      "file": "scripts/discovery-admission-receipt.test.mts",
+      "memberships": [
+        ["catalog-full", 1282],
+        ["repository-tools", 418]
+      ]
+    },
+    {
       "file": "scripts/discovery-worker.test.mts",
       "memberships": [
         ["catalog-full", 1279],

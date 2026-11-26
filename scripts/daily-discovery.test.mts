@@ -1,4 +1,4 @@
-import { replacePreparedFile } from "./prepared-file-replacement.mts";
+import { exerciseWindowsReaderSharing } from "./fixtures/discovery-windows-sharing.mts";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { once } from "node:events";
@@ -16,7 +16,7 @@ import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
 import { readFileSync } from "node:fs";
 import { mkdtempSync, rmSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
-import { spawnSync, spawn } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -30,7 +30,6 @@ import { createGitHubClient } from "./github-client.mts";
 import { discoveryGitHubScope } from "./discovery-github.mts";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { renderPortIssueBody } from "./roadmap-issue.mts";
-import { renameSync, readdirSync } from "node:fs";
 import * as discoverySession from "./daily-discovery-session.mts";
 import {
   discoveryBootstrapModules,
@@ -49,71 +48,7 @@ const envelope = {
 void test(
   "Windows reader sharing permits bounded atomic state replacement and preserves persistent failure",
   { skip: process.platform !== "win32", timeout: 20000 },
-  async (t) => {
-    const root = fileURLToPath(new URL("../", import.meta.url));
-    mkdirSync(path.join(root, "work"), { recursive: true });
-    const state = mkdtempSync(path.join(root, "work/discovery-sharing-fixture-"));
-    t.after(() => rmSync(state, { recursive: true, force: true }));
-    const target = path.join(state, "budget.json");
-    const script = path.join(state, "hold.ps1");
-    writeFileSync(
-      script,
-      'param([string]$Target,[int]$Hold)\n$stream=[IO.File]::Open($Target,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)\ntry { [Console]::Out.WriteLine("held"); Start-Sleep -Milliseconds $Hold } finally {$stream.Dispose()}',
-    );
-    for (const asynchronous of [false, true]) {
-      for (const milliseconds of [300, 1800]) {
-        writeFileSync(target, "old");
-        const child = spawn("pwsh", ["-NoProfile", "-File", script, target, String(milliseconds)], {
-          windowsHide: true,
-          stdio: ["ignore", "pipe", "pipe"],
-        });
-        const exited = once(child, "exit");
-        try {
-          const signal: unknown[] = await once(child.stdout, "data");
-          const ready = signal[0];
-          assert.ok(Buffer.isBuffer(ready));
-          assert.match(ready.toString("utf8"), /held/);
-          const probe = path.join(state, "probe.next");
-          writeFileSync(probe, "probe");
-          assert.throws(() => renameSync(probe, target), { code: "EPERM" });
-          const started = performance.now();
-          if (milliseconds === 300) {
-            // Exercise the production writer; old implementation fails at this same boundary.
-            if (asynchronous) {
-              writeFileSync(probe, JSON.stringify({ requests: 134 }));
-              await replacePreparedFile(probe, target);
-            } else discoverySession.atomic(target, { requests: 134 });
-            assert.deepEqual(JSON.parse(readFileSync(target, "utf8")), { requests: 134 });
-          } else {
-            if (asynchronous) {
-              writeFileSync(probe, JSON.stringify({ requests: 135 }));
-              await assert.rejects(replacePreparedFile(probe, target), { code: "EPERM" });
-              assert.deepEqual(JSON.parse(readFileSync(probe, "utf8")), { requests: 135 });
-            } else
-              assert.throws(() => discoverySession.atomic(target, { requests: 135 }), {
-                code: "EPERM",
-              });
-            assert.equal(readFileSync(target, "utf8"), "old");
-            const pending = asynchronous
-              ? "probe.next"
-              : readdirSync(state).find(
-                  (name) => name.startsWith("budget.json.") && name.endsWith(".next"),
-                );
-            assert.ok(pending);
-            assert.deepEqual(JSON.parse(readFileSync(path.join(state, pending), "utf8")), {
-              requests: 135,
-            });
-          }
-          assert.ok(
-            performance.now() - started < 1600,
-            "state replacement must retain its finite wait",
-          );
-        } finally {
-          assert.deepEqual(await exited, [0, null]);
-        }
-      }
-    }
-  },
+  exerciseWindowsReaderSharing,
 );
 void test("bootstrap identity covers the complete statically loaded module closure", async () => {
   // Production discovery bootstrap imports precede package installation.
@@ -225,10 +160,10 @@ void test("actual discovery startup consumes its bootstrap identities and bounde
   ]) {
     const program = `
       import assert from 'node:assert/strict';import {mock} from 'node:test';
-      import {registerHooks} from 'node:module';import path from 'node:path';
+      import {registerHooks} from 'node:module';import path from 'node:path';import {fileURLToPath} from 'node:url';
       const entry=${JSON.stringify(entry)},state=${JSON.stringify(state)},variant=${JSON.stringify(variant)};
       const expected=${JSON.stringify([...discoveryBootstrapModules.map((name) => `scripts/${name}`), ...discoveryDependencyInputs])};
-      const root=path.dirname(path.dirname(new URL(entry).pathname));
+      const root=path.dirname(path.dirname(fileURLToPath(entry)));
       let fetched=false,checkedOut=false,installed=false,sessions=0;const reads=new Map();
       process.env.GH_TOKEN="synthetic-install-secret";process.env.GITHUB_TOKEN="synthetic-other-secret";
       process.env.PORTCOVE_MAINTENANCE_DATABASE_URL="postgres://synthetic-store";process.env.PORTCOVE_NEON_METER_TOKEN="synthetic-meter";

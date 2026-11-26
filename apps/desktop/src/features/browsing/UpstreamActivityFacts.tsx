@@ -20,7 +20,7 @@ export function upstreamActivityState(
 }
 
 /** The observation describes this port only while it still names the same GitHub repository. */
-export function currentUpstreamActivity(
+function currentUpstreamActivity(
   port: PortDefinition,
   status: PortStatus | undefined,
 ): UpstreamActivity | undefined {

@@ -37699,6 +37699,184 @@
     "title": "ModFilePreservationResult",
     "type": "object"
   },
+  "mod_portals_view": {
+    "$defs": {
+      "AutomaticModPortal": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "name"
+        ],
+        "type": "object"
+      },
+      "ExternalModBrowser": {
+        "description": "A read-only provider browser Core can run for a portal.",
+        "enum": [
+          "quaddicted",
+          "mod_db_feed"
+        ],
+        "type": "string"
+      },
+      "ExternalModPortal": {
+        "properties": {
+          "browse_available": {
+            "description": "The current port and platform qualify for the optional read-only provider browser.",
+            "type": "boolean"
+          },
+          "browser": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExternalModBrowser"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The read-only browser this source can use, when it has one."
+          },
+          "instructions": {
+            "description": "Catalog-authored setup guide for files from this source.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Player-facing site or collection name from the catalog.",
+            "type": "string"
+          },
+          "site": {
+            "$ref": "#/$defs/ExternalModSite"
+          },
+          "source": {
+            "description": "The declared source ID. Clients pass it back to open a page.",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "site",
+          "name",
+          "url",
+          "instructions"
+        ],
+        "type": "object"
+      },
+      "ExternalModSite": {
+        "description": "The site family a portal belongs to, for its link label.",
+        "enum": [
+          "nexus_mods",
+          "mod_io",
+          "mod_db",
+          "quaddicted",
+          "community_site"
+        ],
+        "type": "string"
+      },
+      "LocalModPage": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "type": "object"
+      },
+      "ModPortalChoices": {
+        "additionalProperties": false,
+        "properties": {
+          "hidden_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "local_page": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LocalModPage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "local_page",
+          "hidden_sources"
+        ],
+        "type": "object"
+      },
+      "ModPortalPreferenceView": {
+        "properties": {
+          "automatic_sources": {
+            "items": {
+              "$ref": "#/$defs/AutomaticModPortal"
+            },
+            "type": "array"
+          },
+          "preferences": {
+            "$ref": "#/$defs/ModPortalPreferences"
+          }
+        },
+        "required": [
+          "preferences",
+          "automatic_sources"
+        ],
+        "type": "object"
+      },
+      "ModPortalPreferences": {
+        "properties": {
+          "choices": {
+            "$ref": "#/$defs/ModPortalChoices"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "choices"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "external_mod_portals": {
+        "items": {
+          "$ref": "#/$defs/ExternalModPortal"
+        },
+        "type": "array"
+      },
+      "mod_portal_preferences": {
+        "$ref": "#/$defs/ModPortalPreferenceView"
+      }
+    },
+    "required": [
+      "external_mod_portals",
+      "mod_portal_preferences"
+    ],
+    "title": "ModPortalsView",
+    "type": "object"
+  },
   "mod_setup_draft_preview": {
     "$defs": {
       "AssetConflict": {
@@ -37847,6 +38025,21 @@
           "definitions_sha256",
           "earliest_expiration",
           "index_sha256"
+        ],
+        "type": "object"
+      },
+      "AutomaticModPortal": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "name"
         ],
         "type": "object"
       },
@@ -38057,6 +38250,22 @@
         ],
         "type": "object"
       },
+      "LocalModPage": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "type": "object"
+      },
       "ModFileIdentity": {
         "additionalProperties": false,
         "properties": {
@@ -38129,6 +38338,67 @@
           "slot",
           "observed",
           "restore"
+        ],
+        "type": "object"
+      },
+      "ModPortalChoices": {
+        "additionalProperties": false,
+        "properties": {
+          "hidden_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "local_page": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LocalModPage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "local_page",
+          "hidden_sources"
+        ],
+        "type": "object"
+      },
+      "ModPortalPreferenceView": {
+        "properties": {
+          "automatic_sources": {
+            "items": {
+              "$ref": "#/$defs/AutomaticModPortal"
+            },
+            "type": "array"
+          },
+          "preferences": {
+            "$ref": "#/$defs/ModPortalPreferences"
+          }
+        },
+        "required": [
+          "preferences",
+          "automatic_sources"
+        ],
+        "type": "object"
+      },
+      "ModPortalPreferences": {
+        "properties": {
+          "choices": {
+            "$ref": "#/$defs/ModPortalChoices"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "choices"
         ],
         "type": "object"
       },
@@ -39054,6 +39324,17 @@
             "type": "null"
           }
         ]
+      },
+      "mod_portal_preferences": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ModPortalPreferenceView"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Local descriptive link choices and the defaults they can hide."
       },
       "package_types": {
         "description": "Package file types the game loads, such as `o2r`.",

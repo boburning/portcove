@@ -399,6 +399,17 @@ can validate it before cutover. The live publisher holds format 15 until
 format 16 and the official reader probe verifies the candidate format. Older
 compact readers keep their last accepted directory if they reject a successor.
 
+With a qualified format-16 reader, the publisher can add a browser link to a
+listed Thunderstore community. The registry must explicitly refer to the same
+numeric GameBanana ID already reviewed for that exact port. An unavailable
+registry preserves the last accepted link. A complete registry can withdraw
+a link that no longer matches. A changed community identity stops that link
+until the provider reconciles it. A port's authored Thunderstore link takes
+precedence. Maintainers can set `no_observed_mod_portals: true` on the port's
+authored record to suppress generated links. If the optional candidate
+fails carrier or reader validation, the publisher tries the same catalog
+without the optional links. This projection changes only website actions in Mods.
+
 The legacy format-11 target `policy/official/catalog.listings.json` stays
 named in the official-policy role with its last signed pre-cutover bytes and
 never changes again. Those bytes are revision 49, SHA-256 `9a025755…`,

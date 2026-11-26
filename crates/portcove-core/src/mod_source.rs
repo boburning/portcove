@@ -311,7 +311,7 @@ fn invalid(port: &PortDefinition, detail: &str) -> PortcoveError {
     PortcoveError::verification(format!("{} has an invalid mod source: {detail}", port.id))
 }
 
-fn valid_id(id: &str) -> bool {
+pub(crate) fn valid_id(id: &str) -> bool {
     !id.is_empty()
         && id.len() <= MAX_ID_BYTES
         && !id.starts_with('-')

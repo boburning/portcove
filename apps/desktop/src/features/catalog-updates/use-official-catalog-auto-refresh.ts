@@ -3,11 +3,11 @@ import { desktopApi } from "../../api";
 import type { ListingDeliveryStatus, OfficialCatalogAutomaticRefresh } from "../../types";
 
 /** The first check waits until the workspace is up, so it never delays startup. */
-export const firstCheckMilliseconds = 15_000;
+const firstCheckMilliseconds = 15_000;
 /** About once a day while Portcove keeps running. */
-export const checkIntervalMilliseconds = 24 * 60 * 60 * 1000;
+const checkIntervalMilliseconds = 24 * 60 * 60 * 1000;
 /** How long to wait while another task is using the library. */
-export const busyRetryMilliseconds = 60_000;
+const busyRetryMilliseconds = 60_000;
 const requestSettleMilliseconds = 1_500;
 
 /** The most recent scheduled check for one library, kept only while Portcove runs. */

@@ -26,6 +26,10 @@ import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { runCheckedGit } from "./checked-git.mts";
 import {
+  scheduledDiscoveryReplayReceipt,
+  verifyScheduledDiscoveryReplay,
+} from "./discovery-admission-receipt.mts";
+import {
   assembleCatalogRecords,
   compactGbaArchive,
   catalogSourceNames,
@@ -37,7 +41,6 @@ import {
   projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
-import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.d.ts";
 import {
   managedSetupReleaseAdvice,
   managedSetupReleaseAdviceText,
@@ -46,8 +49,7 @@ import { credentialFree } from "./catalog-released-reader.mts";
 import type { AcquiredReleasedReader } from "./catalog-released-reader.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { listedRepositories } from "./catalog-generated-registration.mts";
-import { usesScummvmEngine } from "./catalog-route-holds.mts";
-import { validArtworkMapping, validArtworkCollection } from "./catalog-cover-mapping.mts";
+import { indexSharedCoverRows, projectExactSharedCovers } from "./shared-cover-projection.mts";
 import {
   listingDeliveryMaximum,
   decodeRetainedCompactListing,
@@ -1386,7 +1388,12 @@ export async function prepareDiscoveryListingAdditions(
     acquireValidator?: (
       privateRoot: string,
     ) => AcquiredReleasedReader | Promise<AcquiredReleasedReader>;
-    stage?: { repository: string; revision: string };
+    stage?: {
+      repository: string;
+      revision: string;
+      expectedPatchSha256?: string;
+      previewListedDate?: string;
+    };
   },
 ) {
   const started = process.hrtime.bigint();
@@ -1405,11 +1412,33 @@ export async function prepareDiscoveryListingAdditions(
       "Released discovery validation requires automatic scope without local staging.",
     );
   const stage = options.stage;
+  const today = new Date(now()).toISOString().slice(0, 10);
+  const automaticListedDate = options.automaticScope
+    ? (stage?.previewListedDate ?? today)
+    : undefined;
   if (stage) {
     if ((!options.approval && !options.automaticScope) || !options.validatorCli)
       throw new Error(
         "Discovery staging requires an approved catalog patch and trusted Core validator.",
       );
+    if (
+      (options.automaticScope || stage.expectedPatchSha256 !== undefined) &&
+      !/^[a-f0-9]{64}$/u.test(stage.expectedPatchSha256 ?? "")
+    )
+      throw new Error("Automatic discovery staging requires the exact preview patch SHA-256.");
+    if (options.automaticScope) {
+      const date = stage.previewListedDate ?? "";
+      const timestamp = Date.parse(date);
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/u.test(date) ||
+        !Number.isFinite(timestamp) ||
+        new Date(timestamp).toISOString().slice(0, 10) !== date ||
+        date > today
+      )
+        throw new Error("Automatic discovery staging requires the preview listing date.");
+    } else if (stage.previewListedDate !== undefined) {
+      throw new Error("A preview listing date requires automatic discovery staging.");
+    }
     if (
       realpathSync(options.catalogRoot) !==
       join(realpathSync(stage.repository), repositoryCatalogPath)
@@ -1635,7 +1664,7 @@ export async function prepareDiscoveryListingAdditions(
             id: candidate.key,
             name: candidate.repository.split("/")[1],
             project_url: projectUrl,
-            listed_at: facts.project?.observed_at?.slice(0, 10),
+            listed_at: automaticListedDate ?? facts.project?.observed_at?.slice(0, 10),
             release_url: `${projectUrl}/releases`,
             summary:
               summary && Buffer.byteLength(summary) <= 4096
@@ -1723,15 +1752,17 @@ export async function prepareDiscoveryListingAdditions(
         }
       }
     }
-    let admission: { path: string; sha256: string } | null = null;
-    if (
+    const canPreparePatch =
       (approved ||
         (options.automaticScope && options.validatorCli) ||
         releasedValidation?.status === "validated") &&
-      additions.length > 0
-    ) {
-      const patch = discoveryAdmissionPatch(additions);
-      const sha256 = createHash("sha256").update(patch).digest("hex");
+      additions.length > 0;
+    const patch = canPreparePatch ? discoveryAdmissionPatch(additions) : null;
+    const sha256 = patch === null ? null : createHash("sha256").update(patch).digest("hex");
+    if (stage?.expectedPatchSha256 && stage.expectedPatchSha256 !== sha256)
+      throw new Error("Rebuilt discovery patch differs from the preview. Prepare a fresh preview.");
+    let admission: { path: string; sha256: string } | null = null;
+    if (patch !== null && sha256 !== null) {
       const path = join(root, `discovery-listing-admission-${sha256}.patch`);
       retainArtifact(path, patch);
       admission = { path, sha256 };
@@ -1749,7 +1780,12 @@ export async function prepareDiscoveryListingAdditions(
     const report = {
       format_version: 1,
       route: "discovery-listings",
-      ...(options.automaticScope ? { automatic_scope_policy: discoveryScopePolicy } : {}),
+      ...(options.automaticScope
+        ? {
+            automatic_scope_policy: discoveryScopePolicy,
+            automatic_listed_date: automaticListedDate,
+          }
+        : {}),
       selected_port_ids: candidates.map(({ key }) => key),
       handoff_semantic_sha256: admissionBinding.handoff_sha256,
       admission_binding: admissionBinding,
@@ -1870,14 +1906,6 @@ export function prepareListingObservations(
   }
 }
 
-function sharedCoverScope(record: AuthoredPort) {
-  if (record.igdb_regional_cover || usesScummvmEngine(record)) return undefined;
-  const game = record.listing.original_game;
-  const edition = game?.source_editions.length === 1 ? game.source_editions[0] : undefined;
-  if (!game || !edition) return undefined;
-  return { game_id: game.id, source_edition_id: edition.id };
-}
-
 async function readSharedCoverTarget(options: {
   cli: string;
   library: string;
@@ -1965,13 +1993,7 @@ export async function prepareSharedCoverBatch(
     catalogRoot: options.catalogRoot,
     target: options.target,
   });
-  const live = new Map<string, Record<string, unknown>>();
-  for (const row of rows) {
-    if (!isRecord(row) || typeof row.id !== "string" || live.has(row.id))
-      throw new Error("Shared cover preparation requires unique signed listing IDs.");
-    live.set(row.id, row);
-  }
-
+  const live = indexSharedCoverRows(rows);
   const root = resolve(options.outputDirectory);
   const validator = createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex");
   openCheckpoint(root);
@@ -1983,70 +2005,15 @@ export async function prepareSharedCoverBatch(
       authored.authored.map(({ listing }) => listing.id),
       Date.now(),
     );
-    const signedDigests = new Map<string, Set<string>>();
-    for (const row of live.values()) {
-      const covers = [
-        ...(validArtworkMapping(row.artwork) ? [row.artwork] : []),
-        ...(validArtworkCollection(row.collection_covers) ? row.collection_covers : []),
-      ];
-      for (const cover of covers) {
-        const digests = signedDigests.get(cover.image_id) ?? new Set<string>();
-        digests.add(cover.image_sha256);
-        signedDigests.set(cover.image_id, digests);
-      }
-    }
-    const exclusions = isRecord(options.identities) ? options.identities : {};
-    const scoped = authored.authored.flatMap((record) => {
-      if (Object.hasOwn(exclusions, record.listing.id)) return [];
-      const scope = sharedCoverScope(record);
-      return scope ? [{ record, scope, key: observationHash(scope) }] : [];
+    const { proposals, outcomes } = projectExactSharedCovers({
+      live,
+      authored: authored.authored,
+      gone,
+      checked,
+      excludedPortIds: new Set(
+        isRecord(options.identities) ? Object.getOwnPropertyNames(options.identities) : [],
+      ),
     });
-    type CoverDonor = { id: string; artwork: IgdbArtwork };
-    const donors = new Map<string, Map<string, CoverDonor>>();
-    for (const { record, scope, key } of scoped) {
-      const { id, artwork } = record.listing;
-      const signed = live.get(id);
-      const game = signed?.original_game;
-      const newer = validArtworkMapping(artwork) ? checked.get(artwork.image_id) : undefined;
-      if (
-        !signed ||
-        signed.project_url !== record.listing.project_url ||
-        !isRecord(game) ||
-        game.id !== scope.game_id ||
-        !Array.isArray(game.source_editions) ||
-        game.source_editions.length !== 1 ||
-        !isRecord(game.source_editions[0]) ||
-        game.source_editions[0].id !== scope.source_edition_id ||
-        !validArtworkMapping(artwork) ||
-        artwork.match_kind !== "underlying-game" ||
-        gone.has(artwork.image_id) ||
-        signedDigests.get(artwork.image_id)?.size !== 1 ||
-        (newer !== undefined && newer.digest !== artwork.image_sha256) ||
-        observationHash(signed.artwork ?? null) !== observationHash(artwork)
-      )
-        continue;
-      const variants = donors.get(key) ?? new Map<string, CoverDonor>();
-      const digest = observationHash(artwork);
-      const existing = variants.get(digest);
-      if (!existing || id < existing.id) variants.set(digest, { id, artwork });
-      donors.set(key, variants);
-    }
-
-    const proposals = new Map<string, IgdbArtwork>();
-    const outcomes = scoped.flatMap(({ record, scope, key }) => {
-      const { id, artwork, collection_covers } = record.listing;
-      const existing = live.get(id);
-      if (artwork || collection_covers || existing?.artwork || existing?.collection_covers)
-        return [];
-      const choices = donors.get(key);
-      const result = { id, ...scope };
-      if (choices?.size !== 1)
-        return [{ ...result, status: choices ? "ambiguous" : "no-accepted-donor" }];
-      const donor = choices.values().next().value!;
-      proposals.set(id, donor.artwork);
-      return [{ ...result, status: "prepared", donor_port_id: donor.id, mapping: donor.artwork }];
-    });
-
     const result = artworkCatalog(authored.authored);
     for (const port of result.ports) {
       if (proposals.has(port.id))
@@ -2260,6 +2227,10 @@ async function main() {
     "--discovery-listing-approval",
     "--discovery-automatic-scope",
     "--discovery-stage-source",
+    "--discovery-expected-patch-sha256",
+    "--discovery-preview-listed-date",
+    "--discovery-scheduled-run",
+    "--discovery-write-replay-receipt",
     "--discovery-released-validator",
     "--discovery-deadline-epoch-ms",
     "--listing-observations",
@@ -2317,7 +2288,23 @@ async function main() {
   const discoveryApproval = values.get("--discovery-listing-approval");
   const automaticDiscoveryScope = values.get("--discovery-automatic-scope");
   const discoveryStageSource = values.get("--discovery-stage-source");
+  const discoveryExpectedPatch = values.get("--discovery-expected-patch-sha256");
+  const discoveryPreviewListedDate = values.get("--discovery-preview-listed-date");
+  const scheduledRun = values.get("--discovery-scheduled-run");
+  const writeReplayReceipt = values.get("--discovery-write-replay-receipt");
   const releasedDiscoveryValidator = values.get("--discovery-released-validator");
+  if (
+    scheduledRun &&
+    (!values.has("--validator-cli") ||
+      [...values.keys()].some(
+        (name) => !["--discovery-scheduled-run", "--validator-cli", "--output-dir"].includes(name),
+      ))
+  )
+    throw new Error(
+      "Scheduled discovery replay requires only RUN/ATTEMPT and the trusted validator.",
+    );
+  if (writeReplayReceipt && (writeReplayReceipt !== "true" || !releasedDiscoveryValidator))
+    throw new Error("A scheduled replay receipt requires released discovery validation.");
   if (
     releasedDiscoveryValidator !== undefined &&
     (releasedDiscoveryValidator !== "true" ||
@@ -2342,6 +2329,10 @@ async function main() {
     throw new Error("--discovery-automatic-scope takes true with --discovery-listings.");
   if (discoveryStageSource && !discoveryApproval && !automaticDiscoveryScope)
     throw new Error("--discovery-stage-source requires reviewed approval or automatic scope.");
+  if (discoveryExpectedPatch && !discoveryStageSource)
+    throw new Error("--discovery-expected-patch-sha256 requires --discovery-stage-source.");
+  if (discoveryPreviewListedDate && (!discoveryStageSource || !automaticDiscoveryScope))
+    throw new Error("--discovery-preview-listed-date requires automatic discovery staging.");
   if (
     discoveryHandoff &&
     [...values.keys()].some(
@@ -2351,6 +2342,9 @@ async function main() {
           "--discovery-listing-approval",
           "--discovery-automatic-scope",
           "--discovery-stage-source",
+          "--discovery-expected-patch-sha256",
+          "--discovery-preview-listed-date",
+          "--discovery-write-replay-receipt",
           "--discovery-released-validator",
           "--discovery-deadline-epoch-ms",
           "--validator-cli",
@@ -2406,6 +2400,19 @@ async function main() {
     validatorCli: values.get("--validator-cli"),
     credentialsFile: values.get("--credentials-file"),
   };
+  if (scheduledRun) {
+    const { handoff, ...stage } = await verifyScheduledDiscoveryReplay(scheduledRun);
+    printPreparationResult(
+      await prepareDiscoveryListingAdditions({
+        ...common,
+        handoff,
+        automaticScope: true,
+        facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
+        stage: { repository, ...stage },
+      }),
+    );
+    return;
+  }
   const handoffPath = discoveryHandoff ?? observationHandoff;
   const handoff = handoffPath
     ? parseCatalogSource(readArtworkInput(handoffPath, 16 * 1024 * 1024).bytes.toString("utf8"))
@@ -2433,7 +2440,18 @@ async function main() {
             : {}),
           ...(discoveryDeadline ? { deadline: Number(discoveryDeadline) } : {}),
           ...(discoveryStageSource
-            ? { stage: { repository, revision: discoveryStageSource } }
+            ? {
+                stage: {
+                  repository,
+                  revision: discoveryStageSource,
+                  ...(discoveryExpectedPatch
+                    ? { expectedPatchSha256: discoveryExpectedPatch }
+                    : {}),
+                  ...(discoveryPreviewListedDate
+                    ? { previewListedDate: discoveryPreviewListedDate }
+                    : {}),
+                },
+              }
             : {}),
           ...(discoveryApproval
             ? {
@@ -2498,6 +2516,13 @@ async function main() {
           releaseTag: values.get("--release-tag"),
           facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
         });
+  if (writeReplayReceipt) {
+    if (!("admission" in result.report))
+      throw new Error("Scheduled replay receipt has no discovery completion report.");
+    const receipt = scheduledDiscoveryReplayReceipt(result.report, handoff, process.env);
+    if (receipt)
+      retainArtifact(join(output, "listing-admission-replay.json"), receipt.toString("utf8"));
+  }
   printPreparationResult(result);
 }
 

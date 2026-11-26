@@ -1662,6 +1662,7 @@ export interface TransportOutputs {
   mod_code_review: OutputModCodeReview;
   mod_file_preservation_plan: ModFilePreservationPlan;
   mod_file_preservation_result: OutputModFilePreservationResult;
+  mod_portals_view: OutputModPortalsView;
   mod_setup_draft_preview: OutputModSetupDraftPreview;
   mod_setups_view: OutputModSetupsView;
   moddb_file_notices: OutputModdbFileNotices;
@@ -6248,6 +6249,59 @@ export interface OutputModFilePreservationResult {
   preserved_path: string;
   [k: string]: unknown;
 }
+export interface OutputModPortalsView {
+  external_mod_portals: ExternalModPortal[];
+  mod_portal_preferences: ModPortalPreferenceView;
+  [k: string]: unknown;
+}
+export interface ExternalModPortal {
+  /**
+   * The current port and platform qualify for the optional read-only provider browser.
+   */
+  browse_available?: boolean;
+  /**
+   * The read-only browser this source can use, when it has one.
+   */
+  browser?: ExternalModBrowser | null;
+  /**
+   * Catalog-authored setup guide for files from this source.
+   */
+  instructions: string;
+  /**
+   * Player-facing site or collection name from the catalog.
+   */
+  name: string;
+  site: ExternalModSite;
+  /**
+   * The declared source ID. Clients pass it back to open a page.
+   */
+  source: string;
+  url: string;
+  [k: string]: unknown;
+}
+export interface ModPortalPreferenceView {
+  automatic_sources: AutomaticModPortal[];
+  preferences: ModPortalPreferences;
+  [k: string]: unknown;
+}
+export interface AutomaticModPortal {
+  name: string;
+  source: string;
+  [k: string]: unknown;
+}
+export interface ModPortalPreferences {
+  choices: ModPortalChoices;
+  revision: number;
+  [k: string]: unknown;
+}
+export interface ModPortalChoices {
+  hidden_sources: string[];
+  local_page: LocalModPage | null;
+}
+export interface LocalModPage {
+  name: string;
+  url: string;
+}
 export interface OutputModSetupDraftPreview {
   conflicts: AssetConflict[];
   conflicts_truncated: boolean;
@@ -6323,6 +6377,10 @@ export interface OutputModSetupsView {
   later_mods_take_priority: boolean;
   live: LiveMods | null;
   /**
+   * Local descriptive link choices and the defaults they can hide.
+   */
+  mod_portal_preferences?: ModPortalPreferenceView | null;
+  /**
    * Package file types the game loads, such as `o2r`.
    */
   package_types: string[];
@@ -6345,31 +6403,6 @@ export interface OutputModSetupsView {
    * False when the game has no reviewed managed mod package contract.
    */
   supported: boolean;
-  [k: string]: unknown;
-}
-export interface ExternalModPortal {
-  /**
-   * The current port and platform qualify for the optional read-only provider browser.
-   */
-  browse_available?: boolean;
-  /**
-   * The read-only browser this source can use, when it has one.
-   */
-  browser?: ExternalModBrowser | null;
-  /**
-   * Catalog-authored setup guide for files from this source.
-   */
-  instructions: string;
-  /**
-   * Player-facing site or collection name from the catalog.
-   */
-  name: string;
-  site: ExternalModSite;
-  /**
-   * The declared source ID. Clients pass it back to open a page.
-   */
-  source: string;
-  url: string;
   [k: string]: unknown;
 }
 /**

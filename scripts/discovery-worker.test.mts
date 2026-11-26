@@ -39,12 +39,14 @@ import {
   discoverySeedReservation,
   runDiscoveryPasses,
   scheduledListingPreview,
+  nextListingPreviewRound,
   renderDiscoveryStatus,
   readStoredLeads,
   runDiscoveryWorker,
   storedLeadsReservation,
 } from "./discovery-worker.mts";
-import { overlayLocalResearch } from "./discovery-leads.mts";
+import { observedLeadReleases, overlayLocalResearch } from "./discovery-leads.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import type { DiscoveryLead } from "./discovery-leads.mts";
 import { selectExternalResolutions } from "./discovery-external-lists.mts";
 import {
@@ -591,8 +593,22 @@ void test("observations exclude local paths and clocks so unchanged projects sta
   assert.equal(leadWatch(unhinted), undefined);
 });
 
-void test("scheduled listing preview binds current release evidence to committed discovery state", () => {
+void test("scheduled listing preview resumes retained release evidence and binds it to the repository", async (context) => {
   const start = "2026-11-01T00:00:00.000Z";
+  const previous = "2026-10-31T00:00:00.000Z";
+  const releases = (id: number) => [
+    {
+      id: id * 100,
+      html_url: `https://github.com/ports/game-${id}/releases/tag/1.0`,
+      draft: false,
+      assets: [{ state: "uploaded", name: "windows.zip" }],
+    },
+  ];
+  const retainedRelease = (id: number) => ({
+    ...observedLeadReleases(releases(id), `https://github.com/ports/game-${id}`),
+    observed_at: previous,
+    evidence: "/old-run/release-response.json",
+  });
   const lead = (id: number, change: Partial<DiscoveryLead> = {}): DiscoveryLead => ({
     id,
     repository: `ports/game-${id}`,
@@ -640,6 +656,15 @@ void test("scheduled listing preview binds current release evidence to committed
               url: "https://github.com/moved/game-9",
             }),
             lead(10),
+            lead(11, {
+              release_hint: retainedRelease(11),
+              release_probe: { attempted_at: start, outcome: "unavailable" },
+            }),
+            lead(12, {
+              repository: "renamed/game-12",
+              url: "https://github.com/renamed/game-12",
+              release_hint: retainedRelease(12),
+            }),
           ].map((row) => [row.id, row]),
         ),
       },
@@ -650,32 +675,96 @@ void test("scheduled listing preview binds current release evidence to committed
     start,
     new Set(["https://github.com/ports/game-10"]),
     "source",
-    (id) => [
-      {
-        id: id * 100,
-        html_url: `https://github.com/ports/game-${id}/releases/tag/1.0`,
-        draft: false,
-        assets: [{ state: "uploaded", name: "windows.zip" }],
-      },
-    ],
+    (id) => {
+      assert.ok(id < 11, "retained release evidence must not need previous-run files");
+      return releases(id);
+    },
   );
-  assert.equal(preview.receipt.retained_record_count, 6);
+  assert.equal(preview.receipt.retained_record_count, 8);
   assert.equal(preview.receipt.committed.revision, 5);
   assert.equal(preview.receipt.committed.generation, 3);
-  assert.equal(preview.receipt.evidence.length, 1);
+  assert.equal(preview.receipt.evidence.length, 2);
   assert.equal(preview.receipt.evidence[0]!.input.release_id, 500);
   const digest = createHash("sha256")
     .update(JSON.stringify(preview.receipt.evidence[0]!.input))
     .digest("hex");
-  assert.deepEqual(preview.handoff.candidates, [
-    {
-      id: "github-5",
-      project_url: "https://github.com/ports/game-5",
-      repository_id: 5,
-      evidence_sha256: digest,
-    },
-  ]);
-  assert.doesNotMatch(JSON.stringify(preview), /\/private/u);
+  assert.deepEqual(
+    preview.handoff.candidates.map(({ id }) => id),
+    ["github-5", "github-11"],
+  );
+  assert.deepEqual(preview.handoff.candidates[0], {
+    id: "github-5",
+    project_url: "https://github.com/ports/game-5",
+    repository_id: 5,
+    evidence_sha256: digest,
+  });
+  assert.equal(preview.receipt.evidence[1]?.input.release_id, 1100);
+  assert.equal(preview.receipt.evidence[1]?.input.observed_at, previous);
+  assert.doesNotMatch(JSON.stringify(preview), /\/(?:private|old-run)/u);
+
+  const { leads } = parseWorkerState(retained.state);
+  leads.records["5"]!.release_hint = retainedRelease(5);
+  const covered = new Set(["https://github.com/ports/game-10"]);
+  const first = nextListingPreviewRound(leads, undefined, start, covered);
+  assert.ok(first);
+  const previewRound = (round: NonNullable<typeof first>) =>
+    scheduledListingPreview(
+      { ...retained, state: { ...retained.state, leads, listing_preview_round: round } },
+      round.run_started_at,
+      covered,
+      "source",
+      () => undefined,
+    ).handoff.candidates.map(({ repository_id }) => repository_id);
+  assert.deepEqual(previewRound(first), [5, 11]);
+  assert.equal(nextListingPreviewRound(leads, first, start, covered), undefined);
+
+  // Assume preparation could only reach the first candidate before its
+  // deadline. New IDs arrive before and after the previously selected range.
+  leads.records["1"] = lead(1, { release_hint: retainedRelease(1) });
+  leads.records["20"] = lead(20, { release_hint: retainedRelease(20) });
+  assert.deepEqual(previewRound(first), [5, 11], "later passes preserve the admitted round");
+  const second = nextListingPreviewRound(leads, first, "2026-11-02T00:00:00Z", covered);
+  assert.ok(second);
+  assert.deepEqual(previewRound(second), [11]);
+  assert.equal(second.through_id, first.through_id);
+  const nextCycle = nextListingPreviewRound(leads, second, "2026-11-03T00:00:00Z", covered);
+  assert.ok(nextCycle);
+  assert.deepEqual(previewRound(nextCycle), [1, 5, 11, 20]);
+
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-preview-round-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const memory = memoryStore();
+  memory.leads.set(5, leads.records["5"]);
+  memory.leads.set(11, leads.records["11"]);
+  const runPreview = async (runStartedAt: string) => {
+    const timestamp = Date.parse(runStartedAt);
+    let selected: number[] | undefined;
+    const run = await runDiscoveryPasses({
+      store: memory.store,
+      runDir: root,
+      covered: () => covered,
+      sourceRevision: "fixture",
+      runner: "fixture",
+      now: () => timestamp,
+      deadline: timestamp + 60_000,
+      diskBytes: 8 * 1024 * 1024,
+      finalizationMs: 1_000,
+      previewListings: (value) => {
+        selected = value.handoff.candidates.map(({ repository_id }) => repository_id);
+      },
+      admit: (_pass, run) => run({ bytes: 1024 * 1024, deadline: timestamp + 60_000 }),
+      connect: () => Promise.reject(new GitHubApiError("deadline_exceeded", "fixture deadline")),
+    });
+    assert.equal(run.outcome, "partial");
+    return selected;
+  };
+  assert.deepEqual(await runPreview(start), [5, 11]);
+  assert.deepEqual(parseWorkerState(memory.state()).listing_preview_round, first);
+  memory.leads.set(1, leads.records["1"]);
+  memory.leads.set(20, leads.records["20"]);
+  assert.deepEqual(await runPreview("2026-11-02T00:00:00Z"), [11]);
+  assert.equal(parseWorkerState(memory.state()).listing_preview_round?.through_id, 11);
+  assert.deepEqual(await runPreview("2026-11-03T00:00:00Z"), [1, 5, 11, 20]);
 });
 
 void test(
@@ -1445,6 +1534,7 @@ void test(
           lists: {},
           hints: {
             keep: { payload: "x".repeat(100_000) },
+            "é\"'雪": { title: "\t雪", payload: "é".repeat(410) },
             change: { title: "old" },
             remove: { title: "old" },
           } as Record<string, unknown>,
@@ -1475,7 +1565,7 @@ void test(
     state.leads.external.hints.add = { title: "added" };
     const changed = store.commit(owner, seeded.revision, input(state));
     assert.ok(changed.bytes < 2_000, "unchanged large hint is not sent again");
-    assert.equal(count(environment, "discovery_external_hints"), 3);
+    assert.equal(count(environment, "discovery_external_hints"), 4);
     assert.deepEqual(
       queryJson(
         environment,

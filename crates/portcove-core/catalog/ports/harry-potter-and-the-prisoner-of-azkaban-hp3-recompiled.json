@@ -6,11 +6,26 @@
     "name": "Harry Potter and the Prisoner of Azkaban / HP3 Recompiled (Prisoner of Azkaban) (Barthes-Recompiled)",
     "summary": "Native PC recompilation of Harry Potter and the Prisoner of Azkaban. Bring your own copy of the game.",
     "issue_number": 7232,
-    "listed_at": "2026-11-24"
-  },
-  "original_game_review": {
-    "disposition": "unresolved",
-    "reason": "The upstream does not state which source edition (PC, PlayStation or console) it recompiles; the game identity stays unassigned until that is reviewed.",
-    "evidence_urls": ["https://github.com/Barthes-Recompiled/HP3-Recompiled"]
+    "listed_at": "2026-11-24",
+    "original_game": {
+      "format_version": 1,
+      "id": "harry-potter-and-the-prisoner-of-azkaban",
+      "evidence_urls": [
+        "https://github.com/Barthes-Recompiled/HP3-Recompiled/blob/ecd59ade77c33b865de577346e8715db10857cd7/README.md",
+        "https://github.com/MiddleDucky/HP-POA-Xbox-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "harry-potter-and-the-prisoner-of-azkaban-xbox",
+          "title": "Harry Potter and the Prisoner of Azkaban (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Barthes-Recompiled/HP3-Recompiled/blob/ecd59ade77c33b865de577346e8715db10857cd7/README.md",
+            "https://github.com/MiddleDucky/HP-POA-Xbox-Recomp"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Harry Potter and the Prisoner of Azkaban"
   }
 }

@@ -138,7 +138,75 @@ pub(crate) fn portals(
     sources
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct AutomaticModPortal {
+    pub source: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ModPortalPreferenceView {
+    pub preferences: crate::ModPortalPreferences,
+    pub automatic_sources: Vec<AutomaticModPortal>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ModPortalsView {
+    pub external_mod_portals: Vec<ExternalModPortal>,
+    pub mod_portal_preferences: ModPortalPreferenceView,
+}
+
+pub(crate) fn project_mod_portals(
+    mut offered: Vec<ExternalModPortal>,
+    preferences: crate::ModPortalPreferences,
+) -> ModPortalsView {
+    let automatic_sources = offered
+        .iter()
+        .map(|portal| AutomaticModPortal {
+            source: portal.source.clone(),
+            name: portal.name.clone(),
+        })
+        .collect();
+    offered.retain(|portal| {
+        preferences
+            .choices
+            .hidden_sources
+            .binary_search(&portal.source)
+            .is_err()
+    });
+    if let Some(page) = &preferences.choices.local_page {
+        offered.push(ExternalModPortal {
+            source: crate::mod_portal_preferences::LOCAL_PAGE_SOURCE.into(),
+            site: ExternalModSite::CommunitySite,
+            name: page.name.clone(),
+            url: page.url.clone(),
+            instructions: "Your mod website".into(),
+            browser: None,
+            browse_available: false,
+        });
+    }
+    ModPortalsView {
+        external_mod_portals: offered,
+        mod_portal_preferences: ModPortalPreferenceView {
+            preferences,
+            automatic_sources,
+        },
+    }
+}
+
 impl crate::PortcoveService {
+    pub(crate) fn effective_external_mod_portals(
+        &self,
+        port_id: &str,
+        platform: Option<Platform>,
+    ) -> crate::Result<ModPortalsView> {
+        let preferences = self.mod_portal_preferences(port_id)?;
+        Ok(project_mod_portals(
+            portals(self.catalog(), port_id, platform),
+            preferences,
+        ))
+    }
+
     /// Recheck that a clicked destination belongs to the selected port and source.
     pub async fn review_external_mod_source_page(
         &self,
@@ -147,7 +215,9 @@ impl crate::PortcoveService {
         url: &str,
     ) -> crate::Result<String> {
         let platform = Platform::current().ok();
-        let capability = portals(self.catalog(), port_id, platform)
+        let capability = self
+            .effective_external_mod_portals(port_id, platform)?
+            .external_mod_portals
             .into_iter()
             .find(|portal| portal.source == source)
             .ok_or_else(|| {

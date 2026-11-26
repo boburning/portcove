@@ -40,6 +40,8 @@ export interface ModProviderRegistryProgress {
   last_complete: (RegistryFacts & { observed_at: string; expires_at: string }) | null;
   next_due_at: string;
   exception: FailureState | null;
+  /** Exact old slugs whose immutable identity no longer agrees. */
+  identity_conflicts?: string[] | "unknown";
 }
 
 function exactGameBananaId(link: unknown) {
@@ -105,7 +107,11 @@ export function validateModProviderRegistryProgress(value: unknown, now: number)
     (value.exception === null && value.last_complete === null)
   )
     throw new Error("Invalid mod provider registry checkpoint");
-  if (value.last_complete === null) return;
+  if (value.last_complete === null) {
+    if (value.identity_conflicts !== undefined)
+      throw new Error("Registry identity conflicts require a retained snapshot");
+    return;
+  }
   const complete = value.last_complete;
   if (
     !isRecord(complete) ||
@@ -148,6 +154,20 @@ export function validateModProviderRegistryProgress(value: unknown, now: number)
     previous = entry.community;
     identities.add(entry.game_uuid);
   }
+  if (value.identity_conflicts !== undefined) {
+    const slugs = new Set((complete.communities as Community[]).map(({ community }) => community));
+    const conflicts = value.identity_conflicts;
+    if (
+      value.exception === null ||
+      (conflicts !== "unknown" &&
+        (!Array.isArray(conflicts) ||
+          !conflicts.length ||
+          conflicts.length > slugs.size ||
+          new Set(conflicts).size !== conflicts.length ||
+          !conflicts.every((slug) => typeof slug === "string" && slugs.has(slug))))
+    )
+      throw new Error("Invalid retained mod provider identity conflicts");
+  }
 }
 
 export async function observeModProviderRegistry(
@@ -182,12 +202,15 @@ export async function observeModProviderRegistry(
   const failure = (
     exception: FailureState,
     retry_at = next,
+    conflicts = prior?.identity_conflicts ??
+      (prior?.exception === "identity-changed" ? "unknown" : undefined),
   ): { bytes: number; progress: ModProviderRegistryProgress } => ({
     bytes: response.bytes,
     progress: {
       last_complete: prior?.last_complete ?? null,
       next_due_at: retry_at,
       exception,
+      ...(conflicts ? { identity_conflicts: conflicts } : {}),
     },
   });
   const retry = response.headers["retry-after"];
@@ -215,10 +238,10 @@ export async function observeModProviderRegistry(
   // Permanent IDs make an omitted community or a changed UUID evidence of an
   // incomplete or novel registry. Retain the previous snapshot during review.
   const byId = new Map(communities.map((entry) => [entry.community, entry.game_uuid]));
-  if (
-    prior?.last_complete?.communities.some((entry) => byId.get(entry.community) !== entry.game_uuid)
-  )
-    return failure("identity-changed");
+  const conflicts = prior?.last_complete?.communities
+    .filter((entry) => byId.get(entry.community) !== entry.game_uuid)
+    .map(({ community }) => community);
+  if (conflicts?.length) return failure("identity-changed", next, conflicts);
   return {
     bytes: response.bytes,
     progress: {

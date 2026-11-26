@@ -2183,6 +2183,17 @@ accepted original-game cover when both ports have the same reviewed game and
 single source edition. The donor's exact game, edition and asset must also appear
 in the signed directory. The receipt names each donor and any conflicting scope.
 The existing reviewed path validates and accepts the prepared changes.
+
+When the signed cover checkpoint has been activated, the compact publisher
+also derives a missing cover from an authored donor for the same exact original
+game and single source edition. The donor's repository, edition and cover
+digest must match the previous authenticated listing. A regional cover, cover
+collection, existing authored cover or `igdb_no_shared_cover: true` excludes
+that variant. Conflicting donors leave the variant without a shared cover.
+A durable withdrawal removes the donor and any resulting defaults. Restoration
+can make the same verified image eligible again. The publisher keeps release
+observations independently of a generated cover. Players can still choose or
+hide artwork in their own libraries.
 Due refresh of a retained cover revalidates its approved IGDB game ID, slug
 and cover role. An accepted mapping can be revalidated by exact ID and slug
 even when the listing lacks an original title. This does not establish a new
@@ -7399,8 +7410,9 @@ Implementation entries in that universe do not inflate port coverage counts.
 For descriptive batches, use the tool's `apply --assignments <file>` dry-run,
 then `--write` after relationship review. Each assignment binds the complete
 input-file SHA-256 and explicitly supplies `original_game`,
-`original_game_title` and/or `original_game_review`. Existing IDs cannot be
-replaced through this helper. It preflights the entire catalog and every changed
+`original_game_title` and/or `original_game_review`. To clear a superseded
+review, supply `original_game_review: null` together with the reviewed
+`original_game` binding. Existing IDs cannot be replaced through this helper. It preflights the entire catalog and every changed
 projection before writing, retains partial-publication recovery evidence, and
 preserves unrelated source, runtime and lineage fields. Regenerate with
 `node scripts/generate-catalog.mts`; identity-only work does not need another
@@ -7641,9 +7653,24 @@ be resolved separately. A source or
 handoff change requires reconsidering the approval. An unavailable selected
 repository leaves its own outcome for retry. Other selected additions can
 proceed. Add `--discovery-stage-source FULL_GIT_REVISION` to stage the approved
-additions directly in a clean checkout reserved for this operation. The command rechecks the revision and
-stages the same bytes it records in the receipt. Keep preparation outputs
-outside the checkout.
+additions directly in a clean checkout reserved for this operation. For
+automatic-scope staging, also pass `--discovery-expected-patch-sha256 SHA256`
+and `--discovery-preview-listed-date YYYY-MM-DD` from the verified preview's
+`admission.sha256` and `automatic_listed_date`. Use the exact source commit
+from that same scheduled Actions run as `FULL_GIT_REVISION`. For hosted
+replay, use `--discovery-scheduled-run RUN_ID/ATTEMPT` with
+`--validator-cli` and `--output-dir` in the clean checkout. The command
+uses the standard GitHub credential with Actions read access. It reads the
+exact GitHub attempt and checks the successful discovery job, the receipt
+upload, the artifact digest and the handoff. It takes the source revision
+and patch digest directly from that verified receipt. An unrelated job
+failure does not erase a successful discovery receipt.
+
+Staging rebuilds the patch against that revision, rechecks the live upstream evidence and
+requires the same patch digest before it changes the index. The retained date
+keeps an otherwise identical replay stable after midnight UTC. If upstream
+facts or the selected candidates change, prepare a fresh preview. Keep
+preparation outputs outside the checkout.
 If preparation stops during staging, the checkpoint retains the exact patch
 and staging intent. Confirm that HEAD still matches the intent. Use
 `git apply --reverse --check --index PATCH` to confirm that the staged additions
