@@ -2,13 +2,15 @@
   "automaticSnapshots": {
     "checking": "Comprobando las copias automáticas de esta biblioteca…",
     "control": "Crear una instantánea de los datos guardados antes de cada cambio de versión",
-    "coverage": "Antes de cambiar de versión, Portcove puede copiar las partidas y los ajustes existentes que administra. Consulta las copias completadas en Copias de seguridad.",
+    "coverage": "Partidas y copias de seguridad muestra qué cubre Portcove y qué copias se completaron.",
     "description": "Antes de que se instale una actualización, se active una actualización guardada o restaures una versión anterior, Portcove copia las partidas y los ajustes administrados de un juego para que puedas restaurarlos si la nueva versión los interpreta mal. Omite los juegos cuyas partidas se guardan fuera de Portcove y los juegos que aún no tienen datos guardados, y si no se puede crear una instantánea, el cambio de versión se detiene. Portcove conserva las cinco instantáneas automáticas más recientes de cada juego y nunca elimina las que creas tú. Esto se aplica a todos los juegos de esta biblioteca a partir del próximo cambio de versión.",
     "disabled": "Las copias automáticas antes de cambiar de versión están desactivadas en esta biblioteca.",
+    "disableUnconfirmed": "Portcove no pudo confirmar si se desactivaron las copias automáticas.",
     "enabled": "Las copias automáticas antes de cambiar de versión están activadas en esta biblioteca.",
+    "enableUnconfirmed": "Portcove no pudo confirmar si se activaron las copias automáticas.",
     "heading": "Crear una instantánea de los datos guardados antes de cambiar de versión",
     "readFailed": "No se pudo leer el ajuste.",
-    "retry": "Reintentar",
+    "retry": "Volver a leer el ajuste",
     "saveFailed": "Portcove no pudo confirmar el resultado al guardar este ajuste.",
     "unavailable": "Portcove no pudo comprobar el ajuste de copias automáticas de esta biblioteca."
   },
