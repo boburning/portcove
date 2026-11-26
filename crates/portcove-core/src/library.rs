@@ -836,8 +836,16 @@ impl Library {
         Self::initialize(root.to_path_buf(), lease)
     }
 
-    /// Bind an existing current library without layout creation or migration.
+    /// Open an existing initialized library for read-only qualification without migration.
+    pub fn open_current_for_observation(root: &Path) -> Result<Self> {
+        Self::open_current(root, crate::library_access::LibraryAccess::Shared)
+    }
+
     pub(crate) fn open_current_for_recovery_bundle(root: &Path) -> Result<Self> {
+        Self::open_current(root, crate::library_access::LibraryAccess::Exclusive)
+    }
+
+    fn open_current(root: &Path, access: crate::library_access::LibraryAccess) -> Result<Self> {
         fn require_current(root: &Path) -> Result<()> {
             if crate::library_authority::authority(root)?.is_some() {
                 return Err(PortcoveError::conflict(
@@ -856,8 +864,7 @@ impl Library {
         crate::path::unicode(root, "recovery source library")?;
         require_current(root)?;
         let lease = std::sync::Arc::new(crate::library_access::LibraryLease::with_access(
-            root,
-            crate::library_access::LibraryAccess::Exclusive,
+            root, access,
         )?);
         require_current(root)?;
         Ok(Self {

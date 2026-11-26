@@ -68,6 +68,14 @@ pub(crate) enum CatalogCommand {
         #[arg(long)]
         evaluated_at: Option<u64>,
     },
+    /// Prepare exact successor evidence from two already admitted libraries without downloading game bytes.
+    PrepareSuccessorEvidence {
+        /// ID of the port to compare in both libraries.
+        port_id: String,
+        /// Path to the library that admitted the predecessor release.
+        #[arg(long)]
+        predecessor_library: std::path::PathBuf,
+    },
     /// List ports in the active catalog.
     List,
     /// Export the complete active catalog document.
@@ -307,6 +315,7 @@ pub(crate) enum CatalogCommand {
 impl CatalogCommand {
     pub fn name(&self) -> &'static str {
         match self {
+            Self::PrepareSuccessorEvidence { .. } => "catalog.prepare-successor-evidence",
             Self::Compare { .. } => "catalog.compare",
             Self::List => "catalog.list",
             Self::Export { .. } => "catalog.export",
@@ -349,6 +358,23 @@ pub(crate) async fn execute(
     let name = command.name();
     let library = service.library();
     match command {
+        CatalogCommand::PrepareSuccessorEvidence {
+            port_id,
+            predecessor_library,
+        } => {
+            let prior = PortcoveService::new_read_only(
+                portcove_core::Library::open_current_for_observation(&predecessor_library)?,
+            )?;
+            let prepared = service
+                .prepare_successor_support_evidence(&prior, &port_id)
+                .await?;
+            render_read_success(mode, name, prepared, |prepared| {
+                format!(
+                    "Prepared {} to {} for offline evidence review.",
+                    prepared.predecessor.tag, prepared.successor.tag,
+                )
+            })
+        }
         CatalogCommand::Compare {
             port_id,
             edition,

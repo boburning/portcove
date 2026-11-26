@@ -536,6 +536,7 @@ pub use signed_catalog::{
 };
 pub use source::SourceRelinkPlan;
 pub use source_assessment::*;
+mod successor_support;
 pub use source_batch::{
     RegisteredSourceInspectionBatch, RegisteredSourceInspectionLimits, RegisteredSourceObservation,
 };
@@ -568,6 +569,9 @@ pub use source_reuse::{
 pub use store_install::{
     GameStore, RegisteredStoreInstall, RegisteredStoreInstalls, StoreGameInstall,
     StoreGameInstalls, StoreInstallHost, StoreOriginalFolder, SystemStoreInstallHost,
+};
+pub use successor_support::{
+    SuccessorEvidencePreparation, SuccessorEvidenceSubject, SupportCoordinates,
 };
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{

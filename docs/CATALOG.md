@@ -3423,6 +3423,103 @@ its mechanism runs upstream's setup from that package; uninstallers and runtime
 redistributables stay refused. A PSX recompilation route expects its
 owned-input preparation kit, which may be named for its source.
 
+### Preview successor support eligibility
+
+Run the read-only report through the existing qualification tool.
+
+```sh
+node scripts/qualification-report.mts --successor-preview crates/portcove-core/catalog/catalog.json
+```
+
+The pilot inventories declared platforms of ports with an enforced,
+selector-resolved game source contract (`integration-contract-v1`). The report
+counts broader provider declarations separately from those pilot rows. Use
+`--successor-cases FILE` to compare reviewed evidence for one specific pair per
+port, platform and contract. The report includes the SHA-256 of each input.
+It has no catalog or Project write path, executes no package or evidence, and
+cannot approve any release.
+
+Each case records `rule: "managed-successor-preview-v1"`, `port_id`, `platform`,
+`contract_id`, an `anchor` and a `successor` in the existing complete source
+qualification scope shape. The anchor needs a reviewed binding for its exact
+release and paired passed automated lifecycle and hands-on evidence. Supply
+scoped catalog records with reviewed evidence IDs or an exact historical
+evidence pair. The successor must be a different upstream ref with an
+exact admitted artifact digest and the same platform, source contract,
+variant, representation and check-contract version. Known failures for either
+exact scope refuse the preview. Historical platform arrays establish the legacy
+intersection only. The [57-port crosswalk](qualification/2026-11-21-supported-successor-anchor-crosswalk.md)
+preserves the separately attributable owner receipts and historical package
+evidence.
+
+`anchor_coordinates` and `successor_coordinates` carry separate
+`setup`, `launch` and `data` SHA-256 fingerprints from reviewed evidence. A
+future protected producer must bind them to Core's offered operations,
+including preparation inputs, executable, working directory and arguments,
+player-data locations and ownership. Missing or different fingerprints prevent
+eligibility. `selection` records a `selected` outcome and names the exact
+`scope`, the current `release_spec` and an `evidence_sha256`. `admission`, `integrity` and `lifecycle` each name the
+exact successor scope, coordinates, reviewed `evidence_sha256`, a passed
+outcome and their respective kind (`independent_admission`, `integrity` or
+`automated_lifecycle`). Lifecycle also requires matching reviewed scoped
+catalog evidence. The report compares supplied identities and results. The
+operator must independently verify receipt authority, artifact provenance,
+scope and file contents before using it in a review.
+
+The optional `historical_anchor` contains `owner_attestation_url` and
+`automation_url` from canonical Portcove issues or PRs. Its
+`owner_attestation` and `automation` receipts bind the exact anchor scope,
+anchor coordinates, evidence SHA-256 and passed outcome, with kinds
+`hands_on` and `automated_lifecycle` respectively. The preview labels a
+conditional match from those inputs as historical evidence for review.
+A platform-only note or later release digest leaves the exact anchor
+unassessed. The output keeps table coverage separate from historical evidence.
+
+### Scoped successor support
+
+The owner approved same-platform successor support under #4849. A successor
+may show “Supported (inherited from vX)” when a reviewed predecessor has exact
+hands-on and lifecycle evidence and the successor independently passes
+admission, integrity and lifecycle checks. The setup, launch and player-data
+coordinates must match for every supported source variant. A current failure,
+withdrawal or coordinate drift revokes the derived label. Existing physical
+and human observations stay on the exact artifacts they describe.
+
+The draft evidence format supports offline review. Controlled test fixtures
+exercise comparisons. The signed catalog reader and protected signer refuse
+draft successor-support declarations. No current production row qualifies.
+
+Use `portcove --library CURRENT --json catalog prepare-successor-evidence PORT
+--predecessor-library PREVIOUS` on two already initialized libraries. Core
+first checks the exact official definitions and replay-checked grants. It
+then uses bounded, credential-free GitHub API calls to resolve the live
+current package. A saved selection, cached metadata or preserved acquisition
+fallback cannot establish a current observation. Game archives stay on the
+provider. It checks exact grant, package
+and platform identity and derives a conservative setup, launch and
+player-data fingerprint from the typed operational rules and source graph.
+A changed operational field requires review. This first comparison covers a
+single invariant enforced game source contract with a reviewed artifact digest
+for each curated release. The reusable applicability inventory remains a separate
+preview. Core requires
+exact variant coverage and the latest paired signed predecessor observations
+under the same lifecycle check version. The
+predecessor's existing admission must still verify in its evidence library
+and its exact asset must still be permitted for local use by current history.
+
+Production activation requires an appointed game-lifecycle evidence producer.
+Its immutable attestation must cover the preparation rule and both exact
+operands, the native platform, the reviewed check version and exact source
+identities, and the released reader used for the run. It must bind the
+protected run, job, check, attempt and source revision to verified report
+bytes recording the successor package integrity and tested lifecycle
+transition. The app-release hosted-native attestation describes Portcove
+itself. It supplies no reviewed game-lifecycle producer or game proof.
+A released reader must verify the game contract before publication. A player
+label requires a fresh successful scoped selector result and must expire after
+a later failed operation, withdrawal or scope change. Prior local update
+snapshots remain available as history.
+
 ### Qualification evidence preparation
 
 For the repeated managed setup sequence owned by #1742, the existing report tool

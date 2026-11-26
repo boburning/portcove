@@ -261,3 +261,163 @@ void test("source-only qualification preserves absent setup tools and refuses cr
     assert.deepEqual(invalid.calls, []);
   }
 });
+
+void test("successor preview needs exact evidence and revokes eligibility on drift", async () => {
+  const { previewQualificationSuccessors } = await import("./qualification-successor-preview.mts");
+  const port = {
+    id: "fixture",
+    release: { provider: "github", repository: "fixture/upstream" },
+    platforms: ["windows-x86-64"],
+    automated_tested_platforms: ["windows-x86-64"],
+    manually_validated_platforms: ["windows-x86-64"],
+  };
+  const contract = {
+    id: "fixture-game",
+    port_id: port.id,
+    role: "game",
+    admission_mode: "enforced",
+    release_policy: "integration-contract-v1",
+    supported_variant_ids: ["original"],
+    applicability: [{ upstream_ref: "v1", artifact_sha256: "a".repeat(64) }],
+  };
+  const anchor = {
+    port_id: port.id,
+    platform: port.platforms[0],
+    contract_id: contract.id,
+    check_version: "fixed-lifecycle-v1",
+    upstream_ref: "v1",
+    artifact_sha256: "a".repeat(64),
+    variant: {
+      state: "exact",
+      identity: { game_id: "fixture-game", variant_id: "original", representation_id: "raw" },
+    },
+  };
+  const successor = { ...anchor, upstream_ref: "v2", artifact_sha256: "b".repeat(64) };
+  const coordinates = { setup: "c".repeat(64), launch: "d".repeat(64), data: "e".repeat(64) };
+  const receipt = (kind: string) => ({
+    kind,
+    outcome: "passed",
+    scope: successor,
+    coordinates,
+    evidence_sha256: "f".repeat(64),
+  });
+  const proposal = {
+    rule: "managed-successor-preview-v1",
+    port_id: port.id,
+    platform: anchor.platform,
+    contract_id: contract.id,
+    anchor,
+    successor,
+    anchor_coordinates: coordinates,
+    successor_coordinates: coordinates,
+    selection: {
+      outcome: "selected",
+      scope: successor,
+      release_spec: port.release,
+      evidence_sha256: "f".repeat(64),
+    },
+    admission: receipt("independent_admission"),
+    integrity: receipt("integrity"),
+    lifecycle: receipt("automated_lifecycle"),
+  };
+  const automation = {
+    scope: anchor,
+    kind: "automated_lifecycle",
+    outcome: "passed",
+    evidence_ids: ["auto"],
+  };
+  const handsOn = { scope: anchor, kind: "hands_on", outcome: "passed", evidence_ids: ["manual"] };
+  const successorAutomation = { ...automation, scope: successor };
+  const baseline = {
+    ports: [port],
+    source_catalog: {
+      contracts: [contract],
+      qualification: [automation, handsOn, successorAutomation],
+      evidence: [{ id: "auto" }, { id: "manual" }],
+    },
+  };
+  const report = previewQualificationSuccessors(baseline, [proposal]);
+  assert.equal(report.authority, "none");
+  assert.equal(report.physical_and_human_evidence_inherited, false);
+  assert.equal(report.candidates[0]?.decision, "eligible_for_review");
+  const historical = {
+    ...proposal,
+    historical_anchor: {
+      owner_attestation_url:
+        "https://github.com/boburning/portcove/issues/76#issuecomment-5540821043",
+      automation_url: "https://github.com/boburning/portcove/pull/229",
+      owner_attestation: { ...receipt("hands_on"), scope: anchor },
+      automation: { ...receipt("automated_lifecycle"), scope: anchor },
+    },
+  };
+  const historicalCatalog = {
+    ...baseline,
+    source_catalog: { ...baseline.source_catalog, qualification: [successorAutomation] },
+  };
+  const candidate = previewQualificationSuccessors(historicalCatalog, [historical]).candidates[0];
+  assert.equal(candidate?.decision, "eligible_for_review");
+  assert.equal(
+    candidate && "anchor_evidence" in candidate && candidate.anchor_evidence,
+    "historical_receipts_for_review",
+  );
+  const wrongBytes = {
+    ...historical,
+    historical_anchor: {
+      ...historical.historical_anchor,
+      owner_attestation: receipt("hands_on"),
+    },
+  };
+  assert.equal(
+    previewQualificationSuccessors(historicalCatalog, [wrongBytes]).candidates[0]?.decision,
+    "unassessed",
+  );
+  assert.equal(previewQualificationSuccessors(baseline).candidates[0]?.decision, "unassessed");
+  const cases = [
+    [{ rule: "other" }, "preview_rule_changed"],
+    [{ successor: { ...successor, check_version: "v2" } }, "scope_or_check_contract_changed"],
+    [
+      { successor_coordinates: { ...coordinates, data: "c".repeat(64) } },
+      "setup_launch_or_data_changed",
+    ],
+    [{ successor_coordinates: null }, "coordinate_evidence_missing"],
+    [
+      { selection: { ...proposal.selection, release_spec: {} } },
+      "exact_selector_evidence_missing_or_changed",
+    ],
+    [
+      { selection: { ...proposal.selection, outcome: "withdrawn" } },
+      "exact_selector_evidence_missing_or_changed",
+    ],
+    [{ admission: null }, "exact_successor_admission_missing"],
+    [
+      { integrity: { ...proposal.integrity, scope: anchor } },
+      "exact_successor_integrity_not_passed",
+    ],
+    [
+      { lifecycle: { ...proposal.lifecycle, outcome: "failed" } },
+      "exact_successor_lifecycle_not_passed",
+    ],
+  ] as const;
+  for (const [patch, reason] of cases) {
+    const candidate = previewQualificationSuccessors(baseline, [{ ...proposal, ...patch }])
+      .candidates[0];
+    assert.equal(candidate && "reason" in candidate && candidate.reason, reason);
+  }
+  for (const [qualification, reason] of [
+    [[automation, successorAutomation], "exact_anchor_evidence_missing"],
+    [[automation, handsOn], "exact_successor_lifecycle_not_passed"],
+    [
+      [
+        automation,
+        handsOn,
+        successorAutomation,
+        { scope: successor, kind: "known_failure", outcome: "failed" },
+      ],
+      "exact_known_failure",
+    ],
+  ] as const) {
+    const catalog = { ...baseline, source_catalog: { ...baseline.source_catalog, qualification } };
+    const candidate = previewQualificationSuccessors(catalog, [proposal]).candidates[0];
+    assert.equal(candidate && "reason" in candidate && candidate.reason, reason);
+  }
+});

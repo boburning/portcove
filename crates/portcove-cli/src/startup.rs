@@ -109,6 +109,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         },
         Commands::Catalog { command } => match command {
             CatalogCommand::Compare { .. }
+            | CatalogCommand::PrepareSuccessorEvidence { .. }
             | CatalogCommand::List
             | CatalogCommand::Export { .. }
             | CatalogCommand::Listings { .. }
@@ -349,6 +350,7 @@ mod tests {
     #[test]
     fn retained_build_reads_preserve_recovery_and_writes_require_a_review_digest() {
         for arguments in [
+            "catalog prepare-successor-evidence port --predecessor-library prior",
             "installation retained port",
             "installation runtimes port",
             "installation package-shape port",
