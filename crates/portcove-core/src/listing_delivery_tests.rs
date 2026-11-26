@@ -590,6 +590,12 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
     let (_temp, library) = library();
     let mut candidate = feed(1);
     candidate["directory"]["format_version"] = json!(15);
+    let registered_id = "registered-catch-up";
+    let listings = candidate["directory"]["listings"].as_array_mut().unwrap();
+    let mut registered_listing = listings[0].clone();
+    registered_listing["id"] = json!(registered_id);
+    registered_listing["project_url"] = json!("https://example.invalid/registered-project");
+    listings.push(registered_listing);
     let root = publish_compact(&fixture, &key, 1, &candidate).await;
     provision(&library, &root);
     refresh(&library, &fixture, &root).await.unwrap();
@@ -608,6 +614,52 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
             .is_err()
     );
 
+    let player_files = tempfile::tempdir().unwrap();
+    let executable = crate::test_fixture::build_probe(player_files.path());
+    let executable_sha256 = crate::signed_catalog::digest(&std::fs::read(&executable).unwrap());
+    let save = player_files.path().join("player-save.dat");
+    std::fs::write(&save, b"player save").unwrap();
+    let arguments = ["--help".into()];
+    let preview = service
+        .preview_user_selected_runtime(registered_id, &executable, player_files.path(), &arguments)
+        .unwrap();
+    let authorization = service
+        .authorize_user_selected_runtime(
+            registered_id,
+            &executable,
+            player_files.path(),
+            &arguments,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let registration = service
+        .register_user_selected_runtime(
+            registered_id,
+            &executable,
+            player_files.path(),
+            &arguments,
+            &authorization.token,
+        )
+        .unwrap();
+    let (_, retained_catalog) = library
+        .external_runtime_with_port(registered_id)
+        .unwrap()
+        .unwrap();
+    assert!(matches!(
+        service
+            .artwork(registered_id, crate::ArtworkSlot::Cover)
+            .unwrap()
+            .resolved_source,
+        crate::ArtworkResolvedSource::GeneratedFallback
+    ));
+    assert!(
+        service
+            .preview_mod_handoff(registered_id)
+            .unwrap()
+            .external_mod_portals
+            .is_empty()
+    );
+
     let url = "https://www.nexusmods.com/examplegame";
     candidate["revision"] = json!(2);
     candidate["directory"]["format_version"] = json!(16);
@@ -615,6 +667,16 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
         "id": "nexus", "site": "nexus_mods", "name": "Nexus Mods", "url": url,
         "instructions": "Check the community page for mod requirements."
     }]);
+    let registered_url = "https://www.nexusmods.com/registeredgame";
+    candidate["directory"]["listings"][1]["mod_portals"] = json!([{
+        "id": "nexus", "site": "nexus_mods", "name": "Nexus Mods", "url": registered_url,
+        "instructions": "Check the community page for mod requirements."
+    }]);
+    candidate["directory"]["listings"][1]["artwork"] = json!({
+        "game_id": 1, "cover_id": 2, "image_id": "co1abc",
+        "image_sha256": "5".repeat(64), "game_slug": "registered-game",
+        "match_kind": "underlying-game"
+    });
     let mut incompatible = candidate.clone();
     incompatible["directory"]["format_version"] = json!(15);
     assert!(
@@ -637,6 +699,39 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
 
     let service = PortcoveService::new_read_only(library.clone()).unwrap();
+    assert!(service.catalog().port(registered_id).is_err());
+    assert!(matches!(
+        service.artwork(registered_id, crate::ArtworkSlot::Cover).unwrap().resolved_source,
+        crate::ArtworkResolvedSource::IgdbCover { artwork, .. } if artwork.image_id == "co1abc"
+    ));
+    let registered_mods = service.preview_mod_handoff(registered_id).unwrap();
+    assert!(!registered_mods.supported);
+    assert_eq!(registered_mods.external_mod_portals[0].url, registered_url);
+    assert_eq!(
+        service
+            .review_external_mod_source_page(registered_id, "nexus", registered_url)
+            .await
+            .unwrap(),
+        registered_url
+    );
+    let (retained, reopened_catalog) = library
+        .external_runtime_with_port(registered_id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(retained).unwrap(),
+        serde_json::to_value(registration).unwrap()
+    );
+    assert_eq!(
+        serde_json::to_value(reopened_catalog.listing_document()).unwrap(),
+        serde_json::to_value(retained_catalog.listing_document()).unwrap()
+    );
+    assert_eq!(
+        crate::signed_catalog::digest(&std::fs::read(executable).unwrap()),
+        executable_sha256
+    );
+    assert_eq!(std::fs::read(save).unwrap(), b"player save");
+    assert!(library.all_installs().unwrap().is_empty());
     assert!(service.catalog().port(id).is_err());
     let view = service.preview_mod_handoff(id).unwrap();
     assert!(!view.supported);
