@@ -2904,11 +2904,13 @@ pub struct ModSetupsView {
 impl ModSetupsView {
     fn browse_only(
         port_id: &str,
+        port: Option<&crate::PortDefinition>,
         github_release_url: Option<String>,
         github_native_import_offered: bool,
         external_mod_portals: Vec<crate::ExternalModPortal>,
         mod_portal_preferences: crate::ModPortalPreferenceView,
     ) -> Self {
+        let (provider, providers) = provider_browse_choices(port);
         Self {
             port_id: port_id.into(),
             supported: false,
@@ -2919,17 +2921,34 @@ impl ModSetupsView {
             held_updates: Vec::new(),
             last_automatic_checks: Vec::new(),
             last_automatic_checks_incomplete: false,
-            provider: None,
+            provider,
             github_release_url,
             github_native_import_offered,
             external_mod_portals,
             mod_portal_preferences: Some(mod_portal_preferences),
-            providers: Vec::new(),
+            providers,
             applied_package_count: None,
             current_install_id: None,
             progress_copy_supported: false,
         }
     }
+}
+
+fn provider_browse_choices(port: Option<&crate::PortDefinition>) -> (Option<String>, Vec<String>) {
+    let provider = port
+        .and_then(crate::provider_binding::default_binding)
+        .map(|binding| binding.provider().to_owned());
+    let providers = port
+        .and_then(crate::provider_binding::configured_bindings)
+        .filter(|bindings| bindings.len() > 1)
+        .map(|bindings| {
+            bindings
+                .iter()
+                .map(|binding| binding.provider().to_owned())
+                .collect()
+        })
+        .unwrap_or_default();
+    (provider, providers)
 }
 
 impl PortcoveService {
@@ -2951,15 +2970,17 @@ impl PortcoveService {
             external_mod_portals,
             mod_portal_preferences,
         } = self.effective_external_mod_portals(port_id, platform)?;
-        let (url, native) = match catalog.port(port_id) {
+        let (definition, url, native) = match catalog.port(port_id) {
             Ok(port) => (
+                Some(port),
                 crate::github_mods::github_mod_release_url(port, platform),
                 self.github_native_import(port, platform)?,
             ),
-            Err(_) => (None, false),
+            Err(_) => (None, None, false),
         };
         Ok(ModSetupsView::browse_only(
             port_id,
+            definition,
             url,
             native,
             external_mod_portals,
@@ -2986,6 +3007,7 @@ impl PortcoveService {
         let Some(layout) = self.optional_deploy_layout(port_id)? else {
             return Ok(ModSetupsView::browse_only(
                 port_id,
+                Some(port),
                 github_release_url,
                 github_native_import_offered,
                 external_mod_portals,
@@ -3011,6 +3033,7 @@ impl PortcoveService {
             })
             .transpose()?;
         let last_checks = crate::provider_auto_update::last_checks(&layout, &inventory);
+        let (provider, providers) = provider_browse_choices(Some(port));
         Ok(ModSetupsView {
             github_release_url,
             github_native_import_offered,
@@ -3019,17 +3042,8 @@ impl PortcoveService {
             held_updates,
             last_automatic_checks: last_checks.checks,
             last_automatic_checks_incomplete: last_checks.incomplete,
-            provider: crate::provider_binding::default_binding(port)
-                .map(|binding| binding.provider().to_owned()),
-            providers: crate::provider_binding::configured_bindings(port)
-                .filter(|bindings| bindings.len() > 1)
-                .map(|bindings| {
-                    bindings
-                        .iter()
-                        .map(|binding| binding.provider().to_owned())
-                        .collect()
-                })
-                .unwrap_or_default(),
+            provider,
+            providers,
             current_install_id,
             progress_copy_supported: crate::portable_saves::contract_for(port_id).is_some(),
             port_id: port_id.into(),

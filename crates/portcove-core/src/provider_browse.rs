@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::GameBananaClient;
 use crate::{
     PortcoveError, PortcoveService, ProviderFreshness, ProviderPage, ProviderProject, Result,
-    provider_client::ProviderClient,
+    mod_provider::Observed, provider_client::ProviderClient,
 };
 
 /// Mods listed per browse page.
@@ -226,6 +226,21 @@ impl PortcoveService {
             .await
     }
 
+    /// Verifies that a provider project belongs to this port before opening its website.
+    pub async fn provider_project_url(
+        &self,
+        port_id: &str,
+        project_id: &str,
+        provider: Option<&str>,
+    ) -> Result<String> {
+        let client =
+            ProviderClient::for_definition(&self.library, self.catalog().port(port_id)?, provider)?;
+        Ok(reviewed_provider_project(&client, project_id)
+            .await?
+            .value
+            .profile_url)
+    }
+
     #[cfg(test)]
     pub(crate) async fn provider_project_with(
         &self,
@@ -246,12 +261,7 @@ impl PortcoveService {
         project_id: &str,
     ) -> Result<ProviderProjectView> {
         let port = self.catalog().port(port_id)?;
-        let observed = client.project(project_id).await?;
-        if observed.value.game_id.as_deref() != Some(client.game_id().as_str()) {
-            return Err(PortcoveError::verification(
-                "this project does not belong to the game this port is bound to",
-            ));
-        }
+        let observed = reviewed_provider_project(client, project_id).await?;
         let layout = self.optional_deploy_layout(port_id)?;
         let eligible_file_ids = match layout {
             Some(layout) if observed.freshness != ProviderFreshness::Stale => observed
@@ -276,6 +286,19 @@ impl PortcoveService {
             freshness: observed.freshness,
         })
     }
+}
+
+async fn reviewed_provider_project(
+    client: &ProviderClient,
+    project_id: &str,
+) -> Result<Observed<ProviderProject>> {
+    let observed = client.project(project_id).await?;
+    if observed.value.game_id.as_deref() != Some(client.game_id().as_str()) {
+        return Err(PortcoveError::verification(
+            "this project does not belong to the game this port is bound to",
+        ));
+    }
+    Ok(observed)
 }
 
 #[cfg(test)]
