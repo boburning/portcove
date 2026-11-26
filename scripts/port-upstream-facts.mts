@@ -7,6 +7,7 @@ import { DiscoveryBudget } from "./discovery-budget.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { parseRecompManifest } from "./discovery-ecosystems.mts";
+import { parseCatalogSource } from "./catalog-authoring.mts";
 
 const limits = { requests: 12, bytes: 8 * 1024 * 1024, milliseconds: 120000 };
 interface CachedFact {
@@ -46,7 +47,66 @@ export interface PortFactsOptions {
   fetcher?: typeof fetch;
 }
 
-export const discoveryScopePolicy = "github-primary-single-game-manifest/1";
+export const discoveryScopePolicy = "github-primary-single-game-manifest/2";
+
+const namesScummVm = (values: readonly unknown[]) =>
+  values.some(
+    (value) => typeof value === "string" && /(?:^|[^A-Z0-9])scummvm(?:$|[^A-Z0-9])/iu.test(value),
+  );
+
+function launcherScopeEvidence(value: unknown, repository: string) {
+  if (
+    !isRecord(value) ||
+    value.format !== 1 ||
+    typeof value.repo !== "string" ||
+    value.repo.toLowerCase() !== repository.toLowerCase() ||
+    value.games !== undefined ||
+    !isRecord(value.start) ||
+    !Array.isArray(value.start.program) ||
+    value.start.program.length === 0 ||
+    value.start.program.length > 16 ||
+    !Array.isArray(value.inputs) ||
+    value.inputs.length !== 1
+  )
+    throw new Error("Manifest does not identify this repository and one game launch route");
+  const input: unknown = value.inputs[0];
+  if (
+    !isRecord(input) ||
+    input.id !== "game" ||
+    typeof input.label !== "string" ||
+    !input.label.trim() ||
+    input.label.length > 256 ||
+    (input.role !== undefined && input.role !== "game") ||
+    (input.optional !== undefined && input.optional !== false) ||
+    input.shared !== undefined ||
+    !Array.isArray(input.formats) ||
+    input.formats.length === 0 ||
+    input.formats.length > 16 ||
+    !input.formats.every(
+      (format) => isRecord(format) && (format.type === "file" || format.type === "folder"),
+    )
+  )
+    throw new Error("Manifest does not declare one required game input");
+  const programs: unknown[] = value.start.program;
+  if (
+    !programs.every(
+      (program) =>
+        typeof program === "string" &&
+        program.length <= 256 &&
+        program
+          .split("/")
+          .every((part) => part === part.trim() && /^[A-Za-z0-9_][A-Za-z0-9_. -]*$/u.test(part)),
+    )
+  )
+    throw new Error("Manifest does not declare bounded package-relative program candidates");
+  return {
+    format: 1,
+    repository,
+    game_input_declared: true,
+    program_count: programs.length,
+    names_scummvm: namesScummVm([repository, value.name, ...programs]),
+  };
+}
 
 async function observeDiscoveryScope(
   project: unknown,
@@ -70,7 +130,8 @@ async function observeDiscoveryScope(
     project.fork !== false ||
     project.mirror_url !== null ||
     project.parent != null ||
-    project.source != null
+    project.source != null ||
+    typeof project.full_name !== "string"
   )
     return outcome("held", "independent-upstream-scope-unresolved");
   const location = `repositories/${repositoryId}`;
@@ -114,11 +175,11 @@ async function observeDiscoveryScope(
     rootEntries.some(({ path }) => typeof path === "string" && /^\.recomp-[2-9]\.json$/u.test(path))
   )
     return outcome("held", "multiple-manifest-subjects");
-  const manifestPath = rootEntries.some(({ path }) => path === ".recomp.json")
-    ? ".recomp.json"
-    : ".recomp-board.json";
+  const manifestPath = [".recomp.json", ".recomp-board.json", "recomplauncher.json"].find((name) =>
+    rootEntries.some(({ path }) => path === name),
+  );
+  if (manifestPath === undefined) return outcome("held", "optional-project-manifest-unavailable");
   const entries = rootEntries.filter(({ path }) => path === manifestPath);
-  if (!entries.length) return outcome("held", "optional-project-manifest-unavailable");
   const manifestEntry = entries[0];
   if (
     entries.length !== 1 ||
@@ -154,18 +215,20 @@ async function observeDiscoveryScope(
   )
     return outcome("held", "project-manifest-bytes-unverified");
 
-  let manifest: ReturnType<typeof parseRecompManifest>;
+  let manifest: ReturnType<typeof parseRecompManifest> | ReturnType<typeof launcherScopeEvidence>;
   try {
-    manifest = parseRecompManifest(
-      JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
-    );
+    const value = parseCatalogSource(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    manifest =
+      manifestPath === "recomplauncher.json"
+        ? launcherScopeEvidence(value, project.full_name)
+        : parseRecompManifest(value);
   } catch {
     return outcome("held", "unsupported-project-manifest");
   }
   if (
-    [manifest.game, ...manifest.systems, ...manifest.toolchains].some((value) =>
-      /\bscummvm\b/iu.test(value),
-    )
+    "names_scummvm" in manifest
+      ? manifest.names_scummvm
+      : namesScummVm([manifest.game, ...manifest.systems, ...manifest.toolchains])
   )
     return outcome("restricted", "scummvm-out-of-scope");
   return {

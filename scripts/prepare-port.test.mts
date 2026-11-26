@@ -1008,6 +1008,16 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
       "unknown-mirror",
       "bad-tree",
       "provider-missing-file",
+      "launcher",
+      "launcher-foreign",
+      "launcher-multigame",
+      "launcher-unsafe",
+      "launcher-excluded-program",
+      "launcher-optional",
+      "launcher-nongame",
+      "launcher-extra-game",
+      "launcher-excluded-title",
+      "launcher-primary-conflict",
     ].map((name, index) => ({
       id: `github-${80_000 + index}`,
       project_url: `https://github.com/fixture/${name}`,
@@ -1077,14 +1087,58 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
           if (match[2] === "commits?per_page=1")
             return json([{ sha, commit: { tree: { sha: tree } } }]);
           const name = selected.project_url.split("/").at(-1);
-          const manifestPath = name === "legacy" ? ".recomp-board.json" : ".recomp.json";
+          const primaryConflict = name === "launcher-primary-conflict";
+          const launcher = name?.startsWith("launcher") === true && !primaryConflict;
+          const manifestPath = launcher
+            ? "recomplauncher.json"
+            : name === "legacy"
+              ? ".recomp-board.json"
+              : ".recomp.json";
           const bytes = Buffer.from(
-            JSON.stringify({
-              game: "Fixture game",
-              type: "recomp",
-              system: "SNES",
-              ...(selected.project_url.endsWith("/scummvm") ? { toolchain: "ScummVM" } : {}),
-            }),
+            JSON.stringify(
+              launcher
+                ? {
+                    format: 1,
+                    repo: name === "launcher-foreign" ? "fixture/other" : `fixture/${name}`,
+                    ...(name === "launcher-excluded-title" ? { name: "ScummVM example" } : {}),
+                    inputs: [
+                      {
+                        id: "game",
+                        label: "Original game disc image",
+                        ...(name === "launcher-optional" ? { optional: true } : {}),
+                        ...(name === "launcher-nongame" ? { role: "key" } : {}),
+                        formats: [{ type: "file" }],
+                        check: { iso9660: "SLUS_206.51" },
+                      },
+                      ...(name === "launcher-extra-game"
+                        ? [
+                            {
+                              id: "extra",
+                              label: "Other original game",
+                              formats: [{ type: "file" }],
+                            },
+                          ]
+                        : []),
+                    ],
+                    start: {
+                      program: [
+                        name === "launcher-unsafe"
+                          ? "../outside.exe"
+                          : name === "launcher-excluded-program"
+                            ? "scummvm_x64.exe"
+                            : "bin/unknown-port.exe",
+                      ],
+                      args: ["--original", "{input:game}"],
+                    },
+                    ...(name === "launcher-multigame" ? { games: [{ id: "other" }] } : {}),
+                  }
+                : {
+                    game: "Fixture game",
+                    type: primaryConflict ? "framework" : "recomp",
+                    system: "SNES",
+                    ...(selected.project_url.endsWith("/scummvm") ? { toolchain: "ScummVM" } : {}),
+                  },
+            ),
           );
           const digest = createHash("sha1")
             .update(`blob ${bytes.length}\0`)
@@ -1104,6 +1158,13 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
                   ];
             if (name === "multi")
               entries.push({ path: ".recomp-2.json", type: "blob", mode: "100644", sha: digest });
+            if (primaryConflict)
+              entries.push({
+                path: "recomplauncher.json",
+                type: "blob",
+                mode: "100644",
+                sha: "d".repeat(40),
+              });
             return json({
               sha: tree,
               tree: name === "bad-tree" ? [...entries, null] : entries,
@@ -1126,7 +1187,7 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
       },
     };
     const { report } = await prepareDiscoveryListingAdditions(options);
-    assert.deepEqual(report.changed_records, ["github-80000", "github-80005"]);
+    assert.deepEqual(report.changed_records, ["github-80000", "github-80005", "github-80012"]);
     assert.deepEqual(
       report.outcomes.map(({ status }) => status),
       [
@@ -1142,9 +1203,19 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
         "held",
         "held",
         "unavailable",
+        "prepared",
+        "held",
+        "held",
+        "held",
+        "restricted",
+        "held",
+        "held",
+        "held",
+        "restricted",
+        "held",
       ],
     );
-    assert.equal(report.automatic_scope_policy, "github-primary-single-game-manifest/1");
+    assert.equal(report.automatic_scope_policy, "github-primary-single-game-manifest/2");
     assert.ok(report.admission);
     assert.deepEqual(report.released_validation, {
       status: "validated",
@@ -1191,6 +1262,15 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     );
     assert.equal(result.listing.original_game, undefined);
     assert.equal(result.integration, undefined);
+    const declared = checkedAuthoredPort(
+      JSON.parse(readFileSync(report.files.records[2]!.path, "utf8")),
+    );
+    assert.equal(
+      declared.original_game_review?.evidence_urls[1],
+      `https://github.com/fixture/launcher/blob/${sha}/recomplauncher.json`,
+    );
+    assert.equal(declared.listing.original_game, undefined);
+    assert.equal(declared.integration, undefined);
 
     refuse = false;
     scheduledReader = false;
@@ -1254,6 +1334,7 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     assert.deepEqual(git(["diff", "--cached", "--name-status"]).split(/\r?\n/u), [
       "A\tcrates/portcove-core/catalog/ports/github-80000.json",
       "A\tcrates/portcove-core/catalog/ports/github-80005.json",
+      "A\tcrates/portcove-core/catalog/ports/github-80012.json",
     ]);
   } finally {
     context.mock.restoreAll();
