@@ -5033,8 +5033,18 @@ void test("the mod-provider registry keeps exact discovery evidence across obser
   response = () => Response.json(registry(ship));
   const incomplete = await observe(limited.checkpoint);
   assert.equal(incomplete.checkpoint.mod_provider_registry?.exception, "identity-changed");
+  assert.deepEqual(incomplete.checkpoint.mod_provider_registry?.identity_conflicts, [
+    "2-ship-2-harkinian",
+  ]);
   assert.deepEqual(incomplete.checkpoint.mod_provider_registry?.last_complete, complete);
 
+  h.advanceClock(h.options.config.cadence_hours * 3600000);
+  response = () => new Response(null, { status: 503 });
+  const outage = await observe(incomplete.checkpoint);
+  assert.equal(outage.checkpoint.mod_provider_registry?.exception, "unavailable");
+  assert.deepEqual(outage.checkpoint.mod_provider_registry?.identity_conflicts, [
+    "2-ship-2-harkinian",
+  ]);
   h.advanceClock(h.options.config.cadence_hours * 3600000);
   response = () =>
     Response.json(
@@ -5043,8 +5053,9 @@ void test("the mod-provider registry keeps exact discovery evidence across obser
         thunderstore: { listed: false, wikiUrl: "https://example.com/games/20371" },
       }),
     );
-  const recovered = await observe(incomplete.checkpoint);
+  const recovered = await observe(outage.checkpoint);
   assert.equal(recovered.checkpoint.mod_provider_registry?.exception, null);
+  assert.equal(recovered.checkpoint.mod_provider_registry?.identity_conflicts, undefined);
   assert.equal(
     recovered.checkpoint.mod_provider_registry?.last_complete?.communities[0]?.gamebanana_game,
     null,

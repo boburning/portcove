@@ -26,6 +26,10 @@ import { validArtworkCollection, validArtworkMapping } from "./catalog-cover-map
 import { proveReleasedCoverInspection } from "./listing-cover-reader-proof.mts";
 import { readCatalogPublicationBundle } from "./release-catalog-inspection.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
+import {
+  listingModPortalDefaults,
+  withoutGeneratedModPortals,
+} from "./listing-mod-portal-projection.mts";
 import { compatibleGithubListingAssetUrl, observationHash } from "./upstream-observer.mts";
 import {
   catalogObservationSources,
@@ -59,6 +63,21 @@ export { listingDeliveryTarget, ListingPublicationStop };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const legacyListingFormat = 11;
 const latestListingFormat = 16;
+/** Rehearse optional portal bytes through the same final acceptance as the base. */
+export async function stageModPortalProjection<T, R>(
+  baseline: T,
+  project: () => T,
+  inspect: (value: T) => Promise<R>,
+  defer: (reason: string) => void,
+): Promise<{ projection: T; staged: R }> {
+  try {
+    const projection = project();
+    return { projection, staged: await inspect(projection) };
+  } catch (error) {
+    defer(error instanceof Error ? error.message : "candidate could not be inspected");
+  }
+  return { projection: baseline, staged: await inspect(baseline) };
+}
 interface Directory {
   format_version: number;
   listings: Record<string, unknown>[];
@@ -322,6 +341,7 @@ export function projectListingDelivery(
     /** Exact cover decisions for this generation and its authenticated predecessor. */
     coverCheckpoint?: ReturnType<typeof advanceArtworkCheckpoint>;
     sharedCoverDefaults?: ReturnType<typeof projectExactSharedCovers>;
+    modPortalDefaults?: ReturnType<typeof listingModPortalDefaults>;
   } = {},
 ) {
   const {
@@ -332,6 +352,7 @@ export function projectListingDelivery(
     byteLimit = compactListingDecodedMaximum,
     coverCheckpoint,
     sharedCoverDefaults,
+    modPortalDefaults,
   } = options;
   const raw = directory(canonical);
   const previousDocument = previous
@@ -389,6 +410,8 @@ export function projectListingDelivery(
     value && typeof value.observed_at === "string" ? Date.parse(value.observed_at) : -Infinity;
   let retained = 0;
   let updated = 0;
+  let generatedModPortals = 0;
+  let deferredModPortals = 0;
   const listings = baseline.listings
     .filter((listing) => !withdrawalSet.has(String(listing.id)))
     .map((listing) => {
@@ -398,11 +421,11 @@ export function projectListingDelivery(
       if (defaultCover && !declaration.artwork && !declaration.collection_covers)
         result.artwork = defaultCover;
       const old = previousListings.get(listing.id);
-      let priorDeclaration = old;
+      let priorDeclaration = old ? withoutGeneratedModPortals(old) : undefined;
       if (old && !declaration.artwork && !declaration.collection_covers && sharedCoverDefaults) {
         // For a listing without an authored cover, the previous generated
         // cover is independent of its release evidence.
-        priorDeclaration = { ...old };
+        priorDeclaration = { ...priorDeclaration };
         delete priorDeclaration.artwork;
       }
       let comparable = listing;
@@ -454,6 +477,19 @@ export function projectListingDelivery(
           observationHash(omitUnknownAssetDigests(old?.upstream_observation ?? null))
       )
         updated++;
+      const portal = format >= 16 ? modPortalDefaults?.(listing, old) : undefined;
+      if (portal) {
+        const modPortals: unknown[] = Array.isArray(result.mod_portals) ? result.mod_portals : [];
+        const enriched: Record<string, unknown> = {
+          ...result,
+          mod_portals: [...modPortals, portal],
+        };
+        if (Buffer.byteLength(JSON.stringify(enriched)) <= compactListingRecordMaximum) {
+          generatedModPortals++;
+          return enriched;
+        }
+        deferredModPortals++;
+      }
       return result;
     })
     .sort((a, b) => String(a.id).localeCompare(String(b.id), "en"));
@@ -492,7 +528,14 @@ export function projectListingDelivery(
   };
   if (byteLimit > compactListingDecodedMaximum)
     throw new Error("Descriptive byte bound exceeds the compact decoded maximum");
-  const bytes = Buffer.from(JSON.stringify(candidate));
+  let bytes = Buffer.from(JSON.stringify(candidate));
+  if (bytes.length > byteLimit && generatedModPortals > 0) {
+    // Optional portal data cannot stop availability or artwork delivery.
+    candidate.directory.listings = listings.map(withoutGeneratedModPortals);
+    deferredModPortals += generatedModPortals;
+    generatedModPortals = 0;
+    bytes = Buffer.from(JSON.stringify(candidate));
+  }
   if (bytes.length > byteLimit)
     throw new ListingPublicationStop(
       "decoded_bound",
@@ -504,6 +547,8 @@ export function projectListingDelivery(
     updated,
     canonical_records: raw.listings.length,
     delivered_records: listings.length,
+    generated_mod_portals: generatedModPortals,
+    deferred_mod_portals: deferredModPortals,
   };
   if (
     previousDocument &&
@@ -1098,6 +1143,7 @@ export async function prepareObservationBundle(options: {
 
   const now = Date.now();
   let candidates: Record<string, unknown>[] = [];
+  let registry: unknown;
   let compatible: Directory | undefined;
   if (!renewal) {
     const baseline: unknown = JSON.parse(
@@ -1127,12 +1173,41 @@ export async function prepareObservationBundle(options: {
             ))
         )();
         observerRevision = input.revision;
+        if (isRecord(input.checkpoint)) registry = input.checkpoint.mod_provider_registry;
         candidates = completedListingCandidates(input, current, canonical, now, diagnostics);
       } catch (error) {
         diagnostics.push(
           `observer unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "read failed"}`,
         );
       }
+    }
+  }
+  let modPortalDefaults: ReturnType<typeof listingModPortalDefaults> | undefined;
+  if (automatic && format >= 16 && !renewal) {
+    try {
+      const source = readCatalogSource(path.dirname(options.canonical));
+      if (
+        observationHash(source.directory) !== observationHash(canonical) ||
+        observationHash(source.catalog) !== observationHash(current)
+      )
+        throw new Error("Mod portal declarations differ from the canonical listing input.");
+      const excluded = new Set(
+        source.authored
+          .filter((record) => record.no_observed_mod_portals)
+          .map((record) => record.listing.id),
+      );
+      try {
+        modPortalDefaults = listingModPortalDefaults(current, registry, excluded, now);
+      } catch (error) {
+        diagnostics.push(
+          `mod source observer unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "invalid registry"}`,
+        );
+        modPortalDefaults = listingModPortalDefaults(current, undefined, excluded, now);
+      }
+    } catch (error) {
+      diagnostics.push(
+        `mod source projection deferred: ${error instanceof Error ? error.message.slice(0, 300) : "read failed"}`,
+      );
     }
   }
   let coverCheckpoint: ReturnType<typeof advanceArtworkCheckpoint> | undefined;
@@ -1199,7 +1274,10 @@ export async function prepareObservationBundle(options: {
   // Every compact revision exceeds the frozen legacy revision, the signer's
   // replay floor for the first compact publication.
   let withdrawals: string[] = [];
-  const project = (observations: readonly Record<string, unknown>[]) =>
+  const project = (
+    observations: readonly Record<string, unknown>[],
+    portals?: ReturnType<typeof listingModPortalDefaults>,
+  ) =>
     publishedAbove(
       projectListingDelivery(canonical, observations, previous, {
         revisionFloor: legacyDocument.revision,
@@ -1208,6 +1286,7 @@ export async function prepareObservationBundle(options: {
         withdrawals,
         ...(coverCheckpoint ? { coverCheckpoint } : {}),
         ...(sharedCoverDefaults ? { sharedCoverDefaults } : {}),
+        ...(portals ? { modPortalDefaults: portals } : {}),
       }),
       legacyDocument.revision,
     );
@@ -1238,19 +1317,12 @@ export async function prepareObservationBundle(options: {
     return { wire, cover };
   };
   let projected:
-    | Pick<
-        ReturnType<typeof retainedListingRenewal>,
-        | "bytes"
-        | "revision"
-        | "changed"
-        | "retained"
-        | "updated"
-        | "canonical_records"
-        | "delivered_records"
-      >
+    | ReturnType<typeof retainedListingRenewal>
+    | ReturnType<typeof projectListingDelivery>
     | undefined = renewal;
   const renewedBeforeProjection = renewal !== undefined;
   let excludedCandidates: string[] = [];
+  let admitted = candidates;
   // A listing-only failure stops listing publication, never the catalog:
   // projection, encoding and Core's refusal of the final staged publication
   // renew the exact prior listing targets and the report records the stop.
@@ -1296,6 +1368,7 @@ export async function prepareObservationBundle(options: {
           }
         };
         const isolated = await isolateValidEnrichment(candidates, accepts);
+        admitted = isolated.admitted;
         if (isolated.excluded.length) {
           excludedCandidates = isolated.excluded.map((candidate) => String(candidate.id));
           diagnostics.push(
@@ -1321,9 +1394,9 @@ export async function prepareObservationBundle(options: {
   let coverProof: Awaited<ReturnType<typeof proveReleasedCoverInspection>> | undefined;
   if (!stopped) {
     if (!projected) throw new Error("No listing projection was prepared");
-    try {
-      const staged = stage(projected, bundle);
-      wire = staged.wire;
+    const stageFinal = async (value: { bytes: Buffer; changed: boolean }) => {
+      const staged = stage(value, bundle);
+      let proof: typeof coverProof;
       if (options.activateCoverCheckpoint && !staged.cover) {
         throw new ListingPublicationStop(
           "cover_evidence_unavailable",
@@ -1332,7 +1405,7 @@ export async function prepareObservationBundle(options: {
       }
       if (
         staged.cover &&
-        (!priorCover?.equals(staged.cover) || !wire || !compactWire?.equals(wire))
+        (!priorCover?.equals(staged.cover) || !staged.wire || !compactWire?.equals(staged.wire))
       ) {
         try {
           const reader = officialReader ?? (await acquireReader(workspace));
@@ -1341,7 +1414,7 @@ export async function prepareObservationBundle(options: {
             performance.now() + 90_000,
             true,
           );
-          coverProof = await proveReleasedCoverInspection(reader, workspace, bundle, files);
+          proof = await proveReleasedCoverInspection(reader, workspace, bundle, files);
         } catch (error) {
           throw new ListingPublicationStop(
             "cover_reader_unavailable",
@@ -1351,6 +1424,24 @@ export async function prepareObservationBundle(options: {
             },
           );
         }
+      }
+      return { wire: staged.wire, proof };
+    };
+    try {
+      if (modPortalDefaults) {
+        const selected = await stageModPortalProjection(
+          projected,
+          () => project(admitted, modPortalDefaults),
+          stageFinal,
+          (reason) => {
+            diagnostics.push(`mod source projection deferred: ${reason.slice(0, 300)}`);
+            rmSync(bundle, { recursive: true, force: true });
+          },
+        );
+        projected = selected.projection;
+        ({ wire, proof: coverProof } = selected.staged);
+      } else {
+        ({ wire, proof: coverProof } = await stageFinal(projected));
       }
     } catch (error) {
       // Core refusing an exact prior renewal is never a listing-only stop.
@@ -1443,6 +1534,12 @@ export async function prepareObservationBundle(options: {
     retained: projected.retained,
     updated: projected.updated,
     source_candidates: candidates.length,
+    ...("generated_mod_portals" in projected
+      ? {
+          generated_mod_portals: projected.generated_mod_portals,
+          deferred_mod_portals: projected.deferred_mod_portals,
+        }
+      : {}),
     observer_revision: observerRevision,
     canonical_sha256: hash(canonicalBytes),
     catalog_sha256: hash(catalogBytes),

@@ -949,13 +949,22 @@ export async function advanceCatalogObservations(
     Math.min(template.budget.requests, requestCeiling) > 1 &&
     (!state.mod_provider_registry || Date.parse(state.mod_provider_registry.next_due_at) <= now())
   ) {
+    const retainedRegistry = state.mod_provider_registry;
+    const retainedConflicts = retainedRegistry?.identity_conflicts;
+    const conflictReserve =
+      retainedConflicts &&
+      Buffer.byteLength(JSON.stringify(retainedConflicts)) >
+        Buffer.byteLength(JSON.stringify("unknown"))
+        ? retainedConflicts
+        : "unknown";
     // Reserve space for Retry-After before spending the request. The longest
     // ISO representation covers even a provider delay in an extended year.
     if (
       registryFits({
-        last_complete: state.mod_provider_registry?.last_complete ?? null,
+        last_complete: retainedRegistry?.last_complete ?? null,
+        ...(retainedRegistry?.last_complete ? { identity_conflicts: conflictReserve } : {}),
         next_due_at: "+275760-09-13T00:00:00.000Z",
-        exception: "rate-limit",
+        exception: retainedRegistry?.last_complete ? "identity-changed" : "rate-limit",
       })
     ) {
       const result = await observeModProviderRegistry(state.mod_provider_registry, {
@@ -969,8 +978,16 @@ export async function advanceCatalogObservations(
       });
       requests++;
       responseBytes += result.bytes;
-      if (result.progress.exception === "rate-limit") {
-        state.mod_provider_registry = result.progress;
+      if (
+        result.progress.exception === "rate-limit" ||
+        result.progress.exception === "identity-changed"
+      ) {
+        // Record known identity invalidation before unrelated release progress
+        // can consume the remaining checkpoint. The compact marker was reserved
+        // before the request and safely suspends all links if details cannot fit.
+        state.mod_provider_registry = registryFits(result.progress)
+          ? result.progress
+          : { ...result.progress, identity_conflicts: "unknown" };
         await commitCheckpoint();
       } else if (!options.signal?.aborted) registryProgress = result.progress;
     } else {
