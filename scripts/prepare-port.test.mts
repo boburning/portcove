@@ -2976,6 +2976,9 @@ void test("batch selection and mixed CLI modes fail before provider work or chec
       ["--artwork-ids", ids[0]!, "--project", project],
       ["--artwork-ids", ids[0]!, "--record", "unread-file.json"],
       ["--refresh-artwork", ids[0]!],
+      ["--artwork-ids", ids[0]!, "--artwork-due-limit", "1"],
+      ["--artwork-ids", "@due", "--artwork-due-limit", "401"],
+      ["--artwork-ids", "@due", "--artwork-due-limit", "1", "--artwork-retained-limit", "1"],
     ]) {
       const result = childProcess.spawnSync(
         process.execPath,
@@ -2983,7 +2986,7 @@ void test("batch selection and mixed CLI modes fail before provider work or chec
         { encoding: "utf8", timeout: 10000 },
       );
       assert.notEqual(result.status, 0);
-      assert.match(result.stderr, /cannot mix|requires --artwork-ids/);
+      assert.match(result.stderr, /cannot mix|requires --artwork-ids|requires @due|Choose either/);
       assert.deepEqual(readdirSync(f.root), []);
     }
   } finally {
