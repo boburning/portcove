@@ -65,13 +65,15 @@ export default interface Resources {
     "automaticSnapshots": {
       "checking": "Checking automatic snapshots for this library…",
       "control": "Snapshot saved data before each version change",
-      "coverage": "Before a version change, Portcove can snapshot existing saves and settings it manages. See Backups for completed copies.",
+      "coverage": "Before a version change, Portcove can snapshot existing saves and settings it manages. See Saves & backups for completed copies.",
       "description": "Before an update installs, a saved update is activated, or you restore a previous version, Portcove copies a game’s managed saves and settings so you can restore them if the new version misreads them. It skips games whose saves live outside Portcove and games with no saved data yet, and if a snapshot cannot be taken the version change stops. Portcove keeps the newest five automatic snapshots for each game and never removes the ones you take yourself. This applies to every game in this library, starting with the next version change.",
+      "disableUnconfirmed": "Portcove couldn’t confirm whether automatic snapshots were turned off.",
       "disabled": "Automatic snapshots before version changes are off for this library.",
+      "enableUnconfirmed": "Portcove couldn’t confirm whether automatic snapshots were turned on.",
       "enabled": "Automatic snapshots before version changes are on for this library.",
       "heading": "Snapshot saved data before version changes",
       "readFailed": "The setting could not be read.",
-      "retry": "Try again",
+      "retry": "Read setting again",
       "saveFailed": "Portcove couldn’t confirm the result of saving this setting.",
       "unavailable": "Portcove couldn’t check this library’s automatic snapshot setting."
     },
