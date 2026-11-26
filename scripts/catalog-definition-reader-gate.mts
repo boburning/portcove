@@ -13,6 +13,7 @@ import {
   liveReleasedReaderSources,
   requireCurrentCatalogReaderSelection,
 } from "./catalog-released-reader.mts";
+import { artworkCheckpointTarget } from "./listing-artwork-checkpoint.mts";
 import {
   compactListingDeliveryTarget,
   listingDeliveryTarget,
@@ -27,6 +28,7 @@ const run = promisify(execFile);
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const index = "definitions/index.json";
 const separateTargets = new Set([
+  artworkCheckpointTarget,
   listingDeliveryTarget,
   compactListingDeliveryTarget,
   "policy/official/catalog.history-checkpoint.json",

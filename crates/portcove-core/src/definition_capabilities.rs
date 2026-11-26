@@ -106,6 +106,7 @@ definition_features! {
     // Read by the publisher policy parser, not an entry field: this reader
     // accepts `decision_schema: 2` (entry-bound) publisher policy decisions.
     PolicyDecisionV2 => "catalog.policy-decision-v2", "policy/official/*.json decision_schema";
+    CoverCheckpointV1 => "catalog.cover-checkpoint-v1", "policy/official/catalog.cover-checkpoint.json";
 }
 
 const UNKNOWN_REQUIRED_FEATURE: &str = "unknown_required_feature";
