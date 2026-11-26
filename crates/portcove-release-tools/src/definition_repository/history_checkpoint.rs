@@ -607,7 +607,8 @@ impl VerifiedHistory {
                 .is_some_and(|(_, name)| name == target)
         });
         let Some(predecessor) = covered.next() else {
-            return Ok(());
+            return portcove_listing_carrier::check_cover_checkpoint_successor(None, current)
+                .map_err(|error| TufRepositoryError::Invalid(error.to_string()));
         };
         if covered.next().is_some() {
             return invalid("catalog history repeats a covered checkpoint");
@@ -891,6 +892,11 @@ mod tests {
             }],
         });
         let bytes = serde_json::to_vec(&cover).unwrap();
+        let (uncovered, _) = checkpoint_chain(directory.path(), &root, 0);
+        uncovered.check_cover_predecessor(None).unwrap();
+        uncovered
+            .check_cover_predecessor(Some((&bytes, &listing)))
+            .unwrap();
         let digest = sha(&bytes);
         let target = portcove_listing_carrier::COVER_CHECKPOINT_TARGET;
         let prepared = bootstrap(
@@ -932,9 +938,23 @@ mod tests {
                 .is_err()
         );
         cover["prior_checkpoint_sha256"] = serde_json::json!(digest);
+        let successor = serde_json::to_vec(&cover).unwrap();
+        assert!(
+            uncovered
+                .check_cover_predecessor(Some((&successor, &listing)))
+                .is_err()
+        );
         verified
-            .check_cover_predecessor(Some((&serde_json::to_vec(&cover).unwrap(), &listing)))
+            .check_cover_predecessor(Some((&successor, &listing)))
             .unwrap();
+        cover["prior_checkpoint_sha256"] = serde_json::json!(null);
+        cover["entries"][0]["state"] = serde_json::json!("restored");
+        let restored_genesis = serde_json::to_vec(&cover).unwrap();
+        assert!(
+            uncovered
+                .check_cover_predecessor(Some((&restored_genesis, &listing)))
+                .is_err()
+        );
     }
 
     #[test]
