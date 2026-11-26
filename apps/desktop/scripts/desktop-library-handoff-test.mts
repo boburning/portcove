@@ -55,13 +55,17 @@ export async function prepareLibraryRecoveryBundleFixture({
   command,
   tool,
 }: Pick<HandoffContext, "library" | "output" | "command"> & { tool: string }) {
-  assert.equal(process.platform, "win32");
+  assert.ok(
+    process.platform === "win32" || (process.platform === "linux" && process.arch === "x64"),
+    "Recovery fixture requires Windows or Linux x86-64",
+  );
   assert.equal(path.resolve(library), path.resolve(output, "library"));
   const original = path.join(output, "bundle-adoption-source");
   const portId = "zelda64-recomp";
   const port = transportValue("port", command(["catalog", "show", portId]));
   await mkdir(original);
-  await copyFile(tool, path.join(original, required(port.executable_hints["windows-x86-64"]?.[0])));
+  const platform = process.platform === "win32" ? "windows-x86-64" : "linux-x86-64";
+  await copyFile(tool, path.join(original, required(port.executable_hints[platform]?.[0])));
   await writeFile(path.join(original, "general.json"), "{}\n", {
     flag: "wx",
   });

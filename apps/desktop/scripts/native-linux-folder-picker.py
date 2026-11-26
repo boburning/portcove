@@ -100,6 +100,7 @@ def main():
     parser.add_argument("--application", required=True)
     parser.add_argument("--application-sha256", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--purpose", choices=("game-files", "restored-library"), default="game-files")
     parser.add_argument("--directory")
     args = parser.parse_args()
     if args.launch_pid <= 1 or not args.launch_started.isdecimal():
@@ -113,6 +114,11 @@ def main():
         directory = selected.resolve(strict=True)
         if directory == output or output not in directory.parents:
             raise RuntimeError("Picker directory escaped owned output")
+    title = "Choose game files folder"
+    if args.purpose == "restored-library":
+        if directory is None or directory != output / "restored-library":
+            raise RuntimeError("Library picker requires the owned restored library")
+        title = "Choose Portcove library"
     launch = OwnedLaunch(args.launch_pid, args.launch_started, args.launch_nonce, args.application, args.application_sha256)
     try:
         import gi
@@ -129,7 +135,6 @@ def main():
             None, None,
         )
         deadline = time.monotonic() + 10
-        title = "Choose game files folder"
         application = None
         bus_name = None
         while time.monotonic() < deadline and application is None:

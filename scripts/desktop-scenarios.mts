@@ -723,7 +723,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     {
       prerequisites: ["desktop", "owned-fixture", "native-dialog"],
       host_resources: [...nativeResources, "native-dialog"],
-      platforms: ["win32"],
+      platforms: ["win32", "linux"],
       qualification_only: true,
       source: "desktop-library-handoff-test.mts",
     },
@@ -1021,9 +1021,11 @@ export function resolveDesktopSelection({
     throw new Error("native-external-runtime-review requires one exact standalone scenario");
   if (
     uniqueRequested.includes("native-library-recovery-bundle") &&
-    (uniqueRequested.length !== 1 || platform !== "win32")
+    (uniqueRequested.length !== 1 || !["win32", "linux"].includes(platform))
   )
-    throw new Error("native-library-recovery-bundle requires one standalone Windows scenario");
+    throw new Error(
+      "native-library-recovery-bundle requires one standalone Windows or Linux scenario",
+    );
   const hostPublication = hostPublicationScenarios.find((id) => uniqueRequested.includes(id));
   if (hostPublication && (uniqueRequested.length !== 1 || platform !== "win32"))
     throw new Error(`${hostPublication} requires one standalone Windows scenario`);

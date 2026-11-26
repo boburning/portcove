@@ -234,7 +234,7 @@ export function nativePreparedRuntimePicker(options: NativePickerContext) {
 }
 
 export function nativeGameFileFolderPicker(options: NativePickerContext) {
-  if (process.platform === "linux") return ownedLinuxGameFilePicker(options);
+  if (process.platform === "linux") return ownedLinuxFolderPicker(options, "game-files");
   return (name: string, directoryPath?: string) =>
     ownedRuntimePicker({ ...options, gameFilePicker: true }, Boolean(directoryPath))(
       name,
@@ -242,18 +242,38 @@ export function nativeGameFileFolderPicker(options: NativePickerContext) {
     );
 }
 
-function ownedLinuxGameFilePicker({
-  application,
-  getLinuxLaunch,
-  output,
-  artifacts,
-}: NativePickerContext) {
+export function nativeLinuxRecoveryLibraryPicker(options: NativePickerContext) {
+  const pick = ownedLinuxFolderPicker(options, "restored-library");
+  return async (
+    title: string,
+    button: string,
+    expectedText: string,
+    name: string,
+    filePath?: string,
+    directoryPath?: string,
+  ) => {
+    assert.equal(process.platform, "linux");
+    assert.equal(title, "Choose Portcove library");
+    assert.equal(button, "Select Folder");
+    assert.equal(expectedText, "Folder");
+    assert.equal(filePath, undefined);
+    assert.ok(directoryPath);
+    assert.equal(directoryPath, path.join(options.output, "restored-library"));
+    return pick(name, directoryPath);
+  };
+}
+
+function ownedLinuxFolderPicker(
+  { application, getLinuxLaunch, output, artifacts }: NativePickerContext,
+  purpose: "game-files" | "restored-library",
+) {
   return async (name: string, directoryPath?: string) => {
     assert.match(name, /^[a-z0-9-]+$/u);
     if (directoryPath)
       await validatePickerInput({
         output,
-        title: "Choose game files folder",
+        title:
+          purpose === "restored-library" ? "Choose Portcove library" : "Choose game files folder",
         button: "Select Folder",
         directoryPath,
       });
@@ -299,6 +319,8 @@ function ownedLinuxGameFilePicker({
         sha256,
         "--output",
         output,
+        "--purpose",
+        purpose,
         ...(directoryPath ? ["--directory", directoryPath] : []),
       ],
       { encoding: "utf8", timeout: 15_000 },

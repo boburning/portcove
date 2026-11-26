@@ -3096,20 +3096,22 @@ void test("isolated reviewed backup chains retain the finite lifecycle allowance
   );
 });
 
-void test("recovery bundle creation and restoration stay in one explicitly selected Windows scenario", () => {
+void test("recovery bundle creation and restoration require one explicit Windows or Linux scenario", () => {
   const id = "native-library-recovery-bundle";
   assert.equal(desktopScenarioById.get(id)?.qualification_only, true);
   for (const scenarios of Object.values(DESKTOP_PROFILES)) assert.ok(!scenarios.includes(id));
-  const selected = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
-  assert.deepEqual(selected.selected_scenarios, [id]);
-  assert.deepEqual(selected.setup_scenarios, []);
+  for (const platform of ["win32", "linux"] as const) {
+    const selected = resolveDesktopSelection({ scenarios: [id], platform });
+    assert.deepEqual(selected.selected_scenarios, [id]);
+    assert.deepEqual(selected.setup_scenarios, []);
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform }),
+      /standalone/,
+    );
+  }
   assert.throws(
-    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
-    /standalone/,
-  );
-  assert.throws(
-    () => resolveDesktopSelection({ scenarios: [id], platform: "linux" }),
-    /Windows|win32/,
+    () => resolveDesktopSelection({ scenarios: [id], platform: "darwin" }),
+    /Windows or Linux/,
   );
 });
 

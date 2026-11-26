@@ -2067,6 +2067,29 @@ void test("recovery copy and restore bind the exact seeded artwork input", () =>
   }
 });
 
+void test("Linux recovery binds the owned folder picker and the ordinary app inputs", () => {
+  const id = "native-library-recovery-bundle";
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({ scenarios: [id], platform: "linux" }),
+    {
+      platform: "linux",
+    },
+  );
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.ok(plan.selection.host_resources.includes("native-dialog"));
+  assert.deepEqual(plan.fixtureFamilies.find(({ family }) => family === "preparation")?.members, [
+    { id, role: "selected" },
+  ]);
+  for (const name of ["native-linux-folder-picker.py", "testdata/catalog-artwork-red.jpg"]) {
+    assert.ok(
+      plan.receiptInputs.some(
+        (input) => input.kind === "file" && input.path === `apps/desktop/scripts/${name}`,
+      ),
+    );
+  }
+});
+
 void test("local artwork owns its exact private catalog fixture without enabling fixture CLI", () => {
   const id = "native-local-artwork-picker-and-recovery";
   const selections = [
