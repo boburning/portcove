@@ -7492,6 +7492,14 @@ This choice applies only to the gallery. Exact port media and the Cover and
 text fallbacks remain available. Offered editions and similar ID strings do not
 establish a selected source edition.
 
+Catalog generation can reuse an accepted IGDB asset for an original game in
+other listings that offer that exact game and source edition. The generated view
+retains the asset's subject, source and rights. An authored asset takes
+precedence for its role, and an explicit empty media array clears shared
+defaults. Conflicting defaults for a logo, background or key art stay unresolved.
+Screenshots with the same stable asset ID must agree. Implementation artwork
+stays with its port.
+
 Maintainer `--prepare-artwork`/`--prepare-proposal` can additionally use
 `--hero-media igdb` with the existing identity facts, private credentials and Core
 image validator. It queries `/v4/logos`, `/v4/artworks` and `/v4/screenshots` through
