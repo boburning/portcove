@@ -478,9 +478,7 @@ function ArtworkSlotControl({
       request.generation !== cache?.generation ||
       request.portId !== port.id ||
       request.originalGameId !== originalGameId ||
-      (focused !== null &&
-        focused !== document.body &&
-        (focused !== request.from || !panel.contains(focused)))
+      (focused !== null && focused !== document.body && focused !== request.from)
     ) {
       returnFocus.current = null;
       return;
