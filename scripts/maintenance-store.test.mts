@@ -55,6 +55,36 @@ void test("backup fingerprint responses fit the actual local client envelope", (
   assert.equal(backupFingerprintResponseLimit(2_000, 1_024), 1_023);
 });
 
+void test("recovery validates local destinations before admission and rechecks them before export", async (context) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-recovery-destinations-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const output = path.join(root, "backup");
+  const prefixDatabase = { PGHOST: "/fixture", PGDATABASE: "prefix" };
+  const target = { PGHOST: "/fixture", PGDATABASE: "target" };
+  const options = { source: {}, prefixDatabase, target, output };
+  assert.throws(
+    () => createBackupRecovery({ ...options, target: { PGHOST: "database.example" } }),
+    /must use a local Unix socket/u,
+  );
+  assert.throws(
+    () => createBackupRecovery({ ...options, target: { ...target, PGSERVICE: "redirected" } }),
+    /must use a direct local connection/u,
+  );
+  assert.throws(
+    () => createBackupRecovery({ ...options, target: prefixDatabase }),
+    /must be distinct/u,
+  );
+  const recover = createBackupRecovery(options);
+  writeFileSync(output, "existing data");
+  assert.throws(() => createBackupRecovery(options), /Backup destination already exists/u);
+  await assert.rejects(recover(48_000_000), /Backup destination already exists/u);
+  await assert.rejects(
+    backupReusingHistory({ ...options, reservedBytes: 48_000_000 }),
+    /Backup destination already exists/u,
+  );
+  assert.equal(readFileSync(output, "utf8"), "existing data");
+});
+
 void test("connection URLs become libpq environment without exposing secrets in arguments", () => {
   assert.deepEqual(
     libpqEnvironmentFromUrl(
@@ -1160,11 +1190,25 @@ void test(
     const ledger = (request: string) =>
       queryJson(
         source,
-        `SELECT json_agg(
+        `SELECT coalesce(json_agg(
       json_build_object('outcome', outcome, 'reserved', reserved_bytes, 'estimate', estimate_bytes)
-      ORDER BY started_at, attempt_id) FROM portcove_maintenance_meta.resource_admissions
+      ORDER BY started_at, attempt_id), '[]'::json) FROM portcove_maintenance_meta.resource_admissions
       WHERE request_key = '${request}';`,
       ) as { outcome: string; reserved: number; estimate: number | null }[];
+    const occupied = path.join(fixture.root, "occupied-backup");
+    writeFileSync(occupied, "existing data");
+    await assert.rejects(async () => {
+      const rejected = createBackupRecovery({
+        source,
+        prefixDatabase,
+        target,
+        output: occupied,
+      });
+      await retryBackupAdmission((bytes) =>
+        runAdmittedMaintenance(source, reserve("occupied-backup", bytes), rejected),
+      );
+    }, /Backup destination already exists/u);
+    assert.deepEqual(ledger("occupied-backup"), []);
     const result = await retryBackupAdmission((bytes) =>
       runAdmittedMaintenance(source, reserve("real-recovery", bytes), recover, {
         estimate: ({ transfer }) =>
