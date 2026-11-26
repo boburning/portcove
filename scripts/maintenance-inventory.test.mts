@@ -273,7 +273,7 @@ void test("the issue collector reads only its own named credential and removes i
   }
 });
 
-void test("the hosted workflow runs daily on main with least privilege and a read-only Project credential", () => {
+void test("the hosted workflow runs daily on main with least privilege and a read-only Project credential", (context) => {
   const source = readFileSync(
     new URL("../.github/workflows/maintenance-inventory.yml", import.meta.url),
     "utf8",
@@ -339,6 +339,37 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     step.run?.includes("discovery-worker.mts collect"),
   )!;
   assert.equal(discoveryStep.env!.GH_TOKEN, "${{ github.token }}");
+  const previewStep = discover.steps.find((step) => step.run?.includes("--discovery-listings"))!;
+  assert.match(previewStep.if!, /github.event_name == 'schedule'/u);
+  assert.match(previewStep.if!, /steps.discover.outcome == 'success'/u);
+  assert.match(previewStep.if!, /steps.discover.outputs.listing_preview == 'true'/u);
+  assert.match(discoveryStep.run!, /listing_preview_sha256/u);
+  assert.match(discoveryStep.run!, /createHash\("sha256"\)/u);
+  assert.match(previewStep.run!, /--discovery-deadline-epoch-ms/u);
+  assert.deepEqual(previewStep.env, { GH_TOKEN: "${{ github.token }}" });
+  const previewGate = discoveryStep.run!.match(/node -e '([^']+)' >> "\$GITHUB_OUTPUT"/u)?.[1];
+  assert.ok(previewGate);
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-scheduled-preview-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const workerOutput = path.join(root, "work", "discovery-worker");
+  mkdirSync(workerOutput, { recursive: true });
+  const handoff = JSON.stringify({ candidates: [{ id: "retained-candidate" }] });
+  const digest = createHash("sha256").update(handoff).digest("hex");
+  writeFileSync(path.join(workerOutput, "listing-preview-handoff.json"), handoff);
+  const gate = (outcome: string, expectedDigest = digest) => {
+    writeFileSync(
+      path.join(workerOutput, "result.json"),
+      JSON.stringify({ outcome, listing_preview_sha256: expectedDigest }),
+    );
+    return execFileSync(process.execPath, ["-e", previewGate], { cwd: root, encoding: "utf8" });
+  };
+  assert.equal(gate("deferred"), "");
+  assert.equal(gate("failed"), "");
+  assert.equal(gate("complete").trim(), "listing_preview=true");
+  assert.throws(
+    () => gate("complete", "0".repeat(64)),
+    /Current listing preview handoff differs from the collection result/u,
+  );
   const resume = workflow.jobs["resume-intake-audits"]!;
   assert.match(resume.if!, /github.event_name == 'schedule'/u);
   assert.match(resume.if!, /audit_continuations != '\[\]'/u);

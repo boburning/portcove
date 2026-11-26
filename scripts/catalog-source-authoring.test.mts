@@ -50,6 +50,54 @@ const schema2Fixture = fixtureJson(
 );
 const schema3Fixture = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
 
+void test("reviewed mod websites promote the directory without an operational definition", () => {
+  const link = {
+    id: "community",
+    site: "nexus_mods",
+    name: "Nexus Mods",
+    url: "https://www.nexusmods.com/fixture",
+    instructions: "Check the community page for mod requirements.",
+  };
+  const listing = {
+    id: "unmanaged-mod-portal",
+    name: "Unmanaged Mod Portal",
+    summary: "A fixture for signed descriptive links.",
+    project_url: "https://github.com/example/fixture",
+  };
+  const record = checkedAuthoredPort({
+    format_version: 1,
+    listing: { ...listing, mod_portals: [link] },
+  });
+  const assembled = assembleCatalogRecords(
+    {
+      schema_version: 3,
+      source_catalog: {
+        identities: [],
+        contracts: [],
+        validators: [],
+        evidence: [],
+        qualification: [],
+      },
+    },
+    [record],
+  );
+  assert.equal(assembled.directory.format_version, 16);
+  assert.deepEqual(assembled.directory.listings[0]?.mod_portals, [link]);
+  assert.deepEqual(assembled.catalog.ports, []);
+  assert.equal(listingDeclarationHash(listing), listingDeclarationHash(record.listing));
+  for (const portals of [
+    [{ ...link, authority: "inspect" }],
+    [{ ...link, url: "https://example.com/fixture" }],
+    [link, { ...link }],
+  ]) {
+    assert.throws(
+      () =>
+        checkedAuthoredPort({ format_version: 1, listing: { ...listing, mod_portals: portals } }),
+      /mod portal/u,
+    );
+  }
+});
+
 void test("managed platform warnings are checked and stay outside definition projections", () => {
   const authored = checkedAuthoredPort(
     fixtureJson(readFileSync(join(catalogRoot, "ports", "snap64-recomp.json"))),

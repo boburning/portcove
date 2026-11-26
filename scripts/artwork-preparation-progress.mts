@@ -64,6 +64,22 @@ function readOwned(root: string, name: string): unknown {
     throw error;
   }
 }
+
+export function readKnownGoneArtwork(root: string) {
+  const document = readOwned(root, "artwork-gone.json");
+  if (
+    document !== null &&
+    (!isRecord(document) ||
+      document.format !== 1 ||
+      !Array.isArray(document.image_ids) ||
+      document.sha256 !== observationHash(document.image_ids) ||
+      document.image_ids.some(
+        (id: unknown) => typeof id !== "string" || !/^[A-Za-z0-9_]{1,128}$/u.test(id),
+      ))
+  )
+    throw new Error("Invalid retained exact-image Gone observations");
+  return new Set<string>(isRecord(document) ? (document.image_ids as string[]) : []);
+}
 function replaceOwned(root: string, name: string, value: unknown) {
   const filename = join(root, name);
   readOwned(root, name);
@@ -87,6 +103,50 @@ function replaceOwned(root: string, name: string, value: unknown) {
 function itemStateName(id: string, refresh: boolean, maintenance: boolean) {
   const kind = maintenance ? "maintenance-" : refresh ? "refresh-" : "";
   return `artwork-${kind}progress-${id}.json`;
+}
+
+export function retainedCoverDigests(root: string, portIds: readonly string[], now: number) {
+  const observed = new Map<string, { at: number; digest: string | null }>();
+  const retain = (id: string, at: number, digest: string | null) => {
+    const previous = observed.get(id);
+    if (!previous || at > previous.at) observed.set(id, { at, digest });
+    else if (at === previous.at && previous.digest !== digest)
+      observed.set(id, { at, digest: null });
+  };
+  for (const id of portIds) {
+    for (const [refresh, maintenance] of [
+      [false, false],
+      [true, false],
+      [true, true],
+    ] as const) {
+      const state = itemState(root, id, now, refresh, maintenance);
+      if (!state) continue;
+      const { mapping, checks, exceptions } = state.result.record;
+      for (const issue of exceptions) {
+        if (
+          isRecord(issue) &&
+          (issue.reason === "collection-image-digest-changed" ||
+            issue.reason === "companion-image-digest-changed") &&
+          typeof issue.image_id === "string" &&
+          /^[A-Za-z0-9_]{1,128}$/u.test(issue.image_id)
+        )
+          retain(issue.image_id, Date.parse(state.observed_at), null);
+      }
+      if (
+        !state.complete ||
+        !state.last_live_observation_at ||
+        !mapping ||
+        !validArtworkMapping(mapping) ||
+        !checks ||
+        !("content" in checks) ||
+        !isRecord(checks.content) ||
+        checks.content.sha256 !== mapping.image_sha256
+      )
+        continue;
+      retain(mapping.image_id, Date.parse(state.last_live_observation_at), mapping.image_sha256);
+    }
+  }
+  return observed;
 }
 
 function itemState(
@@ -320,19 +380,7 @@ export async function prepareArtworkWorkset(
     inspectedIds.some((id) => !ports.has(id))
   )
     throw new Error("Artwork work requires unique known identities");
-  const goneDocument = readOwned(options.root, "artwork-gone.json");
-  if (
-    goneDocument !== null &&
-    (!isRecord(goneDocument) ||
-      goneDocument.format !== 1 ||
-      !Array.isArray(goneDocument.image_ids) ||
-      goneDocument.sha256 !== observationHash(goneDocument.image_ids) ||
-      goneDocument.image_ids.some(
-        (id: unknown) => typeof id !== "string" || !/^[A-Za-z0-9_]{1,128}$/u.test(id),
-      ))
-  )
-    throw new Error("Invalid retained exact-image Gone observations");
-  const gone = new Set<string>(isRecord(goneDocument) ? (goneDocument.image_ids as string[]) : []);
+  const gone = readKnownGoneArtwork(options.root);
   const accepted = options.acceptedCatalog ?? catalog;
   const tool = createHash("sha256");
   for (const file of [

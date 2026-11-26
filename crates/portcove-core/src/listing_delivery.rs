@@ -715,6 +715,12 @@ impl ListingDeliveryDocument {
                 {
                     crate::catalog::listings::inherit_verified_sources(original, previous);
                 }
+                if self.directory.format_version
+                    < crate::catalog::listings::MOD_PORTAL_LISTING_FORMAT
+                    && same_scope
+                {
+                    replacement.mod_portals.clone_from(&current.mod_portals);
+                }
                 // Older directories cannot express or withdraw format-12
                 // explanations. Retain only the same project's exact game
                 // scope; all fields that delivery understands remain its own.

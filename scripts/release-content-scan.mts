@@ -7,7 +7,7 @@
  *
  * Usage: node scripts/release-content-scan.mts scan --listings <listings.json>
  *          --checkpoint <in.json|-> [--checkpoint-out <out.json>] --output <report.json>
- *          [--accounting <release-content-accounting.json>]
+ *          [--accounting <release-content-accounting.json>] [--complete-targets]
  *          [--max-assets N] [--max-asset-bytes N] [--max-total-bytes N] [--minutes N]
  *          [--max-retry-assets N] [--max-retry-bytes N]
  *        node scripts/release-content-scan.mts summary|annotations --report <report.json>
@@ -27,6 +27,7 @@ import {
   headCandidates,
   packageSignals,
 } from "./release-content-signals.mts";
+import { isRecord } from "./runtime-values.mts";
 
 export interface ScanTarget {
   id: string;
@@ -49,6 +50,8 @@ export interface UpstreamRelease {
   draft: boolean;
   prerelease: boolean;
   assets: ReleaseAsset[];
+  /** The provider read can inform the scan but cannot retire earlier attempts. */
+  incomplete?: boolean;
 }
 
 export interface ScanRecord {
@@ -321,15 +324,83 @@ export function hintedAsset(assets: readonly ReleaseAsset[], hints: readonly str
   return matches.length === 1 ? matches[0] : undefined;
 }
 
+const repositoryKey = (target: ScanTarget) =>
+  `${target.provider}|${target.repository.toLowerCase()}`;
+
+const assetIdentity = (repository: string, tag: string, name: string) =>
+  `r${RULES_VERSION}|${repository}|${tag}|${name}`;
+
 export const assetKey = (target: ScanTarget, tag: string, asset: ReleaseAsset) =>
-  [
-    `r${RULES_VERSION}`,
-    target.provider,
-    target.repository.toLowerCase(),
-    tag,
-    asset.name,
-    asset.digest ?? asset.size ?? "",
-  ].join("|");
+  `${assetIdentity(repositoryKey(target), tag, asset.name)}|${asset.digest ?? asset.size ?? ""}`;
+
+const knownDigest = (value: string | null) =>
+  value !== null && /^sha256:[a-f0-9]{64}$/u.test(value) ? value : null;
+
+const knownSize = (value: number | null) =>
+  value !== null && Number.isSafeInteger(value) && value >= 0 ? value : null;
+
+function deferredIdentity(key: string) {
+  const [rules, provider, repository, tag, name, value, extra] = key.split("|");
+  if (
+    extra !== undefined ||
+    rules !== `r${RULES_VERSION}` ||
+    (provider !== "github" && provider !== "gitlab") ||
+    !repository ||
+    !tag ||
+    !name ||
+    value === undefined
+  )
+    return undefined;
+  const marker = /^\d+$/u.test(value) ? knownSize(Number(value)) : knownDigest(value);
+  return { repository: `${provider}|${repository}`, tag, name, marker };
+}
+
+function differentAsset(
+  prior: NonNullable<ReturnType<typeof deferredIdentity>>,
+  release: UpstreamRelease,
+  asset: ReleaseAsset,
+) {
+  if (prior.tag !== release.tag || prior.name !== asset.name) return true;
+  // Compare only like metadata. A digest appearing or disappearing proves no change.
+  const current =
+    typeof prior.marker === "number" ? knownSize(asset.size) : knownDigest(asset.digest);
+  return prior.marker !== null && current !== null && prior.marker !== current;
+}
+
+function deferredAges() {
+  // For each provider/repository/tag/name, retain the latest attempt by marker
+  // and by marker type. Missing metadata can match any prior marker of that type.
+  const byIdentity = new Map<
+    string,
+    {
+      matching: Map<string | number, number>;
+      latest: { size: number; digest: number; unknown: number };
+    }
+  >();
+  return {
+    remember(identity: string, marker: string | number | null, age: number) {
+      let ages = byIdentity.get(identity);
+      if (!ages) {
+        ages = { matching: new Map(), latest: { size: 0, digest: 0, unknown: 0 } };
+        byIdentity.set(identity, ages);
+      }
+      const kind = marker === null ? "unknown" : typeof marker === "number" ? "size" : "digest";
+      ages.latest[kind] = Math.max(ages.latest[kind], age);
+      if (marker !== null) ages.matching.set(marker, Math.max(ages.matching.get(marker) ?? 0, age));
+    },
+    compatible(identity: string, asset: ReleaseAsset) {
+      const ages = byIdentity.get(identity);
+      if (!ages) return 0;
+      const digest = knownDigest(asset.digest);
+      const size = knownSize(asset.size);
+      return Math.max(
+        ages.latest.unknown,
+        digest === null ? ages.latest.digest : (ages.matching.get(digest) ?? 0),
+        size === null ? ages.latest.size : (ages.matching.get(size) ?? 0),
+      );
+    },
+  };
+}
 
 export interface ScanDependencies {
   /** `stopAt` is the run's deadline in epoch milliseconds; no read may outlive it. */
@@ -357,6 +428,8 @@ export async function scan(
     clock = Date.now,
     failures: knownFailures = new Map<string, ScanFailure>(),
     retries: knownRetries = new Map<string, number>(),
+    deferredAttempts: knownDeferredAttempts = new Map<string, number>(),
+    completeTargets = false,
     maxRetryAssets = 4,
     maxRetryBytes = 2_000_000_000,
     accounting = [],
@@ -373,6 +446,10 @@ export async function scan(
      * checked each; re-checked in rotation under their own allowance.
      */
     retries?: ReadonlyMap<string, number>;
+    /** Ordinary transient attempts, oldest first on the next scan. */
+    deferredAttempts?: ReadonlyMap<string, number>;
+    /** Whether targets come from the entire canonical listings inventory. */
+    completeTargets?: boolean;
     maxRetryAssets?: number | undefined;
     maxRetryBytes?: number | undefined;
     /** Reviewed dismissals ({@link readAccounting}). */
@@ -383,10 +460,14 @@ export async function scan(
   checkpoint: Map<string, ScanRecord>;
   failures: Map<string, ScanFailure>;
   retries: Map<string, number>;
+  deferredAttempts: Map<string, number>;
 }> {
   const next = new Map(checkpoint);
   const failures = new Map(knownFailures);
   const retries = new Map(knownRetries);
+  const deferredAttempts = new Map(knownDeferredAttempts);
+  const deferredRun =
+    [...deferredAttempts.values()].reduce((max, value) => Math.max(max, value), 0) + 1;
   const matched = new Set<AccountingEntry>();
   // Accounting comes only from the reviewed file: any `accounted` on the input is dropped.
   const finding = (input: ScanRecord): ScanFinding => {
@@ -416,7 +497,13 @@ export async function scan(
   // so every retry candidate of this run is known before any allowance is spent.
   type Plan =
     | { target: ScanTarget; skip: { code: UnscannedCode; reason: string } }
-    | { target: ScanTarget; release: UpstreamRelease; asset: ReleaseAsset; key: string };
+    | {
+        target: ScanTarget;
+        release: UpstreamRelease;
+        asset: ReleaseAsset;
+        key: string;
+        complete: boolean;
+      };
   const plans: Plan[] = [];
   for (const target of targets) {
     // No release read starts after the deadline; the rest are left for a later run.
@@ -429,7 +516,7 @@ export async function scan(
     }
     let releases: UpstreamRelease[];
     try {
-      const cacheKey = `${target.provider}|${target.repository.toLowerCase()}`;
+      const cacheKey = repositoryKey(target);
       if (!releaseCache.has(cacheKey)) releaseCache.set(cacheKey, deps.releases(target, deadline));
       releases = await releaseCache.get(cacheKey)!;
     } catch (error) {
@@ -462,7 +549,44 @@ export async function scan(
       });
       continue;
     }
-    plans.push({ target, release, asset, key: assetKey(target, release.tag, asset) });
+    plans.push({
+      target,
+      release,
+      asset,
+      key: assetKey(target, release.tag, asset),
+      complete:
+        completeTargets &&
+        clock() < deadline &&
+        releases.every((entry) => !entry.incomplete) &&
+        new Set(releases.map(({ tag }) => tag)).size === releases.length,
+    });
+  }
+  // A legacy key identifies a repository, not the targets that chose the package.
+  // Any unresolved target for that repository might still select it next pass.
+  const byRepository =
+    completeTargets && plans.length
+      ? Map.groupBy(plans, ({ target }) => repositoryKey(target))
+      : undefined;
+  const ages = deferredAges();
+  for (const [key, age] of deferredAttempts) {
+    const prior = deferredIdentity(key);
+    if (!prior) continue;
+    const current = byRepository?.get(prior.repository);
+    if (
+      byRepository &&
+      (!current ||
+        current.every(
+          (plan) =>
+            "key" in plan &&
+            plan.complete &&
+            plan.key !== key &&
+            differentAsset(prior, plan.release, plan.asset),
+        ))
+    ) {
+      deferredAttempts.delete(key);
+      continue;
+    }
+    ages.remember(assetIdentity(prior.repository, prior.tag, prior.name), prior.marker, age);
   }
   // Remembered unlistable assets are re-checked in rotation, least recently checked
   // first, within their own allowance; the rest keep their persistent code this run.
@@ -492,9 +616,28 @@ export async function scan(
     reserved -= size;
     rechecks.add(plan.key);
   }
-  // Phase 2: scan in target order.
+  // Phase 2: give fresh and longest-waiting ordinary assets first access to the
+  // same budgets. Reused, persistent and retry-cohort outcomes keep their behavior.
+  const blockingFailure = (key: string) => {
+    const failure = failures.get(key);
+    return failure &&
+      (failure.code !== "asset-too-large" || maxAssetBytes <= failure.max_asset_bytes)
+      ? failure
+      : undefined;
+  };
+  const attemptAge = (plan: Plan) =>
+    "key" in plan && !next.has(plan.key) && !blockingFailure(plan.key) && !retries.has(plan.key)
+      ? Math.max(
+          deferredAttempts.get(plan.key) ?? 0,
+          ages.compatible(
+            assetIdentity(repositoryKey(plan.target), plan.release.tag, plan.asset.name),
+            plan.asset,
+          ),
+        )
+      : 0;
+  const ordered = [...plans].sort((a, b) => attemptAge(a) - attemptAge(b));
   const recheckOutcomes = new Map<string, { code: UnscannedCode; reason: string }>();
-  for (const plan of plans) {
+  for (const plan of ordered) {
     const { target } = plan;
     const skip = (code: UnscannedCode, reason: string) =>
       report.unscanned.push({
@@ -536,8 +679,8 @@ export async function scan(
     }
     // A downloaded asset that failed for a deterministic cause is not fetched again
     // until its release, the rules or (for its size) the per-asset limit changes.
-    const failed = failures.get(key);
-    if (failed && (failed.code !== "asset-too-large" || maxAssetBytes <= failed.max_asset_bytes)) {
+    const failed = blockingFailure(key);
+    if (failed) {
       skip(
         failed.code,
         `asset ${asset.name}: ${failed.code} in an earlier run; not retried for this release`,
@@ -589,8 +732,14 @@ export async function scan(
       else skip("time-budget", "time budget reached; scanned in a later run");
       continue;
     }
+    // The previous size-bound failure no longer governs this admitted attempt.
+    // Its new outcome determines whether it is persistent or rotates normally.
+    failures.delete(key);
     if (retry) retries.set(key, retryRun);
-    else attempts++;
+    else {
+      attempts++;
+      deferredAttempts.set(key, deferredRun);
+    }
     const limit = Math.max(1, Math.min(maxAssetBytes, retry ? retryBudget : budget));
     const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-"));
     const file = path.join(dir, "package");
@@ -623,11 +772,14 @@ export async function scan(
       };
       if (record.heads_unread && !record.signals.length && clock() >= deadline) {
         // A read cut by the clock says nothing about the package: retry it later.
-        skip("time-cut", `asset ${asset.name} was cut by the time budget; scanned in a later run`);
+        const reason = `asset ${asset.name} was cut by the time budget; scanned in a later run`;
+        recheckOutcomes.set(key, { code: "time-cut", reason });
+        skip("time-cut", reason);
         continue;
       }
       next.set(key, record);
       retries.delete(key);
+      deferredAttempts.delete(key);
       report.scanned.push(record);
       if (record.signals.length) report.findings.push(finding(record));
     } catch (error) {
@@ -639,9 +791,14 @@ export async function scan(
       if (RECORDED_FAILURES.includes(code)) {
         failures.set(key, { key, code, max_asset_bytes: maxAssetBytes });
         retries.delete(key);
-      } else if (code === "unlistable") retries.set(key, retryRun);
+        deferredAttempts.delete(key);
+      } else if (code === "unlistable") {
+        retries.set(key, retryRun);
+        deferredAttempts.delete(key);
+      }
       const reason = `asset ${asset.name} could not be scanned: ${(error as Error).message}`;
-      if (retry || code === "unlistable") recheckOutcomes.set(key, { code, reason });
+      // One asset identity has one attempt per pass, even when its failure is transient.
+      recheckOutcomes.set(key, { code, reason });
       skip(code, reason);
     } finally {
       // Failed transfers spend their budget too, so a bad asset cannot repeat unbounded.
@@ -657,7 +814,7 @@ export async function scan(
   report.accounting_unmatched = accounting
     .filter((entry) => !matched.has(entry))
     .map(({ port_id, platform, sha256, rules }) => ({ port_id, platform, sha256, rules }));
-  return { report, checkpoint: next, failures, retries };
+  return { report, checkpoint: next, failures, retries, deferredAttempts };
 }
 
 // ---- Hosted implementations -------------------------------------------------
@@ -685,8 +842,9 @@ export const safeMember = (name: string) => !/^[-@]/.test(name) && !/[*?[\]]/.te
 
 /** One release read's own cap; never beyond the run's deadline. */
 const RELEASE_READ_TIMEOUT_MS = 60_000;
+const RELEASE_PAGE_SIZE = 10;
 
-async function json(url: string, token: string | undefined, stopAt: number) {
+async function releasePage(url: string, token: string | undefined, stopAt: number) {
   // The signal also bounds reading the body. A timeout is an ordinary error, so the
   // scan defers the target (`release-read-failed`, or `time-budget` past the deadline).
   const signal = AbortSignal.timeout(callTimeout(RELEASE_READ_TIMEOUT_MS, stopAt));
@@ -705,7 +863,23 @@ async function json(url: string, token: string | undefined, stopAt: number) {
       permanentRelease(response.status) ? "release-unavailable" : "release-read-failed",
       `${response.status} from ${new URL(url).host}`,
     );
-  return response.json();
+  const body: unknown = await response.json();
+  if (!Array.isArray(body) || !body.every(isRecord))
+    throw new ScanError("release-read-failed", "provider returned invalid release metadata");
+  const { headers } = response;
+  return {
+    list: body,
+    complete:
+      response.status === 200 &&
+      body.length < RELEASE_PAGE_SIZE &&
+      !headers.has("content-range") &&
+      !/\brel\s*=\s*"?next\b/iu.test(headers.get("link") ?? "") &&
+      !headers.get("x-next-page") &&
+      (headers.get("x-page") ?? "1") === "1" &&
+      (headers.get("x-per-page") ?? String(RELEASE_PAGE_SIZE)) === String(RELEASE_PAGE_SIZE) &&
+      (headers.get("x-total") ?? String(body.length)) === String(body.length) &&
+      [null, "0", "1"].includes(headers.get("x-total-pages")),
+  };
 }
 
 /** Release-read statuses a retry would only repeat: a redirect, 404 or 410. */
@@ -749,15 +923,31 @@ export type Runner = typeof run;
 export const hostedDependencies = (token?: string, exec: Runner = run): ScanDependencies => ({
   async releases(target, stopAt) {
     if (target.provider === "github") {
-      const list = (await json(
-        `https://api.github.com/repos/${target.repository}/releases?per_page=10`,
+      const { list, complete } = await releasePage(
+        `https://api.github.com/repos/${target.repository}/releases?per_page=${RELEASE_PAGE_SIZE}`,
         token,
         stopAt,
-      )) as Record<string, unknown>[];
+      );
       return list.map((release) => ({
         tag: String(release.tag_name),
         draft: Boolean(release.draft),
         prerelease: Boolean(release.prerelease),
+        incomplete:
+          !complete ||
+          typeof release.tag_name !== "string" ||
+          !release.tag_name ||
+          typeof release.draft !== "boolean" ||
+          typeof release.prerelease !== "boolean" ||
+          !Array.isArray(release.assets) ||
+          !release.assets.every(
+            (asset) =>
+              isRecord(asset) &&
+              typeof asset.name === "string" &&
+              asset.name.length &&
+              asset.state === "uploaded" &&
+              typeof asset.browser_download_url === "string" &&
+              asset.browser_download_url.length,
+          ),
         assets: ((release.assets as Record<string, unknown>[]) ?? []).map((asset) => ({
           name: String(asset.name),
           url: String(asset.browser_download_url),
@@ -766,24 +956,43 @@ export const hostedDependencies = (token?: string, exec: Runner = run): ScanDepe
         })),
       }));
     }
-    const list = (await json(
-      `https://gitlab.com/api/v4/projects/${encodeURIComponent(target.repository)}/releases?per_page=10`,
+    const { list, complete } = await releasePage(
+      `https://gitlab.com/api/v4/projects/${encodeURIComponent(target.repository)}/releases?per_page=${RELEASE_PAGE_SIZE}`,
       undefined,
       stopAt,
-    )) as Record<string, unknown>[];
-    return list.map((release) => ({
-      tag: String(release.tag_name),
-      draft: false,
-      prerelease: Boolean(release.upcoming_release),
-      assets: (
-        ((release.assets as Record<string, unknown>)?.links as Record<string, unknown>[]) ?? []
-      ).map((link) => ({
-        name: String(link.name),
-        url: String(link.direct_asset_url ?? link.url),
-        size: null,
-        digest: null,
-      })),
-    }));
+    );
+    return list.map((release) => {
+      const assets = release.assets as Record<string, unknown> | undefined;
+      const links = (assets?.links as Record<string, unknown>[]) ?? [];
+      return {
+        tag: String(release.tag_name),
+        draft: false,
+        prerelease: Boolean(release.upcoming_release),
+        incomplete:
+          !complete ||
+          typeof release.tag_name !== "string" ||
+          !release.tag_name ||
+          (release.upcoming_release !== undefined &&
+            typeof release.upcoming_release !== "boolean") ||
+          !Array.isArray(assets?.links) ||
+          !Array.isArray(assets.sources) ||
+          assets.count !== links.length + assets.sources.length ||
+          !links.every(
+            (link) =>
+              isRecord(link) &&
+              typeof link.name === "string" &&
+              link.name.length &&
+              typeof (link.direct_asset_url ?? link.url) === "string" &&
+              (link.direct_asset_url ?? link.url),
+          ),
+        assets: links.map((link) => ({
+          name: String(link.name),
+          url: String(link.direct_asset_url ?? link.url),
+          size: null,
+          digest: null,
+        })),
+      };
+    });
   },
   async download(asset, file, maxBytes, stopAt) {
     await exec(
@@ -993,12 +1202,14 @@ export async function readCheckpoint(file: string | undefined) {
   const records = new Map<string, ScanRecord>();
   const failures = new Map<string, ScanFailure>();
   const retries = new Map<string, number>();
-  if (!file || file === "-") return { records, failures, retries };
+  const deferredAttempts = new Map<string, number>();
+  if (!file || file === "-") return { records, failures, retries, deferredAttempts };
   try {
     const stored = JSON.parse(await readFile(file, "utf8")) as {
       records?: ScanRecord[];
       failures?: ScanFailure[];
       retries?: { key?: unknown; rules?: unknown; checked_at?: unknown }[];
+      deferred_attempts?: { key?: unknown; rules?: unknown; checked_at?: unknown }[];
     };
     for (const retry of stored.retries ?? [])
       if (
@@ -1013,6 +1224,16 @@ export async function readCheckpoint(file: string | undefined) {
             ? (retry.checked_at as number)
             : 0,
         );
+    for (const attempt of stored.deferred_attempts ?? [])
+      if (
+        typeof attempt.key === "string" &&
+        attempt.key.startsWith(`r${RULES_VERSION}|`) &&
+        attempt.rules === RULES_VERSION &&
+        typeof attempt.checked_at === "number" &&
+        Number.isSafeInteger(attempt.checked_at) &&
+        attempt.checked_at >= 0
+      )
+        deferredAttempts.set(attempt.key, attempt.checked_at);
     for (const record of stored.records ?? [])
       if (record.rules === RULES_VERSION) {
         // Only the reviewed accounting file dismisses a finding, never a cached record.
@@ -1030,7 +1251,7 @@ export async function readCheckpoint(file: string | undefined) {
   } catch {
     // A missing or unreadable checkpoint scans from scratch.
   }
-  return { records, failures, retries };
+  return { records, failures, retries, deferredAttempts };
 }
 
 export async function main(argv: string[]) {
@@ -1054,7 +1275,7 @@ export async function main(argv: string[]) {
   }
   if (argv[0] !== "scan" || !option("--listings") || !option("--output")) {
     process.stderr.write(
-      "Usage: node scripts/release-content-scan.mts scan --listings <listings.json> --checkpoint <file|-> [--checkpoint-out <file>] --output <report.json> [--accounting <file>] [--max-assets N] [--max-asset-bytes N] [--max-total-bytes N] [--minutes N] [--max-retry-assets N] [--max-retry-bytes N]\n       node scripts/release-content-scan.mts summary|annotations --report <report.json>\n",
+      "Usage: node scripts/release-content-scan.mts scan --listings <listings.json> --checkpoint <file|-> [--checkpoint-out <file>] --output <report.json> [--accounting <file>] [--complete-targets] [--max-assets N] [--max-asset-bytes N] [--max-total-bytes N] [--minutes N] [--max-retry-assets N] [--max-retry-bytes N]\n       node scripts/release-content-scan.mts summary|annotations --report <report.json>\n",
     );
     process.exit(2);
   }
@@ -1064,7 +1285,12 @@ export async function main(argv: string[]) {
   const accounting = option("--accounting")
     ? readAccounting(JSON.parse(await readFile(option("--accounting")!, "utf8")), listings)
     : [];
-  const { records: previous, failures, retries } = await readCheckpoint(option("--checkpoint"));
+  const {
+    records: previous,
+    failures,
+    retries,
+    deferredAttempts,
+  } = await readCheckpoint(option("--checkpoint"));
   const numeric = (name: string) => {
     const value = option(name);
     if (value === undefined) return undefined;
@@ -1080,6 +1306,7 @@ export async function main(argv: string[]) {
     checkpoint,
     failures: nextFailures,
     retries: nextRetries,
+    deferredAttempts: nextDeferredAttempts,
   } = await scan(targets, previous, hostedDependencies(process.env.GH_TOKEN), {
     maxAssets: numeric("--max-assets"),
     maxAssetBytes: numeric("--max-asset-bytes"),
@@ -1088,6 +1315,8 @@ export async function main(argv: string[]) {
     deadline: Date.now() + (numeric("--minutes") ?? 75) * 60_000,
     failures,
     retries,
+    deferredAttempts,
+    completeTargets: argv.includes("--complete-targets"),
     maxRetryAssets: numeric("--max-retry-assets"),
     maxRetryBytes: numeric("--max-retry-bytes"),
     accounting,
@@ -1102,6 +1331,11 @@ export async function main(argv: string[]) {
           records: [...checkpoint.values()],
           failures: [...nextFailures.values()],
           retries: [...nextRetries].map(([key, checked_at]) => ({
+            key,
+            rules: RULES_VERSION,
+            checked_at,
+          })),
+          deferred_attempts: [...nextDeferredAttempts].map(([key, checked_at]) => ({
             key,
             rules: RULES_VERSION,
             checked_at,

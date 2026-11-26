@@ -41,22 +41,22 @@ pub struct ExternalModPortal {
     pub browse_available: bool,
 }
 
+fn site_label(site: ModPortalSite) -> ExternalModSite {
+    match site {
+        ModPortalSite::NexusMods => ExternalModSite::NexusMods,
+        ModPortalSite::ModIo => ExternalModSite::ModIo,
+        ModPortalSite::ModDb => ExternalModSite::ModDb,
+        ModPortalSite::CommunitySite => ExternalModSite::CommunitySite,
+    }
+}
+
 fn portal(
     port: &PortDefinition,
     platform: Option<Platform>,
     source: &crate::ModSource,
 ) -> Option<ExternalModPortal> {
     let (site, browser, browse_available) = match &source.source {
-        ModSourceKind::ExternalPortal { site, .. } => (
-            match site {
-                ModPortalSite::NexusMods => ExternalModSite::NexusMods,
-                ModPortalSite::ModIo => ExternalModSite::ModIo,
-                ModPortalSite::ModDb => ExternalModSite::ModDb,
-                ModPortalSite::CommunitySite => ExternalModSite::CommunitySite,
-            },
-            None,
-            false,
-        ),
+        ModSourceKind::ExternalPortal { site, .. } => (site_label(*site), None, false),
         ModSourceKind::Quaddicted { .. } => (
             ExternalModSite::Quaddicted,
             Some(ExternalModBrowser::Quaddicted),
@@ -89,19 +89,53 @@ pub(crate) fn portals(
     id: &str,
     platform: Option<Platform>,
 ) -> Vec<ExternalModPortal> {
-    let Ok(port) = catalog.port(id) else {
-        return Vec::new();
-    };
-    let presented_platform =
-        platform.filter(|platform| crate::mod_source::presented_on(catalog, port, *platform));
-    port.mod_sources
-        .iter()
-        .filter(|source| {
-            source.is_platform_independent_portal()
-                || presented_platform.is_some_and(|platform| source.offered_on(platform))
+    let port = catalog.port(id).ok();
+    let mut sources = Vec::new();
+    if let Some(port) = port {
+        let presented_platform =
+            platform.filter(|platform| crate::mod_source::presented_on(catalog, port, *platform));
+        sources.extend(
+            port.mod_sources
+                .iter()
+                .filter(|source| {
+                    source.is_platform_independent_portal()
+                        || presented_platform.is_some_and(|platform| source.offered_on(platform))
+                })
+                .filter_map(|source| portal(port, platform, source)),
+        );
+    }
+    if let Ok(listing) = catalog.listing(id)
+        && port.is_none_or(|port| {
+            port.project_url == listing.project_url
+                && crate::catalog::listings::same_original_description(
+                    port.presentation
+                        .as_ref()
+                        .and_then(|presentation| presentation.original_game.as_ref()),
+                    listing.original_game.as_ref(),
+                )
         })
-        .filter_map(|source| portal(port, platform, source))
-        .collect()
+    {
+        sources.extend(
+            listing
+                .mod_portals
+                .iter()
+                .filter(|link| {
+                    port.is_none_or(|port| {
+                        port.mod_sources.iter().all(|source| source.id != link.id)
+                    })
+                })
+                .map(|link| ExternalModPortal {
+                    source: link.id.clone(),
+                    site: site_label(link.site),
+                    name: link.name.clone(),
+                    url: link.url.clone(),
+                    instructions: link.instructions.clone(),
+                    browser: None,
+                    browse_available: false,
+                }),
+        );
+    }
+    sources
 }
 
 impl crate::PortcoveService {
