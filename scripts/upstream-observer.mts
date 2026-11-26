@@ -258,6 +258,7 @@ export class ObservationFailure extends Error {
   /** Coverage already stated by the producer (for example Core); overrides rule mapping. */
   statedCoverage?: "partial" | "unavailable" | "failed";
   continuation?: ObservationContinuation;
+  batchConsumed?: ProviderObservation["consumed"];
   restartContinuation?: boolean;
   constructor(rule: string, details: string, retryAt: string | null = null) {
     super(details);
@@ -2400,6 +2401,7 @@ export async function observeUpstream(
         conditional_hits: previouslyConsumed.conditional_hits + consumed.conditional_hits,
       };
       error.continuation = structuredClone(continuation);
+      error.batchConsumed = { ...consumed };
     }
     throw error;
   }

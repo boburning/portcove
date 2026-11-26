@@ -257,6 +257,13 @@ GitLab and direct manifests it is `reads:<retained reads>:validate:<cursor>`;
 it is `null` when the attempt restarts. Incomplete API coverage is UNKNOWN. It
 never means that a release or asset is absent.
 
+The configured observer report records this invocation's admitted requests,
+bounded response bytes and conditional hits in `attempt_provider_usage`.
+Provider budget stops report the measured work even when the last completed
+observation is reused. A retry delay that skips the attempt reports zero.
+An error that produces no measurement leaves this field null. The
+`observation.consumed` counters still describe the last completed interval.
+
 The statement is recorded in three places and omitted when complete:
 
 - `coverage` on the catalog checkpoint's source progress

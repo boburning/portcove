@@ -1074,6 +1074,7 @@ void test("checkpoints preserve the last complete snapshot, deduplicate failures
   assert.equal(failed.notify_exception, true);
   assert.deepEqual(first.checkpoint, original);
   assert.deepEqual(failed.checkpoint.last_complete, first.checkpoint.last_complete);
+  assert.equal(failed.report.attempt_provider_usage?.requests, broken.requests.length);
   assert.equal(
     requiredFixture(failed.report.fallback).facts_sha256,
     requiredFixture(first.report.observation).facts_sha256,
@@ -1104,6 +1105,12 @@ void test("deferred checkpoints honor retry clocks without requests and mismatch
   const first = await advanceObservation(config, null, options);
   const second = await advanceObservation(config, first.checkpoint, options);
   assert.equal(second.report.transition, "deferred");
+  assert.equal(first.report.attempt_provider_usage?.requests, 1);
+  assert.deepEqual(second.report.attempt_provider_usage, {
+    requests: 0,
+    response_bytes: 0,
+    conditional_hits: 0,
+  });
   assert.equal(second.notify_exception, false);
   assert.equal(limited.requests.length, 1);
   clock += 120_000;
@@ -1463,6 +1470,7 @@ void test("collector-only continuation crosses twenty pages without advancing pa
       },
     });
     assert.ok(server.requests.length - before <= 5);
+    assert.equal(result.report.attempt_provider_usage?.requests, server.requests.length - before);
     checkpoint = result.checkpoint;
     if (result.report.transition === "initial-baseline") {
       completed = result;
