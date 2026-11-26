@@ -299,7 +299,70 @@ export function readDiscoverySnapshot(
 /** Read-only status export for the hosted researcher and the maintenance report. */
 export function discoveryStatusQuery(limits: { attempts: number }) {
   return `SET TRANSACTION READ ONLY;
+WITH upstream_seen AS (
+  -- Positive historical observations, not a fresh complete owner inventory.
+  SELECT DISTINCT j->>'repository_id' AS id
+  FROM portcove_maintenance.collection_runs r
+  JOIN portcove_maintenance.observations o USING (run_id)
+  CROSS JOIN LATERAL jsonb_array_elements(
+    CASE WHEN jsonb_typeof(o.payload->'sources') = 'array'
+      THEN o.payload->'sources' ELSE '[]'::jsonb END) j
+  WHERE r.source = 'upstream-observations' AND r.coverage IN ('complete', 'partial')
+    AND j->>'provider' = 'github' AND j->>'repository_id' IS NOT NULL
+), intake_seen AS (
+  SELECT checkpoint#>>'{primary,repository_id}' AS id,
+    bool_or(checkpoint#>>'{delivery,status}' IN ('delivered', 'existing')
+      AND checkpoint#>>'{delivery,doctor,status}' = 'passed') AS verified,
+    bool_or(checkpoint#>>'{delivery,status}' = 'prepared') AS prepared
+  FROM portcove_maintenance.discovery_intake_candidates
+  GROUP BY 1
+), lead_signals AS (
+  SELECT d.scope, d.lead_id, d.record->>'repository' AS repository,
+    d.record->>'revision' AS revision,
+    d.record->>'observed_at' AS observed_at,
+    CASE WHEN d.record->>'status' IN ('pending', 'researched', 'held', 'no-change', 'canonical')
+      THEN d.record->>'status' ELSE 'unknown' END AS status,
+    coalesce(d.record->>'description', '') ~*
+      '(^|[^[:alnum:]_])(recompilation|recompiled|decompilation|decompiled|source port|engine reimplementation|reverse engineering)($|[^[:alnum:]_])' AS port_terms,
+    coalesce(d.record->>'description', '') ~*
+      '(^|[^[:alnum:]_])(emulator|emulation|rom hack|modding tool|asset extractor|level editor|disassembler|compiler|framework|sdk)($|[^[:alnum:]_])' AS tooling_terms,
+    coalesce(d.record->>'description', '') = '' AS missing_description,
+    u.id IS NOT NULL AS upstream_seen,
+    coalesce(i.verified, false) AS verified_intake,
+    coalesce(i.prepared, false) AS prepared_intake
+  FROM portcove_maintenance.discovery_lead_records d
+  LEFT JOIN upstream_seen u ON u.id = d.lead_id::text
+  LEFT JOIN intake_seen i ON i.id = d.lead_id::text
+), lead_review AS (
+  SELECT scope, lead_id, repository, revision, observed_at, status,
+    CASE WHEN missing_description THEN 'missing-description'
+      WHEN port_terms AND tooling_terms THEN 'mixed-terms'
+      WHEN port_terms THEN 'port-terms'
+      WHEN tooling_terms THEN 'tooling-terms'
+      ELSE 'other' END AS signal,
+    upstream_seen, verified_intake, prepared_intake
+  FROM lead_signals
+)
 SELECT json_build_object(
+  'lead_reconciliation', json_build_object(
+    'scope', 'Retained repository-level research signals only; no current canonical ownership, game scope, new intake or eligibility claim',
+    'coverage', 'retained-only',
+    'cohorts', coalesce((SELECT json_agg(c ORDER BY c.scope COLLATE "C", c.status,
+        c.signal, c.upstream_seen, c.verified_intake, c.prepared_intake) FROM (
+      SELECT scope, status, signal, upstream_seen, verified_intake, prepared_intake,
+        count(*) AS leads FROM lead_review GROUP BY 1, 2, 3, 4, 5, 6) c), '[]'),
+    'retained_overlap_examples', coalesce((SELECT json_agg(q ORDER BY q.scope COLLATE "C",
+        q.lead_id) FROM (
+      SELECT * FROM lead_review WHERE status IN ('pending', 'researched')
+        AND (upstream_seen OR verified_intake OR prepared_intake)
+      ORDER BY scope COLLATE "C", lead_id LIMIT 12) q), '[]'),
+    'research_examples', coalesce((SELECT json_agg(q ORDER BY q.signal, q.observed_at,
+        q.scope COLLATE "C", q.lead_id) FROM (
+      SELECT * FROM lead_review WHERE status IN ('pending', 'researched')
+        AND NOT (upstream_seen OR verified_intake OR prepared_intake)
+      ORDER BY CASE signal WHEN 'port-terms' THEN 0 WHEN 'mixed-terms' THEN 1 ELSE 2 END,
+        observed_at, scope COLLATE "C", lead_id LIMIT 12) q), '[]')),
+
   'activation', (SELECT json_build_object('active', collection_active, 'generation', collection_generation)
     FROM portcove_maintenance_meta.discovery_intake_activation),
   'scopes', coalesce((SELECT json_agg(json_build_object(

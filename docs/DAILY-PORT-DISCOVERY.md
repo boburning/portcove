@@ -1126,6 +1126,17 @@ reads the latest run's export rather than rebuilding coverage from first-page
 searches. Whether the hosted task can read the run summary or artifact in its
 environment remains to be verified on the first scheduled run.
 
+The status export also derives `lead_reconciliation` directly from stored lead,
+upstream observation and intake checkpoint rows. Cohorts count scope/repository
+records by description signal and prior immutable repository-ID evidence. Verified
+intake and prepared checkpoints are separate flags; several candidates for one
+repository do not multiply the lead count. The bounded research and retained
+overlap examples are investigation inputs only. An unmatched repository is not
+necessarily new, and a matched repository may contain another game or edition.
+Use current canonical owner and primary game evidence through the existing intake
+contract before changing any disposition. This report does not write lead status,
+create issues, grant support, enable dispatch or introduce a new scheduler.
+
 `import-local --state-dir work/daily-discovery` imports a local checkout's
 `leads.json` once into an empty scope at its recorded strength. It does not
 trust the local source checkpoint as coverage, so those sources are collected
