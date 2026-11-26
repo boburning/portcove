@@ -374,7 +374,7 @@ impl PortcoveService {
                     .ok_or_else(|| PortcoveError::state("import content size overflowed"))
             },
         )?;
-        let available_bytes = fs4::available_space(
+        let available_bytes = crate::path::transfer_available_space(
             destination_root
                 .parent()
                 .ok_or_else(|| PortcoveError::usage("import destination needs a parent"))?,
