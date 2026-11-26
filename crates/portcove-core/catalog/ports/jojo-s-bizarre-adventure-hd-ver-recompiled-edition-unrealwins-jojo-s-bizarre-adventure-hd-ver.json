@@ -35,6 +35,26 @@
       "image_sha256": "adc19ae58dd58bad970b4941554b27040953945ca97a08edebaf5da20cd8402b",
       "game_slug": "jojos-bizarre-adventure-hd--1",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jojo-s-bizarre-adventure-heritage-for-the-future",
+      "evidence_urls": [
+        "https://github.com/UNREALWINS/jojo-hd-recompiled/blob/2ffc68d9ba7bdebdf137d65066313cea630f7ed7/README.md",
+        "https://news.capcomusa.com/lets/browse/jojos-bizarre-adventure-hd-ver-confirmed",
+        "https://github.com/MenuuTUX/jojo-hftf-native/blob/dc1b886e29fcc7940e330cb19762ae85f8d138e1/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "jojo-s-bizarre-adventure-hd-ver-xbox-360",
+          "title": "JoJo's Bizarre Adventure HD Ver. (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/UNREALWINS/jojo-hd-recompiled/blob/2ffc68d9ba7bdebdf137d65066313cea630f7ed7/README.md",
+            "https://news.capcomusa.com/lets/browse/jojos-bizarre-adventure-hd-ver-confirmed"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -48,10 +68,5 @@
       }
     },
     "decisions": []
-  },
-  "original_game_review": {
-    "disposition": "unresolved",
-    "reason": "The exact HD Ver. Xbox360 original is identified, but retained source facts do not settle its relationship to the separately cataloged PS1 Heritage for the Future adaptation (which can have different content). Review direct publisher/original-product evidence before making a shared original-game assignment; franchise similarity and an HD suffix alone are insufficient.",
-    "evidence_urls": ["https://github.com/UNREALWINS/jojo-hd-recompiled"]
   }
 }
