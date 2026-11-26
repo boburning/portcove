@@ -1180,7 +1180,7 @@ impl GithubFixture {
         digest: Option<String>,
         sidecar: Option<String>,
     ) -> Self {
-        Self::for_api_repository(&format!("/repos/{repository}"), bytes, digest, sidecar)
+        Self::for_api_repository(&format!("repos/{repository}"), bytes, digest, sidecar)
     }
 
     fn for_api_repository(
@@ -1189,7 +1189,7 @@ impl GithubFixture {
         digest: Option<String>,
         sidecar: Option<String>,
     ) -> Self {
-        let release_path = format!("{api_repository}/releases");
+        let release_path = format!("/{api_repository}/releases");
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         listener.set_nonblocking(true).unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
@@ -3571,7 +3571,7 @@ async fn admitted_github_listing_browses_and_acquires_only_from_its_numeric_repo
         let bytes = archive();
         let expected = crate::signed_catalog::digest(&bytes);
         let github = GithubFixture::for_api_repository(
-            "/repositories/123",
+            "repositories/123",
             bytes,
             None,
             with_sidecar.then(|| format!("{expected}  game.zip\n")),
