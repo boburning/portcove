@@ -159,14 +159,23 @@ export function parseWorkerState(value: unknown): DiscoveryWorkerState {
 }
 
 function listingCandidatePath(lead: DiscoveryLead, covered: ReadonlySet<string>) {
-  if (
-    (lead.status !== "pending" && lead.status !== "researched") ||
-    !lead.release_hint?.assets_observed
-  )
-    return undefined;
+  if (lead.status !== "pending" && lead.status !== "researched") return undefined;
   const project = externalRepository(lead.url);
   if (project?.key !== lead.url.toLowerCase() || covered.has(project.key)) return undefined;
   return project.key;
+}
+
+/** Nominate a listing for fresh scope validation even without a desktop asset hint. */
+function listingScopeHint(lead: DiscoveryLead) {
+  if (lead.manifest?.types.some((type) => type === "port" || type === "recomp"))
+    return { kind: "retained-manifest", manifest_sha256: sha256(lead.manifest) } as const;
+  if (lead.release_hint?.assets_observed === false && lead.external_lists?.length)
+    return {
+      kind: "curated-source",
+      sources: [...new Set(lead.external_lists)].sort(),
+      release_sampled_at: lead.release_hint.observed_at,
+    } as const;
+  return undefined;
 }
 
 /** An admitted run advances past the previous round's first candidate. Freeze
@@ -182,7 +191,10 @@ export function nextListingPreviewRound(
   const eligible = Object.values(leads.records)
     .filter((lead) => {
       const project = listingCandidatePath(lead, covered);
-      return project && lead.release_hint?.desktop_release?.project_url === project;
+      return (
+        project &&
+        (lead.release_hint?.desktop_release?.project_url === project || listingScopeHint(lead))
+      );
     })
     .map(({ id }) => id)
     .sort((a, b) => a - b);
@@ -809,8 +821,18 @@ export interface DiscoveryPassOptions extends Omit<
   previewListings?: (preview: ReturnType<typeof scheduledListingPreview>) => void;
 }
 
-/** Select retained watch evidence for the unsigned preparer. Release hints are leads;
+/** Select retained lead evidence for the unsigned preparer. These hints nominate candidates;
  * product scope, package eligibility and all catalog writes have separate owners. */
+type ListingPreviewInput = {
+  repository_id: number;
+  repository: string;
+  lead_revision: string;
+  observed_at: string;
+} & (
+  | { desktop_asset_hint: true; release_id: number; release_response_sha256: string }
+  | { desktop_asset_hint: false; scope: NonNullable<ReturnType<typeof listingScopeHint>> }
+);
+
 export function scheduledListingPreview(
   retained: DiscoveryRetainedState,
   runStartedAt: string,
@@ -820,7 +842,7 @@ export function scheduledListingPreview(
 ) {
   const { leads, listing_preview_round: round } = parseWorkerState(retained.state);
   const observed = Object.values(leads.records)
-    .flatMap((lead) => {
+    .flatMap<ListingPreviewInput>((lead) => {
       if (
         round?.run_started_at === runStartedAt &&
         (lead.id < round.first_id || lead.id > round.through_id)
@@ -828,29 +850,43 @@ export function scheduledListingPreview(
         return [];
       const project = listingCandidatePath(lead, covered);
       const hint = lead.release_hint;
-      if (!project || !hint) return [];
-      let release = hint.desktop_release;
+      if (!project) return [];
+      let release = hint?.desktop_release;
       // Older retained records never established a release identity. Reuse
       // their provider response only if this run collected its exact bytes.
-      if (!release && hint.observed_at === runStartedAt) {
+      if (!release && hint?.assets_observed && hint.observed_at === runStartedAt) {
         try {
           release = observedLeadReleases(releaseEvidence(lead.id), lead.url).desktop_release;
         } catch {
-          return [];
+          // Independent scope hints can still go to preparation.
         }
       }
-      if (release?.project_url !== project) return [];
-      return [
-        {
-          repository_id: lead.id,
-          repository: lead.repository,
-          lead_revision: lead.revision,
-          observed_at: hint.observed_at,
-          desktop_asset_hint: true,
-          release_id: release.release_id,
-          release_response_sha256: release.response_sha256,
-        },
-      ];
+      const identity = {
+        repository_id: lead.id,
+        repository: lead.repository,
+        lead_revision: lead.revision,
+      };
+      if (hint && release?.project_url === project)
+        return [
+          {
+            ...identity,
+            observed_at: hint.observed_at,
+            desktop_asset_hint: true as const,
+            release_id: release.release_id,
+            release_response_sha256: release.response_sha256,
+          },
+        ];
+      const scope = listingScopeHint(lead);
+      return scope
+        ? [
+            {
+              ...identity,
+              observed_at: lead.observed_at,
+              desktop_asset_hint: false as const,
+              scope,
+            },
+          ]
+        : [];
     })
     .sort((a, b) => a.repository_id - b.repository_id);
   const evidence = observed.map((input) => ({ input, sha256: sha256(input) }));
@@ -867,7 +903,7 @@ export function scheduledListingPreview(
     },
     receipt: {
       format: "portcove-discovery-listing-preview",
-      format_version: 1,
+      format_version: 2,
       collector_source: sourceRevision,
       committed: {
         generation: retained.generation,
@@ -878,7 +914,7 @@ export function scheduledListingPreview(
       run_started_at: runStartedAt,
       ...(round?.run_started_at === runStartedAt ? { round } : {}),
       retained_record_count: Object.keys(leads.records).length,
-      selection: "retained-positive-release-hints-for-unsigned-preparation",
+      selection: "retained-release-and-scope-hints-for-unsigned-preparation",
       evidence,
     },
   };

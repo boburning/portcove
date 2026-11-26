@@ -1154,6 +1154,16 @@ again. A repeated import leaves the stored state unchanged.
 
 ### Scheduled catalog proposals
 
+The rotating preparation cohort includes retained desktop-release hints and
+projects with either a retained port declaration or a curated source association
+whose sampled releases showed no desktop asset. Scope nominations still go
+through fresh repository and first-party evidence validation. They can prepare
+a project listing while package availability is unknown. Later release evidence
+uses the same stable identity. The replay receipt keeps the same writer and
+released-reader checks. It records a digest for the full preview handoff and
+replays exactly the candidates included in the validated patch. Candidates that
+did not fit the preview deadline stay eligible for later scheduled rounds.
+
 The Catalog admission workflow follows a completed scheduled Maintenance
 inventory run on `main`. It skips runs without a replay receipt and waits
 while a proposal by the appointed App is in review. The receipt verifier checks

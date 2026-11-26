@@ -38,6 +38,7 @@ export function scheduledDiscoveryReplayReceipt(
     released_validation?: { status: string };
     automatic_listed_date?: string | undefined;
     handoff_semantic_sha256: string;
+    changed_records: readonly string[];
   },
   handoff: unknown,
   context: NodeJS.ProcessEnv,
@@ -54,16 +55,35 @@ export function scheduledDiscoveryReplayReceipt(
     report.handoff_semantic_sha256 !== orderedJsonSha256(handoff)
   )
     throw new Error("Scheduled discovery receipt requires the approved read-only producer.");
+  const prepared = new Set(report.changed_records);
+  if (
+    !prepared.size ||
+    prepared.size !== report.changed_records.length ||
+    !isRecord(handoff) ||
+    !Array.isArray(handoff.candidates)
+  )
+    throw new Error("Scheduled discovery receipt requires unique prepared candidates.");
+  const candidates = (handoff.candidates as unknown[]).filter(
+    (row): row is Record<string, unknown> & { id: string } =>
+      isRecord(row) && typeof row.id === "string" && prepared.has(row.id),
+  );
+  if (
+    candidates.length !== prepared.size ||
+    new Set(candidates.map(({ id }) => id)).size !== prepared.size
+  )
+    throw new Error("Prepared discovery candidates differ from the approved handoff.");
+  const replayHandoff = { ...handoff, candidates };
   const receipt = {
     format: receiptFormat,
-    format_version: 1,
+    format_version: 2,
     run_id: positiveId(context.GITHUB_RUN_ID),
     run_attempt: positiveId(context.GITHUB_RUN_ATTEMPT),
     source_revision: head,
     preview_listed_date: report.automatic_listed_date,
     patch_sha256: report.admission.sha256,
-    handoff_sha256: report.handoff_semantic_sha256,
-    handoff,
+    source_handoff_sha256: report.handoff_semantic_sha256,
+    handoff_sha256: orderedJsonSha256(replayHandoff),
+    handoff: replayHandoff,
   };
   const bytes = Buffer.from(JSON.stringify(receipt));
   if (bytes.length > observerCheckpointArchiveLimit)
@@ -199,7 +219,10 @@ export async function verifyScheduledDiscoveryReplay(
   if (
     !isRecord(receipt) ||
     receipt.format !== receiptFormat ||
-    receipt.format_version !== 1 ||
+    (receipt.format_version !== 1 && receipt.format_version !== 2) ||
+    (receipt.format_version === 2 &&
+      (typeof receipt.source_handoff_sha256 !== "string" ||
+        !sha.test(receipt.source_handoff_sha256))) ||
     receipt.run_id !== run ||
     receipt.run_attempt !== attempt ||
     receipt.source_revision !== source.head_sha ||

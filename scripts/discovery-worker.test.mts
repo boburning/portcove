@@ -47,7 +47,7 @@ import {
 } from "./discovery-worker.mts";
 import { observedLeadReleases, overlayLocalResearch } from "./discovery-leads.mts";
 import { GitHubApiError } from "./github-operation.mts";
-import type { DiscoveryLead } from "./discovery-leads.mts";
+import type { DiscoveryLead, LeadState } from "./discovery-leads.mts";
 import { selectExternalResolutions } from "./discovery-external-lists.mts";
 import {
   backup,
@@ -684,6 +684,7 @@ void test("scheduled listing preview resumes retained release evidence and binds
   assert.equal(preview.receipt.committed.revision, 5);
   assert.equal(preview.receipt.committed.generation, 3);
   assert.equal(preview.receipt.evidence.length, 2);
+  assert.ok(preview.receipt.evidence[0]!.input.desktop_asset_hint);
   assert.equal(preview.receipt.evidence[0]!.input.release_id, 500);
   const digest = createHash("sha256")
     .update(JSON.stringify(preview.receipt.evidence[0]!.input))
@@ -698,13 +699,81 @@ void test("scheduled listing preview resumes retained release evidence and binds
     repository_id: 5,
     evidence_sha256: digest,
   });
-  assert.equal(preview.receipt.evidence[1]?.input.release_id, 1100);
+  assert.ok(preview.receipt.evidence[1]!.input.desktop_asset_hint);
+  assert.equal(preview.receipt.evidence[1]!.input.release_id, 1100);
   assert.equal(preview.receipt.evidence[1]?.input.observed_at, previous);
   assert.doesNotMatch(JSON.stringify(preview), /\/(?:private|old-run)/u);
 
   const { leads } = parseWorkerState(retained.state);
   leads.records["5"]!.release_hint = retainedRelease(5);
   const covered = new Set(["https://github.com/ports/game-10"]);
+  const manifest = {
+    game: "Exact scoped port",
+    systems: ["SNES"],
+    types: ["port"],
+    toolchains: [],
+    targets: [],
+  };
+  const withoutAssets = {
+    assets_observed: false,
+    observed_at: previous,
+    evidence: "/private/no-assets",
+  };
+  const sourceOnlyLeads: LeadState = {
+    ...leads,
+    records: {
+      "5": leads.records["5"]!,
+      "7": lead(7, { status: "researched", manifest, release_hint: withoutAssets }),
+      "8": lead(8, { external_lists: ["quiver"], release_hint: withoutAssets }),
+      "9": lead(9, { release_hint: withoutAssets }),
+      "10": lead(10, { manifest, release_hint: withoutAssets }),
+      "11": lead(11, { status: "held", manifest, release_hint: withoutAssets }),
+    },
+  };
+  const sourceOnlyRound = nextListingPreviewRound(sourceOnlyLeads, undefined, start, covered);
+  assert.ok(sourceOnlyRound);
+  const sourceOnlyPreview = scheduledListingPreview(
+    {
+      ...retained,
+      state: { ...retained.state, leads: sourceOnlyLeads, listing_preview_round: sourceOnlyRound },
+    },
+    start,
+    covered,
+    "source",
+    () => assert.fail("scope nominations do not reread release evidence"),
+  );
+  assert.deepEqual(
+    sourceOnlyPreview.handoff.candidates.map(({ id }) => id),
+    ["github-5", "github-7", "github-8"],
+  );
+  const [withPackage, withManifest, withCurated] = sourceOnlyPreview.receipt.evidence.map(
+    ({ input }) => input,
+  );
+  assert.ok(withPackage?.desktop_asset_hint);
+  assert.ok(withManifest && !withManifest.desktop_asset_hint);
+  assert.ok(withCurated && !withCurated.desktop_asset_hint);
+  assert.equal(withManifest.scope.kind, "retained-manifest");
+  assert.deepEqual(withCurated.scope, {
+    kind: "curated-source",
+    sources: ["quiver"],
+    release_sampled_at: previous,
+  });
+  assert.doesNotMatch(JSON.stringify(sourceOnlyPreview), /\/private/u);
+
+  sourceOnlyLeads.records["8"]!.release_hint = retainedRelease(8);
+  const subsequent = scheduledListingPreview(
+    {
+      ...retained,
+      state: { ...retained.state, leads: sourceOnlyLeads, listing_preview_round: sourceOnlyRound },
+    },
+    start,
+    covered,
+    "source",
+    () => undefined,
+  );
+  assert.equal(subsequent.handoff.candidates[2]?.id, "github-8");
+  assert.equal(subsequent.receipt.evidence[2]?.input.desktop_asset_hint, true);
+
   const first = nextListingPreviewRound(leads, undefined, start, covered);
   assert.ok(first);
   const previewRound = (round: NonNullable<typeof first>) =>
@@ -735,6 +804,8 @@ void test("scheduled listing preview resumes retained release evidence and binds
   context.after(() => rmSync(root, { recursive: true, force: true }));
   const memory = memoryStore();
   memory.leads.set(5, leads.records["5"]);
+  memory.leads.set(7, sourceOnlyLeads.records["7"]);
+  memory.leads.set(8, lead(8, { external_lists: ["quiver"], release_hint: withoutAssets }));
   memory.leads.set(11, leads.records["11"]);
   const runPreview = async (runStartedAt: string) => {
     const timestamp = Date.parse(runStartedAt);
@@ -758,13 +829,15 @@ void test("scheduled listing preview resumes retained release evidence and binds
     assert.equal(run.outcome, "partial");
     return selected;
   };
-  assert.deepEqual(await runPreview(start), [5, 11]);
+  assert.deepEqual(await runPreview(start), [5, 7, 8, 11]);
   assert.deepEqual(parseWorkerState(memory.state()).listing_preview_round, first);
   memory.leads.set(1, leads.records["1"]);
   memory.leads.set(20, leads.records["20"]);
-  assert.deepEqual(await runPreview("2026-11-02T00:00:00Z"), [11]);
+  assert.deepEqual(await runPreview("2026-11-02T00:00:00Z"), [7, 8, 11]);
   assert.equal(parseWorkerState(memory.state()).listing_preview_round?.through_id, 11);
-  assert.deepEqual(await runPreview("2026-11-03T00:00:00Z"), [1, 5, 11, 20]);
+  assert.deepEqual(await runPreview("2026-11-03T00:00:00Z"), [8, 11]);
+  assert.deepEqual(await runPreview("2026-11-04T00:00:00Z"), [11]);
+  assert.deepEqual(await runPreview("2026-11-05T00:00:00Z"), [1, 5, 7, 8, 11, 20]);
 });
 
 void test(
