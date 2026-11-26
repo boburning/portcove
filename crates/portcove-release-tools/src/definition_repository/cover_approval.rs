@@ -232,7 +232,15 @@ fn cover_approval_scope(
         } else {
             "single"
         },
-        artwork,
+        // Keep the transport-independent part of the approved image mapping
+        // in the same order as coverDeclarationScope in the publisher.
+        [
+            artwork["game_id"],
+            artwork["cover_id"],
+            artwork["image_id"],
+            artwork["image_sha256"],
+            artwork["match_kind"],
+        ],
     ]);
     scope.sort_all_objects();
     Ok(sha(&serde_json::to_vec(&scope)?))
@@ -454,8 +462,7 @@ mod tests {
                 .is_err()
             );
         }
-        let gone_scope =
-            sha(&serde_json::to_vec(&json!(["example", null, null, null, "single", b])).unwrap());
+        let gone_scope = cover_approval_scope(&json!({"id": "example"}), &b).unwrap();
         let gone = serde_json::to_vec(&json!({"entries": [{
             "id": "example", "scope": gone_scope, "image_id": "coverb",
             "prior_sha256": b["image_sha256"], "state": "gone"
@@ -592,9 +599,19 @@ mod tests {
             "cover_id": 237769, "game_id": 1622, "game_slug": "mortal-kombat-4",
             "image_id": "co53gp", "image_sha256": "a".repeat(64), "match_kind": "underlying-game",
         });
+        let scope = cover_approval_scope(&listing, &artwork).unwrap();
         assert_eq!(
-            cover_approval_scope(&listing, &artwork).unwrap(),
-            "2f814ad1c3629bd5b9aa0a7b1a6d2abe83d22f1e088d9392f31a718702cf3287"
+            scope,
+            "c25dff06c9522577cf534aad11c8e61d9f3f52954ec665f3075f2326cbdc3a2a"
+        );
+
+        let mut renamed = artwork;
+        renamed["game_slug"] = json!("renamed");
+        assert_eq!(cover_approval_scope(&listing, &renamed).unwrap(), scope);
+        renamed["cover_id"] = json!(237770);
+        assert_eq!(
+            cover_approval_scope(&listing, &renamed).unwrap(),
+            "4d30c00e537adde553ef294fb1adb6b7a0eea439f3530636ed514d0ab58eefac"
         );
     }
 }
