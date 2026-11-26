@@ -120,6 +120,35 @@ void test("exact scoped withdrawal survives a quiet renewal and only later accep
   assert.ok(decoded.prior_checkpoint_sha256);
 });
 
+void test("the original checkpoint scope can be restored by later accepted bytes", () => {
+  const oldScope = "1cb3c6053536c7896db85e3020906028d99312d27609beb19542d1ca9fae31fc";
+  const previous = advanceArtworkCheckpoint(null, [{ ...gone, scope: oldScope }]);
+  const stripped = previous.apply(listing);
+  assert.equal(stripped.artwork, undefined);
+  const active = wire(stripped);
+  const bytes = previous.finish(active);
+  assert.ok(bytes);
+  const prior = { listing: active, bytes };
+  const quiet = advanceArtworkCheckpoint(prior, []);
+  assert.deepEqual(quiet.apply(listing), stripped);
+  assert.deepEqual(quiet.finish(active), bytes);
+
+  const observation = {
+    ...gone,
+    status: "verified_accepted_bytes",
+    legacy_scopes: [oldScope],
+  };
+  assert.deepEqual(advanceArtworkCheckpoint(prior, [observation]).apply(listing), stripped);
+  const restored = advanceArtworkCheckpoint(prior, [{ ...observation, observed_at: newerAt }]);
+  assert.deepEqual(restored.apply(listing), listing);
+  const current = wire(listing);
+  const after = restored.finish(current);
+  assert.ok(after);
+  assert.deepEqual(
+    readArtworkCheckpoint(after, current).entries.map(({ scope, state }) => ({ scope, state })),
+    [{ scope: oldScope, state: "restored" }],
+  );
+});
 void test("a provider slug rename preserves authenticated mismatch and durable withdrawal", () => {
   const renamed = { ...listing, artwork: { ...artwork, game_slug: "original-renamed" } };
   assert.equal(coverDeclarationScope(renamed, renamed.artwork), gone.scope);
@@ -218,7 +247,12 @@ void test("completed observations can only affect their exact current authored d
     gaps: [],
     counts: { unchanged: 0, mismatch: 0, gone: 1, unavailable: 0, deferred: 0 },
   };
-  assert.deepEqual(applicableCoverHealth({ listings: [listing] }, evidence), [gone]);
+  assert.deepEqual(applicableCoverHealth({ listings: [listing] }, evidence), [
+    {
+      ...gone,
+      legacy_scopes: ["1cb3c6053536c7896db85e3020906028d99312d27609beb19542d1ca9fae31fc"],
+    },
+  ]);
   assert.deepEqual(
     applicableCoverHealth(
       { listings: [{ ...listing, original_game_title: "Remaster" }] },

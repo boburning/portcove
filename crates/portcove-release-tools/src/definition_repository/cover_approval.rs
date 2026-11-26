@@ -89,15 +89,19 @@ fn check_projection(journal: &Value, compact: &[u8], cover: &[u8]) -> Result<()>
 
 fn matches_checkpoint_cover(listing: &Value, expected: &Value, checkpoint: &Value) -> Result<bool> {
     let scope = cover_approval_scope(listing, expected)?;
-    let gone = checkpoint["entries"].as_array().is_some_and(|entries| {
-        entries.iter().any(|entry| {
-            entry["id"] == listing["id"]
-                && entry["scope"] == scope
-                && entry["image_id"] == expected["image_id"]
-                && entry["prior_sha256"] == expected["image_sha256"]
-                && entry["state"] == "gone"
-        })
+    let legacy_scope = hash_cover_scope(listing, expected)?;
+    let latest = checkpoint["entries"].as_array().and_then(|entries| {
+        entries
+            .iter()
+            .filter(|entry| {
+                entry["id"] == listing["id"]
+                    && (entry["scope"] == scope || entry["scope"] == legacy_scope)
+                    && entry["image_id"] == expected["image_id"]
+                    && entry["prior_sha256"] == expected["image_sha256"]
+            })
+            .max_by_key(|entry| (entry["observed_at"].as_str(), entry["state"] == "gone"))
     });
+    let gone = latest.is_some_and(|entry| entry["state"] == "gone");
     Ok(if gone {
         listing.get("artwork").is_none()
     } else {
@@ -217,11 +221,19 @@ pub(super) fn cover_approval_packets(journal: &serde_json::Value) -> Result<&[se
 
 // Matches coverDeclarationScope in scripts/listing-artwork-checkpoint.mts.
 // Provider slugs can change without changing the reviewed cover identity.
-// Sort the assembled original-game identity even when serde_json preserves order.
-fn cover_approval_scope(
-    listing: &serde_json::Value,
-    artwork: &serde_json::Value,
-) -> Result<String> {
+fn cover_approval_scope(listing: &Value, artwork: &Value) -> Result<String> {
+    let identity = serde_json::json!([
+        &artwork["game_id"],
+        &artwork["cover_id"],
+        &artwork["image_id"],
+        &artwork["image_sha256"],
+        &artwork["match_kind"],
+    ]);
+    hash_cover_scope(listing, &identity)
+}
+
+// Retained checkpoints can still bind the full historical artwork mapping.
+fn hash_cover_scope(listing: &Value, artwork_identity: &Value) -> Result<String> {
     let mut scope = serde_json::json!([
         listing["id"],
         listing["project_url"],
@@ -232,13 +244,7 @@ fn cover_approval_scope(
         } else {
             "single"
         },
-        [
-            &artwork["game_id"],
-            &artwork["cover_id"],
-            &artwork["image_id"],
-            &artwork["image_sha256"],
-            &artwork["match_kind"],
-        ],
+        artwork_identity,
     ]);
     scope.sort_all_objects();
     Ok(sha(&serde_json::to_vec(&scope)?))

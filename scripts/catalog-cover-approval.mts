@@ -21,7 +21,10 @@ import {
   createIgdbInspector,
   isConfirmedIgdbImageGone,
 } from "./inspect-igdb-artwork.mts";
-import { coverDeclarationScope } from "./listing-artwork-checkpoint.mts";
+import {
+  coverDeclarationScope,
+  legacyCoverDeclarationScope,
+} from "./listing-artwork-checkpoint.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 
@@ -324,6 +327,7 @@ export async function observeApprovedCoverHealth(options: {
       id: entry.id,
       artwork,
       scope,
+      legacy_scopes: [legacyCoverDeclarationScope(declaration, artwork)],
       observed_at: observedAt,
       status,
       report: `sha256:${receipt}`,

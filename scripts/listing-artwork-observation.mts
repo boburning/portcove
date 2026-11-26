@@ -7,7 +7,10 @@ import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
-import { coverDeclarationScope } from "./listing-artwork-checkpoint.mts";
+import {
+  coverDeclarationScope,
+  legacyCoverDeclarationScope,
+} from "./listing-artwork-checkpoint.mts";
 import {
   artworkHealthInventory,
   artworkHealthProducer,
@@ -309,6 +312,12 @@ export function applicableCoverHealth(
           id,
           artwork,
           scope,
+          legacy_scopes: [
+            ...new Set([
+              legacyCoverDeclarationScope(row, artwork),
+              legacyCoverDeclarationScope(originalRow, fact.artwork),
+            ]),
+          ],
           observed_at: fact.observed_at,
           report: evidence.artifact,
           status:

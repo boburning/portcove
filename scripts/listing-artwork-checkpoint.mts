@@ -44,13 +44,21 @@ export function coverDeclarationScope(row: Record<string, unknown>, artwork: unk
         artwork.match_kind,
       ]
     : artwork;
+  return hashCoverScope(row, settledArtwork);
+}
+
+export function legacyCoverDeclarationScope(row: Record<string, unknown>, artwork: unknown) {
+  return hashCoverScope(row, artwork);
+}
+
+function hashCoverScope(row: Record<string, unknown>, artworkIdentity: unknown) {
   return orderedJsonSha256([
     row.id,
     row.project_url ?? null,
     row.original_game_title ?? null,
     row.original_game ?? null,
     Array.isArray(row.collection_covers) ? "collection" : "single",
-    settledArtwork,
+    artworkIdentity,
   ]);
 }
 
@@ -111,21 +119,24 @@ export function readArtworkCheckpoint(bytes: Buffer, listing: Buffer): Checkpoin
   };
 }
 
+function newestCoverRow(first: Row | undefined, second: Row | undefined) {
+  if (!first || (second && second.observed_at > first.observed_at)) return second;
+  if (second?.observed_at === first.observed_at && second.state === "gone") return second;
+  return first;
+}
 function applyCoverState(
   entries: ReadonlyMap<string, Row>,
   listing: Record<string, unknown>,
   declaration: Record<string, unknown>,
 ) {
   if (typeof listing.id !== "string") return listing;
-  const gone = (artwork: { image_id: string; image_sha256: string }) =>
-    entries.get(
-      key({
-        id: String(listing.id),
-        scope: coverDeclarationScope(declaration, artwork),
-        image_id: artwork.image_id,
-        prior_sha256: artwork.image_sha256,
-      }),
-    )?.state === "gone";
+  const id = listing.id;
+  const gone = (artwork: { image_id: string; image_sha256: string }) => {
+    const identity = { id, image_id: artwork.image_id, prior_sha256: artwork.image_sha256 };
+    const stable = entries.get(key({ ...identity, scope: coverDeclarationScope(declaration, artwork) }));
+    const legacy = entries.get(key({ ...identity, scope: legacyCoverDeclarationScope(declaration, artwork) }));
+    return newestCoverRow(stable, legacy)?.state === "gone";
+  };
   const result = { ...listing };
   if (validArtworkMapping(listing.artwork) && gone(listing.artwork)) {
     delete result.artwork;
@@ -142,7 +153,9 @@ function applyCoverState(
  */
 export function advanceArtworkCheckpoint(
   prior: { bytes: Buffer; listing: Buffer } | null,
-  observations: ReturnType<typeof applicableCoverHealth>,
+  observations: (Omit<ReturnType<typeof applicableCoverHealth>[number], "legacy_scopes"> & {
+    legacy_scopes?: string[];
+  })[],
 ) {
   const held = prior ? readArtworkCheckpoint(prior.bytes, prior.listing) : null;
   const entries = new Map(held?.entries.map((row) => [key(row), row]));
@@ -151,6 +164,18 @@ export function advanceArtworkCheckpoint(
   let reservation =
     checkpointOverhead + [...entries.values()].reduce((sum, row) => sum + reserved(row), 0);
   const deferred = new Set<string>();
+  const legacyScopes = new Map<string, Set<string>>();
+  for (const observation of observations) {
+    const identity = key({
+      id: observation.id,
+      scope: observation.scope,
+      image_id: observation.artwork.image_id,
+      prior_sha256: observation.artwork.image_sha256,
+    });
+    const scopes = legacyScopes.get(identity) ?? new Set<string>();
+    for (const scope of observation.legacy_scopes ?? []) scopes.add(scope);
+    if (scopes.size) legacyScopes.set(identity, scopes);
+  }
   const proposed = observations
     .filter((observation) => observation.status !== "hold_changed_bytes")
     .map((observation) => ({
@@ -176,7 +201,10 @@ export function advanceArtworkCheckpoint(
   );
   for (const row of proposed) {
     const identity = key(row);
-    const previous = entries.get(identity);
+    let previous = entries.get(identity);
+    for (const scope of legacyScopes.get(identity) ?? []) {
+      previous = newestCoverRow(previous, entries.get(key({ ...row, scope })));
+    }
     if (
       (!previous && row.state === "restored") ||
       (previous && row.observed_at <= previous.observed_at)
@@ -190,7 +218,13 @@ export function advanceArtworkCheckpoint(
       }
       reservation += needed;
     }
-    entries.set(identity, row);
+    // A restoration updates the existing wire row that supplies its authority.
+    // A new scope cannot start in the restored state.
+    if (previous) {
+      entries.set(key(previous), { ...row, scope: previous.scope });
+    } else {
+      entries.set(identity, row);
+    }
   }
   const sorted = [...entries.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
