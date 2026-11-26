@@ -678,6 +678,40 @@ void test("existing observations deduplicate across proposals and preserve non-n
   assert.equal(f.normalizations, 0);
   assert.equal(f.creations, 0);
 });
+
+void test("hosted intake parks an issue-free catalog owner and delivers a separate candidate", async () => {
+  const known = {
+    ...candidate,
+    title: "Dungeon Crawl Stone Soup",
+    game: "Dungeon Crawl Stone Soup",
+    upstream: "https://github.com/renamed/crawl",
+    repository_id: 23038334,
+    port_key: "crawl-renamed",
+  };
+  const f = await fixture(
+    [
+      known,
+      {
+        ...known,
+        title: "Recycled repository",
+        game: "Different game",
+        upstream: "https://github.com/crawl/crawl",
+        repository_id: 123454321,
+        port_key: "recycled-crawl",
+      },
+      candidate,
+    ].map((item) => ({ ...item, intent: { kind: "create" } })),
+    2,
+  );
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.status, "complete_with_holds");
+  assert.equal(result.delivery[0]!.hold?.repository_id, 23038334);
+  assert.equal(result.delivery[0]!.created_issue, undefined);
+  assert.equal(result.delivery[1]!.hold?.repository_id, 123454321);
+  assert.equal(result.delivery[2]!.status, "delivered");
+  assert.equal(f.creations, 1);
+  assert.equal((await f.bridge.status(f.request, f.all())).status, "complete_with_holds");
+});
 void test("a transferred immutable catalog repository routes to its original owner", async () => {
   const c = {
     ...candidate,
