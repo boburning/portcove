@@ -198,7 +198,7 @@ jobs:
         id: observe
         if: steps.decide.outputs.publish == 'true'
         env:
-          ACTIVATE_COVER_CHECKPOINT: ${{ github.event_name == 'workflow_dispatch' && inputs.activate_cover_checkpoint == true }}
+          ACTIVATE_COVER_CHECKPOINT: ${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_cover_checkpoint == true }}
         run: |
           set -euo pipefail
           cover_options=()

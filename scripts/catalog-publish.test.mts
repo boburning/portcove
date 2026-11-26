@@ -880,10 +880,18 @@ void test("the history bootstrap flag is reachable only from the manual dispatch
         type: "boolean",
         default: false,
       },
+      activate_cover_checkpoint: {
+        description:
+          "Owner activation only - admit the first cover checkpoint after signed history and released reader support",
+        type: "boolean",
+        default: false,
+      },
     },
   });
   assert.equal(source.match(/--bootstrap-history/gu)?.length, 1);
   assert.equal(source.match(/inputs\.bootstrap_history/gu)?.length, 1);
+  assert.equal(source.match(/--activate-cover-checkpoint/gu)?.length, 1);
+  assert.equal(source.match(/inputs\.activate_cover_checkpoint/gu)?.length, 1);
   const steps = workflow.jobs.prepare!.steps!;
   const prepare = steps.find(({ id }) => id === "prepare")!;
   const gate =
@@ -1052,7 +1060,7 @@ void test("compact listing activation selects the released reader and rechecks i
   assert.equal(observe.if, "steps.decide.outputs.publish == 'true'");
   assert.deepEqual(observe.env, {
     ACTIVATE_COVER_CHECKPOINT:
-      "${{ github.event_name == 'workflow_dispatch' && inputs.activate_cover_checkpoint == true }}",
+      "${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_cover_checkpoint == true }}",
   });
   assert.match(
     observe.run!,

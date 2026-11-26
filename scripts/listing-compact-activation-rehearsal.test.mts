@@ -170,6 +170,43 @@ void test("the rehearsal drives every activation step through preparation", asyn
   assert.match(report.preconditions.without_prior, /requires the prior signed repository/u);
 });
 
+void test("first cover checkpoint without an accepted withdrawal renews the exact compact publication", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const compact = encodeCompactListing(
+    wire({
+      ...document(legacyTarget),
+      revision: 2,
+      directory: canonical,
+    }),
+  );
+  const prior = writePriorRepository(path.join(fixture.root, "prior"), {
+    [listingDeliveryTarget]: legacyTarget,
+    [compactListingDeliveryTarget]: compact,
+    "policy/official/catalog.history-checkpoint.json": wire({}),
+  });
+  const output = path.join(fixture.root, "out");
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: fixture.canonical,
+    catalog: fixture.catalog,
+    prior,
+    priorHistory: path.join(fixture.root, "history"),
+    output,
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    observe: false,
+    officialReleasedReader: true,
+    activateCoverCheckpoint: true,
+    acquireReleasedReader: () =>
+      assert.fail("no release should be acquired without a cover transition"),
+  });
+  assert.equal(report.listing_publication_stopped?.code, "cover_evidence_unavailable");
+  assert.equal(report.released_cover_proof, undefined);
+  assertExactPriorRenewal(output, report, legacyTarget, compact);
+});
+
 void test("a projection stop renews the exact prior carriers instead of excluding candidates", async (t) => {
   const fixture = fixtureWorkspace(t);
   const enrichment = enrichmentFixture();
