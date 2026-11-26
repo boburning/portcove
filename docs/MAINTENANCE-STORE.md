@@ -1699,6 +1699,11 @@ and leaves exact unattributed transfer unknown.
 `resource.jsonl` in the existing evidence artifact records sample, operation,
 remaining bytes, unreconciled charges, future recovery provision, retry condition
 and outcome. The GitHub summary reports deferred work and the dated recovery point.
+The hosted receipt records the collection ledger's completion criterion separately
+from the command outcome. It counts failed sources and Core gaps even when the
+command returned successfully. Individual source coverage remains in the inventory.
+A coalesced request records reuse, and a missing or invalid result records unknown
+ledger completion.
 Publication and player routes keep their existing static signed catalog inputs.
 No paid fallback is used.
 
