@@ -489,7 +489,7 @@
     "discard": "Discard draft",
     "fileUnavailable": "This settings file is unavailable.",
     "heading": "Game settings",
-    "held": "This setup or file changed. Your draft is held here. Read the settings again or discard this draft to start over.",
+    "held": "This draft belongs to an earlier setup or file. To edit the current settings, discard this draft and enter your changes again.",
     "installTarget": "Game version {{version}}",
     "intro": "Edit settings, then review the changes for each file before saving.",
     "label": "Game settings",

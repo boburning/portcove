@@ -765,7 +765,8 @@ it("holds an edited file across a materialized setup revision change", async () 
   expect(host.textContent).toContain("Setup Weekend setup · Game version 1.2");
   await click("Read settings again");
   expect(read).toHaveBeenCalledTimes(2);
-  expect(host.textContent).toContain("Your draft is held here");
+  expect(host.textContent).toContain("This draft belongs to an earlier setup or file.");
+  expect(host.textContent).toContain("discard this draft and enter your changes again.");
   expect(host.querySelector("input")?.value).toBe("40");
   expect(button("Review changes").matches(":disabled")).toBe(true);
   expect(review).not.toHaveBeenCalled();
