@@ -1455,7 +1455,30 @@ async fn discovery_completeness_requires_the_end_of_each_selected_asset_inventor
 
 #[tokio::test]
 async fn download_without_published_digest_retains_honest_provenance_and_non_owning_handoff() {
-    let (_temporary, service, request) = fixture();
+    let (_temporary, mut service, request) = fixture();
+    let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
+    listing.mod_portals.push(crate::ListingModPortal {
+        id: "community".into(),
+        site: crate::ModPortalSite::CommunitySite,
+        name: "Game mods".into(),
+        url: "https://mods.example.com/".into(),
+        instructions: "Read the community instructions.".into(),
+    });
+    service.catalog = service
+        .catalog
+        .with_listing_document(crate::CatalogListingDocument {
+            format_version: 16,
+            listings: vec![listing],
+        })
+        .unwrap();
+    assert_eq!(
+        service
+            .preview_mod_handoff(&request.port_id)
+            .unwrap()
+            .external_mod_portals
+            .len(),
+        1
+    );
     let bytes = archive();
     let expected = crate::signed_catalog::digest(&bytes);
     let github = GithubFixture::new(bytes, None, None);
@@ -1495,6 +1518,7 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     let stored: Value = serde_json::from_str(&raw).unwrap();
     assert!(stored.get("format_version").is_none(), "{stored}");
     assert!(stored.get("progress").is_none(), "{stored}");
+    assert!(stored["listing"].get("mod_portals").is_none(), "{stored}");
     assert_eq!(
         pending.stage_kind(),
         Some(crate::PendingSetupStageKind::ArtifactObtained)
@@ -1509,6 +1533,7 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     assert!(service.require_no_pending_setup(&pending.port_id).is_err());
     let reopened = PortcoveService::new(service.library.clone()).unwrap();
     assert!(reopened.catalog.listing(&pending.port_id).is_err());
+    assert!(reopened.preview_mod_handoff(&pending.port_id).is_err());
     let snapshot = reopened.workspace_snapshot(10).unwrap();
     assert_eq!(
         snapshot.pending_setups.as_slice(),
