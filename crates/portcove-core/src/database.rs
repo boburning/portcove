@@ -2651,7 +2651,11 @@ fn table_columns(connection: &Connection, table: &str) -> Result<Vec<String>> {
     Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
 }
 
-pub(crate) fn require_columns(connection: &Connection, table: &str, required: &[&str]) -> Result<()> {
+pub(crate) fn require_columns(
+    connection: &Connection,
+    table: &str,
+    required: &[&str],
+) -> Result<()> {
     let columns = table_columns(connection, table)?;
     if columns.is_empty() {
         return Err(PortcoveError::state(format!(
