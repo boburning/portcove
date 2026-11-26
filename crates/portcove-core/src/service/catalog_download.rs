@@ -289,6 +289,19 @@ fn is_digest(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
+fn github_release_page_matches(expected: &str, displayed: &str) -> bool {
+    fn parts(url: &str) -> Option<(&str, &str)> {
+        url.strip_prefix("https://github.com/")?
+            .split_once("/releases/tag/")
+    }
+    match (parts(expected), parts(displayed)) {
+        (Some((repository, tag)), Some((shown_repository, shown_tag))) => {
+            repository.eq_ignore_ascii_case(shown_repository) && tag == shown_tag
+        }
+        _ => false,
+    }
+}
+
 fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     record.listing.validate()?;
     record
@@ -1026,15 +1039,16 @@ impl PortcoveService {
         listing.validate()?;
         self.require_download_available(port_id)?;
         let (repository, provider) = self.catalog_download_source(listing, provider)?;
-        let release_url = provider
-            .candidate_release_notes_url(
-                repository.name(),
-                release_id,
-                asset_id,
-                listing.admitted_github_repository_id(),
-            )
+        let repository_id = listing.admitted_github_repository_id();
+        let (release_url, previous_release_url) = provider
+            .candidate_release_notes_url(repository.name(), release_id, asset_id, repository_id)
             .await?;
-        if release_url != displayed_url {
+        let numeric_page_matches = repository_id.is_some()
+            && (github_release_page_matches(&release_url, displayed_url)
+                || previous_release_url
+                    .as_deref()
+                    .is_some_and(|previous| github_release_page_matches(previous, displayed_url)));
+        if release_url != displayed_url && !numeric_page_matches {
             return Err(PortcoveError::conflict(
                 "The selected release page changed. Check downloads again.",
             ));
