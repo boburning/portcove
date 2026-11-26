@@ -267,6 +267,13 @@ pub(super) async fn inspect_prior(
     if pointer.is_none() && (prior_cover.is_some() || next_cover.is_some()) {
         return invalid("cover observations require authenticated catalog history");
     }
+    if next_cover.is_some()
+        && !logical
+            .files
+            .contains_key(portcove_listing_carrier::COMPACT_TARGET)
+    {
+        return invalid("cover observations require a previously active compact listing");
+    }
     portcove_listing_carrier::check_cover_checkpoint_successor(
         prior_cover
             .as_ref()
