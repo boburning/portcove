@@ -44,6 +44,16 @@ export interface PortFactsOptions {
   fetcher?: typeof fetch;
 }
 
+export class BoundRepositoryUnavailable extends Error {
+  readonly reason: string;
+  readonly retryAfter: string | undefined;
+  constructor(reason: string, retryAfter?: string) {
+    super(`Public repository metadata unavailable: ${reason}.`);
+    this.reason = reason;
+    this.retryAfter = retryAfter;
+  }
+}
+
 function checkedPublicUrl(value: string) {
   const url = new URL(value);
   if (url.protocol !== "https:" || url.username || url.password || value.length > 2048)
@@ -378,6 +388,8 @@ export async function collectPortFacts(options: PortFactsOptions) {
     : undefined;
   if (isRecord(project?.body) && project.body.private === true)
     throw new Error("Private repository metadata cannot establish a public catalog origin.");
+  if (expectedId !== undefined && project?.status === "unavailable")
+    throw new BoundRepositoryUnavailable(project.reason ?? "unobserved", project.retry_after);
   if (
     expectedId !== undefined &&
     (!isRecord(project?.body) ||
