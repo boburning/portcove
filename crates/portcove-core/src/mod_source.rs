@@ -49,6 +49,33 @@ pub enum ModPortalSite {
     CommunitySite,
 }
 
+/// A reviewed link to a mod community for this exact listing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListingModPortal {
+    pub id: String,
+    pub site: ModPortalSite,
+    pub name: String,
+    pub url: String,
+    pub instructions: String,
+}
+
+pub(crate) fn validate_listing_portals(portals: &[ListingModPortal]) -> Result<()> {
+    let mut ids = std::collections::HashSet::new();
+    if portals.len() > MAX_SOURCES
+        || !portals.iter().all(|portal| {
+            valid_id(&portal.id)
+                && ids.insert(&portal.id)
+                && valid_text(&portal.name, MAX_NAME_BYTES)
+                && valid_text(&portal.instructions, MAX_INSTRUCTION_BYTES)
+                && checked_url(&portal.url, portal_host(portal.site)).is_some()
+        })
+    {
+        return Err(PortcoveError::verification("invalid listing mod portals"));
+    }
+    Ok(())
+}
+
 /// Exact companion files one reviewed platform loads beside a Recomp mod.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

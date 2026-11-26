@@ -1307,6 +1307,22 @@ where
     Vec::<String>::deserialize(deserializer).map(Some)
 }
 
+// An older directory reader rejects the key even when its array is empty.
+fn present_listing_mod_portals<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Vec<crate::ListingModPortal>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let portals = Vec::deserialize(deserializer)?;
+    if portals.is_empty() {
+        return Err(serde::de::Error::custom(
+            "listing mod portals must be omitted when empty",
+        ));
+    }
+    Ok(portals)
+}
+
 fn present_collection_covers<'de, D>(
     deserializer: D,
 ) -> std::result::Result<Option<Vec<IgdbArtwork>>, D::Error>
@@ -1370,6 +1386,13 @@ pub struct PortListing {
         deserialize_with = "present_funding_urls"
     )]
     pub funding_urls: Option<Vec<String>>,
+    /// Reviewed community links for this listing. Requires listing format 16.
+    #[serde(
+        default,
+        skip_serializing_if = "Vec::is_empty",
+        deserialize_with = "present_listing_mod_portals"
+    )]
+    pub mod_portals: Vec<crate::ListingModPortal>,
     /// Empty means unknown; it is not an execution compatibility declaration.
     #[serde(default)]
     pub platforms: Vec<Platform>,
@@ -2994,7 +3017,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
             listing_delivery_carriers: vec![
                 "json-v1".into(),
                 crate::definition_repository::publisher_policy::listing_delivery::COMPACT_CARRIER

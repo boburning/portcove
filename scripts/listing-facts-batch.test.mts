@@ -2635,6 +2635,25 @@ void test("only deliver and merge mint the App token, in the facts-batch environ
   assert.doesNotMatch(text, /Approve workflows|approval-required|close and reopen/iu);
 });
 
+void test("the shard plan ships the inspector without debug sections", () => {
+  const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
+    jobs: { prepare: { steps: { run?: string; with?: { name?: string } }[] } };
+  };
+  const steps = workflow.jobs.prepare.steps;
+  const build = steps.findIndex((step) =>
+    step.run?.includes("cargo build --locked -p portcove-cli"),
+  );
+  const upload = steps.findIndex((step) =>
+    step.with?.name?.startsWith("listing-facts-batch-plan-"),
+  );
+  assert.ok(build >= 0 && upload > build);
+  const script = steps[build]?.run ?? "";
+  assert.match(
+    script,
+    /cp target\/debug\/portcove "\$WORK\/cli\/portcove"[\s\S]*?strip --strip-debug "\$WORK\/cli\/portcove"/u,
+  );
+});
+
 void test("deliver and merge never execute batch or artifact content; the mint comes last (F1)", () => {
   const text = readFileSync(join(root, batchWorkflowPath), "utf8");
   type Step = { id?: string; name?: string; run?: string; uses?: string; with?: unknown };

@@ -44,7 +44,7 @@ const timestamp = "metadata/timestamp.json";
 const maximumRepositoryBytes = 768 * 1024 ** 2;
 const sha256 = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 
-function assembledInventory(report: unknown) {
+export function assembledInventory(report: unknown) {
   if (
     !isRecord(report) ||
     report.schema_version !== 1 ||
