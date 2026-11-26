@@ -931,15 +931,25 @@ export async function collectLeadReleaseHints(host: DiscoveryCollectionHost, ear
   let unavailable = 0;
   let malformed = 0;
   for (const lead of selectLeadReleaseChecks(
-    host.leads, host.knownLeadUrls(), host.journal.started_at, host.unattended === true,
+    host.leads,
+    host.knownLeadUrls(),
+    host.journal.started_at,
+    host.unattended === true,
   )) {
     const reserve = researchReserve(host, 17);
     const left = host.budget.remaining();
-    if (left.requests < reserve.requests + 1 || left.bytes <= reserve.bytes || left.milliseconds <= 0)
+    if (
+      left.requests < reserve.requests + 1 ||
+      left.bytes <= reserve.bytes ||
+      left.milliseconds <= 0
+    )
       break;
-    if (early && (host.budget.usage.requests - initialUsage >= requestShare ||
-      host.budget.usage.bytes + host.budget.usage.accounting_bytes - initialBytes >= byteShare ||
-      initial.milliseconds - left.milliseconds >= timeShare))
+    if (
+      early &&
+      (host.budget.usage.requests - initialUsage >= requestShare ||
+        host.budget.usage.bytes + host.budget.usage.accounting_bytes - initialBytes >= byteShare ||
+        initial.milliseconds - left.milliseconds >= timeShare)
+    )
       break;
     attempted++;
     let data: unknown;
@@ -956,8 +966,10 @@ export async function collectLeadReleaseHints(host: DiscoveryCollectionHost, ear
       // Path-specific inaccessibility is not evidence of missing packages and
       // must not starve all later leads. Global quota/auth/transport failures
       // still propagate to the existing worker boundary.
-      if (!(error instanceof GitHubApiError) ||
-          (![404, 410, 451].includes(error.status ?? 0) && error.code !== "redirect_refused"))
+      if (
+        !(error instanceof GitHubApiError) ||
+        (![404, 410, 451].includes(error.status ?? 0) && error.code !== "redirect_refused")
+      )
         throw error;
       lead.release_probe = { attempted_at: host.journal.started_at, outcome: "unavailable" };
       unavailable++;
@@ -979,8 +991,11 @@ export async function collectLeadReleaseHints(host: DiscoveryCollectionHost, ear
           const asset = object(rawAsset);
           if (typeof asset.state !== "string" || typeof asset.name !== "string")
             throw new Error("Malformed release asset");
-          if (!release.draft && asset.state === "uploaded" &&
-            /\.(?:zip|tar\.gz|AppImage|exe|msi|dmg)$/iu.test(asset.name))
+          if (
+            !release.draft &&
+            asset.state === "uploaded" &&
+            /\.(?:zip|tar\.gz|AppImage|exe|msi|dmg)$/iu.test(asset.name)
+          )
             found = true;
         }
       }
@@ -1005,7 +1020,8 @@ export async function collectLeadReleaseHints(host: DiscoveryCollectionHost, ear
       status: "partial",
       unavailable,
       malformed,
-      resume: "Keep the last successful release observation; retry inaccessible or malformed paths in a later run.",
+      resume:
+        "Keep the last successful release observation; retry inaccessible or malformed paths in a later run.",
     });
     host.persist();
   }

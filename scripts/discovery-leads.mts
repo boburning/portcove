@@ -804,15 +804,16 @@ export function selectLeadReleaseChecks(
   unattended: boolean,
 ) {
   const lastAttempt = (lead: DiscoveryLead) =>
-    [lead.release_hint?.observed_at ?? "", lead.release_probe?.attempted_at ?? ""]
-      .sort().at(-1)!;
+    [lead.release_hint?.observed_at ?? "", lead.release_probe?.attempted_at ?? ""].sort().at(-1)!;
   const pending = pendingLeads(state, known, Date.parse(startedAt));
   if (unattended)
     return pending
       .filter((lead) => lastAttempt(lead) < startedAt)
       .toSorted((a, b) => lastAttempt(a).localeCompare(lastAttempt(b)) || a.id - b.id);
-  return pending.filter((lead) => {
-    const at = lastAttempt(lead);
-    return !at || Date.parse(startedAt) - Date.parse(at) >= 7 * 86400000;
-  }).slice(0, 4);
+  return pending
+    .filter((lead) => {
+      const at = lastAttempt(lead);
+      return !at || Date.parse(startedAt) - Date.parse(at) >= 7 * 86400000;
+    })
+    .slice(0, 4);
 }

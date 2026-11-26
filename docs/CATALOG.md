@@ -3664,9 +3664,10 @@ correcting or removing a source is a catalog change. Each entry has:
 - `authority`: the most the source may do. `link_out` opens the source page in
   the player's browser. `browse` also reads a bounded, attributed provider
   listing. `inspect` also downloads one exact file privately and reviews it.
-- `platforms`: a sorted, non-empty list of host platforms. Core offers a
-  source on a platform the integration manages, or one the matching listing
-  presents.
+- `platforms`: a sorted list of host platforms. Core offers a scoped source
+  on a platform the integration manages or the matching listing presents.
+  For a platform-independent `external_portal` website, use an empty list.
+  Its link is available even when the host or port platform is unknown.
 - `name` and `instructions`: the player-facing site or collection name and a
   setup guide for files from this source. Follow
   [content design](CONTENT-DESIGN.md). GitHub release sources omit both.
@@ -7440,9 +7441,11 @@ independently reviewed acquisition restrictions stay local to each record.
 ```text
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation
 node scripts/prepare-port.mts --project https://github.com/owner/project --id stable-id --name "Project name" --output-dir /path/to/preparation
+node scripts/prepare-port.mts --project https://github.com/owner/project --expected-repository-id 123 --output-dir /path/to/preparation
 node scripts/prepare-port.mts --project https://github.com/owner/project --original-game /path/to/game-identity.json --output-dir /path/to/preparation
 node scripts/prepare-port.mts --record /path/to/stable-id.json --route download --release-tag v1.2 --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/preparation
 node scripts/prepare-port.mts --listing-observations /path/to/catalog-upstream-observations/source.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/observation-preparation
+node scripts/prepare-port.mts --discovery-listings /path/to/discovery-listing-handoff.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/discovery-preparation
 ```
 
 The command accepts a canonical Portcove issue number/URL, a direct public
@@ -7456,6 +7459,41 @@ metadata only. `--route download` collects one 20-release candidate window or th
 explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailable
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
+
+For a discovery candidate with an observed GitHub repository ID, pass
+`--expected-repository-id` and its project URL. Preparation checks the public
+provider record against both values before collecting releases and retains the
+ID in the new listing's lineage. Each run rechecks the project path. Release
+metadata and cache entries use the provider's immutable ID. A new listing points to the ongoing release
+feed even if no release is available yet. Original-game identity and artwork
+can be resolved independently. Preparation still produces reviewable
+catalog inputs for the normal validation and publication path.
+
+The discovery batch preparer takes a handoff with format
+`portcove-discovery-listing-handoff`, format version 1 and a `candidates` array.
+Each candidate carries `id`, `project_url`, the immutable `repository_id`
+and the retained `evidence_sha256`. The preparer rechecks public repository
+metadata and catalog ownership, then assembles the additions together.
+It reports conflicting identities and unavailable provider facts per candidate.
+The handoff supplies evidence references for review. It grants no authority
+to publish, change existing records or decide which package Core can offer.
+
+For a reviewed batch, run the same command with
+`--discovery-listing-approval /path/to/approval.json` and the trusted Core
+validator. The approval has format `portcove-discovery-listing-approval`,
+format version 1, the `handoff_sha256` and `source_sha256` from the preview's
+`admission_binding`, and an `approved_ids` array. The approving process
+must verify that the selected evidence establishes a distinct, in-scope
+implementation. The preparer rechecks live repository identity and emits a
+digest-bound patch containing only new authored listing files. The new records
+carry an explicit unresolved original-game review so shared game metadata can
+be resolved separately. A source or
+handoff change requires reconsidering the approval. An unavailable selected
+repository leaves its own outcome for retry. Other selected additions can
+proceed. Apply the patch on the same reviewed source revision, regenerate with
+`node scripts/generate-catalog.mts`, and use the ordinary catalog review path.
+Package observations, operational bindings and signing keep their existing
+approval and delivery paths.
 
 The `--original-game` input uses the same reviewed object as
 `listing.original_game` in an authored record. It carries the stable game ID,

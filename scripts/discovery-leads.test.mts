@@ -559,29 +559,53 @@ void test("changed search index can restart on a later run without dropping coll
 });
 void test("early release probes share the existing budget and preserve failed observations", async () => {
   const later = "2026-11-01T12:56:46.011Z";
-  const state = retainLeadResults(parseLeadState(undefined), [item(1), item(2), item(3), item(4)], now, "first");
+  const state = retainLeadResults(
+    parseLeadState(undefined),
+    [item(1), item(2), item(3), item(4)],
+    now,
+    "first",
+  );
   for (const lead of Object.values(state.records))
     lead.release_hint = { assets_observed: true, observed_at: now, evidence: "prior.json" };
-  const budget = new DiscoveryBudget("ordinary", () => {}, () => Date.parse(later), later, {
-    requests: 8, bytes: 1024 * 1024, milliseconds: 60000,
-  });
+  const budget = new DiscoveryBudget(
+    "ordinary",
+    () => {},
+    () => Date.parse(later),
+    later,
+    {
+      requests: 8,
+      bytes: 1024 * 1024,
+      milliseconds: 60000,
+    },
+  );
   const calls: string[] = [];
   const sdk = await fixtureGitHub(({ endpoint }) => {
     calls.push(endpoint);
     budget.charge("GET", endpoint, 1, 100, "200");
     if (endpoint.includes("/game-1/"))
       return new Response(JSON.stringify({ message: "Not Found" }), {
-        status: 404, headers: { "content-type": "application/json" },
+        status: 404,
+        headers: { "content-type": "application/json" },
       });
     if (endpoint.includes("/game-2/")) return [{ draft: false, assets: null }];
     return [{ draft: false, assets: [{ state: "uploaded", name: "native.zip" }] }];
   });
   const host = {
-    leads: state, budget, source: { sdk }, unattended: true,
+    leads: state,
+    budget,
+    source: { sdk },
+    unattended: true,
     journal: { started_at: later, notes: [] },
-    runDir: "fixture", save() {}, persist() {}, knownLeadUrls: () => new Set<string>(),
+    runDir: "fixture",
+    save() {},
+    persist() {},
+    knownLeadUrls: () => new Set<string>(),
   } as unknown as DiscoveryCollectionHost;
-  assert.deepEqual(await collectLeadReleaseHints(host, true), { attempted: 2, unavailable: 1, malformed: 1 });
+  assert.deepEqual(await collectLeadReleaseHints(host, true), {
+    attempted: 2,
+    unavailable: 1,
+    malformed: 1,
+  });
   assert.equal(calls.length, 2, "early phase leaves capacity for other source families");
   assert.equal(state.records["1"]?.release_hint?.observed_at, now);
   assert.equal(state.records["1"]?.release_probe?.outcome, "unavailable");
@@ -589,8 +613,8 @@ void test("early release probes share the existing budget and preserve failed ob
   assert.equal(state.records["2"]?.release_probe?.outcome, "invalid-response");
   // The intervening repository search may replace the records after a push,
   // relocation or weekly review. Their dated release evidence must survive.
-  state.records["2"]!.checked_at = now;
-  state.records["2"]!.status = "held";
+  state.records["2"].checked_at = now;
+  state.records["2"].status = "held";
   const refreshed = retainLeadResults(
     state,
     [{ ...item(1, "renamed/game-1"), pushed_at: later }, item(2)],

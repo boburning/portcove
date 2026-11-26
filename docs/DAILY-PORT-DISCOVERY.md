@@ -69,6 +69,10 @@ canonical owners before calling a candidate new. One exact, known-game owner is
 retained, including closed/deferred owners; ambiguous scope, conflicting IDs and
 orphaned catalog identities remain held. Distinct IDs within a proposal alone do
 not prove new implementations. Separate games sharing one repository remain separate.
+An accepted catalog record is an identity owner even when it has no issue.
+Intake preserves its catalog ID and checks its accepted repository lineage before
+creating an issue. A matching path with a conflicting repository ID holds for
+identity reconciliation.
 Primary-verified repository/game identity refines the generic title hint through
 creation and recovery. Equal display titles alone do not merge distinct known
 implementations; conflicting durable keys and unknown identities still hold.
@@ -1082,11 +1086,25 @@ release probes, using the existing admission and persistence paths. It then
 continues normal collection and later release checks for newly found leads.
 Never-checked and longest-unchecked leads go first. A path-specific inaccessible
 or malformed release response records a retry clock without replacing the last
-successful package observation. The same lead is not retried within that run
-unless collection discovers a changed repository revision. Provider-wide
+successful package observation. A lead keeps its dated observations across a
+refresh and can be probed again in a later run. Provider-wide
 quota, authentication and transport failures still use the existing boundaries.
 This share is scheduling headroom, not a new provider quota or a promise of
 complete release coverage.
+
+The natural maintenance run can prepare unsigned listing previews from current
+positive release watches. It exports the committed discovery generation,
+revision, release ID and digest of the observed release response for each
+selected repository. The preview runs only for a handoff whose digest matches
+the current collection result. The batch preparer checks the local catalog and
+revalidates public repository identity through the read-only GitHub credential.
+It records unresolved candidates and
+provider and deadline deferrals alongside successful proposals. The scheduler
+retains the handoff, evidence, completion report and individual proposed
+records in the discovery artifact. The aggregate preview files stay on the
+runner. A release
+hint is a reason to review a candidate. Canonical admission and signed
+publication retain their separate decision paths.
 
 A lead whose recent releases have no uploaded desktop asset gets a
 `no-native-package` watch (`waiting`). When a later run sees uploaded desktop

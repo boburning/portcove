@@ -1208,10 +1208,13 @@ export class HostedIntakeBridge {
         repository: c.upstream,
         repository_id: c.repository_id,
         kind: "implementation",
+        catalog_id: c.port_key,
         game_key: discoveryGameKey(c.game),
       },
       others,
-      records,
+      exclude === undefined
+        ? records
+        : records.filter((record) => record.listing.issue_number !== exclude),
       [],
     );
     if (c.intent?.kind === "observe-existing") {
@@ -1252,11 +1255,11 @@ export class HostedIntakeBridge {
         : undefined;
     if (c.intent?.kind === "create" && identity.disposition !== "New canonical intake")
       throw new CandidateIdentityConflict(
-        `Explicit create conflicts with canonical identity: ${identity.reason}`,
+        `Explicit create conflicts with canonical identity: ${identity.reason}${identity.catalog_ids?.length ? ` (${identity.catalog_ids.join(", ")})` : ""}`,
       );
     if (identity.disposition !== "New canonical intake" && !owner)
       throw new Error(
-        `Canonical discovery identity held: ${identity.disposition}; ${identity.reason}`,
+        `Canonical discovery identity held: ${identity.disposition}; ${identity.reason}${identity.catalog_ids?.length ? ` (${identity.catalog_ids.join(", ")})` : ""}`,
       );
     try {
       assertHostedCatalogIdentity(c, records, owner ?? exclude);

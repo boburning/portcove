@@ -4518,7 +4518,7 @@ const chunksOf = (text: string) =>
  * segments (nor a whole chunk of them) and names the author, not the game.
  * The id's first word is a handle when it is also no word or chunk of the
  * repository's name
- * (`alexbeav-suikoden-ii-recomp`, `abilliontokens-sims2-recomp`); the
+ * (alexbeav-suikoden-ii-recomp and abilliontokens-sims2-recomp); the
  * repository name's first word when the repository owner starts with it
  * (three or more letters: `owner/owner-game`). Initials come from title
  * words and the repository's name only, never from its owner.
@@ -4529,7 +4529,7 @@ export function authorHandles(
 ): ReadonlySet<string> {
   const [owner = "", name] = repository.split("/");
   // Title words, and each whole chunk of the title (`OpenGOAL` for the id
-  // `opengoal-jak1` of "OpenGOAL: Jak and Daxter").
+  // opengoal-jak1 of "OpenGOAL: Jak and Daxter").
   const titleText =
     typeof listing.name === "string" ? listing.name.split(annotationSeparator)[0]! : "";
   const title = new Set([...nameForm(titleText).map((word) => word.word), ...chunksOf(titleText)]);
@@ -4998,7 +4998,7 @@ function descriptorRun(literal: string): boolean {
  * (`initialismVetoWords`) is never one. Each maps to the words of its run,
  * joined. The later segments it omits are checked against the literal by
  * `laterSegmentsDroppable`. A name whose first word is an author handle
- * (`handle`, D3: `asii` never for the id `alexbeav-suikoden-ii-recomp`) has
+ * (`handle`, D3: `asii` never for the id alexbeav-suikoden-ii-recomp) has
  * none.
  */
 function initialismRuns(form: readonly NameFormWord[]): Map<string, string> {
