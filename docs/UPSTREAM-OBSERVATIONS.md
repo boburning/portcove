@@ -1719,3 +1719,12 @@ readable checkpoint and reports the storage hold. The maintenance inventory
 records the registry as one discovery subject.
 A community record supplies neither a canonical Portcove port mapping nor
 runtime, package, installation or publication authority.
+
+The signed listing publisher can add a Thunderstore website when a maintained
+listing has an exact GameBanana game URL and the registry identifies one listed
+community for that game. An exact GameBanana binding on a maintained definition
+can identify the same relationship. Conflicting maintained identities leave
+the direct links available. A maintained exclusion or explicit Thunderstore
+source takes precedence. A temporary registry outage preserves the previously
+published link while its reviewed identity still matches. This projection adds
+browser navigation only.
