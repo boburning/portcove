@@ -768,6 +768,55 @@ void test(
     assert.equal(merged.records["2"]!.disposition, undefined);
     assert.equal(merged.records["3"]!.revision, "c");
     assert.equal(merged.next_family, 3);
+
+    store.finish(next, "complete", {});
+    // The migration casts ->>'id' to bigint, which admits JSON strings as well
+    // as numbers. Put the invalid row before a valid one in the same page.
+    runSql(
+      environment,
+      `UPDATE portcove_maintenance.discovery_lead_records
+        SET record = jsonb_set(record, '{id}', to_jsonb('1'::text))
+        WHERE scope = 'primary' AND lead_id = 1;`,
+    );
+    const persisted = () =>
+      queryJson(
+        environment,
+        `SELECT json_build_object('revision', revision, 'state', state, 'state_sha256', state_sha256,
+          'rows', (SELECT json_agg(record ORDER BY lead_id)
+          FROM portcove_maintenance.discovery_lead_records WHERE scope = 'primary'))
+        FROM portcove_maintenance.discovery_collection_state WHERE scope = 'primary';`,
+      );
+    const before = persisted();
+    const diagnostic = /Invalid stored discovery lead id: expected a positive safe integer/u;
+    await assert.rejects(readStoredLeads(environment), diagnostic);
+    let providerCalls = 0;
+    const result = await runDiscoveryWorker({
+      store,
+      runDir: fixture.root,
+      sourceRevision: "fixture",
+      runner: "invalid-stored-lead",
+      covered: () => new Set(),
+      now: () => Date.parse("2026-11-01T05:00:00.000Z"),
+      connect: async () => {
+        providerCalls++;
+        throw new Error("not reached");
+      },
+    });
+    assert.equal(result.outcome, "failed");
+    assert.match(result.reason ?? "", diagnostic);
+    assert.equal(providerCalls, 0);
+    assert.deepEqual(persisted(), before);
+    assert.deepEqual(
+      queryJson(
+        environment,
+        `SELECT json_build_object('outcome', a.outcome, 'reason', a.result->>'reason',
+          'closed', a.finished_at IS NOT NULL AND s.lease_token IS NULL)
+        FROM portcove_maintenance.discovery_collection_attempts a
+        JOIN portcove_maintenance.discovery_collection_state s USING (scope)
+        WHERE a.runner = 'invalid-stored-lead';`,
+      ),
+      { outcome: "failed", reason: result.reason, closed: true },
+    );
   },
 );
 
@@ -1557,10 +1606,14 @@ void test("a failed lead-record load finishes the attempt instead of holding the
 });
 
 void test("invalid retained state or lead records close the owned discovery attempt", async () => {
-  for (const invalid of ["state", "lead"]) {
+  for (const invalid of ["state", "lead", "string-id", "duplicate-id"] as const) {
     const memory = memoryStore();
     if (invalid === "state") memory.advance({ format: 999 });
-    else memory.leads.set(1, { id: 1 });
+    if (invalid === "lead") memory.leads.set(1, { id: 1 });
+    if (invalid === "string-id")
+      memory.store.loadLeadRecords = () => ({ records: [{ id: "1" }], bytes: 0 });
+    if (invalid === "duplicate-id")
+      memory.store.loadLeadRecords = () => ({ records: [{ id: 1 }, { id: 1 }], bytes: 0 });
     const before = structuredClone(memory.state());
     const beforeLeads = structuredClone(memory.leads);
     let providerCalls = 0;
@@ -1579,9 +1632,13 @@ void test("invalid retained state or lead records close the owned discovery atte
     assert.equal(result.outcome, "failed");
     assert.match(
       result.reason ?? "",
-      invalid === "state"
-        ? /retained state could not be validated.*unsupported format/u
-        : /lead records could not be validated/u,
+      {
+        state: /retained state could not be validated.*unsupported format/u,
+        lead: /lead records could not be validated.*Invalid retained lead identity/u,
+        "string-id": /lead records could not be validated.*Invalid stored discovery lead id/u,
+        "duplicate-id":
+          /lead records could not be validated.*Duplicate stored discovery lead id 1/u,
+      }[invalid],
     );
     assert.deepEqual(memory.finished, ["failed"]);
     assert.deepEqual(memory.state(), before);

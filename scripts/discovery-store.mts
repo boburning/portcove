@@ -113,6 +113,15 @@ export interface DiscoveryStore {
 export const discoveryStateDigest = (state: unknown) =>
   createHash("sha256").update(JSON.stringify(state)).digest("hex");
 
+export function requireStoredLeadId(record: unknown): number {
+  const id = isRecord(record) ? record.id : undefined;
+  if (typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0)
+    throw new MaintenanceStoreError(
+      "Invalid stored discovery lead id: expected a positive safe integer",
+    );
+  return id;
+}
+
 function classify(error: unknown): never {
   const message = error instanceof Error ? error.message : String(error);
   if (/portcove-discovery-inactive/u.test(message))
@@ -653,7 +662,13 @@ export function postgresDiscoveryStore(
         return {
           records: Object.entries(incremental.rows)
             .sort(([a], [b]) => Number(a) - Number(b))
-            .map(([, row]) => row),
+            .map(([key, row]) => {
+              if (String(requireStoredLeadId(row)) !== key)
+                throw new MaintenanceStoreError(
+                  "Stored discovery lead id does not match its row key",
+                );
+              return row;
+            }),
           bytes: incremental.bytes + verify(),
         };
       // Read in pages by key, so the stored lead set is bounded by the database
@@ -679,12 +694,15 @@ export function postgresDiscoveryStore(
         if (!Array.isArray(page))
           throw new MaintenanceStoreError("Malformed discovery lead records");
         if (page.length === 0) return { records, bytes: bytes + verify() };
-        for (const record of page) records.push(record);
-        const last: unknown = page.at(-1);
-        const id = isRecord(last) ? Number(last.id) : Number.NaN;
-        if (!Number.isSafeInteger(id) || id <= after)
-          throw new MaintenanceStoreError("Discovery lead records are not ordered by id");
-        after = id;
+        for (const record of page) {
+          const id = requireStoredLeadId(record);
+          if (id <= after)
+            throw new MaintenanceStoreError(
+              "Discovery lead records are not strictly ordered by id",
+            );
+          records.push(record);
+          after = id;
+        }
       }
     },
     finish(lease, outcome, summary) {

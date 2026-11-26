@@ -70,7 +70,10 @@ It adds the concepts the history tables cannot represent:
 - `discovery_lead_records` (migration `0009`): the collector's lead records,
   one row per provider repository ID in a scope. The state document keeps the
   rest of the continuation. A commit upserts only records that changed and
-  rewrites no unchanged row.
+  rewrites no unchanged row. Hydration requires each lead ID to be a unique,
+  positive, safe JSON integer. A malformed ID fails the shared read. The
+  collector records the failure and closes its owned lease before querying
+  providers or committing any collection state.
 
 Writes go only through `discovery_acquire`, `discovery_commit` and
 `discovery_finish`. They check collection activation, the lease token and the

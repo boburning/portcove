@@ -37,6 +37,7 @@ import {
   postgresDiscoveryStore,
   measureDiscoverySeed,
   readDiscoverySnapshot,
+  requireStoredLeadId,
 } from "./discovery-store.mts";
 import type {
   DiscoveryKnownRevision,
@@ -120,6 +121,20 @@ export function parseWorkerState(value: unknown): DiscoveryWorkerState {
     research_progress: isRecord(value.research_progress) ? { ...value.research_progress } : {},
     ...(typeof value.backoff_until === "string" ? { backoff_until: value.backoff_until } : {}),
   };
+}
+
+function indexStoredLeadRecords(
+  rows: readonly unknown[],
+  recordDigests?: Map<string, string>,
+): Record<string, unknown> {
+  const records: Record<string, unknown> = {};
+  for (const row of rows) {
+    const id = String(requireStoredLeadId(row));
+    if (Object.hasOwn(records, id)) throw new Error(`Duplicate stored discovery lead id ${id}`);
+    records[id] = row;
+    recordDigests?.set(id, sha256(row));
+  }
+  return records;
 }
 
 const sorted = (values: readonly string[] | undefined) =>
@@ -356,12 +371,7 @@ export async function runDiscoveryWorker(
       : options.store.loadLeadRecords(scope);
     committed.received_bytes += loaded.bytes;
     validationStage = "lead records could not be validated";
-    const storedRecords: Record<string, unknown> = {};
-    for (const raw of loaded.records)
-      if (isRecord(raw) && Number.isSafeInteger(raw.id)) {
-        storedRecords[String(raw.id)] = raw;
-        recordDigests.set(String(raw.id), sha256(raw));
-      }
+    const storedRecords = indexStoredLeadRecords(loaded.records, recordDigests);
     state.leads = parseLeadState({
       ...state.leads,
       records: { ...storedRecords, ...state.leads.records },
@@ -1020,9 +1030,7 @@ export async function readStoredLeads(
     if (snapshot.outcome === "moved") continue;
     if (snapshot.outcome === "empty") return { outcome: "empty", bytes };
     const state = parseWorkerState(snapshot.state);
-    const records: Record<string, unknown> = {};
-    for (const raw of snapshot.records)
-      if (isRecord(raw) && Number.isSafeInteger(raw.id)) records[String(raw.id)] = raw;
+    const records = indexStoredLeadRecords(snapshot.records);
     return {
       outcome: "read",
       revision: snapshot.revision,
