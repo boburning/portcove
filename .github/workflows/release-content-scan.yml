@@ -52,6 +52,7 @@ jobs:
           mkdir -p work/release-content-scan
           node scripts/release-content-scan.mts scan \
             --listings crates/portcove-core/catalog/listings.json \
+            --complete-targets \
             --checkpoint work/release-content-scan/checkpoint.json \
             --checkpoint-out work/release-content-scan/checkpoint.next.json \
             --output work/release-content-scan/report.json \

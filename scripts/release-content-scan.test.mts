@@ -5,11 +5,14 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  type ReleaseAsset,
   type Runner,
   type ScanDependencies,
+  type ScanTarget,
   type UpstreamRelease,
   RECORDED_FAILURES,
   ScanError,
+  assetKey,
   hostedDependencies,
   main,
   readCheckpoint,
@@ -203,6 +206,372 @@ void test("a scan flags copied headers, records coverage and reuses its checkpoi
     ["header"],
   );
   assert.ok(!again.some((call) => call.startsWith("download")));
+});
+
+void test("transient failures rotate behind fresh assets and shared attempts stay unique", async (context) => {
+  const targets = scanTargets(listings);
+  const calls: string[] = [];
+  const original = fakes(calls);
+  const failing: ScanDependencies = {
+    ...original,
+    async download(asset, file, maximum, deadline) {
+      if (asset.name === "Code-1-windows-x64.zip") {
+        calls.push("transient failure");
+        throw new Error("temporary transfer interruption");
+      }
+      await original.download(asset, file, maximum, deadline);
+    },
+  };
+  const duplicate = { ...targets[0]!, id: "same-asset" };
+  const first = await scan([targets[0]!, duplicate, targets[1]!], new Map(), failing, {
+    maxAssets: 1,
+  });
+  assert.equal(first.report.scanned.length, 0);
+  assert.equal(first.deferredAttempts.size, 1);
+  assert.equal(calls.filter((call) => call === "transient failure").length, 1);
+  assert.equal(first.report.unscanned.filter(({ code }) => code === "scan-failed").length, 2);
+  const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-fair-"));
+  context.after(() => rm(dir, { recursive: true, force: true }));
+  const file = path.join(dir, "checkpoint.json");
+  const { RULES_VERSION } = await import("./release-content-signals.mts");
+  await writeFile(
+    file,
+    JSON.stringify({
+      format_version: 1,
+      deferred_attempts: [...first.deferredAttempts].map(([key, checked_at]) => ({
+        key,
+        checked_at,
+        rules: RULES_VERSION,
+      })),
+    }),
+  );
+  const retained = await readCheckpoint(file);
+  assert.deepEqual(retained.deferredAttempts, first.deferredAttempts);
+  const second = await scan(targets, first.checkpoint, failing, {
+    maxAssets: 1,
+    deferredAttempts: retained.deferredAttempts,
+  });
+  assert.deepEqual(
+    second.report.scanned.map(({ id }) => id),
+    ["header"],
+  );
+  assert.equal(calls.filter((call) => call === "transient failure").length, 1);
+  const third = await scan(targets, second.checkpoint, original, {
+    maxAssets: 1,
+    deferredAttempts: second.deferredAttempts,
+  });
+  assert.deepEqual(
+    third.report.scanned.map(({ id }) => id),
+    ["code-only"],
+  );
+  assert.equal(third.deferredAttempts.size, 0);
+});
+
+void test("a size-bound failure becomes an ordinary rotating attempt when its allowance grows", async () => {
+  const targets = scanTargets(listings);
+  const calls: string[] = [];
+  const original = fakes(calls);
+  const tooLarge: ScanDependencies = {
+    ...original,
+    async download() {
+      throw new ScanError("asset-too-large", "package exceeded the old allowance");
+    },
+  };
+  const first = await scan([targets[0]!], new Map(), tooLarge, {
+    maxAssetBytes: 10,
+  });
+  assert.equal(first.failures.size, 1);
+  const failing: ScanDependencies = {
+    ...original,
+    async download() {
+      throw new Error("temporary transfer interruption");
+    },
+  };
+  const second = await scan(targets, first.checkpoint, failing, {
+    maxAssets: 1,
+    maxAssetBytes: 100,
+    failures: first.failures,
+  });
+  assert.equal(second.failures.size, 0);
+  assert.equal(second.deferredAttempts.size, 1);
+  assert.equal(second.report.unscanned[0]?.code, "scan-failed");
+  const third = await scan(targets, second.checkpoint, original, {
+    maxAssets: 1,
+    maxAssetBytes: 100,
+    failures: second.failures,
+    deferredAttempts: second.deferredAttempts,
+  });
+  assert.deepEqual(
+    third.report.scanned.map(({ id }) => id),
+    ["header"],
+  );
+});
+
+void test("only the complete target inventory retires obsolete deferred attempts", async () => {
+  const [target, other] = scanTargets(listings);
+  assert.ok(target && other);
+  const deps = fakes([]);
+  const [release] = await deps.releases(target, Infinity);
+  assert.ok(release?.assets[0]);
+  const asset = release.assets[0];
+  const obsolete = assetKey(target, "old-tag", asset);
+  const current = assetKey(target, release.tag, asset);
+  const retiredRepository = assetKey({ ...target, repository: "up/held" }, "v1", asset);
+  const otherPlatform = { ...target, id: "another-port", platform: other.platform };
+  const deferredAttempts = new Map([
+    [obsolete, 1],
+    [current, 2],
+    [retiredRepository, 3],
+  ]);
+  const historical = await scan([{ ...target, repository: "up/held" }], new Map(), {
+    ...deps,
+    async releases() {
+      return [release];
+    },
+  });
+  const failures = new Map([
+    [
+      retiredRepository,
+      {
+        key: retiredRepository,
+        code: "asset-too-large" as const,
+        max_asset_bytes: 10,
+      },
+    ],
+  ]);
+  const retries = new Map([[retiredRepository, 4]]);
+
+  const scoped = await scan([target], new Map(), deps, { deferredAttempts, maxAssets: 0 });
+  assert.deepEqual(scoped.deferredAttempts, deferredAttempts);
+  const complete = await scan([target, otherPlatform], historical.checkpoint, deps, {
+    completeTargets: true,
+    deferredAttempts,
+    failures,
+    retries,
+    maxAssets: 0,
+  });
+  assert.deepEqual(complete.deferredAttempts, new Map([[current, 2]]));
+  assert.equal(complete.report.unscanned.length, 2);
+  assert.equal(deferredAttempts.size, 3);
+  assert.equal(historical.checkpoint.size, 1);
+  assert.deepEqual(complete.checkpoint, historical.checkpoint);
+  assert.deepEqual(complete.failures, failures);
+  assert.deepEqual(complete.retries, retries);
+});
+
+void test("unresolved sibling targets and missing identity metadata preserve deferred attempts", async () => {
+  const [target] = scanTargets(listings);
+  assert.ok(target);
+  const deps = fakes([]);
+  const [release] = await deps.releases(target, Infinity);
+  assert.ok(release?.assets[0]);
+  const asset = release.assets[0];
+  const oldDigest = `sha256:${"a".repeat(64)}`;
+  const digestKey = assetKey(target, release.tag, { ...asset, digest: oldDigest });
+  const sizeKey = assetKey(target, release.tag, asset);
+  const obsolete = assetKey(target, "old-tag", asset);
+  const deferredAttempts = new Map([
+    [obsolete, 1],
+    [digestKey, 2],
+    [sizeKey, 3],
+  ]);
+  const options = { completeTargets: true, deferredAttempts, maxAssets: 0 };
+  const unresolved = { ...target, id: "other-package", hints: ["unknown-asset"] };
+
+  const ambiguous = await scan([target, unresolved], new Map(), deps, options);
+  assert.deepEqual(ambiguous.deferredAttempts, deferredAttempts);
+  assert.equal(
+    ambiguous.report.unscanned.find(({ id }) => id === unresolved.id)?.code,
+    "no-single-asset",
+  );
+  const failed = await scan(
+    [target],
+    new Map(),
+    {
+      ...deps,
+      async releases() {
+        throw new ScanError("release-unavailable", "missing repository");
+      },
+    },
+    options,
+  );
+  assert.deepEqual(failed.deferredAttempts, deferredAttempts);
+  let now = 0;
+  const late = await scan(
+    [target],
+    new Map(),
+    {
+      ...deps,
+      async releases() {
+        now = 1;
+        return [release];
+      },
+    },
+    { ...options, deadline: 1, clock: () => now },
+  );
+  assert.deepEqual(late.deferredAttempts, deferredAttempts);
+  const withoutDigest = await scan([target], new Map(), deps, options);
+  assert.deepEqual(
+    withoutDigest.deferredAttempts,
+    new Map([
+      [digestKey, 2],
+      [sizeKey, 3],
+    ]),
+  );
+  const differentDigest = await scan(
+    [target],
+    new Map(),
+    {
+      ...deps,
+      async releases() {
+        return [{ ...release, assets: [{ ...asset, digest: `sha256:${"b".repeat(64)}` }] }];
+      },
+    },
+    options,
+  );
+  assert.deepEqual(differentDigest.deferredAttempts, new Map([[sizeKey, 3]]));
+});
+
+void test("hosted retirement needs a complete release page and asset list", async (context) => {
+  const [github, , gitlab] = scanTargets(listings);
+  assert.ok(github && gitlab);
+  const githubAsset = {
+    name: "Code-2-windows-x64.zip",
+    browser_download_url: "https://example.invalid/code",
+    state: "uploaded",
+  };
+  const githubRelease = { tag_name: "v2", draft: false, prerelease: false, assets: [githubAsset] };
+  const gitlabLink = { name: "Project-v2-Windows.zip", url: "https://example.invalid/project" };
+  const gitlabRelease = { tag_name: "v2", assets: { count: 1, sources: [], links: [gitlabLink] } };
+  let body: unknown;
+  let init: ResponseInit | undefined;
+  context.mock.method(globalThis, "fetch", async () => Response.json(body, init));
+
+  for (const [target, payload, response, preserve] of [
+    [github, [githubRelease], {}, false],
+    [
+      github,
+      [githubRelease],
+      { headers: { link: '<https://api.github.com/page/2>; rel="next"' } },
+      true,
+    ],
+    [github, [githubRelease], { status: 206 }, true],
+    [github, [{ ...githubRelease, draft: undefined }], {}, true],
+    [github, [{ ...githubRelease, assets: [githubAsset, { name: null }] }], {}, true],
+    [github, [{ ...githubRelease, assets: [{ ...githubAsset, state: "starter" }] }], {}, true],
+    [github, [githubRelease, githubRelease], {}, true],
+    [gitlab, [gitlabRelease], {}, false],
+    [gitlab, [gitlabRelease], { headers: { "x-next-page": "2" } }, true],
+    [gitlab, [{ ...gitlabRelease, assets: { ...gitlabRelease.assets, count: 2 } }], {}, true],
+  ] as const) {
+    body = payload;
+    init = response;
+    const key = assetKey(target, "v1", { name: "old.zip", url: "", size: null, digest: null });
+    const result = await scan([target], new Map(), hostedDependencies(), {
+      completeTargets: true,
+      deferredAttempts: new Map([[key, 7]]),
+      maxAssets: 0,
+    });
+    assert.equal(
+      result.deferredAttempts.get(key),
+      preserve ? 7 : undefined,
+      JSON.stringify({ payload, response }),
+    );
+  }
+});
+
+void test("unknown package metadata keeps ordinary retry age while proven replacements are fresh", async () => {
+  const [target, other] = scanTargets(listings);
+  assert.ok(target && other);
+  const deps = fakes([]);
+  const [release] = await deps.releases(target, Infinity);
+  const [otherRelease] = await deps.releases(other, Infinity);
+  assert.ok(release?.assets[0] && otherRelease?.assets[0]);
+  const sizeOnly = release.assets[0];
+  const digestAsset = { ...sizeOnly, digest: `sha256:${"a".repeat(64)}` };
+  const changedDigest = { ...digestAsset, digest: `sha256:${"b".repeat(64)}` };
+  const unknown = { ...sizeOnly, size: null };
+  const otherAsset = otherRelease.assets[0];
+  const competitor = assetKey(other, otherRelease.tag, otherAsset);
+
+  const cases: [ReleaseAsset, [ReleaseAsset, number][], ScanTarget][] = [
+    [sizeOnly, [[digestAsset, 7]], other],
+    [digestAsset, [[sizeOnly, 7]], other],
+    [digestAsset, [[unknown, 7]], other],
+    [
+      digestAsset,
+      [
+        [sizeOnly, 2],
+        [unknown, 7],
+      ],
+      other,
+    ],
+    [
+      digestAsset,
+      [
+        [sizeOnly, 7],
+        [digestAsset, 2],
+      ],
+      other,
+    ],
+    [digestAsset, [[changedDigest, 7]], target],
+    [{ ...digestAsset, size: 20 }, [[sizeOnly, 7]], target],
+    [sizeOnly, [[{ ...digestAsset, name: "another.zip" }, 7]], target],
+  ];
+  for (const [current, previous, first] of cases) {
+    const attempted: string[] = [];
+    const deferredAttempts = new Map<string, number>([[competitor, 3]]);
+    for (const [asset, age] of previous)
+      deferredAttempts.set(assetKey(target, release.tag, asset), age);
+    const result = await scan(
+      [target, other],
+      new Map(),
+      {
+        ...deps,
+        async releases(source, deadline) {
+          return source === target
+            ? [{ ...release, assets: [current] }]
+            : deps.releases(source, deadline);
+        },
+        async download(asset) {
+          attempted.push(asset.name);
+          throw new Error("temporary transfer interruption");
+        },
+      },
+      { maxAssets: 1, deferredAttempts },
+    );
+    assert.deepEqual(attempted, [first === target ? current.name : otherAsset.name]);
+    const checked: string = first === target ? assetKey(target, release.tag, current) : competitor;
+    const currentRun = Math.max(...deferredAttempts.values()) + 1;
+    assert.deepEqual(result.deferredAttempts, new Map(deferredAttempts).set(checked, currentRun));
+  }
+});
+
+void test("compatible retry ages do not broaden reuse beyond the exact asset key", async () => {
+  const [target] = scanTargets(listings);
+  assert.ok(target);
+  const deps = fakes([]);
+  const [release] = await deps.releases(target, Infinity);
+  assert.ok(release?.assets[0]);
+  const before = await scan([target], new Map(), deps);
+  const previousKey = assetKey(target, release.tag, release.assets[0]);
+  const withoutSize = { ...release.assets[0], size: null };
+  const currentKey = assetKey(target, release.tag, withoutSize);
+  const result = await scan(
+    [target],
+    before.checkpoint,
+    {
+      ...deps,
+      async releases() {
+        return [{ ...release, assets: [withoutSize] }];
+      },
+    },
+    { deferredAttempts: new Map([[previousKey, 7]]) },
+  );
+  assert.equal(result.report.reused, 0);
+  assert.equal(result.report.scanned[0]?.key, currentKey);
+  assert.deepEqual([...result.checkpoint.keys()], [previousKey, currentKey]);
+  assert.deepEqual(result.deferredAttempts, new Map([[previousKey, 7]]));
 });
 
 void test("budgets leave assets for a later run without guessing their contents", async () => {
