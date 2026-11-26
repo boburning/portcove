@@ -957,7 +957,7 @@ export async function collectLeadReleaseHints(host: DiscoveryCollectionHost, ear
       const response = await host.source.sdk.request({
         method: "GET",
         url: new URL(
-          `repos/${lead.repository}/releases?per_page=${host.unattended ? 100 : 5}`,
+          `repositories/${lead.id}/releases?per_page=${host.unattended ? 100 : 5}`,
           "https://api.github.com/",
         ).href,
       });
@@ -966,13 +966,14 @@ export async function collectLeadReleaseHints(host: DiscoveryCollectionHost, ear
       // Path-specific inaccessibility is not evidence of missing packages and
       // must not starve all later leads. Global quota/auth/transport failures
       // still propagate to the existing worker boundary.
-      if (
-        !(error instanceof GitHubApiError) ||
-        (![404, 410, 451].includes(error.status ?? 0) && error.code !== "redirect_refused")
-      )
-        throw error;
-      lead.release_probe = { attempted_at: host.journal.started_at, outcome: "unavailable" };
-      unavailable++;
+      if (!(error instanceof GitHubApiError)) throw error;
+      if ([404, 410, 451].includes(error.status ?? 0) || error.code === "redirect_refused") {
+        lead.release_probe = { attempted_at: host.journal.started_at, outcome: "unavailable" };
+        unavailable++;
+      } else if (error.code === "invalid_response" || error.code === "response_limit") {
+        lead.release_probe = { attempted_at: host.journal.started_at, outcome: "invalid-response" };
+        malformed++;
+      } else throw error;
       host.persist();
       continue;
     }

@@ -561,7 +561,7 @@ void test("early release probes share the existing budget and preserve failed ob
   const later = "2026-11-01T12:56:46.011Z";
   const state = retainLeadResults(
     parseLeadState(undefined),
-    [item(1), item(2), item(3), item(4)],
+    [item(1), item(2), item(3), item(4), item(5)],
     now,
     "first",
   );
@@ -582,12 +582,16 @@ void test("early release probes share the existing budget and preserve failed ob
   const sdk = await fixtureGitHub(({ endpoint }) => {
     calls.push(endpoint);
     budget.charge("GET", endpoint, 1, 100, "200");
-    if (endpoint.includes("/game-1/"))
+    if (endpoint.startsWith("repositories/1/"))
       return new Response(JSON.stringify({ message: "Not Found" }), {
         status: 404,
         headers: { "content-type": "application/json" },
       });
-    if (endpoint.includes("/game-2/")) return [{ draft: false, assets: null }];
+    if (endpoint.startsWith("repositories/2/")) return [{ draft: false, assets: null }];
+    if (endpoint.startsWith("repositories/3/"))
+      return new Response(new Uint8Array([0xc3, 0x28]), {
+        headers: { "content-type": "application/json" },
+      });
     return [{ draft: false, assets: [{ state: "uploaded", name: "native.zip" }] }];
   });
   const host = {
@@ -630,15 +634,21 @@ void test("early release probes share the existing budget and preserve failed ob
   }
   assert.deepEqual(
     selectLeadReleaseChecks(refreshed, new Set(), later, true).map(({ id }) => id),
-    [3, 4],
+    [3, 4, 5],
   );
   assert.deepEqual(await collectLeadReleaseHints(host), {
-    attempted: 2,
+    attempted: 3,
     unavailable: 0,
-    malformed: 0,
+    malformed: 1,
   });
-  assert.equal(calls.length, 4, "a failed path cannot starve later leads or retry in the same run");
-  assert.equal(refreshed.records["3"]?.release_hint?.observed_at, later);
+  assert.deepEqual(
+    calls,
+    [1, 2, 3, 4, 5].map((id) => `repositories/${id}/releases?per_page=100`),
+    "a malformed response cannot starve later leads and a recycled path cannot supply evidence",
+  );
+  assert.equal(refreshed.records["3"]?.release_probe?.outcome, "invalid-response");
+  assert.equal(refreshed.records["3"]?.release_hint?.observed_at, now);
+  assert.equal(refreshed.records["4"]?.release_hint?.observed_at, later);
   assert.deepEqual(
     parseLeadState(refreshed).records["1"]?.release_probe,
     refreshed.records["1"]?.release_probe,
@@ -646,7 +656,7 @@ void test("early release probes share the existing budget and preserve failed ob
   const next = "2026-11-02T12:56:46.011Z";
   assert.deepEqual(
     selectLeadReleaseChecks(refreshed, new Set(), next, true).map(({ id }) => id),
-    [1, 2, 3, 4],
+    [1, 2, 3, 4, 5],
   );
 });
 
