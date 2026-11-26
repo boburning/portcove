@@ -22,6 +22,8 @@
         "src/dev-scenarios/entry.ts",
         "test/browser-setup.mts",
         "scripts/*-test.mts",
+        "scripts/capture-readme.mts",
+        "scripts/desktop-hosted-installed-update.mts",
         "scripts/*.native.test.mts"
       ],
       "entryPointRole": "test",
@@ -34,6 +36,18 @@
         {
           "pattern": "scripts/desktop-bootstrap-recovery-test.mts",
           "exports": ["technicalDetailHasSeparation", "observeTechnicalDetails"]
+        },
+        {
+          "pattern": "scripts/desktop-linux-native-session.mts",
+          "exports": ["nativeNamespaceInputCaptureMs"]
+        },
+        {
+          "pattern": "scripts/desktop-native-confirmation.mts",
+          "exports": ["validatePickerInput"]
+        },
+        {
+          "pattern": "scripts/desktop-scenario-outcomes.mts",
+          "exports": ["harnessFrames"]
         },
         {
           "pattern": "scripts/transport-values.mts",

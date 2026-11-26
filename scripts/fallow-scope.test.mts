@@ -395,7 +395,16 @@ void test("native-test export credits retain outside consumers without masking o
     put("src/main.ts", "console.log('production');");
     put(
       "scripts/desktop-test.mts",
-      'import "../test/capture-target"; import "./native-linux-driver-http.mts"; import "./native-linux-isolated-session.mts";',
+      [
+        "../test/capture-target",
+        "./native-linux-driver-http.mts",
+        "./native-linux-isolated-session.mts",
+        "./desktop-linux-native-session.mts",
+        "./desktop-native-confirmation.mts",
+        "./desktop-scenario-outcomes.mts",
+      ]
+        .map((target) => "import " + JSON.stringify(target) + ";")
+        .join("\n"),
     );
     put(
       "test/capture-target.ts",
@@ -411,11 +420,27 @@ void test("native-test export credits retain outside consumers without masking o
         ["privateNativeDriverAgentState", "inspectPrivateNativeDriverRequest"],
       ],
       ["scripts/native-linux-isolated-session.mts", ["createNativeNamespaceStreamCapture"]],
+      ["scripts/desktop-linux-native-session.mts", ["nativeNamespaceInputCaptureMs"]],
+      ["scripts/desktop-native-confirmation.mts", ["validatePickerInput"]],
+      ["scripts/desktop-scenario-outcomes.mts", ["harnessFrames"]],
     ] as const;
+    const invokedHarnesses = [
+      "scripts/capture-readme.mts",
+      "scripts/desktop-hosted-installed-update.mts",
+    ];
+    for (const source of invokedHarnesses)
+      put(source, 'import axe from "axe-core"; console.log(axe);');
     for (const [source, names] of nativeExports)
       put(source, [...names, "unconsumed"].map((name) => `export const ${name} = 1;`).join("\n"));
     const raw = record(analyze(directory, ["dead-code"]));
     const unused = values(raw.unused_exports).map(record);
+    const unusedFiles = values(raw.unused_files).map(record);
+    for (const source of invokedHarnesses) {
+      assert.ok(
+        !unusedFiles.some((item) => findingPath(item).replaceAll("\\", "/").endsWith(source)),
+        source,
+      );
+    }
     assert.ok(unused.some((item) => item.export_name === "unconsumed"));
     assert.ok(!unused.some((item) => item.export_name === "requireCompleteCaptureTarget"));
     for (const [source, names] of nativeExports) {
@@ -448,6 +473,21 @@ void test("native-test export credits retain outside consumers without masking o
     [
       "scripts/desktop-bootstrap-recovery-test.mts",
       "technicalDetailHasSeparation",
+      "scripts/desktop-scenarios.test.mts",
+    ],
+    [
+      "scripts/desktop-linux-native-session.mts",
+      "nativeNamespaceInputCaptureMs",
+      "scripts/desktop-linux-x11.mts",
+    ],
+    [
+      "scripts/desktop-native-confirmation.mts",
+      "validatePickerInput",
+      "scripts/native-confirmation.test.mts",
+    ],
+    [
+      "scripts/desktop-scenario-outcomes.mts",
+      "harnessFrames",
       "scripts/desktop-scenarios.test.mts",
     ],
     ["scripts/transport-values.mts", "checkTransportSchemas", "scripts/transport-values.test.mts"],
