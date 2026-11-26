@@ -28658,7 +28658,8 @@
       "id": "cheviman-outrunners-arcade-world-dual-screen-native-c",
       "project_url": "https://github.com/cheviman/outrunners-port",
       "name": "OutRunners Arcade (Sega System Multi 32 World) / cheviman arcade-faithful port",
-      "summary": "Native port of OutRunners (Sega arcade, 1992) for PC and consoles, built on the verified C decompilation cheviman/outrunners-decomp. Bring your own ROM.",
+      "summary": "Play the arcade-faithful OutRunners with both cabinet screens side by side, using your own World arcade ROM set.",
+      "variant_label": "Arcade dual-screen edition",
       "issue_number": 4683,
       "listed_at": "2026-11-24",
       "original_game": {
@@ -28677,7 +28678,8 @@
       "id": "cheviman-outrunners-console-style-home-native-c",
       "project_url": "https://github.com/cheviman/outrunners-port",
       "name": "OutRunners (1992 arcade-derived home variant) / cheviman console-style native game",
-      "summary": "Native port of OutRunners (Sega arcade, 1992) for PC and consoles, built on the verified C decompilation cheviman/outrunners-decomp. Bring your own ROM.",
+      "summary": "Play the home-style OutRunners adaptation using your own World arcade ROM set.",
+      "variant_label": "Console-style edition",
       "issue_number": 4684,
       "listed_at": "2026-11-24",
       "original_game": {
@@ -68737,7 +68739,8 @@
       "id": "marvel-ultimate-alliance-gold-edition-mua-bundle-recompiled",
       "project_url": "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled",
       "name": "Marvel: Ultimate Alliance — Gold Edition / Marvel Ultimate Alliance Bundle Recompiled (saulob)",
-      "summary": "Marvel Ultimate Alliance 1, Gold Edition and 2 native PC ports via static recompilation, in one bundle with high frame rates, 4K rendering, ultrawide, HD Text, TRG launcher, and experimental Linux/Steam Deck support",
+      "summary": "Play the Xbox 360 Gold Edition of Marvel: Ultimate Alliance in the shared recompiled launcher using your own Gold Edition game files.",
+      "variant_label": "Xbox 360 Gold Edition",
       "issue_number": 7189,
       "listed_at": "2026-11-24",
       "original_game": {
@@ -68756,7 +68759,8 @@
       "id": "marvel-ultimate-alliance-mua-bundle-recompiled",
       "project_url": "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled",
       "name": "Marvel: Ultimate Alliance / Marvel Ultimate Alliance Bundle Recompiled (saulob)",
-      "summary": "Marvel Ultimate Alliance 1, Gold Edition and 2 native PC ports via static recompilation, in one bundle with high frame rates, 4K rendering, ultrawide, HD Text, TRG launcher, and experimental Linux/Steam Deck support",
+      "summary": "Play the original Xbox 360 edition of Marvel: Ultimate Alliance in the shared recompiled launcher using your own game files.",
+      "variant_label": "Original Xbox 360 edition",
       "issue_number": 7190,
       "listed_at": "2026-11-24",
       "original_game": {
