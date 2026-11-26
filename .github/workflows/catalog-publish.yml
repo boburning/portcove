@@ -168,7 +168,7 @@ jobs:
       - name: Require a compatible CI-green source
         if: steps.decide.outputs.publish == 'true'
         run: |
-          if [ ! -f scripts/catalog-pages-overlay.mts ]; then
+          if [ ! -f scripts/catalog-pages-overlay.mts ] || [ ! -f scripts/catalog-definition-reader-gate.mts ]; then
             echo "::error::Wait for a CI-green main commit that supports the catalog Pages overlay"
             exit 1
           fi
@@ -234,6 +234,7 @@ jobs:
           cat "$RUNNER_TEMP/prepare.outputs" >> "$GITHUB_OUTPUT"
           target/release/portcove-release-tools check-definition-publication-context \
             "$RUNNER_TEMP/catalog-work/context.json"
+          node scripts/catalog-definition-reader-gate.mts prepare "$RUNNER_TEMP/catalog-work" site
           history_mode=$(sed -n 's/^history_mode=//p' "$RUNNER_TEMP/prepare.outputs")
           if [ -n "$history_mode" ]; then
             prior_commit=$(git -C site rev-parse HEAD)
@@ -407,6 +408,7 @@ jobs:
               "$RUNNER_TEMP/catalog-tools/portcove-release-tools" verify-definition-history \
                 "$RUNNER_TEMP/catalog-work/site-history.json" > "$RUNNER_TEMP/catalog-work/site-history-report.json"
             fi
+            node scripts/catalog-definition-reader-gate.mts recheck "$RUNNER_TEMP/catalog-work" site
             git -C site commit --quiet -m "Publish the official catalog from $COMMIT"
             # Bound the actual complete Pages tree, including the application and
             # browse output. Keep margin below GitHub Pages' published 1 GB limit.

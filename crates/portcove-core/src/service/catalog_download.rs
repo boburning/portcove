@@ -310,6 +310,7 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     };
     if record.format_version != expected_format
         || crate::catalog::listings::has_verified_source_editions(&record.listing)
+        || !record.listing.mod_portals.is_empty()
     {
         return Err(PortcoveError::unsupported(
             "pending setup record format does not match its provider or listing fields",
@@ -1272,6 +1273,8 @@ impl PortcoveService {
             }
             self.require_download_destination(stage.path())?;
             let mut listing = self.catalog.listing(&request.port_id)?.clone();
+            // The current directory supplies these links, including any withdrawal.
+            listing.mod_portals.clear();
             listing.media.retain(|asset| !asset.is_typed_igdb_scene());
             crate::catalog::listings::strip_verified_sources(&mut listing);
             let mut record = PendingSetupRecord {
