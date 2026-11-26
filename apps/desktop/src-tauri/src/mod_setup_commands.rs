@@ -611,10 +611,10 @@ pub(crate) async fn open_provider_mod_project(
         state.inner().clone(),
         generation,
         move |service| async move {
-            let reviewed = service
-                .provider_project_for_provider(&port_id, &project_id, provider.as_deref())
+            let url = service
+                .provider_project_url(&port_id, &project_id, provider.as_deref())
                 .await?;
-            crate::open_host_target(std::ffi::OsStr::new(&reviewed.project.profile_url))
+            crate::open_host_target(std::ffi::OsStr::new(&url))
         },
     )
     .await
