@@ -1092,19 +1092,20 @@ last successful package observation. A lead keeps its dated observations across
 a refresh and can be probed again in a later run. Provider-wide quota,
 authentication and transport failures still use the existing boundaries.
 
-The natural maintenance run can prepare unsigned listing previews from current
+The natural maintenance run can prepare listing additions from current
 positive release watches. It exports the committed discovery generation,
 revision, release ID and digest of the observed release response for each
 selected repository. The preview runs only for a handoff whose digest matches
 the current collection result. The batch preparer checks the local catalog and
 revalidates public repository identity through the read-only GitHub credential.
 It records unresolved candidates and
-provider and deadline deferrals alongside successful proposals. The scheduler
-retains the handoff, evidence, completion report and individual proposed
-records in the discovery artifact. The aggregate preview files stay on the
-runner. A release
-hint is a reason to review a candidate. Canonical admission and signed
-publication retain their separate decision paths.
+provider and deadline deferrals alongside successful proposals. When scope
+verification finds an eligible addition, the preparer acquires the official
+Core reader and validates the listing projection. The scheduler retains the
+handoff, evidence, completion report, proposed records and any validated
+append-only patch in the discovery artifact. The aggregate preview files stay
+on the runner. A release hint is a reason to assess a candidate. Canonical
+admission and signed publication use their separate decision paths.
 
 A lead whose recent releases have no uploaded desktop asset gets a
 `no-native-package` watch (`waiting`). When a later run sees uploaded desktop

@@ -7522,9 +7522,14 @@ commit, tree, blob and content digest. Fork and mirror identity conflicts, unsup
 missing manifests and failures retain their own dated outcomes. Projects with
 other scope evidence can still use reviewed discovery admission. An upstream
 manifest supplies descriptive scope. Acquisition still follows its own checks.
-The scheduled invocation produces unsigned evidence. A trusted checkout with
-the current Core validator can prepare the exact append-only patch from the
-same policy, subject to normal catalog review and publication.
+The scheduled invocation uses `--discovery-released-validator true` to acquire
+the official Linux Core reader only when an eligible addition is ready. It
+reuses the protected Preview selection, withdrawal and release attestation
+checks. The completion report binds the reader receipt and the digest of the
+append-only patch. A reader acquisition or validation failure preserves the
+unsigned evidence and records a deferral. A trusted checkout can also use
+`--validator-cli` to prepare the patch. Catalog review and publication remain
+separate steps.
 
 For a reviewed batch, run the same command with
 `--discovery-listing-approval /path/to/approval.json` and the trusted Core
