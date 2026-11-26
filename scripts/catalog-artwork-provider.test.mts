@@ -748,56 +748,76 @@ void test("game media preparation binds each typed role to the same exact game",
   );
 });
 
-void test("incomplete key-art inventory preserves cached media and does not suppress the logo role", async () => {
+void test("an incomplete inventory preserves artwork, shares the failed read and recovers next pass", async () => {
   const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
-  const subject = { kind: "port", port_id: "sample" };
-  const retained = { id: "retained-header", role: "header", subject };
-  const result = await prepareCatalogGameMedia(
-    {
-      ports: [
+  const catalog = {
+    ports: ["sample", "another"].map((id) => ({
+      id,
+      name: "Sample",
+      project_url: "https://example.org/sample",
+      presentation: {
+        media: [{ id: "retained-header", role: "header", subject: { kind: "port", port_id: id } }],
+      },
+    })),
+  };
+  let recovered = false;
+  const inventories: string[] = [];
+  const options: Parameters<typeof prepareCatalogGameMedia>[1] = {
+    inspector: {
+      inspectGame: async () => [
         {
-          id: "sample",
+          id: 7,
           name: "Sample",
-          project_url: "https://example.org/sample",
-          presentation: { media: [retained] },
+          slug: "sample",
+          websites: [{ url: "https://example.org/sample" }],
         },
       ],
-    },
-    {
-      inspector: {
-        inspectGame: async () => [
-          {
-            id: 7,
-            name: "Sample",
-            slug: "sample",
-            websites: [{ url: "https://example.org/sample" }],
-          },
-        ],
-        inspectGameMedia: async (_id, kind) =>
-          kind === "logo"
-            ? [{ id: 9, game: 7, image_id: "logo" }]
-            : Array.from({ length: 21 }, () => ({})),
-        inspectMediaImage: async () => ({
-          sha256: "b".repeat(64),
-          bytes: 100,
-          width: 400,
-          height: 200,
-          format: "png",
-          validator: "portcove-core",
-        }),
+      inspectGameMedia: async (_id, kind) => {
+        inventories.push(kind);
+        if (kind === "logo") return [{ id: 9, game: 7, image_id: "logo" }];
+        if (!recovered) return Array.from({ length: 21 }, () => ({}));
+        return kind === "screenshot" ? [{ id: 10, game: 7, image_id: "scene" }] : [];
       },
+      inspectMediaImage: async () => ({
+        sha256: "b".repeat(64),
+        bytes: 100,
+        width: 400,
+        height: 200,
+        format: "png",
+        validator: "portcove-core",
+      }),
     },
+  };
+  const partial = await prepareCatalogGameMedia(catalog, options);
+  assert.deepEqual(inventories, ["key_art", "logo", "screenshot"]);
+  for (const [index, port] of partial.catalog.ports.entries()) {
+    assert.deepEqual(
+      partial.records.filter((record) => record.port_id === port.id).map(({ reason }) => reason),
+      [
+        "media-provider-unavailable-or-incomplete",
+        "role-selected",
+        "existing-scene-retained",
+        "media-provider-unavailable-or-incomplete",
+      ],
+    );
+    const media = port.presentation?.media;
+    assert.ok(Array.isArray(media));
+    assert.deepEqual(media[0], requiredFixture(catalog.ports[index]).presentation.media[0]);
+    const logo: unknown = media[1];
+    assert.ok(isRecord(logo));
+    assert.equal(logo.role, "logo");
+  }
+
+  recovered = true;
+  inventories.length = 0;
+  const retried = await prepareCatalogGameMedia(partial.catalog, options);
+  assert.deepEqual(inventories, ["key_art", "logo", "screenshot"]);
+  assert.deepEqual(
+    retried.records
+      .filter(({ role, reason }) => role === "screenshot" && reason === "role-selected")
+      .map(({ port_id, subject }) => [port_id, subject]),
+    catalog.ports.map(({ id }) => [id, { kind: "port", port_id: id }]),
   );
-  assert.equal(result.records[0]?.reason, "media-provider-unavailable-or-incomplete");
-  assert.equal(result.records[1]?.reason, "role-selected");
-  assert.equal(result.records[2]?.reason, "existing-scene-retained");
-  assert.equal(result.records[3]?.reason, "media-provider-unavailable-or-incomplete");
-  const media = requiredFixture(result.catalog.ports[0]).presentation?.media;
-  assert.ok(Array.isArray(media));
-  assert.deepEqual(media[0], retained);
-  const second: unknown = media[1];
-  assert.ok(isRecord(second));
-  assert.equal(second.role, "logo");
 });
 
 void test("new scenes stay edition-bound and preserve other reviewed scopes", async () => {
