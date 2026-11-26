@@ -769,14 +769,7 @@ impl PortListing {
     /// The discovery admission contract reserves `github-<repository ID>`
     /// for canonical automatic listings.
     pub(crate) fn admitted_github_repository_id(&self) -> Option<u64> {
-        let suffix = self.id.strip_prefix("github-")?;
-        if suffix.starts_with('0') || !suffix.bytes().all(|byte| byte.is_ascii_digit()) {
-            return None;
-        }
-        suffix
-            .parse()
-            .ok()
-            .filter(|id| *id <= 9_007_199_254_740_991)
+        portcove_listing_carrier::admitted_github_repository_id(&self.id)
     }
 
     fn validate_observation_metadata(&self) -> Result<()> {

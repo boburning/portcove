@@ -728,13 +728,19 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   for (const field of ["release_url", "setup_url"] as const)
     if (listing[field] !== undefined) publicUrl(listing[field], field);
   if (repositoryBoundListingId(listing.id)) {
-    const project = listing.project_url.toLowerCase().replace(/\/$/u, "");
-    const release = listing.release_url?.toLowerCase().replace(/\/$/u, "");
+    const project = listing.project_url.replace(/\/$/u, "");
+    const release = listing.release_url?.replace(/\/$/u, "");
+    const canonicalProject = /^https:\/\/github\.com\/[A-Za-z0-9_-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/u;
+    const canonicalRelease = /^https:\/\/github\.com\/[A-Za-z0-9_-]{1,100}\/[A-Za-z0-9_.-]{1,100}(?:\/releases)?$/u;
+    const scope = project.toLowerCase();
     if (
-      !/^https:\/\/github\.com\/[a-z0-9_-]{1,100}\/[a-z0-9_.-]{1,100}$/u.test(project) ||
-      project.endsWith("/.") ||
-      project.endsWith("/..") ||
-      (release !== undefined && release !== project && release !== `${project}/releases`)
+      !canonicalProject.test(project) ||
+      scope.endsWith("/.") ||
+      scope.endsWith("/..") ||
+      scope.endsWith(".git") ||
+      (release !== undefined &&
+        (!canonicalRelease.test(release) ||
+          ![scope, `${scope}/releases`].includes(release.toLowerCase())))
     )
       throw new Error("A repository-bound listing needs one GitHub project and its release scope.");
   }

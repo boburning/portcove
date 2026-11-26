@@ -140,6 +140,16 @@ void test("automatic GitHub identities require repository-bound listing format 1
       }),
     /repository-bound listing/u,
   );
+  for (const [project_url, release_url] of [
+    ["https://github.com/example/game.GIT", "https://github.com/example/game.git/releases"],
+    ["https://github.com/example/Kart", "https://github.com/example/kart/releases"],
+    ["https://github.com/example/kart", "https://github.com/example/Kart/releases"],
+  ]) {
+    assert.throws(
+      () => checkedAuthoredPort({ format_version: 1, listing: { ...listing, project_url, release_url } }),
+      /repository-bound listing/u,
+    );
+  }
 });
 
 void test("managed platform warnings are checked and stay outside definition projections", () => {
