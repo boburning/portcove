@@ -9,6 +9,20 @@ use std::{
 const ENTRY_LIMIT: usize = 2048;
 const DEPTH_LIMIT: usize = 5;
 const CANDIDATE_LIMIT: usize = 32;
+const LAUNCH_MANIFEST_LIMIT: u64 = 64 * 1024;
+
+#[derive(Deserialize)]
+struct ReleaseLaunchManifest {
+    format: u32,
+    repo: Option<String>,
+    games: Option<serde_json::Value>,
+    start: ReleaseLaunchPrograms,
+}
+
+#[derive(Deserialize)]
+struct ReleaseLaunchPrograms {
+    program: Vec<String>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SetupLaunchTarget {
@@ -27,6 +41,54 @@ pub struct SetupLaunchTargets {
     pub complete: bool,
     pub entries_checked: usize,
     pub explanation: String,
+}
+
+/// A package may suggest a program from the existing native candidate set. The
+/// manifest grants no execution, arguments, file ownership, or loader binding.
+fn release_manifest_program<'a>(
+    root: &Path,
+    project_url: &str,
+    candidates: &[&'a SetupLaunchTarget],
+) -> Option<&'a SetupLaunchTarget> {
+    let file =
+        crate::external_runtime::open_single_link_file(&root.join("recomplauncher.json")).ok()?;
+    let mut bytes = Vec::new();
+    file.take(LAUNCH_MANIFEST_LIMIT + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    if bytes.len() as u64 > LAUNCH_MANIFEST_LIMIT {
+        return None;
+    }
+    let manifest: ReleaseLaunchManifest = serde_json::from_slice(&bytes).ok()?;
+    if manifest.format != 1
+        || manifest.games.is_some()
+        || manifest.repo.as_deref().is_some_and(|repo| {
+            !crate::release::catalog_download_repository(project_url)
+                .is_ok_and(|expected| repo.eq_ignore_ascii_case(&expected))
+        })
+        || !(1..=16).contains(&manifest.start.program.len())
+    {
+        return None;
+    }
+    // Refuse the declaration if any alternative is invalid. Only compare
+    // lexical paths against the already inspected files, without opening them.
+    let programs = manifest
+        .start
+        .program
+        .iter()
+        .map(|program| {
+            if program.len() > 256 {
+                return None;
+            }
+            let (candidate, _) = crate::archive::validate_relative_path(program, false).ok()?;
+            Some(candidate)
+        })
+        .collect::<Option<Vec<_>>>()?;
+    programs.iter().find_map(|program| {
+        candidates.iter().copied().find(|candidate| {
+            candidate.executable.strip_prefix(root).ok() == Some(program.as_path())
+        })
+    })
 }
 
 // Validate format/processor rather than treating an extension as a game identity.
@@ -384,13 +446,21 @@ impl PortcoveService {
             })
             .collect::<Vec<_>>();
         let raw_package = root.join(&pending.artifact.name).is_file();
-        let recommended_executable = if complete && convincing.len() == 1 && !raw_package {
-            Some(convincing[0].executable.clone())
+        let declared = if complete && !raw_package && hints.is_empty() {
+            release_manifest_program(&root, &pending.listing.project_url, &plausible)
+        } else {
+            None
+        };
+        let recommended_executable = if complete && !raw_package {
+            declared
+                .or_else(|| (convincing.len() == 1).then(|| *convincing[0]))
+                .map(|candidate| candidate.executable.clone())
         } else {
             None
         };
         let explanation = if !complete { "Search reached a safety bound or could not inspect every entry. Choose an executable manually, or open a smaller installed folder." }
             else if plausible.is_empty() { "No native game application was identified here. Complete upstream setup, refresh suggestions, or choose the installed executable elsewhere. Installers, scripts and app bundles may need upstream setup first." }
+            else if declared.is_some() { "The setup manifest names this native program. Confirm that it is the game or upstream launcher." }
             else { "Confirm the game or upstream launcher. First launch may handle game-data setup; discovery does not prove configuration or gameplay." }.into();
         Ok(SetupLaunchTargets {
             port_id: port_id.into(),
