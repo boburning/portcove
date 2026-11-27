@@ -11,6 +11,7 @@ import {
   acceptedHeroMediaMatches,
   catalogGameMediaRoles,
   gameMediaDimensionsFit,
+  gameMediaRoleLimits,
   gameMediaRoles,
   isConfirmedIgdbImageGone,
   type createIgdbInspector,
@@ -24,7 +25,6 @@ export const scheduledGameMediaFile = "game-media-additions.json";
 export const scheduledGameMediaLimit = 2 * 1024 * 1024;
 const automaticPrefix = "auto-igdb-";
 const maxAssets = 48 * 14;
-const roleLimits = { header: 2, logo: 2, key_art: 2, screenshot: 8 };
 const assetFields = new Set([
   "id",
   "role",
@@ -424,7 +424,7 @@ export function scheduledGameMediaDefaults(
           (Array.isArray(strictMedia) && asset.role !== "header" && asset.role !== "screenshot") ||
           current.length >= 14 ||
           current.filter((value) => isRecord(value) && value.role === asset.role).length >=
-            roleLimits[asset.role] ||
+            gameMediaRoleLimits[asset.role] ||
           current.some(
             (value) => sameRole(asset, value) || (isRecord(value) && value.id === asset.id),
           )

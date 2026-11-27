@@ -1193,7 +1193,17 @@ void test("compact listing activation selects the released reader and rechecks i
     PORTCOVE_COVER_REVIEW_PREIMAGES:
       "${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_preimages || '' }}",
     PORTCOVE_TRIGGERING_ACTOR: "${{ github.triggering_actor }}",
+    PORTCOVE_SCHEDULED_MEDIA_CACHE_FAILED: "${{ steps.media-clock.outcome != 'success' }}",
+    PORTCOVE_SCHEDULED_MEDIA_PROVIDER_CHECKPOINT:
+      "${{ github.workspace }}/work/catalog-media-provider",
   });
+  const mediaClock = steps.find(({ id }) => id === "media-clock")!;
+  const mediaClockSave = steps.find(
+    ({ name }) => name === "Retain the scheduled media publication retry clock",
+  )!;
+  assert.ok(steps.indexOf(mediaClock) < steps.indexOf(observe));
+  assert.ok(steps.indexOf(mediaClockSave) > steps.indexOf(observe));
+  assert.match(mediaClockSave.if!, /!cancelled\(\).*artwork-provider-admission\.json/u);
   assert.match(
     observe.run!,
     /node scripts\/listing-observation-delivery\.mts [^]*--official-released-reader\n/u,
