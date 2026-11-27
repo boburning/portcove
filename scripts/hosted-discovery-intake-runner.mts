@@ -8,6 +8,7 @@ import {
   assertScheduledAuditCaller,
   hostedIntakeMaxPasses,
   scheduledAuditRequests,
+  type AuditContinuation,
 } from "./hosted-discovery-intake-audits.mts";
 
 interface Outcome {
@@ -273,7 +274,11 @@ export async function scheduledIntakeReceipts(
   }
 }
 
-type ScheduledReceiptPass = Awaited<ReturnType<typeof scheduledIntakeReceipts>>;
+interface ScheduledReceiptPass {
+  tickets: readonly AuditContinuation[];
+  revision: string | undefined;
+  receipts: Awaited<ReturnType<typeof scheduledIntakeReceipts>>["receipts"];
+}
 
 export function scheduledReceiptOutcome(pass: ScheduledReceiptPass) {
   const revision = pass.revision;
