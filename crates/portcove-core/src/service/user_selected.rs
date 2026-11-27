@@ -2,6 +2,102 @@
 use super::*;
 
 impl PortcoveService {
+    /// Review a specific upstream project and an executable the player selected.
+    /// The provider receives only the project address. The temporary listing
+    /// cannot enter the public catalog or grant any managed operation.
+    pub async fn preview_personal_github_runtime(
+        &self,
+        project_url: &str,
+        executable: &Path,
+        working_directory: &Path,
+        arguments: &[String],
+    ) -> Result<crate::PersonalProjectRuntimePreview> {
+        let (project, service) = self.personal_github_runtime_context(project_url).await?;
+        let registration = service.preview_user_selected_runtime(
+            &format!("github-{}", project.id),
+            executable,
+            working_directory,
+            arguments,
+        )?;
+        Ok(crate::PersonalProjectRuntimePreview {
+            repository_id: project.id,
+            project_url: format!("https://github.com/{}", project.full_name),
+            registration,
+        })
+    }
+
+    /// Save the exact reviewed private registration using the existing exclusive
+    /// installation owner and immutable review checks.
+    pub async fn register_personal_github_runtime(
+        &self,
+        project_url: &str,
+        executable: &Path,
+        working_directory: &Path,
+        arguments: &[String],
+        expected_preview_sha256: &str,
+    ) -> Result<ExternalRuntimeRecord> {
+        let (project, service) = self.personal_github_runtime_context(project_url).await?;
+        let port_id = format!("github-{}", project.id);
+        let authorization = service.authorize_user_selected_runtime(
+            &port_id,
+            executable,
+            working_directory,
+            arguments,
+            expected_preview_sha256,
+        )?;
+        service.register_user_selected_runtime(
+            &port_id,
+            executable,
+            working_directory,
+            arguments,
+            &authorization.token,
+        )
+    }
+
+    async fn personal_github_runtime_context(
+        &self,
+        project_url: &str,
+    ) -> Result<(crate::release::CatalogGithubRepository, Self)> {
+        let project = CompositeReleaseProvider::for_library(&self.library)?
+            .github()
+            .public_catalog_repository(project_url)
+            .await?;
+        let service = self.personal_runtime_context(project.id, &project.full_name)?;
+        Ok((project, service))
+    }
+
+    fn personal_runtime_context(&self, repository_id: u64, full_name: &str) -> Result<Self> {
+        let (current, provenance) = self.library.load_catalog()?;
+        let id = format!("github-{repository_id}");
+        if current.listings().iter().any(|row| {
+            row.id == id
+                || crate::release::catalog_download_repository(&row.project_url)
+                    .is_ok_and(|name| name.eq_ignore_ascii_case(full_name))
+                || row.upstream_observation.as_ref().is_some_and(|observed| {
+                    observed.repository_id == Some(repository_id)
+                        && crate::release::catalog_download_repository(&row.project_url)
+                            .is_ok_and(|name| name.eq_ignore_ascii_case(&observed.repository))
+                })
+        }) {
+            return Err(PortcoveError::conflict(
+                "Portcove already lists this project. Select its catalog entry to use your files.",
+            ));
+        }
+        let listing = serde_json::from_value(serde_json::json!({
+            "id": id,
+            "name": full_name,
+            "summary": "Public upstream project selected for this library.",
+            "project_url": format!("https://github.com/{full_name}"),
+        }))?;
+        let private_catalog = Catalog::for_user_selected_listing(listing)?;
+        Ok(Self::from_catalog(
+            self.library.clone(),
+            self.releases.clone(),
+            private_catalog,
+            provenance,
+        ))
+    }
+
     pub(super) fn require_user_selected_path_ownership(
         &self,
         executable: &Path,
@@ -641,6 +737,71 @@ mod tests {
         working: &Path,
     ) -> ExternalRuntimeRecord {
         register_with_arguments(service, id, executable, working, &["--help".into()])
+    }
+
+    #[test]
+    fn private_repository_registration_joins_the_same_public_id_without_rekeying() {
+        const ID: &str = "github-982741653";
+        let (_temporary, service, executable, working) = fixture("personal-fixture");
+        let exact_paths = fs::read(&executable).unwrap();
+        let local = service
+            .personal_runtime_context(982741653, "FixtureOwner/FixturePort")
+            .unwrap();
+        let registration = register(&local, ID, &executable, &working);
+        assert!(
+            local
+                .preview_user_selected_runtime(ID, &executable, &working, &[])
+                .is_err()
+        );
+
+        let reopened = PortcoveService::new(service.library.clone()).unwrap();
+        assert!(reopened.catalog().listing(ID).is_err());
+        let connection = reopened.library.connection().unwrap();
+        let local_view = reopened
+            .catalog_with_registered_listings(reopened.catalog().clone(), &connection)
+            .unwrap();
+        assert_eq!(
+            local_view.listing(ID).unwrap().name,
+            "FixtureOwner/FixturePort"
+        );
+        assert!(local_view.port(ID).is_err());
+
+        let mut canonical = reopened.catalog().listing_document().clone();
+        let mut accepted = local_view.listing(ID).unwrap().clone();
+        accepted.project_url = "https://github.com/FixtureOwner/RenamedPort".into();
+        accepted.name = "Reviewed port name".into();
+        canonical.listings.push(accepted);
+        let canonical = reopened
+            .catalog()
+            .clone()
+            .with_projected_listing_document(canonical)
+            .unwrap();
+        let joined = reopened
+            .catalog_with_registered_listings(canonical, &connection)
+            .unwrap();
+        assert_eq!(joined.listing(ID).unwrap().name, "Reviewed port name");
+        assert_eq!(
+            joined.listings().iter().filter(|row| row.id == ID).count(),
+            1
+        );
+        let (retained, retained_catalog) = reopened
+            .library
+            .external_runtime_with_port(ID)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(retained).unwrap(),
+            serde_json::to_value(registration).unwrap()
+        );
+        assert_eq!(
+            retained_catalog.listing(ID).unwrap().name,
+            "FixtureOwner/FixturePort"
+        );
+        assert_eq!(fs::read(&executable).unwrap(), exact_paths);
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"player save"
+        );
     }
 
     fn register_with_arguments(

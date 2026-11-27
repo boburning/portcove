@@ -321,6 +321,7 @@ pub use exit_explanation::{
 };
 pub use external_runtime::{
     ExternalRuntimePreview, ExternalRuntimeRelinkPreview, ExternalRuntimeRemovalPreview,
+    PersonalProjectRuntimePreview,
 };
 pub use failure::{
     FailurePresentation, FailureRecoveryTarget, FailureReport, FailureTone, MutationState,
