@@ -86,6 +86,8 @@ export interface DiscoveryStore {
       sourceRevision: string;
       runner: string;
       known?: DiscoveryKnownRevision;
+      /** The reservation covers the retained grant only. */
+      knownOnly?: boolean;
     },
   ): DiscoveryLeaseGrant;
   commit(
@@ -474,24 +476,28 @@ export function postgresDiscoveryStore(
   return {
     acquire(lease, options) {
       try {
-        const { known } = options;
+        const { known, knownOnly } = options;
         const planned = pendingPlan?.scope === lease.scope ? pendingPlan : undefined;
+        if (knownOnly && (!known || planned))
+          throw new MaintenanceStoreError(
+            "A retained-only discovery grant requires its exact revision",
+          );
         if (planned) pendingPlan = undefined;
         hydration.delete(lease.scope);
         const args = `${sqlLiteral(lease.scope)}, ${uuid(lease.attempt)}, ${uuid(lease.token)},
           ${options.leaseSeconds}, ${sqlLiteral(options.definition)},
           ${sqlLiteral(options.sourceRevision)}, ${sqlLiteral(options.runner)}`;
-        const output = runSql(
-          environment,
-          planned
-            ? `SELECT portcove_maintenance.discovery_acquire_planned(${args}, ${planned.revision},
-                ${planned.generation}, ${sqlLiteral(planned.definition)}, ${planned.compactBytes})::text;`
-            : known
-              ? `SELECT portcove_maintenance.discovery_acquire_known(${args},
-                 ${known.revision}, ${known.generation}, ${sqlLiteral(known.definition)},
-                 ${uuid(known.attempt)})::text;`
-              : `SELECT portcove_maintenance.discovery_acquire_seeded(${args})::text;`,
-        ).trim();
+        const acquire = planned
+          ? `portcove_maintenance.discovery_acquire_planned(${args}, ${planned.revision},
+              ${planned.generation}, ${sqlLiteral(planned.definition)}, ${planned.compactBytes})`
+          : known
+            ? `portcove_maintenance.discovery_acquire_known(${args}, ${known.revision},
+                ${known.generation}, ${sqlLiteral(known.definition)}, ${uuid(known.attempt)})`
+            : `portcove_maintenance.discovery_acquire_seeded(${args})`;
+        // The existing fence decides whether the grant is unchanged. On a miss,
+        // strip the body in PostgreSQL before it can cross the wire.
+        const grantSql = knownOnly ? `(${acquire} - 'state')` : acquire;
+        const output = runSql(environment, `SELECT ${grantSql}::text;`).trim();
         const grant = JSON.parse(output) as DiscoveryLeaseGrant;
         const revision = Number(grant.revision);
         const generation = Number(grant.generation);
@@ -504,6 +510,11 @@ export function postgresDiscoveryStore(
         let received = Buffer.byteLength(output);
         if (!grant.unchanged) {
           try {
+            if (knownOnly)
+              throw new DiscoveryStoreRefused(
+                "stale-writer",
+                "Retained discovery revision moved; a complete read needs its own admission",
+              );
             const readSeed = planned ? seed : unplannedSeed;
             const incremental = readSeed
               ? readSeededDiscoveryRows(

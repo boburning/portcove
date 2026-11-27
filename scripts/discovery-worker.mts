@@ -340,6 +340,8 @@ export interface DiscoveryWorkerOptions {
    * reading them again.
    */
   retained?: DiscoveryRetainedState;
+  /** Only a retained in-memory revision is admitted for this pass. */
+  knownOnly?: boolean;
   /** Receives what this pass committed, for the next pass to reuse. */
   retain?: (retained: DiscoveryRetainedState | undefined) => void;
 }
@@ -439,6 +441,7 @@ export async function runDiscoveryWorker(
       definition: discoveryDefinitionDigest,
       sourceRevision: options.sourceRevision,
       runner: options.runner,
+      ...(options.knownOnly ? { knownOnly: true } : {}),
       ...(known
         ? {
             known: {
@@ -809,7 +812,7 @@ export async function runDiscoveryWorker(
 
 export interface DiscoveryPassOptions extends Omit<
   DiscoveryWorkerOptions,
-  "budget" | "transferBytes" | "runStartedAt" | "retained" | "retain"
+  "budget" | "transferBytes" | "runStartedAt" | "retained" | "retain" | "knownOnly"
 > {
   /** Epoch milliseconds by which collection must stop, before final commits. */
   deadline: number;
@@ -823,7 +826,12 @@ export interface DiscoveryPassOptions extends Omit<
    */
   admit: (
     pass: number,
-    run: (admitted: { bytes: number; deadline: number }) => Promise<DiscoveryWorkerResult>,
+    run: (admitted: {
+      bytes: number;
+      deadline: number;
+      knownOnly?: boolean;
+    }) => Promise<DiscoveryWorkerResult>,
+    hasRetainedRevision: boolean,
   ) => Promise<DiscoveryWorkerResult | undefined>;
   sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
   signal?: AbortSignal;
@@ -979,32 +987,38 @@ async function collectPasses(options: DiscoveryPassOptions) {
   for (let pass = 1; ; pass++) {
     let result: DiscoveryWorkerResult | undefined;
     try {
-      result = await options.admit(pass, async ({ bytes, deadline }) => {
-        const finishBy = Math.min(options.deadline, deadline - options.finalizationMs);
-        const startedAt = now();
-        const budget = new DiscoveryBudget(
-          "hosted",
-          (usage) => writeFileSync(path.join(options.runDir, "budget.json"), JSON.stringify(usage)),
-          now,
-          new Date(startedAt).toISOString(),
-          {
-            requests: Number.MAX_SAFE_INTEGER,
-            bytes: options.diskBytes,
-            milliseconds: Math.max(1, finishBy - startedAt),
-          },
-        );
-        return await runDiscoveryWorker({
-          ...options,
-          budget,
-          transferBytes: bytes,
-          runStartedAt,
-          rotateListingPreview: options.previewListings !== undefined,
-          ...(retained ? { retained } : {}),
-          retain: (value) => {
-            retained = value;
-          },
-        });
-      });
+      result = await options.admit(
+        pass,
+        async ({ bytes, deadline, knownOnly }) => {
+          const finishBy = Math.min(options.deadline, deadline - options.finalizationMs);
+          const startedAt = now();
+          const budget = new DiscoveryBudget(
+            "hosted",
+            (usage) =>
+              writeFileSync(path.join(options.runDir, "budget.json"), JSON.stringify(usage)),
+            now,
+            new Date(startedAt).toISOString(),
+            {
+              requests: Number.MAX_SAFE_INTEGER,
+              bytes: options.diskBytes,
+              milliseconds: Math.max(1, finishBy - startedAt),
+            },
+          );
+          return await runDiscoveryWorker({
+            ...options,
+            budget,
+            transferBytes: bytes,
+            runStartedAt,
+            ...(knownOnly ? { knownOnly: true } : {}),
+            rotateListingPreview: options.previewListings !== undefined,
+            ...(retained ? { retained } : {}),
+            retain: (value) => {
+              retained = value;
+            },
+          });
+        },
+        retained !== undefined,
+      );
     } catch (error) {
       // Keep the record of the passes that already committed.
       failure = `pass ${pass} failed: ${errorMessage(error).slice(0, 500)}`;
@@ -1621,7 +1635,7 @@ export async function discoveryWorkerMain(argv: string[]) {
         });
         return { sdk, http: createDiscoveryTransport(budget, token) };
       },
-      admit: async (pass, collect) => {
+      admit: async (pass, collect, hasRetainedRevision) => {
         // Neon meters only what the database sends to the client: the acquire
         // read of the state and lead records (omitted when a later pass reuses
         // what this run committed), then a short acknowledgement for a commit
@@ -1629,18 +1643,21 @@ export async function discoveryWorkerMain(argv: string[]) {
         // The largest response any pass of this run or a recent run received
         // covers growth, including a full read after another writer's commit.
         // The admission meters 70% of a reservation as payload.
-        // A measured initial delta cannot fall back to an unadmitted full read.
-        // Subsequent passes retain conservative complete-read admission.
-        const measuredDiscovery = pass === 1 && selectedPlan !== undefined;
-        const reservationBytes =
-          measuredDiscovery && selectedPlan
-            ? discoverySeedReservation(selectedPlan, commits)
+        // The measured initial delta and retained-only passes both refuse an
+        // unadmitted complete read if their revision fence moves.
+        const knownOnly = hasRetainedRevision;
+        const measuredSeed = pass === 1 ? selectedPlan : undefined;
+        const measuredDiscovery = knownOnly || measuredSeed !== undefined;
+        const reservationBytes = knownOnly
+          ? discoveryPassReservation(commitResponseAllowance, 0, commits)
+          : measuredSeed
+            ? discoverySeedReservation(measuredSeed, commits)
             : discoveryPassReservation(acquireBytes, previousTransfer, commits);
         try {
           const result = await withMaintenanceAdmission(
             environment,
             "discovery",
-            async (bytes, deadline) => await collect({ bytes, deadline }),
+            async (bytes, deadline) => await collect({ bytes, deadline, knownOnly }),
             {
               request: requestKey(`pass-${pass}`),
               reservationBytes,
