@@ -3,12 +3,93 @@
   "generator": "scripts/generate-catalog.mts",
   "generator_version": 32,
   "facts_provenance": null,
-  "enrollments": [],
+  "enrollments": [
+    {
+      "port_id": "pokemon-pinball-ruby-sapphire-jvppbport",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "b9182a141baafd3072606924d97eba4bdcc4f12c91ac46996ebde439473c81df",
+      "repository": "jonnisvibes/jvppbport",
+      "repository_id": 1447865340,
+      "release": {
+        "id": 448905658,
+        "tag": "v0.3.0",
+        "observed_at": "2026-11-26T02:14:56.199Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 759798504,
+          "asset_name": "JVPPBPort-0.3.0-windows.zip",
+          "archive_sha256": "43b8d00ccb13491e54fed35a63e0e89c90cd336a2bfb1fc0fd9b26bf1d09180a",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "jvppbport-0.3.0-windows/jvppbport.exe",
+              "display_path": "JVPPBPort-0.3.0-windows/JVPPBPort.exe",
+              "machine": "pe-x86-64",
+              "sha256": "9cd9d9936bb56072cc5f12a43c9b13beb0a035023785c12569aaa3f7a6ce0a58"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "titus-the-fox-foxrv",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "ff6410571b79ac68b9cfd69366438ab8124212bef18106ce074c60101508f305",
+      "repository": "giuseppegr/FoxRV",
+      "repository_id": 1423141341,
+      "release": {
+        "id": 415765433,
+        "tag": "v0.1.0",
+        "observed_at": "2026-11-26T02:14:26.224Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 650299704,
+          "asset_name": "FoxRV-0.1.0-windows-x86_64.zip",
+          "archive_sha256": "95bb0785d15e083e3c7afc9099fed08c2efb7f6b35936e51de16103f2556f327",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "foxrv/foxrv.exe",
+              "display_path": "FoxRV/FoxRV.exe",
+              "machine": "pe-x86-64",
+              "sha256": "37dcb76ed36a2dee29ea7ee91ecc6d2afd6158792efa6b1ea6d4f1b9481b16e3"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 650299701,
+          "asset_name": "FoxRV-0.1.0-linux-x86_64.zip",
+          "archive_sha256": "360366ef72bc21d06639620b0056f0d3c9560360b50eb9a90f3cc3ddd31bea30",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "foxrv/foxrv",
+              "display_path": "FoxRV/FoxRV",
+              "machine": "elf64-x86-64",
+              "sha256": "44497e63da5cbf2a50273bac0c4eed3e850a96e80519ddf1f499fe2f77a58db9"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "blocked": {
     "operational-route": 460,
     "scummvm-engine": 25,
     "no-readable-upstream": 26,
-    "no-observation": 2246,
+    "no-observation": 2244,
     "repository-mismatch": 0,
     "stale-parser": 0,
     "no-stable-release": 0,

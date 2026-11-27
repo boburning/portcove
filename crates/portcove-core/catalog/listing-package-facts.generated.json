@@ -1,7 +1,241 @@
 {
   "format": 18,
   "generator": "scripts/listing-package-facts.mts",
-  "generated_at": "2026-11-23T00:00:00.000Z",
-  "entries": [],
-  "entries_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  "generated_at": "2026-11-26T13:28:05Z",
+  "entries": [
+    {
+      "port_id": "pokemon-pinball-ruby-sapphire-jvppbport",
+      "provider": "github",
+      "repository": "jonnisvibes/jvppbport",
+      "repository_id": 1447865340,
+      "listing_words": [
+        "jvppbport",
+        "mon",
+        "pinball",
+        "pok",
+        "pokemon",
+        "ruby",
+        "sapphire"
+      ],
+      "parser": "listing-package-facts",
+      "parser_version": 26,
+      "observation": {
+        "release_id": 448905658,
+        "tag": "v0.3.0",
+        "published_at": "2026-11-17T16:32:14.000Z",
+        "observed_at": "2026-11-26T02:14:56.199Z",
+        "coverage": "complete",
+        "assets_complete": true,
+        "assets_sha256": "b4aeb20a67c5d56b3899a141de2c5c3469c81f6ca6115e8758e3843a93bb4a90"
+      },
+      "ineligible": null,
+      "unread_forms": [
+        ".apk"
+      ],
+      "observed_releases": [
+        {
+          "release_id": 436129584,
+          "tag": "v0.1.0",
+          "core_prerelease": false,
+          "prerelease": false,
+          "published_at": "2026-11-06T05:25:02.000Z",
+          "packaged": true,
+          "text": "observed",
+          "title": "JVPPBPort 0.1.0",
+          "statement": null
+        },
+        {
+          "release_id": 443091502,
+          "tag": "v0.2.0",
+          "core_prerelease": false,
+          "prerelease": false,
+          "published_at": "2026-11-12T14:53:17.000Z",
+          "packaged": true,
+          "text": "observed",
+          "title": "v0.2.0",
+          "statement": null
+        },
+        {
+          "release_id": 448905658,
+          "tag": "v0.3.0",
+          "core_prerelease": false,
+          "prerelease": false,
+          "published_at": "2026-11-17T16:32:14.000Z",
+          "packaged": true,
+          "text": "observed",
+          "title": "v0.3.0",
+          "statement": null
+        }
+      ],
+      "other_packages": [],
+      "asset_names": [
+        "JVPPBPort-0.3.0-android.apk",
+        "SHA256SUMS.txt"
+      ],
+      "refused_archives": [],
+      "attempt": null,
+      "artifacts": [
+        {
+          "asset_id": 759798504,
+          "name": "JVPPBPort-0.3.0-windows.zip",
+          "size": 1347964,
+          "sha256": "43b8d00ccb13491e54fed35a63e0e89c90cd336a2bfb1fc0fd9b26bf1d09180a",
+          "role": "desktop-game-runtime",
+          "os": "windows",
+          "arch": "x86-64",
+          "source": {
+            "kind": "exact-release-structured",
+            "shape_version": 2,
+            "archive_sha256": "43b8d00ccb13491e54fed35a63e0e89c90cd336a2bfb1fc0fd9b26bf1d09180a"
+          },
+          "name_suggestion": {
+            "rule_version": 1,
+            "role": "desktop-game-runtime",
+            "os": "windows",
+            "arch": "unknown",
+            "tool_token": null,
+            "system_token": null
+          },
+          "players": [
+            {
+              "path": "jvppbport-0.3.0-windows/jvppbport.exe",
+              "display_path": "JVPPBPort-0.3.0-windows/JVPPBPort.exe",
+              "machine": "pe-x86-64",
+              "sha256": "9cd9d9936bb56072cc5f12a43c9b13beb0a035023785c12569aaa3f7a6ce0a58"
+            }
+          ],
+          "excluded_players": [],
+          "contradictory": false,
+          "toolchain_names": [],
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 6,
+            "source_leaves": 0
+          }
+        }
+      ]
+    },
+    {
+      "port_id": "titus-the-fox-foxrv",
+      "provider": "github",
+      "repository": "giuseppegr/FoxRV",
+      "repository_id": 1423141341,
+      "listing_words": [
+        "fox",
+        "foxrv",
+        "rv",
+        "the",
+        "titus"
+      ],
+      "parser": "listing-package-facts",
+      "parser_version": 26,
+      "observation": {
+        "release_id": 415765433,
+        "tag": "v0.1.0",
+        "published_at": "2026-10-17T11:29:13.000Z",
+        "observed_at": "2026-11-26T02:14:26.224Z",
+        "coverage": "complete",
+        "assets_complete": true,
+        "assets_sha256": "f22b4b125f36922da0d8be737c23817aa3e391c969c765e3170ade95f8af97b9"
+      },
+      "ineligible": null,
+      "unread_forms": [],
+      "observed_releases": [
+        {
+          "release_id": 415765433,
+          "tag": "v0.1.0",
+          "core_prerelease": false,
+          "prerelease": false,
+          "published_at": "2026-10-17T11:29:13.000Z",
+          "packaged": true,
+          "text": "observed",
+          "title": "v0.1.0",
+          "statement": null
+        }
+      ],
+      "other_packages": [],
+      "asset_names": [],
+      "refused_archives": [],
+      "attempt": null,
+      "artifacts": [
+        {
+          "asset_id": 650299701,
+          "name": "FoxRV-0.1.0-linux-x86_64.zip",
+          "size": 1584127,
+          "sha256": "360366ef72bc21d06639620b0056f0d3c9560360b50eb9a90f3cc3ddd31bea30",
+          "role": "desktop-game-runtime",
+          "os": "linux",
+          "arch": "x86-64",
+          "source": {
+            "kind": "exact-release-structured",
+            "shape_version": 2,
+            "archive_sha256": "360366ef72bc21d06639620b0056f0d3c9560360b50eb9a90f3cc3ddd31bea30"
+          },
+          "name_suggestion": {
+            "rule_version": 1,
+            "role": "desktop-game-runtime",
+            "os": "linux",
+            "arch": "x86-64",
+            "tool_token": null,
+            "system_token": null
+          },
+          "players": [
+            {
+              "path": "foxrv/foxrv",
+              "display_path": "FoxRV/FoxRV",
+              "machine": "elf64-x86-64",
+              "sha256": "44497e63da5cbf2a50273bac0c4eed3e850a96e80519ddf1f499fe2f77a58db9"
+            }
+          ],
+          "excluded_players": [],
+          "contradictory": false,
+          "toolchain_names": [],
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 2,
+            "source_leaves": 0
+          }
+        },
+        {
+          "asset_id": 650299704,
+          "name": "FoxRV-0.1.0-windows-x86_64.zip",
+          "size": 1714610,
+          "sha256": "95bb0785d15e083e3c7afc9099fed08c2efb7f6b35936e51de16103f2556f327",
+          "role": "desktop-game-runtime",
+          "os": "windows",
+          "arch": "x86-64",
+          "source": {
+            "kind": "exact-release-structured",
+            "shape_version": 2,
+            "archive_sha256": "95bb0785d15e083e3c7afc9099fed08c2efb7f6b35936e51de16103f2556f327"
+          },
+          "name_suggestion": {
+            "rule_version": 1,
+            "role": "desktop-game-runtime",
+            "os": "windows",
+            "arch": "x86-64",
+            "tool_token": null,
+            "system_token": null
+          },
+          "players": [
+            {
+              "path": "foxrv/foxrv.exe",
+              "display_path": "FoxRV/FoxRV.exe",
+              "machine": "pe-x86-64",
+              "sha256": "37dcb76ed36a2dee29ea7ee91ecc6d2afd6158792efa6b1ea6d4f1b9481b16e3"
+            }
+          ],
+          "excluded_players": [],
+          "contradictory": false,
+          "toolchain_names": [],
+          "bundled_toolchain": [],
+          "listing_counts": {
+            "leaves": 2,
+            "source_leaves": 0
+          }
+        }
+      ]
+    }
+  ],
+  "entries_sha256": "bc8785ef6a6a75567653f727640a3027d56019d6ba5e5ad9d251a66f9dc8f959"
 }

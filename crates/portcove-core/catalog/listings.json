@@ -87512,7 +87512,44 @@
         ]
       },
       "original_game_title": "Pokémon Pinball: Ruby & Sapphire",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select JVPPBPort.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/jonnisvibes/jvppbport",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream jonnisvibes/jvppbport, release v0.3.0, checked 2026-11-26. Windows: release file JVPPBPort-0.3.0-windows.zip contains JVPPBPort.exe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -119221,7 +119258,45 @@
         "source_editions": []
       },
       "original_game_title": "Titus the Fox",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/giuseppegr/FoxRV",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream giuseppegr/FoxRV, release v0.1.0, checked 2026-11-26. Windows: release file FoxRV-0.1.0-windows-x86_64.zip contains FoxRV.exe. Linux: release file FoxRV-0.1.0-linux-x86_64.zip contains FoxRV. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "unknown"
     },
     {
