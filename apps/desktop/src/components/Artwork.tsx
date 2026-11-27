@@ -449,6 +449,7 @@ function ArtworkSlotControl({
   const returnFocus = useRef<{
     target: HTMLButtonElement | null;
     from: Element | null;
+    lastTarget?: HTMLButtonElement;
     generation: number | undefined;
     portId: string;
     originalGameId: string | undefined;
@@ -475,9 +476,20 @@ function ArtworkSlotControl({
     if (visibilityReview) visibilityHeading.current?.focus();
   }, [visibilityReview]);
   useEffect(() => {
+    const dialog = slotPanel.current?.closest("dialog");
+    if (!active || !dialog) return;
+    const releaseFocus = (event: FocusEvent) => {
+      const target = returnFocus.current?.lastTarget;
+      if (target && event.target !== target && event.target !== dialog) returnFocus.current = null;
+    };
+    dialog.addEventListener("focusin", releaseFocus);
+    return () => dialog.removeEventListener("focusin", releaseFocus);
+  }, [active]);
+  useEffect(() => {
     const request = returnFocus.current;
     if (!request || pending) return;
     const panel = slotPanel.current;
+    const dialog = panel?.closest("dialog");
     const focused = document.activeElement;
     if (
       !isCurrentOpening() ||
@@ -487,7 +499,11 @@ function ArtworkSlotControl({
       request.generation !== cache?.generation ||
       request.portId !== port.id ||
       request.originalGameId !== originalGameId ||
-      (focused !== null && focused !== document.body && focused !== request.from)
+      (focused !== null &&
+        focused !== document.body &&
+        focused !== dialog &&
+        focused !== request.from &&
+        focused !== request.lastTarget)
     ) {
       returnFocus.current = null;
       return;
@@ -495,13 +511,19 @@ function ArtworkSlotControl({
     const available = (control: HTMLButtonElement | null) =>
       control?.isConnected && !control.disabled && !control.closest("[hidden], [inert]");
     const primary = [request.target, pickerButton.current].find(available);
+    if (primary) {
+      // A follow-up read may disable the same control and the WebView may drop
+      // its focus. Keep this request while the player stays at that control.
+      request.lastTarget = primary;
+      if (focused !== primary) primary.focus();
+      return;
+    }
     // A same-library cache can change while the committed choice is being read.
     // Keep the request until the current role's action becomes available.
-    if (!primary && (display.loading || (!display.state && !display.error))) return;
+    if (display.loading || (!display.state && !display.error)) return;
     const focus =
-      primary ??
       (available(refreshButton.current) ? refreshButton.current : null) ??
-      panel.closest("dialog")?.querySelector<HTMLElement>("[data-artwork-editor-close]");
+      dialog?.querySelector<HTMLElement>("[data-artwork-editor-close]");
     returnFocus.current = null;
     focus?.focus();
   }, [

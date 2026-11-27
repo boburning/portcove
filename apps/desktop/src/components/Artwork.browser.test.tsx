@@ -691,6 +691,46 @@ describe("local artwork controls", () => {
     },
   );
 
+  it.each(["picker", "close"] as const)(
+    "keeps focus ownership when a later artwork read temporarily disables the picker (%s)",
+    async (expectedFocus) => {
+      const committed = artworkState("sample", "cover", 1, true);
+      let coverRead: ArtworkState | Promise<ArtworkState> = artworkState("sample", "cover");
+      vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+        slot === "cover" ? coverRead : artworkState(port, slot),
+      );
+      vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+      const save = vi.spyOn(desktopApi, "importArtwork").mockResolvedValue(committed);
+      await render("sample", 7, "cover");
+      await open();
+      await chooseAndApplyLocal("cover");
+      const pickerControl = page.elementLocator(button("cover", "Choose local image"));
+      await expect.element(pickerControl).toHaveFocus();
+
+      let finishRead!: (result: ArtworkState) => void;
+      coverRead = new Promise((resolve) => (finishRead = resolve));
+      await render("sample", 7, "cover", true);
+      await expect.element(pickerControl).toBeDisabled();
+      const close = page
+        .getByRole("dialog", { name: "Change artwork", exact: true })
+        .getByRole("button", { name: "Close", exact: true });
+      await expect.poll(() => document.activeElement).toBe(document.body);
+      if (expectedFocus === "close") (close.element() as HTMLButtonElement).focus();
+
+      await act(async () => finishRead(committed));
+      await expect.element(pickerControl).toBeEnabled();
+      await expect.element(expectedFocus === "close" ? close : pickerControl).toHaveFocus();
+      expect(save).toHaveBeenCalledExactlyOnceWith(
+        "sample",
+        "cover",
+        "E:/owned.png",
+        0,
+        7,
+        imageBinding,
+      );
+    },
+  );
+
   it("lets players cancel a hide and refuses a staged choice after its revision changes", async () => {
     let state = artworkState("sample", "cover", 1, true);
     vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
