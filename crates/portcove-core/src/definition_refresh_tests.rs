@@ -130,7 +130,12 @@ fn ordinary_targets_for_original(
     let metadata = serde_json::to_value(metadata_catalog().authoritative_document()).unwrap();
     let mut port = metadata["ports"][0].clone();
     if let Some(original) = original {
-        port["presentation"] = serde_json::json!({ "original_game": original });
+        port["presentation"] = serde_json::json!({
+            "original_game": original,
+            "installation_method": "portable-package",
+            "source_requirements": [],
+            "saves_and_settings": "portcove-managed"
+        });
     }
     document["ports"].as_array_mut().unwrap().push(port);
     let catalog = Catalog::from_json(&document.to_string()).unwrap();
