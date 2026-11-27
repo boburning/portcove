@@ -240,6 +240,14 @@ export function catalogPositionAdvanced(
 }
 
 interface BatchReport {
+  launcher_mod_sources?: {
+    enrolled: number;
+    due: number;
+    attempted: number;
+    complete: number;
+    deferred: number;
+    requests: number;
+  };
   pending_source_keys: string[];
   attempted_source_keys: string[];
   completed_source_keys: string[];
@@ -289,6 +297,7 @@ export async function continueCatalogBatches<
     throw new ObservationFailure("budget", "Observation evidence capacity unavailable");
   const failures = new Map<string, BatchReport["failures"][number]>();
   let failureBytes = 0;
+  let launcherProgress: BatchReport["launcher_mod_sources"];
   let notify = false,
     requests = 0,
     bytes = 0,
@@ -303,6 +312,14 @@ export async function continueCatalogBatches<
     notify ||= result.notify_exception;
     requests += result.report.requests;
     bytes += result.report.response_bytes_charged;
+    const launcher = result.report.launcher_mod_sources;
+    if (launcher)
+      launcherProgress = {
+        ...launcher,
+        attempted: (launcherProgress?.attempted ?? 0) + launcher.attempted,
+        complete: (launcherProgress?.complete ?? 0) + launcher.complete,
+        requests: (launcherProgress?.requests ?? 0) + launcher.requests,
+      };
     result.report.attempted_source_keys.forEach((key) => attempted.add(key));
     result.report.completed_source_keys.forEach((key) => completed.add(key));
     for (const failure of result.report.failures) {
@@ -321,7 +338,9 @@ export async function continueCatalogBatches<
       if (failure.rule !== "budget") excluded.add(failure.source);
     if (signal?.aborted)
       throw new ObservationFailure("cancelled", "Observation cancelled after bounded batch");
-    const more = result.report.pending_source_keys.some((key) => !excluded.has(key));
+    const more =
+      result.report.pending_source_keys.some((key) => !excluded.has(key)) ||
+      (!!launcher && launcher.requests > 0 && launcher.deferred > 0);
     if (
       !more ||
       !result.made_progress ||
@@ -338,6 +357,7 @@ export async function continueCatalogBatches<
           ...result.report,
           requests,
           response_bytes_charged: bytes,
+          ...(launcherProgress ? { launcher_mod_sources: launcherProgress } : {}),
           attempted_source_keys: [...attempted],
           completed_source_keys: [...completed],
           failures: [...failures.values()],

@@ -256,6 +256,7 @@ function publicUrl(value: unknown, field: string) {
 }
 
 export const observedModPortalPrefix = "obs-ts-";
+export const observedLauncherModPortalPrefix = "obs-gh-";
 
 function checkListingModPortals(value: unknown) {
   const hosts = new Map<string, string | null>([
@@ -274,6 +275,7 @@ function checkListingModPortals(value: unknown) {
       !boundedText(portal.id, 64) ||
       !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(portal.id) ||
       portal.id.startsWith(observedModPortalPrefix) ||
+      portal.id.startsWith(observedLauncherModPortalPrefix) ||
       ids.has(portal.id) ||
       typeof portal.site !== "string" ||
       !hosts.has(portal.site) ||

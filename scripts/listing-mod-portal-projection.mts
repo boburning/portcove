@@ -1,6 +1,18 @@
-import { admittedGithubRepositoryId, observedModPortalPrefix } from "./catalog-authoring.mts";
+import {
+  admittedGithubRepositoryId,
+  observedModPortalPrefix,
+  observedLauncherModPortalPrefix,
+} from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
+import { catalogObservationSources } from "./catalog-upstream-observer.mts";
+import {
+  launcherModScopes,
+  launcherModSubjects,
+  validLauncherModPortal,
+  validateFirstPartyModProgress,
+  type FirstPartyModProgress,
+} from "./upstream-launcher-mod-progress.mts";
 import {
   exactGameBananaId,
   validateModProviderRegistryProgress,
@@ -36,7 +48,8 @@ function isGenerated(portal: unknown): boolean {
   return (
     isRecord(portal) &&
     typeof portal.id === "string" &&
-    portal.id.startsWith(observedModPortalPrefix)
+    (portal.id.startsWith(observedModPortalPrefix) ||
+      portal.id.startsWith(observedLauncherModPortalPrefix))
   );
 }
 
@@ -182,5 +195,121 @@ export function listingModPortalDefaults(
       )
       ? retained
       : undefined;
+  };
+}
+
+/** First-party declarations are implementation-scoped website metadata. */
+export function firstPartyListingModDefaults(
+  catalog: Record<string, unknown>,
+  listings: unknown[],
+  checkpoint: unknown,
+  excluded: ReadonlySet<string>,
+  now: number,
+) {
+  const sources = catalogObservationSources({ ...catalog, listings }).sources;
+  const bindings = new Map<string, Set<string>>();
+  for (const port of catalog.ports as unknown[]) {
+    if (
+      !isRecord(port) ||
+      typeof port.id !== "string" ||
+      !Array.isArray(port.mod_provider_bindings)
+    )
+      continue;
+    bindings.set(
+      port.id,
+      new Set(
+        port.mod_provider_bindings.flatMap((binding: unknown) =>
+          isRecord(binding) && typeof binding.provider === "string" ? [binding.provider] : [],
+        ),
+      ),
+    );
+  }
+  const state = isRecord(checkpoint) && isRecord(checkpoint.sources) ? checkpoint : undefined;
+  const ids: Record<string, { repository_id: number | null }> = {};
+  for (const source of sources) {
+    const prior = isRecord(state?.sources) ? state.sources[source.key] : undefined;
+    if (
+      isRecord(prior) &&
+      Number.isSafeInteger(prior.repository_id) &&
+      Number(prior.repository_id) > 0
+    )
+      ids[source.key] = { repository_id: Number(prior.repository_id) };
+  }
+  const scopes = launcherModScopes(sources);
+  const scopeByPort = new Map(scopes.map((scope) => [scope.port_id, scope]));
+  const subjects = new Map(
+    launcherModSubjects(sources, ids, scopes).map((subject) => [subject.port_id, subject]),
+  );
+  const raw = state?.launcher_mod_sources;
+  if (raw !== undefined) validateFirstPartyModProgress(raw, now);
+  const progress = raw as Record<string, FirstPartyModProgress> | undefined;
+  return (
+    listing: Record<string, unknown>,
+    previous: Record<string, unknown> | undefined,
+  ): Portal[] => {
+    if (typeof listing.id !== "string" || excluded.has(listing.id)) return [];
+    const scope = scopeByPort.get(listing.id);
+    if (!scope) return [];
+    const subject = subjects.get(listing.id);
+    if (!subject && ids[scope.source_key]) return [];
+    const entry = progress?.[listing.id];
+    const authored = listingPortals(listing);
+    const blocked = new Set(bindings.get(listing.id));
+    for (const portal of authored) {
+      if (!isRecord(portal) || typeof portal.url !== "string") continue;
+      const host = URL.parse(portal.url)?.hostname;
+      if (host === "thunderstore.io" || host === "gamebanana.com") blocked.add(host.split(".")[0]!);
+    }
+    const provider = (portal: Portal) =>
+      portal.name === "Thunderstore" ? "thunderstore" : "gamebanana";
+    if (entry && (!subject || entry.binding !== subject.binding)) return [];
+    if (entry && (entry.outcome !== "unavailable" || entry.last_complete)) {
+      const result = entry.last_complete?.result;
+      if (
+        !subject ||
+        result?.state !== "observed" ||
+        result.repository_id !== subject.repository_id
+      )
+        return [];
+      return result.mod_portals
+        .filter((portal) => !blocked.has(provider(portal as Portal)))
+        .slice(0, 8 - authored.length)
+        .map((portal) => ({
+          ...portal,
+          site: "community_site",
+          id:
+            observedLauncherModPortalPrefix +
+            provider(portal as Portal) +
+            "-" +
+            result.repository_id,
+        }));
+    }
+    // A missing observation handoff preserves authenticated URLs for the
+    // unchanged listing. A present checkpoint can prove scope loss.
+    if (
+      previous?.id !== listing.id ||
+      previous.project_url !== listing.project_url ||
+      observationHash(previous.original_game ?? null) !==
+        observationHash(listing.original_game ?? null)
+    )
+      return [];
+    const expectedId = subject?.repository_id ?? admittedGithubRepositoryId(listing.id);
+    const retained: Portal[] = [];
+    for (const portal of listingPortals(previous)) {
+      if (!isRecord(portal) || typeof portal.id !== "string") continue;
+      const match = /^obs-gh-(thunderstore|gamebanana)-([1-9]\d*)$/u.exec(portal.id);
+      if (
+        !match ||
+        blocked.has(match[1]!) ||
+        !Number.isSafeInteger(Number(match[2])) ||
+        (expectedId !== undefined && expectedId !== Number(match[2]))
+      )
+        continue;
+      if (validLauncherModPortal({ ...portal, id: "upstream-" + match[1] })) {
+        blocked.add(match[1]!);
+        retained.push(portal as Portal);
+      }
+    }
+    return retained.slice(0, 8 - authored.length);
   };
 }

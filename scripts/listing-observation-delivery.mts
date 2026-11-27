@@ -40,6 +40,7 @@ import { proveReleasedCoverInspection } from "./listing-cover-reader-proof.mts";
 import { readCatalogPublicationBundle } from "./release-catalog-inspection.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import {
+  firstPartyListingModDefaults,
   listingModPortalDefaults,
   withoutGeneratedModPortals,
 } from "./listing-mod-portal-projection.mts";
@@ -392,6 +393,7 @@ export function projectListingDelivery(
     coverApprovals?: ReturnType<typeof readApprovedCoverJournal>;
     sharedCoverDefaults?: ReturnType<typeof projectExactSharedCovers>;
     modPortalDefaults?: ReturnType<typeof listingModPortalDefaults>;
+    firstPartyModDefaults?: ReturnType<typeof firstPartyListingModDefaults>;
   } = {},
 ) {
   const {
@@ -404,6 +406,7 @@ export function projectListingDelivery(
     coverApprovals,
     sharedCoverDefaults,
     modPortalDefaults,
+    firstPartyModDefaults,
   } = options;
   const raw = directory(canonical);
   const previousDocument = previous
@@ -516,18 +519,25 @@ export function projectListingDelivery(
           observationHash(omitUnknownAssetDigests(old?.upstream_observation ?? null))
       )
         updated++;
+      const generated = format >= 16 ? (firstPartyModDefaults?.(listing, old) ?? []) : [];
       const portal = format >= 16 ? modPortalDefaults?.(listing, old) : undefined;
-      if (portal) {
-        const modPortals: unknown[] = Array.isArray(result.mod_portals) ? result.mod_portals : [];
-        const enriched: Record<string, unknown> = {
-          ...result,
-          mod_portals: [...modPortals, portal],
-        };
-        if (Buffer.byteLength(JSON.stringify(enriched)) <= compactListingRecordMaximum) {
-          generatedModPortals++;
-          return enriched;
+      if (portal && !generated.some(({ name }) => name === portal.name)) generated.push(portal);
+      if (generated.length) {
+        const modPortals: unknown[] = Array.isArray(result.mod_portals)
+          ? [...(result.mod_portals as unknown[])]
+          : [];
+        for (const candidate of generated) {
+          const enriched = [...modPortals, candidate];
+          if (
+            enriched.length <= 8 &&
+            Buffer.byteLength(JSON.stringify({ ...result, mod_portals: enriched })) <=
+              compactListingRecordMaximum
+          ) {
+            modPortals.push(candidate);
+            result.mod_portals = modPortals;
+            generatedModPortals++;
+          } else deferredModPortals++;
         }
-        deferredModPortals++;
       }
       return result;
     })
@@ -1316,6 +1326,7 @@ export async function prepareObservationBundle(options: {
   const now = Date.now();
   let candidates: Record<string, unknown>[] = [];
   let registry: unknown;
+  let modCheckpoint: unknown;
   let compatible: Directory | undefined;
   if (!renewal) {
     const baseline: unknown = JSON.parse(
@@ -1345,7 +1356,10 @@ export async function prepareObservationBundle(options: {
             ))
         )();
         observerRevision = input.revision;
-        if (isRecord(input.checkpoint)) registry = input.checkpoint.mod_provider_registry;
+        if (isRecord(input.checkpoint)) {
+          registry = input.checkpoint.mod_provider_registry;
+          modCheckpoint = input.checkpoint;
+        }
         candidates = completedListingCandidates(input, current, canonical, now, diagnostics);
       } catch (error) {
         diagnostics.push(
@@ -1355,6 +1369,7 @@ export async function prepareObservationBundle(options: {
     }
   }
   let modPortalDefaults: ReturnType<typeof listingModPortalDefaults> | undefined;
+  let firstPartyModDefaults: ReturnType<typeof firstPartyListingModDefaults> | undefined;
   if (automatic && format >= 16 && !renewal) {
     try {
       const source = readCatalogSource(path.dirname(options.canonical));
@@ -1375,6 +1390,26 @@ export async function prepareObservationBundle(options: {
           `mod source observer unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "invalid registry"}`,
         );
         modPortalDefaults = listingModPortalDefaults(current, undefined, excluded, now);
+      }
+      try {
+        firstPartyModDefaults = firstPartyListingModDefaults(
+          current,
+          canonical.listings,
+          modCheckpoint,
+          excluded,
+          now,
+        );
+      } catch (error) {
+        diagnostics.push(
+          `first-party mod observer unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "invalid checkpoint"}`,
+        );
+        firstPartyModDefaults = firstPartyListingModDefaults(
+          current,
+          canonical.listings,
+          undefined,
+          excluded,
+          now,
+        );
       }
     } catch (error) {
       diagnostics.push(
@@ -1508,6 +1543,7 @@ export async function prepareObservationBundle(options: {
   const project = (
     observations: readonly Record<string, unknown>[],
     portals?: ReturnType<typeof listingModPortalDefaults>,
+    firstParty?: ReturnType<typeof firstPartyListingModDefaults>,
   ) =>
     publishedAbove(
       projectListingDelivery(canonical, observations, previous, {
@@ -1519,6 +1555,7 @@ export async function prepareObservationBundle(options: {
         ...(coverApprovals.approvals.length ? { coverApprovals } : {}),
         ...(sharedCoverDefaults ? { sharedCoverDefaults } : {}),
         ...(portals ? { modPortalDefaults: portals } : {}),
+        ...(firstParty ? { firstPartyModDefaults: firstParty } : {}),
       }),
       legacyDocument.revision,
     );
@@ -1660,10 +1697,10 @@ export async function prepareObservationBundle(options: {
       return { wire: staged.wire, proof };
     };
     try {
-      if (modPortalDefaults) {
+      if (modPortalDefaults || firstPartyModDefaults) {
         const selected = await stageModPortalProjection(
           projected,
-          () => project(admitted, modPortalDefaults),
+          () => project(admitted, modPortalDefaults, firstPartyModDefaults),
           stageFinal,
           (reason) => {
             diagnostics.push(`mod source projection deferred: ${reason.slice(0, 300)}`);
