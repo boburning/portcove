@@ -41,7 +41,14 @@ function sharedAsset(value: unknown, game: AuthoredListing["original_game"]) {
   const editionId = value.subject.source_edition_id;
   const edition = game.source_editions.find(({ id }) => id === editionId);
   const key = originalEditionMediaKey(game.id, edition);
-  return key ? { asset: value as Asset, key, providerGameId: value.igdb.game_id } : undefined;
+  return key
+    ? {
+        asset: value as Asset,
+        key,
+        providerGameId: value.igdb.game_id,
+        providerSlug: value.igdb.game_slug,
+      }
+    : undefined;
 }
 
 function recordClaim(claims: Map<string, Claim | null>, key: string, claim: Claim | null) {
@@ -72,7 +79,8 @@ export function sharedOriginalMedia<
       const decision = reviewed?.get(key);
       if (
         decision?.decision === "exclude" ||
-        (decision?.decision === "match" && decision.game_id !== item.providerGameId)
+        (decision?.decision === "match" &&
+          (decision.game_id !== item.providerGameId || decision.slug !== item.providerSlug))
       )
         continue;
       const scope = scopes.get(key) ?? {

@@ -129,7 +129,7 @@ void test("reviewed original media binds one decision to exact existing and futu
       game_id: decision.original_game_id,
       source_edition_id: decision.source_edition_id,
     },
-    igdb: { game_id: 15 },
+    igdb: { game_id: 15, game_slug: "old-original" },
   };
   const donor = { ...owner.listing, media: [prior] };
   const before = assembleCatalogRecords(shared, [
@@ -146,7 +146,7 @@ void test("reviewed original media binds one decision to exact existing and futu
       .filter(({ id }) => id !== donor.id)
       .every(({ media }) => media === undefined),
   );
-  const acceptedMedia = { ...prior, igdb: { game_id: decision.game_id } };
+  const acceptedMedia = { ...prior, igdb: { game_id: decision.game_id, game_slug: decision.slug } };
   const matching = assembleCatalogRecords(shared, [
     { ...owner, listing: { ...donor, media: [acceptedMedia] } },
     sibling,
@@ -154,6 +154,15 @@ void test("reviewed original media binds one decision to exact existing and futu
   assert.deepEqual(matching.directory.listings.find(({ id }) => id === sibling.listing.id)?.media, [
     acceptedMedia,
   ]);
+  const staleAlias = { ...prior, igdb: { ...prior.igdb, game_id: decision.game_id } };
+  const unresolvedAlias = assembleCatalogRecords(shared, [
+    { ...owner, listing: { ...donor, media: [staleAlias] } },
+    sibling,
+  ]);
+  assert.equal(
+    unresolvedAlias.directory.listings.find(({ id }) => id === sibling.listing.id)?.media,
+    undefined,
+  );
   const { decision: _match, game_id: _game, slug: _slug, ...scope } = decision;
   const excluded = assembleCatalogRecords(shared, [
     { ...owner, listing: donor, igdb_original_media_v1: [{ ...scope, decision: "exclude" }] },
