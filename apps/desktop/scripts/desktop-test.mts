@@ -4635,6 +4635,16 @@ try {
       "Detail navigation did not focus the game heading",
     );
     const verifyDetailActionHierarchy = async () => {
+      // Local mod website choices are available before Ghostship is installed.
+      await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            '//*[@data-detail-port-id="ghostship"]//*[@role="tab" and normalize-space(.)="Mods"]',
+          ),
+        ),
+        45_000,
+        "Ghostship must show Mods after its local website choices are read",
+      );
       await revealDetailSection(browser, "Game files");
       const hierarchy = await executeBrowserScript(browser, () => {
         document
@@ -4699,6 +4709,7 @@ try {
       assert.deepEqual(hierarchy.tabs, [
         "Overview",
         "Game files",
+        "Mods",
         "Saves & backups",
         "Versions & updates",
         "Manage",
