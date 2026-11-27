@@ -197,7 +197,12 @@ export function proposalDecoderFixture(
   failInitialization = false,
   mode = "--prepare-proposal",
   editInput?: (input: FixtureCatalog, catalogs: string) => void,
-  scene?: { portId: string; asset: Record<string, unknown> },
+  scene?: {
+    portId: string;
+    assets: Record<string, unknown>[];
+    accepted?: Record<string, unknown>[];
+    gone?: string[];
+  },
 ) {
   const fixture = isolatedGenerator();
   if (editInput) {
@@ -226,11 +231,11 @@ export function proposalDecoderFixture(
     }
     export async function prepareCatalogGameMedia(catalog) {
       if (!process.env.FIXTURE_MEDIA_SCENE) throw new Error('Game-media acquisition requires a fixture scene.');
-      const { portId, asset } = JSON.parse(process.env.FIXTURE_MEDIA_SCENE);
+      const { portId, assets, gone } = JSON.parse(process.env.FIXTURE_MEDIA_SCENE);
       const port = catalog.ports.find(({ id }) => id === portId);
       if (!port) throw new Error('Fixture scene has no port.');
-      port.presentation = { ...port.presentation, media: [...(port.presentation?.media ?? []), asset] };
-      return { catalog, records: [], gone_media_targets: [] };
+      if (assets.length) port.presentation = { ...port.presentation, media: [...(port.presentation?.media ?? []), ...assets] };
+      return { catalog, records: [], gone_media_targets: gone ?? [] };
     }
     // The generator may split a large catalog into several operations; the
     // fixture's images belong to the whole run, not to each operation.
@@ -281,6 +286,13 @@ export function proposalDecoderFixture(
   const factoryLog = join(fixture.scratch, "factory.log");
   const processLog = join(fixture.scratch, "process.log");
   syncFixtureSource(fixture.catalogs);
+  if (scene?.accepted) {
+    const file = join(fixture.catalogs, "ports", `${scene.portId}.json`);
+    const record = fixtureJson(readFileSync(file));
+    if (!isRecord(record.listing)) throw new Error("Missing fixture media listing");
+    record.listing.media = scene.accepted;
+    writeFileSync(file, JSON.stringify(record));
+  }
   const result = spawnSync(
     process.execPath,
     [

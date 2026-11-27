@@ -543,21 +543,28 @@ function originalSceneScope(game: unknown, subject: Record<string, unknown>) {
   return originalEditionMediaKey(game.id, edition);
 }
 
-function splitListingSceneProposal(catalog: CurrentCatalog, goneTargets: readonly string[]) {
+function splitListingSceneProposal(
+  catalog: CurrentCatalog,
+  goneTargets: readonly string[],
+  excluded: ReadonlySet<string>,
+) {
   const accepted = new Map(authored.directory.listings.map((listing) => [listing.id, listing]));
-  const listings: Record<string, unknown>[] = [];
+  const staged = new Map<string, { legacy: unknown[]; scenes: Record<string, unknown>[] }>();
   const pending: { port_id: string; asset: Record<string, unknown> }[] = [];
   const gone = new Set(goneTargets);
   const ports = catalog.ports.map((port) => {
     const presentation = port.presentation;
-    if (!isRecord(presentation) || !Array.isArray(presentation.media)) return port;
+    if (excluded.has(port.id) || !isRecord(presentation) || !Array.isArray(presentation.media))
+      return port;
     const media: unknown[] = presentation.media;
     const scenes = media.filter(isRecord).filter(typedIgdbScene);
-    if (!scenes.length) return port;
+    const legacy = media.filter((asset) => !typedIgdbScene(asset));
     const listing = accepted.get(port.id);
+    const acceptedMedia: unknown[] = Array.isArray(listing?.media) ? listing.media : [];
+    const matchingProject = listing?.project_url === port.project_url;
     const prepared = scenes.filter((asset) => {
       const subject = isRecord(asset.subject) ? asset.subject : null;
-      if (listing && listing.project_url === port.project_url && subject) {
+      if (listing && matchingProject && subject) {
         if (subject.kind === "port" && subject.port_id === port.id) return true;
         const scope = originalSceneScope(listing.original_game, subject);
         if (
@@ -570,30 +577,46 @@ function splitListingSceneProposal(catalog: CurrentCatalog, goneTargets: readonl
       pending.push({ port_id: port.id, asset });
       return false;
     });
-    if (listing && prepared.length) {
-      const retained = (Array.isArray(listing.media) ? listing.media : []).filter(
-        (asset: unknown) => {
-          if (!isRecord(asset)) return true;
-          if (isRecord(asset.igdb) && typeof asset.igdb.image_id === "string") {
-            const role = catalogGameMediaRoles.find((role) => role === asset.role);
-            if (role && gone.has(gameMediaImageTarget(role, asset.igdb.image_id))) return false;
-          }
-          return !prepared.some(
-            (next) =>
-              next.id === asset.id ||
-              (next.role === "header" &&
-                asset.role === "header" &&
-                isDeepStrictEqual(next.subject, asset.subject)),
-          );
-        },
-      );
-      listings.push({ ...listing, media: [...retained, ...prepared] });
-    }
-    const strictMedia = media.filter((asset) => !typedIgdbScene(asset));
+    if (
+      matchingProject &&
+      (prepared.length ||
+        (legacy.length &&
+          acceptedMedia.some(typedIgdbScene) &&
+          !isDeepStrictEqual(
+            legacy,
+            acceptedMedia.filter((asset) => !typedIgdbScene(asset)),
+          )))
+    )
+      staged.set(port.id, { legacy, scenes: prepared });
+    if (!scenes.length) return port;
     const strictPresentation = { ...presentation };
-    if (strictMedia.length) strictPresentation.media = strictMedia;
+    if (legacy.length) strictPresentation.media = legacy;
     else delete strictPresentation.media;
     return { ...port, presentation: strictPresentation };
+  });
+  const listings = authored.directory.listings.flatMap((listing) => {
+    if (excluded.has(listing.id)) return [];
+    const stage = staged.get(listing.id);
+    const media: unknown[] = Array.isArray(listing.media) ? listing.media : [];
+    const currentScenes = media.filter(isRecord).filter(typedIgdbScene);
+    const retained = currentScenes.filter((asset) => {
+      if (isRecord(asset.igdb) && typeof asset.igdb.image_id === "string") {
+        const role = catalogGameMediaRoles.find((role) => role === asset.role);
+        if (role && gone.has(gameMediaImageTarget(role, asset.igdb.image_id))) return false;
+      }
+      return !stage?.scenes.some(
+        (next) =>
+          next.id === asset.id ||
+          (next.role === "header" &&
+            asset.role === "header" &&
+            isDeepStrictEqual(next.subject, asset.subject)),
+      );
+    });
+    if (!stage && retained.length === currentScenes.length) return [];
+    const legacy = stage?.legacy.length
+      ? stage.legacy
+      : media.filter((asset) => !typedIgdbScene(asset));
+    return [{ ...listing, media: [...legacy, ...retained, ...(stage?.scenes ?? [])] }];
   });
   return {
     catalog: { ...catalog, ports },
@@ -704,7 +727,7 @@ async function prepareArtworkProposal(fullProposal = false) {
   validateCurrentCatalog(result.catalog);
   const sceneProposal =
     fullProposal && gameMedia
-      ? splitListingSceneProposal(result.catalog, gameMedia.gone_media_targets)
+      ? splitListingSceneProposal(result.catalog, gameMedia.gone_media_targets, excludedMedia)
       : null;
   const proposedCatalog = sceneProposal?.catalog ?? result.catalog;
   const proposalBytes = Buffer.from(`${JSON.stringify(proposedCatalog, null, 2)}\n`);

@@ -172,7 +172,8 @@ function providerScope(
   port: ArtworkPort | undefined,
   subject: CatalogMediaSubject,
   role: SceneRole,
-) {
+  accepted?: ArtworkPort,
+): string {
   const local = scopeKey(subject, role);
   if (subject.kind === "port") return local;
   const original = port?.presentation?.original_game;
@@ -183,6 +184,7 @@ function providerScope(
         )
       : undefined;
   const key = originalEditionMediaKey(subject.game_id, edition);
+  if (!key && accepted && accepted !== port) return providerScope(accepted, subject, role);
   return JSON.stringify([key ? "edition" : "local", key ?? port?.id, local]);
 }
 
@@ -194,10 +196,10 @@ export function sceneCoverage(
 ) {
   const selected = selectedPortIds && new Set(selectedPortIds);
   const proposedPorts = new Map(preparation.catalog.ports.map((port) => [port.id, port]));
-  const acceptedPorts = new Set(accepted.ports.map(({ id }) => id));
+  const acceptedById = new Map(accepted.ports.map((port) => [port.id, port]));
   const ports = [
     ...accepted.ports,
-    ...preparation.catalog.ports.filter(({ id }) => !acceptedPorts.has(id)),
+    ...preparation.catalog.ports.filter(({ id }) => !acceptedById.has(id)),
   ];
   const gone = new Set(preparation.gone_media_targets);
   type Observation = GameMediaPreparation["records"][number];
@@ -215,7 +217,12 @@ export function sceneCoverage(
     observations.push(observation);
     byPort.set(observation.port_id, observations);
     recordGame(
-      providerScope(proposedPorts.get(observation.port_id), observation.subject, observation.role),
+      providerScope(
+        proposedPorts.get(observation.port_id),
+        observation.subject,
+        observation.role,
+        acceptedById.get(observation.port_id),
+      ),
       observation.provider_game_id,
     );
   }
@@ -289,7 +296,7 @@ export function sceneCoverage(
         catalogGameMediaRoles.map((role) => {
           const withdrawnImage = (id: string) => gone.has(gameMediaImageTarget(role, id));
           const key = scopeKey(subject, role);
-          const exactScope = providerScope(proposedPorts.get(port.id) ?? port, subject, role);
+          const exactScope = providerScope(proposedPorts.get(port.id), subject, role, port);
           const currentImages = (acceptedMedia.get(port.id) ?? []).filter(
             (asset) => asset.scope === key && asset.providerScope === exactScope,
           );
@@ -326,9 +333,7 @@ export function sceneCoverage(
               ),
             ]),
           ];
-          const knownGames =
-            providerGames.get(providerScope(proposedPorts.get(port.id) ?? port, subject, role)) ??
-            new Set<number>();
+          const knownGames = providerGames.get(exactScope) ?? new Set<number>();
           const reasons = [...new Set(observed.map(({ reason }) => reason))].sort();
           if (!reasons.length)
             reasons.push(

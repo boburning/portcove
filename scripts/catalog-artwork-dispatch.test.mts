@@ -370,22 +370,49 @@ void test("full artwork preparation checks typed scenes through the listing vali
   const asset = requiredFixture(
     records(authored.listing.media).find((item) => item.role === "header"),
   );
+  const logo = {
+    ...asset,
+    id: "fixture-original-logo",
+    role: "logo",
+    width: 300,
+    height: 200,
+    url: "https://images.igdb.com/igdb/image/upload/t_logo_med_2x/testlogo.png",
+    igdb: {
+      game_id: 4097,
+      game_slug: record(asset.igdb).game_slug,
+      image_id: "testlogo",
+      record_id: 10,
+      kind: "logo",
+    },
+  };
   const fixture = proposalDecoderFixture(0, false, "--prepare-proposal", undefined, {
     portId: id,
-    asset,
+    assets: [asset, logo],
   });
   assert.equal(fixture.result.status, 0, fixture.result.stderr);
   const strict = fixtureCatalog(
     fixtureJson(readFileSync(join(fixture.output, "catalog-proposal.json"))),
   );
   const strictPort = requiredFixture(strict.ports.find((port) => port.id === id));
-  assert.equal(record(strictPort.presentation).media, undefined);
+  assert.deepEqual(record(strictPort.presentation).media, [logo]);
   const bytes = readFileSync(join(fixture.output, "listing-media-proposal.json"));
   const directory = record(fixtureJson(bytes));
   assert.equal(records(directory.listings)[0]?.id, id);
-  assert.deepEqual(records(directory.listings)[0]?.media, [asset]);
+  assert.deepEqual(records(directory.listings)[0]?.media, [logo, asset]);
   const evidence = record(fixtureJson(readFileSync(join(fixture.output, "artwork-evidence.json"))));
   const check = record(record(evidence.game_media).listing_check);
   assert.equal(check.input_sha256, createHash("sha256").update(bytes).digest("hex"));
   assert.equal(fixture.processes.filter((item) => record(item).listings === true).length, 1);
+  const withdrawn = proposalDecoderFixture(0, false, "--prepare-proposal", undefined, {
+    portId: id,
+    assets: [],
+    accepted: [asset],
+    gone: [`720p/${String(record(asset.igdb).image_id)}`],
+  });
+  assert.equal(withdrawn.result.status, 0, withdrawn.result.stderr);
+  const removal = record(
+    fixtureJson(readFileSync(join(withdrawn.output, "listing-media-proposal.json"))),
+  );
+  const changed = records(removal.listings).find((item) => item.id === id);
+  assert.deepEqual(changed?.media, []);
 });

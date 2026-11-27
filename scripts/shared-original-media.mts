@@ -8,8 +8,12 @@ type Asset = Record<string, unknown> & { id: string; role: Role };
 type Claim = { asset: Asset; digest: string };
 
 export function originalEditionMediaKey(gameId: string, edition: unknown) {
-  if (isRecord(edition) && typeof edition.id === "string" && typeof edition.system === "string")
-    return JSON.stringify([gameId, edition.id, edition.system]);
+  if (
+    isRecord(edition) &&
+    typeof edition.id === "string" &&
+    (edition.system == null || typeof edition.system === "string")
+  )
+    return JSON.stringify([gameId, edition.id, edition.system ?? null]);
 }
 
 export function typedIgdbScene(asset: unknown) {
