@@ -991,6 +991,91 @@ void test("discovery listing batch keeps independent additions and never replace
   }
 });
 
+void test("a first-party game desktop entry can establish source-port scope without a manifest", async (t) => {
+  const f = fixture();
+  t.after(f.clean);
+  const commit = "c".repeat(40);
+  const tree = "d".repeat(40);
+  const good =
+    "[Desktop Entry]\nName=Fixture\nType=Application\nExec=fixture %F\nCategories=Game;ActionGame;\n";
+  for (const [index, scenario] of [
+    { state: "eligible" },
+    { state: "held", text: good.replace("Categories=Game", "Categories=Utility") },
+    { state: "held", text: good.replace("Categories=Game", "Categories=Utility\\;Game") },
+    { state: "held", text: good.replace("fixture %F", "sh -c fixture") },
+    { state: "held", text: good.replace("fixture %F", "fix-ture") },
+    { state: "held", text: `${good}Exec = fixture\n` },
+    { state: "held", text: `${good}Hidden = true\n` },
+    { state: "held", text: `${good}DBusActivatable=true\n` },
+    { state: "restricted", text: good.replace("Name=Fixture", "Name=ScummVM fixture") },
+    { state: "held", path: "tests/fixtures/fixture.desktop" },
+    { state: "held", truncated: true },
+    { state: "held", duplicate: true },
+    { state: "held", incorrectDigest: true },
+    { state: "held", noTopic: true },
+    { state: "held", fork: true },
+  ].entries()) {
+    const path = scenario.path ?? "data/fixture.desktop";
+    const bytes = Buffer.from(scenario.text ?? good);
+    const blob = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+    const entry = { path, type: "blob", mode: "100644", sha: blob };
+    const facts = await collectPortFacts({
+      projectUrl: "https://github.com/example/fixture",
+      expectedRepositoryId: 123,
+      route: "listing",
+      discoveryScope: true,
+      cacheDirectory: join(f.root, `case-${index}`),
+      fetcher: f.fetcher((input) => {
+        const url = new URL(input);
+        if (url.pathname === "/repos/example/fixture")
+          return json({
+            ...metadata,
+            private: false,
+            fork: scenario.fork ?? false,
+            mirror_url: null,
+            topics: scenario.noTopic ? [] : ["source-port"],
+          });
+        assert.ok(url.pathname.startsWith("/repositories/123/"));
+        if (url.pathname.endsWith("/commits"))
+          return json([{ sha: commit, commit: { tree: { sha: tree } } }]);
+        if (url.pathname.endsWith(`/git/trees/${tree}`)) {
+          if (!url.search) return json({ sha: tree, truncated: false, tree: [] });
+          assert.equal(url.search, "?recursive=1");
+          return json({
+            sha: tree,
+            truncated: scenario.truncated ?? false,
+            tree: scenario.duplicate ? [entry, { ...entry, path: "other.desktop" }] : [entry],
+          });
+        }
+        assert.equal(url.pathname, `/repositories/123/contents/${path}`);
+        assert.equal(url.search, `?ref=${commit}`);
+        return json({
+          path,
+          type: "file",
+          encoding: "base64",
+          content: bytes.toString("base64"),
+          size: bytes.length,
+          sha: scenario.incorrectDigest ? "2".repeat(40) : blob,
+        });
+      }),
+    });
+    assert.equal(facts.discovery_scope?.state, scenario.state, `case ${index}`);
+    if (index === 0) {
+      assert.equal(facts.discovery_scope?.state, "eligible");
+      assert.ok("desktop_entry" in facts.discovery_scope);
+      assert.equal(facts.discovery_scope.evidence_path, path);
+      assert.equal(facts.discovery_scope.repository_id, 123);
+      assert.equal(facts.discovery_scope.desktop_entry_blob, blob);
+      assert.deepEqual(facts.discovery_scope.desktop_entry, {
+        format: 1,
+        category: "Game",
+        names_scummvm: false,
+      });
+      assert.doesNotMatch(JSON.stringify(facts.discovery_scope), /fixture %F/u);
+    }
+  }
+});
+
 void test("scheduled discovery scope binds first-party manifest bytes and keeps independent results", async (context) => {
   const f = fixture();
   try {
@@ -1216,7 +1301,7 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
         "held",
       ],
     );
-    assert.equal(report.automatic_scope_policy, "github-primary-single-game-manifest/2");
+    assert.equal(report.automatic_scope_policy, "github-primary-game-scope/3");
     assert.ok(report.admission);
     assert.deepEqual(report.released_validation, {
       status: "validated",

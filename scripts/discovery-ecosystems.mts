@@ -1,5 +1,7 @@
 import { isRecord } from "./runtime-values.mts";
 
+export const sourcePortTopicFamily = "source-port-topic";
+
 // Append families: persisted numeric rotation and existing slice IDs retain their meaning.
 export const ecosystemSearchFamilies = [
   { id: "ps2recomp", terms: "PS2Recomp in:name,description,readme", clock: "pushed" },
@@ -47,6 +49,9 @@ export const ecosystemSearchFamilies = [
     clock: "pushed",
     sort: "updated",
   },
+  { id: sourcePortTopicFamily, terms: "topic:source-port", clock: "pushed" },
+  { id: "n64recomp", terms: "N64Recomp in:name,description,readme", clock: "pushed" },
+  { id: "libultraship", terms: "libultraship in:name,description,readme", clock: "pushed" },
 ] as const;
 
 const words = (value: unknown): string[] => {

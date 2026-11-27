@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "jojo-s-bizarre-adventure-heritage-for-the-future",
       "evidence_urls": ["https://github.com/MenuuTUX/jojo-hftf-native"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "jojo-s-bizarre-adventure-heritage-for-the-future-playstation",
+          "title": "JoJo's Bizarre Adventure (PlayStation, SLUS-01060)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/MenuuTUX/jojo-hftf-native/blob/dc1b886e29fcc7940e330cb19762ae85f8d138e1/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -840,16 +840,19 @@ Four Switch-focused families append after them: `switch recomp`,
 the `nintendo-switch` + `static-recompilation` topic intersection. Only these
 four use repository-search `updated` descending ordering within fixed windows,
 not newest-created order or an immutable snapshot. The narrowed Switch topic
-query prioritizes that console within the existing broad static topic; these
-are not four disjoint sources. All twenty-eight families rotate through the
-same resource budget, with persisted continuations. Stop after a full rotation
+query prioritizes that console within the existing broad static topic. The
+desktop `source-port` topic and the N64Recomp and libultraship framework searches
+follow those four families in the same rotation. All searches share one
+resource budget and keep their own continuations. Stop after a full rotation
 without a successful page, so current, capped or deferred families cannot cause
 an idle loop. Successful pages reset this idle bound and remain subject to
 request, provider, byte and runtime admission.
 The four broad families match names/descriptions. Existing ecosystem families
 also inspect framework references in README files: PS2Recomp, XboxRecomp,
 ReXGlue/XenonRecomp, PS3Recomp, bbport, PSPRecomp/PSP-Web-Recomp,
-gcn-recomp/DolRecomp/GCRecomp/NWiiRecomp, PSXRecomp and XboxXBERecomp,
+gcn-recomp/DolRecomp/GCRecomp/NWiiRecomp, PSXRecomp, XboxXBERecomp,
+[N64Recomp](https://github.com/N64Recomp/N64Recomp) and
+[libultraship](https://github.com/HarbourMasters/libultraship),
 plus the static-recompilation topic, rexglue organization and sp00nznet owner.
 Ecosystem searches include forks for lineage review. A framework reference in
 compiler/cache/SDK documentation remains only a lead, not a native port.
@@ -1197,6 +1200,16 @@ one required game input and lists bounded package-relative program candidates. P
 records which source established scope and leaves game and edition matching to
 the existing authoring contracts. This scope check leaves launch arguments,
 configuration, loader claims and setup actions out of the generated listing.
+
+Without one of those manifests, a current GitHub `source-port` topic and a
+single first-party [desktop game entry](https://specifications.freedesktop.org/desktop-entry/latest-single/)
+can establish one desktop implementation at the repository level. Preparation
+checks a complete default-branch tree and the exact entry bytes. It holds
+ambiguous trees, examples, hidden entries and entries that name a different
+program. This rule leaves original-game identity unresolved. After admission,
+the ordinary upstream package checks and restrictions govern acquisition.
+Search hints only nominate candidates for these fresh checks.
+
 The ordinary reviewed route remains available for projects with other evidence.
 
 ### Local runner on the shared store

@@ -55849,7 +55849,17 @@
             "https://github.com/gemrb/gemrb",
             "https://www.beamdog.com/games/baldurs-gate-2-enhanced/"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "baldur-s-gate-ii-shadows-of-amn-pc",
+              "title": "Baldur's Gate II: Shadows of Amn (original PC edition)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+                "https://gemrb.org/Features.html#status"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -60367,7 +60377,16 @@
             "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa2/README.md",
             "https://github.com/tmcleroy/cps2recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "street-fighter-alpha-2-cps2-sfa2u",
+              "title": "Street Fighter Alpha 2 (CPS-2, USA 960430, sfa2u)",
+              "system": "capcom-cps-2",
+              "evidence_urls": [
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa2/README.md#L242-L244"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [

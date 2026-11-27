@@ -498,7 +498,7 @@ export async function prepareArtworkWorkset(
   );
   const due = (id: string) => {
     const state = states.get(id);
-    if (!state || state.input_sha256 !== baseKey(id, true)) return true;
+    if (!state?.complete || state.input_sha256 !== baseKey(id, true)) return true;
     const images = mappingImages(state.result.port);
     return (
       images.length === 0 ||
@@ -639,18 +639,30 @@ export async function prepareArtworkWorkset(
               record.checks.scope === "reviewed-cover-collection" &&
               record.checks.live_refresh_passed === true));
         const refreshed = refreshing.has(record.port_id);
+        const input = baseKey(record.port_id, refreshed);
+        const previous = states.get(record.port_id);
+        const retainedObservation =
+          record.reason.includes("retained-after-unavailable-refresh") &&
+          previous?.input_sha256 === input &&
+          observationHash([
+            previous.result.record.mapping,
+            previous.result.record.collection ?? [],
+          ]) === observationHash([record.mapping, record.collection ?? []])
+            ? previous.last_live_observation_at
+            : null;
         const state: ItemState = {
           format: 1,
           port_id: record.port_id,
-          input_sha256: baseKey(record.port_id, refreshed),
+          input_sha256: input,
           result_sha256: observationHash(value),
           result: value,
           complete,
           observed_at: new Date(now()).toISOString(),
-          last_live_observation_at: live ? memo.observationClock(record) : null,
+          last_live_observation_at: live ? memo.observationClock(record) : retainedObservation,
           retry_at: providerStatus?.retry_at ?? null,
         };
         replaceOwned(options.root, itemStateName(record.port_id, refreshed, maintenance), state);
+        states.set(record.port_id, state);
         apply(record.port_id, value);
         await options.onProgress?.(record.port_id);
       },

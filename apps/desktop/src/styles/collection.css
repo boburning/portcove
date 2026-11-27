@@ -678,6 +678,34 @@
   .collection-row .collection-title {
     font-weight: 600;
   }
+  @media (max-height: 24rem) {
+    .loading-state:has(> .loading-identity),
+    .empty-state:has(> .empty-mascot-stage) {
+      min-block-size: 0;
+      gap: var(--space-2);
+      padding-block: var(--space-3);
+    }
+
+    .empty-state > .empty-mascot-stage,
+    .loading-identity > .loading-mark {
+      inline-size: var(--space-8);
+      block-size: var(--space-8);
+    }
+
+    .loading-state > .loading-identity {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+    }
+
+    .loading-identity > .brand-wordmark {
+      inline-size: 7rem;
+      block-size: var(--space-8);
+    }
+  }
+
   .library-empty-result .empty-state {
     min-block-size: 330px;
     gap: var(--space-4);

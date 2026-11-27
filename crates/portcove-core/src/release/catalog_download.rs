@@ -2,6 +2,7 @@
 //! managed runtime definitions or turn descriptive platform labels into grants.
 use super::*;
 use crate::{CatalogDownloadCandidate, CatalogDownloadCoverage};
+use std::borrow::Cow;
 
 /// Releases the chooser lists by default; a caller can ask for a larger
 /// window, in steps, up to `MAX_RELEASE_WINDOW`.
@@ -202,9 +203,12 @@ impl GithubReleaseProvider {
             let assets = self
                 .release_assets_at(&api_repository, release.id.unwrap(), None)
                 .await?;
+            let repository = self
+                .catalog_repository_for_assets(repository, repository_id, &assets)
+                .await?;
             let mut ids = std::collections::BTreeSet::new();
             for asset in &assets {
-                let candidate = self.catalog_candidate(repository, release, asset)?;
+                let candidate = self.catalog_candidate(&repository, release, asset)?;
                 if !ids.insert(candidate.asset_id.clone()) {
                     return Err(PortcoveError::verification("release repeats an asset ID"));
                 }
@@ -296,6 +300,44 @@ impl GithubReleaseProvider {
             ));
         }
         Ok(())
+    }
+
+    /// An existing numeric repository can acquire a new public path. Check its
+    /// current provider identity before accepting asset URLs outside the
+    /// authored path. Name-based callers still use only the authored path.
+    async fn catalog_repository_for_assets<'a>(
+        &self,
+        repository: &'a str,
+        repository_id: Option<u64>,
+        assets: &[GithubAsset],
+    ) -> Result<Cow<'a, str>> {
+        let check = |name: &str| {
+            assets.iter().try_for_each(|asset| {
+                self.require_catalog_asset_url(name, &asset.browser_download_url)
+            })
+        };
+        match (check(repository), repository_id) {
+            (Ok(()), _) => return Ok(Cow::Borrowed(repository)),
+            (Err(error), None) => return Err(error),
+            (Err(_), Some(_)) => {}
+        }
+        #[derive(Deserialize)]
+        struct RepositoryIdentity {
+            id: u64,
+            full_name: String,
+        }
+        let url = self.catalog_download_api_repository(repository, repository_id);
+        let current: RepositoryIdentity = self.get_json(&url).await?;
+        if Some(current.id) != repository_id
+            || repository_from_url(&format!("https://github.com/{}", current.full_name))?
+                != current.full_name
+        {
+            return Err(PortcoveError::verification(
+                "GitHub repository identity does not match the admitted repository ID",
+            ));
+        }
+        check(&current.full_name)?;
+        Ok(Cow::Owned(current.full_name))
     }
 
     pub(super) fn catalog_candidate(
@@ -459,15 +501,24 @@ impl GithubReleaseProvider {
         release_id: u64,
         asset_id: u64,
         repository_id: Option<u64>,
-    ) -> Result<String> {
+    ) -> Result<(String, Option<String>)> {
         let (release, asset_index) = self
             .catalog_release_asset(repository, release_id, asset_id, repository_id)
             .await?;
-        self.require_catalog_asset_url(
-            repository,
-            &release.assets[asset_index].browser_download_url,
-        )?;
-        catalog_release_page(repository, &release.tag_name)
+        let current_repository = self
+            .catalog_repository_for_assets(
+                repository,
+                repository_id,
+                std::slice::from_ref(&release.assets[asset_index]),
+            )
+            .await?;
+        let previous = (!current_repository.eq_ignore_ascii_case(repository))
+            .then(|| catalog_release_page(repository, &release.tag_name))
+            .transpose()?;
+        Ok((
+            catalog_release_page(&current_repository, &release.tag_name)?,
+            previous,
+        ))
     }
 
     pub(crate) async fn catalog_release_candidate(
@@ -481,12 +532,12 @@ impl GithubReleaseProvider {
             .catalog_release_asset(repository, release_id, asset_id, repository_id)
             .await?;
         let asset = &release.assets[asset_index];
-        let mut candidate = self.catalog_candidate(repository, &release, asset)?;
+        let current_repository = self
+            .catalog_repository_for_assets(repository, repository_id, &release.assets)
+            .await?;
+        let mut candidate = self.catalog_candidate(&current_repository, &release, asset)?;
         // Existing bounded sidecar parsing remains the checksum authority. Its
         // requests use the same restricted, unauthenticated release transport.
-        for other in &release.assets {
-            self.require_catalog_asset_url(repository, &other.browser_download_url)?;
-        }
         let mut guarded = self.clone();
         guarded.download_client = self.catalog_download_client(repository_id.is_some())?;
         let numeric_sidecars = if let Some(repository_id) = repository_id {

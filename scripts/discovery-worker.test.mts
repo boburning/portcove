@@ -723,11 +723,16 @@ void test("scheduled listing preview resumes retained release evidence and binds
     ...leads,
     records: {
       "5": leads.records["5"]!,
+      "6": lead(6, {
+        search_families: ["libultraship", "n64recomp"],
+        release_hint: withoutAssets,
+      }),
       "7": lead(7, { status: "researched", manifest, release_hint: withoutAssets }),
       "8": lead(8, { external_lists: ["quiver"], release_hint: withoutAssets }),
       "9": lead(9, { release_hint: withoutAssets }),
       "10": lead(10, { manifest, release_hint: withoutAssets }),
       "11": lead(11, { status: "held", manifest, release_hint: withoutAssets }),
+      "12": lead(12, { search_families: ["source-port-topic"], release_hint: withoutAssets }),
     },
   };
   const sourceOnlyRound = nextListingPreviewRound(sourceOnlyLeads, undefined, start, covered);
@@ -744,14 +749,16 @@ void test("scheduled listing preview resumes retained release evidence and binds
   );
   assert.deepEqual(
     sourceOnlyPreview.handoff.candidates.map(({ id }) => id),
-    ["github-5", "github-7", "github-8"],
+    ["github-5", "github-7", "github-8", "github-12"],
   );
-  const [withPackage, withManifest, withCurated] = sourceOnlyPreview.receipt.evidence.map(
-    ({ input }) => input,
-  );
+  const [withPackage, withManifest, withCurated, withTopic] =
+    sourceOnlyPreview.receipt.evidence.map(({ input }) => input);
   assert.ok(withPackage?.desktop_asset_hint);
   assert.ok(withManifest && !withManifest.desktop_asset_hint);
   assert.ok(withCurated && !withCurated.desktop_asset_hint);
+  assert.ok(
+    withTopic && !withTopic.desktop_asset_hint && withTopic.scope.kind === "source-port-topic",
+  );
   assert.equal(withManifest.scope.kind, "retained-manifest");
   assert.deepEqual(withCurated.scope, {
     kind: "curated-source",
@@ -1253,6 +1260,7 @@ void test("an exhausted provider quota waits for its reset between passes and co
       return await collect({ bytes: 64 * 1024 * 1024, deadline: Number.POSITIVE_INFINITY });
     },
     sleep: async (milliseconds) => {
+      assert.equal(preview, undefined, "preview waits until the resumed collection finishes");
       sleeps.push(milliseconds);
       clock += milliseconds;
     },
@@ -1297,7 +1305,13 @@ void test("an exhausted provider quota waits for its reset between passes and co
   );
   assert.equal(memory.loads(), 1, "the next pass reuses its lead records instead of rereading");
   assert.equal(preview?.receipt.committed.revision, run.passes.at(-1)?.revision);
-  assert.deepEqual(preview?.handoff.candidates, []);
+  assert.deepEqual(
+    preview?.handoff.candidates.map(({ repository_id }) => repository_id),
+    [9001],
+  );
+  const [nomination] = preview?.receipt.evidence ?? [];
+  assert.ok(nomination && !nomination.input.desktop_asset_hint);
+  assert.equal(nomination.input.scope.kind, "source-port-topic");
   assert.equal(
     memory.finished.length,
     2,

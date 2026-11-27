@@ -1658,7 +1658,7 @@ export async function prepareDiscoveryListingAdditions(
               facts.discovery_scope?.state === "eligible"
                 ? [
                     projectUrl,
-                    `${projectUrl}/blob/${facts.discovery_scope.commit}/${facts.discovery_scope.manifest_path}`,
+                    `${projectUrl}/blob/${facts.discovery_scope.commit}/${facts.discovery_scope.evidence_path}`,
                   ]
                 : [projectUrl],
           },

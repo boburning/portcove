@@ -231,6 +231,34 @@
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
+      ],
+      "media": [
+        {
+          "id": "igdb-screenshot-original-951657",
+          "role": "screenshot",
+          "subject": {
+            "kind": "original",
+            "game_id": "the-legend-of-zelda-majoras-mask",
+            "source_edition_id": "majoras-mask-n64-usa-1-0"
+          },
+          "caption": "Original game screenshot",
+          "url": "https://images.igdb.com/igdb/image/upload/t_720p/sckeax.png",
+          "sha256": "4354f2e76b81ab02f7ccf692ddcfb4d1c971143aebf7c79c3fbc87e99cf4e23b",
+          "width": 960,
+          "height": 720,
+          "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+          "source_url": "https://www.igdb.com/games/the-legend-of-zelda-majora-s-mask",
+          "license": "LicenseRef-IGDB-Terms",
+          "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+          "igdb": {
+            "game_id": 1030,
+            "record_id": 951657,
+            "kind": "screenshot",
+            "image_id": "sckeax",
+            "game_slug": "the-legend-of-zelda-majora-s-mask",
+            "alpha_channel": true
+          }
+        }
       ]
     },
     {
@@ -1845,10 +1873,47 @@
             "system": "playstation",
             "evidence_urls": [
               "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+            ],
+            "verified_sources": [
+              {
+                "game_id": "tomba-psx",
+                "variant_id": "legacy-accepted",
+                "representation_id": "normalized-track-set"
+              }
             ]
           }
         ]
       },
+      "media": [
+        {
+          "id": "igdb-header-original-257106",
+          "role": "header",
+          "subject": {
+            "kind": "original",
+            "game_id": "tomba",
+            "source_edition_id": "tomba-playstation"
+          },
+          "caption": "Game background",
+          "url": "https://images.igdb.com/igdb/image/upload/t_720p/ar5idu.png",
+          "sha256": "3a252820abb58b74b3c6489bfae12e781a5e86fe6dfd4a1de67cde7ac038f752",
+          "width": 1280,
+          "height": 413,
+          "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+          "source_url": "https://www.igdb.com/games/tomba",
+          "license": "LicenseRef-IGDB-Terms",
+          "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+          "igdb": {
+            "game_id": 4097,
+            "record_id": 257106,
+            "kind": "artwork",
+            "image_id": "ar5idu",
+            "game_slug": "tomba",
+            "alpha_channel": false,
+            "image_type": 2,
+            "image_type_name": "Key art without logo"
+          }
+        }
+      ],
       "platforms": [
         "windows-x86-64"
       ],
@@ -20854,7 +20919,17 @@
           "https://github.com/gemrb/gemrb",
           "https://www.beamdog.com/games/baldurs-gate-2-enhanced/"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "baldur-s-gate-ii-shadows-of-amn-pc",
+            "title": "Baldur's Gate II: Shadows of Amn (original PC edition)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+              "https://gemrb.org/Features.html#status"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -31621,7 +31696,16 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa2/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-alpha-2-cps2-sfa2u",
+            "title": "Street Fighter Alpha 2 (CPS-2, USA 960430, sfa2u)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa2/README.md#L242-L244"
+            ]
+          }
+        ]
       }
     },
     {
@@ -40191,6 +40275,33 @@
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
+      ],
+      "media": [
+        {
+          "id": "igdb-screenshot-original-423",
+          "role": "screenshot",
+          "subject": {
+            "kind": "original",
+            "game_id": "doom-3-classic",
+            "source_edition_id": "doom-3-classic-pc"
+          },
+          "caption": "Original game screenshot",
+          "url": "https://images.igdb.com/igdb/image/upload/t_720p/dmxckx6xh0pikqhtbqhr.png",
+          "sha256": "ee68e31fd54ad5233022f8ab7133d2e7eeee791cc38a8b511d4a5394b485d80c",
+          "width": 960,
+          "height": 720,
+          "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+          "source_url": "https://www.igdb.com/games/doom-3",
+          "license": "LicenseRef-IGDB-Terms",
+          "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+          "igdb": {
+            "game_id": 280,
+            "record_id": 423,
+            "kind": "screenshot",
+            "image_id": "dmxckx6xh0pikqhtbqhr",
+            "game_slug": "doom-3"
+          }
+        }
       ]
     },
     {
@@ -61156,7 +61267,16 @@
         "evidence_urls": [
           "https://github.com/MenuuTUX/jojo-hftf-native"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "jojo-s-bizarre-adventure-heritage-for-the-future-playstation",
+            "title": "JoJo's Bizarre Adventure (PlayStation, SLUS-01060)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/MenuuTUX/jojo-hftf-native/blob/dc1b886e29fcc7940e330cb19762ae85f8d138e1/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -61196,6 +61316,26 @@
         "image_sha256": "adc19ae58dd58bad970b4941554b27040953945ca97a08edebaf5da20cd8402b",
         "game_slug": "jojos-bizarre-adventure-hd--1",
         "match_kind": "underlying-game"
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "jojo-s-bizarre-adventure-heritage-for-the-future",
+        "evidence_urls": [
+          "https://github.com/UNREALWINS/jojo-hd-recompiled/blob/2ffc68d9ba7bdebdf137d65066313cea630f7ed7/README.md",
+          "https://news.capcomusa.com/lets/browse/jojos-bizarre-adventure-hd-ver-confirmed",
+          "https://github.com/MenuuTUX/jojo-hftf-native/blob/dc1b886e29fcc7940e330cb19762ae85f8d138e1/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "jojo-s-bizarre-adventure-hd-ver-xbox-360",
+            "title": "JoJo's Bizarre Adventure HD Ver. (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/UNREALWINS/jojo-hd-recompiled/blob/2ffc68d9ba7bdebdf137d65066313cea630f7ed7/README.md",
+              "https://news.capcomusa.com/lets/browse/jojos-bizarre-adventure-hd-ver-confirmed"
+            ]
+          }
+        ]
       }
     },
     {
@@ -63476,7 +63616,16 @@
         "evidence_urls": [
           "https://github.com/Voicedrew11/verdite1"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "kings-field-japan-playstation",
+            "title": "King's Field (Japan, SLPS-00017)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Voicedrew11/verdite1/blob/b825f63ae43af2890f907f8d82ce094a55814506/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "King's Field Japan",
       "platforms": [],
@@ -68807,7 +68956,17 @@
         "evidence_urls": [
           "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "marvel-ultimate-alliance-2-xbox-360",
+            "title": "Marvel: Ultimate Alliance 2 (Xbox 360, Media ID 39B3E2C9)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/README.md",
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/mua2.manifest.toml"
+            ]
+          }
+        ]
       },
       "original_game_title": "Marvel: Ultimate Alliance 2",
       "platforms": [],
@@ -68827,7 +68986,17 @@
         "evidence_urls": [
           "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "marvel-ultimate-alliance-gold-edition-xbox-360",
+            "title": "Marvel: Ultimate Alliance Gold Edition (Xbox 360, Media ID 5A20A6D4)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/README.md",
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/mua1-gold.manifest.toml"
+            ]
+          }
+        ]
       },
       "original_game_title": "Marvel: Ultimate Alliance — Gold Edition",
       "platforms": [],
@@ -68847,7 +69016,17 @@
         "evidence_urls": [
           "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "marvel-ultimate-alliance-xbox-360",
+            "title": "Marvel: Ultimate Alliance (Xbox 360, Media ID 26848425)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/README.md",
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/mua1.manifest.toml"
+            ]
+          }
+        ]
       },
       "original_game_title": "Marvel: Ultimate Alliance",
       "platforms": [],
@@ -108880,7 +109059,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-zero-2-alpha-cps2-sfz2al",
+            "title": "Street Fighter Zero 2 Alpha (CPS-2, Asia 960826, sfz2al)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/README.md#L154-L155",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/recomp.json#L4-L6"
+            ]
+          }
+        ]
       }
     },
     {

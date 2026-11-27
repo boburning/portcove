@@ -1099,6 +1099,119 @@ void test("descriptive media projects to format 3 and explicit empty strict medi
   assert.deepEqual(authoringRecordFromPort(removed.catalog.ports[0]).listing.media, []);
 });
 
+void test("an accepted original screenshot follows the exact edition into existing and future listings", () => {
+  const { authored } = readCatalogSource(catalogRoot);
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const donor = authored.find(({ listing }) => listing.id === "zelda64-recomp")!;
+  const recipient = authored.find(({ listing }) => listing.id === "2ship2harkinian")!;
+  const future = {
+    format_version: 1,
+    listing: {
+      id: "future-port-for-media-fixture",
+      name: "Future port fixture",
+      project_url: "https://example.com/future-port-for-media-fixture",
+      summary: "An independent listing for the same original edition.",
+      original_game: recipient.listing.original_game,
+    },
+  };
+  const excluded = {
+    ...future,
+    listing: { ...future.listing, id: "excluded-media-fixture", media: [] },
+  };
+  const otherEdition = {
+    ...future,
+    listing: {
+      ...future.listing,
+      id: "other-edition-media-fixture",
+      original_game: {
+        ...future.listing.original_game!,
+        source_editions: [
+          {
+            id: "other-edition-fixture",
+            title: "An independent source edition",
+            evidence_urls: ["https://example.com/other-edition"],
+          },
+        ],
+      },
+    },
+  };
+  const records = [recipient, future, excluded, otherEdition];
+  const baseline = assembleCatalogRecords(shared, records);
+  const withDonor = assembleCatalogRecords(shared, [donor, ...records]);
+  const listings = new Map(withDonor.directory.listings.map((item) => [item.id, item]));
+  assert.deepEqual(listings.get(recipient.listing.id)?.media, donor.listing.media);
+  assert.deepEqual(listings.get(future.listing.id)?.media, donor.listing.media);
+  assert.deepEqual(listings.get(excluded.listing.id)?.media, []);
+  assert.equal(listings.get(otherEdition.listing.id)?.media, undefined);
+  assert.deepEqual(
+    withDonor.catalog.ports.find(({ id }) => id === recipient.listing.id),
+    baseline.catalog.ports.find(({ id }) => id === recipient.listing.id),
+  );
+  assert.equal(
+    baseline.directory.listings.find(({ id }) => id === recipient.listing.id)?.media,
+    undefined,
+  );
+  const originalAsset = requiredFixture(fixtureRecords(donor.listing.media)[0]);
+  const conflictingAsset = { ...originalAsset, sha256: "f".repeat(64) };
+  const competingDonor = {
+    ...future,
+    listing: {
+      ...future.listing,
+      id: "conflicting-media-fixture",
+      media: [conflictingAsset],
+    },
+  };
+  const conflict = assembleCatalogRecords(shared, [donor, competingDonor, ...records]);
+  assert.equal(
+    conflict.directory.listings.find(({ id }) => id === recipient.listing.id)?.media,
+    undefined,
+  );
+  assert.deepEqual(
+    conflict.directory.listings.find(({ id }) => id === competingDonor.listing.id)?.media,
+    [conflictingAsset],
+  );
+
+  const bothEditions = {
+    ...future,
+    listing: {
+      ...future.listing,
+      original_game: {
+        ...future.listing.original_game!,
+        source_editions: [
+          ...future.listing.original_game!.source_editions,
+          ...otherEdition.listing.original_game.source_editions,
+        ],
+      },
+    },
+  };
+  const competingEdition = {
+    ...otherEdition,
+    listing: {
+      ...otherEdition.listing,
+      media: [
+        {
+          ...conflictingAsset,
+          subject: {
+            ...fixtureRecord(originalAsset.subject),
+            source_edition_id: "other-edition-fixture",
+          },
+        },
+      ],
+    },
+  };
+  for (const donors of [
+    [donor, competingEdition],
+    [donor, competingDonor, competingEdition],
+  ]) {
+    const crossEditionConflict = assembleCatalogRecords(shared, [...donors, bothEditions]);
+    assert.equal(
+      crossEditionConflict.directory.listings.find(({ id }) => id === bothEditions.listing.id)
+        ?.media,
+      undefined,
+    );
+  }
+});
+
 void test("optional recommendation observations round-trip as inert presentation without changing the operational route", () => {
   const source = readCatalogSource(catalogRoot);
   const original = source.catalog.ports.find((port) => port.id === "fragglet-sdl-sopwith")!;
