@@ -43,6 +43,7 @@ jobs:
     outputs:
       audit_continuations: ${{ steps.execute.outputs.audit_continuations }}
       receipt_revision: ${{ steps.execute.outputs.receipt_revision }}
+      receipt_outcome: ${{ steps.execute.outputs.receipt_outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,9 +70,14 @@ jobs:
           HOSTED_INTAKE_MODE: scheduled-receipts
       - name: Retain bounded receipt diagnostics
         if: always()
+        env:
+          RECEIPT_OUTCOME: ${{ steps.execute.outputs.receipt_outcome }}
         run: |
           file=work/hosted-discovery-intake/scheduled-receipts.json
           if [[ -f "$file" && "$(wc -c < "$file")" -le 262144 ]]; then cat "$file"; fi
+          if [[ "$RECEIPT_OUTCOME" == deferred ]]; then
+            echo 'Intake receipt reconciliation deferred. The next scheduled run will retry resource admission.' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   collect:
     needs: reconcile-intake-receipts
@@ -363,6 +369,7 @@ jobs:
           REPORT_OUTCOME: ${{ steps.report.outcome }}
           BACKUP_OUTCOME: ${{ steps.backup.outputs.artifact && 'captured' || steps.backup.outputs.reused == 'true' && 'reused' || steps.backup.outcome == 'success' && 'deferred' || steps.backup.outcome }}
           COLLECT_COMPLETED: ${{ steps.collect.outputs.completed }}
+          INTAKE_RECEIPT_OUTCOME: ${{ needs.reconcile-intake-receipts.outputs.receipt_outcome }}
           PUBLIC_SUMMARY_OUTCOME: ${{ steps.public-summary.outcome }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
@@ -435,8 +442,9 @@ jobs:
                                     if inventory else None,
               "report_scope": inventory.get("scope"),
               "intake_receipts": (
-                  {"status": "delegated", "job": "reconcile-intake-receipts"}
-                  if os.environ["GITHUB_EVENT_NAME"] == "schedule" and os.environ["COLLECT_COMPLETED"] == "true"
+                  {"status": os.environ["INTAKE_RECEIPT_OUTCOME"] or "unavailable",
+                   "job": "reconcile-intake-receipts"}
+                  if os.environ["GITHUB_EVENT_NAME"] == "schedule"
                   else None
               ),
               "subjects": len(inventory.get("subjects", [])),
@@ -511,7 +519,7 @@ jobs:
           retention-days: 30
 
       - name: Check that collection kept the reconciled intake fence
-        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.collect.outputs.completed == 'true' && needs.reconcile-intake-receipts.result == 'success' }}
+        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.collect.outputs.completed == 'true' && needs.reconcile-intake-receipts.result == 'success' && needs.reconcile-intake-receipts.outputs.receipt_outcome == 'verified' }}
         run: jq -e '.hosted_intake.receipt_fence == "verified"' work/maintenance-evidence/collect.json > /dev/null
 
   discover:
