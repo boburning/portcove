@@ -338,6 +338,157 @@ async fn downloaded_win32_game_is_distinguished_from_converter_without_running_e
 }
 
 #[tokio::test]
+async fn extracted_package_manifest_suggests_a_native_program_for_an_unknown_listing() {
+    let (temporary, mut service, mut request) = fixture();
+    let mut document = service.catalog.listing_document().clone();
+    document.format_version = crate::catalog::listings::REPOSITORY_BOUND_LISTING_FORMAT;
+    request.port_id = "github-123".into();
+    document.listings[0].id = request.port_id.clone();
+    document.listings[0].project_url = "https://github.com/owner/game/".into();
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(document)
+        .unwrap();
+    let probe_root = temporary.path().join("manifest-native-fixture");
+    fs::create_dir(&probe_root).unwrap();
+    let probe = fs::read(crate::test_fixture::build_probe(&probe_root)).unwrap();
+    let first = if cfg!(windows) {
+        "bin/FirstPlayer.exe"
+    } else {
+        "bin/FirstPlayer"
+    };
+    let second = if cfg!(windows) {
+        "bin/SecondPlayer.exe"
+    } else {
+        "bin/SecondPlayer"
+    };
+    let fallback = if cfg!(windows) {
+        "bin/Game.exe"
+    } else {
+        "bin/Game"
+    };
+    let manifest = |format, repo, programs: &[&str]| {
+        serde_json::to_vec(&json!({
+            "format": format, "repo": repo,
+            "start": {"program": programs, "args": ["--upstream-only"]},
+        }))
+        .unwrap()
+    };
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let native = zip::write::SimpleFileOptions::default().unix_permissions(0o755);
+    for path in [first, second, fallback] {
+        zip.start_file(path, native).unwrap();
+        zip.write_all(&probe).unwrap();
+    }
+    zip.start_file(
+        "recomplauncher.json",
+        zip::write::SimpleFileOptions::default(),
+    )
+    .unwrap();
+    zip.write_all(&manifest(1, "new-owner/renamed-game", &[first, second]))
+        .unwrap();
+    let github = GithubFixture::for_api_repository(
+        "repositories/123",
+        zip.finish().unwrap().into_inner(),
+        None,
+        None,
+    );
+    github.assets.lock().unwrap()[0]["browser_download_url"] =
+        json!("https://github.com/new-owner/renamed-game/releases/download/v1.0/game.zip");
+    *github.repository_identity.lock().unwrap() =
+        Some(json!({"id":123,"full_name":"new-owner/renamed-game"}));
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        pending.listing.project_url,
+        "https://github.com/owner/game/"
+    );
+    assert_eq!(
+        pending.artifact.release_url,
+        "https://github.com/new-owner/renamed-game/releases/tag/v1.0"
+    );
+    let inspect = || {
+        service
+            .discover_setup_launch_targets(&request.port_id, &pending.id)
+            .unwrap()
+    };
+    let declared = inspect();
+    assert!(declared.complete);
+    assert!(declared.explanation.contains("The setup manifest names"));
+    assert_eq!(
+        declared.recommended_executable,
+        Some(pending.path.join(first))
+    );
+    assert!(service.catalog.port(&request.port_id).is_err());
+    let path = pending.path.join("recomplauncher.json");
+    let mut padded = manifest(1, "owner/game", &[first]);
+    padded.resize(64 * 1024, b' ');
+    fs::write(&path, &padded).unwrap();
+    assert_eq!(
+        inspect().recommended_executable,
+        Some(pending.path.join(first))
+    );
+    padded.push(b' ');
+    for invalid in [
+        manifest(2, "owner/game", &[first]),
+        manifest(1, "different/game", &[first]),
+        manifest(1, "owner/game", &["../FirstPlayer", first]),
+        manifest(1, "owner/game", &["bin/NoLongerPresent"]),
+        br#"{"format":1,"start":{}}"#.to_vec(),
+        padded,
+    ] {
+        fs::write(&path, invalid).unwrap();
+        let resolved = inspect();
+        assert!(resolved.complete);
+        assert_eq!(
+            resolved.recommended_executable,
+            Some(pending.path.join(fallback))
+        );
+    }
+    fs::remove_file(&path).unwrap();
+    assert_eq!(
+        inspect().recommended_executable,
+        Some(pending.path.join(fallback))
+    );
+    fs::write(&path, manifest(1, "OWNER/Game", &[second, first])).unwrap();
+    let changed = inspect();
+    let chosen = changed.recommended_executable.unwrap();
+    assert_eq!(chosen, pending.path.join(second));
+    let working = chosen.parent().unwrap();
+    assert!(service.library.all_installs().unwrap().is_empty());
+    let preview = service
+        .preview_user_selected_runtime(&request.port_id, &chosen, working, &[])
+        .unwrap();
+    let consent = service
+        .authorize_user_selected_runtime(
+            &request.port_id,
+            &chosen,
+            working,
+            &[],
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let registered = service
+        .register_user_selected_runtime(&request.port_id, &chosen, working, &[], &consent.token)
+        .unwrap();
+    assert_eq!(registered.executable, chosen);
+    assert!(registered.user_selected.unwrap().arguments.is_empty());
+    assert!(service.library.all_installs().unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn downloaded_project_named_player_is_suggested_without_overriding_safety_or_progress() {
     let (temporary, mut service, request) = fixture();
     let mut listings = service.catalog.listing_document().clone();

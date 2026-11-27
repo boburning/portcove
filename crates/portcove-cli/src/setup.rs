@@ -469,18 +469,7 @@ pub(crate) async fn execute(
             mode,
             name,
             service.discover_setup_launch_targets(&port_id, &pending_id)?,
-            |result| {
-                let mut lines = vec![human::clean(&result.explanation)];
-                for target in &result.candidates {
-                    lines.push(format!(
-                        "{}\n  Working directory: {}\n  {}",
-                        target.executable.display(),
-                        target.working_directory.display(),
-                        human::clean(&target.reason)
-                    ));
-                }
-                lines.join("\n")
-            },
+            launch_targets_text,
         ),
         SetupCommand::Forget {
             port_id,
@@ -492,6 +481,47 @@ pub(crate) async fn execute(
             })
         }
     }
+}
+
+fn launch_targets_text(result: &portcove_core::SetupLaunchTargets) -> String {
+    let mut lines = vec![human::clean(&result.explanation)];
+    if let Some(executable) = &result.recommended_executable {
+        lines.push(format!("Suggested program\n  {}", executable.display()));
+    }
+    for target in &result.candidates {
+        lines.push(format!(
+            "{}\n  Working directory: {}\n  {}",
+            target.executable.display(),
+            target.working_directory.display(),
+            human::clean(&target.reason)
+        ));
+    }
+    lines.join("\n")
+}
+
+#[test]
+fn launch_target_text_identifies_the_suggestion_independently_of_list_order() {
+    let targets = portcove_core::SetupLaunchTargets {
+        port_id: "unknown-port".into(),
+        pending_id: "test".into(),
+        candidates: ["FirstPlayer", "SecondPlayer"]
+            .map(|name| portcove_core::SetupLaunchTarget {
+                executable: name.into(),
+                working_directory: "game".into(),
+                supporting_program: false,
+                reason: String::new(),
+            })
+            .into(),
+        recommended_executable: Some("SecondPlayer".into()),
+        complete: true,
+        entries_checked: 2,
+        explanation: "Choose a native program.".into(),
+    };
+    assert!(
+        launch_targets_text(&targets).starts_with(
+            "Choose a native program.\nSuggested program\n  SecondPlayer\nFirstPlayer\n"
+        )
+    );
 }
 
 fn preview_text(review: &portcove_core::CatalogDownloadPreview) -> String {
