@@ -859,6 +859,7 @@ void test("authoring split preserves unknown metadata and ordered operational ar
 void test("typed IGDB scenes project to listing format 13 without changing strict media", () => {
   const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
   const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  authored.no_observed_mod_portals = true;
   const { ports: _ports, ...shared } = catalog;
   const typed = { id: "igdb", role: "screenshot", igdb: { kind: "screenshot" } };
   const legacy = { id: "legacy", role: "header" };
@@ -876,6 +877,7 @@ void test("typed IGDB scenes project to listing format 13 without changing stric
 void test("verified source identities belong only in the format 14 listing", () => {
   const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
   const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  authored.no_observed_mod_portals = true;
   const { ports: _ports, ...shared } = catalog;
   const binding = {
     game_id: "source-game",
@@ -2223,6 +2225,7 @@ void test("implementation descriptions project without changing source, route or
   assert.deepEqual(projected.platforms, before.platforms);
   assert.deepEqual(record.listing.original_game, without.listing.original_game);
   const implementationOnly = structuredClone(record);
+  implementationOnly.no_observed_mod_portals = true;
   delete implementationOnly.listing.media;
   const { ports: _ports, ...shared } = source.catalog;
   assert.equal(assembleCatalogRecords(shared, [implementationOnly]).directory.format_version, 12);
