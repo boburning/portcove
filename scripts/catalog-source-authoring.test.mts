@@ -121,6 +121,48 @@ void test("reviewed original media binds one decision to exact existing and futu
       assembleCatalogRecords(shared, [owner, { ...sibling, igdb_original_media_v1: [decision] }]),
     /Multiple reviewed original media decisions/u,
   );
+  const prior = {
+    id: "old-original-shot",
+    role: "screenshot",
+    subject: {
+      kind: "original",
+      game_id: decision.original_game_id,
+      source_edition_id: decision.source_edition_id,
+    },
+    igdb: { game_id: 15 },
+  };
+  const donor = { ...owner.listing, media: [prior] };
+  const before = assembleCatalogRecords(shared, [
+    { ...row("owner-port"), listing: donor },
+    sibling,
+  ]);
+  assert.deepEqual(before.directory.listings.find(({ id }) => id === sibling.listing.id)?.media, [
+    prior,
+  ]);
+  const corrected = assembleCatalogRecords(shared, [{ ...owner, listing: donor }, sibling, future]);
+  assert.deepEqual(corrected.directory.listings.find(({ id }) => id === donor.id)?.media, [prior]);
+  assert.ok(
+    corrected.directory.listings
+      .filter(({ id }) => id !== donor.id)
+      .every(({ media }) => media === undefined),
+  );
+  const acceptedMedia = { ...prior, igdb: { game_id: decision.game_id } };
+  const matching = assembleCatalogRecords(shared, [
+    { ...owner, listing: { ...donor, media: [acceptedMedia] } },
+    sibling,
+  ]);
+  assert.deepEqual(matching.directory.listings.find(({ id }) => id === sibling.listing.id)?.media, [
+    acceptedMedia,
+  ]);
+  const { decision: _match, game_id: _game, slug: _slug, ...scope } = decision;
+  const excluded = assembleCatalogRecords(shared, [
+    { ...owner, listing: donor, igdb_original_media_v1: [{ ...scope, decision: "exclude" }] },
+    sibling,
+  ]);
+  assert.equal(
+    excluded.directory.listings.find(({ id }) => id === sibling.listing.id)?.media,
+    undefined,
+  );
 });
 
 void test("reviewed mod websites promote the directory without an operational definition", () => {

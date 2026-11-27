@@ -1183,6 +1183,7 @@ export function assembleCatalogRecords(
   const listings = sharedOriginalMedia(
     listed,
     new Set(records.filter(usesScummvmEngine).map(({ listing }) => listing.id)),
+    reviewedOriginalMedia,
   );
   const extendedMedia = listings.some(
     (listing) =>

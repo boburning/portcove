@@ -7600,6 +7600,9 @@ edition, and system. Preparation lists those current ports under
 `game_media.reviewed_original_media`. A match supplies an identity for missing
 roles. Accepted assets remain subject to their own reviewed changes or confirmed
 withdrawal.
+Shared default generation also honors the decision. An excluded association or
+an image from a conflicting provider game ID is no longer copied to other ports.
+Explicitly authored assets keep their existing correction path.
 
 Full proposal preparation validates typed backgrounds and screenshots in
 `listing-media-proposal.json` through the listing inspector. The strict
