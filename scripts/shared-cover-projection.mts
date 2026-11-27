@@ -2,7 +2,10 @@ import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { validArtworkMapping, validArtworkCollection } from "./catalog-cover-mapping.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
-import { indexReviewedOriginalMedia } from "./reviewed-original-media.mts";
+import {
+  indexAuthoredOriginalMedia,
+  type ReviewedOriginalMediaDecision,
+} from "./reviewed-original-media.mts";
 import { isRecord } from "./runtime-values.mts";
 import { originalEditionMediaKey, permitsReviewedOriginalMedia } from "./shared-original-media.mts";
 import { observationHash } from "./upstream-observer.mts";
@@ -54,6 +57,7 @@ export function projectExactSharedCovers({
   excludedPortIds,
   gone,
   checked,
+  reviewedOriginalMedia,
   deriveDefaultsForPublishedRecipients = false,
   holdNewForImages = new Set<string>(),
 }: {
@@ -62,6 +66,7 @@ export function projectExactSharedCovers({
   excludedPortIds: ReadonlySet<string>;
   gone: ReadonlySet<string>;
   checked: ReadonlyMap<string, { digest: string | null }>;
+  reviewedOriginalMedia?: ReadonlyMap<string, ReviewedOriginalMediaDecision>;
   /** The publisher recomputes defaults even when the previous generation had one. */
   deriveDefaultsForPublishedRecipients?: boolean;
   holdNewForImages?: ReadonlySet<string>;
@@ -78,9 +83,7 @@ export function projectExactSharedCovers({
       signedDigests.set(cover.image_id, digests);
     }
   }
-  const reviewed = indexReviewedOriginalMedia(
-    authored.flatMap((record) => record.igdb_original_media_v1 ?? []),
-  );
+  const reviewed = reviewedOriginalMedia ?? indexAuthoredOriginalMedia(authored);
   const scoped = authored.flatMap((record) => {
     if (excludedPortIds.has(record.listing.id)) return [];
     const scope = sharedCoverScope(record);
@@ -129,6 +132,8 @@ export function projectExactSharedCovers({
       return [];
     const choices = donors.get(scope.key);
     const result = { id, game_id: scope.game_id, source_edition_id: scope.source_edition_id };
+    if (decision?.decision === "exclude")
+      return [{ ...result, status: "reviewed-original-match-excluded" }];
     if (choices?.size !== 1)
       return [{ ...result, status: choices ? "ambiguous" : "no-accepted-donor" }];
     const donor = choices.values().next().value!;

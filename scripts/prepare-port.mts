@@ -437,9 +437,13 @@ function retainArtifact(file: string, bytes: string) {
       throw new Error("An existing preparation artifact differs; retained it for reconciliation.");
   }
 }
-function artworkCatalog(records: readonly AuthoredPort[]): ArtworkCatalog {
+function artworkCatalog(
+  records: readonly AuthoredPort[],
+  includeOriginalGame = false,
+): ArtworkCatalog {
   return {
-    ports: records.map(({ listing, integration, igdb_regional_cover }) => {
+    ports: records.map((record) => {
+      const { listing, integration, igdb_regional_cover } = record;
       const presentation = integration?.presentation;
       const companion = isRecord(presentation) ? presentation.companion_cover : undefined;
       return {
@@ -458,6 +462,9 @@ function artworkCatalog(records: readonly AuthoredPort[]): ArtworkCatalog {
           : {}),
         ...(integration?.source_profile ? { source_profile: integration.source_profile } : {}),
         presentation: {
+          ...(includeOriginalGame && listing.original_game && !usesScummvmEngine(record)
+            ? { original_game: listing.original_game }
+            : {}),
           ...(listing.artwork ? { artwork: listing.artwork } : {}),
           ...(listing.collection_covers !== undefined
             ? { collection_covers: listing.collection_covers }
@@ -1222,14 +1229,18 @@ export async function preparePort(options: PrepareOptions) {
     if (compact !== record) record = checkedAuthoredPort(compact);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
-    const artwork = await prepareArtworkWorkset(artworkCatalog(records), {
-      root,
-      acceptedCatalog: artworkCatalog(authored.records),
-      inspector,
-      identities: options.identities ?? {},
-      validatorIdentity,
-      selectedPortIds: [id],
-    });
+    const artwork = await prepareArtworkWorkset(
+      artworkCatalog(records, authored.reviewedOriginalMedia.size > 0),
+      {
+        root,
+        acceptedCatalog: artworkCatalog(authored.records),
+        inspector,
+        identities: options.identities ?? {},
+        reviewedOriginalMedia: authored.reviewedOriginalMedia,
+        validatorIdentity,
+        selectedPortIds: [id],
+      },
+    );
     const prepared = preparedRecordOutputs(
       options,
       root,
@@ -2010,6 +2021,7 @@ export async function prepareSharedCoverBatch(
     const { proposals, outcomes } = projectExactSharedCovers({
       live,
       authored: authored.authored,
+      reviewedOriginalMedia: authored.reviewedOriginalMedia,
       gone,
       checked,
       excludedPortIds: new Set(
@@ -2103,7 +2115,7 @@ export async function prepareArtworkBatch(
   const excluded = new Set(
     boundedDue ? authored.records.filter(usesScummvmEngine).map(({ listing }) => listing.id) : [],
   );
-  const acceptedArtwork = artworkCatalog(authored.records);
+  const acceptedArtwork = artworkCatalog(authored.records, authored.reviewedOriginalMedia.size > 0);
   const artworkScope = excluded.size
     ? { ...acceptedArtwork, ports: acceptedArtwork.ports.filter(({ id }) => !excluded.has(id)) }
     : acceptedArtwork;
@@ -2114,6 +2126,7 @@ export async function prepareArtworkBatch(
     let artworkResult;
     if (
       !options.maintenance &&
+      !authored.reviewedOriginalMedia.size &&
       refreshPortIds.length === 0 &&
       !existsSync(join(root, "artwork-gone.json")) &&
       readdirSync(root).some((name) => /^artwork-batch-[a-f0-9]{64}\.json$/u.test(name))
@@ -2146,6 +2159,7 @@ export async function prepareArtworkBatch(
         root,
         inspector,
         identities,
+        reviewedOriginalMedia: authored.reviewedOriginalMedia,
         validatorIdentity,
         ...(options.selectedPortIds ? { selectedPortIds: options.selectedPortIds } : {}),
         refreshPortIds,

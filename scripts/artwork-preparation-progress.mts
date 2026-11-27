@@ -394,6 +394,7 @@ export async function prepareArtworkWorkset(
     acceptedCatalog?: ArtworkCatalog;
     inspector: Inspector;
     identities: unknown;
+    reviewedOriginalMedia?: ArtworkPreparationOptions["reviewedOriginalMedia"];
     validatorIdentity: string | null;
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
@@ -467,7 +468,11 @@ export async function prepareArtworkWorkset(
     );
   }
   const toolIdentity = tool.digest("hex");
-  const prepareInput = artworkPreparationInputs(accepted, options.identities);
+  const prepareInput = artworkPreparationInputs(
+    accepted,
+    options.identities,
+    options.reviewedOriginalMedia,
+  );
   const inputs = new Map<string, ReturnType<typeof prepareInput>>();
   const baseKey = (id: string, refresh: boolean) => {
     let input = inputs.get(id);
@@ -604,6 +609,9 @@ export async function prepareArtworkWorkset(
       selectedPortIds: batch,
       refreshPortIds: [...refreshing],
       revalidateAccepted,
+      ...(options.reviewedOriginalMedia
+        ? { reviewedOriginalMedia: options.reviewedOriginalMedia }
+        : {}),
       identities: isRecord(identities)
         ? Object.fromEntries(batch.map((id) => [id, identities[id]]))
         : undefined,

@@ -6,7 +6,8 @@ import {
 } from "./catalog-cover-mapping.mts";
 import { isRecord } from "./runtime-values.mts";
 import { originalEditionMediaKey } from "./shared-original-media.mts";
-import type { AuthoredListing } from "./catalog-authoring.mts";
+import type { AuthoredListing, AuthoredPort } from "./catalog-authoring.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
 
 export type ReviewedOriginalMediaDecision = {
   original_game_id: string;
@@ -28,6 +29,14 @@ export function indexReviewedOriginalMedia(decisions: readonly ReviewedOriginalM
     indexed.set(scope, decision);
   }
   return indexed;
+}
+
+export function indexAuthoredOriginalMedia(records: readonly AuthoredPort[]) {
+  return indexReviewedOriginalMedia(
+    records.flatMap((record) =>
+      usesScummvmEngine(record) ? [] : (record.igdb_original_media_v1 ?? []),
+    ),
+  );
 }
 
 export function previewReviewedOriginalMedia(

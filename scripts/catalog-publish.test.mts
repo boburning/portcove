@@ -1920,8 +1920,35 @@ void test("signed projection recomputes shared covers without changing the relea
     authored[1]!,
   ];
   const approved = { ...decisionScope, decision: "match", game_id: 70, slug: "shared-game" };
+  const outsideScope = checkedAuthoredPort({
+    format_version: 1,
+    listing: {
+      ...donor,
+      id: "excluded-engine",
+      project_url: "https://github.com/example/excluded-engine",
+      implementation: {
+        format_version: 1,
+        methods: [
+          {
+            kind: "engine-reimplementation",
+            evidence_urls: ["https://github.com/scummvm/scummvm"],
+          },
+        ],
+        dependencies: [
+          {
+            kind: "runtime",
+            project_url: "https://github.com/scummvm/scummvm",
+            name: "Engine",
+            confidence: "confirmed",
+            evidence_urls: ["https://github.com/scummvm/scummvm"],
+          },
+        ],
+      },
+    },
+    igdb_original_media_v1: [{ ...decisionScope, decision: "exclude" }],
+  });
   assert.deepEqual(
-    row(project(initial.bytes, new Set(), withDecision(approved)).bytes).artwork,
+    row(project(initial.bytes, new Set(), [...withDecision(approved), outsideScope]).bytes).artwork,
     artwork,
   );
   const staleDonor = indexSharedCoverRows(

@@ -60,7 +60,7 @@ import { usesScummvmEngine } from "./catalog-route-holds.mts";
 import { sharedOriginalMedia, typedIgdbScene } from "./shared-original-media.mts";
 import {
   checkReviewedOriginalMedia,
-  indexReviewedOriginalMedia,
+  indexAuthoredOriginalMedia,
 } from "./reviewed-original-media.mts";
 import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
 export { typedIgdbScene } from "./shared-original-media.mts";
@@ -1112,11 +1112,7 @@ export function assembleCatalogRecords(
   const authored = inputs.map((record) => checkedAuthoredPort(record));
   if (new Set(authored.map((record) => record.listing.id)).size !== authored.length)
     throw new Error("Catalog source has duplicate stable listing IDs.");
-  const reviewedOriginalMedia = indexReviewedOriginalMedia(
-    authored.flatMap((record) =>
-      usesScummvmEngine(record) ? [] : (record.igdb_original_media_v1 ?? []),
-    ),
-  );
+  const reviewedOriginalMedia = indexAuthoredOriginalMedia(authored);
   // Data-derived user-selected registration routes. Each generated record then
   // passes exactly the validation a hand-authored record does.
   const generation = generateRegistrations(authored, listingPackageFacts);

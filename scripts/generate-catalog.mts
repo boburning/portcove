@@ -708,7 +708,9 @@ async function prepareArtworkProposal(fullProposal = false) {
   const heroMedia = option("--hero-media");
   if (heroMedia !== null && heroMedia !== "igdb") throw new Error("--hero-media requires igdb.");
   const excludedMedia = new Set(
-    heroMedia ? authored.records.filter(usesScummvmEngine).map(({ listing }) => listing.id) : [],
+    heroMedia || authored.reviewedOriginalMedia.size
+      ? authored.records.filter(usesScummvmEngine).map(({ listing }) => listing.id)
+      : [],
   );
   const acceptedMedia = {
     // Typed media can be present on a managed port's descriptive listing even
@@ -758,6 +760,8 @@ async function prepareArtworkProposal(fullProposal = false) {
         ...inspector,
         acceptedCatalog: acceptedArtwork,
         identities,
+        reviewedOriginalMedia: authored.reviewedOriginalMedia,
+        reviewedOriginalMediaExclusions: excludedMedia,
         refreshPortIds: refresh,
         ...(ids ? { selectedPortIds: ids } : {}),
         ...(gone.length ? { knownGoneImageIds: gone } : {}),
