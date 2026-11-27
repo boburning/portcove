@@ -748,21 +748,39 @@ async function prepareArtworkProposalRun(
       ? authored.records.filter(usesScummvmEngine).map(({ listing }) => listing.id)
       : [],
   );
+  const acceptedMedia = {
+    // A descriptive listing can carry typed media independently of the strict catalog.
+    ports: heroMedia
+      ? authored.directory.listings.map(({ id, name, project_url, original_game, media }) => ({
+          id,
+          name,
+          project_url,
+          presentation: { original_game, media },
+        }))
+      : [],
+  };
   let mediaPlan:
     | ReturnType<(typeof import("./artwork-preparation-progress.mts"))["planDueGameMedia"]>
     | undefined;
   if (mediaDue) {
     const validator = beforeChecks?.input.validator_artifact_sha256;
     if (!validator) throw new Error("Game media maintenance requires a captured Core validator");
+    const { acceptedHeroMediaMatches } = await import("./inspect-igdb-artwork.mts");
+    const inherited = acceptedHeroMediaMatches(acceptedMedia, excludedMedia);
     mediaPlan = mediaDue.progress.planDueGameMedia(
       mediaDue.root,
       authored.directory.listings
         .filter(({ id }) => !excludedMedia.has(id))
         .map((listing) => {
           const original = listing.original_game;
-          const reviewed = original?.source_editions.map((edition) => {
+          const bindings = original?.source_editions.map((edition) => {
             const scope = originalEditionMediaKey(original.id, edition);
-            return scope ? authored.reviewedOriginalMedia.get(scope) : undefined;
+            return scope
+              ? {
+                  reviewed: authored.reviewedOriginalMedia.get(scope),
+                  accepted: inherited.get(scope),
+                }
+              : undefined;
           });
           const supplied = isRecord(identities) ? identities[listing.id] : undefined;
           return {
@@ -775,7 +793,7 @@ async function prepareArtworkProposalRun(
               project_url: listing.project_url,
               original,
               media: listing.media,
-              reviewed,
+              bindings,
               supplied,
             }),
           };
@@ -785,18 +803,6 @@ async function prepareArtworkProposalRun(
   }
   const selectedPortIds = mediaPlan?.selected ?? option("--artwork-ids")?.split(",");
   const refreshPortIds = mediaPlan?.selected ?? option("--refresh-artwork")?.split(",") ?? [];
-  const acceptedMedia = {
-    // Typed media can be present on a managed port's descriptive listing even
-    // when the strict operational catalog deliberately omits it.
-    ports: heroMedia
-      ? authored.directory.listings.map(({ id, name, project_url, original_game, media }) => ({
-          id,
-          name,
-          project_url,
-          presentation: { original_game, media },
-        }))
-      : [],
-  };
   // A listing-only subject is selected explicitly in a bounded proposal. It
   // uses its accepted descriptive identity and can never enter the strict file.
   const strictIds = new Set(input.ports.map(({ id }) => id));
@@ -823,7 +829,14 @@ async function prepareArtworkProposalRun(
     throw new Error(
       "Game media worksets require selected catalog identities and matching refresh ids.",
     );
-  const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
+  const inspector = createIgdbInspector(
+    option("--credentials-file"),
+    validateImage,
+    undefined,
+    mediaDue && {
+      onBackoff: (status) => mediaDue.progress.retainArtworkProviderBackoff(mediaDue.root, status),
+    },
+  );
   if (mediaDue) mediaDue.progress.restoreArtworkProviderBackoff(mediaDue.root, inspector);
   const covers = await prepareCoverArtworkInOperations(
     input,

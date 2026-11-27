@@ -70,7 +70,15 @@ export function openArtworkCheckpoint(directory: string) {
     observationHash(readOwned(directory, "owner.json")) !== observationHash(checkpointOwner)
   )
     throw new Error("Output directory is not a recognized preparation checkpoint.");
-  mkdirSync(join(directory, "active.lock"));
+  try {
+    mkdirSync(join(directory, "active.lock"));
+  } catch (error) {
+    if (errorCode(error) !== "EEXIST") throw error;
+    throw new Error(
+      "Preparation checkpoint is locked. Verify the previous preparation process has stopped before using the checkpoint recovery procedure.",
+      { cause: error },
+    );
+  }
 }
 function readOwned(root: string, name: string): unknown {
   const filename = join(root, name);
@@ -121,7 +129,12 @@ export function restoreArtworkProviderBackoff(root: string, inspector: Inspector
 
 export function retainArtworkProviderBackoff(
   root: string,
-  status: ReturnType<NonNullable<Inspector["batchStatus"]>> | undefined,
+  status:
+    | Pick<
+        ReturnType<NonNullable<Inspector["batchStatus"]>>,
+        "metadata_retry_at" | "image_retry_at"
+      >
+    | undefined,
 ) {
   if (
     status &&

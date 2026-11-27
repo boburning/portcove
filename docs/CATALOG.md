@@ -2265,10 +2265,12 @@ The pass selects due catalog identities, skips ScummVM, and tracks each logo,
 background, key-art and screenshot observation independently. The existing cover
 queue uses its own progress. The media pass retains each output for review
 and advances the checkpoint after writing the receipts. Reuse the checkpoint
-with a new proposal directory on each invocation. An interrupted batch resumes
-from the saved round. New arrivals join the next round. A changed identity,
-reviewed mapping, current media or decoder wakes the affected entry. Live
-provider deferrals retain their retry time. The command reports attempted,
+with a new proposal directory on each invocation. A batch resumes from the
+saved round once the checkpoint lock is released. After an abrupt stop, follow
+the [checkpoint recovery instructions](#prepare-a-new-or-updated-record).
+New arrivals join the next round. A changed identity, accepted mapping,
+current media or decoder wakes the affected entry. The preparer saves provider
+retry deadlines when it receives them. The command reports attempted,
 deferred and due work for the operator. The proposal still requires acceptance
 through the catalog delivery path.
 
