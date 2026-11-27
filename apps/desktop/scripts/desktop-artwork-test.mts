@@ -697,11 +697,26 @@ export async function artworkScenario({
       const reviewApply = By.xpath(
         '//form[.//h4[normalize-space(.)="Review artwork change"]]//button[normalize-space(.)="Apply"]',
       );
+      // The reused Windows app committed Show in 6.6 s while an overlapping
+      // read took 13.1 s. Wait for the next exact revision and reuse that read.
+      const readCoverChange = async (previousRevision: number, action: string) => {
+        const applied = await browser.wait(
+          async () => {
+            const observed = await state("cover");
+            return observed.choice.revision > previousRevision ? observed : false;
+          },
+          60_000,
+          `Cover ${action} did not return its applied revision`,
+        );
+        assert.ok(applied);
+        assert.equal(applied.choice.revision, previousRevision + 1);
+        return applied;
+      };
       await click(control("cover", "Hide artwork"));
       assert.deepEqual(await state("cover"), cover);
       await click(reviewApply);
-      await browser.wait(async () => (await state("cover")).choice.suppressed === true, 10_000);
-      const hidden = await state("cover");
+      const hidden = await readCoverChange(cover.choice.revision, "Hide");
+      assert.equal(hidden.choice.suppressed, true);
       // Hiding keeps the selection stored but unshown.
       assert.equal(hidden.choice.asset_sha256, cover.choice.asset_sha256);
       assert.equal(hidden.resolved_source.kind, "generated_fallback");
@@ -710,22 +725,14 @@ export async function artworkScenario({
       await click(control("cover", "Show artwork"));
       assert.deepEqual(await state("cover"), hidden);
       await click(reviewApply);
-      await browser.wait(
-        async () => (await state("cover")).choice.revision > hidden.choice.revision,
-        10_000,
-      );
-      const shown = await state("cover");
+      const shown = await readCoverChange(hidden.choice.revision, "Show");
       assert.equal(shown.choice.asset_sha256, cover.choice.asset_sha256);
       assert.notEqual(shown.choice.suppressed, true);
       assert.deepEqual(shown.resolved_source, cover.resolved_source);
       await click(control("cover", "Use automatic"));
       assert.deepEqual(await state("cover"), shown);
       await click(reviewApply);
-      await browser.wait(
-        async () => (await state("cover")).choice.revision > shown.choice.revision,
-        10_000,
-      );
-      const reset = await state("cover");
+      const reset = await readCoverChange(shown.choice.revision, "Use automatic");
       assert.equal(reset.choice.asset_sha256, null);
       assert.notEqual(reset.choice.suppressed, true);
       assert.equal(reset.resolved_source.kind, "generated_fallback");
