@@ -13,6 +13,14 @@
       "evidence_urls": ["https://github.com/aitorcachero/acecombat2-recomp"],
       "source_editions": []
     },
-    "original_game_title": "Ace Combat 2"
+    "original_game_title": "Ace Combat 2",
+    "artwork": {
+      "game_id": 14750,
+      "cover_id": 126199,
+      "image_id": "co2pdj",
+      "image_sha256": "72080945d234d8cea99288607d4adc29ff14b0e57305ff7a4a022155ecee5090",
+      "game_slug": "ace-combat-2",
+      "match_kind": "underlying-game"
+    }
   }
 }
