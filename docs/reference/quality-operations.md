@@ -563,7 +563,9 @@ seconds for the former extension allowlist on the same checkout.
 
 Maintained routes select non-production, complete package scope and the native
 5 MB discovery limit. The whole-Desktop check uses type-aware analysis so the
-checker can follow class member use through React context. Tooling, CSS and review
+checker can follow class member use through React context. Its launcher uses the
+matching `fallow-type-aware` companion from the repository lockfile. The Desktop
+gate requires the report to confirm semantic execution. Tooling, CSS and review
 routes use syntax-based analysis. The Desktop check keeps private type-leak
 analysis outside its existing gate. All routes normalize inherited scope settings
 to their configured choices. They reject an inherited `FALLOW_DIFF_FILE`
