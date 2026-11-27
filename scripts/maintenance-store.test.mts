@@ -74,6 +74,64 @@ void test("recovery validates local destinations before admission and rechecks t
     () => createBackupRecovery({ ...options, target: prefixDatabase }),
     /must be distinct/u,
   );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        target: { ...prefixDatabase, PGHOST: "/fixture/.", PGPORT: "5432" },
+      }),
+    /must be distinct/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        prefixDatabase: { ...prefixDatabase, PGHOST: "/fixture,/other" },
+      }),
+    /must use a local Unix socket/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        prefixDatabase: { ...prefixDatabase, PGPORT: "5432,5433" },
+      }),
+    /one explicit database name and port/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        prefixDatabase: { ...prefixDatabase, PGHOSTADDR: "127.0.0.1" },
+      }),
+    /must use a direct local connection/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        prefixDatabase: { ...prefixDatabase, PGDATABASE: "x".repeat(64) },
+      }),
+    /one explicit database name and port/u,
+  );
+  const previous = path.join(root, "not-opened-before-admission");
+  assert.doesNotThrow(() =>
+    createBackupRecovery({
+      ...options,
+      previous,
+      source: { ...prefixDatabase, PGDATABASE: "x".repeat(64) },
+    }),
+  );
+  assert.doesNotThrow(() =>
+    createBackupRecovery({
+      ...options,
+      previous,
+      source: { ...prefixDatabase, PGDATABASE: "", PGUSER: "prefix" },
+    }),
+  );
+  assert.doesNotThrow(() =>
+    createBackupRecovery({ ...options, previous, source: { ...prefixDatabase, PGPORT: "5433" } }),
+  );
   const recover = createBackupRecovery(options);
   writeFileSync(output, "existing data");
   assert.throws(() => createBackupRecovery(options), /Backup destination already exists/u);
@@ -1209,6 +1267,28 @@ void test(
       );
     }, /Backup destination already exists/u);
     assert.deepEqual(ledger("occupied-backup"), []);
+    const badSeed = path.join(fixture.root, "bad-local-recovery-seed");
+    mkdirSync(badSeed);
+    assert.throws(
+      () => createBackupRecovery({ source, prefixDatabase, target, previous: badSeed, output }),
+      /Backup manifest is missing or malformed/u,
+    );
+    rmSync(badSeed, { recursive: true });
+    const manifest = await backup(source, badSeed);
+    writeFileSync(path.join(badSeed, manifest.dump.file), "corrupt dump");
+    await assert.rejects(async () => {
+      const rejected = createBackupRecovery({
+        source,
+        prefixDatabase,
+        target,
+        previous: badSeed,
+        output,
+      });
+      await retryBackupAdmission((bytes) =>
+        runAdmittedMaintenance(source, reserve("corrupt-local-seed", bytes), rejected),
+      );
+    }, /Backup dump does not match its manifest digest/u);
+    assert.deepEqual(ledger("corrupt-local-seed"), []);
     const result = await retryBackupAdmission((bytes) =>
       runAdmittedMaintenance(source, reserve("real-recovery", bytes), recover, {
         estimate: ({ transfer }) =>
