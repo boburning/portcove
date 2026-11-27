@@ -73,8 +73,11 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   expect(document.body.textContent).toContain("Sample Port");
   expect(document.body.textContent).toContain("Catalog ID: sample");
   expect(document.body.textContent).toContain("library/backups/sample/snapshot");
-  expect(document.body.textContent).toContain(
-    "Portcove will back up the current saved data before replacing it",
+  const reviewText = dialog.textContent ?? "";
+  const safetyCopy = "Portcove will back up the current saved data before replacing it";
+  expect(reviewText).toContain(safetyCopy);
+  expect(reviewText.indexOf(safetyCopy)).toBeLessThan(
+    reviewText.indexOf("library/backups/sample/snapshot"),
   );
   expect(document.body.textContent).toContain("game must be stopped");
   expect(document.body.textContent).toContain("retains recovery data");
@@ -316,6 +319,9 @@ it("ignores an old review after the library or selected backup changes", async (
   await act(async () => finish(review));
   expect(document.body.textContent).toContain("current/snapshot");
   expect(document.body.textContent).not.toContain("library/backups/sample/snapshot");
-  expect(document.body.textContent).toContain("There is no current saved data to back up");
+  const reviewText = document.querySelector('[role="dialog"]')?.textContent ?? "";
+  const safetyCopy = "There is no current saved data to back up";
+  expect(reviewText).toContain(safetyCopy);
+  expect(reviewText.indexOf(safetyCopy)).toBeLessThan(reviewText.indexOf("current/snapshot"));
   expect(apply).not.toHaveBeenCalled();
 });
