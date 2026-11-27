@@ -1181,10 +1181,23 @@ trusted producer checkout, and compares the entire resulting Git tree and single
 parent with the exact proposal head. It runs the verification commands at the
 admission workflow revision so an older retained producer can still be replayed.
 It retains `catalog-admission-review` as a receipt for that head. After that
-job succeeds, the App marks the verified draft ready so the regular required
-checks can finish. The job checks the exact App proposal and head again before
-and after changing draft status. An already-ready or closed proposal needs no
-update. Required PR checks and the guarded merge still apply.
+job succeeds, the App can mark the verified draft ready once its branch is
+covered by the reviewed admission ruleset. GitHub's ready operation names the
+pull request without an expected head. The ruleset prevents updating,
+deleting, or replacing that head while the operation runs. The job checks the
+exact App proposal and head before and after changing draft status. An
+already-ready or closed proposal needs no update. A ready event may request a
+full rerun. Require the exact full CI attempt separately before guarded merge.
+
+The owner reviews the dedicated active repository ruleset for
+`refs/heads/automation/catalog-admission-*` with no exclusions or bypass
+actors. Restrict updates and deletion, with upstream fetch-and-merge disabled.
+Creation stays available for a new batch. Pin the reviewed ruleset ID and its
+public `updated_at` in `PORTCOVE_CATALOG_ADMISSION_RULESET_ID` and
+`PORTCOVE_CATALOG_ADMISSION_RULESET_REVIEWED_AT`. GitHub may omit the bypass
+list for the App and workflow read tokens, so the owner checks it before
+pinning the revision. Leave these variables unset until the rule is approved
+and checked. A verified draft remains in review when the rule is absent.
 
 Repository-bound GitHub listings raise the generated directory to format 17.
 The workflow needs a released reader that validates that format to open a

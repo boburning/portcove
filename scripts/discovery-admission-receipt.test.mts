@@ -16,6 +16,7 @@ import {
 } from "./discovery-admission-receipt.mts";
 import {
   catalogAdmissionGitHub,
+  checkCatalogAdmissionBranchFence,
   openCatalogAdmissionProposal,
 } from "./discovery-admission-github.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
@@ -517,12 +518,60 @@ void test("admission reviews carry current verifier code into an older producer 
     "needs.review.result == 'success' && needs.review.outputs.matched == 'true'",
   );
   const readiness = (qualify.steps as unknown[]).filter(isRecord);
-  const ready = readiness.find(
-    ({ name }) => name === "Start the required checks for the verified proposal",
-  );
+  const ready = readiness.find(({ name }) => name === "Mark the verified proposal ready");
   assert.ok(isRecord(ready) && typeof ready.run === "string");
   assert.match(ready.run, /qualification\)[\s\S]*gh pr ready "\$PROPOSAL"[\s\S]*qualification\)/u);
-  assert.doesNotMatch(ready.run, /merge|--admin/u);
+  assert.match(ready.run, /branch-fence\)[\s\S]*gh pr ready "\$PROPOSAL"[\s\S]*branch-fence\)/u);
+  assert.doesNotMatch(ready.run, /gh pr merge|--admin/u);
+});
+
+void test("automated readiness requires the reviewed update and deletion rules on its exact branch", () => {
+  const id = 104;
+  const source = "boburning/portcove";
+  const reviewedAt = "2026-11-27T12:10:00Z";
+  const rules = [
+    { type: "update", parameters: { update_allows_fetch_and_merge: false } },
+    { type: "deletion" },
+  ];
+  const ruleset = {
+    id,
+    target: "branch",
+    source_type: "Repository",
+    source,
+    enforcement: "active",
+    updated_at: reviewedAt,
+    conditions: {
+      ref_name: { include: ["refs/heads/automation/catalog-admission-*"], exclude: [] },
+    },
+    rules,
+  };
+  const applicable = rules.map((rule) => ({
+    ...rule,
+    ruleset_id: id,
+    ruleset_source_type: "Repository",
+    ruleset_source: source,
+  }));
+  checkCatalogAdmissionBranchFence(ruleset, applicable, id, reviewedAt);
+  checkCatalogAdmissionBranchFence({ ...ruleset, bypass_actors: [] }, applicable, id, reviewedAt);
+  for (const altered of [
+    { ...ruleset, updated_at: "2026-11-27T12:11:00Z" },
+    { ...ruleset, enforcement: "evaluate" },
+    { ...ruleset, bypass_actors: [{ actor_id: 3 }] },
+    { ...ruleset, conditions: { ref_name: { include: ["~ALL"], exclude: [] } } },
+  ])
+    assert.throws(
+      () => checkCatalogAdmissionBranchFence(altered, applicable, id, reviewedAt),
+      /reviewed catalog admission branch ruleset differs/u,
+    );
+  for (const altered of [
+    [applicable[0]],
+    [applicable[0], { ...applicable[1], ruleset_id: id + 1 }],
+    [{ ...applicable[0], parameters: { update_allows_fetch_and_merge: true } }, applicable[1]],
+  ])
+    assert.throws(
+      () => checkCatalogAdmissionBranchFence(ruleset, altered, id, reviewedAt),
+      /does not lock the exact/u,
+    );
 });
 
 void test("proposal gate follows a numeric repository page without changing its scope", async () => {

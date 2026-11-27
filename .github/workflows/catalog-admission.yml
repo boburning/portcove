@@ -250,6 +250,8 @@ jobs:
     timeout-minutes: 12
     environment: catalog-admission
     env:
+      ADMISSION_RULESET_ID: ${{ vars.PORTCOVE_CATALOG_ADMISSION_RULESET_ID }}
+      ADMISSION_RULESET_REVIEWED_AT: ${{ vars.PORTCOVE_CATALOG_ADMISSION_RULESET_REVIEWED_AT }}
       CONTROLLER_SOURCE: ${{ github.workflow_sha }}
       DISCOVERY_RUN: ${{ github.event.workflow_run.id }}
       DISCOVERY_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
@@ -278,6 +280,11 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
           state=$(node scripts/discovery-admission-github.mts qualification)
           if [[ "$state" == draft ]]; then
+            if [[ -z "$ADMISSION_RULESET_ID" || -z "$ADMISSION_RULESET_REVIEWED_AT" ]]; then
+              echo 'Verified draft is waiting for its reviewed admission branch lock.' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            [[ "$(node scripts/discovery-admission-github.mts branch-fence)" == locked ]]
             echo 'draft=true' >> "$GITHUB_OUTPUT"
           else
             echo "Verified proposal $PROPOSAL is already $state." >> "$GITHUB_STEP_SUMMARY"
@@ -290,7 +297,7 @@ jobs:
           app-id: ${{ vars.CATALOG_ADMISSION_APP_ID }}
           private-key: ${{ secrets.CATALOG_ADMISSION_APP_PRIVATE_KEY }}
           permission-pull-requests: write
-      - name: Start the required checks for the verified proposal
+      - name: Mark the verified proposal ready
         if: steps.assess.outputs.draft == 'true'
         timeout-minutes: 3
         env:
@@ -301,9 +308,14 @@ jobs:
           [[ "$APP_SLUG" == "$EXPECTED_APP" && -n "$APP_SLUG" ]]
           state=$(node scripts/discovery-admission-github.mts qualification)
           if [[ "$state" == draft ]]; then
+            [[ "$(node scripts/discovery-admission-github.mts branch-fence)" == locked ]]
             # Read back the exact head even if the mutation's reply is lost.
             gh pr ready "$PROPOSAL" || true
+            [[ "$(node scripts/discovery-admission-github.mts branch-fence)" == locked ]]
             state=$(node scripts/discovery-admission-github.mts qualification)
           fi
           [[ "$state" == ready || "$state" == closed ]]
           echo "Verified proposal $PROPOSAL is $state." >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$state" == ready ]]; then
+            echo 'The full required CI attempt still needs an exact-head receipt. If the ready-event rerun is absent, use the normal all-jobs retry for that head.' >> "$GITHUB_STEP_SUMMARY"
+          fi
