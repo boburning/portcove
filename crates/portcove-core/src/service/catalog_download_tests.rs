@@ -339,8 +339,11 @@ async fn downloaded_win32_game_is_distinguished_from_converter_without_running_e
 
 #[tokio::test]
 async fn extracted_package_manifest_suggests_a_native_program_for_an_unknown_listing() {
-    let (temporary, mut service, request) = fixture();
+    let (temporary, mut service, mut request) = fixture();
     let mut document = service.catalog.listing_document().clone();
+    document.format_version = crate::catalog::listings::REPOSITORY_BOUND_LISTING_FORMAT;
+    request.port_id = "github-123".into();
+    document.listings[0].id = request.port_id.clone();
     document.listings[0].project_url = "https://github.com/owner/game/".into();
     service.catalog = service
         .catalog
@@ -383,9 +386,18 @@ async fn extracted_package_manifest_suggests_a_native_program_for_an_unknown_lis
         zip::write::SimpleFileOptions::default(),
     )
     .unwrap();
-    zip.write_all(&manifest(1, "owner/game", &[first, second]))
+    zip.write_all(&manifest(1, "new-owner/renamed-game", &[first, second]))
         .unwrap();
-    let github = GithubFixture::new(zip.finish().unwrap().into_inner(), None, None);
+    let github = GithubFixture::for_api_repository(
+        "repositories/123",
+        zip.finish().unwrap().into_inner(),
+        None,
+        None,
+    );
+    github.assets.lock().unwrap()[0]["browser_download_url"] =
+        json!("https://github.com/new-owner/renamed-game/releases/download/v1.0/game.zip");
+    *github.repository_identity.lock().unwrap() =
+        Some(json!({"id":123,"full_name":"new-owner/renamed-game"}));
     let preview = service
         .catalog_download_preview_with_provider(&request, &github.provider)
         .await
@@ -399,6 +411,14 @@ async fn extracted_package_manifest_suggests_a_native_program_for_an_unknown_lis
         )
         .await
         .unwrap();
+    assert_eq!(
+        pending.listing.project_url,
+        "https://github.com/owner/game/"
+    );
+    assert_eq!(
+        pending.artifact.release_url,
+        "https://github.com/new-owner/renamed-game/releases/tag/v1.0"
+    );
     let inspect = || {
         service
             .discover_setup_launch_targets(&request.port_id, &pending.id)

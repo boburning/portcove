@@ -47,7 +47,7 @@ pub struct SetupLaunchTargets {
 /// manifest grants no execution, arguments, file ownership, or loader binding.
 fn release_manifest_program<'a>(
     root: &Path,
-    project_url: &str,
+    pending: &PendingSetupRecord,
     candidates: &[&'a SetupLaunchTarget],
 ) -> Option<&'a SetupLaunchTarget> {
     let file =
@@ -62,10 +62,10 @@ fn release_manifest_program<'a>(
     let manifest: ReleaseLaunchManifest = serde_json::from_slice(&bytes).ok()?;
     if manifest.format != 1
         || manifest.games.is_some()
-        || manifest.repo.as_deref().is_some_and(|repo| {
-            !crate::release::catalog_download_repository(project_url)
-                .is_ok_and(|expected| repo.eq_ignore_ascii_case(&expected))
-        })
+        || manifest
+            .repo
+            .as_deref()
+            .is_some_and(|repo| !release_manifest_repository_matches(pending, repo))
         || !(1..=16).contains(&manifest.start.program.len())
     {
         return None;
@@ -89,6 +89,19 @@ fn release_manifest_program<'a>(
             candidate.executable.strip_prefix(root).ok() == Some(program.as_path())
         })
     })
+}
+
+fn release_manifest_repository_matches(pending: &PendingSetupRecord, declared: &str) -> bool {
+    let matches = |url: &str| {
+        crate::release::catalog_download_repository(url)
+            .is_ok_and(|repository| declared.eq_ignore_ascii_case(&repository))
+    };
+    matches(&pending.listing.project_url)
+        // Download resolves a replacement slug only through the admitted
+        // numeric GitHub repository. Reuse the resulting retained route.
+        || (pending.listing.admitted_github_repository_id().is_some()
+            && pending.artifact.release_id.github_id().is_some()
+            && matches(&pending.artifact.release_url))
 }
 
 // Validate format/processor rather than treating an extension as a game identity.
@@ -447,7 +460,7 @@ impl PortcoveService {
             .collect::<Vec<_>>();
         let raw_package = root.join(&pending.artifact.name).is_file();
         let declared = if complete && !raw_package && hints.is_empty() {
-            release_manifest_program(&root, &pending.listing.project_url, &plausible)
+            release_manifest_program(&root, &pending, &plausible)
         } else {
             None
         };

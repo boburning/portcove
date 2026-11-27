@@ -156,9 +156,10 @@ setup; retain its working directory and literal arguments.
 With no maintained executable hints, an extracted package can suggest a program
 through its root `recomplauncher.json`. Core reads format 1 and takes the first
 exact `start.program` path that matches an inspected native candidate. If the
-manifest declares `repo`, it must agree with the selected GitHub project. If the
-declaration is unavailable or has no usable match, ordinary suggestions remain
-available. The choice still needs confirmation. Portcove does not use its
+manifest declares `repo`, it must agree with the selected GitHub project. For a
+listing bound to a numeric repository ID, the verified release route can identify
+the same project after a rename. If the declaration is unavailable or has no usable
+match, ordinary suggestions remain available. The choice still needs confirmation. Portcove does not use its
 arguments, environment, setup commands, or loader declarations.
 
 GitLab listings use the same candidates, preview, download and pending workflow.
