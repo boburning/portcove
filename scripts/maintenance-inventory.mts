@@ -4716,6 +4716,7 @@ export function acknowledgeDigest(
         WHERE status = 'pending' AND notification_key IN (${keys.map(literal).join(", ")})
         RETURNING 1)
      SELECT count(*) FROM updated;`,
+    { executor: true },
   ).trim();
   return { delivered: Number(delivered) };
 }
@@ -4962,7 +4963,7 @@ export async function main(argv = process.argv.slice(2)) {
     await import("./maintenance-resource-policy.mts");
   try {
     return await withMaintenanceAdmission(environment, operation, run, {
-      executor: command === "handoffs" && reconcileIntake,
+      executor: command === "acknowledge" || (command === "handoffs" && reconcileIntake),
       request,
       completed: () => complete,
     });
