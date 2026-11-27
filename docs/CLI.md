@@ -2973,7 +2973,8 @@ install and update files outside Portcove.
 Use **Edit mod websites** in Mods to add a website or hide one of the
 automatic links. Portcove stores these choices for this game in the current
 library. Use **Use automatic websites** to clear your choices and show the
-latest accepted links.
+latest accepted links. A generated Thunderstore website stays hidden when an
+updated catalog supplies the same community through a different source.
 
 To set the same choices from the CLI, get the current
 `mod_portal_preferences.preferences.revision` from `profile setups --json`.

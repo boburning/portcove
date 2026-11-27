@@ -944,6 +944,154 @@ async fn signed_mod_source_enrichment_preserves_the_installed_provider_scope() {
 }
 
 #[tokio::test]
+async fn hidden_generated_mod_community_survives_origin_changes_and_restart() {
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let id = "new-unmanaged-port";
+    let derived = "obs-ts-789-12345678-1111-2222-3333-123456789abc";
+    let direct = "obs-gh-thunderstore-12345";
+    let expected_url = "https://thunderstore.io/c/example-community/";
+    let portal = |source: &str, url: &str| {
+        json!({
+            "id":source,"site":"community_site","name":"Thunderstore","url":url,
+            "instructions":"Open the community to browse its mods."
+        })
+    };
+    let mut candidate = feed(1);
+    candidate["directory"]["format_version"] = json!(16);
+    candidate["directory"]["listings"][0]["mod_portals"] = json!([portal(derived, expected_url)]);
+    let mut damaged_row = candidate["directory"]["listings"][0].clone();
+    damaged_row["id"] = json!("damaged-preference");
+    candidate["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .push(damaged_row);
+    let mut unresolved_row = feed(1)["directory"]["listings"][0].clone();
+    unresolved_row["id"] = json!("unresolved-preference");
+    candidate["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .push(unresolved_row);
+    let root = publish_compact(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+
+    // Simulate the old reader saving the signed source ID before its first
+    // refresh with the capable reader. Both IDs are authentic listing evidence.
+    let choices = crate::ModPortalChoices {
+        local_page: None,
+        hidden_sources: vec![derived.into()],
+    };
+    library.connection().unwrap().execute(
+        "INSERT INTO mod_portal_preferences(port_id, revision, choices_json) VALUES (?1, 1, ?2)",
+        rusqlite::params![id, serde_json::to_string(&choices).unwrap()],
+    ).unwrap();
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "INSERT INTO mod_portal_preferences(port_id, revision, choices_json)
+         VALUES ('unresolved-preference', 1, ?1)",
+            [serde_json::to_string(&crate::ModPortalChoices {
+                local_page: None,
+                hidden_sources: vec![direct.into()],
+            })
+            .unwrap()],
+        )
+        .unwrap();
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "INSERT INTO mod_portal_preferences(port_id, revision, choices_json)
+         VALUES ('damaged-preference', 1, ?1)",
+            [serde_json::to_string(&crate::ModPortalChoices {
+                local_page: None,
+                hidden_sources: vec![derived.into(), derived.into()],
+            })
+            .unwrap()],
+        )
+        .unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let before = service
+        .effective_external_mod_portals(id, crate::Platform::current().ok())
+        .unwrap();
+    assert!(before.external_mod_portals.is_empty());
+    assert_eq!(before.mod_portal_preferences.preferences.choices, choices);
+
+    let unrelated = "https://thunderstore.io/c/unrelated/";
+    for (revision, preference_revision, source, url, hidden) in [
+        (2, 2, direct, expected_url, true),
+        (3, 3, direct, unrelated, false),
+        (4, 5, derived, expected_url, true),
+        (5, 6, direct, unrelated, true),
+    ] {
+        candidate["revision"] = json!(revision);
+        candidate["directory"]["listings"][0]["mod_portals"] = json!([portal(source, url)]);
+        candidate["directory"]["listings"][2]["mod_portals"] = json!([portal(direct, unrelated)]);
+        let root = publish_compact(&fixture, &key, revision, &candidate).await;
+        assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+        let restarted = PortcoveService::new(library.clone()).unwrap();
+        let view = restarted
+            .effective_external_mod_portals(id, crate::Platform::current().ok())
+            .unwrap();
+        assert_eq!(view.external_mod_portals.is_empty(), hidden);
+        assert_eq!(
+            restarted
+                .effective_external_mod_portals(
+                    "unresolved-preference",
+                    crate::Platform::current().ok()
+                )
+                .unwrap()
+                .external_mod_portals[0]
+                .url,
+            unrelated,
+        );
+        assert_eq!(
+            view.mod_portal_preferences.preferences.revision,
+            preference_revision
+        );
+        let saved: String = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT choices_json FROM mod_portal_preferences WHERE port_id = ?1",
+                [id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let older_reader_choices: crate::ModPortalChoices = serde_json::from_str(&saved).unwrap();
+        assert_eq!(
+            older_reader_choices.hidden_sources,
+            if hidden {
+                vec![source.to_owned()]
+            } else {
+                vec![]
+            }
+        );
+        if revision == 3 {
+            restarted
+                .set_mod_portal_preferences(
+                    id,
+                    preference_revision,
+                    crate::ModPortalChoices {
+                        local_page: None,
+                        hidden_sources: vec![direct.into()],
+                    },
+                )
+                .unwrap();
+        }
+    }
+    let restarted = PortcoveService::new(library).unwrap();
+    let reset = restarted
+        .set_mod_portal_preferences(id, 6, crate::ModPortalChoices::default())
+        .unwrap();
+    assert_eq!(reset.external_mod_portals[0].source, direct);
+    assert_eq!(reset.external_mod_portals[0].url, unrelated);
+}
+
+#[tokio::test]
 async fn signed_listing_mod_portals_update_without_installation_or_operational_authority() {
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());
