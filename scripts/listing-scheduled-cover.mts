@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.d.ts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { validArtworkMapping } from "./catalog-cover-mapping.mts";
@@ -7,6 +8,7 @@ import {
   type ArtworkRecord,
   type createIgdbInspector,
 } from "./inspect-igdb-artwork.mts";
+import { advanceArtworkCheckpoint } from "./listing-artwork-checkpoint.mts";
 import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
 import {
   coverIdentity,
@@ -18,6 +20,17 @@ export type ScheduledCover = { id: string; artwork: IgdbArtwork };
 type Decisions = ReadonlyMap<string, ReviewedOriginalMediaDecision>;
 type Listing = Record<string, unknown>;
 type Inspector = Pick<ReturnType<typeof createIgdbInspector>, "inspectGame" | "inspectImage">;
+type CoverObservations = Parameters<typeof advanceArtworkCheckpoint>[1];
+
+function scheduledCoverScope(key: string, artwork: IgdbArtwork) {
+  // The checkpoint record belongs to the original edition and reviewed provider
+  // identity, so new peers and renamed repositories inherit the same history.
+  const subject = createHash("sha256")
+    .update(JSON.stringify([key, artwork.game_id, artwork.game_slug]))
+    .digest("hex");
+  const scope = createHash("sha256").update(subject).update(coverIdentity(artwork)).digest("hex");
+  return { id: `scheduled-cover-${subject}`, scope };
+}
 
 function reviewedScope(record: AuthoredPort, reviewed: Decisions) {
   if (record.listing.artwork || record.listing.collection_covers) return undefined;
@@ -78,7 +91,7 @@ export function asCoverProgress(record: ArtworkRecord) {
   };
 }
 
-/** Revalidate newly proposed covers, retire Gone or changed signed defaults,
+/** Revalidate newly proposed covers, record Gone and hold changed signed bytes,
  * and share only against the exact maintained original-game edition. */
 export async function projectScheduledCovers({
   authored,
@@ -88,6 +101,12 @@ export async function projectScheduledCovers({
   incoming,
   shared,
   denied,
+  held = new Set<string>(),
+  ambiguous = new Set<string>(),
+  priorCheckpoint = null,
+  observations = [],
+  receiptStarted,
+  receiptDigest,
   now,
   inspect,
 }: {
@@ -98,13 +117,21 @@ export async function projectScheduledCovers({
   incoming?: readonly ScheduledCover[];
   shared: ReadonlyMap<string, IgdbArtwork>;
   denied: ReadonlySet<string>;
+  held?: ReadonlySet<string>;
+  ambiguous?: ReadonlySet<string>;
+  priorCheckpoint?: Parameters<typeof advanceArtworkCheckpoint>[0];
+  observations?: CoverObservations;
+  receiptStarted?: number;
+  receiptDigest?: string;
   now: number;
   inspect?: Inspector["inspectImage"];
 }) {
   const eligible = new Map(
     authored.flatMap((record) => {
       const known = reviewedScope(record, reviewed);
-      return known ? [[record.listing.id, { ...known, listing: record.listing }] as const] : [];
+      return known && !ambiguous.has(record.listing.id)
+        ? [[record.listing.id, { ...known, listing: record.listing }] as const]
+        : [];
     }),
   );
   type Offer = { artwork: IgdbArtwork; key: string };
@@ -145,19 +172,38 @@ export async function projectScheduledCovers({
     reads.set(artwork.image_id, request);
     return request;
   }
-  const retired = new Set<string>();
+  const health = [...observations];
+  const changed = new Set(held);
+  const prior = advanceArtworkCheckpoint(priorCheckpoint, observations);
   if (inspect) {
     const targets = [
-      ...new Map([...retained.values()].map(({ artwork }) => [coverIdentity(artwork), artwork])),
+      ...new Map([...retained.values()].map((offer) => [coverIdentity(offer.artwork), offer])),
     ].sort(([a], [b]) => a.localeCompare(b));
     const width = 8;
     const offset =
       (Math.floor(now / 86_400_000) % Math.max(1, Math.ceil(targets.length / width))) * width;
-    for (const [identity, artwork] of targets.slice(offset, offset + width)) {
+    for (const [, { artwork }] of targets.slice(offset, offset + width)) {
       const value = await observe(artwork);
-      if (value !== null && value !== artwork.image_sha256) retired.add(identity);
+      if (value !== null && value !== artwork.image_sha256) changed.add(artwork.image_id);
+    }
+    const goneScopes = new Set<string>();
+    for (const { key, artwork } of retained.values()) {
+      if ((await reads.get(artwork.image_id)) !== "gone") continue;
+      const scope = scheduledCoverScope(key, artwork);
+      if (goneScopes.has(scope.scope)) continue;
+      goneScopes.add(scope.scope);
+      health.push({
+        ...scope,
+        artwork,
+        status: "propose_fallback",
+        observed_at: new Date(now).toISOString(),
+        report: `sha256:${createHash("sha256")
+          .update(JSON.stringify(["approved-cdn-gone", coverIdentity(artwork), now]))
+          .digest("hex")}`,
+      });
     }
   }
+  let checkpoint = advanceArtworkCheckpoint(priorCheckpoint, health);
   const offers = new Map<string, IgdbArtwork | null>();
   function propose(offer: Offer) {
     const prior = offers.get(offer.key);
@@ -165,13 +211,15 @@ export async function projectScheduledCovers({
     else if (prior && coverIdentity(prior) !== coverIdentity(offer.artwork))
       offers.set(offer.key, null);
   }
-  for (const offer of retained.values())
-    if (!retired.has(coverIdentity(offer.artwork))) propose(offer);
+  const hasWithdrawal = ({ key, artwork }: Offer) =>
+    checkpoint.withdrawalsFor(scheduledCoverScope(key, artwork).id).length > 0;
+  for (const offer of retained.values()) if (!hasWithdrawal(offer)) propose(offer);
   function distribute() {
     const proposals = new Map<string, IgdbArtwork>();
     for (const [id, { scope }] of eligible) {
       const mapping = offers.get(scope.key);
-      if (!shared.has(id) && mapping) proposals.set(id, mapping);
+      if (!shared.has(id) && mapping && (!changed.has(mapping.image_id) || retained.has(id)))
+        proposals.set(id, mapping);
     }
     return proposals;
   }
@@ -181,8 +229,32 @@ export async function projectScheduledCovers({
     if (
       inspect &&
       !retainedScopes.has(offer.key) &&
+      !changed.has(offer.artwork.image_id) &&
       (await observe(offer.artwork)) === offer.artwork.image_sha256
-    )
+    ) {
+      const { artwork } = offer;
+      const scope = scheduledCoverScope(offer.key, artwork);
+      const withdrawals = checkpoint.withdrawalsFor(scope.id);
+      if (withdrawals.length) {
+        const sameImage = prior.withdrawalsFor(scope.id).find((row) => row.scope === scope.scope);
+        if (
+          !sameImage ||
+          !receiptDigest ||
+          receiptStarted === undefined ||
+          receiptStarted <= Date.parse(sameImage.observed_at)
+        )
+          continue;
+        health.push({
+          ...scope,
+          artwork,
+          status: "verified_accepted_bytes",
+          observed_at: new Date(now).toISOString(),
+          report: receiptDigest,
+        });
+        checkpoint = advanceArtworkCheckpoint(priorCheckpoint, health);
+        if (hasWithdrawal(offer)) continue;
+      }
       propose(offer);
-  return { preserved, proposals: distribute() };
+    }
+  return { preserved, proposals: distribute(), checkpoint };
 }

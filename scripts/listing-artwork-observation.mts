@@ -393,6 +393,7 @@ export async function readHostedScheduledGameMedia(
     proposal,
     producerListings: producer.listings,
     artifact: artifact.digest,
+    started: run.started,
   };
 }
 

@@ -2202,6 +2202,22 @@ void test("scheduled missing covers reuse an exact edition and survive transient
     },
   });
   assert.deepEqual(outage.preserved.get(peer.id), artwork);
+  const drift = "b".repeat(64);
+  const replacement = [{ id: donor.id, artwork: { ...artwork, image_sha256: drift } }];
+  const held = await projectScheduledCovers({
+    ...options,
+    previous: new Map([[donor.id, { ...donor, artwork }]]),
+    incoming: replacement,
+    inspect: async () => ({ ...image, sha256: drift }),
+  });
+  assert.deepEqual(held.proposals.get(donor.id), artwork);
+  assert.equal(held.proposals.has(peer.id), false);
+  const upstreamHold = await projectScheduledCovers({
+    ...options,
+    held: new Set([artwork.image_id]),
+    inspect: async () => image,
+  });
+  assert.equal(upstreamHold.proposals.size, 0);
   const gone = createIgdbInspector(
     null,
     () => assert.fail("withdrawn cover cannot decode"),
@@ -2214,6 +2230,23 @@ void test("scheduled missing covers reuse an exact edition and survive transient
   });
   assert.equal(gone.providerMetrics.image_requests, 1);
   assert.equal(withdrawn.proposals.size, 0);
+  const listing = projectListingDelivery(canonical, [], signed.bytes, {
+    scheduledCovers: withdrawn.proposals,
+  }).bytes;
+  const checkpoint = withdrawn.checkpoint.finish(listing);
+  assert.ok(checkpoint);
+  const recovery = {
+    ...options,
+    priorCheckpoint: { bytes: checkpoint, listing },
+    receiptDigest: `sha256:${"c".repeat(64)}`,
+    now: options.now + 2_000,
+    inspect: async () => image,
+  };
+  const replayed = await projectScheduledCovers({ ...recovery, receiptStarted: options.now });
+  assert.equal(replayed.proposals.size, 0);
+  const restored = await projectScheduledCovers({ ...recovery, receiptStarted: options.now + 1 });
+  assert.deepEqual(restored.proposals.get(donor.id), artwork);
+  assert.deepEqual(restored.proposals.get(peer.id), artwork);
   assert.equal(
     (await projectScheduledCovers({ ...options, previous, reviewed: new Map() })).proposals.size,
     0,

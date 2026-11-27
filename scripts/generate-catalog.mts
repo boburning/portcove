@@ -875,6 +875,7 @@ async function prepareArtworkProposalRun(
               onBackoff: (status) =>
                 mediaDue.progress.retainArtworkProviderBackoff(mediaDue.providerRoot, status),
               maximumOperationImageBytes: coverBudget,
+              signal: AbortSignal.timeout(45_000),
             },
           );
           mediaDue.progress.restoreArtworkProviderBackoff(mediaDue.providerRoot, inspector);
