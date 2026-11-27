@@ -44,6 +44,29 @@ const artwork = {
   image_sha256: "a".repeat(64),
 } as const;
 
+void test("empty cover history requires initialization and retains its exact predecessor", () => {
+  const original = Buffer.from("first accepted listing");
+  const changed = Buffer.from("next accepted listing");
+  const pending = advanceArtworkCheckpoint(null, []);
+  assert.equal(pending.finish(original), null);
+  const initialized = pending.finish(original, true);
+  assert.ok(initialized);
+  const genesis = readArtworkCheckpoint(initialized, original);
+  assert.deepEqual(genesis.entries, []);
+  assert.equal(genesis.prior_checkpoint_sha256, null);
+  const active = advanceArtworkCheckpoint({ bytes: initialized, listing: original }, []);
+  assert.deepEqual(active.finish(original), initialized);
+  const advanced = active.finish(changed);
+  assert.ok(advanced);
+  const successor = readArtworkCheckpoint(advanced, changed);
+  assert.deepEqual(successor.entries, []);
+  assert.equal(
+    successor.prior_checkpoint_sha256,
+    createHash("sha256").update(initialized).digest("hex"),
+  );
+  assert.throws(() => readArtworkCheckpoint(advanced, original), /unbound/u);
+});
+
 void test("scheduled game media only reads the exact bounded main-run artifact", async () => {
   const run = {
     id: 4601,

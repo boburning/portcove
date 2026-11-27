@@ -100,7 +100,7 @@ fn parse(raw: &[u8], listing_sha256: &str) -> Result<Checkpoint, InvalidCoverChe
             .prior_checkpoint_sha256
             .as_ref()
             .is_some_and(|sha| !digest(sha))
-        || !(1..=3072).contains(&checkpoint.entries.len())
+        || checkpoint.entries.len() > 3072
     {
         return Err(InvalidCoverCheckpoint);
     }
@@ -208,6 +208,55 @@ pub fn check_cover_checkpoint_successor(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn empty_cover_history_starts_and_advances_without_fabricating_a_withdrawal() {
+        let first_listing = "a".repeat(64);
+        let next_listing = "b".repeat(64);
+        let mut checkpoint = json!({
+            "checkpoint_schema": 1,
+            "listing_sha256": first_listing,
+            "prior_checkpoint_sha256": null,
+            "entries": [],
+        });
+        let empty = serde_json::to_vec(&checkpoint).unwrap();
+        let genesis = Some((empty.as_slice(), first_listing.as_str()));
+        assert!(check_cover_checkpoint_successor(None, genesis).is_ok());
+        assert!(check_cover_checkpoint_successor(genesis, None).is_err());
+        assert!(check_cover_checkpoint(&empty, &next_listing).is_err());
+
+        checkpoint["listing_sha256"] = json!(next_listing);
+        checkpoint["prior_checkpoint_sha256"] = json!(hex::encode(Sha256::digest(&empty)));
+        let advanced = serde_json::to_vec(&checkpoint).unwrap();
+        let successor = Some((advanced.as_slice(), next_listing.as_str()));
+        assert!(check_cover_checkpoint_successor(genesis, successor).is_ok());
+        assert!(check_cover_checkpoint_successor(None, successor).is_err());
+
+        checkpoint["entries"] = json!([{
+            "id": "fixture", "scope": "c".repeat(64), "image_id": "cofixture",
+            "prior_sha256": "d".repeat(64), "observed_at": "2026-11-21T12:00:00.000Z",
+            "receipt": format!("sha256:{}", "e".repeat(64)), "state": "restored",
+        }]);
+        let fabricated = serde_json::to_vec(&checkpoint).unwrap();
+        assert!(
+            check_cover_checkpoint_successor(genesis, Some((&fabricated, &next_listing))).is_err()
+        );
+        checkpoint["entries"][0]["state"] = json!("gone");
+        let withdrawn = serde_json::to_vec(&checkpoint).unwrap();
+        assert!(
+            check_cover_checkpoint_successor(genesis, Some((&withdrawn, &next_listing))).is_ok()
+        );
+        checkpoint["entries"] = json!([]);
+        checkpoint["prior_checkpoint_sha256"] = json!(hex::encode(Sha256::digest(&withdrawn)));
+        let dropped = serde_json::to_vec(&checkpoint).unwrap();
+        assert!(
+            check_cover_checkpoint_successor(
+                Some((&withdrawn, &next_listing)),
+                Some((&dropped, &next_listing)),
+            )
+            .is_err()
+        );
+    }
 
     #[test]
     fn cover_checkpoint_recovery_requires_the_exact_active_listing_and_predecessor() {

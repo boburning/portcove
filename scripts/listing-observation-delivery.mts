@@ -1849,7 +1849,9 @@ export async function prepareObservationBundle(options: {
           delivery(parseCatalogSource(projected.bytes.toString("utf8"))).directory.listings,
         )
       : coverCheckpoint;
-    const cover = renewal ? priorCover : (checkpoint?.finish(projected.bytes) ?? null);
+    const cover = renewal
+      ? priorCover
+      : (checkpoint?.finish(projected.bytes, options.activateCoverCheckpoint) ?? null);
     if (cover)
       writeFileSync(path.join(destinationRoot, artworkCheckpointTarget), cover, { flag: "wx" });
     try {
@@ -1982,7 +1984,7 @@ export async function prepareObservationBundle(options: {
       if (options.activateCoverCheckpoint && !staged.cover) {
         throw new ListingPublicationStop(
           "cover_evidence_unavailable",
-          "First cover checkpoint needs an accepted withdrawal from the completed artwork report",
+          "First cover checkpoint must bind a current authenticated listing projection",
         );
       }
       if (

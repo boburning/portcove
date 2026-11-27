@@ -9,6 +9,7 @@ import {
   compactListingCarrier,
   compactListingDecodedMaximum,
   compactListingDeliveryTarget,
+  decodeRetainedCompactListing,
   encodeCompactListing,
   listingDeliveryMaximum,
   listingDeliveryTarget,
@@ -175,7 +176,7 @@ void test("the rehearsal drives every activation step through preparation", asyn
   assert.match(report.preconditions.without_prior, /requires the prior signed repository/u);
 });
 
-void test("first cover checkpoint without an accepted withdrawal renews the exact compact publication", async (t) => {
+void test("healthy cover initialization stages an empty checkpoint and still requires release proof", async (t) => {
   const fixture = fixtureWorkspace(t);
   const compact = encodeCompactListing(
     wire({
@@ -190,6 +191,8 @@ void test("first cover checkpoint without an accepted withdrawal renews the exac
     "policy/official/catalog.history-checkpoint.json": wire({}),
   });
   const output = path.join(fixture.root, "out");
+  let staged: unknown;
+  let stagedListing: Buffer | undefined;
   const report = await prepareObservationBundle({
     bundle: fixture.bundle,
     canonical: fixture.canonical,
@@ -204,10 +207,24 @@ void test("first cover checkpoint without an accepted withdrawal renews the exac
     observe: false,
     officialReleasedReader: true,
     activateCoverCheckpoint: true,
-    acquireReleasedReader: () =>
-      assert.fail("no release should be acquired without a cover transition"),
+    acquireReleasedReader: async () => {
+      staged = JSON.parse(
+        readFileSync(path.join(output, "bundle", artworkCheckpointTarget), "utf8"),
+      );
+      stagedListing = decodeRetainedCompactListing(
+        readFileSync(path.join(output, "bundle", compactListingDeliveryTarget)),
+      );
+      throw new Error("fixture released reader unavailable");
+    },
   });
-  assert.equal(report.listing_publication_stopped?.code, "cover_evidence_unavailable");
+  assert.ok(stagedListing);
+  assert.deepEqual(staged, {
+    checkpoint_schema: 1,
+    listing_sha256: createHash("sha256").update(stagedListing).digest("hex"),
+    prior_checkpoint_sha256: null,
+    entries: [],
+  });
+  assert.equal(report.listing_publication_stopped?.code, "cover_reader_unavailable");
   assert.equal(report.released_cover_proof, undefined);
   assertExactPriorRenewal(output, report, legacyTarget, compact);
 });
