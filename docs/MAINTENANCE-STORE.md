@@ -1708,7 +1708,13 @@ and leaves exact unattributed transfer unknown.
 
 `resource.jsonl` in the existing evidence artifact records sample, operation,
 remaining bytes, unreconciled charges, future recovery provision, retry condition
-and outcome. The GitHub summary reports deferred work and the dated recovery point.
+and outcome. A settlement line also records the reservation, captured command
+stdout bytes and whether the operation is eligible for estimate-based settlement.
+The stdout count includes output captured before a failure. Use the Neon counter
+for provider transfer, and the recovery receipt for export file measurements.
+A command interrupted before settlement can leave only its admission line. Its
+reservation still applies. The GitHub summary reports deferred work and the dated
+recovery point.
 The hosted receipt records the collection ledger's completion criterion separately
 from the command outcome. It counts failed sources and Core gaps even when the
 command returned successfully. Individual source coverage remains in the inventory.
