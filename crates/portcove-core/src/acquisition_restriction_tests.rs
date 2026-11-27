@@ -791,8 +791,10 @@ fn an_unseen_identity_gains_a_scoped_permit_through_data_alone() {
 #[test]
 fn a_format_14_reader_refuses_typed_restrictions_and_a_diverging_legacy_string() {
     let catalog = Catalog::embedded().unwrap();
-    let document = catalog.listing_document().clone();
-    assert_eq!(document.format_version, RESTRICTION_LISTING_FORMAT);
+    let document = catalog
+        .listing_document()
+        .export_format(RESTRICTION_LISTING_FORMAT)
+        .unwrap();
     let mut older = document.clone();
     older.format_version = 14;
     let error = older.validate().unwrap_err();

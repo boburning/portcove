@@ -503,15 +503,20 @@ acceptance. The URL must be canonical HTTPS on a public DNS host. Provider
 site families use the fixed host for that provider.
 
 The link appears in the Mods view for a listing even if no game is installed
-or its platform is unknown. These links grant browser navigation only.
-Operational definitions retain authority over provider browsing and installation
-actions. An operational source ID takes precedence over a matching listing link.
+or its platform is unknown. Recognized GameBanana and Thunderstore community
+URLs also enable read-only browsing in Portcove. Operational bindings govern
+package acquisition and installation. An operational source ID takes
+precedence over a matching listing link.
 
-The authoring generator uses directory format 16 or later when a listing
-declares a link. The signed compact publication path requires Preview 20 or
-later with verified support for the format being published. Compatibility
-exports below format 16 omit the links. A later snapshot can update or withdraw
-a link without changing the game package or installation.
+The generator also derives GameBanana and Thunderstore websites from exact,
+explicitly reviewed provider coordinates on the same implementation. An
+authored link for that provider takes priority. `no_observed_mod_portals`
+suppresses generated links. Compiled legacy bindings supply no generated
+website. The generator uses directory format 16 or later when a listing
+contains a link. Signed publication requires Preview 20 or later with verified
+support for the format being published. Compatibility exports below format 16
+omit the links. A later snapshot can update or withdraw a link without
+changing the game package or installation.
 A generated default can survive a provider outage across a verified GitHub
 rename. The repository-bound listing keeps the same numeric identity, and the
 original game and reviewed provider association must still agree. A different

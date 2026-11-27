@@ -1,5 +1,5 @@
 {
-  "format_version": 15,
+  "format_version": 16,
   "listings": [
     {
       "id": "shipwright",
@@ -49,6 +49,15 @@
         ],
         "source_editions": []
       },
+      "mod_portals": [
+        {
+          "id": "reviewed-gamebanana",
+          "site": "community_site",
+          "name": "GameBanana",
+          "url": "https://gamebanana.com/games/16121",
+          "instructions": "Open the community to browse its mods."
+        }
+      ],
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -779,6 +788,15 @@
             "game_slug": "the-legend-of-zelda-majora-s-mask",
             "alpha_channel": true
           }
+        }
+      ],
+      "mod_portals": [
+        {
+          "id": "reviewed-thunderstore",
+          "site": "community_site",
+          "name": "Thunderstore",
+          "url": "https://thunderstore.io/c/zelda-64-recompiled/",
+          "instructions": "Open the community to browse its mods."
         }
       ],
       "platforms": [

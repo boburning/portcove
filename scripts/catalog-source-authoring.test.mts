@@ -222,6 +222,55 @@ void test("reviewed mod websites promote the directory without an operational de
   }
 });
 
+void test("exact reviewed provider coordinates generate only descriptive listing links", () => {
+  const original = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", "shipwright.json"))),
+    "shipwright",
+  );
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const record = (id: string, changes: Partial<AuthoredPort> = {}) => ({
+    ...original,
+    listing: { ...original.listing, id },
+    ...changes,
+  });
+  const site = "community_site" as const;
+  const authored = {
+    id: "explicit",
+    site,
+    name: "Reviewed community",
+    url: "https://www.gamebanana.com/games/52",
+    instructions: "Open the community.",
+  };
+  const records = [
+    record("new-review-fixture"),
+    record("excluded-fixture", { no_observed_mod_portals: true }),
+    record("explicit-fixture", {
+      listing: { ...original.listing, id: "explicit-fixture", mod_portals: [authored] },
+    }),
+  ];
+  const portals = new Map(
+    records.map((record) => {
+      const result = assembleCatalogRecords(shared, [record]);
+      assert.deepEqual(result.catalog.ports, [projectAuthoredPort(record)]);
+      const listing = requiredFixture(result.directory.listings[0]);
+      if (listing.mod_portals) assert.equal(result.directory.format_version, 16);
+      return [listing.id, listing.mod_portals];
+    }),
+  );
+  assert.deepEqual(portals.get("new-review-fixture"), [
+    {
+      id: "reviewed-gamebanana",
+      site,
+      name: "GameBanana",
+      url: "https://gamebanana.com/games/16121",
+      instructions: "Open the community to browse its mods.",
+    },
+  ]);
+  assert.equal(portals.get("excluded-fixture"), undefined);
+  assert.deepEqual(portals.get("explicit-fixture"), [authored]);
+  assert.equal(original.listing.mod_portals, undefined);
+});
+
 void test("automatic GitHub identities require repository-bound listing format 17", () => {
   const listing = {
     id: "github-123",
@@ -934,6 +983,7 @@ void test("authoring split preserves unknown metadata and ordered operational ar
 void test("typed IGDB scenes project to listing format 13 without changing strict media", () => {
   const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
   const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  authored.no_observed_mod_portals = true;
   const { ports: _ports, ...shared } = catalog;
   const typed = { id: "igdb", role: "screenshot", igdb: { kind: "screenshot" } };
   const legacy = { id: "legacy", role: "header" };
@@ -951,6 +1001,7 @@ void test("typed IGDB scenes project to listing format 13 without changing stric
 void test("verified source identities belong only in the format 14 listing", () => {
   const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
   const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  authored.no_observed_mod_portals = true;
   const { ports: _ports, ...shared } = catalog;
   const binding = {
     game_id: "source-game",
@@ -2298,6 +2349,7 @@ void test("implementation descriptions project without changing source, route or
   assert.deepEqual(projected.platforms, before.platforms);
   assert.deepEqual(record.listing.original_game, without.listing.original_game);
   const implementationOnly = structuredClone(record);
+  implementationOnly.no_observed_mod_portals = true;
   delete implementationOnly.listing.media;
   const { ports: _ports, ...shared } = source.catalog;
   assert.equal(assembleCatalogRecords(shared, [implementationOnly]).directory.format_version, 12);

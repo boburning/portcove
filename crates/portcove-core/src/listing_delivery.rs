@@ -816,11 +816,12 @@ fn verified_edition_bindings_follow_managed_scope_and_directory_version() {
         revision: 1,
         withdrawn_ids: Vec::new(),
         directory: crate::CatalogListingDocument {
-            format_version: 13,
+            format_version: catalog.listing_document().format_version,
             listings: vec![current.clone()],
-        },
+        }
+        .export_format(13)
+        .unwrap(),
     };
-    crate::catalog::listings::strip_verified_sources(&mut delivery.directory.listings[0]);
     // A carrier does not change the field authority of its decoded directory.
     for parse in [
         ListingDeliveryDocument::parse,
