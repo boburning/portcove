@@ -1011,7 +1011,8 @@ void test(
       store.owner,
       `CREATE ROLE collector_login LOGIN IN ROLE portcove_maintenance_collector;
        CREATE ROLE report_login LOGIN IN ROLE portcove_maintenance_report;
-       CREATE ROLE executor_login LOGIN IN ROLE portcove_maintenance_executor;`,
+       CREATE ROLE executor_login LOGIN NOINHERIT;
+       GRANT portcove_maintenance_executor TO executor_login WITH INHERIT FALSE;`,
     );
     const { cli, responses } = stubCli(fixture.root);
     const sample = path.join(fixture.root, "sample.json");
@@ -1080,7 +1081,12 @@ void test(
     );
     assert.match(renderDigestMarkdown(digest), /returns to an earlier result/u);
     assert.throws(() => acknowledgeDigest(collector, digest, "receipt"), /permission denied/u);
+    assert.throws(
+      () => acknowledgeDigest(store.as("report_login"), digest, "receipt"),
+      /permission denied/u,
+    );
     const executor = store.as("executor_login");
+    assert.throws(() => buildDigest(executor), /permission denied/u);
     const receipt = "https://github.com/boburning/portcove/issues/4129#issuecomment-1";
     assert.deepEqual(acknowledgeDigest(executor, digest, receipt), { delivered: 2 });
     assert.deepEqual(acknowledgeDigest(executor, digest, receipt), { delivered: 0 });
