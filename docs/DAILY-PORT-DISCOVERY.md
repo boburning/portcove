@@ -1175,7 +1175,14 @@ the released Core reader. The prepared catalog and the normal generated listing
 directory must match. Only new repository-ID listing files and the generated
 listing directory can enter the proposal, along with the registration counts
 for those additions. GitHub runs the normal required
-checks through the existing draft, review and merge process.
+checks through the existing draft, review and merge process. A separate read-only
+job ties the open App proposal to the scheduled producer, replays it from the
+trusted producer checkout, and compares the entire resulting Git tree and single
+parent with the exact proposal head. It runs the verification commands at the
+admission workflow revision so an older retained producer can still be replayed.
+It retains `catalog-admission-review` as a
+receipt for that head. This receipt supplies replay evidence for review and
+delivery. Required PR checks and the guarded merge still apply.
 
 Repository-bound GitHub listings raise the generated directory to format 17.
 The workflow needs a released reader that validates that format to open a

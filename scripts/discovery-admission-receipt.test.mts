@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+import { parse } from "yaml";
 import {
   checkDiscoveryAdmissionPaths,
+  checkDiscoveryReplayTree,
   generatedAdmissionDirectory,
   generatedAdmissionRegistration,
   checkDiscoveryRegistrationDelta,
@@ -410,6 +413,88 @@ void test("an SDK retry leaves independent allowance for exact post-creation rea
   assert.equal(refReads, 2);
   assert.equal(lookups, 2);
   assert.equal(posts, 1);
+});
+
+void test("independent review binds the open App proposal to the exact replay head", async () => {
+  const commit = "c".repeat(40);
+  const repo = "boburning/portcove";
+  const app = "catalog-admission";
+  const env = {
+    DISCOVERY_RUN: "12",
+    DISCOVERY_ATTEMPT: "1",
+    EXPECTED_APP: app,
+    GH_TOKEN: "fixture",
+    COMMIT: commit,
+    GITHUB_REPOSITORY: repo,
+  };
+  const row = {
+    number: 22,
+    html_url: `https://github.com/${repo}/pull/22`,
+    state: "open",
+    head: { sha: commit, ref: "automation/catalog-admission-12-1", repo: { full_name: repo } },
+    base: { ref: "main", repo: { full_name: repo } },
+    user: { login: `${app}[bot]` },
+  };
+  const review = (record: unknown) =>
+    catalogAdmissionGitHub("review", env, async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      assert.equal(init?.method, "GET");
+      assert.equal(url.pathname, `/repos/${repo}/pulls`);
+      assert.equal(url.searchParams.get("head"), "boburning:automation/catalog-admission-12-1");
+      return Response.json([record]);
+    });
+  assert.equal(await review(row), row.html_url);
+  assert.equal(await review({ ...row, state: "closed" }), "");
+  for (const altered of [
+    { ...row, state: "unknown" },
+    { ...row, user: { login: "other[bot]" } },
+    { ...row, head: { ...row.head, sha: "d".repeat(40) } },
+  ])
+    await assert.rejects(review(altered), /proposal readback differs/u);
+});
+
+void test("a proposal must contain the whole replayed tree and exact single producer parent", () => {
+  const [head, source, tree, wrong] = ["a", "b", "c", "d"].map((hex) => hex.repeat(40)) as [
+    string,
+    string,
+    string,
+    string,
+  ];
+  checkDiscoveryReplayTree(head, source, tree, `${head}\n${source}\n${tree}\n`);
+  for (const changed of [
+    `${wrong}\n${source}\n${tree}\n`,
+    `${head}\n${source} ${wrong}\n${tree}\n`,
+    `${head}\n${wrong}\n${tree}\n`,
+    `${head}\n${source}\n${wrong}\n`,
+  ])
+    assert.throws(
+      () => checkDiscoveryReplayTree(head, source, tree, changed),
+      /replay tree or parent/u,
+    );
+});
+
+void test("admission reviews carry current verifier code into an older producer checkout", () => {
+  const workflow: unknown = parse(
+    readFileSync(new URL("../.github/workflows/catalog-admission.yml", import.meta.url), "utf8"),
+  );
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs) && isRecord(workflow.jobs.review));
+  const job = workflow.jobs.review;
+  assert.equal(job.environment, undefined);
+  assert.ok(isRecord(job.env) && Array.isArray(job.steps));
+  assert.equal(job.env.CONTROLLER_SOURCE, "${{ github.workflow_sha }}");
+  assert.equal(job.env.DISCOVERY_SOURCE, "${{ github.event.workflow_run.head_sha }}");
+  const steps = (job.steps as unknown[]).filter(isRecord);
+  const replay = steps.find(({ id }) => id === "replay");
+  assert.equal(typeof replay?.run, "string");
+  const shell = String(replay?.run);
+  assert.match(shell, /worktree add --quiet --detach "\$controller" "\$CONTROLLER_SOURCE"/u);
+  assert.match(shell, /node "\$controller\/scripts\/discovery-admission-branch\.mts" review/u);
+  assert.match(shell, /node scripts\/prepare-port\.mts --discovery-scheduled-run/u);
+  assert.doesNotMatch(shell, /git checkout|secrets\.|APP_PRIVATE_KEY/u);
+  assert.equal(
+    steps.find(({ name }) => name === "Retain the independent replay receipt")?.if,
+    "steps.replay.outputs.matched == 'true'",
+  );
 });
 
 void test("proposal gate follows a numeric repository page without changing its scope", async () => {

@@ -8,6 +8,19 @@ export const generatedAdmissionDirectory = "crates/portcove-core/catalog/listing
 export const generatedAdmissionRegistration =
   "crates/portcove-core/catalog/generated-registration.generated.json";
 const authoredListing = /^crates\/portcove-core\/catalog\/ports\/github-[1-9]\d*\.json$/u;
+const gitSha = /^[a-f0-9]{40}$/u;
+
+export function checkDiscoveryReplayTree(
+  expectedHead: string,
+  producer: string,
+  replayedTree: string,
+  metadata: string,
+) {
+  if (![expectedHead, producer, replayedTree].every((value) => gitSha.test(value)))
+    throw new Error("Catalog admission review requires exact Git identities.");
+  if (metadata.trimEnd() !== `${expectedHead}\n${producer}\n${replayedTree}`)
+    throw new Error("Catalog admission proposal differs from the exact replay tree or parent.");
+}
 
 /** The dedicated App may propose new listings and their generated directory. */
 export function checkDiscoveryAdmissionPaths(status: string, generated: boolean) {
@@ -75,11 +88,21 @@ export function checkDiscoveryRegistrationDelta(
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const mode = process.argv[2];
-  if (process.argv.length !== 3 || (mode !== "authored" && mode !== "generated"))
-    throw new Error("Expected authored or generated catalog admission scope.");
+  const [head, producer] = process.argv.slice(3);
+  const review = mode === "review";
+  if (
+    review
+      ? process.argv.length !== 5 ||
+        !head ||
+        !producer ||
+        !gitSha.test(head) ||
+        !gitSha.test(producer)
+      : process.argv.length !== 3 || (mode !== "authored" && mode !== "generated")
+  )
+    throw new Error("Expected authored, generated or exact review catalog admission scope.");
   const staged = runCheckedGit(["diff", "--cached", "--name-status", "--no-renames", "-z"]);
-  const additions = checkDiscoveryAdmissionPaths(staged, mode === "generated");
-  if (mode === "generated") {
+  const additions = checkDiscoveryAdmissionPaths(staged, mode !== "authored");
+  if (mode !== "authored") {
     const baseline: unknown = JSON.parse(
       runCheckedGit(["show", `HEAD:${generatedAdmissionRegistration}`]),
     );
@@ -88,4 +111,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     );
     checkDiscoveryRegistrationDelta(baseline, proposed, additions.length);
   }
+  if (review && head && producer)
+    checkDiscoveryReplayTree(
+      head,
+      producer,
+      runCheckedGit(["write-tree"]).trim(),
+      runCheckedGit(["show", "-s", "--format=%H%n%P%n%T", head]).replaceAll("\r\n", "\n"),
+    );
 }
