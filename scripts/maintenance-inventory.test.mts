@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -481,12 +482,13 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     /--artwork-health work\/maintenance-report\/cover-artwork-health\.json/u,
   );
   const coverHealth = collect!.steps.find(
-    (step) => step.name === "Verify a bounded window of accepted cover references",
+    (step) => step.name === "Verify a bounded window of accepted cover and media references",
   )!;
   assert.equal(coverHealth.if, "github.event_name == 'schedule'");
   assert.equal(coverHealth.env, undefined);
   assert.match(coverHealth.run!, /env -i PATH=/u);
   assert.match(coverHealth.run!, /maintenance-artwork-health\.mts target\/debug\/portcove/u);
+  assert.match(coverHealth.run!, /media-artwork-health\.json/u);
   for (const flag of [
     "--all",
     "--release-health",
@@ -5600,3 +5602,96 @@ void test(
     ]);
   },
 );
+
+void test("scheduled retained media health shares fixed variants while distinguishing exact roles", async () => {
+  const { mediaHealthInventory, observeMediaArtworkWindow } =
+    await import("./maintenance-artwork-health.mts");
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const body = "bounded image";
+  const digest = createHash("sha256").update(body).digest("hex");
+  const asset = (role: string, variant: string, kind: string, name: string, sha256 = digest) => ({
+    role,
+    sha256,
+    url: "https://images.igdb.com/igdb/image/upload/t_" + variant + "/" + name + ".png",
+    igdb: { game_id: 8, record_id: 9, image_id: name, kind },
+  });
+  const inventory = mediaHealthInventory({
+    listings: [
+      {
+        id: "ordinary",
+        media: [
+          asset("header", "720p", "artwork", "shared"),
+          asset("key_art", "720p", "artwork", "shared", "a".repeat(64)),
+          asset("logo", "logo_med_2x", "logo", "shared"),
+          asset("screenshot", "720p", "screenshot", "unavailable"),
+          asset("logo", "720p", "logo", "wrongvariant"),
+          { ...asset("logo", "logo_med_2x", "logo", "wronghost"), url: "https://example.invalid/" },
+        ],
+      },
+      {
+        id: "excluded",
+        implementation: {
+          dependencies: [{ kind: "runtime", project_url: "https://github.com/scummvm/scummvm" }],
+        },
+        media: [asset("logo", "logo_med_2x", "logo", "excluded")],
+      },
+    ],
+  });
+  const visited: string[] = [];
+  const inspector = createIgdbInspector(
+    undefined,
+    () => ({ format: "png", validator: "portcove-core", width: 300, height: 200 }),
+    async (url) => {
+      assert.match(url, /^https:\/\/images\.igdb\.com\//u);
+      visited.push(url);
+      if (url.endsWith("/t_logo_med_2x/shared.png")) return new Response(null, { status: 410 });
+      if (url.endsWith("/t_720p/unavailable.png")) return new Response(null, { status: 404 });
+      return new Response(body, { headers: { "content-type": "image/png" } });
+    },
+  );
+  const observed = await observeMediaArtworkWindow(
+    inventory,
+    inspector,
+    new AbortController().signal,
+    0,
+  );
+  assert.equal(visited.length, 3);
+  assert.equal(observed.window.eligible, 3);
+  assert.equal(observed.image_bytes, Buffer.byteLength(body));
+  assert.equal(inspector.providerMetrics.authentication_requests, 0);
+  assert.deepEqual(
+    observed.images.map(({ target, roles }) => [target, roles]),
+    [
+      [
+        "720p/shared",
+        [
+          { role: "header", state: "unchanged" },
+          { role: "key_art", state: "mismatch" },
+        ],
+      ],
+      ["720p/unavailable", [{ role: "screenshot", state: "unavailable" }]],
+      ["logo_med_2x/shared", [{ role: "logo", state: "gone" }]],
+    ],
+  );
+  const closed = await observeMediaArtworkWindow(inventory, inspector, AbortSignal.abort(), 0);
+  assert.equal(visited.length, 3);
+  assert.ok(closed.images.every(({ status }) => status === "deferred"));
+});
+
+void test("scheduled artwork health skips Core validation after the phase deadline", async (context) => {
+  const { createCoreImageValidator } = await import("./inspect-igdb-artwork.mts");
+  const scratch = mkdtempSync(path.join(os.tmpdir(), "portcove-validator-deadline-"));
+  context.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const executable = path.join(scratch, "validator-fixture");
+  writeFileSync(executable, "this fixture must never execute");
+  const validate = createCoreImageValidator(executable, scratch);
+  assert.throws(
+    () => validate(Buffer.from("ignored"), performance.now() - 1),
+    /Core image validation deadline reached/u,
+  );
+  const root = readdirSync(scratch).find((name) => name.startsWith("core-image-validation-"));
+  assert.ok(root);
+  assert.deepEqual(readdirSync(path.join(scratch, root)), [
+    process.platform === "win32" ? "validator.exe" : "validator",
+  ]);
+});

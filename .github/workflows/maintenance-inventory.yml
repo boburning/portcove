@@ -161,7 +161,7 @@ jobs:
           started=$EPOCHSECONDS
           cargo build --locked -p portcove-cli
           printf 'build-cli\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
-      - name: Verify a bounded window of accepted cover references
+      - name: Verify a bounded window of accepted cover and media references
         if: github.event_name == 'schedule'
         timeout-minutes: 4
         continue-on-error: true
@@ -174,7 +174,8 @@ jobs:
             GITHUB_REF="$GITHUB_REF" GITHUB_WORKFLOW_SHA="$GITHUB_WORKFLOW_SHA" \
             GITHUB_RUN_ID="$GITHUB_RUN_ID" GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
             node scripts/maintenance-artwork-health.mts target/debug/portcove \
-            work/maintenance-report/cover-artwork-health.json
+            work/maintenance-report/cover-artwork-health.json \
+            work/maintenance-report/media-artwork-health.json
       - name: Read current allowance and exercise bounded status admission
         if: inputs.purpose == 'status'
         env:

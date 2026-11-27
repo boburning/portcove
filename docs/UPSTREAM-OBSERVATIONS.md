@@ -1767,3 +1767,23 @@ observations, so the player's local source preferences still apply. After the
 first publication, an unavailable checkpoint falls back to the authenticated
 prior listing. A verified rename can retain the prior website when the listing ID binds the same GitHub repository and the game identity still matches. A conflicting repository observation or confirmed withdrawal suppresses the link.
 Maintainer-selected websites use separate authored IDs and take precedence.
+
+## Scheduled catalog media health
+
+Within the existing scheduled artwork-health opportunity, retained IGDB
+backgrounds, logos, key art, and screenshots share one read per exact PNG
+variant. The observer reads the committed listing directory, excludes the
+deferred ScummVM engine, and uses Core's image validator without provider
+credentials. The maintenance report retains a separate `media-artwork-health.json`
+receipt bound to the workflow run, source, listing digest, and validator.
+
+The UTC-day window rotates through eligible variants. When media is present,
+it receives a 16 MiB validation budget and 30 seconds of the existing 64 MiB
+and 150-second artwork allowance. The network meter includes any final
+received chunk that exceeds the remaining validation budget. Cover observations
+retain their existing receipt and use the rest of the allowance. Provider
+backoff carries across the two phases.
+The receipt distinguishes unchanged bytes, mismatches, an exact Gone response,
+unavailable results and deferred targets. A shared image is reported
+independently for its catalog roles. The receipt supplies evidence for the
+current references. It does not find new images or publish catalog changes.

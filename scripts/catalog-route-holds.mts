@@ -27,7 +27,7 @@ function engineProject(url: unknown): string | undefined {
 }
 
 /** Engine identity from the implementation's declared runtime, never the title. */
-export function usesScummvmEngine(record: AuthoredPort): boolean {
+export function usesScummvmEngine(record: { listing: { implementation?: unknown } }): boolean {
   const implementation: unknown = record.listing.implementation;
   if (!isRecord(implementation) || !Array.isArray(implementation.dependencies)) return false;
   return implementation.dependencies.some(
