@@ -2298,7 +2298,7 @@ void test("ordinary onboarding prefers attributable exact-port art and records m
           reason: string;
           mapping: unknown;
           checks: unknown;
-          exceptions: { reason: string }[];
+          exceptions: { kind: string; reason: string }[];
         }[];
       };
       const row = evidence.records[0]!;
@@ -2320,11 +2320,13 @@ void test("ordinary onboarding prefers attributable exact-port art and records m
         assert.equal(images, 0);
         assert.equal(row.reason, "generated-fallback");
         assert.equal(row.mapping, null);
-        assert.ok(
-          row.exceptions.some(
-            ({ reason }) =>
-              reason === (outcome === "ambiguous" ? "identity-not-unique" : "identity-mismatch"),
-          ),
+        const reason = outcome === "ambiguous" ? "identity-not-unique" : "identity-not-found";
+        assert.deepEqual(
+          row.exceptions.map(({ kind, reason }) => ({ kind, reason })),
+          [
+            { kind: "port", reason },
+            { kind: "underlying-game", reason },
+          ],
         );
       }
       // Preparation records facts; it cannot admit or publish artwork or a runtime.
