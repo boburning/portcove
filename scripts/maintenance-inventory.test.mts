@@ -332,6 +332,18 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.match(media.run!, /--media-due-limit 48 --media-image-budget-mib 32/u);
   assert.match(media.run!, /provider-credentials-unavailable/u);
   assert.match(media.run!, /env -i [^\n]*\n\s*node scripts\/generate-catalog\.mts/u);
+  const backup = collect!.steps.find(
+    (step) => step.name === "Back up protected state from one production snapshot",
+  )!;
+  assert.match(
+    backup.run!,
+    /if \[\[ -f "\$baseline\/manifest\.json" \]\]; then\s+args\+=\(--input "\$baseline"\)/u,
+  );
+  assert.match(
+    backup.run!,
+    /if \(\(age > 30 \* 3600\)\); then\s+args\+=\(--recovery-envelope catchup\)/u,
+  );
+  assert.doesNotMatch(backup.run!, /--recovery-envelope full/u);
   const recoveryUpload = collect!.steps.find(
     (step) => step.name === "Retain the backup for independent restore proof",
   )!;
