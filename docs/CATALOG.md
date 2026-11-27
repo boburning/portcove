@@ -6528,7 +6528,8 @@ no dry run), so it works with the environment unset or the App unavailable.
   it (or malformed), `gate` never reports a batch green: a batch whose checks
   pass is the named `batch-app-slug-unset` stop and is not merged. `merge`
   still binds the author to the minted App's `app-slug` before any write and
-  raises `foreign-batch-author` on a mismatch.
+  raises `foreign-batch-author` on a mismatch. Both `deliver` and `merge`
+  compare the minted App's slug with the configured slug before any write.
 
 What the repository cannot show: the App's actual permission set,
 installation scope and absence from every bypass list (UNKNOWN). A
@@ -6736,8 +6737,8 @@ The owner or lead then:
    reproduction shards and their aggregate run on real entries before the
    migration's matrix of up to 256 jobs.
 3. Sets the required repository variable `PORTCOVE_FACTS_BATCH_APP_SLUG` to
-   the job's App's slug; without it no batch is ever merged
-   (`batch-app-slug-unset`).
+   the installed App's slug. With an absent or different slug, the worker
+   stops before writing a branch or merging a batch.
 4. Sets the repository variable `PORTCOVE_FACTS_BATCH_ENABLED` to `true`
    (unset or any other value is off).
 
