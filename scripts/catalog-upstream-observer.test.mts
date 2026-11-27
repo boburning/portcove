@@ -5625,12 +5625,60 @@ void test("first-party mod observation shares the opportunity budget and retains
   const h = harness();
   const input = {
     ...h.input,
-    listings: [{ id: "other-port", project_url: "https://github.com/owner/other" }],
+    ports: h.input.ports.map((port) =>
+      port.id === "other-port" ? { ...port, source_profile: "fixture-disc" } : port,
+    ),
+    listings: [
+      {
+        id: "other-port",
+        project_url: "https://github.com/owner/other",
+        original_game: { source_editions: [{ system: "nintendo-gamecube" }] },
+      },
+    ],
+    source_catalog: {
+      contracts: [
+        {
+          port_id: "other-port",
+          role: "game",
+          admission_mode: "enforced",
+          profile_id: "fixture-disc",
+          supported_variant_ids: ["usa", "europe"],
+        },
+      ],
+      identities: [
+        {
+          id: "fixture-disc",
+          variants: [
+            { id: "usa", product_codes: ["GPIE01"] },
+            { id: "europe", product_codes: ["GPIP01"] },
+          ],
+        },
+      ],
+    },
   };
   const first = await advanceCatalogObservations(input, null, h.options);
+  const proof = {
+    state: "observed" as const,
+    repository_id: 8,
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+    blob: "c".repeat(40),
+    manifest_sha256: "d".repeat(64),
+    game_input_ids: ["GPIE01", "GPIP01"],
+    mod_portals: [
+      {
+        id: "upstream-gamebanana",
+        site: "community_site" as const,
+        name: "GameBanana",
+        url: "https://gamebanana.com/games/123",
+        instructions: "The upstream project lists this community. Follow its setup instructions.",
+      },
+    ],
+  };
   const modResults = [
-    { state: "absent", repository_id: 8, commit: "a".repeat(40), tree: "b".repeat(40) },
+    proof,
     { state: "unavailable", reason: "provider-outage" },
+    { ...proof, game_input_ids: ["GPIE01", "GPI"] },
   ] satisfies Awaited<ReturnType<NonNullable<CatalogObservationOptions["observeLauncherMods"]>>>[];
   let reads = 0;
   h.options.observeLauncherMods = async (repository, account) => {
@@ -5658,8 +5706,8 @@ void test("first-party mod observation shares the opportunity budget and retains
   assert.equal(observed.report.launcher_mod_sources?.requests, 1);
   assert.equal(observed.report.launcher_mod_sources?.complete, 1);
   const row = observed.checkpoint.launcher_mod_sources?.["other-port"];
-  assert.equal(row?.outcome, "absent");
-  assert.equal(row?.last_complete?.result.state, "absent");
+  assert.equal(row?.outcome, "observed");
+  assert.deepEqual(row?.last_complete?.result, proof);
   assert.deepEqual(
     validateCatalogObserverCheckpoint(
       decodeStoredObserverCheckpoint(
@@ -5682,4 +5730,12 @@ void test("first-party mod observation shares the opportunity budget and retains
     outage.checkpoint.launcher_mod_sources?.["other-port"]?.last_complete,
     row?.last_complete,
   );
+  h.advanceClock(24 * 3600000);
+  const conflicting = await advanceCatalogObservations(input, outage.checkpoint, h.options);
+  assert.equal(reads, 3);
+  assert.equal(conflicting.report.launcher_mod_sources?.complete, 0);
+  const held = conflicting.checkpoint.launcher_mod_sources?.["other-port"];
+  assert.equal(held?.outcome, "held");
+  assert.equal(held?.reason, "game-input-scope-conflict");
+  assert.equal(held?.last_complete, undefined);
 });

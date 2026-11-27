@@ -1,3 +1,4 @@
+import { launcherModGameScopes, verifyLauncherModGameScope } from "./launcher-mod-game-scope.mts";
 import {
   projectListingObservation,
   projectGitLabListingObservation,
@@ -966,6 +967,10 @@ export async function advanceCatalogObservations(
     | undefined;
   const observeLauncherMods = options.observeLauncherMods;
   if (observeLauncherMods) {
+    const gameScopes = launcherModGameScopes(
+      catalog,
+      sources.flatMap((source) => source.ports.map((port) => port.listing)),
+    );
     const subjects = launcherModSubjects(sources, state.sources);
     const old = state.launcher_mod_sources ?? {};
     const progress = Object.fromEntries(
@@ -973,7 +978,8 @@ export async function advanceCatalogObservations(
         old[port_id]?.binding === binding ? [[port_id, old[port_id]]] : [],
       ),
     ) as Record<string, FirstPartyModProgress>;
-    const due = subjects
+    const enrolled = subjects.filter(({ port_id }) => gameScopes.has(port_id));
+    const due = enrolled
       .filter(
         ({ port_id }) =>
           Date.parse(progress[port_id]?.next_due_at ?? "") <= now() || !progress[port_id],
@@ -985,7 +991,7 @@ export async function advanceCatalogObservations(
           ) || a.port_id.localeCompare(b.port_id),
       );
     launcherModSummary = {
-      enrolled: subjects.length,
+      enrolled: enrolled.length,
       due: due.length,
       attempted: 0,
       complete: 0,
@@ -1019,8 +1025,9 @@ export async function advanceCatalogObservations(
       if (result.state === "observed" || result.state === "absent") {
         if (result.repository_id !== subject.repository_id)
           throw new Error("First-party mod observation returned a different repository ID");
-        launcherModSummary.complete++;
       }
+      result = verifyLauncherModGameScope(result, gameScopes.get(subject.port_id));
+      if (result.state === "observed" || result.state === "absent") launcherModSummary.complete++;
       progress[subject.port_id] = recordLauncherModAttempt(
         subject.binding,
         progress[subject.port_id],

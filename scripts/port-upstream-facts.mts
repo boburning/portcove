@@ -131,6 +131,16 @@ function launcherScopeEvidence(value: unknown, repository: string) {
   )
     throw new Error("Manifest does not declare bounded package-relative program candidates");
   const portals = launcherModPortals(value.mods);
+  const ids = isRecord(input.check) ? input.check.ids : undefined;
+  const gameInputIds =
+    Array.isArray(ids) &&
+    ids.length > 0 &&
+    ids.length <= 32 &&
+    ids.every(
+      (id: unknown): id is string => typeof id === "string" && /^[A-Za-z0-9_-]{1,24}$/u.test(id),
+    )
+      ? [...new Set<string>(ids)]
+      : undefined;
   return {
     format: 1,
     repository,
@@ -138,6 +148,7 @@ function launcherScopeEvidence(value: unknown, repository: string) {
     program_count: programs.length,
     names_scummvm: namesScummVm([repository, value.name, ...programs]),
     ...(portals.length ? { mod_portals: portals } : {}),
+    ...(gameInputIds ? { game_input_ids: gameInputIds } : {}),
   };
 }
 
@@ -442,6 +453,7 @@ export type LauncherModObservation =
       tree: string;
       blob: string;
       manifest_sha256: string;
+      game_input_ids?: string[];
       mod_portals: NonNullable<AuthoredListing["mod_portals"]>;
     };
 
@@ -483,6 +495,7 @@ export async function observeLauncherModPortals(
       tree: scope.tree,
       blob: scope.manifest_blob,
       manifest_sha256: scope.manifest_sha256,
+      ...(scope.manifest.game_input_ids ? { game_input_ids: scope.manifest.game_input_ids } : {}),
       mod_portals: scope.manifest.mod_portals ?? [],
     };
   if ("reason" in scope && typeof scope.reason === "string") {
