@@ -1570,7 +1570,7 @@ export function createIgdbInspector(
   };
 }
 
-const gameMediaRoles = {
+export const gameMediaRoles = {
   key_art: { endpoint: "artworks", kind: "artwork", variant: "720p", caption: "Game key art" },
   logo: { endpoint: "logos", kind: "logo", variant: "logo_med_2x", caption: "Game logo" },
   header: { endpoint: "artworks", kind: "artwork", variant: "720p", caption: "Game background" },
@@ -2164,7 +2164,9 @@ export function createCoreImageValidator(
   if (expectedSha256 !== undefined && artifactSha256 !== expectedSha256)
     throw new Error("Core image validator changed during preparation.");
   let ordinal = 0;
-  return (bytes: Buffer) => {
+  return (bytes: Buffer, deadline?: number) => {
+    const remaining = () => (deadline === undefined ? 30000 : deadline - performance.now());
+    if (remaining() < 1) throw new Error("Core image validation deadline reached.");
     const runRoot = join(root, String(++ordinal));
     mkdirSync(runRoot);
     const file = join(runRoot, "image.jpg");
@@ -2172,6 +2174,8 @@ export function createCoreImageValidator(
     const env = Object.fromEntries(
       Object.entries(process.env).filter(([name]) => name.toUpperCase() !== "PORTCOVE_LIBRARY"),
     );
+    const timeout = Math.min(30000, Math.floor(remaining()));
+    if (timeout < 1) throw new Error("Core image validation deadline reached.");
     const child = spawnSync(
       artifact,
       [
@@ -2184,7 +2188,14 @@ export function createCoreImageValidator(
         "shipwright",
         file,
       ],
-      { env, encoding: "utf8", timeout: 30000, maxBuffer: 1024 * 1024, windowsHide: true },
+      {
+        env,
+        encoding: "utf8",
+        timeout,
+        maxBuffer: 1024 * 1024,
+        windowsHide: true,
+        ...(deadline === undefined ? {} : { killSignal: "SIGKILL" }),
+      },
     );
     writeFileSync(
       join(runRoot, "validation-process.json"),
@@ -2204,6 +2215,7 @@ export function createCoreImageValidator(
     );
     if (child.error || child.status !== 0)
       throw new Error("Core image validation refused or unavailable.");
+    if (remaining() < 1) throw new Error("Core image validation deadline reached.");
     const envelope: unknown = JSON.parse(child.stdout);
     const data = isRecord(envelope) ? envelope.data : undefined;
     const value = isRecord(data) ? data.selection : undefined;
