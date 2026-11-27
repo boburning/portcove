@@ -757,9 +757,12 @@ export class ArtworkCache {
     if (!stillInterested()) return;
     const key = this.key(portId, slot);
     if (committedRevision !== undefined) {
-      const revision = this.requireChoiceRevision(key, committedRevision);
-      if ((this.read(portId, slot).state?.choice.revision ?? -1) < revision)
-        this.publish(portId, slot, { loading: true });
+      const displayedRevision = this.read(portId, slot).state?.choice.revision ?? -1;
+      const revision = this.requireChoiceRevision(
+        key,
+        Math.max(displayedRevision, committedRevision),
+      );
+      if (displayedRevision < revision) this.publish(portId, slot, { loading: true });
     }
     // Discard any older reply already in flight before asking for fresh state.
     await this.pending.get(key)?.choice;

@@ -294,12 +294,13 @@ describe("disposable artwork display cache", () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
-  it("preserves a newer authoritative choice when delayed commit readback fails", async () => {
+  it("preserves a newer authoritative choice when delayed commit readback fails or is stale", async () => {
     const newer = artworkState("sample", "cover", 3, true);
     const read = vi
       .spyOn(desktopApi, "artwork")
       .mockResolvedValueOnce(newer)
-      .mockRejectedValueOnce(new Error("Readback unavailable."));
+      .mockRejectedValueOnce(new Error("Readback unavailable."))
+      .mockResolvedValueOnce(artworkState("sample", "cover", 2));
     vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
       asset_sha256: "a".repeat(64),
       choice_revision: 3,
@@ -317,7 +318,9 @@ describe("disposable artwork display cache", () => {
       error: "Readback unavailable.",
     });
     expect(image).toBeDefined();
-    expect(read).toHaveBeenCalledTimes(2);
+    await cache.load("sample", "cover", true);
+    expect(cache.read("sample", "cover")).toMatchObject({ state: newer, image, stale: true });
+    expect(read).toHaveBeenCalledTimes(3);
   });
 
   it("reads post-change state after an earlier pending read completes", async () => {
