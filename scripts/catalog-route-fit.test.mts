@@ -371,10 +371,11 @@ void test("observer output: complete observations count, other statuses stay uno
     ...asset,
     platform_hints: [],
   }));
-  assert.equal(
-    fit(withReleases([{ ...releases[0], assets: unhinted }])).disposition,
-    "missing-capability",
-  );
+  const unknownPlatform = fit(withReleases([{ ...releases[0], assets: unhinted }]));
+  assert.equal(unknownPlatform.observation, "complete");
+  assert.equal(unknownPlatform.disposition, "unobserved");
+  assert.match(unknownPlatform.reason, /desktop platform is unobserved/u);
+  assert.equal(fit(withReleases(releases)).disposition, "needs-bytes-worker");
 });
 
 void test("an accepted package player observation supplies data-only player facts", () => {
