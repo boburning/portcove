@@ -191,7 +191,9 @@ function useBackupReview({
     error,
     failurePhase,
     reviewedRestoreTarget,
-    refreshBeforeReview,
+    prepareRestoreRefresh: () => {
+      refreshBeforeReview.current = true;
+    },
     load,
     execute,
     dismiss,
@@ -231,7 +233,7 @@ export function BackupReviewDialog({
     error,
     failurePhase,
     reviewedRestoreTarget,
-    refreshBeforeReview,
+    prepareRestoreRefresh,
     load,
     execute,
     dismiss,
@@ -326,7 +328,7 @@ export function BackupReviewDialog({
                   return;
                 }
                 if (canRefresh) {
-                  refreshBeforeReview.current = true;
+                  prepareRestoreRefresh();
                   reviewTitle.current?.focus();
                 }
                 void load();
