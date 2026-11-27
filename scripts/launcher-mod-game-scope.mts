@@ -10,18 +10,21 @@ function exactProductCode(system: unknown, value: unknown) {
 
 type GameScope = { system: string; codes: ReadonlySet<string>; sharedEditionBinding?: string };
 
-function editionKey(listing: Record<string, unknown>) {
+function sharedEdition(listing: Record<string, unknown>) {
   const game = listing.original_game;
   if (!isRecord(game) || typeof game.id !== "string" || !Array.isArray(game.source_editions))
     return;
-  const [edition] = game.source_editions;
+  const edition: unknown = game.source_editions[0];
   if (
     game.source_editions.length === 1 &&
     isRecord(edition) &&
     typeof edition.id === "string" &&
     typeof edition.system === "string"
   )
-    return JSON.stringify([game.id, edition.id, edition.system]);
+    return {
+      key: JSON.stringify([game.id, edition.id, edition.system]),
+      hasVerifiedSources: edition.verified_sources !== undefined,
+    };
 }
 
 /** The game input contract supplies the exact product codes. The reviewed
@@ -102,8 +105,9 @@ export function launcherModGameScopes(catalog: unknown, listings: readonly unkno
   for (const listing of listings) {
     if (!isRecord(listing) || typeof listing.id !== "string") continue;
     const own = result.get(listing.id);
-    const key = editionKey(listing);
-    if (!own || !key) continue;
+    const edition = sharedEdition(listing);
+    if (!own || !edition) continue;
+    const { key } = edition;
     const sharedEditionBinding = JSON.stringify([key, [...own.codes].sort()]);
     const previous = shared.get(key);
     if (previous === undefined) shared.set(key, { ...own, sharedEditionBinding });
@@ -111,21 +115,16 @@ export function launcherModGameScopes(catalog: unknown, listings: readonly unkno
   }
   for (const listing of listings) {
     if (!isRecord(listing) || typeof listing.id !== "string" || result.has(listing.id)) continue;
-    const key = editionKey(listing);
-    const edition =
-      isRecord(listing.original_game) && Array.isArray(listing.original_game.source_editions)
-        ? listing.original_game.source_editions[0]
-        : undefined;
+    const edition = sharedEdition(listing);
     // An explicit representation or local profile must resolve under its own
     // declared contract even when a related listing has a usable scope.
     if (
-      !key ||
-      !isRecord(edition) ||
-      edition.verified_sources !== undefined ||
+      !edition ||
+      edition.hasVerifiedSources ||
       ports.get(listing.id)?.source_profile !== undefined
     )
       continue;
-    const scope = shared.get(key);
+    const scope = shared.get(edition.key);
     if (scope) result.set(listing.id, scope);
   }
   return result;
