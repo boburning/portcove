@@ -21,6 +21,7 @@ import {
   projectGbaArchive,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import { previewReviewedOriginalMedia } from "./reviewed-original-media.mts";
 import {
   compactReviewedFlatPackageLayout,
   projectReviewedFlatPackageLayout,
@@ -49,6 +50,129 @@ const schema2Fixture = fixtureJson(
   readFileSync(join(catalogRoot, "catalog-schema2-migration-fixture.json")),
 );
 const schema3Fixture = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
+
+void test("reviewed original media binds one decision to exact existing and future consumers", () => {
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const row = (id: string, system: string = "dos") => ({
+    format_version: 1,
+    listing: {
+      id,
+      name: id,
+      summary: "Separate port implementation of the same original edition.",
+      project_url: `https://example.org/${id}`,
+      original_game: {
+        format_version: 1,
+        id: "shared-original-fixture",
+        evidence_urls: ["https://example.org/original"],
+        source_editions: [
+          {
+            id: "first-retail",
+            system,
+            title: "First retail edition",
+            evidence_urls: ["https://example.org/edition"],
+          },
+        ],
+      },
+    },
+  });
+  const decision = {
+    original_game_id: "shared-original-fixture",
+    source_edition_id: "first-retail",
+    system: "dos",
+    evidence_url: "https://www.igdb.com/games/accepted-original",
+    decision: "match",
+    game_id: 42,
+    slug: "accepted-original",
+  };
+  const owner = { ...row("owner-port"), igdb_original_media_v1: [decision] };
+  const sibling = row("older-port");
+  const future = row("future-port");
+  const assembled = assembleCatalogRecords(shared, [owner, sibling, future]);
+  assert.deepEqual(
+    previewReviewedOriginalMedia(
+      assembled.reviewedOriginalMedia,
+      assembled.directory.listings,
+      new Set(),
+    ),
+    [{ ...decision, applicable_port_ids: ["future-port", "older-port", "owner-port"] }],
+  );
+  assert.deepEqual(
+    assembled.directory,
+    assembleCatalogRecords(shared, [row("owner-port"), sibling, future]).directory,
+  );
+  assert.deepEqual(assembled.catalog.ports, []);
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...owner,
+        igdb_original_media_v1: [
+          { ...decision, evidence_url: `https://example.org/${"é".repeat(400)}` },
+        ],
+      }),
+    /needs attributable HTTPS evidence/u,
+  );
+  assert.throws(
+    () =>
+      checkedAuthoredPort({ ...row("owner-port", "windows"), igdb_original_media_v1: [decision] }),
+    /exact, unique game, edition and system/u,
+  );
+  assert.throws(
+    () =>
+      assembleCatalogRecords(shared, [owner, { ...sibling, igdb_original_media_v1: [decision] }]),
+    /Multiple reviewed original media decisions/u,
+  );
+  const prior = {
+    id: "old-original-shot",
+    role: "screenshot",
+    subject: {
+      kind: "original",
+      game_id: decision.original_game_id,
+      source_edition_id: decision.source_edition_id,
+    },
+    igdb: { game_id: 15, game_slug: "old-original" },
+  };
+  const donor = { ...owner.listing, media: [prior] };
+  const before = assembleCatalogRecords(shared, [
+    { ...row("owner-port"), listing: donor },
+    sibling,
+  ]);
+  assert.deepEqual(before.directory.listings.find(({ id }) => id === sibling.listing.id)?.media, [
+    prior,
+  ]);
+  const corrected = assembleCatalogRecords(shared, [{ ...owner, listing: donor }, sibling, future]);
+  assert.deepEqual(corrected.directory.listings.find(({ id }) => id === donor.id)?.media, [prior]);
+  assert.ok(
+    corrected.directory.listings
+      .filter(({ id }) => id !== donor.id)
+      .every(({ media }) => media === undefined),
+  );
+  const acceptedMedia = { ...prior, igdb: { game_id: decision.game_id, game_slug: decision.slug } };
+  const matching = assembleCatalogRecords(shared, [
+    { ...owner, listing: { ...donor, media: [acceptedMedia] } },
+    sibling,
+  ]);
+  assert.deepEqual(matching.directory.listings.find(({ id }) => id === sibling.listing.id)?.media, [
+    acceptedMedia,
+  ]);
+  const staleAlias = { ...prior, igdb: { ...prior.igdb, game_id: decision.game_id } };
+  const unresolvedAlias = assembleCatalogRecords(shared, [
+    { ...owner, listing: { ...donor, media: [staleAlias] } },
+    sibling,
+  ]);
+  assert.equal(
+    unresolvedAlias.directory.listings.find(({ id }) => id === sibling.listing.id)?.media,
+    undefined,
+  );
+  const { decision: _match, game_id: _game, slug: _slug, ...scope } = decision;
+  const excluded = assembleCatalogRecords(shared, [
+    { ...owner, listing: donor, igdb_original_media_v1: [{ ...scope, decision: "exclude" }] },
+    sibling,
+  ]);
+  assert.equal(
+    excluded.directory.listings.find(({ id }) => id === sibling.listing.id)?.media,
+    undefined,
+  );
+});
 
 void test("reviewed mod websites promote the directory without an operational definition", () => {
   const link = {

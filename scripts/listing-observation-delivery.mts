@@ -1546,6 +1546,7 @@ export async function prepareObservationBundle(options: {
                 : entry;
             });
           })(),
+          reviewedOriginalMedia: source.reviewedOriginalMedia,
           excludedPortIds: new Set(),
           gone,
           checked: new Map(),

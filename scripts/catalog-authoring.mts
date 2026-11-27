@@ -58,6 +58,11 @@ import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineag
 import type { UpstreamLineage } from "./upstream-lineage.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
 import { sharedOriginalMedia, typedIgdbScene } from "./shared-original-media.mts";
+import {
+  checkReviewedOriginalMedia,
+  indexAuthoredOriginalMedia,
+} from "./reviewed-original-media.mts";
+import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
 export { typedIgdbScene } from "./shared-original-media.mts";
 
 // These are checked authoring projections, not a second catalog schema. Unknown
@@ -125,6 +130,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
   igdb_regional_cover?: IgdbRegionalCover;
+  /** Reviewed IGDB preparation decisions at the exact shared original edition scope. */
+  igdb_original_media_v1?: ReviewedOriginalMediaDecision[];
   /** Keep this variant out of the exact same-edition shared cover policy. */
   igdb_no_shared_cover?: true;
   /** Suppress generated community browser links for this implementation. */
@@ -912,6 +919,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       }
     }
   }
+  checkReviewedOriginalMedia(value.igdb_original_media_v1, listing.original_game);
   for (const field of ["original_game_title", "variant_label"] as const)
     if (listing[field] !== undefined && !boundedText(listing[field], 512))
       throw new Error(`Listing ${field} requires bounded nonempty text.`);
@@ -1104,6 +1112,7 @@ export function assembleCatalogRecords(
   const authored = inputs.map((record) => checkedAuthoredPort(record));
   if (new Set(authored.map((record) => record.listing.id)).size !== authored.length)
     throw new Error("Catalog source has duplicate stable listing IDs.");
+  const reviewedOriginalMedia = indexAuthoredOriginalMedia(authored);
   // Data-derived user-selected registration routes. Each generated record then
   // passes exactly the validation a hand-authored record does.
   const generation = generateRegistrations(authored, listingPackageFacts);
@@ -1170,6 +1179,7 @@ export function assembleCatalogRecords(
   const listings = sharedOriginalMedia(
     listed,
     new Set(records.filter(usesScummvmEngine).map(({ listing }) => listing.id)),
+    reviewedOriginalMedia,
   );
   const extendedMedia = listings.some(
     (listing) =>
@@ -1254,6 +1264,7 @@ export function assembleCatalogRecords(
     records,
     /** The checked authored records before generated registration routes were added. */
     authored,
+    reviewedOriginalMedia,
     catalog,
     directory: { format_version, listings },
     generation,

@@ -9,6 +9,19 @@ export const positiveId = (value: unknown): value is number =>
 export const matchesString = (pattern: RegExp, value: unknown): value is string =>
   typeof value === "string" && pattern.test(value);
 
+export function artworkEvidenceUrl(value: unknown) {
+  const evidence = typeof value === "string" ? URL.parse(value) : null;
+  if (
+    !evidence ||
+    evidence.protocol !== "https:" ||
+    evidence.username ||
+    evidence.password ||
+    evidence.href.length > 2048
+  )
+    throw new Error("Artwork identity needs attributable HTTPS evidence.");
+  return evidence.href;
+}
+
 export interface IgdbRegionalCover {
   game_id: number;
   slug: string;

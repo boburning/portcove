@@ -82,6 +82,81 @@ void test("shared covers use the accepted provider asset identity through a slug
   assert.equal(result.outcomes.find(({ id }) => id === recipient.id)?.status, "ambiguous");
 });
 
+void test("reviewed original cover decisions replace stale preparation inputs", async () => {
+  const { artworkPreparationInputs, prepareCatalogArtwork } =
+    await import("./inspect-igdb-artwork.mts");
+  const { indexReviewedOriginalMedia } = await import("./reviewed-original-media.mts");
+  const project_url = "https://github.com/example/port";
+  const stale = {
+    game_id: 2,
+    game_slug: "old-game",
+    cover_id: 3,
+    image_id: "oldcover",
+    image_sha256: "a".repeat(64),
+    match_kind: "underlying-game" as const,
+  };
+  const corrected = { ...stale, game_id: 4, game_slug: "correct-game", image_id: "correctcover" };
+  const recipient = {
+    id: "recipient",
+    name: "Port",
+    project_url,
+    presentation: {
+      original_game: { id: "original", source_editions: [{ id: "pc", system: "pc" }] },
+    },
+    underlying_game: {
+      names: ["Old game"],
+      source_edition_id: "pc",
+      game_id: 2,
+      slug: "old-game",
+      evidence_url: project_url,
+    },
+  };
+  const acceptedCatalog = {
+    ports: [
+      { ...recipient, id: "stale-donor", presentation: { artwork: stale } },
+      { ...recipient, id: "correct-donor", presentation: { artwork: corrected } },
+    ],
+  };
+  const scope = {
+    original_game_id: "original",
+    source_edition_id: "pc",
+    system: "pc",
+    evidence_url: project_url,
+  };
+  const withMatch = indexReviewedOriginalMedia([
+    { ...scope, decision: "match", game_id: 4, slug: "correct-game" },
+  ]);
+  const withExclusion = indexReviewedOriginalMedia([{ ...scope, decision: "exclude" }]);
+  const options = { acceptedCatalog, inspectGame: () => [] };
+  const initial = await prepareCatalogArtwork({ ports: [recipient] }, options);
+  assert.deepEqual(initial.records[0]?.mapping, stale);
+  const repaired = await prepareCatalogArtwork(
+    { ports: [recipient] },
+    { ...options, reviewedOriginalMedia: withMatch },
+  );
+  assert.deepEqual(repaired.records[0]?.mapping, corrected);
+  const excluded = await prepareCatalogArtwork(
+    { ports: [recipient] },
+    { ...options, reviewedOriginalMedia: withExclusion },
+  );
+  assert.equal(excluded.catalog.ports[0]?.presentation?.artwork, undefined);
+  assert.ok(
+    excluded.records[0]?.exceptions.some(
+      ({ reason }) => reason === "reviewed-original-match-excluded",
+    ),
+  );
+  assert.deepEqual(
+    artworkPreparationInputs(acceptedCatalog, {}, withMatch)(recipient)
+      .accepted_original_candidates,
+    [corrected],
+  );
+  assert.deepEqual(
+    artworkPreparationInputs(acceptedCatalog, {}, withExclusion)(recipient)
+      .accepted_original_candidates,
+    [],
+  );
+});
+
 void test("a regional cover refresh refuses a mismatched localization and preserves accepted art", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
   const selection = {
@@ -624,6 +699,104 @@ void test("unavailable image-type overflow stays unknown without disabling game-
   ]);
   assert.equal(provider.providerMetrics.authentication_requests, 1);
   assert.equal(provider.providerMetrics.game_requests, 3);
+});
+
+void test("a reviewed original correction takes precedence and a scoped exclusion stays in force", async () => {
+  const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
+  const { indexReviewedOriginalMedia } = await import("./reviewed-original-media.mts");
+  const { sceneCoverage } = await import("./artwork-operations.mts");
+  const scope = {
+    original_game_id: "fixture-original",
+    source_edition_id: "retail-edition",
+    system: "dos",
+    evidence_url: "https://www.igdb.com/games/reviewed-original",
+  };
+  const port = (id: string, system = "dos") => ({
+    id,
+    name: id,
+    project_url: `https://example.org/${id}`,
+    presentation: {
+      original_game: {
+        id: scope.original_game_id,
+        source_editions: [{ id: scope.source_edition_id, system }],
+      },
+    },
+  });
+  const recipient = port("old-recipient");
+  const future = port("new-recipient");
+  const unrelated = port("different-system", "windows");
+  const calls: unknown[] = [];
+  const inspector = {
+    async inspectGame(identity: unknown) {
+      assert.ok(isRecord(identity));
+      if (identity.kind === "port") return [];
+      calls.push(identity.game_id);
+      return [{ id: 42, slug: "reviewed-original", name: "Reviewed original" }];
+    },
+    async inspectGameMedia(id: number, role: string) {
+      assert.equal(id, 42);
+      return role === "logo" ? [{ id: 9, game: id, image_id: "reviewedlogo" }] : [];
+    },
+    async inspectMediaImage() {
+      return {
+        sha256: "a".repeat(64),
+        bytes: 16,
+        width: 300,
+        height: 200,
+        format: "png" as const,
+        validator: "portcove-core" as const,
+      };
+    },
+  };
+  const input = {
+    ports: [recipient, future, unrelated],
+  };
+  const earlier = {
+    source_edition_id: scope.source_edition_id,
+    names: ["Earlier provider match"],
+    game_id: 15,
+    slug: "earlier-original",
+    evidence_url: "https://www.igdb.com/games/earlier-original",
+  };
+  const identities = { [recipient.id]: { underlying_game: earlier } };
+  const corrected = await prepareCatalogGameMedia(input, {
+    inspector,
+    identities,
+    reviewedOriginalMedia: indexReviewedOriginalMedia([
+      { ...scope, decision: "match", game_id: 42, slug: "reviewed-original" },
+    ]),
+  });
+  assert.deepEqual(calls, [42]);
+  for (const id of [recipient.id, future.id])
+    assert.ok(
+      corrected.records.some((row) => row.port_id === id && row.image_id === "reviewedlogo"),
+    );
+  assert.equal(
+    corrected.records.some(
+      (row) => row.port_id === unrelated.id && row.subject.kind === "original",
+    ),
+    false,
+  );
+
+  calls.length = 0;
+  const excluded = await prepareCatalogGameMedia(input, {
+    inspector,
+    identities,
+    acceptedCatalog: corrected.catalog,
+    reviewedOriginalMedia: indexReviewedOriginalMedia([{ ...scope, decision: "exclude" }]),
+  });
+  assert.deepEqual(calls, []);
+  for (const id of [recipient.id, future.id])
+    assert.equal(
+      excluded.records.filter(
+        (row) => row.port_id === id && row.reason === "identity-excluded-by-review",
+      ).length,
+      3,
+    );
+  assert.equal(
+    sceneCoverage(corrected.catalog, excluded).filter(({ state }) => state === "excluded").length,
+    6,
+  );
 });
 
 void test("reviewed media discovers missing roles by exact game, edition and system", async () => {

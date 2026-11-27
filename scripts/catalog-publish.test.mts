@@ -1909,6 +1909,83 @@ void test("signed projection recomputes shared covers without changing the relea
   assert.equal(row(project(initial.bytes, new Set(), authored, held).bytes).artwork, undefined);
   assert.equal(project(admitted.bytes, new Set(), authored, held).changed, false);
 
+  const decisionScope = {
+    original_game_id: game.id,
+    source_edition_id: game.source_editions[0]!.id,
+    system: game.source_editions[0]!.system,
+    evidence_url: "https://example.org/reviewed-cover",
+  };
+  const withDecision = (decision: unknown) => [
+    checkedAuthoredPort({ ...authored[0], igdb_original_media_v1: [decision] }),
+    authored[1]!,
+  ];
+  const approved = { ...decisionScope, decision: "match", game_id: 70, slug: "shared-game" };
+  const outsideScope = checkedAuthoredPort({
+    format_version: 1,
+    listing: {
+      ...donor,
+      id: "excluded-engine",
+      project_url: "https://github.com/example/excluded-engine",
+      implementation: {
+        format_version: 1,
+        methods: [
+          {
+            kind: "engine-reimplementation",
+            evidence_urls: ["https://github.com/scummvm/scummvm"],
+          },
+        ],
+        dependencies: [
+          {
+            kind: "runtime",
+            project_url: "https://github.com/scummvm/scummvm",
+            name: "Engine",
+            confidence: "confirmed",
+            evidence_urls: ["https://github.com/scummvm/scummvm"],
+          },
+        ],
+      },
+    },
+    igdb_original_media_v1: [{ ...decisionScope, decision: "exclude" }],
+  });
+  assert.deepEqual(
+    row(project(initial.bytes, new Set(), [...withDecision(approved), outsideScope]).bytes).artwork,
+    artwork,
+  );
+  const staleDonor = indexSharedCoverRows(
+    rows(initial.bytes).map((listing) =>
+      listing.id === donor.id
+        ? { ...listing, artwork: { ...artwork, game_slug: "former-slug" } }
+        : listing,
+    ),
+  );
+  assert.equal(
+    projectExactSharedCovers({
+      live: staleDonor,
+      authored: withDecision(approved),
+      excludedPortIds: new Set(),
+      gone: new Set(),
+      checked: new Map(),
+    }).proposals.has(recipient.id),
+    false,
+  );
+  for (const decision of [
+    { ...approved, slug: "corrected-slug" },
+    { ...approved, game_id: 72 },
+    { ...decisionScope, decision: "exclude" },
+  ]) {
+    const corrected = withDecision(decision);
+    for (const previous of [initial.bytes, admitted.bytes]) {
+      const projection = project(previous, new Set(), corrected);
+      assert.equal(row(projection.bytes).artwork, undefined);
+      assert.deepEqual(
+        row(projection.bytes).upstream_observation,
+        row(initial.bytes).upstream_observation,
+      );
+      assert.deepEqual(rows(projection.bytes).find(({ id }) => id === donor.id)?.artwork, artwork);
+      assert.equal(project(projection.bytes, new Set(), corrected).changed, false);
+    }
+  }
+
   const retain = (previous: Buffer, gone = new Set<string>()) =>
     projectListingDelivery(canonical, [], previous, {
       sharedCoverDefaults: retainSharedCoverDefaults(

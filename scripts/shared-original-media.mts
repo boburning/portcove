@@ -1,4 +1,5 @@
 import type { AuthoredListing } from "./catalog-authoring.mts";
+import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
 import { orderedJsonSha256 } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -14,6 +15,19 @@ export function originalEditionMediaKey(gameId: string, edition: unknown) {
     (edition.system == null || typeof edition.system === "string")
   )
     return JSON.stringify([gameId, edition.id, edition.system ?? null]);
+}
+
+export function permitsReviewedOriginalMedia(
+  decision: ReviewedOriginalMediaDecision | undefined,
+  providerGameId: unknown,
+  providerSlug: unknown,
+) {
+  return (
+    !decision ||
+    (decision.decision === "match" &&
+      decision.game_id === providerGameId &&
+      decision.slug === providerSlug)
+  );
 }
 
 export function typedIgdbScene(asset: unknown) {
@@ -40,7 +54,14 @@ function sharedAsset(value: unknown, game: AuthoredListing["original_game"]) {
   const editionId = value.subject.source_edition_id;
   const edition = game.source_editions.find(({ id }) => id === editionId);
   const key = originalEditionMediaKey(game.id, edition);
-  return key ? { asset: value as Asset, key } : undefined;
+  return key
+    ? {
+        asset: value as Asset,
+        key,
+        providerGameId: value.igdb.game_id,
+        providerSlug: value.igdb.game_slug,
+      }
+    : undefined;
 }
 
 function recordClaim(claims: Map<string, Claim | null>, key: string, claim: Claim | null) {
@@ -53,7 +74,11 @@ function recordClaim(claims: Map<string, Claim | null>, key: string, claim: Clai
  * records and strict installation catalog remain the inputs to their own paths. */
 export function sharedOriginalMedia<
   T extends Pick<AuthoredListing, "id" | "media" | "original_game">,
->(listings: readonly T[], excluded: ReadonlySet<string>): T[] {
+>(
+  listings: readonly T[],
+  excluded: ReadonlySet<string>,
+  reviewed?: ReadonlyMap<string, ReviewedOriginalMediaDecision>,
+): T[] {
   const scopes = new Map<
     string,
     { roles: Map<string, Claim | null>; ids: Map<string, Claim | null> }
@@ -64,6 +89,8 @@ export function sharedOriginalMedia<
       const item = sharedAsset(candidate, listing.original_game);
       if (!item) continue;
       const { key } = item;
+      const decision = reviewed?.get(key);
+      if (!permitsReviewedOriginalMedia(decision, item.providerGameId, item.providerSlug)) continue;
       const scope = scopes.get(key) ?? {
         roles: new Map<string, Claim | null>(),
         ids: new Map<string, Claim | null>(),

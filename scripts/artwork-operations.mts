@@ -342,17 +342,19 @@ export function sceneCoverage(
                 : "outside-proposal-input",
             );
           const state =
-            knownGames.size > 1 || reasons.includes("identity-ambiguous")
-              ? "conflicting"
-              : admitted.length
-                ? "admitted"
-                : proposed.length
-                  ? "proposed"
-                  : withdrawn.length
-                    ? "withdrawn"
-                    : reasons.length === 1 && reasons[0] === "provider-role-empty"
-                      ? "missing"
-                      : "unknown";
+            !admitted.length && !proposed.length && reasons.includes("identity-excluded-by-review")
+              ? "excluded"
+              : knownGames.size > 1 || reasons.includes("identity-ambiguous")
+                ? "conflicting"
+                : admitted.length
+                  ? "admitted"
+                  : proposed.length
+                    ? "proposed"
+                    : withdrawn.length
+                      ? "withdrawn"
+                      : reasons.length === 1 && reasons[0] === "provider-role-empty"
+                        ? "missing"
+                        : "unknown";
           return {
             port_id: port.id,
             subject,
