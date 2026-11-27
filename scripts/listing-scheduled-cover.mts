@@ -26,7 +26,7 @@ function scheduledCoverScope(key: string, artwork: IgdbArtwork) {
   // The checkpoint record belongs to the original edition and reviewed provider
   // identity, so new peers and renamed repositories inherit the same history.
   const subject = createHash("sha256")
-    .update(JSON.stringify([key, artwork.game_id, artwork.game_slug]))
+    .update(JSON.stringify([key, artwork.game_id]))
     .digest("hex");
   const scope = createHash("sha256").update(subject).update(coverIdentity(artwork)).digest("hex");
   return { id: `scheduled-cover-${subject}`, scope };
@@ -137,7 +137,7 @@ export async function projectScheduledCovers({
   type Offer = { artwork: IgdbArtwork; key: string };
   const retained = new Map<string, Offer>();
   const fresh = new Map<string, Offer>();
-  function accepted(id: string, artwork: unknown, producer: Listing | undefined) {
+  function accepted(id: string, artwork: unknown, producer: Listing | undefined, signed = false) {
     const entry = eligible.get(id);
     if (
       !entry ||
@@ -147,14 +147,14 @@ export async function projectScheduledCovers({
       !validArtworkMapping(artwork) ||
       artwork.match_kind !== "underlying-game" ||
       artwork.game_id !== entry.decision.game_id ||
-      artwork.game_slug !== entry.decision.slug ||
+      (!signed && artwork.game_slug !== entry.decision.slug) ||
       denied.has(artwork.image_id)
     )
       return undefined;
-    return { artwork, key: entry.scope.key };
+    return { artwork: { ...artwork, game_slug: entry.decision.slug }, key: entry.scope.key };
   }
   for (const [id, row] of previous) {
-    const offer = accepted(id, row.artwork, row);
+    const offer = accepted(id, row.artwork, row, true);
     if (offer && !shared.has(id)) retained.set(id, offer);
   }
   for (const { id, artwork } of incoming ?? []) {
@@ -174,6 +174,7 @@ export async function projectScheduledCovers({
   }
   const health = [...observations];
   const changed = new Set(held);
+  const verified = new Set<string>();
   const prior = advanceArtworkCheckpoint(priorCheckpoint, observations);
   if (inspect) {
     const targets = [
@@ -185,6 +186,7 @@ export async function projectScheduledCovers({
     for (const [, { artwork }] of targets.slice(offset, offset + width)) {
       const value = await observe(artwork);
       if (value !== null && value !== artwork.image_sha256) changed.add(artwork.image_id);
+      if (value === artwork.image_sha256) verified.add(coverIdentity(artwork));
     }
     const goneScopes = new Set<string>();
     for (const { key, artwork } of retained.values()) {
@@ -214,16 +216,22 @@ export async function projectScheduledCovers({
   const hasWithdrawal = ({ key, artwork }: Offer) =>
     checkpoint.withdrawalsFor(scheduledCoverScope(key, artwork).id).length > 0;
   for (const offer of retained.values()) if (!hasWithdrawal(offer)) propose(offer);
-  function distribute() {
+  function distribute(allowNew: boolean) {
     const proposals = new Map<string, IgdbArtwork>();
     for (const [id, { scope }] of eligible) {
       const mapping = offers.get(scope.key);
-      if (!shared.has(id) && mapping && (!changed.has(mapping.image_id) || retained.has(id)))
+      if (
+        !shared.has(id) &&
+        mapping &&
+        (retained.has(id) ||
+          (allowNew && !changed.has(mapping.image_id) && verified.has(coverIdentity(mapping))))
+      )
         proposals.set(id, mapping);
     }
     return proposals;
   }
-  const preserved = distribute();
+  const preserved = distribute(false);
+  const preservedCheckpoint = checkpoint;
   const retainedScopes = new Set(offers.keys());
   for (const offer of fresh.values())
     if (
@@ -254,7 +262,8 @@ export async function projectScheduledCovers({
         checkpoint = advanceArtworkCheckpoint(priorCheckpoint, health);
         if (hasWithdrawal(offer)) continue;
       }
+      verified.add(coverIdentity(artwork));
       propose(offer);
     }
-  return { preserved, proposals: distribute(), checkpoint };
+  return { preserved, proposals: distribute(true), preservedCheckpoint, checkpoint };
 }

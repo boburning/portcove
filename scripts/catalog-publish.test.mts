@@ -2212,6 +2212,16 @@ void test("scheduled missing covers reuse an exact edition and survive transient
   });
   assert.deepEqual(held.proposals.get(donor.id), artwork);
   assert.equal(held.proposals.has(peer.id), false);
+  const outageAfterDrift = await projectScheduledCovers({
+    ...options,
+    incoming: [],
+    previous: new Map([[donor.id, { ...donor, artwork }]]),
+    inspect: async () => {
+      throw new Error("provider unavailable after drift");
+    },
+  });
+  assert.deepEqual(outageAfterDrift.preserved.get(donor.id), artwork);
+  assert.equal(outageAfterDrift.proposals.has(peer.id), false);
   const upstreamHold = await projectScheduledCovers({
     ...options,
     held: new Set([artwork.image_id]),
@@ -2247,6 +2257,17 @@ void test("scheduled missing covers reuse an exact edition and survive transient
   const restored = await projectScheduledCovers({ ...recovery, receiptStarted: options.now + 1 });
   assert.deepEqual(restored.proposals.get(donor.id), artwork);
   assert.deepEqual(restored.proposals.get(peer.id), artwork);
+  assert.deepEqual(restored.preservedCheckpoint.finish(listing), checkpoint);
+  const renamed = "renamed-cover-game";
+  const rejectedRenameReplay = await projectScheduledCovers({
+    ...recovery,
+    receiptStarted: options.now,
+    reviewed: new Map(
+      [...reviewed].map(([scope, decision]) => [scope, { ...decision, slug: renamed }]),
+    ),
+    incoming: [{ id: donor.id, artwork: { ...artwork, game_slug: renamed } }],
+  });
+  assert.equal(rejectedRenameReplay.proposals.size, 0);
   assert.equal(
     (await projectScheduledCovers({ ...options, previous, reviewed: new Map() })).proposals.size,
     0,
