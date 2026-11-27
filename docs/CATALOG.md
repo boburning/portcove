@@ -513,6 +513,10 @@ reader floor and a released reader that advertises format 16. Live delivery
 stays on format 15 until that successor floor is set. Compatibility exports
 below format 16 omit the links. A later format-16 snapshot can update or
 withdraw a link without changing the game package or installation.
+A generated default can survive a provider outage across a verified GitHub
+rename. The repository-bound listing keeps the same numeric identity, and the
+original game and reviewed provider association must still agree. A different
+listing or a changed legacy project URL cannot inherit the retained default.
 
 ### Acquisition restrictions
 

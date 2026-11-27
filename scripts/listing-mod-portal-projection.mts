@@ -1,4 +1,4 @@
-import { observedModPortalPrefix } from "./catalog-authoring.mts";
+import { admittedGithubRepositoryId, observedModPortalPrefix } from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 import {
@@ -146,8 +146,12 @@ export function listingModPortalDefaults(
     const matches = communities?.get(gameId);
     if (matches?.length === 1 && matches[0]?.listed === true) return communityPortal(matches[0]);
     if (
-      previous?.project_url !== listing.project_url ||
-      !previous ||
+      previous?.id !== listing.id ||
+      // Repository-bound listings keep their identity when the verified
+      // canonical repository changes names. Other listings still need
+      // the same authored project URL.
+      (previous.project_url !== listing.project_url &&
+        admittedGithubRepositoryId(listing.id) === undefined) ||
       observationHash(previous.original_game ?? null) !==
         observationHash(listing.original_game ?? null)
     )
