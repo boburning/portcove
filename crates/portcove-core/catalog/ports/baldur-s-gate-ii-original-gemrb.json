@@ -67,7 +67,17 @@
         "https://github.com/gemrb/gemrb",
         "https://www.beamdog.com/games/baldurs-gate-2-enhanced/"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "baldur-s-gate-ii-shadows-of-amn-pc",
+          "title": "Baldur's Gate II: Shadows of Amn (original PC edition)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+            "https://gemrb.org/Features.html#status"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

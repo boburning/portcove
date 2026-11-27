@@ -12,7 +12,17 @@
       "format_version": 1,
       "id": "marvel-ultimate-alliance",
       "evidence_urls": ["https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "marvel-ultimate-alliance-gold-edition-xbox-360",
+          "title": "Marvel: Ultimate Alliance Gold Edition (Xbox 360, Media ID 5A20A6D4)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/README.md",
+            "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/mua1-gold.manifest.toml"
+          ]
+        }
+      ]
     },
     "original_game_title": "Marvel: Ultimate Alliance — Gold Edition"
   }
