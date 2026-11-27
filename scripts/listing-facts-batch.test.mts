@@ -116,6 +116,7 @@ import {
   GithubStatusError,
   identityRefusals,
   refusalRecord,
+  reproductionArchiveTransfer,
   withholdRefused,
   withheldSummary,
   parseProviderRelease,
@@ -4127,4 +4128,36 @@ void test("refusals of every reproduced identity for one reason stop the job ins
   assert.equal(systemicRefusal(1, [refusal("a")]), undefined);
   assert.equal(systemicRefusal(3, [refusal("a"), refusal("b")]), undefined);
   assert.equal(systemicRefusal(2, [refusal("a"), refusal("b", "mismatch")]), undefined);
+});
+
+void test("reproduction transfer reports partial and missing shard measurements independently of refusal", () => {
+  const directory = mkdtempSync(join(tmpdir(), "facts-reproduction-transfer-"));
+  try {
+    const write = (name: string, value: unknown) =>
+      writeFileSync(join(directory, name), JSON.stringify(value));
+    const refused = refusalRecord(
+      1,
+      [{ port_id: "fixture-port", reason: "over-budget", detail: "partial archive" }],
+      123,
+    );
+    assert.equal(refused.transient, true);
+    write("refusals-0.json", refused);
+    write("refusals-1.json", refusalRecord(0, [], 0));
+    write("refusals-2.json", refusalRecord(0, []));
+    write("refusals-3.json", refusalRecord(0, [], -1));
+    write("refusals-5.json", refusalRecord(0, [], 999));
+    assert.deepEqual(reproductionArchiveTransfer(directory, 5), {
+      expected_shards: 5,
+      measured_shards: 2,
+      archive_body_bytes: 123,
+    });
+    assert.deepEqual(reproductionArchiveTransfer(join(directory, "absent"), 5), {
+      expected_shards: 5,
+      measured_shards: 0,
+      archive_body_bytes: null,
+    });
+    assert.equal(reproductionArchiveTransfer(directory, 0), undefined);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

@@ -2486,7 +2486,11 @@ function refusalFiles(file: string) {
  * condition, and at least one is the latter; `refused`, every typed
  * refusal; `refusals`, at most five of them as lines for a stop issue.
  */
-export function refusalRecord(problems: number, refused: readonly Refusal[]) {
+export function refusalRecord(
+  problems: number,
+  refused: readonly Refusal[],
+  archiveBodyBytes?: number,
+) {
   const scoped = problems === refused.length;
   return {
     ok: problems === 0 || (scoped && refused.every((refusal) => identityRefusal(refusal))),
@@ -2498,6 +2502,7 @@ export function refusalRecord(problems: number, refused: readonly Refusal[]) {
       ),
     refused: refused.map(({ port_id, reason, detail }) => ({ port_id, reason, detail })),
     refusals: refused.slice(0, 5).map((r) => `${r.port_id}: ${r.reason}: ${r.detail}`),
+    ...(archiveBodyBytes === undefined ? {} : { archive_body_bytes: archiveBodyBytes }),
   };
 }
 /** One refusal file: `{ ok, transient, refused, refusals }`, or an array of refusal lines. */
@@ -2506,6 +2511,7 @@ function readRefusals(name: string): {
   transient: boolean;
   refused: Refusal[] | undefined;
   refusals: unknown[];
+  archive_body_bytes?: number;
 } {
   const parsed: unknown = JSON.parse(readFileSync(name, "utf8"));
   if (Array.isArray(parsed))
@@ -2532,8 +2538,42 @@ function readRefusals(name: string): {
           })
         : undefined,
       refusals: parsed.refusals as unknown[],
+      ...(typeof parsed.archive_body_bytes === "number" &&
+      Number.isSafeInteger(parsed.archive_body_bytes) &&
+      parsed.archive_body_bytes >= 0
+        ? { archive_body_bytes: parsed.archive_body_bytes }
+        : {}),
     };
   return { ok: false, transient: false, refused: undefined, refusals: [] };
+}
+/** Report measured archive body traffic separately from the eligibility gate. */
+export function reproductionArchiveTransfer(file: string | undefined, expectedShards: number) {
+  if (!file || !Number.isSafeInteger(expectedShards) || expectedShards <= 0) return undefined;
+  let measured = 0;
+  let bytes = 0;
+  let files: string[];
+  try {
+    files = refusalFiles(file);
+  } catch {
+    files = [];
+  }
+  for (const name of files) {
+    const shard = /^refusals-(0|[1-9]\d*)\.json$/u.exec(path.basename(name));
+    if (!shard || Number(shard[1]) >= expectedShards) continue;
+    try {
+      const observed = readRefusals(name).archive_body_bytes;
+      if (observed === undefined) continue;
+      measured++;
+      bytes += observed;
+    } catch {
+      // An unreadable receipt provides no measurement for this shard.
+    }
+  }
+  return {
+    expected_shards: expectedShards,
+    measured_shards: measured,
+    archive_body_bytes: measured > 0 && Number.isSafeInteger(bytes) ? bytes : null,
+  };
 }
 /**
  * The identity refusals of a reproduction whose every one of `shards`
@@ -3337,6 +3377,7 @@ async function main(argv: string[]): Promise<string> {
         shard === undefined ? plan.entries.map((e) => e.port_id) : shards[shard],
       );
       const refused: Refusal[] = [];
+      let archiveBodyBytes = 0;
       // An out-of-scope plan reads nothing at all.
       const entries =
         option.reproduce === "false" || scope.length
@@ -3359,14 +3400,19 @@ async function main(argv: string[]): Promise<string> {
           const result = await reproduceFacts({
             entries,
             listReleases: githubReleaseLister(token(), timing),
-            inspect: cliInspector(cli, work, timing),
+            inspect: cliInspector(cli, work, {
+              ...timing,
+              recordArchiveBodyBytes: (bytes) => {
+                archiveBodyBytes += bytes;
+              },
+            }),
             classify: cliClassifier(cli, work, timing),
             boundLines: boundLinesOf(baseRecords),
             reused: plan.reused,
             ...timing,
           });
           summary(
-            `Reproduced ${result.verified.length} of ${entries.length} changed eligible facts entries${shard === undefined ? "" : ` in shard ${shard} of ${shards.length}`} (${result.bytes} bytes).`,
+            `Reproduced ${result.verified.length} of ${entries.length} changed eligible facts entries${shard === undefined ? "" : ` in shard ${shard} of ${shards.length}`} (${result.bytes} declared archive bytes, ${archiveBodyBytes} archive body bytes received).`,
           );
           for (const refusal of result.refused)
             problems.push(`${refusal.port_id}: ${refusal.reason}: ${refusal.detail}`);
@@ -3390,7 +3436,7 @@ async function main(argv: string[]): Promise<string> {
       if (option.refusals)
         writeFileSync(
           option.refusals,
-          `${JSON.stringify(refusalRecord(problems.length, refused))}\n`,
+          `${JSON.stringify(refusalRecord(problems.length, refused, archiveBodyBytes))}\n`,
         );
       if (onlyIdentities && option["own-run"] === "true" && option.refusals)
         return `Listing facts change verified except ${refused.length} identity refusal(s), each withheld by the job: ${refused
@@ -3547,11 +3593,18 @@ async function main(argv: string[]): Promise<string> {
         );
       const facts = currentFacts();
       const behind = factsFallingBehind(facts, option.now ?? new Date().toISOString());
-      if (option.output)
-        writeFileSync(
-          option.output,
-          `${JSON.stringify({ conditions, freshness: behind ?? null })}\n`,
+      const transfer = reproductionArchiveTransfer(option.refusals, Number(option["shard-count"]));
+      const assessment = {
+        conditions,
+        freshness: behind ?? null,
+        ...(transfer ? { reproduction_transfer: transfer } : {}),
+      };
+      if (transfer) {
+        summary(
+          `Archive body transfer during reproduction: ${transfer.archive_body_bytes ?? "unknown"} measured bytes across ${transfer.measured_shards} of ${transfer.expected_shards} shards.`,
         );
+      }
+      if (option.output) writeFileSync(option.output, `${JSON.stringify(assessment)}\n`);
       output("stop", String(conditions.length > 0));
       output("transient", String(record?.reproduction_transient === true));
       summary(
@@ -3559,7 +3612,7 @@ async function main(argv: string[]): Promise<string> {
           ? `### Stop conditions\n\n${conditions.map((c) => `- **${c.name}**: ${c.detail}`).join("\n")}`
           : "No stop condition.",
       );
-      return `${JSON.stringify({ conditions, freshness: behind ?? null })}\n`;
+      return `${JSON.stringify(assessment)}\n`;
     }
     case "carry": {
       // Before generation: keep in this batch only what its pull-request CI
