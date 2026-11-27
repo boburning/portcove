@@ -3033,7 +3033,7 @@ impl Library {
         Self::external_runtime_with_port_bounded_from(&connection, port_id, budget)
     }
 
-    fn external_runtime_with_port_bounded_from(
+    pub(crate) fn external_runtime_with_port_bounded_from(
         connection: &Connection,
         port_id: &str,
         budget: &mut u64,

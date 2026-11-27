@@ -312,26 +312,35 @@ impl PortcoveService {
     pub fn mod_portal_preferences(&self, port_id: &str) -> Result<ModPortalPreferences> {
         let connection = self.library().connection()?;
         self.require_mod_portal_subject(&connection, port_id)?;
-        self.current_mod_portal_choices(&connection, port_id)
+        let offered =
+            self.mod_portal_offers(&connection, port_id, crate::Platform::current().ok())?;
+        Self::current_mod_portal_choices(&connection, port_id, &offered)
     }
 
     fn current_mod_portal_choices(
-        &self,
         connection: &Connection,
         port_id: &str,
+        offered: &[crate::ExternalModPortal],
     ) -> Result<ModPortalPreferences> {
         let mut preferences = read_choices(connection, port_id)?;
         let mut communities = hidden_communities(connection, port_id, preferences.revision)?;
-        resolve_hidden(
-            &mut preferences.choices,
-            &crate::external_mod_portal::portals(
-                self.catalog(),
-                port_id,
-                crate::Platform::current().ok(),
-            ),
-            &mut communities,
-        );
+        resolve_hidden(&mut preferences.choices, offered, &mut communities);
         Ok(preferences)
+    }
+
+    pub(crate) fn effective_external_mod_portals(
+        &self,
+        port_id: &str,
+        platform: Option<crate::Platform>,
+    ) -> Result<crate::ModPortalsView> {
+        let connection = self.library().connection()?;
+        self.require_mod_portal_subject(&connection, port_id)?;
+        let offered = self.mod_portal_offers(&connection, port_id, platform)?;
+        let preferences = Self::current_mod_portal_choices(&connection, port_id, &offered)?;
+        Ok(crate::external_mod_portal::project_mod_portals(
+            offered,
+            preferences,
+        ))
     }
 
     /// Change browser-only choices on this device. The current catalog remains
@@ -347,17 +356,14 @@ impl PortcoveService {
         let mut connection = self.library().connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         self.require_mod_portal_subject(&transaction, port_id)?;
-        let current = self.current_mod_portal_choices(&transaction, port_id)?;
+        let offered =
+            self.mod_portal_offers(&transaction, port_id, crate::Platform::current().ok())?;
+        let current = Self::current_mod_portal_choices(&transaction, port_id, &offered)?;
         if current.revision != expected_revision {
             return Err(PortcoveError::conflict(
                 "Mod source choices changed. Review the current choices before saving.",
             ));
         }
-        let offered = crate::external_mod_portal::portals(
-            self.catalog(),
-            port_id,
-            crate::Platform::current().ok(),
-        );
         if choices.hidden_sources.iter().any(|id| {
             current.choices.hidden_sources.binary_search(id).is_err()
                 && offered.iter().all(|portal| &portal.source != id)

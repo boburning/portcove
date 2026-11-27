@@ -137,15 +137,21 @@ impl PortcoveService {
             if document.listings.iter().any(|listing| listing.id == id) {
                 continue;
             }
-            let Some((_, retained)) = self
-                .library
-                .external_runtime_with_port_bounded(&id, &mut budget)?
+            let Some((record, retained)) =
+                Library::external_runtime_with_port_bounded_from(connection, &id, &mut budget)?
             else {
                 continue;
             };
             // Retaining display identity preserves the user's Library entry;
             // it does not restore a retired managed installation definition.
-            document.listings.push(retained.listing(&id)?.clone());
+            let listing = retained.listing(&id)?.clone();
+            if record.user_selected.is_some() {
+                let (projected, _) =
+                    Self::personal_listing_projection(&catalog, connection, listing)?;
+                document.listings.push(projected);
+            } else {
+                document.listings.push(listing);
+            }
         }
         for pending in Self::pending_setups_from(connection)? {
             if !document
@@ -157,6 +163,68 @@ impl PortcoveService {
             }
         }
         catalog.with_projected_listing_document(document)
+    }
+
+    pub(crate) fn personal_listing_projection(
+        catalog: &Catalog,
+        connection: &rusqlite::Connection,
+        mut retained: PortListing,
+    ) -> Result<(PortListing, bool)> {
+        let Some(canonical) =
+            Self::unoccupied_personal_listing_match(catalog, connection, &retained)?
+        else {
+            return Ok((retained, false));
+        };
+        // The registration remains the owner of its local operation key.
+        retained.name.clone_from(&canonical.name);
+        retained.summary.clone_from(&canonical.summary);
+        retained.project_url.clone_from(&canonical.project_url);
+        retained
+            .original_game_title
+            .clone_from(&canonical.original_game_title);
+        retained.variant_label.clone_from(&canonical.variant_label);
+        retained.original_game.clone_from(&canonical.original_game);
+        if let Some(game) = &mut retained.original_game {
+            for edition in &mut game.source_editions {
+                edition.verified_sources.clear();
+            }
+        }
+        retained.media.clone_from(&canonical.media);
+        for asset in &mut retained.media {
+            if let crate::CatalogMediaSubject::Port { port_id } = &mut asset.subject {
+                port_id.clone_from(&retained.id);
+            }
+        }
+        crate::catalog_media::validate_catalog_media(
+            &retained.id,
+            retained.original_game.as_ref(),
+            &retained.media,
+        )?;
+        retained.issue_number = canonical.issue_number;
+        retained.artwork = catalog.automatic_cover(canonical).cloned();
+        retained
+            .collection_covers
+            .clone_from(&canonical.collection_covers);
+        Ok((retained, true))
+    }
+
+    pub(crate) fn unoccupied_personal_listing_match<'a>(
+        catalog: &'a Catalog,
+        connection: &rusqlite::Connection,
+        retained: &PortListing,
+    ) -> Result<Option<&'a PortListing>> {
+        let Some(canonical) = catalog.canonical_for_private_github_listing(retained) else {
+            return Ok(None);
+        };
+        let occupied: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)
+                OR EXISTS(SELECT 1 FROM installs WHERE port_id=?1)
+                OR EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)
+                OR EXISTS(SELECT 1 FROM library_memberships WHERE port_id=?1)",
+            [&canonical.id],
+            |row| row.get(0),
+        )?;
+        Ok((!occupied).then_some(canonical))
     }
 
     pub(super) fn listing_statuses_from(
