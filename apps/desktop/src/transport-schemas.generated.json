@@ -34206,6 +34206,13 @@
             },
             "type": "array"
           },
+          "canonical_port_id": {
+            "description": "Canonical listing represented by this retained local registration.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "capabilities": {
             "anyOf": [
               {
