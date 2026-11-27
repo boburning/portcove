@@ -83,13 +83,26 @@ void test("scheduled receipt CLI reaches a terminal receipt when its store is un
   // closed at the store with a bounded receipt instead of hanging.
   const run = runScheduledReceipts("postgresql://fixture@127.0.0.1:1/unavailable");
   assert.equal(run.status, 1, run.stderr);
-  assert.equal(run.output, "audit_continuations=[]\nreceipt_revision=\n");
+  assert.equal(run.output, "audit_continuations=[]\nreceipt_revision=\nreceipt_outcome=failed\n");
   assert.deepEqual(run.receipt, {
     status: "failed",
     phase: "read-plans",
     reason: "store-error",
     eligible_audits: 0,
   });
+});
+
+void test("scheduled receipt CLI records resource deferral before reading the queue or store", () => {
+  // The scheduled metered path has no provider reading in this fixture.
+  const run = runScheduledReceipts("postgresql://fixture@ep-test.neon.tech/unused");
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.output, "audit_continuations=[]\nreceipt_revision=\nreceipt_outcome=deferred\n");
+  assert.deepEqual(run.receipt, {
+    status: "unavailable",
+    reason: "resource-deferred",
+    eligible_audits: 0,
+  });
+  assert.match(run.stderr, /"outcome":"deferred"/u);
 });
 
 void test(
@@ -108,7 +121,10 @@ void test(
       PORTCOVE_POSTGRES_BIN: owner.PORTCOVE_POSTGRES_BIN,
     });
     assert.equal(run.status, 0, run.stderr);
-    assert.match(run.output, /^audit_continuations=\[\]\nreceipt_revision=[^\n]+\n$/u);
+    assert.match(
+      run.output,
+      /^audit_continuations=\[\]\nreceipt_revision=[^\n]+\nreceipt_outcome=verified\n$/u,
+    );
     assert.deepEqual(run.receipt, {
       status: "passed",
       inspected: 0,
