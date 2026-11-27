@@ -460,7 +460,10 @@ mod tests {
             .select_profile_original(port, &b.id, 1, requirement, &instance.instance_id)
             .unwrap();
         assert_eq!(revised.revision, 2);
-        assert_eq!(revised.originals, [instance.binding.clone()]);
+        assert_eq!(
+            revised.originals.as_slice(),
+            std::slice::from_ref(&instance.binding)
+        );
         assert_eq!(
             service
                 .review_profile_original(port, &b.id, 1, requirement)

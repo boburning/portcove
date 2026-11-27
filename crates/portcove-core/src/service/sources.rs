@@ -631,6 +631,95 @@ impl PortcoveService {
     }
 }
 
+fn require_current_admitted_inspection(report: &crate::SourceInspectionReport) -> Result<()> {
+    if let Some(problem) = &report.problem {
+        return Err(PortcoveError::source(problem.message.clone())
+            .detail("profile_id", &report.profile_id)
+            .detail("inspection_state", &report.state_code));
+    }
+    let registered = report
+        .registered
+        .as_ref()
+        .ok_or_else(|| PortcoveError::state("registered source inspection omitted its baseline"))?;
+    let inspection = report.inspection.as_ref().ok_or_else(|| {
+        PortcoveError::state("available source inspection omitted its observed facts")
+    })?;
+    if report.health != SourceHealth::Current {
+        let actual_content = inspection.observed_digests.iter().find(|digest| {
+            digest.algorithm == crate::SourceDigestAlgorithm::Sha256
+                && digest.scope != crate::DigestScope::OriginalContainer
+        });
+        let actual_storage = inspection
+            .observed_digests
+            .iter()
+            .find(|digest| {
+                digest.algorithm == crate::SourceDigestAlgorithm::Sha256
+                    && digest.scope == crate::DigestScope::OriginalContainer
+            })
+            .or_else(|| {
+                inspection.observed_digests.iter().find(|digest| {
+                    digest.algorithm == crate::SourceDigestAlgorithm::Sha256
+                        && digest.scope == crate::DigestScope::OriginalFile
+                })
+            });
+        return Err(PortcoveError::source(format!(
+            "source changed since registration: {}",
+            registered.path.display()
+        ))
+        .detail("profile_id", &report.profile_id)
+        .detail("recorded_sha256", &registered.sha256)
+        .detail(
+            "actual_sha256",
+            actual_content.map_or("", |digest| digest.value.as_str()),
+        )
+        .detail("recorded_size", registered.size.to_string())
+        .detail(
+            "actual_size",
+            actual_content.map_or_else(String::new, |digest| digest.size.to_string()),
+        )
+        .detail("recorded_storage_sha256", &registered.storage_sha256)
+        .detail(
+            "actual_storage_sha256",
+            actual_storage.map_or("", |digest| digest.value.as_str()),
+        )
+        .detail("recorded_storage_size", registered.storage_size.to_string())
+        .detail(
+            "actual_storage_size",
+            actual_storage.map_or_else(String::new, |digest| digest.size.to_string()),
+        )
+        .detail("inspection_state", &report.state_code));
+    }
+    if !matches!(
+        inspection.assessment.admission,
+        crate::SourceAdmission::Admitted { .. }
+    ) {
+        return Err(PortcoveError::source(inspection.message.clone())
+            .detail("profile_id", &report.profile_id)
+            .detail("inspection_state", &report.state_code));
+    }
+    Ok(())
+}
+
+fn source_removal_fingerprint(
+    source: &SourceRecord,
+    dependent_port_ids: &[String],
+    installed_dependent_port_ids: &[String],
+) -> Result<String> {
+    let path = crate::path::unicode(&source.path, "source")?;
+    let encoded = serde_json::to_vec(&(
+        source.profile_id.as_str(),
+        path,
+        source.sha256.as_str(),
+        source.size,
+        source.storage_sha256.as_str(),
+        source.storage_size,
+        source.updated_at,
+        dependent_port_ids,
+        installed_dependent_port_ids,
+    ))?;
+    Ok(hex::encode(Sha256::digest(encoded)))
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -806,93 +895,4 @@ mod tests {
         assert_eq!(std::fs::read(&older_path).unwrap(), older_bytes);
         assert_eq!(std::fs::read(&newer_path).unwrap(), newer_bytes);
     }
-}
-
-fn require_current_admitted_inspection(report: &crate::SourceInspectionReport) -> Result<()> {
-    if let Some(problem) = &report.problem {
-        return Err(PortcoveError::source(problem.message.clone())
-            .detail("profile_id", &report.profile_id)
-            .detail("inspection_state", &report.state_code));
-    }
-    let registered = report
-        .registered
-        .as_ref()
-        .ok_or_else(|| PortcoveError::state("registered source inspection omitted its baseline"))?;
-    let inspection = report.inspection.as_ref().ok_or_else(|| {
-        PortcoveError::state("available source inspection omitted its observed facts")
-    })?;
-    if report.health != SourceHealth::Current {
-        let actual_content = inspection.observed_digests.iter().find(|digest| {
-            digest.algorithm == crate::SourceDigestAlgorithm::Sha256
-                && digest.scope != crate::DigestScope::OriginalContainer
-        });
-        let actual_storage = inspection
-            .observed_digests
-            .iter()
-            .find(|digest| {
-                digest.algorithm == crate::SourceDigestAlgorithm::Sha256
-                    && digest.scope == crate::DigestScope::OriginalContainer
-            })
-            .or_else(|| {
-                inspection.observed_digests.iter().find(|digest| {
-                    digest.algorithm == crate::SourceDigestAlgorithm::Sha256
-                        && digest.scope == crate::DigestScope::OriginalFile
-                })
-            });
-        return Err(PortcoveError::source(format!(
-            "source changed since registration: {}",
-            registered.path.display()
-        ))
-        .detail("profile_id", &report.profile_id)
-        .detail("recorded_sha256", &registered.sha256)
-        .detail(
-            "actual_sha256",
-            actual_content.map_or("", |digest| digest.value.as_str()),
-        )
-        .detail("recorded_size", registered.size.to_string())
-        .detail(
-            "actual_size",
-            actual_content.map_or_else(String::new, |digest| digest.size.to_string()),
-        )
-        .detail("recorded_storage_sha256", &registered.storage_sha256)
-        .detail(
-            "actual_storage_sha256",
-            actual_storage.map_or("", |digest| digest.value.as_str()),
-        )
-        .detail("recorded_storage_size", registered.storage_size.to_string())
-        .detail(
-            "actual_storage_size",
-            actual_storage.map_or_else(String::new, |digest| digest.size.to_string()),
-        )
-        .detail("inspection_state", &report.state_code));
-    }
-    if !matches!(
-        inspection.assessment.admission,
-        crate::SourceAdmission::Admitted { .. }
-    ) {
-        return Err(PortcoveError::source(inspection.message.clone())
-            .detail("profile_id", &report.profile_id)
-            .detail("inspection_state", &report.state_code));
-    }
-    Ok(())
-}
-
-fn source_removal_fingerprint(
-    source: &SourceRecord,
-    dependent_port_ids: &[String],
-    installed_dependent_port_ids: &[String],
-) -> Result<String> {
-    let path = crate::path::unicode(&source.path, "source")?;
-    let encoded = serde_json::to_vec(&(
-        source.profile_id.as_str(),
-        path,
-        source.sha256.as_str(),
-        source.size,
-        source.storage_sha256.as_str(),
-        source.storage_size,
-        source.updated_at,
-        dependent_port_ids,
-        installed_dependent_port_ids,
-    ))?;
-    Ok(hex::encode(Sha256::digest(encoded)))
 }
