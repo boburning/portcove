@@ -1,6 +1,9 @@
 import type { TestContext } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
-import { observeVisibleTarget } from "../../scripts/browser-readiness.mts";
+import {
+  observeCollectionLayoutReady,
+  observeVisibleTarget,
+} from "../../scripts/browser-readiness.mts";
 import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../../test/capture-target";
 
 /** Thin browser adapter. Vitest retains metadata attachments for successful tests too. */
@@ -17,6 +20,7 @@ export async function captureTargetScreenshot(
   image: string,
   label: string,
   context: Pick<TestContext, "annotate">,
+  capture: "element" | "viewport" = "element",
 ) {
   const previous = element.getAttribute("data-capture-target");
   const target = `[data-capture-target="${CSS.escape(label)}"]`;
@@ -27,9 +31,10 @@ export async function captureTargetScreenshot(
       label,
       scroll: () =>
         element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
+      ready: () => capture === "element" || observeCollectionLayoutReady(),
       observe: () => observeVisibleTarget(target, "visual"),
     });
-    await page.screenshot({ element, path: image });
+    await page.screenshot(capture === "viewport" ? { path: image } : { element, path: image });
     requireUnchangedCaptureTarget(metadata.observation, observeVisibleTarget(target, "visual"));
     await retainMetadata(context, { ...metadata, image, outcome: "captured" });
     return metadata;
