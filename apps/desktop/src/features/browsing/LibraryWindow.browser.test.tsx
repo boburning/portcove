@@ -11,6 +11,7 @@ import {
   mountCollectionDestination,
 } from "../../collection-navigation";
 import { inspectLibraryGroups, mountLibraryPort } from "../../browser/discover-test-helpers";
+import { workspaceScrollOwner } from "../../workspace-scroll";
 import { browserFixture } from "../../../test/browser-fixture";
 import type { Organization } from "../organization/OrganizationControls";
 import type { CollectionLayout } from "./use-collection-layout";
@@ -269,22 +270,44 @@ it.each(["covers", "rows"] as const)(
     const card = await mountLibraryPort("library-180");
     const origin = "library:card:library-180";
     const control = card.querySelector<HTMLButtonElement>(`[data-detail-origin="${origin}"]`)!;
+    const workspace = card.closest("main");
+    const readPosition = () => {
+      const active = document.activeElement;
+      const owner = workspaceScrollOwner(workspace);
+      return {
+        origin: active instanceof HTMLElement ? active.dataset.detailOrigin : undefined,
+        top: active?.getBoundingClientRect().top,
+        scrollOwner: owner && (owner === workspace ? "workspace" : "document"),
+        scrollTop: owner?.scrollTop,
+      };
+    };
     await act(async () => control.focus());
     await frames();
     const before = control.getBoundingClientRect().top;
+    const initial = readPosition();
+    expect(initial.origin).toBe(origin);
     // Keep the destination away from either scroll boundary so equal offsets are attainable.
     const reordered = [...ports.slice(150), ...ports.slice(0, 150)];
     await draw({ layout, matching: reordered });
-    await expect
-      .poll(async () => {
-        await frames();
-        const active = document.activeElement as HTMLElement;
-        return (
-          active?.dataset.detailOrigin === origin &&
-          Math.abs(active.getBoundingClientRect().top - before) <= 1
-        );
-      })
-      .toBe(true);
+    let observed = readPosition();
+    try {
+      await expect
+        .poll(async () => {
+          await frames();
+          observed = readPosition();
+          return (
+            observed.origin === origin &&
+            observed.top !== undefined &&
+            Math.abs(observed.top - before) <= 1
+          );
+        })
+        .toBe(true);
+    } catch (error) {
+      throw new Error(
+        `Expected ${origin} within one pixel of ${before}. Initial ${JSON.stringify(initial)}. Final ${JSON.stringify(observed)}.`,
+        { cause: error },
+      );
+    }
     expect(
       Math.abs(document.activeElement!.getBoundingClientRect().top - before),
     ).toBeLessThanOrEqual(1);

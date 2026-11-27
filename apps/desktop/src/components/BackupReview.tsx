@@ -22,31 +22,116 @@ export type ApplyBackupAction = (
   expectedPreview: string,
 ) => Promise<ReviewOutcome>;
 
-export function BackupReviewDialog({
-  gameName,
+function requireMatchingBackup(
+  preview: BackupReview["preview"],
+  backup: BackupRecord,
+  action: BackupAction,
+) {
+  const observed = preview.backup;
+  if (
+    preview.action !== action ||
+    observed.port_id !== backup.port_id ||
+    observed.id !== backup.id ||
+    observed.sha256 !== backup.sha256
+  )
+    throw backupSelectionChanged;
+}
+
+function requireRestoreTarget(
+  scope: BackupReview["preview"]["restore_target_sha256"],
+  previous: string | undefined,
+) {
+  if (!scope || !/^[a-f0-9]{64}$/u.test(scope)) throw restoreReviewHolds.inventoryUnavailable;
+  if (previous !== undefined && previous !== scope) throw restoreReviewHolds.targetChanged;
+  return scope;
+}
+
+const restoreHoldMessages = {
+  backupUnavailable: "review.backupUnavailable",
+  inventoryUnavailable: "review.inventoryUnavailable",
+  targetChanged: "review.targetChanged",
+} as const;
+
+function reviewExplanation({
+  reconcile,
+  selectionChanged,
+  reopen,
+  hold,
+  checking,
+  reviewRefusal,
+}: {
+  reconcile: boolean;
+  selectionChanged: boolean;
+  reopen: boolean;
+  hold: keyof typeof restoreReviewHolds | undefined;
+  checking: boolean;
+  reviewRefusal: boolean;
+}) {
+  if (reconcile) return "review.reconcileRestore";
+  if (selectionChanged) return "review.selectionChanged";
+  if (reopen) return "review.reopenRestore";
+  if (hold && !checking) return restoreHoldMessages[hold];
+  if (reviewRefusal) return "review.refreshRefusedRestore";
+}
+
+const applyLabels = {
+  restore: { ready: "review.applyRestore", pending: "review.restoring", variant: "primary" },
+  delete: { ready: "review.applyDelete", pending: "review.deleting", variant: "destructive" },
+} as const;
+
+function reviewFooterAction({
+  pending,
+  action,
+  canApply,
+  canRefresh,
+  canRetryDelete,
+  reviewRefusal,
+  refreshingRestore,
+}: {
+  pending: "review" | "apply" | undefined;
+  action: BackupAction;
+  canApply: boolean;
+  canRefresh: boolean;
+  canRetryDelete: boolean;
+  reviewRefusal: boolean;
+  refreshingRestore: boolean;
+}) {
+  if (canApply || pending === "apply") {
+    const labels = applyLabels[action];
+    return {
+      intent: "apply",
+      label: pending === "apply" ? labels.pending : labels.ready,
+      variant: labels.variant,
+      disabled: Boolean(pending),
+    } as const;
+  }
+  if (canRefresh || canRetryDelete) {
+    return {
+      intent: "review",
+      label: canRefresh ? "history.refresh" : "review.reviewAgain",
+      variant: reviewRefusal ? "primary" : undefined,
+      disabled: Boolean(pending) || refreshingRestore,
+    } as const;
+  }
+}
+
+function useBackupReview({
   backup,
   action,
   generation,
   apply,
   close,
-  finalFocus,
-  restoreAvailability = "ready",
-  refreshingHistory = false,
   refreshRestoreReview,
+  failureMessage,
 }: {
-  gameName?: string | undefined;
   backup: BackupRecord;
   action: BackupAction;
   generation: number;
   apply: ApplyBackupAction;
   close: () => void;
-  finalFocus?: React.ComponentProps<typeof DialogContent>["finalFocus"];
-  restoreAvailability?: RestoreReviewAvailability;
-  refreshingHistory?: boolean;
-  refreshRestoreReview?: (() => Promise<RestoreReviewAvailability>) | undefined;
+  refreshRestoreReview: (() => Promise<RestoreReviewAvailability>) | undefined;
+  failureMessage: string;
 }) {
-  const { t } = useAppTranslation("backups");
-  const reviewTitle = useRef<HTMLHeadingElement>(null);
   const refreshBeforeReview = useRef(false);
   const [originalRestoreTarget, setOriginalRestoreTarget] = useState<{
     identity: string;
@@ -54,6 +139,8 @@ export function BackupReviewDialog({
   }>();
   const restore = action === "restore";
   const identity = `${backup.port_id}:${backup.id}:${backup.sha256}:${action}:${generation}`;
+  const reviewedRestoreTarget =
+    originalRestoreTarget?.identity === identity ? originalRestoreTarget.scope : undefined;
   const activeIdentity = useRef<string>(undefined);
   useLayoutEffect(() => {
     activeIdentity.current = identity;
@@ -83,27 +170,80 @@ export function BackupReviewDialog({
         action,
         generation,
       );
-      const observed = result.preview.backup;
-      if (
-        result.preview.action !== action ||
-        observed.port_id !== backup.port_id ||
-        observed.id !== backup.id ||
-        observed.sha256 !== backup.sha256
-      ) {
-        throw backupSelectionChanged;
-      }
+      requireMatchingBackup(result.preview, backup, action);
       if (restore) {
-        const scope = result.preview.restore_target_sha256;
-        if (!scope || !/^[a-f0-9]{64}$/u.test(scope)) throw restoreReviewHolds.inventoryUnavailable;
-        if (originalRestoreTarget?.identity === identity && originalRestoreTarget.scope !== scope)
-          throw restoreReviewHolds.targetChanged;
-        if (activeIdentity.current === identity && originalRestoreTarget?.identity !== identity)
+        const scope = requireRestoreTarget(
+          result.preview.restore_target_sha256,
+          reviewedRestoreTarget,
+        );
+        if (activeIdentity.current === identity && reviewedRestoreTarget === undefined)
           setOriginalRestoreTarget({ identity, scope });
       }
       return result;
     },
     apply: (review) => apply(review.preview.backup, review.preview.preview_sha256),
     close,
+    failureMessage,
+  });
+  return {
+    review,
+    pending,
+    error,
+    failurePhase,
+    reviewedRestoreTarget,
+    prepareRestoreRefresh: () => {
+      refreshBeforeReview.current = true;
+    },
+    load,
+    execute,
+    dismiss,
+  };
+}
+
+export function BackupReviewDialog({
+  gameName,
+  backup,
+  action,
+  generation,
+  apply,
+  close,
+  finalFocus,
+  restoreAvailability = "ready",
+  refreshingHistory = false,
+  refreshRestoreReview,
+}: {
+  gameName?: string | undefined;
+  backup: BackupRecord;
+  action: BackupAction;
+  generation: number;
+  apply: ApplyBackupAction;
+  close: () => void;
+  finalFocus?: React.ComponentProps<typeof DialogContent>["finalFocus"];
+  restoreAvailability?: RestoreReviewAvailability;
+  refreshingHistory?: boolean;
+  refreshRestoreReview?: (() => Promise<RestoreReviewAvailability>) | undefined;
+}) {
+  const { t } = useAppTranslation("backups");
+  const reviewTitle = useRef<HTMLHeadingElement>(null);
+  const restore = action === "restore";
+  const refreshingRestore = restore && refreshingHistory;
+  const {
+    review,
+    pending,
+    error,
+    failurePhase,
+    reviewedRestoreTarget,
+    prepareRestoreRefresh,
+    load,
+    execute,
+    dismiss,
+  } = useBackupReview({
+    backup,
+    action,
+    generation,
+    apply,
+    close,
+    refreshRestoreReview,
     failureMessage: t("review.failure"),
   });
   const selectionChanged = error === backupSelectionChanged;
@@ -115,30 +255,32 @@ export function BackupReviewDialog({
   const requiresReconciliation =
     restore && failurePhase === "apply" && mutation !== "no_changes" && mutation !== "not_started";
   const canRefresh =
-    refreshRestoreReview &&
-    originalRestoreTarget?.identity === identity &&
+    Boolean(refreshRestoreReview) &&
+    reviewedRestoreTarget !== undefined &&
     !requiresReconciliation &&
     hold !== "targetChanged" &&
     hold !== "backupUnavailable";
   const canReviewRefusedRestore =
     canRefresh && failurePhase === "apply" && mutation === "no_changes";
-  const canApply = Boolean(review && (!restore || (!hold && !refreshingHistory)));
-  const holdMessage = {
-    backupUnavailable: t("review.backupUnavailable"),
-    inventoryUnavailable: t("review.inventoryUnavailable"),
-    targetChanged: t("review.targetChanged"),
-  };
-  const explanation = requiresReconciliation
-    ? t("review.reconcileRestore")
-    : selectionChanged
-      ? t("review.selectionChanged")
-      : restore && error !== undefined && originalRestoreTarget?.identity !== identity
-        ? t("review.reopenRestore")
-        : hold && !pending && !refreshingHistory
-          ? holdMessage[hold]
-          : canReviewRefusedRestore
-            ? t("review.refreshRefusedRestore")
-            : undefined;
+  const canApply = Boolean(review && (!restore || (!hold && !refreshingRestore)));
+  const explanation = reviewExplanation({
+    reconcile: requiresReconciliation,
+    selectionChanged,
+    reopen: restore && error !== undefined && reviewedRestoreTarget === undefined,
+    hold,
+    checking: Boolean(pending) || refreshingHistory,
+    reviewRefusal: canReviewRefusedRestore,
+  });
+  const summary = explanation && t(explanation);
+  const footer = reviewFooterAction({
+    pending,
+    action,
+    canApply,
+    canRefresh,
+    canRetryDelete: !restore && !review && !selectionChanged,
+    reviewRefusal: canReviewRefusedRestore,
+    refreshingRestore,
+  });
   return (
     <Dialog
       open
@@ -167,52 +309,32 @@ export function BackupReviewDialog({
           )}
           {restore ? t("review.descriptionRestore") : t("review.descriptionDelete")}
         </DialogDescription>
-        {(pending === "review" || (restore && refreshingHistory)) && (
-          <p role="status">{t("review.checking")}</p>
-        )}
+        {(pending === "review" || refreshingRestore) && <p role="status">{t("review.checking")}</p>}
         {review && (canApply || pending === "apply") && <BackupReviewDetails review={review} />}
-        <ActionReviewFailure
-          error={explanation ? (error ?? explanation) : error}
-          summary={explanation}
-        />
+        <ActionReviewFailure error={summary ? (error ?? summary) : error} summary={summary} />
         <DialogFooter className="mt-4">
           <Button data-focusable variant="outline" disabled={pending === "apply"} onClick={dismiss}>
             {t("review.cancel")}
           </Button>
-          {!canApply &&
-            (canRefresh || (!restore && !review && !selectionChanged)) &&
-            pending !== "apply" && (
-              <Button
-                data-focusable
-                variant={canReviewRefusedRestore ? "primary" : undefined}
-                disabled={Boolean(pending) || (restore && refreshingHistory)}
-                onClick={() => {
-                  if (canRefresh) {
-                    refreshBeforeReview.current = true;
-                    reviewTitle.current?.focus();
-                  }
-                  void load();
-                }}
-              >
-                {t(canRefresh ? "history.refresh" : "review.reviewAgain")}
-              </Button>
-            )}
-          {(canApply || pending === "apply") && (
+          {footer && (
             <Button
               data-focusable
-              variant={restore ? "primary" : "destructive"}
-              disabled={Boolean(pending)}
+              key={footer.intent}
+              variant={footer.variant}
+              disabled={footer.disabled}
               onClick={() => {
-                void execute();
+                if (footer.intent === "apply") {
+                  void execute();
+                  return;
+                }
+                if (canRefresh) {
+                  prepareRestoreRefresh();
+                  reviewTitle.current?.focus();
+                }
+                void load();
               }}
             >
-              {pending === "apply"
-                ? restore
-                  ? t("review.restoring")
-                  : t("review.deleting")
-                : restore
-                  ? t("review.applyRestore")
-                  : t("review.applyDelete")}
+              {t(footer.label)}
             </Button>
           )}
         </DialogFooter>

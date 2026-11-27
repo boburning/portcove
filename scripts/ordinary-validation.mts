@@ -1897,6 +1897,10 @@ for (const [file, tests] of [
   ],
   ["scripts/catalog-upstream-observer.mts", upstreamHealthContractTests],
   ["scripts/listing-upstream-observation.mts", upstreamHealthContractTests],
+  [
+    "scripts/listing-observation-declaration.mts",
+    [...upstreamHealthContractTests, "scripts/catalog-source-authoring.test.mts"],
+  ],
   ["scripts/observe-catalog-upstreams.mts", upstreamHealthContractTests],
   ["scripts/check-catalog-repositories.mts", upstreamHealthContractTests],
   // Relocation tools keep their contract tests in the repository-health suite.

@@ -245,7 +245,7 @@
     {
       "source": "crates/portcove-core/src/listing_delivery.rs",
       "test": "measure_compact_directory_admission",
-      "reason": "opt-in Linux catalog memory measurement; generate and measure in separate processes as described in docs/SIGNED-CATALOG.md",
+      "reason": "measurement; run explicitly, one phase per process",
       "package": "portcove-core",
       "platforms": ["linux"],
       "category": "explicit-acceptance"

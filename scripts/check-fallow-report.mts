@@ -1,4 +1,4 @@
-import { isRecord } from "./runtime-values.mts";
+import { isRecord, recordField } from "./runtime-values.mts";
 import type { GateOutcome, CheckOutput, HealthSummary } from "fallow/types";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 // Wire-contract review is explicit; the manifest consistency test makes a new
 // dependency proposal fail until its report consumer has been reviewed too.
-export const reviewedFallowVersion = "3.41.0";
+export const reviewedFallowVersion = "3.49.0";
 
 function object(value: unknown, field: string) {
   if (!isRecord(value)) throw new Error(`Invalid Fallow ${field}: expected object`);
@@ -97,7 +97,10 @@ function validateFallowReport(value: unknown) {
   return { totalIssues, criticalCount, duplication, maintainability, outcomes };
 }
 
-export function evaluateFallowReport(value: unknown, { requireParseGate = false } = {}) {
+export function evaluateFallowReport(
+  value: unknown,
+  { requireParseGate = false, requireTypeAware = false } = {},
+) {
   const report = validateFallowReport(value);
   const parseGate = report.outcomes.get("parse-error");
   if (
@@ -106,6 +109,12 @@ export function evaluateFallowReport(value: unknown, { requireParseGate = false 
   )
     throw new Error("Incomplete Fallow qualification: native parse-error gate was not enforced");
   const failures = [];
+  if (requireTypeAware) {
+    const checkMetadata = recordField(recordField(value, "_meta"), "check");
+    const typeAware = recordField(checkMetadata, "type_aware");
+    if (recordField(typeAware, "executed") !== true)
+      failures.push("required Fallow type-aware analysis did not execute");
+  }
   if (requireParseGate && isRecord(value)) {
     // The native parse gate deliberately covers parser diagnostics only. A read
     // failure (including invalid UTF-8) or an empty required scope cannot qualify
@@ -162,7 +171,10 @@ Example:
       "Usage: node scripts/check-fallow-report.mts <report.json>. Run with --help for an example.",
     );
   const report: unknown = JSON.parse(await readFile(reportPath, "utf8"));
-  const assessment = evaluateFallowReport(report, { requireParseGate: true });
+  const assessment = evaluateFallowReport(report, {
+    requireParseGate: true,
+    requireTypeAware: true,
+  });
   if (assessment.failures.length) {
     console.error(`Fallow quality gate failed: ${assessment.failures.join(", ")}`);
     process.exitCode = 1;

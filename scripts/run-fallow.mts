@@ -49,12 +49,17 @@ const version = reviewedFallowVersion;
 // filter, or a different semantic backend. Cache and presentation settings remain
 // independent of evidence identity. Native defaults pin churn's clock to HEAD.
 function analysisEnvironment(environment: NodeJS.ProcessEnv) {
-  if (environment.FALLOW_DIFF_FILE)
+  if (
+    Object.keys(environment).some(
+      (name) => name.toUpperCase() === "FALLOW_DIFF_FILE" && environment[name],
+    )
+  )
     throw new Error(
       "FALLOW_DIFF_FILE is incompatible with maintained whole-scope routes; use a targeted native investigation",
     );
-  const env: NodeJS.ProcessEnv = { ...environment, FALLOW_AGENT_SOURCE: "codex" };
-  for (const name of [
+  const env: NodeJS.ProcessEnv = { ...environment };
+  const managedOverrides = new Set([
+    "FALLOW_AGENT_SOURCE",
     "FALLOW_PRODUCTION",
     "FALLOW_PRODUCTION_DEAD_CODE",
     "FALLOW_PRODUCTION_HEALTH",
@@ -62,12 +67,19 @@ function analysisEnvironment(environment: NodeJS.ProcessEnv) {
     "FALLOW_PACKAGE_BASELINES",
     "FALLOW_MAX_FILE_SIZE",
     "FALLOW_TYPE_AWARE",
+    "FALLOW_TYPE_AWARE_BACKEND",
     "FALLOW_TYPE_AWARE_BIN",
+    "FALLOW_TYPE_AWARE_BIN_SOURCE",
+    "FALLOW_TYPE_AWARE_SCRIPT",
     "FALLOW_TYPE_AWARE_TIMEOUT_SECS",
     "FALLOW_AUDIT_BASE",
     "FALLOW_CLOCK_EPOCH",
-  ])
-    delete env[name];
+  ]);
+  // Windows passes environment keys to child processes case-insensitively.
+  for (const name of Object.keys(env)) {
+    if (managedOverrides.has(name.toUpperCase())) delete env[name];
+  }
+  env.FALLOW_AGENT_SOURCE = "codex";
   return env;
 }
 
@@ -302,7 +314,10 @@ export async function runFallow({
   let assessment;
   try {
     if (["desktop", "tooling"].includes(mode))
-      assessment = evaluateFallowReport(report, { requireParseGate: mode === "desktop" });
+      assessment = evaluateFallowReport(report, {
+        requireParseGate: mode === "desktop",
+        requireTypeAware: mode === "desktop",
+      });
     else validateAdvisory(report, mode);
     if (JSON.stringify(source) !== JSON.stringify(identity()))
       throw new Error("Fallow source changed during analysis; report is stale");

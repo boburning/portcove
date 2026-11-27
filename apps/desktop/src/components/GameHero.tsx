@@ -298,21 +298,71 @@ export function GameHeroFramingPreview({
   );
 }
 
-function HeroCredits({
-  port,
-  artwork,
-  foregroundVisible,
-  coverVisible,
-  collectionActive,
-  collectionLoaded,
-}: {
+type HeroCreditProps = {
   port: HeroMediaPort;
   artwork: Pick<ReturnType<typeof useGameHeroArtwork>, "foreground" | "cover" | "background">;
   foregroundVisible: boolean;
   coverVisible: boolean;
   collectionActive: boolean;
   collectionLoaded: boolean;
-}) {
+};
+
+function artworkCredit(key: string, state: HeroCreditProps["artwork"]["cover"]["state"]) {
+  return (
+    state && <ArtworkSource key={key} state={state} renderedSource={state.resolved_source.kind} />
+  );
+}
+
+function mediaCredit(
+  key: string,
+  media: HeroCreditProps["artwork"]["foreground"]["candidate"],
+  port: HeroMediaPort,
+) {
+  return media && <MediaCredit key={key} media={media} port={port} />;
+}
+
+function backgroundArtworkCredit({ background, cover }: HeroCreditProps["artwork"]) {
+  const image = background.display.image;
+  if (!image || background.catalogMedia || image === cover.image) return;
+  return artworkCredit("background-artwork", background.display.state);
+}
+
+function collectionArtworkCredit(
+  { artwork: { cover }, collectionActive, collectionLoaded }: HeroCreditProps,
+  collection: ReturnType<typeof useCoverCollection>,
+) {
+  if (!collectionActive || !collection?.length || !usesAutomaticArtwork(cover.state) || cover.stale)
+    return;
+  return (
+    <ArtworkSource
+      key="collection"
+      state={cover.state}
+      renderedSource={collectionLoaded ? "igdb_cover_collection" : "generated_fallback"}
+      collectionCovers={collection}
+    />
+  );
+}
+
+function heroCreditEntries(
+  props: HeroCreditProps,
+  collection: ReturnType<typeof useCoverCollection>,
+) {
+  const { port, artwork, foregroundVisible, coverVisible } = props;
+  const { foreground, cover, background } = artwork;
+  return [
+    mediaCredit("foreground-media", foregroundVisible ? foreground.candidate : undefined, port),
+    artworkCredit(
+      "logo",
+      foreground.localLogo && foregroundVisible ? foreground.display.state : undefined,
+    ),
+    mediaCredit("background-media", background.catalogMedia, port),
+    artworkCredit("cover", coverVisible ? cover.state : undefined),
+    collectionArtworkCredit(props, collection),
+    backgroundArtworkCredit(artwork),
+  ].filter(Boolean);
+}
+
+function HeroCredits(props: HeroCreditProps) {
   const { t } = useAppTranslation("browsing");
   const slot = useRef<HTMLDivElement>(null);
   const focusedCredit = useRef<HTMLElement>(null);
@@ -325,26 +375,8 @@ function HeroCredits({
       focusedCredit.current = null;
     }
   });
-  const { foreground, cover, background } = artwork;
-  const collection = useCoverCollection(port.id);
-  const collectionVisible =
-    collectionActive &&
-    Boolean(collection?.length && usesAutomaticArtwork(cover.state) && !cover.stale);
-  const foregroundMedia = foregroundVisible ? foreground.candidate : undefined;
-  const logoState =
-    foreground.localLogo && foregroundVisible ? foreground.display.state : undefined;
-  const coverState = coverVisible ? cover.state : undefined;
-  const backgroundState =
-    background.display.image && !background.catalogMedia && background.display.image !== cover.image
-      ? background.display.state
-      : undefined;
-  const visible =
-    foregroundMedia ||
-    logoState ||
-    background.catalogMedia ||
-    coverState ||
-    backgroundState ||
-    collectionVisible;
+  const collection = useCoverCollection(props.port.id);
+  const credits = heroCreditEntries(props, collection);
   return (
     <div
       ref={slot}
@@ -356,30 +388,10 @@ function HeroCredits({
         if (!event.currentTarget.contains(event.relatedTarget)) focusedCredit.current = null;
       }}
     >
-      {visible && (
+      {credits.length > 0 && (
         <details className="game-hero-credits">
           <summary data-focusable>{t("hero.credits")}</summary>
-          {foregroundMedia && <MediaCredit media={foregroundMedia} port={port} />}
-          {logoState && (
-            <ArtworkSource state={logoState} renderedSource={logoState.resolved_source.kind} />
-          )}
-          {background.catalogMedia && <MediaCredit media={background.catalogMedia} port={port} />}
-          {coverState && (
-            <ArtworkSource state={coverState} renderedSource={coverState.resolved_source.kind} />
-          )}
-          {collectionVisible && (
-            <ArtworkSource
-              state={cover.state}
-              renderedSource={collectionLoaded ? "igdb_cover_collection" : "generated_fallback"}
-              collectionCovers={collection}
-            />
-          )}
-          {backgroundState && (
-            <ArtworkSource
-              state={backgroundState}
-              renderedSource={backgroundState.resolved_source.kind}
-            />
-          )}
+          {credits}
         </details>
       )}
     </div>
