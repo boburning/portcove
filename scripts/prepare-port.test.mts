@@ -23,6 +23,7 @@ import {
   collectPortFacts,
   githubRepository,
   githubReleaseRepository,
+  observeLauncherModPortals,
 } from "./port-upstream-facts.mts";
 import {
   preparePort,
@@ -1104,6 +1105,7 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
       "launcher-extra-game",
       "launcher-excluded-title",
       "launcher-primary-conflict",
+      "launcher-partial-mods",
     ].map((name, index) => ({
       id: `github-${80_000 + index}`,
       project_url: `https://github.com/fixture/${name}`,
@@ -1217,6 +1219,12 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
                       args: ["--original", "{input:game}"],
                     },
                     ...(name === "launcher-multigame" ? { games: [{ id: "other" }] } : {}),
+                    mods: {
+                      thunderstore: name === "launcher-partial-mods" ? "../other" : "fixture-mods",
+                      gamebanana: 12345,
+                      loader: "nrm",
+                      data: "PrivateFixtureDirectory",
+                    },
                   }
                 : {
                     game: "Fixture game",
@@ -1273,7 +1281,12 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
       },
     };
     const { report } = await prepareDiscoveryListingAdditions(options);
-    assert.deepEqual(report.changed_records, ["github-80000", "github-80005", "github-80012"]);
+    assert.deepEqual(report.changed_records, [
+      "github-80000",
+      "github-80005",
+      "github-80012",
+      "github-80022",
+    ]);
     assert.deepEqual(
       report.outcomes.map(({ status }) => status),
       [
@@ -1299,9 +1312,10 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
         "held",
         "restricted",
         "held",
+        "prepared",
       ],
     );
-    assert.equal(report.automatic_scope_policy, "github-primary-game-scope/3");
+    assert.equal(report.automatic_scope_policy, "github-primary-game-scope/4");
     assert.ok(report.admission);
     assert.deepEqual(report.released_validation, {
       status: "validated",
@@ -1357,6 +1371,29 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     );
     assert.equal(declared.listing.original_game, undefined);
     assert.equal(declared.integration, undefined);
+    assert.deepEqual(
+      declared.listing.mod_portals?.map(({ id, url }) => ({ id, url })),
+      [
+        { id: "upstream-thunderstore", url: "https://thunderstore.io/c/fixture-mods/" },
+        { id: "upstream-gamebanana", url: "https://gamebanana.com/games/12345" },
+      ],
+    );
+    const partial = checkedAuthoredPort(
+      JSON.parse(readFileSync(report.files.records[3]!.path, "utf8")),
+    );
+    assert.deepEqual(
+      partial.listing.mod_portals?.map(({ id }) => id),
+      ["upstream-gamebanana"],
+    );
+    const delivered: unknown = JSON.parse(readFileSync(report.files.listings, "utf8"));
+    assert.ok(isRecord(delivered) && Array.isArray(delivered.listings));
+    assert.equal(delivered.format_version, 17);
+    const projected: unknown = delivered.listings.find(
+      (row: unknown) => isRecord(row) && row.id === declared.listing.id,
+    );
+    assert.ok(isRecord(projected));
+    assert.deepEqual(projected.mod_portals, declared.listing.mod_portals);
+    assert.doesNotMatch(JSON.stringify(projected), /PrivateFixtureDirectory|--original/u);
 
     refuse = false;
     let clock = Date.parse("2026-11-26T00:00:00Z");
@@ -1475,6 +1512,7 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
       "A\tcrates/portcove-core/catalog/ports/github-80000.json",
       "A\tcrates/portcove-core/catalog/ports/github-80005.json",
       "A\tcrates/portcove-core/catalog/ports/github-80012.json",
+      "A\tcrates/portcove-core/catalog/ports/github-80022.json",
     ]);
   } finally {
     context.mock.restoreAll();
@@ -4220,4 +4258,116 @@ void test("settings qualification requests complete exact package facts and limi
   } finally {
     f.clean();
   }
+});
+
+void test("first-party mod refresh binds descriptive facts to the accepted public repo and Git blob", async () => {
+  const repository = { id: 91000, slug: "fixture/available-port" };
+  const root = "repositories/91000";
+  const commit = "a".repeat(40);
+  const tree = "b".repeat(40);
+  const path = "recomplauncher.json";
+  const bytes = Buffer.from(
+    JSON.stringify({
+      format: 1,
+      repo: repository.slug,
+      start: { program: ["port.exe"], args: ["private-original"] },
+      inputs: [{ id: "game", label: "Fixture Game", formats: [{ type: "file" }] }],
+      mods: { thunderstore: "fixture-mods", gamebanana: 456, loader: "nrm", data: "private-data" },
+    }),
+  );
+  const blob = createHash("sha1")
+    .update("blob " + bytes.length + "\0")
+    .update(bytes)
+    .digest("hex");
+  const file = { type: "blob", mode: "100644", sha: blob, path };
+  const commitEndpoint = root + "/commits?per_page=1";
+  const treeEndpoint = root + "/git/trees/" + tree;
+  const contentEndpoint = root + "/contents/" + path + "?ref=" + commit;
+  const responses = new Map<string, unknown>([
+    [root, { id: repository.id, full_name: repository.slug, private: false }],
+    [commitEndpoint, [{ sha: commit, commit: { tree: { sha: tree } } }]],
+    [treeEndpoint, { sha: tree, truncated: false, tree: [file] }],
+    [
+      contentEndpoint,
+      {
+        type: "file",
+        path,
+        sha: blob,
+        size: bytes.length,
+        encoding: "base64",
+        content: bytes.toString("base64"),
+      },
+    ],
+  ]);
+  const calls: string[] = [];
+  const read = async (endpoint: string) => {
+    calls.push(endpoint);
+    assert(responses.has(endpoint), endpoint);
+    return { status: "observed" as const, body: responses.get(endpoint) };
+  };
+  const result = await observeLauncherModPortals(repository, read);
+  assert.deepEqual(calls.splice(0), [root, commitEndpoint, treeEndpoint, contentEndpoint]);
+  assert(result.state === "observed");
+  assert.equal(result.repository_id, repository.id);
+  assert.equal(result.commit, commit);
+  assert.equal(result.blob, blob);
+  assert.deepEqual(
+    result.mod_portals.map(({ url }) => url),
+    ["https://thunderstore.io/c/fixture-mods/", "https://gamebanana.com/games/456"],
+  );
+  assert.doesNotMatch(JSON.stringify(result), /private-(?:original|data)|"loader"/u);
+
+  const content = responses.get(contentEndpoint) as Record<string, unknown>;
+  responses.set(contentEndpoint, {
+    ...content,
+    content: Buffer.alloc(bytes.length).toString("base64"),
+  });
+  assert.deepEqual(await observeLauncherModPortals(repository, read), {
+    state: "unavailable",
+    reason: "project-scope-evidence-bytes-unverified",
+  });
+
+  calls.length = 0;
+  responses.set(treeEndpoint, { sha: tree, truncated: false, tree: [] });
+  assert.deepEqual(await observeLauncherModPortals(repository, read), {
+    state: "absent",
+    repository_id: repository.id,
+    commit,
+    tree,
+  });
+  assert.deepEqual(calls, [root, commitEndpoint, treeEndpoint]);
+
+  calls.length = 0;
+  responses.set(treeEndpoint, {
+    sha: tree,
+    truncated: false,
+    tree: [file, { ...file, path: ".recomp.json" }],
+  });
+  assert.deepEqual(await observeLauncherModPortals(repository, read), {
+    state: "held",
+    reason: "multiple-manifest-subjects",
+  });
+  assert.deepEqual(calls, [root, commitEndpoint, treeEndpoint]);
+
+  calls.length = 0;
+  responses.set(root, { id: repository.id + 1, full_name: repository.slug, private: false });
+  assert.deepEqual(await observeLauncherModPortals(repository, read), {
+    state: "held",
+    reason: "repository-binding-unresolved",
+  });
+  assert.deepEqual(calls, [root]);
+
+  const outage = await observeLauncherModPortals(repository, async (endpoint) =>
+    endpoint === root
+      ? {
+          status: "observed",
+          body: { id: repository.id, full_name: repository.slug, private: false },
+        }
+      : { status: "unavailable", reason: "provider-backoff", retry_after: "2026-11-27T06:00:00Z" },
+  );
+  assert.deepEqual(outage, {
+    state: "unavailable",
+    reason: "provider-backoff",
+    retry_after: "2026-11-27T06:00:00Z",
+  });
 });

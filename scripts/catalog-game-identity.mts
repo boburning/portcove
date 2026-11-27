@@ -18,6 +18,7 @@ import {
   checkedAuthoredPort,
   parseCatalogSource,
   projectAuthoredPort,
+  projectEmbeddedOriginalGame,
   readCatalogSource,
   type AuthoredListing,
   type AuthoredPort,
@@ -169,6 +170,11 @@ export function catalogGameIdentityReport(catalogRoot: string) {
   const ports = records
     .map((record) => {
       const { listing, integration } = record;
+      const operational = projected.has(listing.id);
+      const embeddedOriginalGame =
+        operational && listing.original_game
+          ? projectEmbeddedOriginalGame(listing.original_game)
+          : undefined;
       const contracts = catalog.source_catalog.contracts.filter(
         (contract) => contract.port_id === listing.id,
       );
@@ -206,7 +212,7 @@ export function catalogGameIdentityReport(catalogRoot: string) {
         displayed_title: listing.original_game_title ?? listing.name,
         project_url: listing.project_url,
         summary: listing.summary,
-        operational: projected.has(listing.id),
+        operational,
         original_game: listing.original_game ?? null,
         target_key: entry.target_key,
         lineage_gap: entry.identity_gap,
@@ -225,18 +231,17 @@ export function catalogGameIdentityReport(catalogRoot: string) {
         },
         projection: {
           authored_definition:
-            !projected.has(listing.id) ||
-            sameIdentity(projected.get(listing.id), listing.original_game, true),
+            !operational || sameIdentity(projected.get(listing.id), embeddedOriginalGame, true),
           authored_listing: sameIdentity(
             projectedListings.get(listing.id),
             listing.original_game,
             false,
           ),
-          embedded_definition: !projected.has(listing.id)
+          embedded_definition: !operational
             ? "not-applicable"
             : !embedded
               ? "unavailable"
-              : sameIdentity(embedded.records.get(listing.id), listing.original_game, true),
+              : sameIdentity(embedded.records.get(listing.id), embeddedOriginalGame, true),
           generated_listing: !listings
             ? "unavailable"
             : sameIdentity(listings.records.get(listing.id), listing.original_game, false),

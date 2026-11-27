@@ -736,6 +736,98 @@ async fn publish_compact(
 }
 
 #[tokio::test]
+async fn signed_mod_source_enrichment_preserves_the_installed_provider_scope() {
+    const PORT: &str = "zelda64-recomp";
+    const PORTAL: &str = "alternate-community";
+    const URL: &str = "https://thunderstore.io/c/alternate-zelda-resources/";
+    let (_temp, library, installed) = crate::thunderstore::installed_timer_fixture().await;
+    assert_eq!(installed.packages.len(), 1);
+    let reference = installed.packages[0].provider.as_ref().unwrap();
+    // This fixture uses the historical package encoding. Core resolves its
+    // implicit scope to the original community.
+    assert!(reference.binding.is_none());
+    let expected_scope = crate::ModProviderBinding::Thunderstore {
+        community: "zelda-64-recompiled".into(),
+    };
+    let user = library.user_dir(PORT);
+    let package = user.join("mods").join(&installed.packages[0].native_id);
+    let package_bytes = fs::read(&package).unwrap();
+    let native_list = fs::read(user.join("mods.json")).unwrap();
+    let before = PortcoveService::new(library.clone()).unwrap();
+    let history = before
+        .profile_revisions(PORT, &installed.profile_id)
+        .unwrap();
+    let before_port = before.catalog().port(PORT).unwrap();
+    assert_eq!(history.last(), Some(&installed));
+    assert_eq!(
+        crate::provider_binding::reviewed_binding(before_port, &reference.provider),
+        Some(expected_scope.clone())
+    );
+    assert!(crate::provider_binding::reference_matches(
+        before_port,
+        reference
+    ));
+    let definition = serde_json::to_value(before_port).unwrap();
+    assert!(
+        before
+            .mod_setups(PORT)
+            .unwrap()
+            .external_mod_portals
+            .iter()
+            .all(|portal| portal.source != PORTAL)
+    );
+
+    let mut row = before.catalog().listing(PORT).unwrap().clone();
+    row.mod_portals.push(crate::ListingModPortal {
+        id: PORTAL.into(),
+        site: crate::ModPortalSite::CommunitySite,
+        name: "Alternate community".into(),
+        url: URL.into(),
+        instructions: "Browse other mods for this edition.".into(),
+    });
+    let candidate = json!({
+        "listing_delivery_schema": 1,
+        "revision": 1,
+        "withdrawn_ids": [],
+        "directory": {
+            "format_version": crate::catalog::listings::MOD_PORTAL_LISTING_FORMAT,
+            "listings": [row]
+        }
+    });
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let root = publish_compact(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+
+    let after = PortcoveService::new(library).unwrap();
+    let mods = after.mod_setups(PORT).unwrap();
+    assert!(mods.supported);
+    assert!(
+        mods.external_mod_portals
+            .iter()
+            .any(|portal| portal.source == PORTAL && portal.url == URL)
+    );
+    assert_eq!(
+        after
+            .profile_revisions(PORT, &installed.profile_id)
+            .unwrap(),
+        history
+    );
+    let after_port = after.catalog().port(PORT).unwrap();
+    assert_eq!(serde_json::to_value(after_port).unwrap(), definition);
+    assert_eq!(
+        crate::provider_binding::reviewed_binding(after_port, &reference.provider),
+        Some(expected_scope)
+    );
+    assert!(crate::provider_binding::reference_matches(
+        after_port, reference
+    ));
+    assert_eq!(fs::read(package).unwrap(), package_bytes);
+    assert_eq!(fs::read(user.join("mods.json")).unwrap(), native_list);
+}
+
+#[tokio::test]
 async fn signed_listing_mod_portals_update_without_installation_or_operational_authority() {
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());

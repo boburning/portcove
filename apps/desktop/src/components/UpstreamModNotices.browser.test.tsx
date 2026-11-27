@@ -7,6 +7,73 @@ import { ExternalModPortals } from "./ExternalModPortals";
 const port = "quake-vkquake";
 afterEach(cleanup);
 
+it("browses an accepted provider on a listing with no setup and opens a scoped project", async () => {
+  const url = "https://gamebanana.com/games/16121";
+  const browse = vi.spyOn(desktopApi, "browseExternalProviderMods").mockResolvedValue({
+    port_id: "unintegrated-port",
+    game_name: "Unintegrated port",
+    last_page: 1,
+    other_game_records: 0,
+    provider: "gamebanana",
+    freshness: "fresh",
+    observed_at: 1_798_000_000,
+    page: {
+      page: 1,
+      total: 1,
+      complete: true,
+      projects: [
+        {
+          provider: "gamebanana",
+          project_id: "42",
+          name: "Community texture pack",
+          version: null,
+          game_id: "16121",
+          updated_at: 0,
+          obsolete: false,
+          profile_url: "https://gamebanana.com/mods/42",
+          submitter: null,
+          files: [],
+          unreadable_files: 0,
+        },
+      ],
+    },
+  });
+  const open = vi.spyOn(desktopApi, "openProviderModProject").mockResolvedValue();
+  try {
+    await render(
+      <ExternalModPortals
+        port="unintegrated-port"
+        generation={7}
+        view={{
+          external_mod_portals: [
+            {
+              source: "mod-community",
+              site: "community_site",
+              name: "GameBanana",
+              url,
+              instructions: "Browse this community's mods.",
+              browser: "provider_catalog",
+              browse_available: true,
+            },
+          ],
+        }}
+      />,
+    );
+    expect(browse).not.toHaveBeenCalled();
+    await page.getByRole("button", { name: /Find mods on GameBanana/ }).click();
+    await page.getByRole("button", { name: "Community texture pack" }).click();
+    expect(browse).toHaveBeenCalledWith("unintegrated-port", 7, "mod-community", url, 1);
+    expect(open).toHaveBeenCalledWith("unintegrated-port", "42", 7, undefined, {
+      source: "mod-community",
+      url,
+    });
+    expect(page.getByRole("button", { name: "Install", exact: true }).query()).toBeNull();
+  } finally {
+    browse.mockRestore();
+    open.mockRestore();
+  }
+});
+
 it.each([
   { port, engine: "vk_quake" },
   { port: "quake-ironwail", engine: "ironwail" },

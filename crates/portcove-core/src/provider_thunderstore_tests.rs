@@ -215,6 +215,19 @@ fn live(w: &World) -> Vec<String> {
     names
 }
 
+pub(crate) async fn installed_timer_fixture() -> (tempfile::TempDir, Library, crate::ProfileRevision)
+{
+    let w = world();
+    let plan = w
+        .service
+        .plan_provider_install_via(&w.client, PORT, &w.profile, "Owner-Timer", "1.0.0")
+        .await
+        .unwrap();
+    let token = w.service.authorize_provider_install(&plan).unwrap().token;
+    let revision = w.service.apply_provider_install(&plan, &token).unwrap();
+    (w._temporary, w.service.library().clone(), revision)
+}
+
 #[tokio::test]
 async fn a_thunderstore_package_installs_by_manifest_id_and_its_update_is_discovered() {
     let w = world();
@@ -573,13 +586,13 @@ async fn reviewed_thunderstore_closure_requires_all_exact_wrapper_members() {
     omitted.provider = None;
     omitted.provider_requires.clear();
     assert!(matches!(
-        crate::profile::provider_evidence(
+        crate::profile::ProviderEvidenceIndex::read(
             &w.service.library().connection().unwrap(),
             PORT,
-            &omitted,
-            None,
+            [&omitted],
         )
-        .unwrap(),
+        .unwrap()
+        .evidence(&omitted, None),
         crate::profile::ProviderEvidence::RequirementsDiffer
     ));
     let mut masquerading_as_v1 = serde_json::to_value(&recipe).unwrap();

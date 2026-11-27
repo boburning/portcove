@@ -513,6 +513,10 @@ reader floor and a released reader that advertises format 16. Live delivery
 stays on format 15 until that successor floor is set. Compatibility exports
 below format 16 omit the links. A later format-16 snapshot can update or
 withdraw a link without changing the game package or installation.
+A generated default can survive a provider outage across a verified GitHub
+rename. The repository-bound listing keeps the same numeric identity, and the
+original game and reviewed provider association must still agree. A different
+listing or a changed legacy project URL cannot inherit the retained default.
 
 ### Acquisition restrictions
 
@@ -5079,6 +5083,13 @@ visible release of `youkaicountry-yknytt` is titled `vX beta` and none is
 flagged; with its text unobserved the fit had enrolled tag `0.7.3`, and with
 it observed the identity is `no-stable-release`.
 
+Before downloading new archive bytes for this registration route, the worker
+checks whether the selected release's text is observed. Missing text leaves a
+`release-text-unobserved` outcome in the worker report. A later bounded
+observer pass can supply the text and make the same release eligible for
+inspection. Existing exact archive receipts can still be reused, and the
+upstream package chooser operates independently.
+
 ##### Other package forms
 
 A release can offer its program in a form the worker does not read beside
@@ -6452,6 +6463,7 @@ is one CI path, with no second trigger, personal token or recurring dispatch.
   equal to it; the guarded merge reads a head worktree that writes no file.
   `deliver` downloads only data (the patch, its outputs record, the delta,
   the worker report and the worker state); `merge` downloads nothing.
+
 - `deliver` pushes the batch branch with it and opens the pull request;
   `merge` merges through the guarded route and deletes the branch. Each push
   gets the token as an HTTP header through that one `git` command's
@@ -6559,6 +6571,13 @@ the one that merges it) plus its pull request's CI. A quiet catalog proposes
 a reconfirmation batch once an offered entry was last confirmed 15 days
 earlier (`refreshAfterDays`, half the facts age), which leaves the other half
 of the 30-day facts age for its checks and merge.
+
+The worker report records the provider-declared sizes of attempted archives as
+`bytes` and the archive response body bytes actually read as
+`archive_body_bytes`. The measured count includes partial downloads. A combined
+report leaves it absent if a planned shard is missing or lacks a measurement.
+It covers only the worker's archive inspection. Reproduction, metadata requests,
+HTTP and transport overhead, and recovery transfers have their own costs.
 
 ###### Catalog capacity
 

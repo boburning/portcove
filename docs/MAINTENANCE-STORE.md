@@ -124,10 +124,14 @@ measured size; a moved or oversized plan defers rather than falling back to an
 unadmitted complete read. If no usable plan exists, the complete-read admission
 remains the fallback. For the revision-fenced initial discovery read, the
 measured response envelope plus acknowledgement and protocol headroom replaces
-the 16 MB bootstrap estimate. The provider ceiling and recovery reserve do not
-change. Later passes retain complete-read admission; other operation estimates
-remain conservative defaults until their readers prove equivalent bounds.
-Admission evidence identifies the reservation basis. Discovery pass
+the 16 MB bootstrap estimate. A later pass can use the exact committed revision
+it holds in memory and reserve for grant and commit acknowledgements. The
+existing acquire fence checks the revision, generation, definition and
+committing attempt. On a mismatch PostgreSQL omits the state from the response,
+the worker releases the attempt it acquired, and the next run needs separate
+complete-read or measured-seed admission. The provider ceiling and recovery
+reserve do not change. Other operation estimates retain conservative defaults.
+Admission evidence identifies the reservation basis. Full-read discovery
 admission uses the larger of the measured previous receive payload and the
 current cold-read estimate, plus acknowledgement and protocol headroom, rather
 than counting the same acquire twice. The provider ceiling is unchanged.

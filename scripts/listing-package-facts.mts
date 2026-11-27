@@ -750,7 +750,10 @@ export interface DeriveResult {
   report: ReportRow[];
   /** Identities whose facts were completed as ineligible, by reason. */
   ineligible: Record<string, number>;
+  /** Provider-declared sizes of attempted archives. */
   bytes: number;
+  /** Response body bytes received by the CLI inspector, including partial downloads. */
+  archive_body_bytes?: number;
   /**
    * The worker's own inspection backlog, left by a deadline (or by a plan
    * for its shards); never counted as an upstream attempt.
@@ -1193,10 +1196,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     id: string,
     status: "partial" | "unavailable" | "failed" | "pending-inspection",
     outcome?: ReportRow["outcome"],
+    reason: string = status,
   ) => {
     const prior = entries.get(id);
     if (!prior || prior.ineligible) {
-      row(id, outcome ?? "unknown", status);
+      row(id, outcome ?? "unknown", reason);
       return;
     }
     if (status === "pending-inspection") {
@@ -1205,7 +1209,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
           ...prior,
           attempt: { status, first_at: now, last_at: now, failures: 1 },
         });
-      row(id, outcome ?? "retained-last-good", status);
+      row(id, outcome ?? "retained-last-good", reason);
       return;
     }
     const attempt =
@@ -1224,7 +1228,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       return;
     }
     entries.set(id, { ...prior, attempt });
-    row(id, outcome ?? "retained-last-good", status);
+    row(id, outcome ?? "retained-last-good", reason);
   };
   /** Facts for known candidates with Core's current name verdicts; undefined if a name is unclassified. */
   const factFor = (
@@ -1558,6 +1562,16 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
           !reusableRefusals.has(`${asset.id}/${asset.sha256}`),
       )
       .reduce((sum, asset) => sum + asset.size, 0);
+    // The generated registration fit already requires the chosen release's
+    // text. Acquire that upstream evidence before reading novel archive bytes.
+    // Read-only package discovery and previously inspected bytes are independent.
+    if (
+      cost > 0 &&
+      releaseTextFacts(release, candidates.get(id)!, wordsOf(id)).text !== "observed"
+    ) {
+      notComplete(id, "partial", undefined, "release-text-unobserved");
+      return;
+    }
     needs.push({
       id,
       repositoryId,
@@ -1866,6 +1880,17 @@ export function combineShards(
     report.some((row) => row.port_id === id) &&
     plan.table.entries.some((entry) => entry.port_id === id && entry.ineligible === null);
   const settled = plan.settled + shards.reduce((sum, shard) => sum + shard.result.settled, 0);
+  const measurements = [plan, ...shards.map(({ result }) => result)].map(
+    (result) => result.archive_body_bytes,
+  );
+  const archiveBodyBytes =
+    plan.needs.every(({ port_id }) => covered(port_id)) &&
+    measurements.every(
+      (value): value is number =>
+        typeof value === "number" && Number.isSafeInteger(value) && value >= 0,
+    )
+      ? measurements.reduce((sum, value) => sum + value, 0)
+      : undefined;
   return {
     table,
     state: {
@@ -1886,6 +1911,9 @@ export function combineShards(
     report: report.toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
     ineligible,
     bytes: shards.reduce((sum, shard) => sum + shard.result.bytes, 0),
+    ...(archiveBodyBytes !== undefined && Number.isSafeInteger(archiveBodyBytes)
+      ? { archive_body_bytes: archiveBodyBytes }
+      : {}),
     backlog: {
       enrolled_pending: pending.filter(offered).length,
       new_pending: pending.filter((id) => !offered(id)).length,
@@ -2080,7 +2108,7 @@ export function refusalClassOf(code: unknown): RefusalClass {
 export function cliInspector(
   cli: string,
   workDirectory: string,
-  options: { deadline?: number } = {},
+  options: { deadline?: number; recordArchiveBodyBytes?: (bytes: number) => void } = {},
 ): ByteInspector {
   return async (asset, platform, identityDeadline) => {
     const deadline =
@@ -2094,6 +2122,7 @@ export function cliInspector(
         "not-digest-bound",
       );
     const directory = await mkdtemp(path.join(workDirectory, "asset-"));
+    let received = 0;
     try {
       const file = path.join(
         directory,
@@ -2123,7 +2152,6 @@ export function cliInspector(
           "network",
         );
       const hash = createHash("sha256");
-      let received = 0;
       const body = Readable.fromWeb(response.body as never);
       body.on("data", (chunk: Buffer) => {
         received += chunk.length;
@@ -2197,6 +2225,7 @@ export function cliInspector(
       );
       return { players, names: data.names as string[], leaves: data.leaves as string[] };
     } finally {
+      options.recordArchiveBodyBytes?.(received);
       await rm(directory, { recursive: true, force: true });
     }
   };
@@ -2249,7 +2278,7 @@ function parseState(text: string): WorkerState {
 
 /** The worker summary line the job reads (`parseWorkerSummary`). */
 export const workerSummary = (result: DeriveResult) =>
-  `${JSON.stringify({ no_progress: result.no_progress, settled: result.settled, pending: result.state.pending.length, pending_ids: result.state.pending, retry: result.state.retry.length, bytes: result.bytes, backlog: result.backlog, needs: result.needs.length, ineligible: result.ineligible, unobserved: result.unobserved, identities: result.report })}\n`;
+  `${JSON.stringify({ no_progress: result.no_progress, settled: result.settled, pending: result.state.pending.length, pending_ids: result.state.pending, retry: result.state.retry.length, bytes: result.bytes, archive_body_bytes: result.archive_body_bytes, backlog: result.backlog, needs: result.needs.length, ineligible: result.ineligible, unobserved: result.unobserved, identities: result.report })}\n`;
 
 async function main(argv: string[]) {
   if (argv.length === 1 && argv[0] === "--check") {
@@ -2319,6 +2348,7 @@ async function main(argv: string[]) {
           inputs_sha256: options["inputs-sha256"]!,
         }
       : undefined;
+    let archiveBodyBytes = 0;
     const result = await deriveListingFacts({
       ...(provenance ? { provenance } : {}),
       ...(only ? { only: only as string[] } : {}),
@@ -2334,11 +2364,16 @@ async function main(argv: string[]) {
               .catch(() => initialState()),
           }
         : {}),
-      inspect: cliInspector(cli, work, deadline === undefined ? {} : { deadline }),
+      inspect: cliInspector(cli, work, {
+        ...(deadline === undefined ? {} : { deadline }),
+        recordArchiveBodyBytes: (bytes) => {
+          archiveBodyBytes += bytes;
+        },
+      }),
       classify: cliClassifier(cli, work, deadline === undefined ? {} : { deadline }),
       now,
     });
-    return await write(result);
+    return await write({ ...result, archive_body_bytes: archiveBodyBytes });
   } finally {
     await rm(work, { recursive: true, force: true });
   }

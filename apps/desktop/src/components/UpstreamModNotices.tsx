@@ -1,12 +1,10 @@
 import { useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { useAppTranslation } from "../localization";
-import type { ModDbFileNotices, ModSetupsView, QuaddictedCatalog } from "../types";
+import type { ModDbFileNotices, QuaddictedCatalog } from "../types";
 import { Button } from "./ui/button";
 
-type ExternalModBrowser = NonNullable<
-  NonNullable<ModSetupsView["external_mod_portals"]>[number]["browser"]
->;
+type NoticeBrowser = "quaddicted" | "mod_db_feed";
 
 type Result =
   | { browser: "quaddicted"; observation: QuaddictedCatalog }
@@ -19,7 +17,7 @@ export function UpstreamModNotices({
   port,
   generation,
 }: {
-  browser: ExternalModBrowser;
+  browser: NoticeBrowser;
   /** The declared source ID Core rechecks before opening a page. */
   source: string;
   name: string;

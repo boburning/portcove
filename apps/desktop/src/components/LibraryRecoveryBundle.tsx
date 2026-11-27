@@ -223,6 +223,8 @@ function RecoveryBundleDialog({
   const destinationErrorId = useId();
   const firstField = useRef<HTMLInputElement>(null);
   const restoreDestinationField = useRef<HTMLInputElement>(null);
+  const reviewAction = useRef<HTMLButtonElement>(null);
+  const reviewHeading = useRef<HTMLHeadingElement>(null);
   const inFlight = useRef(false);
   const copy = useRecoveryTransfer({ generation, libraryRoot });
   const [destination, setDestination] = useState("");
@@ -248,6 +250,17 @@ function RecoveryBundleDialog({
   useEffect(() => {
     if (destinationOccupied && !pending) restoreDestinationField.current?.focus();
   }, [destinationOccupied, pending]);
+  const reviewedPlan = creation ?? restore;
+  useEffect(() => {
+    const heading = reviewHeading.current;
+    if (!visible || !reviewedPlan || !heading) return;
+    const { activeElement, body } = heading.ownerDocument;
+    // The pending button can lose focus when disabled. Respect another control
+    // the player chose while the review was loading.
+    if (activeElement !== reviewAction.current && activeElement !== body) return;
+    heading.focus({ preventScroll: true });
+    heading.scrollIntoView({ block: "start", inline: "nearest" });
+  }, [reviewedPlan, visible]);
   const verificationFeedback = verificationFailed ? failurePresentation(error) : undefined;
   const needsFolderGuidance =
     verificationFailed &&
@@ -451,7 +464,9 @@ function RecoveryBundleDialog({
           )}
           {creation && (
             <section aria-label="Creation review" className="grid gap-2">
-              <h3 className="text-sm font-semibold">Review what Portcove will copy</h3>
+              <h3 ref={reviewHeading} tabIndex={-1} className="text-sm font-semibold">
+                Review what Portcove will copy
+              </h3>
               <PathValue label="Source library" value={creation.source_root} />
               <PathValue label="Bundle destination" value={creation.destination_root} />
               <p>Required space {formatBytes(creation.required_bytes)}</p>
@@ -476,7 +491,9 @@ function RecoveryBundleDialog({
           )}
           {restore && (
             <section aria-label="Restore review" className="grid gap-2">
-              <h3 className="text-sm font-semibold">Review the restore destination</h3>
+              <h3 ref={reviewHeading} tabIndex={-1} className="text-sm font-semibold">
+                Review the restore destination
+              </h3>
               <PathValue label="Restore destination" value={restore.destination_root} />
               <p>
                 Required space {formatBytes(restore.required_bytes)}. Your current library stays
@@ -662,6 +679,7 @@ function RecoveryBundleDialog({
           )}
           {!transferred && !recovery && !createReceipt?.bundle_id && operation === "create" && (
             <Button
+              ref={reviewAction}
               data-focusable
               variant="primary"
               disabled={disabled || !destination.trim()}
@@ -727,6 +745,7 @@ function RecoveryBundleDialog({
           )}
           {reviewingRestore && !recovery && !restoreReceipt?.transfer_id && (
             <Button
+              ref={reviewAction}
               data-focusable
               variant="primary"
               disabled={disabled || !destination.trim()}

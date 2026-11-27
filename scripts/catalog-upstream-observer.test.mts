@@ -5620,3 +5620,66 @@ void test("a non-quota GitLab 403 is a failed rejection that notifies and is not
     assert.equal(next.notify_exception, false, "the same exception notifies only once");
   }
 });
+
+void test("first-party mod observation shares the opportunity budget and retains last success on outage", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: [{ id: "other-port", project_url: "https://github.com/owner/other" }],
+  };
+  const first = await advanceCatalogObservations(input, null, h.options);
+  const modResults = [
+    { state: "absent", repository_id: 8, commit: "a".repeat(40), tree: "b".repeat(40) },
+    { state: "unavailable", reason: "provider-outage" },
+  ] satisfies Awaited<ReturnType<NonNullable<CatalogObservationOptions["observeLauncherMods"]>>>[];
+  let reads = 0;
+  h.options.observeLauncherMods = async (repository, account) => {
+    assert.deepEqual(repository, { id: 8, slug: "owner/other" });
+    account.admitRequest();
+    account.observeResponse(new Response());
+    account.consumeResponseBytes(18);
+    reads++;
+    return modResults.shift()!;
+  };
+  h.options.launcherModRequestLimit = 3;
+  const deferred = await advanceCatalogObservations(input, first.checkpoint, h.options);
+  assert.equal(reads, 0);
+  assert.deepEqual(deferred.report.launcher_mod_sources, {
+    enrolled: 1,
+    due: 1,
+    attempted: 0,
+    complete: 0,
+    deferred: 1,
+    requests: 0,
+  });
+  h.options.launcherModRequestLimit = 4;
+  const observed = await advanceCatalogObservations(input, deferred.checkpoint, h.options);
+  assert.equal(reads, 1);
+  assert.equal(observed.report.launcher_mod_sources?.requests, 1);
+  assert.equal(observed.report.launcher_mod_sources?.complete, 1);
+  const row = observed.checkpoint.launcher_mod_sources?.["other-port"];
+  assert.equal(row?.outcome, "absent");
+  assert.equal(row?.last_complete?.result.state, "absent");
+  assert.deepEqual(
+    validateCatalogObserverCheckpoint(
+      decodeStoredObserverCheckpoint(
+        encodeStoredObserverCheckpoint(observed.checkpoint),
+        h.options.now!() + 1000,
+        h.options.now,
+      ),
+      h.options.now!(),
+    ).launcher_mod_sources,
+    observed.checkpoint.launcher_mod_sources,
+  );
+  const replay = await advanceCatalogObservations(input, observed.checkpoint, h.options);
+  assert.equal(reads, 1);
+  h.advanceClock(24 * 3600000);
+  const outage = await advanceCatalogObservations(input, replay.checkpoint, h.options);
+  assert.equal(reads, 2);
+  assert.equal(outage.report.launcher_mod_sources?.complete, 0);
+  assert.equal(outage.checkpoint.launcher_mod_sources?.["other-port"]?.outcome, "unavailable");
+  assert.deepEqual(
+    outage.checkpoint.launcher_mod_sources?.["other-port"]?.last_complete,
+    row?.last_complete,
+  );
+});

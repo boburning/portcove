@@ -39,6 +39,13 @@ import type {
   ProviderObservation,
 } from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
+import type { LauncherModObservation } from "./port-upstream-facts.mts";
+import {
+  type FirstPartyModProgress,
+  launcherModSubjects,
+  recordLauncherModAttempt,
+  validateFirstPartyModProgress,
+} from "./upstream-launcher-mod-progress.mts";
 import {
   observeModProviderRegistry,
   validateModProviderRegistryProgress,
@@ -225,6 +232,7 @@ export interface CatalogObserverCheckpoint {
   provider_retry_at: string | null;
   provider_capacities?: Record<string, ProviderCapacity>;
   mod_provider_registry?: ModProviderRegistryProgress;
+  launcher_mod_sources?: Record<string, FirstPartyModProgress>;
   /** Historical provenance only; never a successful observation/freshness clock. */
   baseline?: {
     id: string;
@@ -409,6 +417,8 @@ export function validateCatalogObserverCheckpoint(
     throw new Error("Invalid catalog observer checkpoint");
   if (value.mod_provider_registry !== undefined)
     validateModProviderRegistryProgress(value.mod_provider_registry, now);
+  if (value.launcher_mod_sources !== undefined)
+    validateFirstPartyModProgress(value.launcher_mod_sources, now);
   if (value.baseline !== undefined) {
     const baseline = value.baseline;
     if (
@@ -602,6 +612,13 @@ export interface CatalogObservationOptions extends Pick<
   scheduledPrioritySources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
   modProviderRegistryFetch?: typeof fetch;
+  observeLauncherMods?: (
+    repository: { id: number; slug: string },
+    account: Required<
+      Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
+    >,
+  ) => Promise<LauncherModObservation>;
+  launcherModRequestLimit?: number;
   projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   exportProvider?: (
     source: ObservableSource,
@@ -720,12 +737,12 @@ export async function advanceCatalogObservations(
       : validateCatalogObserverCheckpoint(prior, now());
   const commitCheckpoint = () => {
     if (
-      state.mod_provider_registry &&
+      (state.mod_provider_registry || state.launcher_mod_sources) &&
       Buffer.byteLength(JSON.stringify(state)) > catalogCheckpointByteLimit
     )
       throw new ObservationFailure(
         "checkpoint-size",
-        "Catalog progress and retained mod registry exceed the checkpoint envelope. The last complete checkpoint remains.",
+        "Catalog progress and retained mod observations exceed the checkpoint envelope. The last complete checkpoint remains.",
       );
     return options.commit(structuredClone(state));
   };
@@ -936,6 +953,104 @@ export async function advanceCatalogObservations(
     requests++;
     if (remaining !== null) remaining--;
   };
+
+  let launcherModSummary:
+    | {
+        enrolled: number;
+        due: number;
+        attempted: number;
+        complete: number;
+        deferred: number;
+        requests: number;
+      }
+    | undefined;
+  const observeLauncherMods = options.observeLauncherMods;
+  if (observeLauncherMods) {
+    const subjects = launcherModSubjects(sources, state.sources);
+    const old = state.launcher_mod_sources ?? {};
+    const progress = Object.fromEntries(
+      subjects.flatMap(({ port_id, binding }) =>
+        old[port_id]?.binding === binding ? [[port_id, old[port_id]]] : [],
+      ),
+    ) as Record<string, FirstPartyModProgress>;
+    const due = subjects
+      .filter(
+        ({ port_id }) =>
+          Date.parse(progress[port_id]?.next_due_at ?? "") <= now() || !progress[port_id],
+      )
+      .sort(
+        (a, b) =>
+          (progress[a.port_id]?.last_attempt_at ?? "").localeCompare(
+            progress[b.port_id]?.last_attempt_at ?? "",
+          ) || a.port_id.localeCompare(b.port_id),
+      );
+    launcherModSummary = {
+      enrolled: subjects.length,
+      due: due.length,
+      attempted: 0,
+      complete: 0,
+      deferred: due.length,
+      requests: 0,
+    };
+    // Reserve a bounded share of the existing opportunity for descriptive
+    // coverage. A complete proof needs at most four admitted GitHub reads.
+    const requestsBeforeLauncher = requests;
+    const launcherAttempts = Math.min(
+      24,
+      Math.floor((options.launcherModRequestLimit ?? Math.floor(capacity() / 20)) / 4),
+      Math.floor(capacity() / 4),
+    );
+    for (const subject of due.slice(0, launcherAttempts)) {
+      if (options.signal?.aborted || capacity() < 4) break;
+      let result: LauncherModObservation;
+      try {
+        result = await observeLauncherMods(
+          { id: subject.repository_id, slug: subject.slug },
+          { admitRequest, observeResponse, consumeResponseBytes },
+        );
+      } catch (cause) {
+        if (!(cause instanceof ObservationFailure)) throw cause;
+        if (cause.retryAt) extendProviderDeferral(cause.retryAt);
+        if (partialProgressRules.includes(cause.rule)) break;
+        result = { state: "unavailable", reason: cause.rule };
+      }
+      launcherModSummary.attempted++;
+      launcherModSummary.deferred--;
+      if (result.state === "observed" || result.state === "absent") {
+        if (result.repository_id !== subject.repository_id)
+          throw new Error("First-party mod observation returned a different repository ID");
+        launcherModSummary.complete++;
+      }
+      progress[subject.port_id] = recordLauncherModAttempt(
+        subject.binding,
+        progress[subject.port_id],
+        result,
+        now(),
+        template.cadence_hours * 3600000,
+      );
+    }
+    launcherModSummary.requests = requests - requestsBeforeLauncher;
+    if (observationHash(old) !== observationHash(progress) && !options.signal?.aborted) {
+      validateFirstPartyModProgress(progress, now());
+      if (
+        Buffer.byteLength(JSON.stringify({ ...state, launcher_mod_sources: progress })) <=
+        catalogCheckpointByteLimit
+      ) {
+        state.launcher_mod_sources = progress;
+        await commitCheckpoint();
+      } else {
+        failures.push({
+          source: "launcher-mod-sources",
+          repository: "github.com",
+          rule: "checkpoint-size",
+          details:
+            "First-party mod progress does not fit the catalog checkpoint; prior evidence remains.",
+        });
+        launcherModSummary.deferred = due.length;
+        launcherModSummary.complete = 0;
+      }
+    }
+  }
   let registryProgress: ModProviderRegistryProgress | undefined;
   const registryFits = (progress: ModProviderRegistryProgress) =>
     Buffer.byteLength(JSON.stringify({ ...state, mod_provider_registry: progress })) <=
@@ -2076,6 +2191,7 @@ export async function advanceCatalogObservations(
       authority: "catalog-upstream-observation-only",
       generated_at: new Date(now()).toISOString(),
       total_sources: sources.length,
+      ...(launcherModSummary ? { launcher_mod_sources: launcherModSummary } : {}),
       ...(state.mod_provider_registry
         ? {
             mod_provider_registry: {
