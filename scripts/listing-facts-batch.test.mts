@@ -2652,7 +2652,7 @@ void test("only deliver and merge mint the App token, in the facts-batch environ
   assert.doesNotMatch(text, /Approve workflows|approval-required|close and reopen/iu);
 });
 
-void test("the shard plan ships the inspector without debug sections", () => {
+void test("the shard plan removes unused symbols from the transferred inspector copy", () => {
   const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
     jobs: { prepare: { steps: { run?: string; with?: { name?: string } }[] } };
   };
@@ -2667,7 +2667,7 @@ void test("the shard plan ships the inspector without debug sections", () => {
   const script = steps[build]?.run ?? "";
   assert.match(
     script,
-    /cp target\/debug\/portcove "\$WORK\/cli\/portcove"[\s\S]*?strip --strip-debug "\$WORK\/cli\/portcove"/u,
+    /cp target\/debug\/portcove "\$WORK\/cli\/portcove"[\s\S]*?strip --strip-all "\$WORK\/cli\/portcove"/u,
   );
 });
 
