@@ -1272,8 +1272,7 @@ impl PortcoveService {
         };
         let layout =
             crate::profile_deploy::Layout::for_user(&self.library.user_dir(&recipe.port_id));
-        let mut plans = BTreeMap::<String, Option<crate::ProviderInstallPlan>>::new();
-        let mut staging = RecipeStaging::default();
+        let mut plans = BTreeMap::<String, Option<VerifiedRecordedPlan>>::new();
         let mut references = BTreeMap::new();
         for entry in members {
             let entry = entry?;
@@ -1299,19 +1298,16 @@ impl PortcoveService {
                     .and_then(|bytes| {
                         serde_json::from_slice::<crate::ProviderInstallPlan>(&bytes).ok()
                     })
-                    .filter(|plan| {
-                        plan.plan_sha256 == reference.plan_sha256
-                            && crate::provider_install::digest(plan)
-                                .is_ok_and(|digest| digest == plan.plan_sha256)
-                    })
+                    .and_then(|plan| VerifiedRecordedPlan::new(plan, &reference.plan_sha256))
                 });
-            let verified = plan.as_ref().is_some_and(|plan| {
-                verify_steps(
+            let verified = plan.as_ref().is_some_and(|record| {
+                verify_steps_with_record(
                     self.catalog(),
                     recipe,
                     &layout,
-                    [(reference.native_id.as_str(), plan)],
+                    [(reference.native_id.as_str(), &record.0)],
                     Depth::Recorded,
+                    Some(record),
                 )
                 .is_ok()
             });
@@ -1321,10 +1317,16 @@ impl PortcoveService {
                 let _ = fs::remove_file(&path);
             }
         }
-        for reference in references.into_values() {
-            if let Some(Some(plan)) = plans.get(&reference.plan_sha256) {
-                staging.insert(&reference.native_id, plan.clone())?;
-                self.keep_recipe_staging(recipe, plan);
+        let mut staging = RecipeStaging {
+            acquisitions: references.into_values().collect(),
+            provider_plans: Vec::new(),
+        };
+        // Keep plan order tied to the first valid reference, as before. Move
+        // each verified plan into the result only once, even for a large closure.
+        for reference in &staging.acquisitions {
+            if let Some(Some(VerifiedRecordedPlan(plan))) = plans.remove(&reference.plan_sha256) {
+                self.keep_recipe_staging(recipe, &plan);
+                staging.provider_plans.push(plan);
             }
         }
         require_review_budget(staging.encoded_bytes()?)?;
@@ -2151,12 +2153,34 @@ pub(crate) fn set_directory_modified(path: &Path, modified: std::time::SystemTim
     }
 }
 
+/// Proof for the exact immutable plan read from its content-addressed record.
+struct VerifiedRecordedPlan(crate::ProviderInstallPlan);
+
+impl VerifiedRecordedPlan {
+    fn new(plan: crate::ProviderInstallPlan, expected: &str) -> Option<Self> {
+        (plan.plan_sha256 == expected
+            && crate::provider_install::digest(&plan).is_ok_and(|digest| digest == expected))
+        .then_some(Self(plan))
+    }
+}
+
 fn verify_steps<'a>(
     catalog: &crate::Catalog,
     recipe: &ProfileRecipe,
     layout: &crate::profile_deploy::Layout,
     steps: impl IntoIterator<Item = (&'a str, &'a crate::ProviderInstallPlan)>,
     depth: Depth,
+) -> Result<BTreeMap<String, AcquiredPackage>> {
+    verify_steps_with_record(catalog, recipe, layout, steps, depth, None)
+}
+
+fn verify_steps_with_record<'a>(
+    catalog: &crate::Catalog,
+    recipe: &ProfileRecipe,
+    layout: &crate::profile_deploy::Layout,
+    steps: impl IntoIterator<Item = (&'a str, &'a crate::ProviderInstallPlan)>,
+    depth: Depth,
+    record: Option<&VerifiedRecordedPlan>,
 ) -> Result<BTreeMap<String, AcquiredPackage>> {
     use crate::provider_install::{ProviderInstallMode, digest};
     let steps = steps.into_iter().collect::<Vec<_>>();
@@ -2206,9 +2230,13 @@ fn verify_steps<'a>(
         // Identity binding: steps are only ever staged and recorded under this
         // recipe's identity directory, and single-package inputs are checked
         // against it when collected (`RecipeStaging::from_acquisitions`).
+        let checked_record =
+            depth == Depth::Recorded && record.is_some_and(|record| std::ptr::eq(&record.0, plan));
         if !agrees
             || plan.port_id != recipe.port_id
-            || (!digested.contains(plan.plan_sha256.as_str()) && digest(plan)? != plan.plan_sha256)
+            || (!checked_record
+                && !digested.contains(plan.plan_sha256.as_str())
+                && digest(plan)? != plan.plan_sha256)
             || verified.contains_key(native_id)
         {
             return Err(PortcoveError::conflict(

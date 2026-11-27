@@ -1698,6 +1698,11 @@ async fn a_shared_closure_costs_its_plan_once_in_records_and_the_review() {
 
     // A restart resumes the same review from the records.
     let resumed = w.service.plan_recipe_import(&recipe).unwrap();
+    assert_eq!(resumed.staging.acquisitions.len(), members);
+    assert_eq!(
+        resumed.staging.provider_plans.as_slice(),
+        std::slice::from_ref(&provider_plan)
+    );
     assert_eq!(resumed.plan_sha256, ready.plan_sha256);
     let token = w
         .service
