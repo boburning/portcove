@@ -68,7 +68,17 @@
         "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "devil-dice-playstation-europe",
+          "title": "Devil Dice (PlayStation, Europe SCES-01312)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/blob/9968f8dd9c30c3350ddb3455945679f949003d19/game.toml#L4-L11",
+            "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/blob/9968f8dd9c30c3350ddb3455945679f949003d19/README.md#L15-L25"
+          ]
+        }
+      ]
     },
     "original_game_title": "Devil Dice"
   }

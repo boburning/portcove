@@ -392,6 +392,10 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   const discoveryStep = discover.steps.find((step) =>
     step.run?.includes("discovery-worker.mts collect"),
   )!;
+  const seed = discover.steps.find((step) => step.run?.includes("maintenance-recovery-artifact"))!;
+  // An earlier forecast cannot tell whether the seeded pass will fit later.
+  assert.equal(seed.if, undefined);
+  assert.ok(discover.steps.indexOf(seed) < discover.steps.indexOf(discoveryStep));
   assert.equal(discoveryStep.env!.GH_TOKEN, "${{ github.token }}");
   const previewStep = discover.steps.find((step) => step.run?.includes("--discovery-listings"))!;
   assert.match(previewStep.if!, /github.event_name == 'schedule'/u);

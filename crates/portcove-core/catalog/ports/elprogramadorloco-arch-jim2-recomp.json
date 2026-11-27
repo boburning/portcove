@@ -53,7 +53,16 @@
         "https://github.com/elprogramadorloco-arch/jim2-recomp",
         "https://github.com/elprogramadorloco-arch/jim2-recomp/blob/a7a68daab33c4ff3b6fba1250b9babf04f25e61f/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "earthworm-jim-2-playstation-europe",
+          "title": "Earthworm Jim 2 (PlayStation, Europe SLES-00343)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/elprogramadorloco-arch/jim2-recomp/blob/a7a68daab33c4ff3b6fba1250b9babf04f25e61f/README.md#L27-L32"
+          ]
+        }
+      ]
     },
     "original_game_title": "Earthworm Jim 2"
   }

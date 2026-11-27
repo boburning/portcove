@@ -758,7 +758,24 @@ export async function main(
     return;
   }
   printPlan(context, selection, plan, validationPlan);
-  if (planOnly) return;
+  if (planOnly) {
+    console.log("\nExecution routes:");
+    console.log(
+      "- Local feedback: rerun without --plan to check this worktree. Heavy stages join the local resource queue.",
+    );
+    console.log(
+      "- Hosted CI: push the intended commit and use its pull request checks for portable validation.",
+    );
+    if (validationPlan.qualification_required)
+      console.log(
+        "- Hosted qualification: use qualification.yml on the pushed candidate when directed by the review and merge procedure.",
+      );
+    console.log(
+      "- Local native verification: use just desktop-verify for scenarios that require this machine or desktop session.",
+    );
+    console.log("Use --preflight to inspect prerequisites and local resource observations.");
+    return;
+  }
   mkdirSync(path.join(projectRoot, "work"), { recursive: true });
   writeFileSync(
     path.join(projectRoot, "work/local-validation-plan.json"),

@@ -658,7 +658,10 @@ async fn pinned_real_sm64_relationships_stay_independent_and_sparse_without_fabr
         editions("ghostship"),
         ["super-mario-64-n64-usa", "super-mario-64-n64-japan"]
     );
-    assert!(editions("super-mario-64-sm64-co-op-dx").is_empty());
+    assert_eq!(
+        editions("super-mario-64-sm64-co-op-dx"),
+        ["super-mario-64-n64-usa"]
+    );
     assert!(
         result
             .ports

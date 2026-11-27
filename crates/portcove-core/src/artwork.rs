@@ -617,7 +617,8 @@ impl PortcoveService {
         };
         let actual = current.artwork_port(&expected.id)?;
         if actual.as_ref() == expected
-            && self.automatic_cover(expected) == current.automatic_cover(&actual)
+            && self.catalog().automatic_cover(expected)
+                == current.catalog().automatic_cover(&actual)
             && self.catalog_companion_cover(&expected.id)
                 == current.catalog_companion_cover(&expected.id)
         {
@@ -636,49 +637,6 @@ impl PortcoveService {
             .as_ref()?
             .companion_cover
             .as_ref()
-    }
-
-    /// Direct catalog mappings take precedence. Only reviewed underlying-game
-    /// mappings from listings with the same single declared edition can be shared.
-    fn automatic_cover<'a>(
-        &'a self,
-        port: &'a crate::PortListing,
-    ) -> Option<&'a crate::IgdbArtwork> {
-        if let Some(cover) = &port.artwork {
-            return Some(cover);
-        }
-        if port.collection_covers.is_some() {
-            return None;
-        }
-        let game = port.original_game.as_ref()?;
-        let [edition] = game.source_editions.as_slice() else {
-            return None;
-        };
-        let mut shared = None;
-        for candidate in self.catalog().listings() {
-            let Some((donor, cover)) = candidate
-                .original_game
-                .as_ref()
-                .zip(candidate.artwork.as_ref())
-            else {
-                continue;
-            };
-            let [donor_edition] = donor.source_editions.as_slice() else {
-                continue;
-            };
-            if donor.id != game.id
-                || donor_edition.id != edition.id
-                || donor_edition.system != edition.system
-                || cover.match_kind != crate::IgdbArtworkMatch::UnderlyingGame
-            {
-                continue;
-            }
-            if shared.is_some_and(|previous| previous != cover) {
-                return None;
-            }
-            shared = Some(cover);
-        }
-        shared
     }
 
     /// Content identities of remote originals that a currently resolvable port
@@ -822,7 +780,7 @@ impl PortcoveService {
                 ArtworkResolvedSource::GeneratedFallback,
             ),
             None => match (slot == ArtworkSlot::Cover && choice.is_automatic())
-                .then(|| self.automatic_cover(port))
+                .then(|| self.catalog().automatic_cover(port))
                 .flatten()
             {
                 Some(artwork) => (
@@ -1427,7 +1385,10 @@ impl PortcoveService {
             self.library(),
             Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
         );
-        let transaction = connection.transaction()?;
+        // Reserve the write before reading a revision. Another library writer
+        // can otherwise invalidate the read snapshot before the first write.
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         crate::artwork_store::check_capacity(&transaction, &proposed)?;
         let existed = crate::artwork_store::asset_exists(&transaction, &proposed.sha256)?;
@@ -1466,7 +1427,8 @@ impl PortcoveService {
                 bytes,
             )?;
         }
-        let transaction = connection.transaction()?;
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let current =
             crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         if restoring {
@@ -1548,7 +1510,8 @@ impl PortcoveService {
         let slot = ArtworkSlot::Detail;
         let _guard = self.library().try_lock_artwork()?;
         let mut connection = self.library().connection()?;
-        let transaction = connection.transaction()?;
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let current =
             crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         let Some(asset_sha256) = current.asset_sha256.as_deref() else {
@@ -1614,7 +1577,8 @@ impl PortcoveService {
         let port = self.artwork_port(port_id)?;
         let _guard = self.library().try_lock_artwork()?;
         let mut connection = self.library().connection()?;
-        let transaction = connection.transaction()?;
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let current =
             crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         let id = current.asset_sha256.as_deref();
@@ -1763,7 +1727,7 @@ impl PortcoveService {
     ) -> Result<ArtworkThumbnail> {
         let port = self.artwork_port(port_id)?;
         let mapped_cover = (slot == ArtworkSlot::Cover)
-            .then(|| self.automatic_cover(&port))
+            .then(|| self.catalog().automatic_cover(&port))
             .flatten();
         if let Some(artwork) = mapped_cover {
             let connection = self.library().connection()?;

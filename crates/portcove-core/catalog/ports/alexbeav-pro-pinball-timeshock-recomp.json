@@ -57,7 +57,17 @@
         "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "pro-pinball-timeshock-playstation-usa",
+          "title": "Pro Pinball: Timeshock! (PlayStation, USA SLUS-00639)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp/blob/1809737eacd2687d400cf54c5708dc63b52165a1/game.toml#L3-L17",
+            "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp/blob/1809737eacd2687d400cf54c5708dc63b52165a1/README.md#L1-L8"
+          ]
+        }
+      ]
     },
     "original_game_title": "Pro Pinball: Timeshock!"
   }

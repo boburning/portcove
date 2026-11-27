@@ -769,7 +769,13 @@ impl ListingDeliveryDocument {
             listings.insert(listing.id.clone(), replacement);
         }
         directory.listings = listings.into_values().collect();
-        catalog.with_projected_listing_document(directory)
+        if self.directory.format_version >= crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT
+        {
+            directory.format_version = directory.format_version.max(self.directory.format_version);
+        }
+        catalog
+            .with_projected_listing_document(directory)
+            .map(|catalog| catalog.with_signed_cover_assignments(&self.directory))
     }
 }
 

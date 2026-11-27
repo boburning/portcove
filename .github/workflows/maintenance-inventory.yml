@@ -681,6 +681,9 @@ jobs:
           command -v psql || sudo apt-get install -y --no-install-recommends postgresql-client
           mkdir -p work/discovery-worker
       - name: Prepare optional discovery seed from the existing verified recovery
+        # A same-run inspection can defer before another operation releases an
+        # unused reservation. The fresh discovery allowance may fit a seeded
+        # pass while a cold read would still defer.
         continue-on-error: true
         timeout-minutes: 12
         env:

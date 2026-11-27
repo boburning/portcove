@@ -98,6 +98,8 @@ pub struct Catalog {
     listings: Arc<Indexed<crate::CatalogListingDocument>>,
     /// A retained execution-intent envelope, never an operational definition.
     user_selected_listing: bool,
+    /// Signed current-format rows that explicitly have no cover to display.
+    cover_assignments: Arc<HashSet<String>>,
     retained_definitions: Arc<BTreeMap<String, RetainedDefinition>>,
 }
 
@@ -433,6 +435,7 @@ impl Catalog {
         let catalog = Self {
             listings: Arc::new(Indexed::new(listings)),
             user_selected_listing: false,
+            cover_assignments: Arc::default(),
             document: Arc::new(Indexed::new(document)),
             retained_definitions: Arc::default(),
         };

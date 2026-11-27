@@ -1737,7 +1737,39 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     assert!(service.require_no_pending_setup(&pending.port_id).is_err());
     let reopened = PortcoveService::new(service.library.clone()).unwrap();
     assert!(reopened.catalog.listing(&pending.port_id).is_err());
-    assert!(reopened.preview_mod_handoff(&pending.port_id).is_err());
+    let handoff = reopened.preview_mod_handoff(&pending.port_id).unwrap();
+    assert!(handoff.external_mod_portals.is_empty());
+    let local_page = crate::LocalModPage {
+        name: "My mod website".into(),
+        url: "https://example.org/my-mods".into(),
+    };
+    let saved = reopened
+        .set_mod_portal_preferences(
+            &pending.port_id,
+            0,
+            crate::ModPortalChoices {
+                local_page: Some(local_page.clone()),
+                hidden_sources: vec![],
+            },
+        )
+        .unwrap();
+    assert!(saved.mod_portal_preferences.automatic_sources.is_empty());
+    let resumed = PortcoveService::new(service.library.clone()).unwrap();
+    let handoff = resumed.preview_mod_handoff(&pending.port_id).unwrap();
+    assert!(!handoff.supported);
+    let [portal] = handoff.external_mod_portals.as_slice() else {
+        panic!("the pending setup should show only the player's mod website");
+    };
+    assert_eq!(portal.url, local_page.url);
+    assert!(!portal.browse_available);
+    let reset = resumed
+        .set_mod_portal_preferences(
+            &pending.port_id,
+            saved.mod_portal_preferences.preferences.revision,
+            crate::ModPortalChoices::default(),
+        )
+        .unwrap();
+    assert!(reset.external_mod_portals.is_empty());
     let snapshot = reopened.workspace_snapshot(10).unwrap();
     assert_eq!(
         snapshot.pending_setups.as_slice(),
@@ -1766,6 +1798,7 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
         .forget_pending_setup(&pending.port_id, &pending.id)
         .unwrap();
     assert!(reopened.pending_setups().unwrap().is_empty());
+    assert!(reopened.preview_mod_handoff(&pending.port_id).is_err());
     assert_eq!(
         fs::read(pending.path.join("player-save.dat")).unwrap(),
         b"my save"
