@@ -1030,7 +1030,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             serde_json::to_value(retained).unwrap(),
-            serde_json::to_value(registered).unwrap()
+            serde_json::to_value(&registered).unwrap()
         );
 
         let duplicate = service
