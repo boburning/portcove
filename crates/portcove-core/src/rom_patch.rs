@@ -120,7 +120,7 @@ fn apply_ips(
     let mut records = 0_usize;
     loop {
         records += 1;
-        if records % CHECKPOINT_INTERVAL == 0 {
+        if records.is_multiple_of(CHECKPOINT_INTERVAL) {
             checkpoint()?;
         }
         // The end marker is also a valid offset, so an IPS patch can never
@@ -233,7 +233,7 @@ fn apply_bps(
     };
     while cursor.position < cursor.end {
         actions += 1;
-        if actions % CHECKPOINT_INTERVAL == 0 {
+        if actions.is_multiple_of(CHECKPOINT_INTERVAL) {
             checkpoint()?;
         }
         let action = cursor.number()?;
@@ -324,7 +324,7 @@ fn apply_ups(
     let mut runs = 0_usize;
     while cursor.position < cursor.end {
         runs += 1;
-        if runs % CHECKPOINT_INTERVAL == 0 {
+        if runs.is_multiple_of(CHECKPOINT_INTERVAL) {
             checkpoint()?;
         }
         offset = usize::try_from(cursor.number()?)
