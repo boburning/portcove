@@ -1012,28 +1012,29 @@ async fn scheduled_refresh_shares_metadata_and_preserves_each_known_definition_s
         let (effective, _) = library.load_catalog().unwrap();
         assert!(effective.definition_selection(id).is_some());
     }
-    let requests = transport.requests.lock().unwrap();
-    assert_eq!(
-        requests
-            .iter()
-            .filter(|url| request_leaf(url) == Some("timestamp.json"))
-            .count(),
-        1
-    );
-    assert_eq!(
-        requests
-            .iter()
-            .filter(|url| request_leaf(url)
-                .is_some_and(|leaf| leaf.ends_with(".index.json") || leaf == "index.json"))
-            .count(),
-        1
-    );
-    assert!(
-        !requests
-            .iter()
-            .any(|url| url.path().ends_with("unlisted-scheduled-fixture.json"))
-    );
-    drop(requests);
+    {
+        let requests = transport.requests.lock().unwrap();
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|url| request_leaf(url) == Some("timestamp.json"))
+                .count(),
+            1
+        );
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|url| request_leaf(url)
+                    .is_some_and(|leaf| leaf.ends_with(".index.json") || leaf == "index.json"))
+                .count(),
+            1
+        );
+        assert!(
+            !requests
+                .iter()
+                .any(|url| url.path().ends_with("unlisted-scheduled-fixture.json"))
+        );
+    }
 
     let activities = library.activities(10).unwrap().len();
     let replay = automatic_refresh_fixture(

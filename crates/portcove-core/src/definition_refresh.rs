@@ -534,6 +534,41 @@ fn scheduled_subjects<T>(known: &[T], day: u64) -> impl Iterator<Item = &T> {
 }
 
 #[cfg(test)]
+pub(crate) async fn refresh_fixture<T: Transport + Send + Sync + 'static>(
+    service: &PortcoveService,
+    source: &DefinitionRepositorySource,
+    stable_id: &str,
+    root: &[u8],
+    transport: T,
+    emit: impl FnMut(OperationEvent),
+) -> Result<DefinitionRefresh> {
+    provisioning::installed_fixture_root(service.library(), root)?;
+    refresh(service, source, stable_id, None, root, transport, emit).await
+}
+
+#[cfg(test)]
+pub(crate) async fn refresh_linked_fixture<T: Transport + Send + Sync + 'static>(
+    service: &PortcoveService,
+    source: &DefinitionRepositorySource,
+    stable_id: &str,
+    original_game_id: &str,
+    root: &[u8],
+    transport: T,
+) -> Result<DefinitionRefresh> {
+    provisioning::installed_fixture_root(service.library(), root)?;
+    refresh(
+        service,
+        source,
+        stable_id,
+        Some(original_game_id),
+        root,
+        transport,
+        |_| {},
+    )
+    .await
+}
+
+#[cfg(test)]
 mod scheduled_subject_tests {
     use super::*;
 
@@ -588,39 +623,4 @@ mod scheduled_subject_tests {
             }
         }
     }
-}
-
-#[cfg(test)]
-pub(crate) async fn refresh_fixture<T: Transport + Send + Sync + 'static>(
-    service: &PortcoveService,
-    source: &DefinitionRepositorySource,
-    stable_id: &str,
-    root: &[u8],
-    transport: T,
-    emit: impl FnMut(OperationEvent),
-) -> Result<DefinitionRefresh> {
-    provisioning::installed_fixture_root(service.library(), root)?;
-    refresh(service, source, stable_id, None, root, transport, emit).await
-}
-
-#[cfg(test)]
-pub(crate) async fn refresh_linked_fixture<T: Transport + Send + Sync + 'static>(
-    service: &PortcoveService,
-    source: &DefinitionRepositorySource,
-    stable_id: &str,
-    original_game_id: &str,
-    root: &[u8],
-    transport: T,
-) -> Result<DefinitionRefresh> {
-    provisioning::installed_fixture_root(service.library(), root)?;
-    refresh(
-        service,
-        source,
-        stable_id,
-        Some(original_game_id),
-        root,
-        transport,
-        |_| {},
-    )
-    .await
 }
