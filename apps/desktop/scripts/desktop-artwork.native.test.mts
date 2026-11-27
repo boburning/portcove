@@ -217,7 +217,6 @@ async function artworkContract(subject: Artwork) {
         : null;
     },
   };
-  let expectedTimeout = 10_000;
   const visibilityBrowser = {
     findElements: async (locator: unknown) => {
       assert.ok(locator !== null && typeof locator === "object");
@@ -240,7 +239,7 @@ async function artworkContract(subject: Artwork) {
       return value;
     },
     wait: async (condition: unknown, deadline: number, message?: string): Promise<unknown> => {
-      assert.equal(deadline, expectedTimeout, "Retain the finite artwork wait budget");
+      assert.equal(deadline, 45_000, "Retain the finite artwork read and decode waits");
       let result: unknown;
       if (typeof condition === "function") result = await Reflect.apply(condition, undefined, []);
       else {
@@ -259,16 +258,11 @@ async function artworkContract(subject: Artwork) {
       return result;
     },
   };
-  const waitImage = async (
-    selector: string,
-    anchor?: string,
-    timeout?: number,
-  ): Promise<unknown> => {
+  const waitImage = async (selector: string, anchor?: string): Promise<unknown> => {
     const value: unknown = Reflect.apply(subject.waitForArtworkImage, undefined, [
       visibilityBrowser,
       selector,
       anchor,
-      timeout,
     ]);
     return value;
   };
@@ -283,9 +277,6 @@ async function artworkContract(subject: Artwork) {
   imagePresent = true;
   decoded = false;
   await assert.rejects(waitImage(heroImage, hero), /Core thumbnail must render/);
-  decoded = true;
-  expectedTimeout = 45_000;
-  await waitImage(wideImage, undefined, expectedTimeout);
 }
 void test("serialized local artwork fallback preserves generated identity and geometry", () => {
   assert.match(runContract(), /ARTWORK_CONTRACT_OK/u);

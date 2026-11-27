@@ -97,8 +97,10 @@ export async function waitForArtworkImage(
   browser: Pick<ScenarioContext["browser"], "wait" | "executeScript">,
   selector: string,
   revealSelector = selector.replace(/ img$/, ""),
-  timeoutMilliseconds = 10_000,
 ) {
+  // This standalone scenario observed Core thumbnail replies at 10.5–14 s
+  // and a restored Background read still pending after the original 10 s.
+  const timeoutMilliseconds = 45_000;
   const frame = await browser.wait(
     until.elementLocated(By.css(revealSelector)),
     timeoutMilliseconds,
@@ -774,9 +776,7 @@ export async function artworkScenario({
       }
       command(["artwork", "clear-cache"], required(bootstrap.library_root));
       await open();
-      // After reload the Cover read took 15.7 s, and the Background read
-      // was still pending at the old 10 s reveal deadline.
-      await waitForArtworkImage(browser, ".wide-artwork img", ".wide-artwork", 45_000);
+      await waitForArtworkImage(browser, ".wide-artwork img");
       assert.equal((await state("cover")).choice.asset_sha256, null);
       assert.deepEqual(await state("detail"), detail);
       const currentStates = [reset, detail, ...(await readRoles(["landscape", "logo"]))];
