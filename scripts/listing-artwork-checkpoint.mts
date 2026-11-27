@@ -236,6 +236,13 @@ export function advanceArtworkCheckpoint(
       .filter(({ state }) => state === "gone")
       .map(({ id, image_id, prior_sha256 }) => imageIdentity(id, image_id, prior_sha256)),
   );
+  const withdrawalsByListing = new Map<string, Row[]>();
+  for (const row of sorted) {
+    if (row.state !== "gone") continue;
+    const withdrawals = withdrawalsByListing.get(row.id) ?? [];
+    withdrawals.push(row);
+    withdrawalsByListing.set(row.id, withdrawals);
+  }
   const covers = (listing: Record<string, unknown> | undefined) =>
     validArtworkMapping(listing?.artwork)
       ? [listing.artwork]
@@ -244,6 +251,9 @@ export function advanceArtworkCheckpoint(
         : [];
   return {
     deferred: deferred.size,
+    withdrawalsFor(id: string) {
+      return withdrawalsByListing.get(id) ?? [];
+    },
     apply(listing: Record<string, unknown>, declaration = listing) {
       return applyCoverState(entries, listing, declaration);
     },

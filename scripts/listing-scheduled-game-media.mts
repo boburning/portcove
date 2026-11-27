@@ -20,6 +20,7 @@ import {
 import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
 import { isRecord } from "./runtime-values.mts";
 import { originalEditionMediaKey } from "./shared-original-media.mts";
+import type { ScheduledCover } from "./listing-scheduled-cover.mts";
 
 export const scheduledGameMediaFile = "game-media-additions.json";
 export const scheduledGameMediaLimit = 2 * 1024 * 1024;
@@ -53,7 +54,12 @@ const imageFields = new Set([
 ]);
 type Listing = Record<string, unknown>;
 type Candidate = { id: string; asset: CatalogMediaAsset };
-type Proposal = { format_version: 1; selected_ids: readonly string[]; additions: Candidate[] };
+type Proposal = {
+  format_version: 1;
+  selected_ids: readonly string[];
+  additions: Candidate[];
+  covers?: readonly ScheduledCover[];
+};
 type MediaPreparation = Awaited<ReturnType<typeof prepareCatalogGameMedia>>;
 
 const media = (row: Listing | undefined): unknown[] =>
@@ -181,6 +187,23 @@ export function readScheduledGameMediaProposal(value: unknown): Proposal {
     )
   )
     throw new Error("Invalid scheduled media proposal");
+  if (value.covers !== undefined) {
+    const selected = new Set<unknown>(value.selected_ids);
+    if (
+      !Array.isArray(value.covers) ||
+      value.covers.length > selected.size ||
+      !value.covers.every(
+        (cover: unknown) =>
+          isRecord(cover) &&
+          typeof cover.id === "string" &&
+          selected.has(cover.id) &&
+          validArtworkMapping(cover.artwork) &&
+          cover.artwork.match_kind === "underlying-game",
+      ) ||
+      new Set(value.covers.map((cover: ScheduledCover) => cover.id)).size !== value.covers.length
+    )
+      throw new Error("Invalid scheduled cover proposal");
+  }
   return value as Proposal;
 }
 

@@ -2101,6 +2101,192 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
   );
 });
 
+void test("scheduled missing covers reuse an exact edition and survive transient provider failures", async () => {
+  const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { prepareScheduledCovers, projectScheduledCovers } =
+    await import("./listing-scheduled-cover.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { checkedAuthoredPort } = await import("./catalog-authoring.mts");
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const game = {
+    format_version: 1,
+    id: "cover-game",
+    evidence_urls: ["https://example.org/game"],
+    source_editions: [
+      {
+        id: "cover-pc",
+        system: "pc",
+        title: "Cover game",
+        evidence_urls: ["https://example.org/edition"],
+      },
+    ],
+  };
+  const donor = { ...fixtureListing, original_game: game };
+  const peer = { ...donor, id: "cover-peer", project_url: "https://github.com/test/cover-peer" };
+  const withheld = { ...peer, id: "cover-opt-out" };
+  const edition = game.source_editions[0]!;
+  const reviewed = new Map([
+    [
+      JSON.stringify([game.id, edition.id, edition.system]),
+      {
+        decision: "match" as const,
+        original_game_id: game.id,
+        source_edition_id: edition.id,
+        system: edition.system,
+        evidence_url: edition.evidence_urls[0]!,
+        game_id: 70,
+        slug: "cover-game",
+      },
+    ],
+  ]);
+  const authored = [
+    checkedAuthoredPort({ format_version: 1, listing: donor }),
+    checkedAuthoredPort({ format_version: 1, listing: peer }),
+    checkedAuthoredPort({ format_version: 1, listing: withheld, igdb_no_shared_cover: true }),
+  ];
+  const image = {
+    sha256: "a".repeat(64),
+    bytes: 4,
+    width: 240,
+    height: 360,
+    format: "jpeg" as const,
+    validator: "portcove-core" as const,
+  };
+  let games = 0;
+  const prepared = await prepareScheduledCovers(
+    authored,
+    new Set([donor.id, peer.id, withheld.id]),
+    reviewed,
+    {
+      inspectGame: async () => {
+        games++;
+        return [
+          {
+            id: 70,
+            name: "Cover game",
+            slug: "cover-game",
+            cover: { id: 71, image_id: "covergame" },
+          },
+        ];
+      },
+      inspectImage: async () => image,
+    },
+  );
+  assert.equal(games, 1);
+  assert.equal(prepared.covers.length, 1);
+  const options = {
+    authored,
+    reviewed,
+    previous: new Map<string, Record<string, unknown>>(),
+    source: new Map([[donor.id, donor]]),
+    incoming: prepared.covers,
+    shared: new Map(),
+    denied: new Set<string>(),
+    now: Date.now(),
+  };
+  const first = await projectScheduledCovers({ ...options, inspect: async () => image });
+  const artwork = prepared.covers[0]!.artwork;
+  assert.deepEqual(first.proposals.get(peer.id), artwork);
+  assert.equal(first.proposals.has(withheld.id), false);
+  const canonical = { format_version: 16, listings: [donor, peer, withheld] };
+  const signed = projectListingDelivery(canonical, [], null, { scheduledCovers: first.proposals });
+  const rows = fixtureRecords(
+    fixtureRecord(fixtureRecord(JSON.parse(signed.bytes.toString())).directory).listings,
+  );
+  const previous = new Map(rows.map((row) => [String(row.id), row]));
+  const outage = await projectScheduledCovers({
+    ...options,
+    previous,
+    inspect: async () => {
+      throw new Error("provider unavailable");
+    },
+  });
+  assert.deepEqual(outage.preserved.get(peer.id), artwork);
+  const drift = "b".repeat(64);
+  const replacement = [{ id: donor.id, artwork: { ...artwork, image_sha256: drift } }];
+  const held = await projectScheduledCovers({
+    ...options,
+    previous: new Map([[donor.id, { ...donor, artwork }]]),
+    incoming: replacement,
+    inspect: async () => ({ ...image, sha256: drift }),
+  });
+  assert.deepEqual(held.proposals.get(donor.id), artwork);
+  assert.equal(held.proposals.has(peer.id), false);
+  const outageAfterDrift = await projectScheduledCovers({
+    ...options,
+    incoming: [],
+    previous: new Map([[donor.id, { ...donor, artwork }]]),
+    inspect: async () => {
+      throw new Error("provider unavailable after drift");
+    },
+  });
+  assert.deepEqual(outageAfterDrift.preserved.get(donor.id), artwork);
+  assert.equal(outageAfterDrift.proposals.has(peer.id), false);
+  const upstreamHold = await projectScheduledCovers({
+    ...options,
+    held: new Set([artwork.image_id]),
+    inspect: async () => image,
+  });
+  assert.equal(upstreamHold.proposals.size, 0);
+  const gone = createIgdbInspector(
+    null,
+    () => assert.fail("withdrawn cover cannot decode"),
+    async () => new Response(null, { status: 410 }),
+  );
+  const withdrawn = await projectScheduledCovers({
+    ...options,
+    previous,
+    inspect: (id) => gone.inspectImage(id),
+  });
+  assert.equal(gone.providerMetrics.image_requests, 1);
+  assert.equal(withdrawn.proposals.size, 0);
+  const listing = projectListingDelivery(canonical, [], signed.bytes, {
+    scheduledCovers: withdrawn.proposals,
+  }).bytes;
+  const checkpoint = withdrawn.preservedCheckpoint.finish(listing);
+  assert.ok(checkpoint);
+  const recovery = {
+    ...options,
+    priorCheckpoint: { bytes: checkpoint, listing },
+    receiptDigest: `sha256:${"c".repeat(64)}`,
+    now: options.now + 2_000,
+    inspect: async () => image,
+  };
+  const replayed = await projectScheduledCovers({ ...recovery, receiptStarted: options.now });
+  assert.equal(replayed.proposals.size, 0);
+  const restored = await projectScheduledCovers({ ...recovery, receiptStarted: options.now + 1 });
+  assert.deepEqual(restored.proposals.get(donor.id), artwork);
+  assert.deepEqual(restored.proposals.get(peer.id), artwork);
+  assert.deepEqual(restored.preservedCheckpoint.finish(listing), checkpoint);
+  assert.deepEqual(restored.checkpointFor([withheld]).finish(listing), checkpoint);
+  assert.notDeepEqual(restored.checkpointFor([{ ...donor, artwork }]).finish(listing), checkpoint);
+  const conflicting = await projectScheduledCovers({
+    ...recovery,
+    receiptStarted: options.now + 1,
+    source: new Map([
+      [donor.id, donor],
+      [peer.id, peer],
+    ]),
+    incoming: [...prepared.covers, { id: peer.id, artwork: { ...artwork, cover_id: 72 } }],
+  });
+  assert.equal(conflicting.proposals.size, 0);
+  assert.deepEqual(conflicting.checkpointFor([{ ...donor, artwork }]).finish(listing), checkpoint);
+  const renamed = "renamed-cover-game";
+  const rejectedRenameReplay = await projectScheduledCovers({
+    ...recovery,
+    receiptStarted: options.now,
+    reviewed: new Map(
+      [...reviewed].map(([scope, decision]) => [scope, { ...decision, slug: renamed }]),
+    ),
+    incoming: [{ id: donor.id, artwork: { ...artwork, game_slug: renamed } }],
+  });
+  assert.equal(rejectedRenameReplay.proposals.size, 0);
+  assert.equal(
+    (await projectScheduledCovers({ ...options, previous, reviewed: new Map() })).proposals.size,
+    0,
+  );
+});
+
 void test("signed projection recomputes shared covers without changing the release observation", async () => {
   const { fixtureListing, fixturePolicy } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
