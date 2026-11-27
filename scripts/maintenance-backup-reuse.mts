@@ -56,9 +56,17 @@ export function backupFingerprintResponseLimit(maximum: number, clientLimit = ou
 }
 
 function fingerprintSql(table: DeltaTable, maximum: number) {
-  return `WITH fingerprints AS (
-    SELECT coalesce(jsonb_object_agg(${table.key}, encode(sha256(convert_to(t::text, 'UTF8')), 'hex')), '{}'::jsonb) AS value
-    FROM ${table.table} t
+  // A JSONB object with unique keys occupies the sum of its singleton objects:
+  // comma-space separators replace two braces per additional key. The digest
+  // text always occupies 64 ASCII bytes, so the first pass needs only the keys.
+  return `WITH fingerprints AS MATERIALIZED (
+    SELECT CASE WHEN (
+      SELECT coalesce(sum(octet_length(jsonb_build_object(${table.key}, repeat('0', 64))::text)), 2)
+      FROM ${table.table} t
+    ) <= ${maximum} THEN (
+      SELECT coalesce(jsonb_object_agg(${table.key}, encode(sha256(convert_to(t::text, 'UTF8')), 'hex')), '{}'::jsonb)
+      FROM ${table.table} t
+    ) END AS value
   ) SELECT CASE WHEN octet_length(value::text) <= ${maximum} THEN value ELSE 'null'::jsonb END FROM fingerprints;`;
 }
 
