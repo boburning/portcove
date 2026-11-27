@@ -365,8 +365,10 @@ stops publication in the prepare job's context check, before any role key is
 used. The last good publication stays served, but publication stays stopped
 until the cause is repaired. Compact listings and the signed cover checkpoint
 can use the retained full repository. The signer authenticates its retained
-policy and checks the exact cover checkpoint successor. If segmented history
-is active, the signer also requires its authenticated store and predecessor.
+policy, checks that the current cover matches the latest signed reference, and
+validates the exact successor. Cover replacement review verifies the same
+retained references. If segmented history is active, the signer also requires
+its authenticated store and predecessor.
 The first cover checkpoint still requires the separate owner activation,
 authenticated compact listings, a verified withdrawal, and released-reader proof.
 

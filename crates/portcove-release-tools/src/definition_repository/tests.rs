@@ -2086,8 +2086,7 @@ async fn full_catalog_history_keeps_signed_cover_withdrawals_across_publications
 
     let bundle_path = fixture.root().join("bundle");
     let compact = fs::read(bundle_path.join(COMPACT_TARGET)).unwrap();
-    let (_, identity) = portcove_listing_carrier::decode(&compact).unwrap();
-    let listing_digest = identity.decoded_sha256;
+    let (_, listing_digest) = portcove_listing_carrier::decode(&compact).unwrap();
     let mut checkpoint = json!({
         "checkpoint_schema": 1,
         "listing_sha256": listing_digest,
@@ -2139,7 +2138,7 @@ async fn full_catalog_history_keeps_signed_cover_withdrawals_across_publications
         fixture.root(),
         "verify-cover.json",
         json!({
-            "schema_version":1, "repository":"cover",
+            "schema_version":1, "repository":"cover", "verify_cover_history": true,
             "trusted_root":"root.json", "trusted_root_sha256":published.root_sha256,
             "offline_targets":"targets.json", "offline_targets_sha256":published.offline_targets_sha256,
         }),
@@ -2153,7 +2152,34 @@ async fn full_catalog_history_keeps_signed_cover_withdrawals_across_publications
     load_context(&fixture.context).await.unwrap();
 
     set_checkpoint(&fixture, None);
-    assert!(load_context(&fixture.context).await.is_err());
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("cover observation checkpoint"),
+        "{failure}"
+    );
+    // Rewind the live timestamp while retaining the newer signed policy. The
+    // full history must still remember that the cover checkpoint was present.
+    let timestamp_path = fixture.root().join("cover/metadata/timestamp.json");
+    let signed_timestamp = fs::read(&timestamp_path).unwrap();
+    fs::copy(
+        fixture.root().join("compact/metadata/timestamp.json"),
+        &timestamp_path,
+    )
+    .unwrap();
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("omitted an authenticated historical cover checkpoint"),
+        "{failure}"
+    );
+    fs::write(timestamp_path, signed_timestamp).unwrap();
     checkpoint["entries"][0]["observed_at"] = json!("2026-11-22T12:00:00.000Z");
     checkpoint["entries"][0]["state"] = json!("restored");
     set_checkpoint(&fixture, Some(&checkpoint));
@@ -2165,7 +2191,44 @@ async fn full_catalog_history_keeps_signed_cover_withdrawals_across_publications
         .unwrap();
     checkpoint["prior_checkpoint_sha256"] = json!(actual_prior.sha256);
     set_checkpoint(&fixture, Some(&checkpoint));
-    load_context(&fixture.context).await.unwrap();
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("restored-cover"))
+        .await
+        .unwrap();
+    let mut verification: serde_json::Value =
+        serde_json::from_slice(&fs::read(&verify).unwrap()).unwrap();
+    verification["repository"] = json!("restored-cover");
+    fs::write(&verify, serde_json::to_vec(&verification).unwrap()).unwrap();
+    verify_definition_repository(&verify).await.unwrap();
+
+    let restored_repository = fixture.root().join("restored-cover");
+    let timestamp_path = restored_repository.join("metadata/timestamp.json");
+    let restored_timestamp = fs::read(&timestamp_path).unwrap();
+    fs::copy(
+        fixture.root().join("cover/metadata/timestamp.json"),
+        &timestamp_path,
+    )
+    .unwrap();
+    let failure = verify_definition_repository(&verify)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("selected an older cover checkpoint"),
+        "{failure}"
+    );
+    fs::write(timestamp_path, restored_timestamp).unwrap();
+    fs::remove_file(restored_repository.join(&actual_prior.target)).unwrap();
+    let failure = verify_definition_repository(&verify)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("historical cover checkpoint body is missing"),
+        "{failure}"
+    );
 }
 
 #[tokio::test]

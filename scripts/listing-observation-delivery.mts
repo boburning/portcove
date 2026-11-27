@@ -1018,6 +1018,7 @@ async function verifyListingObservationPrior(
   repository: string,
   workspace: string,
   history?: string,
+  verifyCoverHistory = false,
 ) {
   const prior = path.join(workspace, "verified-prior");
   copyPriorRepository(repository, prior);
@@ -1035,6 +1036,7 @@ async function verifyListingObservationPrior(
       offline_targets_sha256: hash(top),
       repository: prior,
       ...(history === undefined ? {} : { history_store: path.resolve(history) }),
+      ...(verifyCoverHistory ? { verify_cover_history: true } : {}),
     }),
     { flag: "wx" },
   );
@@ -1106,6 +1108,7 @@ export async function readAuthenticatedCoverPreimages(
     inputs.repository,
     inputs.workspace,
     inputs.history,
+    true,
   );
   if (
     !isRecord(report) ||
@@ -1268,6 +1271,7 @@ export async function prepareObservationBundle(options: {
       priorRepository,
       workspace,
       coverEnabled ? options.priorHistory : undefined,
+      coverEnabled,
     );
     if (isRecord(report)) {
       priorApprovals = readApprovedCoverJournal(report.cover_approvals);
