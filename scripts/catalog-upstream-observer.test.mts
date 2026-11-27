@@ -5874,6 +5874,11 @@ void test("first-party due work reserves a share for missing scopes and follows 
     "later-reviewed",
     "old-unresolved",
   ]);
+  assert.deepEqual(selectLauncherModWork([...reviewed, "more-reviewed"], unresolved, 6, "", ""), [
+    ...reviewed,
+    "old-unresolved",
+    "new-unresolved",
+  ]);
   assert.deepEqual(selectLauncherModWork(reviewed.slice(0, 1), unresolved, 3, "", ""), [
     "old-reviewed",
     "old-unresolved",

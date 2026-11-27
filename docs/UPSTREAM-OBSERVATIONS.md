@@ -1754,13 +1754,13 @@ The existing hosted opportunity gives due first-party mod observations up to
 one tenth of its GitHub request allowance, both across the opportunity and
 within each operation. First-party reads count against the same request, byte
 and time limits as release observations. Other observations can use unspent
-allowance. A standalone operation uses its existing one-twentieth share.
+allowance. An enabled standalone observer uses its existing one-twentieth share.
 A subject needs one accepted implementation, an observed numeric repository ID
 and a matching public project root. The observer checks reviewed and unresolved
 game scopes in separate lanes within the same request allowance. When both lanes
-have due work, reviewed scopes get most slots and unresolved scopes get a reserved
-share. A single slot
-goes to the lane serviced least recently. Each lane orders due work by the
+have due work, up to a quarter of the slots rounded up are reserved for
+unresolved scopes. A single slot goes to the lane serviced least recently.
+Each lane orders due work by the
 last attempt or, on the first pass, by the listing date. Legacy listings
 without a date enter the existing backfill.
 
