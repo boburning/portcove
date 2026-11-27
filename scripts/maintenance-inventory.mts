@@ -2794,13 +2794,13 @@ const reportQuery = (
   through: string,
   withInterventionEvidence: boolean,
 ) => `WITH latest_issue AS (
-    SELECT DISTINCT ON (o.subject_key) o.payload
+    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'issues-project' AND r.coverage <> 'in_progress'
       ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), present_issue AS (
-    SELECT payload FROM latest_issue WHERE payload <> portcove_maintenance.absent_payload()
+    SELECT subject_key, payload FROM latest_issue WHERE payload <> portcove_maintenance.absent_payload()
   ), latest_health AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
       FROM portcove_maintenance.observations o
@@ -2848,7 +2848,7 @@ const reportQuery = (
     SELECT cl.platform, m.subject_key
       FROM core_latest cl CROSS JOIN LATERAL portcove_maintenance.run_members(cl.run_id) m
       WHERE cl.member_digest IS NOT NULL
-    UNION ALL
+    UNION
     SELECT cl.platform, o.subject_key
       FROM core_latest cl JOIN portcove_maintenance.observations o ON o.run_id = cl.run_id
       WHERE cl.member_digest IS NULL
@@ -2859,6 +2859,50 @@ const reportQuery = (
     SELECT c.*, split_part(c.subject_key, '@', 1) AS port_key, split_part(c.subject_key, '@', 2) AS platform
       FROM portcove_maintenance.subject_current c
       WHERE NOT starts_with(c.subject_key, 'handoff:')
+  ), assessed_ports AS (
+    SELECT DISTINCT port_key FROM assessed
+  ), issue_catalog_keys AS (
+    -- Match jsonb's top-level membership for retained array, string or object values.
+    SELECT i.subject_key, marker.value #>> '{}' AS catalog_id
+      FROM present_issue i
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE jsonb_typeof(i.payload -> 'catalog_ids')
+          WHEN 'array' THEN i.payload -> 'catalog_ids'
+          WHEN 'string' THEN jsonb_build_array(i.payload -> 'catalog_ids')
+          ELSE '[]'::jsonb
+        END
+      ) marker(value)
+      WHERE jsonb_typeof(marker.value) = 'string'
+    UNION ALL
+    SELECT i.subject_key, marker.catalog_id
+      FROM present_issue i
+      CROSS JOIN LATERAL jsonb_object_keys(
+        CASE WHEN jsonb_typeof(i.payload -> 'catalog_ids') = 'object'
+          THEN i.payload -> 'catalog_ids' ELSE '{}'::jsonb END
+      ) marker(catalog_id)
+  ), issue_links AS (
+    SELECT p.port_key, k.subject_key
+      FROM assessed_ports p
+      JOIN issue_catalog_keys k ON k.catalog_id = substring(p.port_key FROM 6)
+    UNION
+    SELECT p.port_key, i.subject_key
+      FROM assessed_ports p
+      JOIN latest_catalog c ON c.subject_key = p.port_key
+      JOIN present_issue i
+        ON i.payload ->> 'number' = c.payload -> 'authored_record' -> 'listing' ->> 'issue_number'
+  ), port_work AS (
+    SELECT l.port_key, json_agg(json_build_object(
+        'number', (i.payload ->> 'number')::integer,
+        'state', i.payload ->> 'state',
+        'title', i.payload ->> 'title',
+        'project', i.payload -> 'project',
+        'blocked_by', i.payload -> 'blocked_by',
+        'canonical', i.payload ->> 'number' = c.payload -> 'authored_record' -> 'listing' ->> 'issue_number'
+      ) ORDER BY (i.payload ->> 'number')::integer) AS work
+      FROM issue_links l
+      JOIN present_issue i ON i.subject_key = l.subject_key
+      LEFT JOIN latest_catalog c ON c.subject_key = l.port_key
+      GROUP BY l.port_key
   )
 SELECT json_build_object(
   'handoffs', ${openHandoffsSql},
@@ -2998,8 +3042,7 @@ SELECT json_build_object(
                    WHERE ob.subject_key = c.port_key AND r.coverage <> 'in_progress'
                      AND (r.source = 'catalog-records' OR r.source = '${corePrefix}' || c.platform)
                    ORDER BY r.source, r.acquisition DESC, ob.observation_id DESC) o) AS observations,
-        EXISTS (SELECT 1 FROM core_member m WHERE m.platform = c.platform AND m.subject_key = c.port_key)
-          AS in_latest_core_run,
+        m.subject_key IS NOT NULL AS in_latest_core_run,
         (SELECT json_build_object('code', g.code, 'message', g.message) FROM core_gap g
           WHERE g.platform = c.platform AND g.subject_key = c.port_key LIMIT 1) AS latest_core_gap,
         lc.payload = portcove_maintenance.absent_payload() AS removed,
@@ -3043,17 +3086,12 @@ SELECT json_build_object(
                         'artifact_sha256', q -> 'scope' ->> 'artifact_sha256')), '[]')
                         FROM jsonb_array_elements(coalesce(lc.payload -> 'scoped_qualification', '[]')) q)
         ) AS identity,
-        (SELECT coalesce(json_agg(json_build_object('number', (i.payload ->> 'number')::integer,
-                   'state', i.payload ->> 'state', 'title', i.payload ->> 'title',
-                   'project', i.payload -> 'project', 'blocked_by', i.payload -> 'blocked_by',
-                   'canonical', (i.payload ->> 'number') = (lc.payload -> 'authored_record' -> 'listing' ->> 'issue_number'))
-                 ORDER BY (i.payload ->> 'number')::integer), '[]')
-           FROM present_issue i
-           WHERE i.payload -> 'catalog_ids' ? substring(c.port_key FROM 6)
-              OR (i.payload ->> 'number') = (lc.payload -> 'authored_record' -> 'listing' ->> 'issue_number')) AS work
+        coalesce(w.work, '[]') AS work
         FROM assessed c
         JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
-        LEFT JOIN latest_catalog lc ON lc.subject_key = c.port_key) s)
+        LEFT JOIN latest_catalog lc ON lc.subject_key = c.port_key
+        LEFT JOIN core_member m ON m.platform = c.platform AND m.subject_key = c.port_key
+        LEFT JOIN port_work w ON w.port_key = c.port_key) s)
 );`;
 
 export interface InventoryReport {

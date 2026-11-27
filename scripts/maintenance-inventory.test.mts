@@ -1293,7 +1293,7 @@ void test(
         issues: [
           {
             id: "I1",
-            number: 1,
+            number: 59,
             title: "Ship",
             state: shipState,
             body: "<!-- portcove-catalog-id: 2ship2harkinian -->",
@@ -1342,14 +1342,24 @@ void test(
     const shipWork = (
       withWork.subjects as {
         port_key: string;
-        work: { number: number; state: string; project: { fields: Record<string, string> }[] }[];
+        work: {
+          number: number;
+          state: string;
+          canonical: boolean;
+          project: { fields: Record<string, string> }[];
+        }[];
       }[]
     ).find(({ port_key }) => port_key === "port:2ship2harkinian")!.work;
     assert.deepEqual(
-      shipWork.map(({ number, state, project }) => [number, state, project[0]?.fields.Status]),
-      [[1, "CLOSED", "Ready"]],
+      shipWork.map(({ number, state, canonical, project }) => [
+        number,
+        state,
+        canonical,
+        project[0]?.fields.Status,
+      ]),
+      [[59, "CLOSED", true, "Ready"]],
     );
-    assert.match(renderHtml(withWork), /#1 CLOSED · Ready/u);
+    assert.match(renderHtml(withWork), /#59 \(canonical\) CLOSED · Ready/u);
 
     // Full and incremental assessment agree on identical final inputs.
     await all(direct.owner, ["2ship2harkinian"]);
