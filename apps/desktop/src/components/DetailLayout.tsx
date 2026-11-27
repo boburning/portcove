@@ -84,6 +84,119 @@ const artworkTarget = {
   control: "[data-artwork-editor-trigger]",
 };
 
+function focusDetailTarget(element: HTMLElement, targetId: string) {
+  const target = element.querySelector<HTMLElement>(`#${CSS.escape(targetId)}`);
+  if (!target || target.closest("[hidden], [inert]")) return;
+  for (
+    let disclosure = target.closest("details");
+    disclosure;
+    disclosure = disclosure.parentElement?.closest("details") ?? null
+  ) {
+    disclosure.open = true;
+  }
+  focusAndReveal(target);
+  return target;
+}
+
+function focusDetailControl(target: HTMLElement, action: DetailRevealControl) {
+  const scope = target.matches("h2, h3, span") ? target.parentElement : target;
+  const activate = typeof action === "string";
+  const selector = activate ? action : action.focus;
+  const control = selector ? scope?.querySelector<HTMLElement>(selector) : undefined;
+  if (
+    !control?.isConnected ||
+    control.matches(":disabled, [aria-disabled=true]") ||
+    control.closest("[hidden], [inert]") ||
+    !control.getClientRects().length
+  ) {
+    return;
+  }
+  focusAndReveal(control);
+  if (!activate) return;
+  if (control.matches("summary") && control.parentElement instanceof HTMLDetailsElement) {
+    control.parentElement.open = true;
+  } else {
+    control.click();
+  }
+}
+
+function DetailIdentityChips({
+  port,
+  platforms,
+  upstreamPlatforms,
+  selectedChannel,
+  overview,
+}: {
+  port: Identity;
+  platforms: readonly PortDefinition["platforms"][number][];
+  upstreamPlatforms: readonly PortDefinition["platforms"][number][];
+  selectedChannel?: ReleaseChannel | undefined;
+  overview: boolean;
+}) {
+  const { t } = useAppTranslation("detail");
+  const setupIdentities = platformIdentities(platforms, upstreamPlatforms);
+  const upstreamIdentities = platformIdentities(upstreamPlatforms, platforms);
+  const channels = selectedChannel ? [selectedChannel] : port.channels;
+  const sourceSystems = [
+    ...new Set(
+      port.presentation?.original_game?.source_editions.map(
+        (edition) => edition.system ?? "not-specified",
+      ) ?? [],
+    ),
+  ].filter((system) => overview || system !== "not-specified");
+  if (overview && !sourceSystems.length) sourceSystems.push("not-specified");
+  if (
+    !sourceSystems.length &&
+    !setupIdentities.size &&
+    !upstreamIdentities.size &&
+    !channels?.length
+  )
+    return null;
+
+  return (
+    <div
+      className={`detail-identity-chips flex flex-wrap gap-2 ${overview ? "mt-3" : "mt-2"}`}
+      role="group"
+      aria-label={t("identity.label")}
+    >
+      {sourceSystems.map((system) => (
+        <Chip
+          key={`system:${system}`}
+          style={identityStyle(system)}
+          title={t("identity.originalSystem")}
+        >
+          <IdentityIcon name={system} />
+          {system === "not-specified"
+            ? t("identity.originalSystemUnspecified")
+            : identityLabel(system)}
+        </Chip>
+      ))}
+      {[...setupIdentities].map(([label, system]) => (
+        <Chip key={`platform:${label}`} style={identityStyle(system)} title={t("identity.runsOn")}>
+          <IdentityIcon name={system} />
+          {label}
+        </Chip>
+      ))}
+      {[...upstreamIdentities].map(([label, system]) => (
+        <Chip key={`upstream-platform:${label}`} style={identityStyle(system)}>
+          <IdentityIcon name={system} />
+          {t("identity.upstreamPlatform", { platform: label })}
+        </Chip>
+      ))}
+      {channels?.map((channel) => (
+        <Chip
+          key={`channel:${channel}`}
+          style={identityStyle(channel, true)}
+          title={selectedChannel ? t("identity.selectedChannel") : t("identity.offeredChannel")}
+        >
+          <IdentityIcon name={channel} channel />
+          {releaseChannelPresentation(channel).label}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
 export function DetailLayout({
   backLabel,
   favoriteControl,
@@ -140,8 +253,6 @@ export function DetailLayout({
   ) => Partial<Record<DetailSection, ReactNode>>;
 }) {
   const { t } = useAppTranslation("detail");
-  const setupIdentities = platformIdentities(platforms, upstreamPlatforms);
-  const upstreamIdentities = platformIdentities(upstreamPlatforms, platforms);
   const identity = `${port.id}:${opening?.token ?? "standalone"}`;
   const [selection, setSelection] = useState({ identity, section: initialSection });
   // Generation/refresh changes must not reset a manual selection within an opening.
@@ -172,34 +283,10 @@ export function DetailLayout({
     const element = root.current;
     const frame = requestAnimationFrame(() => {
       if (!element?.isConnected || element.dataset.detailOpening !== identity) return;
-      const target = element.querySelector<HTMLElement>(`#${CSS.escape(targetId)}`);
-      if (!target || target.closest("[hidden], [inert]")) return;
-      for (
-        let disclosure = target.closest("details");
-        disclosure;
-        disclosure = disclosure.parentElement?.closest("details") ?? null
-      )
-        disclosure.open = true;
-      focusAndReveal(target);
+      const target = focusDetailTarget(element, targetId);
+      if (!target) return;
       focusedOpening.current = identity;
-      const controlScope = target.matches("h2, h3, span") ? target.parentElement : target;
-      const action = destination?.control;
-      const activate = typeof action === "string";
-      const selector = activate ? action : action?.focus;
-      const control = selector ? controlScope?.querySelector<HTMLElement>(selector) : undefined;
-      if (
-        control?.isConnected &&
-        !control.matches(":disabled, [aria-disabled=true]") &&
-        !control.closest("[hidden], [inert]") &&
-        control.getClientRects().length
-      ) {
-        focusAndReveal(control);
-        if (activate) {
-          if (control.matches("summary") && control.parentElement instanceof HTMLDetailsElement)
-            control.parentElement.open = true;
-          else control.click();
-        }
-      }
+      if (destination?.control) focusDetailControl(target, destination.control);
       if (request) setPending(undefined);
     });
     return () => cancelAnimationFrame(frame);
@@ -208,15 +295,6 @@ export function DetailLayout({
   const sections = detailSections.filter((section) => panels[section] !== undefined);
   const managementSection = panels.manage !== undefined ? "manage" : "files";
   const overview = selected === "overview";
-  const channels = selectedChannel ? [selectedChannel] : port.channels;
-  const sourceSystems = [
-    ...new Set(
-      port.presentation?.original_game?.source_editions.map(
-        (edition) => edition.system ?? "not-specified",
-      ) ?? [],
-    ),
-  ].filter((system) => overview || system !== "not-specified");
-  if (overview && !sourceSystems.length) sourceSystems.push("not-specified");
   const selectSection = (value: unknown) => {
     if (detailSections.includes(value as DetailSection)) {
       setPending(undefined);
@@ -267,57 +345,13 @@ export function DetailLayout({
               )}
             </p>
           )}
-          {(sourceSystems.length > 0 ||
-            setupIdentities.size > 0 ||
-            upstreamIdentities.size > 0 ||
-            Boolean(channels?.length)) && (
-            <div
-              className={`detail-identity-chips flex flex-wrap gap-2 ${overview ? "mt-3" : "mt-2"}`}
-              role="group"
-              aria-label={t("identity.label")}
-            >
-              {sourceSystems.map((system) => (
-                <Chip
-                  key={`system:${system}`}
-                  style={identityStyle(system)}
-                  title={t("identity.originalSystem")}
-                >
-                  <IdentityIcon name={system} />
-                  {system === "not-specified"
-                    ? t("identity.originalSystemUnspecified")
-                    : identityLabel(system)}
-                </Chip>
-              ))}
-              {[...setupIdentities].map(([label, system]) => (
-                <Chip
-                  key={`platform:${label}`}
-                  style={identityStyle(system)}
-                  title={t("identity.runsOn")}
-                >
-                  <IdentityIcon name={system} />
-                  {label}
-                </Chip>
-              ))}
-              {[...upstreamIdentities].map(([label, system]) => (
-                <Chip key={`upstream-platform:${label}`} style={identityStyle(system)}>
-                  <IdentityIcon name={system} />
-                  {t("identity.upstreamPlatform", { platform: label })}
-                </Chip>
-              ))}
-              {channels?.map((channel) => (
-                <Chip
-                  key={`channel:${channel}`}
-                  style={identityStyle(channel, true)}
-                  title={
-                    selectedChannel ? t("identity.selectedChannel") : t("identity.offeredChannel")
-                  }
-                >
-                  <IdentityIcon name={channel} channel />
-                  {releaseChannelPresentation(channel).label}
-                </Chip>
-              ))}
-            </div>
-          )}
+          <DetailIdentityChips
+            port={port}
+            platforms={platforms}
+            upstreamPlatforms={upstreamPlatforms}
+            selectedChannel={selectedChannel}
+            overview={overview}
+          />
           <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <div data-detail-readiness className="detail-readiness">
               {readiness}
