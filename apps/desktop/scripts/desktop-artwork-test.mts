@@ -97,8 +97,12 @@ export async function waitForArtworkImage(
   browser: Pick<ScenarioContext["browser"], "wait" | "executeScript">,
   selector: string,
   revealSelector = selector.replace(/ img$/, ""),
+  timeoutMilliseconds = 10_000,
 ) {
-  const frame = await browser.wait(until.elementLocated(By.css(revealSelector)), 10_000);
+  const frame = await browser.wait(
+    until.elementLocated(By.css(revealSelector)),
+    timeoutMilliseconds,
+  );
   await executeBrowserScript(browser, 'arguments[0].scrollIntoView({ block: "center" });', frame);
   await browser.wait(
     () =>
@@ -110,7 +114,7 @@ export async function waitForArtworkImage(
         },
         selector,
       ),
-    10_000,
+    timeoutMilliseconds,
     `Core thumbnail must render in ${selector}`,
   );
 }
@@ -770,7 +774,9 @@ export async function artworkScenario({
       }
       command(["artwork", "clear-cache"], required(bootstrap.library_root));
       await open();
-      await waitForArtworkImage(browser, ".wide-artwork img");
+      // After reload the Cover read took 15.7 s, and the Background read
+      // was still pending at the old 10 s reveal deadline.
+      await waitForArtworkImage(browser, ".wide-artwork img", ".wide-artwork", 45_000);
       assert.equal((await state("cover")).choice.asset_sha256, null);
       assert.deepEqual(await state("detail"), detail);
       const currentStates = [reset, detail, ...(await readRoles(["landscape", "logo"]))];
