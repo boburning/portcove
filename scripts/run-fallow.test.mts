@@ -38,6 +38,7 @@ void test("native parser degradation cannot establish whole-Desktop qualificatio
     assert.equal(init.status, 0, init.stderr);
     writeFileSync(path.join(directory, "package.json"), '{"private":true,"type":"module"}');
     writeFileSync(path.join(directory, ".fallowrc.json"), '{"entry":["entry.ts"]}');
+    writeFileSync(path.join(directory, "tsconfig.json"), '{"include":["entry.ts"]}');
     const spawn: FallowSpawn = (command, args, options) => {
       const nativeArgs = [...args];
       nativeArgs[nativeArgs.indexOf("--root") + 1] = directory;
@@ -165,11 +166,18 @@ void test("reuse binds effective options and external coverage bytes, not normal
   const spawn: FallowSpawn = (_command, _args, options) => {
     calls++;
     assert.equal(options.env?.FALLOW_PRODUCTION, undefined);
+    assert.equal(options.env?.fallow_type_aware_backend, undefined);
+    assert.equal(options.env?.FALLOW_TYPE_AWARE_SCRIPT, undefined);
     return { status: 0, stdout: JSON.stringify(report()), stderr: "" };
   };
   try {
     writeFileSync(coverage, "{}");
-    const environment = { FALLOW_COVERAGE: coverage, FALLOW_PRODUCTION: "true" };
+    const environment = {
+      FALLOW_COVERAGE: coverage,
+      FALLOW_PRODUCTION: "true",
+      fallow_type_aware_backend: "tsrs",
+      FALLOW_TYPE_AWARE_SCRIPT: "unreviewed-companion.mjs",
+    };
     const first = await runFallow({
       identity,
       spawn,
@@ -207,6 +215,7 @@ void test("reuse binds effective options and external coverage bytes, not normal
     writeFileSync(metadata.stdout, "changed retained bytes");
     await assert.rejects(() => reuse(environment), /retained bytes changed/);
     await assert.rejects(() => reuse({ FALLOW_DIFF_FILE: "filtered.diff" }), /incompatible/);
+    await assert.rejects(() => reuse({ fallow_diff_file: "filtered.diff" }), /incompatible/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

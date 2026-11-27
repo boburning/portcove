@@ -130,7 +130,7 @@
           "exports": ["maintainerConfigPath"]
         }
       ],
-      "toolingDependencies": ["vite-plus", "yaml"]
+      "toolingDependencies": ["fallow-type-aware", "vite-plus", "yaml"]
     },
     {
       "name": "portcove-desktop-unit-tests",
