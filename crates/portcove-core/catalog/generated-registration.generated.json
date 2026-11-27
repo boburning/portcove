@@ -2,53 +2,2471 @@
   "format": 1,
   "generator": "scripts/generate-catalog.mts",
   "generator_version": 32,
-  "facts_provenance": null,
-  "enrollments": [],
+  "facts_provenance": {
+    "workflow_run_id": "46071452366",
+    "source_commit": "37e76cd921cb4608004c0e7866fbd48d3cb74828",
+    "cli_sha256": "9904462ef9aa8830f4405fe66847878dc775992f5d6deb540f94ba876fffd6c5",
+    "inputs_sha256": "0347caeed76868943d6c0744122398cd22f38a49b9209da5f3e5d8f2a576b23e"
+  },
+  "enrollments": [
+    {
+      "port_id": "1080-snowboarding-thebradshaw-native-recomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "c1c1cb42e37d6f34e1e5ca2071542b8b4f077af9135e6e3494e5bc30f105f86e",
+      "repository": "thebradshaw/1080-Snowboarding-decomp",
+      "repository_id": 1427193999,
+      "release": {
+        "id": 435298797,
+        "tag": "1.2.2",
+        "observed_at": "2026-11-27T02:02:28.729Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 713664368,
+          "asset_name": "1080SnowboardingRecompiled-windows-x64.zip",
+          "archive_sha256": "ed3de75dd877d6b1a4269d2e7501e4bd64d959a5906d1663d43e5d6791989d21",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "1080snowboardingrecompiled/1080snowboardingrecompiled.exe",
+              "display_path": "1080SnowboardingRecompiled/1080SnowboardingRecompiled.exe",
+              "machine": "pe-x86-64",
+              "sha256": "012f7b9d9d2c207d89d9afb03504dbba537812378f9305d0da6c00fe8c2cb0d9"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 713663382,
+          "asset_name": "1080SnowboardingRecompiled-linux-x64.tar.gz",
+          "archive_sha256": "134cc2f5d5b17af5a99786a28e13013b653d76a750cefa5f6820df7141e490d4",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "1080snowboardingrecompiled/1080snowboardingrecompiled",
+              "display_path": "1080SnowboardingRecompiled/1080SnowboardingRecompiled",
+              "machine": "elf64-x86-64",
+              "sha256": "d9b5397c5e4835856c5edccc9b9b289378f63b8a045ea8fce122744150c9e96b"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "720-degrees-plasticcog",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "3caf1121052005d1b8fce1d48f9d74557da942f02f0b45671dd093539d7d71f4",
+      "repository": "PlasticCog/720_Degrees-PC_Port",
+      "repository_id": 1413602151,
+      "release": {
+        "id": 410126558,
+        "tag": "v0.3.0",
+        "observed_at": "2026-11-27T03:34:15.555Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 632554224,
+          "asset_name": "720degrees-0.3.0-windows-x64.zip",
+          "archive_sha256": "16e4efece81a9be9c64814ebf1322d778f77481afef36fb375927ed1b333f594",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "720degrees-0.3.0-windows-x64/720degrees.exe",
+              "display_path": "720degrees-0.3.0-windows-x64/720degrees.exe",
+              "machine": "pe-x86-64",
+              "sha256": "ff7d5c21e7de102fad274f6e0a51942255ac93191d96c4adcea9a1f8223b3b41"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 632558235,
+          "asset_name": "720degrees-0.3.0-linux-x64.zip",
+          "archive_sha256": "486e7ae28f7c6df12fe90cc6e52f7f61da7cec802ca7ff8cea7551a28e2e3042",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "720degrees-0.3.0-linux-x64/720degrees",
+              "display_path": "720degrees-0.3.0-linux-x64/720degrees",
+              "machine": "elf64-x86-64",
+              "sha256": "1761fa3878fdfa481de53725b88d1ffc5adff1991c9c9efb05a03c8fa038e2e2"
+            }
+          ]
+        },
+        {
+          "platform": "macos-x86-64",
+          "asset_id": 632563157,
+          "asset_name": "720degrees-0.3.0-macos-x64.zip",
+          "archive_sha256": "aa90875900f2fd87fc014c322d7e57b8ad6c16c0930998c368bb82b82287c9f1",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "720degrees-0.3.0-macos-x64/720degrees",
+              "display_path": "720degrees-0.3.0-macos-x64/720degrees",
+              "machine": "macho-x86-64",
+              "sha256": "04b92b85bf855aa9b53f1be03d1a50de14fae67b1340fe4aa202ed333cca191f"
+            }
+          ]
+        },
+        {
+          "platform": "macos-aarch64",
+          "asset_id": 632557672,
+          "asset_name": "720degrees-0.3.0-macos-arm64.zip",
+          "archive_sha256": "2ab2e68eb1e99f49b71f78cb4cd8cec23b0f6b7844b0ae9b3f28e288d7fd9157",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "720degrees-0.3.0-macos-arm64/720degrees",
+              "display_path": "720degrees-0.3.0-macos-arm64/720degrees",
+              "machine": "macho-arm64",
+              "sha256": "45454ce18f7a87614b9d70175f292f3f738117a09dcb384d65d239d8b97a8a23"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "abilliontokens-fuzionfrenzy-recomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "f1e854d8c701d569b797d3cefa7fc24597ee05ed20eff16db6dad34a5cb4520c",
+      "repository": "abilliontokens/fuzionfrenzy-recomp",
+      "repository_id": 1426897255,
+      "release": {
+        "id": 418362637,
+        "tag": "v0.1.0",
+        "observed_at": "2026-11-27T04:14:51.628Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 659245390,
+          "asset_name": "FuzionFrenzy-win64.zip",
+          "archive_sha256": "0f8ba87811e52a91192c50285c5d6d8ef6879298f66b4956fa375b7a329c34a0",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "fuzionfrenzy-win64/fuzionfrenzy.exe",
+              "display_path": "FuzionFrenzy-win64/FuzionFrenzy.exe",
+              "machine": "pe-x86-64",
+              "sha256": "52dad6e53bc18e11044c649a6896b9007eeb6fe666b79f2284d5847ec0a5793a"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "abilliontokens-sims1-recomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "95ebf13f90a1ade0dcfa49b609c7a234d5c0dd698a66c4db9b33f5c0de3834fb",
+      "repository": "abilliontokens/sims1-recomp",
+      "repository_id": 1427716017,
+      "release": {
+        "id": 419321335,
+        "tag": "v0.2.0",
+        "observed_at": "2026-11-27T05:57:04.055Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 661855601,
+          "asset_name": "Sims1-win64.zip",
+          "archive_sha256": "911059a82def04cfb7421bee95572724a2efd02688f3f21b759b3974c943afc7",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "sims1-win64/sims1.exe",
+              "display_path": "Sims1-win64/Sims1.exe",
+              "machine": "pe-x86-64",
+              "sha256": "f3ff84fddec11e326fb2c01f3eb34e2c815df912510f9a978bd75c03bb05c9bd"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "abilliontokens-sims2-recomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "2400a1c49e723a1fc45a4c6c277aff4f94b9ae3ec9be3ed1de84dbd84fc09c88",
+      "repository": "abilliontokens/sims2-recomp",
+      "repository_id": 1425022829,
+      "release": {
+        "id": 417999106,
+        "tag": "v0.2.0",
+        "observed_at": "2026-11-27T07:43:52.320Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 658260594,
+          "asset_name": "Sims2-win64.zip",
+          "archive_sha256": "109645b9dbfcd0fd1a00836e6f48370572c55f6f179e4d92dcaa85a995bce28d",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "sims2-win64/sims2.exe",
+              "display_path": "Sims2-win64/Sims2.exe",
+              "machine": "pe-x86-64",
+              "sha256": "42fd192415469218ae59a022a0961222eb805f7054e8895242d9356de3a6b6d1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "aitorcachero-snatcher-mega-cd-dual-68k-z80-native-windows",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "fa989a2474c358a5c2af09ab9f171133a051f05ad086b96c7a74956b66f4a39b",
+      "repository": "aitorcachero/Snatcher-Recomp",
+      "repository_id": 1449264262,
+      "release": {
+        "id": 439085755,
+        "tag": "v1.0.6",
+        "observed_at": "2026-11-27T05:54:20.859Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 727342294,
+          "asset_name": "Snatcher-Recomp-v1.0.6-Windows-x64.zip",
+          "archive_sha256": "cddcdc9b2956c16f2b77786d3113931f56ac87c03e2e2c3e56961a6f2d3598e2",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "snatcher-recomp-v1.0.6-windows-x64/snatcher.exe",
+              "display_path": "Snatcher-Recomp-v1.0.6-Windows-x64/Snatcher.exe",
+              "machine": "pe-x86-64",
+              "sha256": "637935e5f7f804d40a1d79557cd2f8c7762fea664f2e444f8ee5b7ed193dd62b"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "alisiadragoonrecomp-ohackercego-alisia-dragoon",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "ef7236d596a89d1df9a66d8099a474c3253fc042a8c2b6260c86e60389777aac",
+      "repository": "ohackercego/AlisiaDragoonRecomp",
+      "repository_id": 1432385287,
+      "release": {
+        "id": 422852563,
+        "tag": "v0.1.0",
+        "observed_at": "2026-11-27T07:50:42.674Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 672778801,
+          "asset_name": "AlisiaDragoonRecomp-windows-x64-v0.1.0.zip",
+          "archive_sha256": "f5c88a3f8ac5f14ef3062a8767e9e62e1b7d9daa1f3f5d422b5f0c6576f13239",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "alisiadragoonrecomp.exe",
+              "display_path": "AlisiaDragoonRecomp.exe",
+              "machine": "pe-x86-64",
+              "sha256": "ae09a6b392041b5b9487a986c6063de27296b5ebb6a6672d4b22313c9ad69fa1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "amped-2-amped2-recomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "6a7d718ad74e25c947f657fb2e3493009935222439a8b9ed4218c21030ec81ff",
+      "repository": "bertibertig/Amped2-Recomp",
+      "repository_id": 1424415156,
+      "release": {
+        "id": 419047039,
+        "tag": "v0.2.0",
+        "observed_at": "2026-11-27T07:50:14.267Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 661009144,
+          "asset_name": "Amped2-Recomp-v0.2.0-windows-x86_64.zip",
+          "archive_sha256": "da7eb844a6736a42b88a048875f60eeaaab863b76b8e1ad3e5ff0e2c1d2db7f0",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "amped2-recomp-v0.2.0-windows-x86_64/amped2_recomp.exe",
+              "display_path": "Amped2-Recomp-v0.2.0-windows-x86_64/amped2_recomp.exe",
+              "machine": "pe-x86-64",
+              "sha256": "78df84c2b10f6204818158994abfb9b5eb9ccc62ae84ca6438b3b1d0f8cb88ae"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 661009141,
+          "asset_name": "Amped2-Recomp-v0.2.0-linux-x86_64.tar.gz",
+          "archive_sha256": "92b9025d3fb49173b48a92cee19b71ac0181774c1ff5bc7996a8b40c3807764c",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "amped2-recomp-v0.2.0-linux-x86_64/amped2_recomp",
+              "display_path": "Amped2-Recomp-v0.2.0-linux-x86_64/amped2_recomp",
+              "machine": "elf64-x86-64",
+              "sha256": "7ade4b8943bcb13587f8dfad4924d4e57ce775294d557ba9d139bb97f3a2da5a"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "anno-1602-open1602",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "dce5fada605656fd11cf98fafe36b08b412dc441237a4678fc673818d0f47a4b",
+      "repository": "x4rd4s/open1602",
+      "repository_id": 1424469881,
+      "release": {
+        "id": 459782299,
+        "tag": "v0.9.0",
+        "observed_at": "2026-11-27T02:12:36.678Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 797219603,
+          "asset_name": "Open1602-0.9.0-windows-x64.zip",
+          "archive_sha256": "93ca8a7193465fccf4e327a91a71ced1157aefb78304712799acbcb2819d00b4",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "open1602-0.9.0-windows-x64/open1602.exe",
+              "display_path": "Open1602-0.9.0-windows-x64/open1602.exe",
+              "machine": "pe-x86-64",
+              "sha256": "5f12e34839d9464cbf2086379a41b9f9c1ad2fde3faa49d2c2bad91fd5d58b2e"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 797219606,
+          "asset_name": "Open1602-0.9.0-linux-x64.tar.gz",
+          "archive_sha256": "d0d1fa49f9c791e8304ed9ed31ed189c4375bf8ec1f1f6453c34eefdac7f8910",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "open1602-0.9.0-linux-x64/bin/open1602",
+              "display_path": "Open1602-0.9.0-linux-x64/bin/open1602",
+              "machine": "elf64-x86-64",
+              "sha256": "254fabf13f8accf857fb7459aeb787b5d065337b519e13d59a9e2f0ceb846c3f"
+            }
+          ]
+        },
+        {
+          "platform": "macos-x86-64",
+          "asset_id": 797219609,
+          "asset_name": "Open1602-0.9.0-macos-universal.zip",
+          "archive_sha256": "3b23f61e8cb045f247d03e754d2ac5fc47473f9b17c6e4945320438f1aba6cd3",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "open1602-0.9.0-macos-universal/open1602.app/contents/macos/open1602",
+              "display_path": "Open1602-0.9.0-macos-universal/Open1602.app/Contents/MacOS/Open1602",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "054810a28a0aeb2b97ea1a49c751cd006398ee334f861be11bb512e4d5bcbd1f"
+            }
+          ]
+        },
+        {
+          "platform": "macos-aarch64",
+          "asset_id": 797219609,
+          "asset_name": "Open1602-0.9.0-macos-universal.zip",
+          "archive_sha256": "3b23f61e8cb045f247d03e754d2ac5fc47473f9b17c6e4945320438f1aba6cd3",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "open1602-0.9.0-macos-universal/open1602.app/contents/macos/open1602",
+              "display_path": "Open1602-0.9.0-macos-universal/Open1602.app/Contents/MacOS/Open1602",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "054810a28a0aeb2b97ea1a49c751cd006398ee334f861be11bb512e4d5bcbd1f"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "army-men-sarges-heroes-dreamcast-recomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "d612e993e44e3c04558d8919e641be090f84613926340641f1db0d9ed2391474",
+      "repository": "theurbanninja1993-sketch/army-men-sarges-heroes-recomp",
+      "repository_id": 1435952975,
+      "release": {
+        "id": 435762782,
+        "tag": "v0.1.7",
+        "observed_at": "2026-11-26T19:32:37.250Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 714874913,
+          "asset_name": "army-men-sarges-heroes-recomp-v0.1.7-Windows-x64.zip",
+          "archive_sha256": "f1d8c505adfaa5490c5962612fa4561d9c8c7b78b402f059a01d2b5a29c31e00",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "army-men-sarges-heroes-recomp-v0.1.7-windows-x64/army-men-sarges-heroes-recomp.exe",
+              "display_path": "army-men-sarges-heroes-recomp-v0.1.7-Windows-x64/army-men-sarges-heroes-recomp.exe",
+              "machine": "pe-x86-64",
+              "sha256": "19050428c2d07b39799d2557fe25e7fc88165518eb731b716fb32d265d6ff18d"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 714874911,
+          "asset_name": "army-men-sarges-heroes-recomp-v0.1.7-linux-x86_64.tar.gz",
+          "archive_sha256": "856e65077bd738983b350ae1178364feb0edb8487d3e435e67c2d47052072be3",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "army-men-sarges-heroes-recomp-v0.1.7-linux-x86_64/army-men-sarges-heroes-recomp",
+              "display_path": "army-men-sarges-heroes-recomp-v0.1.7-linux-x86_64/army-men-sarges-heroes-recomp",
+              "machine": "elf64-x86-64",
+              "sha256": "ce26d7d626032f371be9ad85f9286aa2a7eb421736faaa53055b96b5b20c1741"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "astro-boy-omega-factor-goodshepherd23",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "aece378ee1abf9c4c5767e644504f171c4f7c06e2eb25dcc8d504f8acade3082",
+      "repository": "goodshepherd23/AstroBoy-OmegaFactor-Recomp",
+      "repository_id": 1445956235,
+      "release": {
+        "id": 434210356,
+        "tag": "v0.1.0",
+        "observed_at": "2026-11-26T23:47:43.762Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 710251306,
+          "asset_name": "AstroBoy-OmegaFactor-Recomp-v0.1.0-windows-x64.zip",
+          "archive_sha256": "81b5f8173240ac37a795071c8a06c165a1c6a711f02fc95fb294cd10bc915715",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "astroboy.exe",
+              "display_path": "AstroBoy.exe",
+              "machine": "pe-x86-64",
+              "sha256": "d2181c3b6dbe7302a344f12d6d27deeb1f250b5dfc6834271149b0de11466e3d"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "banished-un-banished",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "14256e7cc6e733b18accb1e8d8d71161f8ef4f7cf3634ff05016207b0031bfd2",
+      "repository": "tanepiper/unbanished",
+      "repository_id": 1418618584,
+      "release": {
+        "id": 421876202,
+        "tag": "v0.5.0",
+        "observed_at": "2026-11-26T22:45:04.003Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 669226835,
+          "asset_name": "unbanished-0.5.0-windows-x64.zip",
+          "archive_sha256": "594dec43d68e52c409d6d41f26aaa95180d6bf6bf893a588610a149dcb745ebf",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "unbanished-0.5.0-windows-x64/unbanished.exe",
+              "display_path": "unbanished-0.5.0-windows-x64/unbanished.exe",
+              "machine": "pe-x86-64",
+              "sha256": "4fd1ba76cd5dd00d8e9e7f22c15539130d1cf3597f1ea3bc69c3536d30348dfe"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 669222228,
+          "asset_name": "unbanished-0.5.0-linux-x64.zip",
+          "archive_sha256": "32b4487ce44de2a639630befdac2201950e86ffe373ea771e4377d6d60387872",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "unbanished-0.5.0-linux-x64/unbanished",
+              "display_path": "unbanished-0.5.0-linux-x64/unbanished",
+              "machine": "elf64-x86-64",
+              "sha256": "1162c42e56df26b28d86f4184d102e6251ec9f9f2d0529e3dcdbcc7faf3bcb86"
+            }
+          ]
+        },
+        {
+          "platform": "macos-x86-64",
+          "asset_id": 669231306,
+          "asset_name": "unbanished-0.5.0-macos-x64.zip",
+          "archive_sha256": "d4e048f49fca30074655f65e346bc3835831f5a029e01066cc05cbbb95bed0fa",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "unbanished-0.5.0-macos-x64/unbanished",
+              "display_path": "unbanished-0.5.0-macos-x64/unbanished",
+              "machine": "macho-x86-64",
+              "sha256": "7980449554e3bfd388f9e1d9bd0baa65ff186d35201c9432c7af855cc13e5428"
+            }
+          ]
+        },
+        {
+          "platform": "macos-aarch64",
+          "asset_id": 669223167,
+          "asset_name": "unbanished-0.5.0-macos-arm64.zip",
+          "archive_sha256": "032dd5fc11c9a2cb4133cbd86b30a0048c9e0e4e83521f2a65f61c6710aff18b",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "unbanished-0.5.0-macos-arm64/unbanished",
+              "display_path": "unbanished-0.5.0-macos-arm64/unbanished",
+              "machine": "macho-arm64",
+              "sha256": "7f4015e037b61f75872e5df3e921e9723a4d657ad45c42f8fe5b9a07f7a9752c"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "blackknightrecomp-yunophilia-sonic-and-the-black-knight",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "87f20c1cec2182a3ec479340b3d54a323b475523ec02a3333526cead2e3f0fc8",
+      "repository": "yunophilia/BlackKnightRecomp",
+      "repository_id": 1414725951,
+      "release": {
+        "id": 421469224,
+        "tag": "v1.0.1",
+        "observed_at": "2026-11-27T12:18:23.804Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 668032389,
+          "asset_name": "BlackKnightRecomp-v1.0.1-windows-x64.zip",
+          "archive_sha256": "4f335a362e9e3ab0665b67ec901300ff515bb87e6a1f3900e357984972367896",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "blackknightrecomp/blackknightrecomp.exe",
+              "display_path": "BlackKnightRecomp/BlackKnightRecomp.exe",
+              "machine": "pe-x86-64",
+              "sha256": "0b953758cbd16c8eff507a0268c82b3897904373bf844ec26977bb615ce442a1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "blackthorne-blackthorne-reborn",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "12e9acc5d940289d2a41b1f2acf03efc812082775e059a0b9d29347c61d96734",
+      "repository": "Adolanium/blackthorne-reborn",
+      "repository_id": 1426880814,
+      "release": {
+        "id": 418736462,
+        "tag": "v1.0.0",
+        "observed_at": "2026-11-26T20:45:52.079Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 660165649,
+          "asset_name": "BlackthorneReborn-1.0.0-windows-x64.zip",
+          "archive_sha256": "7f7bfe52a4491904af8f8d82c84436805c56f6e99587d1af8f38409739227381",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "blackthornereborn-1.0.0-windows-x64/blackthorne.exe",
+              "display_path": "BlackthorneReborn-1.0.0-windows-x64/blackthorne.exe",
+              "machine": "pe-x86-64",
+              "sha256": "c76fdc8b70d94f92c526c182e7286db8ff7ee44591b604d5dc2f568dd4348a66"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "blaze-blaze-decomp",
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "1ebd931a05456787802c8ce2d6b319d60b61b254a92cec5b8ab9e51e55553c72",
+      "repository": "pdromnt/blaze_decomp",
+      "repository_id": 1427735407,
+      "release": {
+        "id": 422403249,
+        "tag": "0.1",
+        "observed_at": "2026-11-26T15:08:15.315Z"
+      },
+      "runtimes": [
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 670753114,
+          "asset_name": "blaze-0.1-linux-x64.tar.gz",
+          "archive_sha256": "11dc431951e0b92e72714ef25a824e9b0a3e2b1afa7e91de86ed8616a2a278f9",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "blaze",
+              "display_path": "blaze",
+              "machine": "elf64-x86-64",
+              "sha256": "655c7c860d6e0f9b2e29ab033c744f7fa803df16be8b51e0b39069cf8ada8c69"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "blood-openblood",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "03bc7f8594ed767c5fa0e64c9c4f525fdc8954bc84f6dc2e9ca47596571da4f2",
+      "repository": "dagrigorev/OpenBlood",
+      "repository_id": 1425297898,
+      "release": {
+        "id": 419482831,
+        "tag": "v0.1.0.5",
+        "observed_at": "2026-11-26T18:32:28.660Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 662300046,
+          "asset_name": "openblood-v0.1.0.5-windows-x64.zip",
+          "archive_sha256": "d43aa4e02f89c02a9d5d9191f62bddf98b011c6fa0e9141c5f4d4401f7326435",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "openblood-v0.1.0.5-windows-x64/openblood.exe",
+              "display_path": "openblood-v0.1.0.5-windows-x64/openblood.exe",
+              "machine": "pe-x86-64",
+              "sha256": "3e87af348a351daca84702fe531afce607fa15ba98eb548c1d597a49c8c81029"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 662300044,
+          "asset_name": "openblood-v0.1.0.5-linux-x64.tar.gz",
+          "archive_sha256": "cbce5af0003f4c994657a9a63b37486bd42eb15920b12329bd8db914c31c0dec",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "openblood-v0.1.0.5-linux-x64/openblood",
+              "display_path": "openblood-v0.1.0.5-linux-x64/openblood",
+              "machine": "elf64-x86-64",
+              "sha256": "db9d5d3c3f21db6834182382934a3e5d62713db560f7dcd8491794c3e56c94ab"
+            }
+          ]
+        },
+        {
+          "platform": "macos-x86-64",
+          "asset_id": 662300036,
+          "asset_name": "openblood-v0.1.0.5-macos-universal.tar.gz",
+          "archive_sha256": "60fd5cc4c14c879200868d4beb3b0f2f875ab9f32bc200eaaa92842065bf3515",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "openblood-v0.1.0.5-macos-universal/openblood",
+              "display_path": "openblood-v0.1.0.5-macos-universal/openblood",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "7b82aa1452cff89688bb7ded150c2a1855ed5bc47d8a9fcca7aa027b9975a7e6"
+            }
+          ]
+        },
+        {
+          "platform": "macos-aarch64",
+          "asset_id": 662300036,
+          "asset_name": "openblood-v0.1.0.5-macos-universal.tar.gz",
+          "archive_sha256": "60fd5cc4c14c879200868d4beb3b0f2f875ab9f32bc200eaaa92842065bf3515",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "openblood-v0.1.0.5-macos-universal/openblood",
+              "display_path": "openblood-v0.1.0.5-macos-universal/openblood",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "7b82aa1452cff89688bb7ded150c2a1855ed5bc47d8a9fcca7aa027b9975a7e6"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "bounce-evolution-redbound",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "fa98093dd300e237c5112271b6e452cdbdf354bdc53bf5857b7cdc045e88764d",
+      "repository": "alox-dev/redbound",
+      "repository_id": 1442262084,
+      "release": {
+        "id": 438709724,
+        "tag": "v1.2.0",
+        "observed_at": "2026-11-26T22:46:32.847Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 726072266,
+          "asset_name": "redbound-1.2.0-windows-x86_64.zip",
+          "archive_sha256": "b9e1f45738025ba5c23184886c742f9f234d72132b9f51bd9bd601c37ca7b033",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "redbound-1.2.0-windows-x86_64/redbound.exe",
+              "display_path": "redbound-1.2.0-windows-x86_64/redbound.exe",
+              "machine": "pe-x86-64",
+              "sha256": "82c4239778e72863de60518c5a4cb20ef704ac235eac7fa99ac4df3555170413"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "brogue-broguece",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "1943f2489d51c0de85068c916eecda0cf1ff35433cac93bf8a9341a3e1ed0ad9",
+      "repository": "tmewett/BrogueCE",
+      "repository_id": 205895782,
+      "release": {
+        "id": 285894239,
+        "tag": "v1.15.1",
+        "observed_at": "2026-11-27T14:05:48.082Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 355020406,
+          "asset_name": "BrogueCE-1.15.1-windows-x86_64.zip",
+          "archive_sha256": "29dcbae1791156a040c9125d0a28ae97d67a09b22a52266af1c65e2918bede5f",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "broguece-windows/brogue.exe",
+              "display_path": "BrogueCE-windows/brogue.exe",
+              "machine": "pe-x86-64",
+              "sha256": "debbd995bfdd8d7ffd33d9be2d7cdd489f04a31c93debd399d330ace483a7d4a"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 355020382,
+          "asset_name": "BrogueCE-1.15.1-linux-x86_64.tar.gz",
+          "archive_sha256": "fa39af43fa52f750308e417a9afbf880d97fc7da59574bbbc0a24c6852936cb2",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "broguece-linux/bin/brogue",
+              "display_path": "BrogueCE-linux/bin/brogue",
+              "machine": "elf64-x86-64",
+              "sha256": "af16ff4d19a433b80edda1bb9fa442d5473b5217a6bd2d131f0f4cb656e94c39"
+            }
+          ]
+        },
+        {
+          "platform": "macos-x86-64",
+          "asset_id": 355020395,
+          "asset_name": "BrogueCE-1.15.1-macos-x86_64.zip",
+          "archive_sha256": "7bb8c6b27e7c2b4e04472c8e9798d0a10714bc73f567ea30e0e477a4f69770d7",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "broguece-macos/brogue ce.app/contents/macos/brogue",
+              "display_path": "BrogueCE-macos/Brogue CE.app/Contents/MacOS/brogue",
+              "machine": "macho-x86-64",
+              "sha256": "1ce4708b95828a30f9dccb7bfac90ed4a93df00cc497306d618a5c0a1816bd99"
+            }
+          ]
+        },
+        {
+          "platform": "macos-aarch64",
+          "asset_id": 355020385,
+          "asset_name": "BrogueCE-1.15.1-macos-arm64.zip",
+          "archive_sha256": "e95b954312f215f30a8c791dc622d4590cec29820382c4ddf914391c56fe889d",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "broguece-macos/brogue ce.app/contents/macos/brogue",
+              "display_path": "BrogueCE-macos/Brogue CE.app/Contents/MacOS/brogue",
+              "machine": "macho-arm64",
+              "sha256": "c8eeb9b5237622b530b9b3b7133a3812bd1fb89a6208b1ac945a2703b7edf9c9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "burgertime-arcade-darkuni",
+      "platforms": [
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "ae7fca9416901a9a94eeabbcc2add35664613f96789cc2c53bd768d553a5c529",
+      "repository": "darkuni/burgertime-arcade-landscape-recomp",
+      "repository_id": 1443784569,
+      "release": {
+        "id": 433451427,
+        "tag": "v1.3.0",
+        "observed_at": "2026-11-26T21:34:44.858Z"
+      },
+      "runtimes": [
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 707972335,
+          "asset_name": "BurgerTime-linux.tar.gz",
+          "archive_sha256": "11c18772481fbe0fd2de8759f89147001563f78b5fbfe86aada091ca05137f26",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "burgertime",
+              "display_path": "burgertime",
+              "machine": "elf64-x86-64",
+              "sha256": "cfe10a821389da9f33ff42cc38b4b1647f3db00f87ecb103d723bb0af2cb33a9"
+            }
+          ]
+        },
+        {
+          "platform": "macos-x86-64",
+          "asset_id": 707972331,
+          "asset_name": "BurgerTime-mac.zip",
+          "archive_sha256": "99c87d9ff7e4fad3197ceb8af1171890f16a6f5359ba5ac2bfeb85c51843ad30",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "burger time.app/contents/macos/burgertime",
+              "display_path": "Burger Time.app/Contents/MacOS/burgertime",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "5a176470be204b6de8450ab64a1d5625253030d44164ad16c1295a44658f91ff"
+            }
+          ]
+        },
+        {
+          "platform": "macos-aarch64",
+          "asset_id": 707972331,
+          "asset_name": "BurgerTime-mac.zip",
+          "archive_sha256": "99c87d9ff7e4fad3197ceb8af1171890f16a6f5359ba5ac2bfeb85c51843ad30",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "burger time.app/contents/macos/burgertime",
+              "display_path": "Burger Time.app/Contents/MacOS/burgertime",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "5a176470be204b6de8450ab64a1d5625253030d44164ad16c1295a44658f91ff"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "cannonball-dx-outrun",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "fb2a6621f16596accafc82adf3d0724d31c25cd550188b5545458819bb7eaa7d",
+      "repository": "Endprodukt/cannonball-dx",
+      "repository_id": 1338639045,
+      "release": {
+        "id": 398939822,
+        "tag": "1.04",
+        "observed_at": "2026-11-27T19:54:00.085Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 597661428,
+          "asset_name": "CannonballDX_1.04.zip",
+          "archive_sha256": "d5104e1a886213994fdcdd5dc781753145f7e9ac33e87b4ae15cde485dc9a362",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "cannonball-dx.exe",
+              "display_path": "cannonball-dx.exe",
+              "machine": "pe-x86-64",
+              "sha256": "7a5cf70ea19247724e4ba6d822dba2a3333db1401da88294443e403c94906b22"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "chrissotraidis-bluewake",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "cda2ea327bed9a7a29286410c5b07990903d71fb6775d07d7b9feebbd9727109",
+      "repository": "chrissotraidis/bluewake",
+      "repository_id": 1392424843,
+      "release": {
+        "id": 445428217,
+        "tag": "v0.12.0",
+        "observed_at": "2026-11-27T07:53:14.445Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 750969405,
+          "asset_name": "BlueWake-v0.12.0-windows-x64.zip",
+          "archive_sha256": "3ff3915f5c893539a0ce9f1052d769d8c984826b140c907a61166508e6dc58b9",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "bluewake/bluewake.exe",
+              "display_path": "BlueWake/BlueWake.exe",
+              "machine": "pe-x86-64",
+              "sha256": "0d125908d290f88c63c1817f0b9b3a2389702236f00b864aa1cf64ab1c6d0499"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "citrongames-dora64-3",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "b5cff6c1fab510569ed6bad10ab4e6390be82a04031396c65a10af5d89c8e7c0",
+      "repository": "citrongames/Dora64-3",
+      "repository_id": 1390619197,
+      "release": {
+        "id": 411991980,
+        "tag": "v1.0.0",
+        "observed_at": "2026-11-27T12:15:46.040Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 637912931,
+          "asset_name": "Dora64-3-1.0.0-Windows-x64.zip",
+          "archive_sha256": "5dfcd0ac66ccd402c4b3da3cb666e520127e1f6160e160020ccb62849996b0a6",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "dora64-3-1.0.0-windows-x64/dora64-3.exe",
+              "display_path": "Dora64-3-1.0.0-Windows-x64/Dora64-3.exe",
+              "machine": "pe-x86-64",
+              "sha256": "dd9f0120cad3d7d5ee4a7c2b909c36ed0a9357ff168ce27a8cd0d421aaf5fc22"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "commander-keen-megarocket",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "01611a535711cdbd610a832fcab10aa167e4c1bf1ebec98bbd8b177121f59592",
+      "repository": "CrossplayGaming/megarocket",
+      "repository_id": 1313341609,
+      "release": {
+        "id": 416200735,
+        "tag": "v2.0.0",
+        "observed_at": "2026-11-27T00:52:36.481Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 652294830,
+          "asset_name": "Megarocket-2.0.0-Windows.zip",
+          "archive_sha256": "2c1ce003de56100521b820bbf21ce4a3a2c5274856fcb819e9cc68e670eee3ff",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "megarocket-2.0.0-windows/megarocket.exe",
+              "display_path": "Megarocket-2.0.0-Windows/Megarocket.exe",
+              "machine": "pe-x86-64",
+              "sha256": "80bc1abf9e612f55d6f8c1a9a46eb2b3a42fb0b85f2bc5db1f129ad8bd92f986"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "condemned-2-bloodshot-condemned2recomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "f66c2afe29a8e976e1e4436c07707de363f2fa926c1dfac745548f7013c75e9c",
+      "repository": "psxrestore/Condemned2Recomp",
+      "repository_id": 1320835191,
+      "release": {
+        "id": 446839397,
+        "tag": "0.6.1",
+        "observed_at": "2026-11-27T09:03:13.491Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 754277154,
+          "asset_name": "condemned2recompV0.6.1_windows.zip",
+          "archive_sha256": "ce81c2d2cde6568a0a9515a2935e1551b045c60a58721a5790b734c856d1f151",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "condemned2recomp.exe",
+              "display_path": "condemned2recomp.exe",
+              "machine": "pe-x86-64",
+              "sha256": "eff21aa8546753bc6baa496636698836e8f5b72eae1017ca32d4caaeb78b18b9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "crackdown-crackdown-recompiled",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "716b65a981db6f8390db5baee9a8ea96aa26774747bb546450174c66378d124f",
+      "repository": "saulob/crackdown-xbox360-recompiled",
+      "repository_id": 1414943107,
+      "release": {
+        "id": 423549082,
+        "tag": "v0.6.2",
+        "observed_at": "2026-11-27T21:06:10.723Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 675655169,
+          "asset_name": "Crackdown-v0.6.2-windows-x64.zip",
+          "archive_sha256": "fa1a6f9a46a3d9ea213a9898b86f11fcc35c855ddf6e42322e81ded15550b421",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "crackdown-v0.6.2-windows-x64/crackdown.exe",
+              "display_path": "Crackdown-v0.6.2-windows-x64/crackdown.exe",
+              "machine": "pe-x86-64",
+              "sha256": "b414543e6f96e03b84c91afec7765756e5b78355411c80538f75aedb802f606c"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "crusader-no-remorse-sebsebseb1982-sdl-port",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "f37bfb451083f40245a15af640ab6914deb5643d4ee54582834f65ca06e2c878",
+      "repository": "sebsebseb1982/crusader-no-remorse-decomp",
+      "repository_id": 1419706688,
+      "release": {
+        "id": 459095446,
+        "tag": "v1.88.3",
+        "observed_at": "2026-11-27T12:13:11.167Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 794823335,
+          "asset_name": "crusader-no-remorse-1.88.3-windows-x64.zip",
+          "archive_sha256": "63d5ba08dc949ba223ed0f6b800d97d17abaa5b003dcc4c2e5163657e626009c",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "crusader-no-remorse-1.88.3-windows-x64/crusader-no-remorse.exe",
+              "display_path": "crusader-no-remorse-1.88.3-windows-x64/crusader-no-remorse.exe",
+              "machine": "pe-x86-64",
+              "sha256": "32747dd3b742cfce7ecc23cdc5e17251b390b2bed8303db17a3e1c48efbcbb02"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 794823291,
+          "asset_name": "crusader-no-remorse-1.88.3-linux-x64.tar.gz",
+          "archive_sha256": "7bd9c350c8635db643ec783a7761755774eb4b3807b35e33672c85d22ee105bb",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "crusader-no-remorse-1.88.3-linux-x64/crusader-no-remorse",
+              "display_path": "crusader-no-remorse-1.88.3-linux-x64/crusader-no-remorse",
+              "machine": "elf64-x86-64",
+              "sha256": "9e01b7def23381ea0680f57e7531738e7aef9e4da4bc71cc60aa66d3b3fc7bd1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "dark-rift-kilnan-recomp",
+      "platforms": [
+        "macos-aarch64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "c800563b2e018cf05e3d1cd63cc8dbdc1b18757815aa81265910b0729cf335d2",
+      "repository": "kilnan/DarkRiftRecomp",
+      "repository_id": 1423803707,
+      "release": {
+        "id": 416637849,
+        "tag": "v0.1.1",
+        "observed_at": "2026-11-27T06:51:37.900Z"
+      },
+      "runtimes": [
+        {
+          "platform": "macos-aarch64",
+          "asset_id": 654227284,
+          "asset_name": "DarkRiftRecompiled-macOS-arm64.zip",
+          "archive_sha256": "8b71d217691bc0ba7cb50b37c1c83377c07c639f2100b338e8248935c2cad512",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "darkriftrecompiled.app/contents/macos/darkriftrecompiled",
+              "display_path": "DarkRiftRecompiled.app/Contents/MacOS/DarkRiftRecompiled",
+              "machine": "macho-arm64",
+              "sha256": "7b7e391134b0b90631cdfccf588d75a24adb4a3248cc0de1fbabc520d1cb2c1f"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "darkuni-lost-in-shadow-wii-ntsc-u-sdwe18-rev1",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "7e1cf4d65aed5a3e821bb9af89aef31f89ae1052c4a71df14a7a8efa728c705e",
+      "repository": "darkuni/lost-in-shadow-recomp",
+      "repository_id": 1448744466,
+      "release": {
+        "id": 437837657,
+        "tag": "v0.1",
+        "observed_at": "2026-11-27T04:22:35.164Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 721921503,
+          "asset_name": "LostInShadow-v0.1-win64.zip",
+          "archive_sha256": "6e4d688bf65bcbfb59ed3f832737665b46ce5898ab9bdbb8b3864489ecc513e1",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "lostinshadow/lostinshadow.exe",
+              "display_path": "LostInShadow/lostinshadow.exe",
+              "machine": "pe-x86-64",
+              "sha256": "7598b314f22b91751637f19fac9e53923df3942d6e137212a3913c565c8945ea"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 721918533,
+          "asset_name": "LostInShadow-v0.1-linux-x64.tar.gz",
+          "archive_sha256": "4843093030cf9cf08a62c8bf9ebdf69815fb95d0ba242e6a251ce7b840ee2ca6",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "lostinshadow/lostinshadow",
+              "display_path": "LostInShadow/lostinshadow",
+              "machine": "elf64-x86-64",
+              "sha256": "2369a96b0536fe05ea9506de849a367e11cbc9a708b8a0566da1092a644e6f19"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "darkuni-resident-evil-darkside-chronicles-wii-sbde08",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "0284d67d49bf0f6bd9cce3f9cc4ec3073a307f719b04f31caab0e7bb3560cc67",
+      "repository": "darkuni/resident-evil-darkside-chronicles-recomp",
+      "repository_id": 1455739862,
+      "release": {
+        "id": 443789930,
+        "tag": "1.0",
+        "observed_at": "2026-11-27T01:04:05.773Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 742174578,
+          "asset_name": "DarksideChronicles-1.0-win64.zip",
+          "archive_sha256": "05bd4072e578d0a77106bd73c8174a0f5a36b412938bccd02a0e83e60d1e8232",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "darksidechronicles/darksidechronicles.exe",
+              "display_path": "DarksideChronicles/darksidechronicles.exe",
+              "machine": "pe-x86-64",
+              "sha256": "54159844ea56c2820d1c7b7ea6148d41ba125a00635aa21711a5be1156e4774c"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 742176621,
+          "asset_name": "DarksideChronicles-1.0-linux-x64.tar.gz",
+          "archive_sha256": "cdb119421c56f4d928f375e98aea8c32d57d1e0888460c9a1478e169f61a0df2",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "darksidechronicles/darksidechronicles",
+              "display_path": "DarksideChronicles/darksidechronicles",
+              "machine": "elf64-x86-64",
+              "sha256": "0be0d08d716ecbd609269c64c24f02fb85ec513ecf88665b53f18324099bf089"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "darkuni-torneko-the-last-hope-ps1-slus01181-recomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "d2a09717b8d94e2e094e23c32da35c45aa5232bd2932e2af1f9885be4a67884b",
+      "repository": "darkuni/Torneko-recomp",
+      "repository_id": 1452795162,
+      "release": {
+        "id": 440641941,
+        "tag": "v0.1",
+        "observed_at": "2026-11-26T18:33:24.504Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 732207913,
+          "asset_name": "Torneko-v0.1-win64.zip",
+          "archive_sha256": "958ad29c34557eb1201360a912841f93011a74dd679e41beafebf70455457c4e",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "torneko.exe",
+              "display_path": "torneko.exe",
+              "machine": "pe-x86-64",
+              "sha256": "0d79700457f7b99f0418e23b958f800245f10ec0681f7c112fc48ca1a7f6d232"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 732207911,
+          "asset_name": "torneko-v0.1-linux-x86_64.tar.gz",
+          "archive_sha256": "23ee6e3e9d2244290246fe970796032838e789e2156c9c518f3945a9df67789b",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "torneko/torneko",
+              "display_path": "torneko/torneko",
+              "machine": "elf64-x86-64",
+              "sha256": "9b943ec26fc3327dac98ff326d92fcfd694c3d0eb8b38f594fa426a6e9b1fcff"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "dave-mirra-freestyle-bmx-open-freestyle-bmx",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "e7cc230a8fc3d08168acf822f26829c035d4d9d98027cd4026ce671c6e8786e5",
+      "repository": "DenzoNL/open-freestyle-bmx",
+      "repository_id": 1450354031,
+      "release": {
+        "id": 439427687,
+        "tag": "v0.1.0",
+        "observed_at": "2026-11-26T23:58:36.158Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 728318258,
+          "asset_name": "OpenFreestyleBMX-0.1.0-windows-x64.zip",
+          "archive_sha256": "3113f078c703e4899ece16f5ddd6708d27ee3ac393771d0a72fe96ba1604fc33",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "openfreestylebmx.exe",
+              "display_path": "OpenFreestyleBMX.exe",
+              "machine": "pe-x86-64",
+              "sha256": "691c6582d625a62488e574ce86c70cc050cfcf39e3967165ffd28e7e833c2752"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "deathrow-exonerated",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "97010905c7a11128b7d0b0070b4441f2f1de90e140118f91d658294f1327d63b",
+      "repository": "AsukaNeo/Exonerated",
+      "repository_id": 1420118274,
+      "release": {
+        "id": 435620324,
+        "tag": "v1.0.0",
+        "observed_at": "2026-11-27T01:57:25.739Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 714507686,
+          "asset_name": "Exonerated-1.0.0-windows-x64.zip",
+          "archive_sha256": "31fc8f52c446fdf30c327ad9bb2bae3fb32dac48eb401f8d1503046bc430ec3d",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "exonerated-1.0.0/exonerated.exe",
+              "display_path": "Exonerated-1.0.0/Exonerated.exe",
+              "machine": "pe-x86-64",
+              "sha256": "80903909f759f8ab9589e12968ee9ca85cbde61cde87497a4bc9623a48db4a2f"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "doom-doom-retro",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "fd5c468f2a7841de6dd32b115b078414e4d2c62172d22049a7e88216d8a43d47",
+      "repository": "bradharding/doomretro",
+      "repository_id": 15365681,
+      "release": {
+        "id": 367072702,
+        "tag": "v6.3",
+        "observed_at": "2026-11-27T12:14:00.569Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 505865663,
+          "asset_name": "doomretro-6.3-win64.zip",
+          "archive_sha256": "62df82f3c378ec7c85915e9aea34c0bc7b5efd2522217ae1778af64a2eb7fd92",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "doomretro.exe",
+              "display_path": "doomretro.exe",
+              "machine": "pe-x86-64",
+              "sha256": "5733d0cb5de64ed1dcf8e3b90f0200b98435bbb71cd1a44277c842436efa6969"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "doom-dsda-doom",
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "c31c1e540feeb44b5c24948e187cb5dd6c20b291d2b0ff8c0cbccb4373fd26c1",
+      "repository": "dsda-org/dsda-doom",
+      "repository_id": 330042722,
+      "release": {
+        "id": 408257042,
+        "tag": "v0.30.1",
+        "observed_at": "2026-11-27T11:03:47.165Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 625927794,
+          "asset_name": "dsda-doom-0.30.1-win-x64.zip",
+          "archive_sha256": "a155552be0056de84a50ee9fbeb5111d4276cdcdbf5aced2d920695f03fbd2d2",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "dsda-doom-0.30.1-win-x64/dsda-doom.exe",
+              "display_path": "dsda-doom-0.30.1-win-x64/dsda-doom.exe",
+              "machine": "pe-x86-64",
+              "sha256": "06e3cd05cb09303f6716bdafb5a9a2bfb038d88415684190d64fdcb7a219c219"
+            }
+          ]
+        },
+        {
+          "platform": "macos-x86-64",
+          "asset_id": 625932072,
+          "asset_name": "dsda-doom-0.30.1-mac-uni.zip",
+          "archive_sha256": "9dced51464da3c5d915b4970b49128a798d0b59bfd3010a9a87edd8ebac01503",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "dsda-doom-0.30.1-mac-uni/dsda-doom",
+              "display_path": "dsda-doom-0.30.1-mac-uni/dsda-doom",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "ee1dfa4d22084e5fe4db5d0cde4e9a54efcb35f52882047433f4553ee37229c0"
+            }
+          ]
+        },
+        {
+          "platform": "macos-aarch64",
+          "asset_id": 625932072,
+          "asset_name": "dsda-doom-0.30.1-mac-uni.zip",
+          "archive_sha256": "9dced51464da3c5d915b4970b49128a798d0b59bfd3010a9a87edd8ebac01503",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "dsda-doom-0.30.1-mac-uni/dsda-doom",
+              "display_path": "dsda-doom-0.30.1-mac-uni/dsda-doom",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "ee1dfa4d22084e5fe4db5d0cde4e9a54efcb35f52882047433f4553ee37229c0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "doom-minidoom",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "23eead571c0a9c90284d1fcec7ce384916c87b25a5b495111c0c82b8395cdc38",
+      "repository": "MiniLangProject/MiniDoom",
+      "repository_id": 1179241064,
+      "release": {
+        "id": 421577442,
+        "tag": "v2.0.6",
+        "observed_at": "2026-11-27T03:08:12.132Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 668397729,
+          "asset_name": "MiniDoom-v2.0.6-windows-x64.zip",
+          "archive_sha256": "5ed8457f4710089e49c9e0414c53d0f243210f9f74d0c810ab4256ca84dde99d",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "minidoom-v2.0.6-windows-x64/minidoom.exe",
+              "display_path": "MiniDoom-v2.0.6-windows-x64/MiniDoom.exe",
+              "machine": "pe-x86-64",
+              "sha256": "1e50dc1f5239ec5151905b88b726cb0ae18a9cbe903e0be5f533bb6968039f6d"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "doom-nugget-doom",
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "d39c674bcc9786c708b98cb78c41e4169e18bf34a50fe0954eefdb6ab5331ca8",
+      "repository": "MrAlaux/Nugget-Doom",
+      "repository_id": 401848609,
+      "release": {
+        "id": 416154323,
+        "tag": "nugget-doom-6.1.0",
+        "observed_at": "2026-11-27T14:12:17.003Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 652030064,
+          "asset_name": "Nugget-Doom-6.1.0-win64.zip",
+          "archive_sha256": "b7084d242985818da75622fcd2c6b7cc728ce1eb120d7fb77905ae902a8ccbcb",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "nugget-doom-6.1.0-win64/nugget-doom.exe",
+              "display_path": "Nugget-Doom-6.1.0-win64/nugget-doom.exe",
+              "machine": "pe-x86-64",
+              "sha256": "9fa7fa5d21c47f919579a9693c15de9629746cdc2b86af6670caf770954640ce"
+            }
+          ]
+        },
+        {
+          "platform": "macos-x86-64",
+          "asset_id": 652029750,
+          "asset_name": "Nugget-Doom-6.1.0-Mac-uni.zip",
+          "archive_sha256": "94265ebba27bb5239aef824af960c5efaf3eaec5783cb602c417ef64e426b7d6",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "nugget-doom-6.1.0-mac-uni/nugget-doom",
+              "display_path": "Nugget-Doom-6.1.0-Mac-uni/nugget-doom",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "f4682325353ca4f4a38409d0b890c40a4354cb161eef0c826628e6a5c6f81912"
+            }
+          ]
+        },
+        {
+          "platform": "macos-aarch64",
+          "asset_id": 652029750,
+          "asset_name": "Nugget-Doom-6.1.0-Mac-uni.zip",
+          "archive_sha256": "94265ebba27bb5239aef824af960c5efaf3eaec5783cb602c417ef64e426b7d6",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "nugget-doom-6.1.0-mac-uni/nugget-doom",
+              "display_path": "Nugget-Doom-6.1.0-Mac-uni/nugget-doom",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "f4682325353ca4f4a38409d0b890c40a4354cb161eef0c826628e6a5c6f81912"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "port_id": "dungeon-rampage-dungeon-rampage-haxe",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "generator_version": 32,
+      "facts_sha256": "b1a4ddd10e916dfb3af839a5112bd91ba964c40976990eba08188e29c9c60b06",
+      "repository": "Tutez64/Dungeon-Rampage-Haxe",
+      "repository_id": 1203115335,
+      "release": {
+        "id": 445597065,
+        "tag": "V18",
+        "observed_at": "2026-11-26T17:30:13.655Z"
+      },
+      "runtimes": [
+        {
+          "platform": "windows-x86-64",
+          "asset_id": 748806234,
+          "asset_name": "Dungeon.Rampage.Haxe.V18.Windows.zip",
+          "archive_sha256": "2e2f5dde5c94535297a60eef680f17a147b84313e4a0fcba5737b4d7780c7a50",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "dungeon rampage haxe/dungeon rampage haxe.exe",
+              "display_path": "Dungeon Rampage Haxe/Dungeon Rampage Haxe.exe",
+              "machine": "pe-x86-64",
+              "sha256": "50ad2e9521e62c5e35b181c1ab77e5a21baf5e2553d321ad3d87102cf8caeeca"
+            }
+          ]
+        },
+        {
+          "platform": "linux-x86-64",
+          "asset_id": 748806235,
+          "asset_name": "Dungeon.Rampage.Haxe.V18.Linux.tar.gz",
+          "archive_sha256": "700c3e65124b3fe290790d946d8c4b41467fef2a6c3a9aa73a573a04f31f781a",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "dungeon rampage haxe/dungeon rampage haxe",
+              "display_path": "Dungeon Rampage Haxe/Dungeon Rampage Haxe",
+              "machine": "elf64-x86-64",
+              "sha256": "86f3b7cf6ed52ecaf8e75dfe7ae5e03deb675f0af76b7cdec316d40c8dff0d74"
+            }
+          ]
+        },
+        {
+          "platform": "macos-x86-64",
+          "asset_id": 748806231,
+          "asset_name": "Dungeon.Rampage.Haxe.V18.macOS.zip",
+          "archive_sha256": "40d59ba0439c69c406a32b8ad49226377d17001c29e978e4b8f0b6a6ec5bef02",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "dungeon rampage haxe/dungeon rampage haxe.app/contents/macos/dungeon rampage haxe",
+              "display_path": "Dungeon Rampage Haxe/Dungeon Rampage Haxe.app/Contents/MacOS/Dungeon Rampage Haxe",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "44affb34a0aceecd38c6b9e87df74fafba67b416695153edc684629fd3606c86"
+            }
+          ]
+        },
+        {
+          "platform": "macos-aarch64",
+          "asset_id": 748806231,
+          "asset_name": "Dungeon.Rampage.Haxe.V18.macOS.zip",
+          "archive_sha256": "40d59ba0439c69c406a32b8ad49226377d17001c29e978e4b8f0b6a6ec5bef02",
+          "source": "exact-release-structured",
+          "players": [
+            {
+              "path": "dungeon rampage haxe/dungeon rampage haxe.app/contents/macos/dungeon rampage haxe",
+              "display_path": "Dungeon Rampage Haxe/Dungeon Rampage Haxe.app/Contents/MacOS/Dungeon Rampage Haxe",
+              "machine": "macho-universal-arm64+x86-64",
+              "sha256": "44affb34a0aceecd38c6b9e87df74fafba67b416695153edc684629fd3606c86"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "blocked": {
     "operational-route": 460,
     "scummvm-engine": 25,
     "no-readable-upstream": 26,
-    "no-observation": 2246,
+    "no-observation": 1148,
     "repository-mismatch": 0,
     "stale-parser": 0,
-    "no-stable-release": 0,
-    "no-release-archive": 0,
-    "unsupported-archive-format": 0,
-    "non-desktop-platform": 0,
-    "no-digest": 0,
-    "core-refused": 0,
+    "no-stable-release": 571,
+    "no-release-archive": 28,
+    "unsupported-archive-format": 146,
+    "non-desktop-platform": 27,
+    "no-digest": 77,
+    "core-refused": 4,
     "repeated-inspection-failure": 0,
     "invalid-facts": 0,
     "repository-identity-changed": 0,
     "observation-unavailable": 0,
     "upstream-unavailable": 28,
-    "reproduction-refused": 0,
+    "reproduction-refused": 15,
     "incomplete-coverage": 0,
     "stale-facts": 0,
-    "shared-repository": 0,
-    "ambiguous-release-line": 0,
+    "shared-repository": 4,
+    "ambiguous-release-line": 6,
     "release-text-unobserved": 0,
-    "worded-prerelease-skipped": 0,
-    "other-package-form-beside-archive": 0,
-    "no-player": 0,
-    "tool-not-game": 0,
+    "worded-prerelease-skipped": 1,
+    "other-package-form-beside-archive": 41,
+    "no-player": 10,
+    "tool-not-game": 1,
     "no-authorizing-source": 0,
-    "contradictory-role": 0,
+    "contradictory-role": 1,
     "unknown-platform": 0,
-    "wrong-host": 0,
-    "ambiguous-player": 0,
-    "ambiguous-artifact": 0,
-    "bundled-toolchain": 0,
-    "launcher-entry": 0,
-    "split-package": 0,
+    "wrong-host": 5,
+    "ambiguous-player": 33,
+    "ambiguous-artifact": 1,
+    "bundled-toolchain": 51,
+    "launcher-entry": 5,
+    "split-package": 4,
     "role-program": 0,
     "non-ascii-name": 0,
-    "archive-names-another-listing": 0,
-    "name-not-unique-in-catalog": 0,
-    "archive-name-unaccounted": 0,
-    "program-name-unaccounted": 0,
+    "archive-names-another-listing": 4,
+    "name-not-unique-in-catalog": 3,
+    "archive-name-unaccounted": 14,
+    "program-name-unaccounted": 8,
     "route-held": 0,
-    "guide-bound": 0
+    "guide-bound": 1
   },
-  "blocked_exclusions": []
+  "blocked_exclusions": [
+    {
+      "reason": "ambiguous-player",
+      "token": "several-programs",
+      "count": 95,
+      "examples": [
+        {
+          "port_id": "1944-the-loop-master-omegakatana92",
+          "name": "1944-launcher.exe + 1944.exe",
+          "outcome": "other-package-form-beside-archive"
+        },
+        {
+          "port_id": "aces-of-the-pacific-sdl3",
+          "name": "Aces of the Pacific.exe + aotp.exe",
+          "outcome": "ambiguous-player"
+        },
+        {
+          "port_id": "aggressive-inline-spaced1127",
+          "name": "gile.exe + rvz_extract.exe",
+          "outcome": "ambiguous-player"
+        },
+        {
+          "port_id": "agvg2-recomp-elprogramadorloco-arch-advanced-v-g-2",
+          "name": "crash.elf + ctors + hello_64 + ls",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "aitorcachero-ff8-ps1-mips-windows-recomp",
+          "name": "FinalFantasy8.exe + Final_Fantasy_VIII_Launcher.exe + Final_Fantasy_VIII_Recompiled.exe",
+          "outcome": "ambiguous-player"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "cmake",
+      "count": 47,
+      "examples": [
+        {
+          "port_id": "agvg2-recomp-elprogramadorloco-arch-advanced-v-g-2",
+          "name": "AdvancedVG2Recomp-v0.1.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "alexbeav-alundra-2-recomp",
+          "name": "alundra-2-0.1.0-linux-x64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "alexbeav-broken-sword-the-shadow-of-the-templars-recomp",
+          "name": "broken-sword-the-shadow-of-the-templars-0.1.0-macos-x64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "alexbeav-chase-the-express-recomp",
+          "name": "chase-the-express-0.1.0-macos-x64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "alexbeav-colony-wars-vengeance-recomp",
+          "name": "colony-wars-vengeance-0.1.0-windows-x64.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "python",
+      "count": 14,
+      "examples": [
+        {
+          "port_id": "actionmanrecomp-gnomechimpsky-action-man-mission-xtreme",
+          "name": "Action-Man-Recomp-0.6.0-windows-x64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "army-of-two-devils-cartel-aytp",
+          "name": "AO4-NativePort-0.1.1.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "badman-psp-k11mch1",
+          "name": "Badman_Recompiled_Windows.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "bayonetta-3-b3-express",
+          "name": "B3-Express-0.4.0-windows-x64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "cesarboss2022-courier-crisis-ps1-recomp-win",
+          "name": "CourierCrisisRecomp-win-Portable.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "pythonw",
+      "count": 13,
+      "examples": [
+        {
+          "port_id": "actionmanrecomp-gnomechimpsky-action-man-mission-xtreme",
+          "name": "Action-Man-Recomp-0.6.0-windows-x64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "badman-psp-k11mch1",
+          "name": "Badman_Recompiled_Windows.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "bayonetta-3-b3-express",
+          "name": "B3-Express-0.4.0-windows-x64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "cesarboss2022-courier-crisis-ps1-recomp-win",
+          "name": "CourierCrisisRecomp-win-Portable.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "cr1tika7-motor-toon-grand-prix-psxrecomp",
+          "name": "mtgp-0.1.0-windows-x64.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "clang",
+      "count": 8,
+      "examples": [
+        {
+          "port_id": "bassobr-far-cry-instincts-original-xbox-native-d3d11",
+          "name": "FarCryInstincts-Recomp-v0.9.1-win64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "black-xbox-black-xberecomp",
+          "name": "BLACK-XBERecomp.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "castlevania-curse-of-darkness-castlevania-cod-pc",
+          "name": "CastlevaniaCOD-PC-1.1.1.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "castlevania-loi-ggmartinez",
+          "name": "CastlevaniaLoI-dev-win64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "city-shrouded-in-shadow-ioritree",
+          "name": "Kyoei-Toshi-PC-windows.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "ambiguous-player",
+      "token": "several-players",
+      "count": 7,
+      "examples": [
+        {
+          "port_id": "aegis-wing-xbla-pc-recomp-caiuscodes-aegis-wing",
+          "name": "Aegis Wing.exe",
+          "outcome": "ambiguous-player"
+        },
+        {
+          "port_id": "army-of-two-devils-cartel-aytp",
+          "name": "AO4Launcher.exe + ao4_launcher.exe",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "beach-life-beach-life-recomp",
+          "name": "beachlife",
+          "outcome": "other-package-form-beside-archive"
+        },
+        {
+          "port_id": "boom-boom-rocket-caiuscodes",
+          "name": "Boom Boom Rocket.exe + boom_boom_rocket.exe",
+          "outcome": "ambiguous-player"
+        },
+        {
+          "port_id": "citrongames-dora64-3",
+          "name": "Dora64-3",
+          "outcome": "enrolled"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "lld",
+      "count": 5,
+      "examples": [
+        {
+          "port_id": "bassobr-far-cry-instincts-original-xbox-native-d3d11",
+          "name": "FarCryInstincts-Recomp-v0.9.1-win64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "black-xbox-black-xberecomp",
+          "name": "BLACK-XBERecomp.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "castlevania-curse-of-darkness-castlevania-cod-pc",
+          "name": "CastlevaniaCOD-PC-1.1.1.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "city-shrouded-in-shadow-ioritree",
+          "name": "Kyoei-Toshi-PC-windows.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "coaltergeist-brothership-switch-static-recomp",
+          "name": "BrothershipRecomp-Windows.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "msbuild",
+      "count": 4,
+      "examples": [
+        {
+          "port_id": "def-jam-fight-for-ny-comoria08",
+          "name": "DJFFNY-Recomp-Clang-complet.zip",
+          "outcome": "other-package-form-beside-archive"
+        },
+        {
+          "port_id": "donkey-kong-country-2-mpolizel-recompiled",
+          "name": "donkeykongcountry2-0.1.9-windows-x64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "donkey-kong-country-3-mpolizel-recompiled",
+          "name": "donkeykongcountry3-0.1.9-windows-x64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "donkey-kong-country-mpolizel-recompiled",
+          "name": "donkeykongcountry-0.1.8-windows-x64.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "clang++",
+      "count": 3,
+      "examples": [
+        {
+          "port_id": "castlevania-loi-ggmartinez",
+          "name": "CastlevaniaLoI-dev-win64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "def-jam-fight-for-ny-comoria08",
+          "name": "DJFFNY-Recomp-Clang-complet.zip",
+          "outcome": "other-package-form-beside-archive"
+        },
+        {
+          "port_id": "dissidia-012-vcking101",
+          "name": "Dissidia012-PC-0.8.2-Windows-x64.zip",
+          "outcome": "other-package-form-beside-archive"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "ld.lld",
+      "count": 3,
+      "examples": [
+        {
+          "port_id": "castlevania-loi-ggmartinez",
+          "name": "CastlevaniaLoI-dev-win64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "def-jam-fight-for-ny-comoria08",
+          "name": "DJFFNY-Recomp-Clang-complet.zip",
+          "outcome": "other-package-form-beside-archive"
+        },
+        {
+          "port_id": "dissidia-012-vcking101",
+          "name": "Dissidia012-PC-0.8.2-Windows-x64.zip",
+          "outcome": "other-package-form-beside-archive"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "pip",
+      "count": 3,
+      "examples": [
+        {
+          "port_id": "cr1tika7-motor-toon-grand-prix-psxrecomp",
+          "name": "mtgp-0.1.0-macos-arm64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "crash-team-racing-ctr-decrypted",
+          "name": "ctr-decrypted-v1.18.0-linux-x86.tar.gz",
+          "outcome": "wrong-host"
+        },
+        {
+          "port_id": "crash-team-racing-ctr-recompiled",
+          "name": "ctr-0.2.6-macos-x64.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "player-tool-name",
+      "token": "updater",
+      "count": 3,
+      "examples": [
+        {
+          "port_id": "condemned-2-bloodshot-condemned2recomp",
+          "name": "condemned2recomp_updater.exe",
+          "outcome": "enrolled"
+        },
+        {
+          "port_id": "crackdown-crackdown-recompiled",
+          "name": "trg-updater.exe",
+          "outcome": "enrolled"
+        },
+        {
+          "port_id": "dancing-stage-fusion-jmokikearns",
+          "name": "DancingStageFusionPC-Updater.exe",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "asset-role-name",
+      "token": "console-output",
+      "count": 2,
+      "examples": [
+        {
+          "port_id": "cheviman-tmnt-1989-arcade-native-decomp-world-vx",
+          "name": "tmnt-switch.zip",
+          "outcome": "ambiguous-player"
+        },
+        {
+          "port_id": "crusader-no-remorse-sebsebseb1982-sdl-port",
+          "name": "crusader-no-remorse-1.88.3-portmaster-aarch64.zip",
+          "outcome": "enrolled"
+        }
+      ]
+    },
+    {
+      "reason": "asset-system-name",
+      "token": "console",
+      "count": 2,
+      "examples": [
+        {
+          "port_id": "cheviman-tmnt-1989-arcade-native-decomp-world-vx",
+          "name": "tmnt-switch.zip",
+          "outcome": "ambiguous-player"
+        },
+        {
+          "port_id": "crusader-no-remorse-sebsebseb1982-sdl-port",
+          "name": "crusader-no-remorse-1.88.3-portmaster-aarch64.zip",
+          "outcome": "enrolled"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "python3",
+      "count": 2,
+      "examples": [
+        {
+          "port_id": "cr1tika7-motor-toon-grand-prix-psxrecomp",
+          "name": "mtgp-0.1.0-macos-arm64.zip",
+          "outcome": "bundled-toolchain"
+        },
+        {
+          "port_id": "crash-team-racing-ctr-recompiled",
+          "name": "ctr-0.2.6-macos-x64.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "player-tool-name",
+      "token": "tool",
+      "count": 2,
+      "examples": [
+        {
+          "port_id": "duislingr-cr2-u-chaos-rings-ii",
+          "name": "cr2tool",
+          "outcome": "other-package-form-beside-archive"
+        },
+        {
+          "port_id": "duislingr-cr3-u-chaos-rings-iii",
+          "name": "cr3tool",
+          "outcome": "other-package-form-beside-archive"
+        }
+      ]
+    },
+    {
+      "reason": "asset-architecture-name",
+      "token": "x86-64",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "astrohybrid-imnotsharingmyname-astro-bot",
+          "name": "AstroBotPC-AstroHybrid-1.2.30-Windows-x64.zip",
+          "outcome": "contradictory-role"
+        }
+      ]
+    },
+    {
+      "reason": "asset-role-name",
+      "token": "compiler",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "def-jam-fight-for-ny-comoria08",
+          "name": "DJFFNY-Recomp-Clang-complet.zip",
+          "outcome": "other-package-form-beside-archive"
+        }
+      ]
+    },
+    {
+      "reason": "asset-role-name",
+      "token": "debug",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "cryo-s-dune-1992-cryogenic",
+          "name": "Cryogenic-0.1.9-Debug.zip",
+          "outcome": "ambiguous-player"
+        }
+      ]
+    },
+    {
+      "reason": "asset-role-name",
+      "token": "debug-symbols",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "city-shrouded-in-shadow-ioritree",
+          "name": "kyoei-windows-symbols-effaa44b123b.tar.gz",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "asset-role-name",
+      "token": "installer",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "db-final-bout-recomp-novapowers0-novapowers0-dragon-ball-gt-final-bout",
+          "name": "dbfb-0.1.1-setup-host-win64.zip",
+          "outcome": "tool-not-game"
+        }
+      ]
+    },
+    {
+      "reason": "asset-role-name",
+      "token": "mobile-package",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "cheviman-tmnt-1989-arcade-native-decomp-world-vx",
+          "name": "tmnt-android.zip",
+          "outcome": "ambiguous-player"
+        }
+      ]
+    },
+    {
+      "reason": "asset-role-name",
+      "token": "symbols",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "city-shrouded-in-shadow-ioritree",
+          "name": "kyoei-windows-symbols-effaa44b123b.tar.gz",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "asset-role-name",
+      "token": "updater",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "dancing-stage-fusion-jmokikearns",
+          "name": "DancingStageFusionPC-Updater.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "asset-system-name",
+      "token": "android",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "cheviman-tmnt-1989-arcade-native-decomp-world-vx",
+          "name": "tmnt-android.zip",
+          "outcome": "ambiguous-player"
+        }
+      ]
+    },
+    {
+      "reason": "asset-system-name",
+      "token": "linux",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "dragon-ball-z-burst-limit-dbz-burst-limit-recompiled",
+          "name": "DBZ-Burst-Limit-Recompiled-v0.8.2-linux.zip",
+          "outcome": "guide-bound"
+        }
+      ]
+    },
+    {
+      "reason": "asset-system-token",
+      "token": "android",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "cheviman-tmnt-1989-arcade-native-decomp-world-vx",
+          "name": "tmnt-android.zip",
+          "outcome": "ambiguous-player"
+        }
+      ]
+    },
+    {
+      "reason": "asset-system-token",
+      "token": "portmaster",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "crusader-no-remorse-sebsebseb1982-sdl-port",
+          "name": "crusader-no-remorse-1.88.3-portmaster-aarch64.zip",
+          "outcome": "enrolled"
+        }
+      ]
+    },
+    {
+      "reason": "asset-system-token",
+      "token": "switch",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "cheviman-tmnt-1989-arcade-native-decomp-world-vx",
+          "name": "tmnt-switch.zip",
+          "outcome": "ambiguous-player"
+        }
+      ]
+    },
+    {
+      "reason": "asset-tool-name",
+      "token": "authoring",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "crash-team-racing-ctr-decrypted",
+          "name": "ctr-decrypted-v1.18.0-box-authoring-linux-x86.tar.gz",
+          "outcome": "wrong-host"
+        }
+      ]
+    },
+    {
+      "reason": "asset-tool-name",
+      "token": "setup",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "db-final-bout-recomp-novapowers0-novapowers0-dragon-ball-gt-final-bout",
+          "name": "dbfb-0.1.1-setup-host-win64.zip",
+          "outcome": "tool-not-game"
+        }
+      ]
+    },
+    {
+      "reason": "asset-tool-name",
+      "token": "updater",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "dancing-stage-fusion-jmokikearns",
+          "name": "DancingStageFusionPC-Updater.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "cc1",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "dancing-stage-fusion-jmokikearns",
+          "name": "DancingStageFusionPC-1.0.1.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "gcc",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "dancing-stage-fusion-jmokikearns",
+          "name": "DancingStageFusionPC-1.0.1.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "hactool",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "coaltergeist-brothership-switch-static-recomp",
+          "name": "BrothershipRecomp-Windows.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "ld",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "dancing-stage-fusion-jmokikearns",
+          "name": "DancingStageFusionPC-1.0.1.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "ninja",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "city-shrouded-in-shadow-ioritree",
+          "name": "Kyoei-Toshi-PC-windows.zip",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "bundled-toolchain",
+      "token": "node",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "deep-3d-abyssal",
+          "name": "abyssal-engine-1.30.0-linux-arm64.tar.gz",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "player-tool-name",
+      "token": "authoring",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "crash-team-racing-ctr-decrypted",
+          "name": "ctr_native_ap_authoring",
+          "outcome": "wrong-host"
+        }
+      ]
+    },
+    {
+      "reason": "player-tool-name",
+      "token": "compiler",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "armored-core-project-phantasm-recomp-omegakatana92-armored-core-project-phantasma",
+          "name": "CMakeDetermineCompilerABI_C.bin",
+          "outcome": "bundled-toolchain"
+        }
+      ]
+    },
+    {
+      "reason": "player-tool-name",
+      "token": "crashpad",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "diablo-ii-lord-of-destruction-d2decomp",
+          "name": "crashpad_handler.exe",
+          "outcome": "other-package-form-beside-archive"
+        }
+      ]
+    },
+    {
+      "reason": "player-tool-name",
+      "token": "editor",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "720-degrees-plasticcog",
+          "name": "editor720.exe",
+          "outcome": "enrolled"
+        }
+      ]
+    },
+    {
+      "reason": "player-tool-name",
+      "token": "patcher",
+      "count": 1,
+      "examples": [
+        {
+          "port_id": "ambermoon-ambermoon-net",
+          "name": "AmbermoonPatcher.exe",
+          "outcome": "other-package-form-beside-archive"
+        }
+      ]
+    }
+  ]
 }

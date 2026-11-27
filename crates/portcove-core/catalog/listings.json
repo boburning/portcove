@@ -6899,7 +6899,45 @@
         "game_slug": "1080-snowboarding",
         "match_kind": "underlying-game"
       },
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/thebradshaw/1080-Snowboarding-decomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream thebradshaw/1080-Snowboarding-decomp, release 1.2.2, checked 2026-11-27. Windows: release file 1080SnowboardingRecompiled-windows-x64.zip contains 1080SnowboardingRecompiled.exe. Linux: release file 1080SnowboardingRecompiled-linux-x64.tar.gz contains 1080SnowboardingRecompiled. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -7218,7 +7256,47 @@
         "source_editions": []
       },
       "original_game_title": "720 Degrees",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/PlasticCog/720_Degrees-PC_Port",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream PlasticCog/720_Degrees-PC_Port, release v0.3.0, checked 2026-11-27. Windows: release file 720degrees-0.3.0-windows-x64.zip contains 720degrees.exe. Linux: release file 720degrees-0.3.0-linux-x64.zip contains 720degrees. macOS (Intel): release file 720degrees-0.3.0-macos-x64.zip contains 720degrees. macOS (Apple silicon): release file 720degrees-0.3.0-macos-arm64.zip contains 720degrees. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "unknown"
     },
     {
@@ -7396,7 +7474,44 @@
         "game_slug": "fuzion-frenzy",
         "match_kind": "underlying-game"
       },
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select FuzionFrenzy.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/abilliontokens/fuzionfrenzy-recomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream abilliontokens/fuzionfrenzy-recomp, release v0.1.0, checked 2026-11-27. Windows: release file FuzionFrenzy-win64.zip contains FuzionFrenzy.exe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -7439,18 +7554,27 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Review and consent to the selected executable, working folder and launch arguments, then choose Play separately. You and the project manage setup, version changes, recovery and all external files. Removing the registration leaves those files in place. Before changing versions, close every game process and keep the complete working player and all its data. Review and select the executable again if its files change. Portcove does not offer updates, backups, rollback, migration or deletion for this external copy."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select Sims1.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
           }
         ],
         "warnings": [
           "Use only a completed copy, components and original data you are permitted to use. Source inspection and published download hashes do not confirm every package file or that a package matches its source and SDK. Portcove has not confirmed native play, real saves or behavior in the installed app; this guide does not establish Supported status or protected acceptance.",
           "Project reports do not establish complete playthroughs, controller support, frame rate, rendering or successor-process behavior in Portcove.",
           "Upstream documents fullscreen movie cropping and unanalysed Hor+ behavior; its real-Windows/playthrough reports remain upstream evidence only.",
-          "Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+          "Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
         ],
         "references": [
           {
             "title": "Keep the complete profile with its game version",
             "instruction": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
           }
         ]
       },
@@ -7513,18 +7637,27 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Review and consent to the selected executable, working folder and launch arguments, then choose Play separately. You and the project manage setup, version changes, recovery and all external files. Removing the registration leaves those files in place. Before changing versions, close every game process and keep the complete working player and all its data. Review and select the executable again if its files change. Portcove does not offer updates, backups, rollback, migration or deletion for this external copy."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select Sims2.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
           }
         ],
         "warnings": [
           "Use only a completed copy, components and original data you are permitted to use. Source inspection and published download hashes do not confirm every package file or that a package matches its source and SDK. Portcove has not confirmed native play, real saves or behavior in the installed app; this guide does not establish Supported status or protected acceptance.",
           "Project reports do not establish complete playthroughs, controller support, frame rate, rendering or successor-process behavior in Portcove.",
           "The project’s headline reports Windows and Linux gameplay, but its status table describes the cross-built Windows check as Wine-only. Neither report confirms gameplay on a real Windows system through Portcove.",
-          "Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+          "Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
         ],
         "references": [
           {
             "title": "Keep the complete profile with its game version",
             "instruction": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
           }
         ]
       },
@@ -9020,7 +9153,44 @@
         ]
       },
       "original_game_title": "Snatcher",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select Snatcher.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/aitorcachero/Snatcher-Recomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream aitorcachero/Snatcher-Recomp, release v1.0.6, checked 2026-11-27. Windows: release file Snatcher-Recomp-v1.0.6-Windows-x64.zip contains Snatcher.exe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -18175,9 +18345,6 @@
       "original_game_title": "Alisia Dragoon",
       "summary": "The project reports no 68000 ROM fallbacks and eight Z80 reset-window fallbacks. This does not establish full-game progression. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/ohackercego/AlisiaDragoonRecomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/ohackercego/AlisiaDragoonRecomp",
       "manual_setup": {
@@ -18189,13 +18356,32 @@
           {
             "title": "Follow upstream setup",
             "instruction": "Follow the project’s release instructions and select your own ROM in the player. Building from source generates 68000 and Z80 C code locally, then builds with VS2022 and CMake. No Linux or macOS packages are offered."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select AlisiaDragoonRecomp.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
           }
         ],
         "warnings": [
           "The project reports no 68000 ROM fallbacks and eight Z80 reset-window fallbacks. This does not establish full-game progression.",
-          "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
+          "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
         ],
-        "help_url": "https://github.com/ohackercego/AlisiaDragoonRecomp"
+        "help_url": "https://github.com/ohackercego/AlisiaDragoonRecomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream ohackercego/AlisiaDragoonRecomp, release v0.1.0, checked 2026-11-27. Windows: release file AlisiaDragoonRecomp-windows-x64-v0.1.0.zip contains AlisiaDragoonRecomp.exe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
       },
       "issue_number": 3575,
       "listed_at": "2026-10-25",
@@ -18214,7 +18400,10 @@
           "https://github.com/ohackercego/AlisiaDragoonRecomp"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "alistert-openjazz",
@@ -18671,9 +18860,6 @@
       "original_game_title": "Amped 2",
       "project_url": "https://github.com/bertibertig/Amped2-Recomp",
       "listed_at": "2026-10-25",
-      "platforms": [
-        "linux-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/bertibertig/Amped2-Recomp",
       "artwork": {
@@ -18698,9 +18884,29 @@
           {
             "title": "Play the experimental Linux release",
             "instruction": "Use glibc 2.39 or later, SDL2 and a Vulkan driver. Extract the Linux tarball. Put your complete supported PAL Xbox disc files under game_files/ with default.xbe directly in that folder. Run ./run.sh from the extracted package. Run ./run.sh --settings to open graphics settings. Linux saves and cache live under ~/.local/share/xboxrecomp, while settings live in ~/.config/amped2-recomp/settings.ini. Preserve those paths and your original files when replacing the upstream package."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
           }
         ],
-        "warnings": []
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
+        ],
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream bertibertig/Amped2-Recomp, release v0.2.0, checked 2026-11-27. Windows: release file Amped2-Recomp-v0.2.0-windows-x86_64.zip contains amped2_recomp.exe. Linux: release file Amped2-Recomp-v0.2.0-linux-x86_64.tar.gz contains amped2_recomp. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
       },
       "original_game": {
         "format_version": 1,
@@ -18718,7 +18924,11 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "amped-3-malinkicat-reamped3",
@@ -19238,7 +19448,47 @@
         "source_editions": []
       },
       "original_game_title": "Anno 1602",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/x4rd4s/open1602",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream x4rd4s/open1602, release v0.9.0, checked 2026-11-27. Windows: release file Open1602-0.9.0-windows-x64.zip contains open1602.exe. Linux: release file Open1602-0.9.0-linux-x64.tar.gz contains open1602. macOS (Intel): release file Open1602-0.9.0-macos-universal.zip contains Open1602. macOS (Apple silicon): release file Open1602-0.9.0-macos-universal.zip contains Open1602. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "unknown"
     },
     {
@@ -19751,7 +20001,45 @@
         ]
       },
       "original_game_title": "Army Men: Sarge's Heroes",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/theurbanninja1993-sketch/army-men-sarges-heroes-recomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream theurbanninja1993-sketch/army-men-sarges-heroes-recomp, release v0.1.7, checked 2026-11-26. Windows: release file army-men-sarges-heroes-recomp-v0.1.7-Windows-x64.zip contains army-men-sarges-heroes-recomp.exe. Linux: release file army-men-sarges-heroes-recomp-v0.1.7-linux-x86_64.tar.gz contains army-men-sarges-heroes-recomp. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -20197,7 +20485,44 @@
         ]
       },
       "original_game_title": "Astro Boy: Omega Factor",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select AstroBoy.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/goodshepherd23/AstroBoy-OmegaFactor-Recomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream goodshepherd23/AstroBoy-OmegaFactor-Recomp, release v0.1.0, checked 2026-11-26. Windows: release file AstroBoy-OmegaFactor-Recomp-v0.1.0-windows-x64.zip contains AstroBoy.exe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -21422,7 +21747,47 @@
         "source_editions": []
       },
       "original_game_title": "Banished",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/tanepiper/unbanished",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream tanepiper/unbanished, release v0.5.0, checked 2026-11-26. Windows: release file unbanished-0.5.0-windows-x64.zip contains unbanished.exe. Linux: release file unbanished-0.5.0-linux-x64.zip contains unbanished. macOS (Intel): release file unbanished-0.5.0-macos-x64.zip contains unbanished. macOS (Apple silicon): release file unbanished-0.5.0-macos-arm64.zip contains unbanished. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "unknown"
     },
     {
@@ -23098,9 +23463,6 @@
       "original_game_title": "Sonic and the Black Knight",
       "summary": "The project reports startup and gameplay. Proton 9 and Experimental tests used software Vulkan only; Steam Deck play is untested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/yunophilia/BlackKnightRecomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/yunophilia/BlackKnightRecomp",
       "manual_setup": {
@@ -23112,13 +23474,32 @@
           {
             "title": "Follow upstream setup",
             "instruction": "The release executable includes the translated game code; follow its installer instructions with your own disc data. The installer retains the extracted data. Building from source is a separate route that reads your own discs."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select BlackKnightRecomp.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
           }
         ],
         "warnings": [
           "The project reports startup and gameplay. Proton 9 and Experimental tests used software Vulkan only; Steam Deck play is untested.",
-          "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
+          "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
         ],
-        "help_url": "https://github.com/yunophilia/BlackKnightRecomp"
+        "help_url": "https://github.com/yunophilia/BlackKnightRecomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream yunophilia/BlackKnightRecomp, release v1.0.1, checked 2026-11-27. Windows: release file BlackKnightRecomp-v1.0.1-windows-x64.zip contains BlackKnightRecomp.exe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
       },
       "issue_number": 3332,
       "listed_at": "2026-10-25",
@@ -23146,7 +23527,10 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "blacklabelhq-medievilrecomp",
@@ -23250,7 +23634,44 @@
         "source_editions": []
       },
       "original_game_title": "Blackthorne",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select blackthorne.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/Adolanium/blackthorne-reborn",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream Adolanium/blackthorne-reborn, release v1.0.0, checked 2026-11-26. Windows: release file BlackthorneReborn-1.0.0-windows-x64.zip contains blackthorne.exe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -23732,7 +24153,44 @@
         "source_editions": []
       },
       "original_game_title": "Blaze",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select blaze in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/pdromnt/blaze_decomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream pdromnt/blaze_decomp, release 0.1, checked 2026-11-26. Linux: release file blaze-0.1-linux-x64.tar.gz contains blaze. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "linux-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -24141,7 +24599,47 @@
         "source_editions": []
       },
       "original_game_title": "Blood",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/dagrigorev/OpenBlood",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream dagrigorev/OpenBlood, release v0.1.0.5, checked 2026-11-26. Windows: release file openblood-v0.1.0.5-windows-x64.zip contains openblood.exe. Linux: release file openblood-v0.1.0.5-linux-x64.tar.gz contains openblood. macOS (Intel): release file openblood-v0.1.0.5-macos-universal.tar.gz contains openblood. macOS (Apple silicon): release file openblood-v0.1.0.5-macos-universal.tar.gz contains openblood. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "unknown"
     },
     {
@@ -25072,7 +25570,44 @@
         "source_editions": []
       },
       "original_game_title": "Bounce Evolution",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select redbound.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/alox-dev/redbound",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream alox-dev/redbound, release v1.2.0, checked 2026-11-26. Windows: release file redbound-1.2.0-windows-x86_64.zip contains redbound.exe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -25399,12 +25934,6 @@
       },
       "issue_number": 6047,
       "listed_at": "2026-11-17",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmewett/BrogueCE/blob/v1.15.1/README.md#playing",
       "release_url": "https://github.com/tmewett/BrogueCE/releases/tag/v1.15.1",
@@ -25417,10 +25946,19 @@
           {
             "title": "Start Brogue Community Edition",
             "instruction": "On Windows x64, start brogue.exe in its extracted folder. On Linux x86-64, install SDL2 and SDL2_image through your distribution, then run ./brogue from the extracted folder. Use a Linux folder path without spaces for the supplied script. On macOS 15 or later, choose the Apple Silicon or Intel archive and open the included Brogue CE app. If macOS blocks the unsigned app on first launch, follow the publisher’s Mac instructions."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
           }
         ],
         "warnings": [
-          "Opening a save and continuing can consume that play copy. Keep a separate backup before restoring."
+          "Opening a save and continuing can consume that play copy. Keep a separate backup before restoring.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
         ],
         "references": [
           {
@@ -25430,6 +25968,14 @@
           {
             "title": "Find the separate Android port",
             "instruction": "The desktop project links to https://github.com/bilgincoskun/brogue-android-port/releases for Android. Its latest published build is v0.12.5.2. Keep its saves separate from the desktop 1.15.1 release."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream tmewett/BrogueCE, release v1.15.1, checked 2026-11-27. Windows: release file BrogueCE-1.15.1-windows-x86_64.zip contains brogue.exe. Linux: release file BrogueCE-1.15.1-linux-x86_64.tar.gz contains brogue. macOS (Intel): release file BrogueCE-1.15.1-macos-x86_64.zip contains brogue. macOS (Apple silicon): release file BrogueCE-1.15.1-macos-arm64.zip contains brogue. Your own copy may differ; Portcove does not compare it with these files."
           }
         ],
         "help_url": "https://github.com/tmewett/BrogueCE/blob/v1.15.1/README.md#playing"
@@ -25442,7 +25988,13 @@
           "https://github.com/tmewett/BrogueCE"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "broomstick-girl-tsukire-switch-native-pc-jp-global",
@@ -25933,7 +26485,46 @@
         "source_editions": []
       },
       "original_game_title": "BurgerTime",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select burgertime in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/darkuni/burgertime-arcade-landscape-recomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream darkuni/burgertime-arcade-landscape-recomp, release v1.3.0, checked 2026-11-26. Linux: release file BurgerTime-linux.tar.gz contains burgertime. macOS (Intel): release file BurgerTime-mac.zip contains burgertime. macOS (Apple silicon): release file BurgerTime-mac.zip contains burgertime. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "unknown"
     },
     {
@@ -27521,9 +28112,6 @@
       "project_url": "https://github.com/Endprodukt/cannonball-dx",
       "issue_number": 1132,
       "listed_at": "2026-10-23",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md",
       "artwork": {
@@ -27561,13 +28149,24 @@
           {
             "title": "Preserve the copy and every data location",
             "instruction": "You and upstream own runtime replacement and data. Before Play with a changed copy or an upstream update, close all actual players and preserve the working folder, config.xml, ROMs, res, scores, custom music and every custom configuration or save path. Keep the previous working copy until ready. Removing the registration preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select cannonball-dx.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
           }
         ],
         "warnings": [
           "The source grants conditional noncommercial use and redistribution; this registration does not certify arbitrary copies, component permissions or your original ROM data. The existing fresh-package download restriction remains in force.",
-          "The reviewed DX 1.04 runtime can import legacy hiscores*.xml files into highscores.xml and remove the old files after a valid combined file exists. Before playing a changed DX copy, back up both old and combined score files and every actual custom save folder. Another player folder does not isolate a shared save path. This is upstream behavior, not a Portcove migration or retention guarantee."
+          "The reviewed DX 1.04 runtime can import legacy hiscores*.xml files into highscores.xml and remove the old files after a valid combined file exists. Before playing a changed DX copy, back up both old and combined score files and every actual custom save folder. Another player folder does not isolate a shared save path. This is upstream behavior, not a Portcove migration or retention guarantee.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
         ],
-        "help_url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md"
+        "help_url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          }
+        ]
       },
       "download_block_reason": "The published CannonballDX_1.04.zip includes an OutRun ROM archive. The engine licenses do not establish permission for those original-game contents, so Portcove does not acquire this package. Existing permitted copies remain external. Reconsider with an asset-free player package or attributable permission for the included game data.",
       "restrictions": [
@@ -27590,7 +28189,10 @@
           "https://github.com/Endprodukt/cannonball-dx"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cannonball-outrun",
@@ -29558,9 +30160,6 @@
       "project_url": "https://github.com/chrissotraidis/bluewake",
       "issue_number": 1803,
       "listed_at": "2026-10-23",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/chrissotraidis/bluewake",
       "artwork": {
@@ -29593,10 +30192,21 @@
           {
             "title": "Keep maintenance and observations separate",
             "instruction": "Close the actual game and helpers before upstream replacement, rebuild, save import or recovery. Use upstream’s documented save tools on retained copies; Portcove does not migrate or repair cards. Review/select the executable after changes. Only the selected program is observed; removing the reference preserves external files. Managed acquisition/update/backup/rollback and Supported qualification are not supplied. Upstream playability, save-survival and controller reports are not Portcove gameplay, native or real-save observations."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select BlueWake.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
           }
         ],
         "warnings": [
-          "Keep BlueWake.exe with its complete Windows release/build and your own GameCube USA revision 0 disc. Preserve the actual %APPDATA%/BlueWake or existing portable user folder, including GZLE01.card; Wii U HD and Dolphin save states are separate."
+          "Keep BlueWake.exe with its complete Windows release/build and your own GameCube USA revision 0 disc. Preserve the actual %APPDATA%/BlueWake or existing portable user folder, including GZLE01.card; Wii U HD and Dolphin save states are separate.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
+        ],
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          }
         ]
       },
       "original_game": {
@@ -29608,7 +30218,10 @@
         ],
         "source_editions": []
       },
-      "original_game_title": "The Legend of Zelda: The Wind Waker"
+      "original_game_title": "The Legend of Zelda: The Wind Waker",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "chrissotraidis-kartpad",
@@ -29810,17 +30423,26 @@
           {
             "title": "Check platform and content requirements",
             "instruction": "This guide concerns Windows10/11 x64 and the selected direct entry only. Linux glibc2.43 and the Android README APK versus published ZIP discrepancy remain separate. GPL3-or-later project and runtime/component terms do not grant ROM or original/extracted assets; localized wordmarks/artwork retain their own provenance and permissions. Use only actual material you are permitted to use. Upstream gameplay/autosave/translation claims are not Portcove observations."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select Dora64-3.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
           }
         ],
         "warnings": [
           "Selected live startup source explicitly calls itself a research frontend with no validated gameplay loop and retains a not-playable log label. The documented Windows build enables LIVE_RT64 and disables diagnostic logging by default, so that log label is compiled out; this does not establish that the underlying comment is stale or that the game is usable. dora3_pending still stops with code77 if reached; no actual reachability/failure or normal playable session was observed. Keep this source/README1.0 conflict open for exact per-port review; do not count the guide as stable/playable runtime qualification or bypass stop paths.",
           "Source/tag and provider expected package digest only; no ZIP/PE bytes, package/source correspondence, native/game/real-save/installed-client/Supported/protected acceptance was inspected or executed.",
-          "Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
+          "Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
         ],
         "references": [
           {
             "title": "Preserve local saves and every settings file",
             "instruction": "The Windows source registers the executable directory as its configuration root and names the game dora3.n64.jp with EEPROM16k storage. Preserve the complete saves/ tree, including any dora3.n64.jp.bin and temporary/backup variants, port_pc_settings.json, port_input_settings.json, legacy port-settings.json, other runtime config/mod metadata, assets, originals and existing logs/diagnostics. Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
           }
         ]
       },
@@ -30827,7 +31449,44 @@
         "source_editions": []
       },
       "original_game_title": "Commander Keen",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select Megarocket.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/CrossplayGaming/megarocket",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream CrossplayGaming/megarocket, release v2.0.0, checked 2026-11-27. Windows: release file Megarocket-2.0.0-Windows.zip contains Megarocket.exe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -30894,9 +31553,6 @@
       "funding_urls": [
         "https://ko-fi.com/psxrestore"
       ],
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/psxrestore/Condemned2Recomp",
       "artwork": {
@@ -30932,13 +31588,18 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select condemned2recomp.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
           "BSD-3-Clause project shell; THIRD-PARTY-NOTICES describes separate dependencies. The package also includes ZT Nature fonts that the project license does not cover.",
           "Work in progress; upstream reports possible bugs and crashes. No native gameplay/save observation here.",
-          "Accepting one starts condemned2recomp_updater.exe and ends the old player. Perform deliberate updates and any successor launch as upstream maintenance outside the attached session; no successor is adopted automatically."
+          "Accepting one starts condemned2recomp_updater.exe and ends the old player. Perform deliberate updates and any successor launch as upstream maintenance outside the attached session; no successor is adopted automatically.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
         ],
         "references": [
           {
@@ -30948,6 +31609,10 @@
           {
             "title": "Preserve the creating copy and every effective data root",
             "instruction": "The inspected title defaults game data to Assets, user data to UserData and cache to Cache beside its configuration; explicit configured roots override defaults. Preserve the full creating folder, runtime configuration, originals, title update, profiles, saves, mods, logs, caches, backups, temporary files and all effective custom roots. An update can rewrite configuration; retain it with the creating runtime."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
           }
         ]
       },
@@ -30983,7 +31648,10 @@
           }
         ]
       },
-      "original_game_title": "Condemned 2: Bloodshot"
+      "original_game_title": "Condemned 2: Bloodshot",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "conker-live-recompiled-giacomozama",
@@ -32693,6 +33361,10 @@
           {
             "title": "Manage this copy yourself",
             "instruction": "Removing registration preserves external files; no external backup/restore, deletion, save conversion or managed maintenance is offered."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select crackdown.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
           }
         ],
         "warnings": [
@@ -32701,12 +33373,17 @@
           "Keep a separate complete recovery copy outside upstream transaction/workspace directories.",
           "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises.",
           "The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance.",
-          "The package includes an unlicensed TRG launcher (revision b384a28c712c9320eea8f9d50639dec49981b6c1) that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+          "The package includes an unlicensed TRG launcher (revision b384a28c712c9320eea8f9d50639dec49981b6c1) that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
         ],
         "references": [
           {
             "title": "Back up the actual user-data root before first prepared startup",
             "instruction": "The selected source uses user_data/ beside the program, or explicit --user_data_root; if the default is not writable it refuses rather than claiming another profile. Preserve settings.toml, all4D5307DC profile/campaign/header data, save-versions/base and tu6 snapshots, achievements, caches, separate originals/game/, logs and every actual --cache_root/--update_data_root/custom location. No legacy Documents migration is inferred from another title. Keep a separate complete recovery copy outside upstream transaction/workspace directories."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
           }
         ]
       },
@@ -33837,10 +34514,6 @@
       "summary": "Set up the upstream Windows, Linux or PortMaster player with a copy of your original game data.",
       "issue_number": 5569,
       "listed_at": "2026-11-15",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "packages",
       "release_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/releases",
       "setup_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
@@ -33872,10 +34545,29 @@
           {
             "title": "Keep saves and settings",
             "instruction": "Close the game and keep the working data folder, especially SAVEGAME and CRUSADER.CFG, before replacing the upstream player. Back up any separately used mod save folder. On PortMaster also retain the port's conf folder. Keep your original media separate."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
           }
         ],
         "warnings": [
-          "The publisher owns the packages and setup. PortMaster is a separate Linux handheld route."
+          "The publisher owns the packages and setup. PortMaster is a separate Linux handheld route.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
+        ],
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream sebsebseb1982/crusader-no-remorse-decomp, release v1.88.3, checked 2026-11-27. Windows: release file crusader-no-remorse-1.88.3-windows-x64.zip contains crusader-no-remorse.exe. Linux: release file crusader-no-remorse-1.88.3-linux-x64.tar.gz contains crusader-no-remorse. Your own copy may differ; Portcove does not compare it with these files."
+          }
         ]
       },
       "original_game": {
@@ -33896,7 +34588,11 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "cryo-s-dune-1992-cryogenic",
@@ -34847,9 +35543,6 @@
       "project_url": "https://github.com/kilnan/DarkRiftRecomp",
       "issue_number": 2190,
       "listed_at": "2026-10-23",
-      "platforms": [
-        "macos-aarch64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/kilnan/DarkRiftRecomp",
       "artwork": {
@@ -34868,7 +35561,45 @@
         ],
         "source_editions": []
       },
-      "original_game_title": "Dark Rift"
+      "original_game_title": "Dark Rift",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select DarkRiftRecompiled in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/kilnan/DarkRiftRecomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream kilnan/DarkRiftRecomp, release v0.1.1, checked 2026-11-27. macOS (Apple silicon): release file DarkRiftRecompiled-macOS-arm64.zip contains DarkRiftRecompiled. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "macos-aarch64"
+      ]
     },
     {
       "id": "dark-souls-remastered-switch-edition-lordran-native",
@@ -35353,7 +36084,45 @@
         ]
       },
       "original_game_title": "Lost in Shadow",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/darkuni/lost-in-shadow-recomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream darkuni/lost-in-shadow-recomp, release v0.1, checked 2026-11-27. Windows: release file LostInShadow-v0.1-win64.zip contains lostinshadow.exe. Linux: release file LostInShadow-v0.1-linux-x64.tar.gz contains lostinshadow. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -35721,7 +36490,45 @@
         ]
       },
       "original_game_title": "Resident Evil: The Darkside Chronicles",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/darkuni/resident-evil-darkside-chronicles-recomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream darkuni/resident-evil-darkside-chronicles-recomp, release 1.0, checked 2026-11-27. Windows: release file DarksideChronicles-1.0-win64.zip contains darksidechronicles.exe. Linux: release file DarksideChronicles-1.0-linux-x64.tar.gz contains darksidechronicles. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -35845,7 +36652,45 @@
         ]
       },
       "original_game_title": "World of Dragon Warrior: Torneko — The Last Hope",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/darkuni/Torneko-recomp",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream darkuni/Torneko-recomp, release v0.1, checked 2026-11-26. Windows: release file Torneko-v0.1-win64.zip contains torneko.exe. Linux: release file torneko-v0.1-linux-x86_64.tar.gz contains torneko. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -35911,7 +36756,44 @@
         "source_editions": []
       },
       "original_game_title": "Dave Mirra Freestyle BMX",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select OpenFreestyleBMX.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/DenzoNL/open-freestyle-bmx",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream DenzoNL/open-freestyle-bmx, release v0.1.0, checked 2026-11-26. Windows: release file OpenFreestyleBMX-0.1.0-windows-x64.zip contains OpenFreestyleBMX.exe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -37136,7 +38018,44 @@
         ]
       },
       "original_game_title": "Deathrow",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select Exonerated.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/AsukaNeo/Exonerated",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream AsukaNeo/Exonerated, release v1.0.0, checked 2026-11-27. Windows: release file Exonerated-1.0.0-windows-x64.zip contains Exonerated.exe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -40932,15 +41851,24 @@
           {
             "title": "Find the Mac source build",
             "instruction": "The upstream source includes a macOS build target. The v6.3 release supplies no Mac binary. Intel and Apple Silicon builds and runtime behavior still need verification."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select doomretro.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
           }
         ],
         "warnings": [
-          "The upstream package or your external build owns runtime updates. Keep your game data separate and preserve the active profile before replacing the player."
+          "The upstream package or your external build owns runtime updates. Keep your game data separate and preserve the active profile before replacing the player.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
         ],
         "references": [
           {
             "title": "Keep your actual configuration and saves",
             "instruction": "The Windows ZIP stores settings and saves beside the executable. An installed Linux build writes to ~/.config/doomretro, with saves grouped by IWAD under savegames. If your Linux home lacks ~/.config, create it before the first run so the player can make its profile. A portable build can write beside the executable."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
           }
         ]
       },
@@ -41033,9 +41961,9 @@
       "listed_at": "2026-11-15",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
-        "macos-aarch64"
+        "macos-aarch64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/dsda-org/dsda-doom#readme",
@@ -41057,16 +41985,25 @@
           {
             "title": "Start DSDA-Doom on a Mac",
             "instruction": "The publisher’s v0.30.1 universal ZIP has a Terminal executable for Intel and Apple Silicon. Both slices require macOS 26 or later. Keep dsda-doom and dsda-doom.wad together and run ./dsda-doom with your IWAD. Homebrew also packages DSDA-Doom for Apple Silicon and Linux, including Linux ARM64."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
           }
         ],
         "warnings": [
-          "The package manager or your external installation owns updates. The player owns its save and settings files."
+          "The package manager or your external installation owns updates. The player owns its save and settings files.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
         ],
         "help_url": "https://formulae.brew.sh/formula/dsda-doom",
         "references": [
           {
             "title": "Keep the profile and matching runtime",
             "instruction": "On Linux preserve $XDG_DATA_HOME/dsda-doom, normally ~/.local/share/dsda-doom. It holds dsda-doom.cfg and per-IWAD saves and statistics in dsda_doom_data. Keep the engine version, IWAD and any add-ons used by a save or demo when changing packages."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
           }
         ]
       },
@@ -41364,7 +42301,44 @@
         "source_editions": []
       },
       "original_game_title": "Doom",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select MiniDoom.exe in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/MiniLangProject/MiniDoom",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream MiniLangProject/MiniDoom, release v2.0.6, checked 2026-11-27. Windows: release file MiniDoom-v2.0.6-windows-x64.zip contains MiniDoom.exe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -41404,9 +42378,9 @@
       "listed_at": "2026-11-15",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
-        "macos-aarch64"
+        "macos-aarch64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/MrAlaux/Nugget-Doom#readme",
@@ -41428,17 +42402,26 @@
           {
             "title": "Start Nugget Doom on a Mac",
             "instruction": "Extract the universal ZIP and keep the player, setup program, engine PK3 and soundfonts together. Run ./nugget-doom with your IWAD in Terminal. Both Intel and Apple Silicon slices of 6.1.0 require macOS 26 or later."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
           }
         ],
         "warnings": [
           "The publisher player can register a Discord link handler on startup. Installation, updates and user data stay with the upstream package or your own copy.",
-          "The packaged notices omit credits for some bundled engine assets. See the publisher’s Legalese section for those credits."
+          "The packaged notices omit credits for some bundled engine assets. See the publisher’s Legalese section for those credits.",
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide."
         ],
         "help_url": "https://github.com/MrAlaux/Nugget-Doom/blob/nugget-doom-6.1.0/README.md#legalese",
         "references": [
           {
             "title": "Preserve the profile with the matching IWAD",
             "instruction": "On Linux keep $XDG_DATA_HOME/nugget-doom, normally ~/.local/share/nugget-doom. It holds nugget-doom.cfg and per-IWAD savegames. Preserve your active profile, IWAD and add-ons before changing engine or package versions."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
           }
         ]
       },
@@ -44109,7 +45092,47 @@
         "source_editions": []
       },
       "original_game_title": "Dungeon Rampage",
-      "platforms": [],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own copy",
+            "instruction": "Get and prepare the game program yourself, following the upstream project's own instructions. Portcove does not download, build or repair it."
+          },
+          {
+            "title": "Add the original game files upstream needs",
+            "instruction": "Upstream decides which original game files are needed and where they go. Portcove does not know them for this game and does not check them."
+          },
+          {
+            "title": "Select the game program",
+            "instruction": "Select the game program in your prepared copy. Use its containing folder as the working folder. Leave arguments empty unless upstream documents some."
+          },
+          {
+            "title": "Review the registration, then choose Play",
+            "instruction": "Portcove records your selection after you review it. Play is a separate action. Portcove supervises only the program you selected."
+          }
+        ],
+        "warnings": [
+          "Portcove added this game from release data without checking this game by hand. Upstream's instructions take precedence over this guide.",
+          "You and upstream own updates, saves and settings. Portcove does not back up, update, migrate or delete this installation you maintain."
+        ],
+        "help_url": "https://github.com/Tutez64/Dungeon-Rampage-Haxe",
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "How this route was added",
+            "instruction": "Portcove added this registration from observed release facts, without a title-specific review. Upstream Tutez64/Dungeon-Rampage-Haxe, release V18, checked 2026-11-26. Windows: release file Dungeon.Rampage.Haxe.V18.Windows.zip contains Dungeon Rampage Haxe.exe. Linux: release file Dungeon.Rampage.Haxe.V18.Linux.tar.gz contains Dungeon Rampage Haxe. macOS (Intel): release file Dungeon.Rampage.Haxe.V18.macOS.zip contains Dungeon Rampage Haxe. macOS (Apple silicon): release file Dungeon.Rampage.Haxe.V18.macOS.zip contains Dungeon Rampage Haxe. Your own copy may differ; Portcove does not compare it with these files."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "unknown"
     },
     {
