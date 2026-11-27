@@ -31,6 +31,7 @@ import { Input } from "./ui/input";
 
 type Operation = "create" | "inspect" | "resumeCreation" | "resumeRestore";
 type RecoveryFailureAction = "operation" | "verify" | "planCreate" | "planRestore";
+type RecoveryFailure = { error: unknown; action: RecoveryFailureAction };
 
 type RecoveryStep = {
   operation: "resumeCreation" | "resumeRestore";
@@ -237,13 +238,9 @@ function RecoveryBundleDialog({
   const [restored, setRestored] = useState<string>();
   const [transferred, setTransferred] = useState(false);
   const [pending, setPending] = useState("");
-  const [failure, setFailure] = useState<{
-    error: unknown;
-    action: RecoveryFailureAction;
-  }>();
+  const [failure, setFailure] = useState<RecoveryFailure>();
   const [recovery, setRecovery] = useState<RecoveryStep>();
   const error = failure?.error;
-  const verificationFailed = failure?.action === "verify";
   const destinationOccupied =
     failure?.action === "planRestore" &&
     errorDetail(error, "import_destination_state") === "occupied";
@@ -261,17 +258,6 @@ function RecoveryBundleDialog({
     heading.focus({ preventScroll: true });
     heading.scrollIntoView({ block: "start", inline: "nearest" });
   }, [reviewedPlan, visible]);
-  const verificationFeedback = verificationFailed ? failurePresentation(error) : undefined;
-  const needsFolderGuidance =
-    verificationFailed &&
-    (!verificationFeedback || verificationFeedback.presentation_key === "verification_failed");
-  const planningCreation = failure?.action === "planCreate";
-  const interruptedCreationReview = planningCreation && recovery?.operation === "resumeCreation";
-  const publishedCreationReview = planningCreation && Boolean(createReceipt?.bundle_id);
-  const planningRestore = failure?.action === "planRestore";
-  const interruptedRestoreReview = planningRestore && recovery?.operation === "resumeRestore";
-  const publishedRestoreReview = planningRestore && Boolean(restoreReceipt?.transfer_id);
-
   const run = async (
     status: string,
     work: () => Promise<void>,
@@ -517,19 +503,7 @@ function RecoveryBundleDialog({
           {!destinationOccupied && (
             <ActionReviewFailure
               error={error}
-              summary={
-                needsFolderGuidance
-                  ? "Portcove couldn’t verify this bundle. Check the folder and verify again, or choose another bundle."
-                  : publishedCreationReview
-                    ? "A previous copy was published to this folder. Check the bundle to verify its contents."
-                    : interruptedCreationReview
-                      ? "An interrupted copy is waiting for this bundle folder."
-                      : publishedRestoreReview
-                        ? "This bundle was restored to this folder. Check the recorded restore result."
-                        : interruptedRestoreReview
-                          ? "An interrupted restore is waiting in this folder."
-                          : undefined
-              }
+              summary={recoveryFailureSummary(failure, recovery, createReceipt, restoreReceipt)}
               showMutationSummary={failure?.action === "operation"}
             />
           )}
@@ -599,54 +573,12 @@ function RecoveryBundleDialog({
                 : "Check reviewed restore again"}
             </Button>
           )}
-          {errorDetail(error, "recovery_action") === "discard_game_update_acquisition" && (
-            <section className="grid gap-2" aria-label="Retained update download">
-              <p>
-                Open Versions for the game below. If a download is still running, let it finish or
-                cancel it. If Versions offers preparation, you can review that step. You can also
-                review deleting the retained download. Then review bundle creation again.
-              </p>
-              <PathValue label="Port" value={errorDetail(error, "port_id") ?? ""} />
-              <PathValue
-                label="Update download ID"
-                value={errorDetail(error, "acquisition_id") ?? ""}
-              />
-            </section>
-          )}
-          {errorDetail(error, "recovery_action") === "review_managed_installation_location" && (
-            <section className="grid gap-2" aria-label="Managed installation outside the library">
-              <p>
-                This installation blocks the bundle. Open Manage for the game below, choose Review
-                library default, then choose Review moving existing versions. After the versions
-                move to the library default, review bundle creation again.
-              </p>
-              <PathValue label="Port" value={errorDetail(error, "port_id") ?? ""} />
-              <PathValue label="Installation ID" value={errorDetail(error, "install_id") ?? ""} />
-            </section>
-          )}
-          {errorDetail(error, "recovery_destination") && (
-            <PathValue
-              label="Recorded bundle folder"
-              value={errorDetail(error, "recovery_destination") ?? ""}
-            />
-          )}
-          {restoreReceipt?.transfer_id && !restored && (
-            <PathValue
-              label="Recorded restore destination"
-              value={restoreReceipt.destination_root}
-            />
-          )}
-          {recovery && (
-            <>
-              <p>{resumeNextSteps[recovery.operation]}</p>
-              <PathValue
-                label={
-                  recovery.operation === "resumeCreation" ? "Staging folder" : "Restore destination"
-                }
-                value={recovery.path}
-              />
-            </>
-          )}
+          <RecoveryCorrectionDetails
+            error={error}
+            recovery={recovery}
+            restoreReceipt={restoreReceipt}
+            restored={restored}
+          />
         </div>
         <DialogFooter className="[@media(height>24rem)]:mt-2 [@media(height>24rem)]:pt-4">
           <Button
@@ -820,6 +752,96 @@ function RecoveryBundleDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function recoveryFailureSummary(
+  failure: RecoveryFailure | undefined,
+  recovery: RecoveryStep | undefined,
+  creation: CreationReadback | undefined,
+  restore: RestoreReadback | undefined,
+) {
+  switch (failure?.action) {
+    case "verify": {
+      const feedback = failurePresentation(failure.error);
+      if (!feedback || feedback.presentation_key === "verification_failed")
+        return "Portcove couldn’t verify this bundle. Check the folder and verify again, or choose another bundle.";
+      break;
+    }
+    case "planCreate":
+      if (creation?.bundle_id)
+        return "A previous copy was published to this folder. Check the bundle to verify its contents.";
+      if (recovery?.operation === "resumeCreation")
+        return "An interrupted copy is waiting for this bundle folder.";
+      break;
+    case "planRestore":
+      if (restore?.transfer_id)
+        return "This bundle was restored to this folder. Check the recorded restore result.";
+      if (recovery?.operation === "resumeRestore")
+        return "An interrupted restore is waiting in this folder.";
+      break;
+  }
+  return undefined;
+}
+
+function RecoveryCorrectionDetails({
+  error,
+  recovery,
+  restoreReceipt,
+  restored,
+}: {
+  error: unknown;
+  recovery: RecoveryStep | undefined;
+  restoreReceipt: RestoreReadback | undefined;
+  restored: string | undefined;
+}) {
+  const action = errorDetail(error, "recovery_action");
+  const recordedBundleFolder = errorDetail(error, "recovery_destination");
+  return (
+    <>
+      {action === "discard_game_update_acquisition" && (
+        <section className="grid gap-2" aria-label="Retained update download">
+          <p>
+            Open Versions for the game below. If a download is still running, let it finish or
+            cancel it. If Versions offers preparation, you can review that step. You can also review
+            deleting the retained download. Then review bundle creation again.
+          </p>
+          <PathValue label="Port" value={errorDetail(error, "port_id") ?? ""} />
+          <PathValue
+            label="Update download ID"
+            value={errorDetail(error, "acquisition_id") ?? ""}
+          />
+        </section>
+      )}
+      {action === "review_managed_installation_location" && (
+        <section className="grid gap-2" aria-label="Managed installation outside the library">
+          <p>
+            This installation blocks the bundle. Open Manage for the game below, choose Review
+            library default, then choose Review moving existing versions. After the versions move to
+            the library default, review bundle creation again.
+          </p>
+          <PathValue label="Port" value={errorDetail(error, "port_id") ?? ""} />
+          <PathValue label="Installation ID" value={errorDetail(error, "install_id") ?? ""} />
+        </section>
+      )}
+      {recordedBundleFolder && (
+        <PathValue label="Recorded bundle folder" value={recordedBundleFolder} />
+      )}
+      {restoreReceipt?.transfer_id && !restored && (
+        <PathValue label="Recorded restore destination" value={restoreReceipt.destination_root} />
+      )}
+      {recovery && (
+        <>
+          <p>{resumeNextSteps[recovery.operation]}</p>
+          <PathValue
+            label={
+              recovery.operation === "resumeCreation" ? "Staging folder" : "Restore destination"
+            }
+            value={recovery.path}
+          />
+        </>
+      )}
+    </>
   );
 }
 
