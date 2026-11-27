@@ -50,7 +50,16 @@
       "format_version": 1,
       "id": "spyro-the-dragon",
       "evidence_urls": ["https://openpete.com/"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "spyro-the-dragon-playstation-north-america",
+          "title": "Spyro the Dragon (PlayStation, North America)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/tyscorp/openpete/blob/fc8af26ebab4c2d0b73b24feeaf50ac43ef92ac8/docs/src/user/games/spyro-1.md#L1-L21"
+          ]
+        }
+      ]
     }
   },
   "integration": {
