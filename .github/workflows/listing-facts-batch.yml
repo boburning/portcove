@@ -279,9 +279,13 @@ jobs:
         env:
           AUTHOR: ${{ needs.gate.outputs.pr_author }}
           APP_SLUG: ${{ steps.app.outputs['app-slug'] }}
+          EXPECTED_APP_SLUG: ${{ vars.PORTCOVE_FACTS_BATCH_APP_SLUG }}
         run: |
           set -euo pipefail
-          test -n "$APP_SLUG"
+          [[ "$EXPECTED_APP_SLUG" =~ ^[a-z0-9][a-z0-9-]*$ && "$APP_SLUG" == "$EXPECTED_APP_SLUG" ]] || {
+            echo '::error::The minted package-facts App does not match PORTCOVE_FACTS_BATCH_APP_SLUG.'
+            exit 1
+          }
           if [ "${AUTHOR,,}" = "${APP_SLUG,,}[bot]" ]; then
             echo "foreign=" >> "$GITHUB_OUTPUT"
           else
@@ -1123,9 +1127,15 @@ jobs:
         timeout-minutes: 2
         env:
           APP_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs['app-slug'] }}
+          EXPECTED_APP_SLUG: ${{ vars.PORTCOVE_FACTS_BATCH_APP_SLUG }}
           COMMIT: ${{ steps.batch.outputs.commit }}
         run: |
           set -euo pipefail
+          [[ "$EXPECTED_APP_SLUG" =~ ^[a-z0-9][a-z0-9-]*$ && "$APP_SLUG" == "$EXPECTED_APP_SLUG" ]] || {
+            echo '::error::The minted package-facts App does not match PORTCOVE_FACTS_BATCH_APP_SLUG.'
+            exit 1
+          }
           [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]]
           branch="automation/listing-facts-batch-${GITHUB_RUN_ID}"
           basic=$(printf 'x-access-token:%s' "$APP_TOKEN" | base64 -w0)
