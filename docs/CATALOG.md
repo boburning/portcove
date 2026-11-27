@@ -2295,8 +2295,17 @@ The cache contains the current round and the exact receipts referenced by its
 progress. Earlier working copies stay out of the cache. The cache is at most
 48 MiB before compression, and losing it allows the queue to resume from the
 catalog. A separate resume file keeps provider retry deadlines after a failed
-preparation or proposal upload. Scheduled proposals still go through the catalog
-acceptance path.
+preparation or proposal upload.
+
+The protected publisher reads the small game-media additions file from the
+exact scheduled main run. It verifies GitHub's artifact digest and checks the
+producer's canonical listing against the current declaration. A still-applicable
+reviewed game and edition association, existing accepted original-media mapping,
+or project-specific cover identity must confirm the provider game. The publisher
+can fill a missing role and share an exact original-edition result. It preserves
+maintained media and respects explicit clears and exclusions. The Core validates
+the complete compact listing before signing. An unavailable or refused proposal
+leaves the eligible signed defaults and independent catalog changes in place.
 
 A logical workset may exceed 400 IDs. The catalog generator's `--prepare-artwork`
 runs a larger workset as consecutive operations of at most 400 IDs over the same

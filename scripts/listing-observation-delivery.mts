@@ -22,7 +22,13 @@ import {
   coverDeclarationScope,
   readArtworkCheckpoint,
 } from "./listing-artwork-checkpoint.mts";
-import { applicableCoverHealth, readHostedArtworkHealth } from "./listing-artwork-observation.mts";
+import {
+  applicableCoverHealth,
+  readHostedArtworkHealth,
+  readHostedScheduledGameMedia,
+} from "./listing-artwork-observation.mts";
+import { scheduledGameMediaDefaults } from "./listing-scheduled-game-media.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
 import {
   indexSharedCoverRows,
   projectExactSharedCovers,
@@ -396,6 +402,7 @@ export function projectListingDelivery(
     sharedCoverDefaults?: ReturnType<typeof projectExactSharedCovers>;
     modPortalDefaults?: ReturnType<typeof listingModPortalDefaults>;
     firstPartyModDefaults?: ReturnType<typeof firstPartyListingModDefaults>;
+    gameMediaDefaults?: ReturnType<typeof scheduledGameMediaDefaults>;
   } = {},
 ) {
   const {
@@ -409,6 +416,7 @@ export function projectListingDelivery(
     sharedCoverDefaults,
     modPortalDefaults,
     firstPartyModDefaults,
+    gameMediaDefaults,
   } = options;
   const raw = directory(canonical);
   const previousDocument = previous
@@ -523,6 +531,23 @@ export function projectListingDelivery(
           observationHash(omitUnknownAssetDigests(old?.upstream_observation ?? null))
       )
         updated++;
+      if (format >= 16 && gameMediaDefaults) {
+        const additions = gameMediaDefaults(declaration);
+        if (additions.length) {
+          const media: unknown[] = Array.isArray(result.media)
+            ? [...(result.media as unknown[])]
+            : [];
+          for (const asset of additions) {
+            const expanded = [...media, asset];
+            if (
+              Buffer.byteLength(JSON.stringify({ ...result, media: expanded })) <=
+              compactListingRecordMaximum
+            )
+              media.push(asset);
+          }
+          if (media.length) result.media = media;
+        }
+      }
       const generated = format >= 16 ? (firstPartyModDefaults?.(listing, old) ?? []) : [];
       const portal = format >= 16 ? modPortalDefaults?.(listing, old) : undefined;
       if (portal && !generated.some(({ name }) => name === portal.name)) generated.push(portal);
@@ -1103,6 +1128,7 @@ export async function prepareObservationBundle(options: {
   coverApproval?: ReturnType<typeof protectedCoverApproval>;
   priorHistory?: string;
   readArtworkHealth?: typeof readHostedArtworkHealth;
+  readScheduledGameMedia?: typeof readHostedScheduledGameMedia;
   sharedCoverSource?: string;
   /** Select and verify the reader from the protected Preview pointer
    * (`Catalog publish`). */
@@ -1561,6 +1587,43 @@ export async function prepareObservationBundle(options: {
       }
     }
   }
+  let mediaDefaults: ReturnType<typeof scheduledGameMediaDefaults> | undefined;
+  let proposedMedia: ReturnType<typeof scheduledGameMediaDefaults> | undefined;
+  let mediaReceipt: string | undefined;
+  if (!renewal && (automatic || options.readScheduledGameMedia) && previousDocument) {
+    try {
+      const source = readCatalogSource(path.dirname(options.canonical));
+      if (observationHash(source.directory) !== observationHash(canonical))
+        throw new Error("Scheduled media declarations differ from canonical listings");
+      const excluded = new Set(
+        source.records.filter(usesScummvmEngine).map(({ listing }) => listing.id),
+      );
+      const prior = previousDocument.directory.listings;
+      mediaDefaults = scheduledGameMediaDefaults(
+        canonical.listings,
+        prior,
+        source.reviewedOriginalMedia,
+        excluded,
+      );
+      if (options.observe !== false) {
+        const receipt = await (options.readScheduledGameMedia ?? readHostedScheduledGameMedia)();
+        if (receipt) {
+          proposedMedia = scheduledGameMediaDefaults(
+            canonical.listings,
+            prior,
+            source.reviewedOriginalMedia,
+            excluded,
+            receipt,
+          );
+          mediaReceipt = receipt.artifact;
+        }
+      }
+    } catch (error) {
+      diagnostics.push(
+        `scheduled game media deferred: ${error instanceof Error ? error.message.slice(0, 300) : "read failed"}`,
+      );
+    }
+  }
   // Every compact revision exceeds the frozen legacy revision, the signer's
   // replay floor for the first compact publication.
   let withdrawals: string[] = [];
@@ -1568,6 +1631,7 @@ export async function prepareObservationBundle(options: {
     observations: readonly Record<string, unknown>[],
     portals?: ReturnType<typeof listingModPortalDefaults>,
     firstParty?: ReturnType<typeof firstPartyListingModDefaults>,
+    media = mediaDefaults,
   ) =>
     publishedAbove(
       projectListingDelivery(canonical, observations, previous, {
@@ -1580,6 +1644,7 @@ export async function prepareObservationBundle(options: {
         ...(sharedCoverDefaults ? { sharedCoverDefaults } : {}),
         ...(portals ? { modPortalDefaults: portals } : {}),
         ...(firstParty ? { firstPartyModDefaults: firstParty } : {}),
+        ...(media ? { gameMediaDefaults: media } : {}),
       }),
       legacyDocument.revision,
     );
@@ -1668,6 +1733,25 @@ export async function prepareObservationBundle(options: {
             `observer candidates failed Core validation and were excluded: ${excludedCandidates.join(", ").slice(0, 600)}`,
           );
           projected = project(isolated.admitted);
+        }
+      }
+      if (proposedMedia) {
+        const scratch = path.join(workspace, "scheduled-media-validation");
+        try {
+          const proposed = project(admitted, undefined, undefined, proposedMedia);
+          if (!proposed.bytes.equals(projected.bytes)) {
+            stage(proposed, scratch);
+            mediaDefaults = proposedMedia;
+            projected = proposed;
+          }
+        } catch (error) {
+          if (!(error instanceof CoreInspectionRefusal || error instanceof ListingPublicationStop))
+            throw error;
+          diagnostics.push(
+            `scheduled game media withheld after validation: ${error.message.slice(0, 300)}`,
+          );
+        } finally {
+          rmSync(scratch, { recursive: true, force: true });
         }
       }
     } catch (error) {
@@ -1786,6 +1870,14 @@ export async function prepareObservationBundle(options: {
     ...(options.coverApproval ? { cover_approvals: coverApprovals } : {}),
     ...(coverCheckpoint?.deferred ? { cover_scopes_deferred: coverCheckpoint.deferred } : {}),
     ...(sharedCoverDefaults ? { shared_cover_candidates: sharedCoverDefaults.proposals.size } : {}),
+    ...(mediaReceipt
+      ? {
+          scheduled_game_media: {
+            artifact: mediaReceipt,
+            applied: mediaDefaults === proposedMedia,
+          },
+        }
+      : {}),
     ...(releasedReader ? { released_reader: releasedReader } : {}),
     ...(officialReader && !stopped
       ? {

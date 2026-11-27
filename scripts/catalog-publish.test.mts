@@ -1828,6 +1828,161 @@ void test("signed projection keeps release observations through authored artwork
   }
 });
 
+void test("scheduled media projects the exact edition, retains signed defaults, and respects later exclusions", async () => {
+  const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { readScheduledGameMediaProposal, scheduledGameMediaDefaults, scheduledGameMediaProposal } =
+    await import("./listing-scheduled-game-media.mts");
+  const original_game = {
+    format_version: 1,
+    id: "sample-game",
+    evidence_urls: ["https://example.org/game"],
+    source_editions: [
+      {
+        id: "sample-pc",
+        title: "Sample game",
+        system: "pc",
+        evidence_urls: ["https://example.org/pc"],
+      },
+    ],
+  };
+  const donor = { ...fixtureListing, original_game };
+  const peer = { ...donor, id: "exact-peer", project_url: "https://github.com/team/exact-peer" };
+  const distinct = {
+    ...peer,
+    id: "different-edition",
+    original_game: {
+      ...original_game,
+      source_editions: original_game.source_editions.map((x) => ({ ...x, system: "dreamcast" })),
+    },
+  };
+  const hidden = { ...peer, id: "explicit-clear", media: [] };
+  const canonical = { format_version: 16, listings: [donor, peer, distinct, hidden] };
+  const subject = {
+    kind: "original" as const,
+    game_id: "sample-game",
+    source_edition_id: "sample-pc",
+  };
+  const asset = {
+    id: "igdb-logo-original-90",
+    role: "logo" as const,
+    subject,
+    edition_neutral: true,
+    caption: "Game logo",
+    url: "https://images.igdb.com/igdb/image/upload/t_logo_med_2x/sample.png",
+    sha256: "a".repeat(64),
+    width: 400,
+    height: 200,
+    attribution: "Game artwork via IGDB; copyright remains with its rights holders.",
+    source_url: "https://www.igdb.com/games/sample-game",
+    license: "LicenseRef-IGDB-Terms",
+    rights_url: "https://www.twitch.tv/p/en/legal/developer-agreement/",
+    igdb: {
+      game_id: 80,
+      record_id: 90,
+      kind: "logo" as const,
+      image_id: "sample",
+      game_slug: "sample-game",
+    },
+  };
+  const owner = {
+    original_game_id: "sample-game",
+    source_edition_id: "sample-pc",
+    system: "pc",
+    evidence_url: "https://example.org/pc",
+  };
+  const key = JSON.stringify(["sample-game", "sample-pc", "pc"]);
+  const reviewed = new Map([
+    [key, { ...owner, decision: "match" as const, game_id: 80, slug: "sample-game" }],
+  ]);
+  const preparation = {
+    catalog: {
+      ports: [
+        {
+          id: donor.id,
+          name: donor.name,
+          project_url: donor.project_url,
+          presentation: { media: [asset] },
+        },
+      ],
+    },
+    records: [
+      {
+        port_id: donor.id,
+        subject,
+        role: asset.role,
+        reason: "role-selected",
+        image_id: "sample",
+        provider_game_id: 80,
+      },
+    ],
+    gone_media_targets: [],
+  };
+  const emitted = scheduledGameMediaProposal(preparation);
+  assert.deepEqual(emitted.additions, [{ id: donor.id, asset }]);
+  const producerListings = canonical.listings;
+  const incoming = { proposal: readScheduledGameMediaProposal(emitted), producerListings };
+  const defaults = scheduledGameMediaDefaults(
+    canonical.listings,
+    [],
+    reviewed,
+    new Set(),
+    incoming,
+  );
+  const signed = projectListingDelivery(canonical, [], null, { gameMediaDefaults: defaults });
+  const projected = (
+    JSON.parse(signed.bytes.toString()) as { directory: { listings: Record<string, unknown>[] } }
+  ).directory.listings;
+  const first = projected.find((row) => row.id === donor.id);
+  assert.deepEqual(first?.media, defaults(donor));
+  assert.deepEqual(projected.find((row) => row.id === peer.id)?.media, defaults(donor));
+  assert.match(defaults(donor)[0]!.id, /^auto-igdb-[a-f0-9]{64}$/u);
+  assert.equal(defaults(donor)[0]!.edition_neutral, undefined);
+  assert.deepEqual(defaults(distinct), []);
+  assert.deepEqual(defaults(hidden), []);
+  const competing = {
+    ...incoming,
+    proposal: {
+      ...emitted,
+      additions: [{ id: donor.id, asset: { ...asset, sha256: "b".repeat(64) } }],
+    },
+  };
+  const replay = scheduledGameMediaDefaults(
+    canonical.listings,
+    projected,
+    reviewed,
+    new Set(),
+    competing,
+  );
+  assert.deepEqual(replay(peer), defaults(peer));
+  const unchanged = projectListingDelivery(canonical, [], signed.bytes, {
+    gameMediaDefaults: replay,
+  });
+  assert.equal(unchanged.changed, false);
+  const denied = scheduledGameMediaDefaults(
+    canonical.listings,
+    projected,
+    new Map([[key, { ...owner, decision: "exclude" as const }]]),
+    new Set(),
+    incoming,
+  );
+  assert.deepEqual(denied(peer), []);
+  assert.deepEqual(
+    scheduledGameMediaDefaults(canonical.listings, [], new Map(), new Set(), incoming)(peer),
+    [],
+  );
+  assert.throws(
+    () =>
+      readScheduledGameMediaProposal({
+        ...emitted,
+        additions: [
+          { id: donor.id, asset: { ...asset, url: "https://www.example.org/foreign.png" } },
+        ],
+      }),
+    /Invalid scheduled media proposal/u,
+  );
+});
+
 void test("signed projection recomputes shared covers without changing the release observation", async () => {
   const { fixtureListing, fixturePolicy } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
