@@ -1213,11 +1213,18 @@ mod tests {
         assert!(service.artwork_port(LOCAL).unwrap().original_game.is_none());
 
         // A canonical download saved before the association keeps its exact continuation.
+        let mut retained_listing = service.catalog().listing(CANONICAL).unwrap().clone();
+        retained_listing.mod_portals.clear();
+        retained_listing.official_setup_id = None;
+        retained_listing
+            .media
+            .retain(|asset| !asset.is_typed_igdb_scene());
+        crate::catalog::listings::strip_verified_sources(&mut retained_listing);
         let pending_id = Uuid::new_v4().to_string();
         let pending = serde_json::to_string(&json!({
             "id": pending_id,
             "port_id": CANONICAL,
-            "listing": service.catalog().listing(CANONICAL).unwrap(),
+            "listing": retained_listing,
             "path": working.join("preexisting.zip"),
             "state": "attention-required",
             "artifact": {
