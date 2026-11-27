@@ -12,7 +12,11 @@
         {
           "id": "nippon-1-0",
           "title": "Freeware DOS Version (English/French/German/Italian)",
-          "evidence_urls": ["https://www.scummvm.org/games/#games-parallaction:nippon"]
+          "evidence_urls": [
+            "https://www.scummvm.org/games/#games-parallaction:nippon",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/parallaction/detection.cpp#L55-L74"
+          ],
+          "system": "dos"
         }
       ]
     },

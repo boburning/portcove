@@ -12,7 +12,11 @@
         {
           "id": "sfinx-en-v1-1",
           "title": "English v1.1",
-          "evidence_urls": ["https://www.scummvm.org/games/#games-cge2:sfinx"]
+          "evidence_urls": [
+            "https://www.scummvm.org/games/#games-cge2:sfinx",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/cge2/detection.cpp#L87-L92"
+          ],
+          "system": "dos"
         }
       ]
     },

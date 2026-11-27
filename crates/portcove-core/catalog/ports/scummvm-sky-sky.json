@@ -12,7 +12,12 @@
         {
           "id": "bass-floppy-1-3",
           "title": "Floppy freeware release",
-          "evidence_urls": ["https://www.scummvm.org/games/#games-sky:sky"]
+          "evidence_urls": [
+            "https://www.scummvm.org/games/#games-sky:sky",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sky/detection.cpp#L49-L54",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sky/detection.cpp#L193-L213"
+          ],
+          "system": "dos"
         }
       ]
     },
