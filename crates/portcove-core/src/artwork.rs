@@ -632,14 +632,14 @@ impl PortcoveService {
             Library::external_runtime_with_port_bounded_from(&connection, port_id, &mut budget)?
         {
             let listing = retained.listing(port_id)?.clone();
-            let (listing, cover_resolved) = if record.user_selected.is_some() {
+            let (listing, canonical) = if record.user_selected.is_some() {
                 Self::personal_listing_projection(self.catalog(), &connection, listing)?
             } else {
-                (listing, false)
+                (listing, None)
             };
             return Ok(ArtworkListing {
                 listing: std::borrow::Cow::Owned(listing),
-                cover_resolved,
+                cover_resolved: canonical.is_some(),
             });
         }
         if let Some(pending) = self

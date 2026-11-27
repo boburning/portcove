@@ -942,6 +942,19 @@ mod tests {
             .catalog_with_registered_listings(service.catalog().clone(), &connection)
             .unwrap();
         let associated = projected.listing(LOCAL).unwrap();
+        let statuses = service.listing_statuses().unwrap();
+        let local_status = statuses
+            .iter()
+            .find(|status| status.port_id == LOCAL)
+            .unwrap();
+        let canonical_status = statuses
+            .iter()
+            .find(|status| status.port_id == CANONICAL)
+            .unwrap();
+        assert_eq!(local_status.canonical_port_id.as_deref(), Some(CANONICAL));
+        assert!(local_status.status.external_runtime.is_some());
+        assert!(canonical_status.canonical_port_id.is_none());
+        assert!(canonical_status.status.external_runtime.is_none());
         assert_eq!(associated.name, "Reviewed fixture");
         assert_eq!(
             associated.project_url,

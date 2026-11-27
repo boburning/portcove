@@ -1,6 +1,6 @@
 //! Descriptive directory and actual Library membership without operational definitions.
 use super::*;
-use crate::acquisition_restriction::EffectiveRestrictions;
+use crate::{PortListing, acquisition_restriction::EffectiveRestrictions};
 
 mod recommendations;
 
@@ -95,6 +95,17 @@ impl PortcoveService {
             .any(|session| session.port_id == port_id && session.outcome.is_none());
         let restrictions = EffectiveRestrictions::of(&self.catalog, port_id);
         let mut projected = Self::assess_listing_status(status, owned, launching, &restrictions);
+        if projected
+            .status
+            .external_runtime
+            .as_ref()
+            .is_some_and(|record| record.user_selected.is_some())
+        {
+            let connection = self.library.connection()?;
+            projected.canonical_port_id =
+                Self::unoccupied_personal_listing_match(&self.catalog, &connection, listing)?
+                    .map(|canonical| canonical.id.clone());
+        }
         projected.library_membership = self
             .library
             .library_memberships()?
@@ -131,6 +142,7 @@ impl PortcoveService {
         connection: &rusqlite::Connection,
     ) -> Result<Catalog> {
         let mut document = catalog.listing_document().clone();
+        let mut associated = std::collections::BTreeMap::new();
         // Reading retired registrations is a request-wide aggregate.
         let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
         for id in Library::external_runtime_port_ids_from(connection)? {
@@ -146,8 +158,11 @@ impl PortcoveService {
             // it does not restore a retired managed installation definition.
             let listing = retained.listing(&id)?.clone();
             if record.user_selected.is_some() {
-                let (projected, _) =
+                let (projected, canonical) =
                     Self::personal_listing_projection(&catalog, connection, listing)?;
+                if let Some(canonical) = canonical {
+                    associated.insert(id, canonical);
+                }
                 document.listings.push(projected);
             } else {
                 document.listings.push(listing);
@@ -162,18 +177,20 @@ impl PortcoveService {
                 document.listings.push(pending.listing);
             }
         }
-        catalog.with_projected_listing_document(document)
+        let mut projected = catalog.with_projected_listing_document(document)?;
+        projected.personal_canonical_ports = std::sync::Arc::new(associated);
+        Ok(projected)
     }
 
     pub(crate) fn personal_listing_projection(
         catalog: &Catalog,
         connection: &rusqlite::Connection,
         mut retained: PortListing,
-    ) -> Result<(PortListing, bool)> {
+    ) -> Result<(PortListing, Option<String>)> {
         let Some(canonical) =
             Self::unoccupied_personal_listing_match(catalog, connection, &retained)?
         else {
-            return Ok((retained, false));
+            return Ok((retained, None));
         };
         // The registration remains the owner of its local operation key.
         retained.name.clone_from(&canonical.name);
@@ -205,7 +222,7 @@ impl PortcoveService {
         retained
             .collection_covers
             .clone_from(&canonical.collection_covers);
-        Ok((retained, true))
+        Ok((retained, Some(canonical.id.clone())))
     }
 
     pub(crate) fn unoccupied_personal_listing_match<'a>(
@@ -304,6 +321,10 @@ impl PortcoveService {
                 let mut projected =
                     Self::assess_listing_status(status, has_owner, launching, &restrictions);
                 projected.library_membership = members.get(&projected.port_id).cloned();
+                projected.canonical_port_id = catalog
+                    .personal_canonical_ports
+                    .get(&projected.port_id)
+                    .cloned();
                 if let Some(report) = projected.capabilities.as_mut() {
                     let pending = pending.iter().find(|p| p.port_id == projected.port_id);
                     report.add_setup_context(
@@ -371,6 +392,7 @@ impl PortcoveService {
         ];
         crate::PortListingStatus {
             port_id: status.port_id.clone(),
+            canonical_port_id: None,
             capabilities: Some(crate::PortCapabilityReport::from_status(
                 &status,
                 &actions,

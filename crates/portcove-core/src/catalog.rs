@@ -100,6 +100,8 @@ pub struct Catalog {
     user_selected_listing: bool,
     /// Signed current-format rows that explicitly have no cover to display.
     cover_assignments: Arc<HashSet<String>>,
+    /// Local workspace aliases keyed by the retained registration's operation ID.
+    pub(crate) personal_canonical_ports: Arc<BTreeMap<String, String>>,
     retained_definitions: Arc<BTreeMap<String, RetainedDefinition>>,
 }
 
@@ -436,6 +438,7 @@ impl Catalog {
             listings: Arc::new(Indexed::new(listings)),
             user_selected_listing: false,
             cover_assignments: Arc::default(),
+            personal_canonical_ports: Arc::default(),
             document: Arc::new(Indexed::new(document)),
             retained_definitions: Arc::default(),
         };
