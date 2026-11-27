@@ -1016,13 +1016,17 @@ mod tests {
             serde_json::to_value(registered).unwrap()
         );
 
+        let request = [crate::LibraryMembershipRequest {
+            port_id: CANONICAL.into(),
+            origin: crate::LibraryMembershipOrigin::Manual,
+            sources: Vec::new(),
+        }];
+        let current = service.catalog().clone();
+        service.catalog = catalog(vec![canonical(CANONICAL, "NewOwner/Reused", REPO + 1)]);
         let saved = service
-            .add_games_to_library(&[crate::LibraryMembershipRequest {
-                port_id: CANONICAL.into(),
-                origin: crate::LibraryMembershipOrigin::Manual,
-                sources: Vec::new(),
-            }])
+            .add_games_to_library_from(&request, |_| Ok(current.clone()))
             .unwrap();
+        service.catalog = current;
         assert_eq!(
             saved[0].outcome,
             crate::LibraryMembershipOutcomeKind::AlreadyInLibrary
@@ -1041,6 +1045,15 @@ mod tests {
                 &HashSet::new(),
             )
             .unwrap();
+        let retained_membership = service.library_memberships().unwrap();
+        let saved = service
+            .add_games_to_library_from(&request, |_| Ok(service.catalog().clone()))
+            .unwrap();
+        assert_eq!(
+            saved[0].outcome,
+            crate::LibraryMembershipOutcomeKind::AlreadySaved
+        );
+        assert_eq!(service.library_memberships().unwrap(), retained_membership);
         assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
         assert!(
             service

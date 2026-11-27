@@ -389,6 +389,17 @@ impl PortcoveService {
         &self,
         requests: &[crate::LibraryMembershipRequest],
     ) -> Result<Vec<crate::LibraryMembershipOutcome>> {
+        self.add_games_to_library_from(requests, |connection| {
+            crate::catalog_store::load_catalog_from(connection, Library::now())
+                .map(|(catalog, _)| catalog)
+        })
+    }
+
+    pub(super) fn add_games_to_library_from(
+        &self,
+        requests: &[crate::LibraryMembershipRequest],
+        resolve_catalog: impl FnOnce(&rusqlite::Connection) -> Result<Catalog>,
+    ) -> Result<Vec<crate::LibraryMembershipOutcome>> {
         for request in requests {
             request.validate()?;
             self.catalog.listing(&request.port_id)?;
@@ -415,12 +426,30 @@ impl PortcoveService {
         }
         drop(connection);
         let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
+        let mut resolver = Some(resolve_catalog);
+        let mut current = None;
         self.library.add_library_memberships_with_check(
             requests,
             &present,
             |connection, port_id| {
+                if let Some(resolve) = resolver.take() {
+                    // No catalog resolution is needed for a library with no
+                    // possible personal GitHub registration.
+                    let has_personal: bool = connection.query_row(
+                        "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations
+                            WHERE port_id GLOB 'github-[0-9]*')",
+                        [],
+                        |row| row.get(0),
+                    )?;
+                    if has_personal {
+                        current = Some(resolve(connection)?);
+                    }
+                }
+                let Some(catalog) = &current else {
+                    return Ok(false);
+                };
                 Self::has_personal_registration_for_canonical(
-                    &self.catalog,
+                    catalog,
                     connection,
                     port_id,
                     &mut budget,
