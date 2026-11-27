@@ -1469,6 +1469,10 @@ fn mod_portal_choices_round_trip_through_export_and_interrupted_import() {
     older.schema_version = 16;
     let mut duplicate = metadata.clone();
     duplicate.mod_portal_preferences.push(expected.clone());
+    let mut duplicate_binding = metadata.clone();
+    duplicate_binding.mod_portal_preferences[0]
+        .hidden_communities
+        .push(expected.hidden_communities[0].clone());
     let mut invalid_scope = metadata.clone();
     invalid_scope.mod_portal_preferences[0].hidden_communities[0].community =
         Some("foreign/scope".into());
@@ -1479,7 +1483,7 @@ fn mod_portal_choices_round_trip_through_export_and_interrupted_import() {
     let mut exhausted_revision = metadata.clone();
     exhausted_revision.mod_portal_preferences[0]
         .preferences
-        .revision = (1u64 << 53) - 1;
+        .revision = (1u64 << 53) - 2;
     let mut imprecise_revision = metadata.clone();
     imprecise_revision.mod_portal_preferences[0]
         .preferences
@@ -1489,6 +1493,7 @@ fn mod_portal_choices_round_trip_through_export_and_interrupted_import() {
     for invalid in [
         older,
         duplicate,
+        duplicate_binding,
         invalid_scope,
         invalid_revision,
         exhausted_revision,
