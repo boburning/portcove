@@ -1106,6 +1106,7 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
       "launcher-excluded-title",
       "launcher-primary-conflict",
       "launcher-partial-mods",
+      "launcher-legacy-descriptive",
     ].map((name, index) => ({
       id: `github-${80_000 + index}`,
       project_url: `https://github.com/fixture/${name}`,
@@ -1189,25 +1190,35 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
                     format: 1,
                     repo: name === "launcher-foreign" ? "fixture/other" : `fixture/${name}`,
                     ...(name === "launcher-excluded-title" ? { name: "ScummVM example" } : {}),
-                    inputs: [
-                      {
-                        id: "game",
-                        label: "Original game disc image",
-                        ...(name === "launcher-optional" ? { optional: true } : {}),
-                        ...(name === "launcher-nongame" ? { role: "key" } : {}),
-                        formats: [{ type: "file" }],
-                        check: { iso9660: "SLUS_206.51" },
-                      },
-                      ...(name === "launcher-extra-game"
-                        ? [
+                    ...(name === "launcher-legacy-descriptive"
+                      ? {
+                          game: {
+                            kind: "iso",
+                            label: "Original game copy",
+                            check: { iso9660: "SCUS_944.26" },
+                          },
+                        }
+                      : {
+                          inputs: [
                             {
-                              id: "extra",
-                              label: "Other original game",
+                              id: "game",
+                              label: "Original game disc image",
+                              ...(name === "launcher-optional" ? { optional: true } : {}),
+                              ...(name === "launcher-nongame" ? { role: "key" } : {}),
                               formats: [{ type: "file" }],
+                              check: { iso9660: "SLUS_206.51" },
                             },
-                          ]
-                        : []),
-                    ],
+                            ...(name === "launcher-extra-game"
+                              ? [
+                                  {
+                                    id: "extra",
+                                    label: "Other original game",
+                                    formats: [{ type: "file" }],
+                                  },
+                                ]
+                              : []),
+                          ],
+                        }),
                     start: {
                       program: [
                         name === "launcher-unsafe"
@@ -1313,6 +1324,7 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
         "restricted",
         "held",
         "prepared",
+        "held",
       ],
     );
     assert.equal(report.automatic_scope_policy, "github-primary-game-scope/5");
@@ -4358,6 +4370,126 @@ void test("first-party mod refresh binds descriptive facts to the accepted publi
     reason: "repository-binding-unresolved",
   });
   assert.deepEqual(calls, [root]);
+
+  const legacy = {
+    format: 1,
+    repo: repository.slug,
+    start: { program: ["port.exe"], args: ["private-original"] },
+    game: { kind: "iso", label: "Original copy", check: { iso9660: "SCUS_944.26" } },
+  };
+  responses.set(root, { id: repository.id, full_name: repository.slug, private: false });
+  function setManifest(value: unknown) {
+    const body = Buffer.from(JSON.stringify(value));
+    const sha = createHash("sha1")
+      .update("blob " + body.length + "\0")
+      .update(body)
+      .digest("hex");
+    responses.set(treeEndpoint, {
+      sha: tree,
+      truncated: false,
+      tree: [{ ...file, sha }],
+    });
+    responses.set(contentEndpoint, {
+      type: "file",
+      path,
+      sha,
+      size: body.length,
+      encoding: "base64",
+      content: body.toString("base64"),
+    });
+  }
+  setManifest(legacy);
+  assert.deepEqual(await observeLauncherModPortals(repository, read), {
+    state: "absent",
+    repository_id: repository.id,
+    commit,
+    tree,
+  });
+  setManifest({ ...legacy, mods: { gamebanana: 456, loader: "nrm", data: "private-data" } });
+  const legacyObservation = await observeLauncherModPortals(repository, read);
+  assert(legacyObservation.state === "observed");
+  assert.deepEqual(legacyObservation.game_input_ids, ["SCUS-94426"]);
+  assert.deepEqual(
+    legacyObservation.mod_portals.map(({ url }) => url),
+    ["https://gamebanana.com/games/456"],
+  );
+  assert.doesNotMatch(JSON.stringify(legacyObservation), /private-(?:original|data)|"loader"/u);
+  const { verifyLauncherModGameScope } = await import("./launcher-mod-game-scope.mts");
+  assert.equal(
+    verifyLauncherModGameScope(legacyObservation, {
+      system: "playstation",
+      codes: new Set(["SCUS-94426"]),
+    }).state,
+    "observed",
+  );
+  assert.equal(
+    verifyLauncherModGameScope(legacyObservation, {
+      system: "playstation",
+      codes: new Set(["SCUS-94427"]),
+    }).state,
+    "held",
+  );
+  const { recordLauncherModAttempt } = await import("./upstream-launcher-mod-progress.mts");
+  const at = Date.parse("2026-11-27T00:00:00Z");
+  const bound = "a".repeat(64);
+  const gameScope = { system: "playstation", codes: new Set(["SCUS-94426"]) } as const;
+  const known = recordLauncherModAttempt(bound, undefined, legacyObservation, at, 60_000);
+  for (const mods of [{ gamebanana: "456" }, { gamebanana: "456", thunderstore: "valid-slug" }]) {
+    setManifest({ ...legacy, mods });
+    const malformed = await observeLauncherModPortals(repository, read);
+    assert.deepEqual(malformed, {
+      state: "unavailable",
+      reason: "legacy-mod-declaration-unresolved",
+      game_input_ids: ["SCUS-94426"],
+    });
+    const unresolved = verifyLauncherModGameScope(malformed, gameScope);
+    const retry = recordLauncherModAttempt(bound, known, unresolved, at + 60_000, 60_000);
+    assert.deepEqual(retry.last_complete, known.last_complete);
+    assert.equal(retry.last_complete?.observed_at, new Date(at).toISOString());
+    assert.equal(retry.next_due_at, new Date(at + 120_000).toISOString());
+  }
+  setManifest({
+    ...legacy,
+    game: { ...legacy.game, check: { iso9660: "SLUS_206.51" } },
+    mods: { gamebanana: "456" },
+  });
+  const conflict = verifyLauncherModGameScope(
+    await observeLauncherModPortals(repository, read),
+    gameScope,
+  );
+  assert.deepEqual(conflict, { state: "held", reason: "game-input-scope-conflict" });
+  assert.equal(
+    recordLauncherModAttempt(bound, known, conflict, at + 60_000, 60_000).last_complete,
+    undefined,
+  );
+
+  const withLegacyGame = (game: unknown) => ({
+    ...legacy,
+    game,
+    mods: { gamebanana: 456 },
+  });
+  const check = { ...legacy.game.check, ids: ["SCUS-94426"] };
+  setManifest(withLegacyGame({ ...legacy.game, check }));
+  const consistent = await observeLauncherModPortals(repository, read);
+  assert(consistent.state === "observed");
+  assert.deepEqual(consistent.game_input_ids, ["SCUS-94426"]);
+  setManifest(withLegacyGame({ ...legacy.game, check: { ...check, ids: ["SLUS-20651"] } }));
+  assert.equal((await observeLauncherModPortals(repository, read)).state, "held");
+
+  setManifest({
+    ...withLegacyGame(legacy.game),
+    inputs: [{ id: "game", label: "Game", formats: [{ type: "file" }], check }],
+  });
+  assert.equal((await observeLauncherModPortals(repository, read)).state, "held");
+
+  setManifest(withLegacyGame({ ...legacy.game, kind: "folder" }));
+  const folder = await observeLauncherModPortals(repository, read);
+  assert(folder.state === "observed");
+  assert.equal(folder.game_input_ids, undefined);
+  assert.deepEqual(
+    verifyLauncherModGameScope(folder, { system: "playstation", codes: new Set(["SCUS-94426"]) }),
+    { state: "unavailable", reason: "game-input-scope-unproven" },
+  );
 
   const outage = await observeLauncherModPortals(repository, async (endpoint) =>
     endpoint === root

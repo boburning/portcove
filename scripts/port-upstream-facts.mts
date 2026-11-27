@@ -85,7 +85,41 @@ function launcherModPortals(value: unknown): NonNullable<AuthoredListing["mod_po
   return portals;
 }
 
-function launcherScopeEvidence(value: unknown, repository: string) {
+type LauncherScopePurpose = "admission" | "launcher-mods";
+
+function legacyLauncherGameInput(game: unknown) {
+  if (
+    !isRecord(game) ||
+    game.update !== undefined ||
+    (game.kind !== undefined &&
+      !["iso", "folder", "iso_or_folder"].some((kind) => kind === game.kind))
+  )
+    return undefined;
+  const check = isRecord(game.check) ? game.check : {};
+  if (game.kind !== "folder" && typeof check.iso9660 === "string") {
+    const serial = /^(S[CL][A-Z]{2})_([0-9]{3})\.([0-9]{2})$/u.exec(check.iso9660);
+    if (serial) {
+      const id = serial[1] + "-" + serial[2] + serial[3];
+      if (
+        check.ids !== undefined &&
+        (!Array.isArray(check.ids) ||
+          check.ids.length === 0 ||
+          check.ids.length > 32 ||
+          !check.ids.every((value: unknown) => value === id))
+      )
+        return undefined;
+      return {
+        id: "game",
+        label: game.label,
+        formats: [{ type: "file" }],
+        check: { ids: [id] },
+      };
+    }
+  }
+  return { id: "game", label: game.label, formats: [{ type: "file" }], check };
+}
+
+function launcherScopeEvidence(value: unknown, repository: string, purpose: LauncherScopePurpose) {
   if (
     !isRecord(value) ||
     value.format !== 1 ||
@@ -95,12 +129,18 @@ function launcherScopeEvidence(value: unknown, repository: string) {
     !isRecord(value.start) ||
     !Array.isArray(value.start.program) ||
     value.start.program.length === 0 ||
-    value.start.program.length > 16 ||
-    !Array.isArray(value.inputs) ||
-    value.inputs.length !== 1
+    value.start.program.length > 16
   )
     throw new Error("Manifest does not identify this repository and one game launch route");
-  const input: unknown = value.inputs[0];
+  // Older launcher manifests can establish descriptive mod evidence only.
+  const legacy = purpose === "launcher-mods" && value.inputs === undefined;
+  if (purpose === "launcher-mods" && value.inputs !== undefined && value.game !== undefined)
+    throw new Error("Manifest declares both legacy and named game inputs");
+  const input: unknown = legacy
+    ? legacyLauncherGameInput(value.game)
+    : Array.isArray(value.inputs) && value.inputs.length === 1
+      ? value.inputs[0]
+      : undefined;
   if (
     !isRecord(input) ||
     input.id !== "game" ||
@@ -131,6 +171,15 @@ function launcherScopeEvidence(value: unknown, repository: string) {
   )
     throw new Error("Manifest does not declare bounded package-relative program candidates");
   const portals = launcherModPortals(value.mods);
+  const legacyModsUnresolved =
+    legacy &&
+    value.mods !== undefined &&
+    (!isRecord(value.mods) ||
+      portals.length === 0 ||
+      (value.mods.thunderstore !== undefined &&
+        !portals.some(({ id }) => id === "upstream-thunderstore")) ||
+      (value.mods.gamebanana !== undefined &&
+        !portals.some(({ id }) => id === "upstream-gamebanana")));
   const ids = isRecord(input.check) ? input.check.ids : undefined;
   const gameInputIds =
     Array.isArray(ids) &&
@@ -149,6 +198,8 @@ function launcherScopeEvidence(value: unknown, repository: string) {
     names_scummvm: namesScummVm([repository, value.name, ...programs]),
     ...(portals.length ? { mod_portals: portals } : {}),
     ...(gameInputIds ? { game_input_ids: gameInputIds } : {}),
+    ...(legacy && value.mods === undefined ? { legacy_mod_declaration_absent: true as const } : {}),
+    ...(legacyModsUnresolved ? { legacy_mod_declaration_unresolved: true as const } : {}),
   };
 }
 
@@ -245,7 +296,7 @@ async function observeDiscoveryScope(
   project: unknown,
   repositoryId: number,
   read: ScopeRead,
-  purpose: "admission" | "launcher-mods" = "admission",
+  purpose: LauncherScopePurpose = "admission",
 ) {
   const outcome = (
     state: "held" | "unavailable" | "restricted",
@@ -420,7 +471,7 @@ async function observeDiscoveryScope(
     const value = parseCatalogSource(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     manifest =
       manifestPath === "recomplauncher.json"
-        ? launcherScopeEvidence(value, project.full_name)
+        ? launcherScopeEvidence(value, project.full_name, purpose)
         : parseRecompManifest(value);
   } catch {
     return outcome("held", "unsupported-project-manifest");
@@ -443,7 +494,7 @@ async function observeDiscoveryScope(
 export const launcherModObservationPolicy = "github-launcher-mod-links/1";
 
 export type LauncherModObservation =
-  | { state: "unavailable"; reason: string; retry_after?: string }
+  | { state: "unavailable"; reason: string; retry_after?: string; game_input_ids?: string[] }
   | { state: "held"; reason: string }
   | { state: "absent"; repository_id: number; commit: string; tree: string }
   | {
@@ -487,7 +538,20 @@ export async function observeLauncherModPortals(
     "names_scummvm" in scope.manifest &&
     typeof scope.manifest_blob === "string" &&
     typeof scope.manifest_sha256 === "string"
-  )
+  ) {
+    if (scope.manifest.legacy_mod_declaration_absent)
+      return {
+        state: "absent",
+        repository_id: repository.id,
+        commit: scope.commit,
+        tree: scope.tree,
+      };
+    if (scope.manifest.legacy_mod_declaration_unresolved)
+      return {
+        state: "unavailable",
+        reason: "legacy-mod-declaration-unresolved",
+        ...(scope.manifest.game_input_ids ? { game_input_ids: scope.manifest.game_input_ids } : {}),
+      };
     return {
       state: "observed",
       repository_id: repository.id,
@@ -498,6 +562,7 @@ export async function observeLauncherModPortals(
       ...(scope.manifest.game_input_ids ? { game_input_ids: scope.manifest.game_input_ids } : {}),
       mod_portals: scope.manifest.mod_portals ?? [],
     };
+  }
   if ("reason" in scope && typeof scope.reason === "string") {
     if (scope.state === "unavailable")
       return {

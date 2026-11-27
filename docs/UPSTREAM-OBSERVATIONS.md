@@ -1789,6 +1789,17 @@ Maintained exclusions suppress generated links. These links can open a community
 website or allow supported browsing through the existing Core resolver. They
 cannot grant installation, package, update, or profile authority.
 
+For descriptive observation, a version-1 launcher document may use the older
+single `game` field. For a disc input an exact PlayStation ISO9660 serial such
+as `SCUS_944.26` is normalized to the catalog product-code spelling before
+matching. If product IDs are also declared they must agree. A document that
+declares both legacy and named game inputs is held. Omission of the legacy
+mod section records absence. If a present section supplies no supported
+providers or has a malformed field for a supported provider, the attempt
+stays unresolved and preserves the accepted result and its observation age.
+These observations supply only community links and evidence for matching them
+to the game.
+
 Automatic admission can prepare a listing with unresolved game identity. The
 first-party website can be added after the current catalog and manifest establish
 the same game input. A website keeps its repository-bound source ID across later
