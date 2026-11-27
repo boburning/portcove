@@ -2297,6 +2297,15 @@ progress. Earlier working copies stay out of the cache. The cache is at most
 catalog. A separate resume file keeps provider retry deadlines after a failed
 preparation or proposal upload.
 
+A missing cover can use the same rotation when a maintained mapping names an
+exact provider game and single original edition. The worker looks up a shared
+edition once and reserves a quarter of the image allowance for covers. The
+publisher checks the image again for first acceptance, retains the signed
+default during provider outages, and removes confirmed withdrawals in the
+rotating health window. Explicit cover exclusions, regional art, collections,
+and maintained covers take precedence. The other media roles have a separate
+share of the allowance.
+
 The protected publisher reads the small game-media additions file from the
 exact scheduled main run. It verifies GitHub's artifact digest and checks the
 producer's canonical listing against the current declaration. A still-applicable

@@ -47,6 +47,8 @@ import {
   retainArtworkProviderBackoff,
 } from "./artwork-preparation-progress.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
+import { projectScheduledCovers } from "./listing-scheduled-cover.mts";
+import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.d.ts";
 import {
   indexSharedCoverRows,
   projectExactSharedCovers,
@@ -421,6 +423,7 @@ export function projectListingDelivery(
     modPortalDefaults?: ReturnType<typeof listingModPortalDefaults>;
     firstPartyModDefaults?: ReturnType<typeof firstPartyListingModDefaults>;
     gameMediaDefaults?: ReturnType<typeof scheduledGameMediaDefaults>;
+    scheduledCovers?: ReadonlyMap<string, IgdbArtwork>;
   } = {},
 ) {
   const {
@@ -435,6 +438,7 @@ export function projectListingDelivery(
     modPortalDefaults,
     firstPartyModDefaults,
     gameMediaDefaults,
+    scheduledCovers,
   } = options;
   const raw = directory(canonical);
   const previousDocument = previous
@@ -513,7 +517,9 @@ export function projectListingDelivery(
       const result = structuredClone(
         withoutLauncherAdmissionSeeds(coverCheckpoint?.apply(listing, declaration) ?? listing),
       );
-      const defaultCover = sharedCoverDefaults?.proposals.get(String(listing.id));
+      const defaultCover =
+        sharedCoverDefaults?.proposals.get(String(listing.id)) ??
+        scheduledCovers?.get(String(listing.id));
       if (defaultCover && !declaration.artwork && !declaration.collection_covers)
         result.artwork = defaultCover;
       const old = previousListings.get(listing.id);
@@ -1499,6 +1505,7 @@ export async function prepareObservationBundle(options: {
   }
   let coverCheckpoint: ReturnType<typeof advanceArtworkCheckpoint> | undefined;
   let sharedCoverDefaults: ReturnType<typeof projectExactSharedCovers> | undefined;
+  const deniedScheduledCovers = new Set<string>();
   let mediaHealth: ReturnType<
     NonNullable<Awaited<ReturnType<typeof readHostedArtworkHealth>>>["media"]
   > = null;
@@ -1551,7 +1558,7 @@ export async function prepareObservationBundle(options: {
     const sharedCoverSource =
       options.sharedCoverSource ?? (automatic ? path.dirname(options.canonical) : undefined);
     if (sharedCoverSource && priorCompact) {
-      const gone = new Set<string>();
+      const gone = deniedScheduledCovers;
       const effectiveCovers =
         compatible && coverApprovals.approvals.length
           ? projectApprovedCovers(compatible, coverApprovals).listings
@@ -1610,6 +1617,8 @@ export async function prepareObservationBundle(options: {
   let mediaDefaults: ReturnType<typeof scheduledGameMediaDefaults> | undefined;
   let proposedMedia: ReturnType<typeof scheduledGameMediaDefaults> | undefined;
   let mediaReceipt: string | undefined;
+  let scheduledCovers: ReadonlyMap<string, IgdbArtwork> | undefined;
+  let proposedCovers: ReadonlyMap<string, IgdbArtwork> | undefined;
   if (!renewal && (automatic || options.readScheduledGameMedia) && previousDocument) {
     const prior = previousDocument.directory.listings;
     try {
@@ -1622,6 +1631,16 @@ export async function prepareObservationBundle(options: {
       if (!isRecord(current) || !Array.isArray(current.ports) || !current.ports.every(isRecord))
         throw new Error("Scheduled game media requires the maintained operational catalog");
       const strict = new Map(current.ports.map((row) => [row.id, row]));
+      const coverInputs = {
+        authored: source.authored,
+        reviewed: source.reviewedOriginalMedia,
+        previous: indexSharedCoverRows(prior),
+        shared: sharedCoverDefaults?.proposals ?? new Map<string, IgdbArtwork>(),
+        denied: deniedScheduledCovers,
+        now,
+      };
+      if (coverEnabled && priorCompact)
+        scheduledCovers = (await projectScheduledCovers(coverInputs)).preserved;
       mediaDefaults = scheduledGameMediaDefaults(
         canonical.listings,
         prior,
@@ -1632,7 +1651,12 @@ export async function prepareObservationBundle(options: {
       );
       if (options.observe !== false && !options.deferMediaObserver) {
         const receipt = await (options.readScheduledGameMedia ?? readHostedScheduledGameMedia)();
-        if (hasScheduledMedia(prior) || receipt?.proposal.additions.length) {
+        const observeCovers = Boolean(
+          coverEnabled &&
+          priorCompact &&
+          (scheduledCovers?.size || receipt?.proposal.covers?.length),
+        );
+        if (hasScheduledMedia(prior) || receipt?.proposal.additions.length || observeCovers) {
           const eligible = receipt
             ? scheduledGameMediaDefaults(
                 canonical.listings,
@@ -1657,8 +1681,8 @@ export async function prepareObservationBundle(options: {
             (bytes) => validateImage(bytes, deadline),
             fetch,
             {
-              signal: AbortSignal.timeout(60_000),
-              maximumOperationImageBytes: 32 * 1024 * 1024,
+              signal: AbortSignal.timeout(observeCovers ? 40_000 : 60_000),
+              maximumOperationImageBytes: (observeCovers ? 24 : 32) * 1024 * 1024,
               ...(checkpoint
                 ? { onBackoff: (status) => retainArtworkProviderBackoff(checkpoint, status) }
                 : {}),
@@ -1668,13 +1692,39 @@ export async function prepareObservationBundle(options: {
           const observation = await (async () => {
             try {
               if (checkpoint) restoreArtworkProviderBackoff(checkpoint, inspector);
-              return await observeScheduledGameMedia(
+              const observation = await observeScheduledGameMedia(
                 prior,
                 receipt?.proposal,
                 (id, role) => inspector.inspectMediaImage(id, role),
                 now,
                 nextAssets,
               );
+              if (observeCovers) {
+                const coverInspector = createIgdbInspector(
+                  null,
+                  (bytes) => validateImage(bytes, deadline),
+                  fetch,
+                  {
+                    signal: AbortSignal.timeout(
+                      Math.max(1, Math.min(20_000, Math.floor(deadline - performance.now()))),
+                    ),
+                    maximumOperationImageBytes: 8 * 1024 * 1024,
+                    ...(checkpoint
+                      ? { onBackoff: (status) => retainArtworkProviderBackoff(checkpoint, status) }
+                      : {}),
+                  },
+                );
+                if (checkpoint) restoreArtworkProviderBackoff(checkpoint, coverInspector);
+                const covers = await projectScheduledCovers({
+                  ...coverInputs,
+                  ...(receipt ? { source: indexSharedCoverRows(receipt.producerListings) } : {}),
+                  ...(receipt?.proposal.covers ? { incoming: receipt.proposal.covers } : {}),
+                  inspect: (id) => coverInspector.inspectImage(id),
+                });
+                scheduledCovers = covers.preserved;
+                proposedCovers = covers.proposals;
+              }
+              return observation;
             } finally {
               if (checkpoint) rmdirSync(path.join(checkpoint, "active.lock"));
             }
@@ -1720,6 +1770,7 @@ export async function prepareObservationBundle(options: {
     portals?: ReturnType<typeof listingModPortalDefaults>,
     firstParty?: ReturnType<typeof firstPartyListingModDefaults>,
     media = mediaDefaults,
+    covers = scheduledCovers,
   ) =>
     publishedAbove(
       projectListingDelivery(canonical, observations, previous, {
@@ -1733,6 +1784,7 @@ export async function prepareObservationBundle(options: {
         ...(portals ? { modPortalDefaults: portals } : {}),
         ...(firstParty ? { firstPartyModDefaults: firstParty } : {}),
         ...(media ? { gameMediaDefaults: media } : {}),
+        ...(covers ? { scheduledCovers: covers } : {}),
       }),
       legacyDocument.revision,
     );
@@ -1821,6 +1873,25 @@ export async function prepareObservationBundle(options: {
             `observer candidates failed Core validation and were excluded: ${excludedCandidates.join(", ").slice(0, 600)}`,
           );
           projected = project(isolated.admitted);
+        }
+      }
+      if (proposedCovers) {
+        const scratch = path.join(workspace, "scheduled-cover-validation");
+        try {
+          const proposed = project(admitted, undefined, undefined, mediaDefaults, proposedCovers);
+          if (!proposed.bytes.equals(projected.bytes)) {
+            stage(proposed, scratch);
+            scheduledCovers = proposedCovers;
+            projected = proposed;
+          }
+        } catch (error) {
+          if (!(error instanceof CoreInspectionRefusal || error instanceof ListingPublicationStop))
+            throw error;
+          diagnostics.push(
+            `scheduled covers withheld after validation: ${error.message.slice(0, 300)}`,
+          );
+        } finally {
+          rmSync(scratch, { recursive: true, force: true });
         }
       }
       if (proposedMedia) {

@@ -154,6 +154,7 @@ export interface ArtworkMetrics {
 }
 export interface ArtworkPreparationOptions {
   acceptedCatalog?: ArtworkCatalog;
+  reviewedOriginalOnly?: boolean;
   identities?: unknown;
   reviewedOriginalMedia?: ReadonlyMap<string, ReviewedOriginalMediaDecision>;
   reviewedOriginalMediaExclusions?: ReadonlySet<string>;
@@ -1105,7 +1106,9 @@ export async function prepareCatalogArtwork(
             exceptions,
             regional,
           )
-        : ((await selectCover(declarations.port, "port", context, exceptions)) ??
+        : ((options.reviewedOriginalOnly
+            ? null
+            : await selectCover(declarations.port, "port", context, exceptions)) ??
           (await selectOriginalCover(port, declarations.underlying_game, context, exceptions)));
     const companion = port.presentation?.companion_cover;
     if (context.refreshing && validArtworkMapping(companion)) {

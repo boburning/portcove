@@ -10,7 +10,7 @@ import { isRecord } from "./runtime-values.mts";
 import { originalEditionMediaKey, permitsReviewedOriginalMedia } from "./shared-original-media.mts";
 import { observationHash } from "./upstream-observer.mts";
 
-function sharedCoverScope(record: AuthoredPort) {
+export function sharedCoverScope(record: AuthoredPort) {
   if (record.igdb_no_shared_cover || record.igdb_regional_cover || usesScummvmEngine(record))
     return undefined;
   const game = record.listing.original_game;
@@ -21,7 +21,7 @@ function sharedCoverScope(record: AuthoredPort) {
   return { game_id: game.id, source_edition_id: edition.id, key };
 }
 
-function matchesSharedCoverScope(
+export function matchesSharedCoverScope(
   game: unknown,
   scope: NonNullable<ReturnType<typeof sharedCoverScope>>,
 ) {
@@ -35,7 +35,7 @@ function matchesSharedCoverScope(
 }
 
 // The provider may rename a game slug without changing the admitted asset.
-function coverIdentity({ game_id, cover_id, image_id, image_sha256 }: IgdbArtwork) {
+export function coverIdentity({ game_id, cover_id, image_id, image_sha256 }: IgdbArtwork) {
   return JSON.stringify([game_id, cover_id, image_id, image_sha256]);
 }
 

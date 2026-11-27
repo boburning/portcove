@@ -294,7 +294,9 @@ function boundedArtworkDuePass(
 }
 
 const dayMs = 24 * 60 * 60 * 1000;
-type MediaObservation = Awaited<ReturnType<typeof prepareCatalogGameMedia>>["records"][number];
+type MediaObservation =
+  | Awaited<ReturnType<typeof prepareCatalogGameMedia>>["records"][number]
+  | { port_id: string; role: "cover"; subject: { kind: "port"; port_id: string }; reason: string };
 
 export function planDueGameMedia(
   root: string,

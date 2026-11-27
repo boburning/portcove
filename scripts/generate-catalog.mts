@@ -787,6 +787,12 @@ async function prepareArtworkProposalRun(
     if (!validator) throw new Error("Game media maintenance requires a captured Core validator");
     const { acceptedHeroMediaMatches } = await import("./inspect-igdb-artwork.mts");
     const inherited = acceptedHeroMediaMatches(acceptedMedia, excludedMedia);
+    const coverPolicy = new Map(
+      authored.records.map((record) => [
+        record.listing.id,
+        [record.igdb_no_shared_cover, record.igdb_regional_cover],
+      ]),
+    );
     mediaPlan = mediaDue.progress.planDueGameMedia(
       mediaDue.root,
       authored.directory.listings
@@ -806,13 +812,16 @@ async function prepareArtworkProposalRun(
           return {
             id: listing.id,
             input_sha256: digest({
-              version: "game-media-due/1",
+              version: "game-media-due/2",
               validator,
               id: listing.id,
               name: listing.name,
               project_url: listing.project_url,
               original,
               media: listing.media,
+              artwork: listing.artwork,
+              collection_covers: listing.collection_covers,
+              cover_scope: coverPolicy.get(listing.id),
               bindings,
               supplied,
             }),
@@ -849,6 +858,35 @@ async function prepareArtworkProposalRun(
     throw new Error(
       "Game media worksets require selected catalog identities and matching refresh ids.",
     );
+  const scheduledCoverTools =
+    mediaDue && mediaPlan && mediaDue.limit <= 48
+      ? await import("./listing-scheduled-cover.mts")
+      : undefined;
+  const coverBudget =
+    scheduledCoverTools && mediaDue ? Math.floor((mediaDue.imageBytes ?? 32 * 1024 * 1024) / 4) : 0;
+  const coverPreparation =
+    scheduledCoverTools && mediaDue && mediaPlan
+      ? await (async () => {
+          const inspector = createIgdbInspector(
+            option("--credentials-file"),
+            validateImage,
+            undefined,
+            {
+              onBackoff: (status) =>
+                mediaDue.progress.retainArtworkProviderBackoff(mediaDue.providerRoot, status),
+              maximumOperationImageBytes: coverBudget,
+            },
+          );
+          mediaDue.progress.restoreArtworkProviderBackoff(mediaDue.providerRoot, inspector);
+          const selected = await scheduledCoverTools.prepareScheduledCovers(
+            authored.records,
+            new Set(mediaPlan.selected),
+            authored.reviewedOriginalMedia,
+            inspector,
+          );
+          return { ...selected, provider: inspector.providerMetrics };
+        })()
+      : undefined;
   const inspector = createIgdbInspector(
     option("--credentials-file"),
     validateImage,
@@ -856,9 +894,15 @@ async function prepareArtworkProposalRun(
     mediaDue && {
       onBackoff: (status) =>
         mediaDue.progress.retainArtworkProviderBackoff(mediaDue.providerRoot, status),
-      ...(mediaDue.imageBytes === undefined
+      ...(mediaDue.imageBytes === undefined && !coverPreparation?.provider.image_bytes
         ? {}
-        : { maximumOperationImageBytes: mediaDue.imageBytes }),
+        : {
+            maximumOperationImageBytes: Math.max(
+              0,
+              (mediaDue.imageBytes ?? 32 * 1024 * 1024) -
+                (coverPreparation?.provider.image_bytes ?? 0),
+            ),
+          }),
     },
   );
   if (mediaDue) mediaDue.progress.restoreArtworkProviderBackoff(mediaDue.providerRoot, inspector);
@@ -967,6 +1011,7 @@ async function prepareArtworkProposalRun(
   };
   const evidence = {
     format_version: 1,
+    ...(coverPreparation ? { scheduled_covers: coverPreparation } : {}),
     input_sha256: digest(input),
     accepted_catalog_sha256: digest(current),
     accepted_artwork_context_sha256: digest(acceptedArtwork),
@@ -1018,8 +1063,15 @@ async function prepareArtworkProposalRun(
     const { scheduledGameMediaFile, scheduledGameMediaProposal } =
       await import("./listing-scheduled-game-media.mts");
     const data = scheduledGameMediaProposal(gameMedia, mediaPlan.selected);
-    if (data.additions.length)
-      writeFileSync(join(outputRoot, scheduledGameMediaFile), JSON.stringify(data), { flag: "wx" });
+    if (data.additions.length || coverPreparation?.covers.length)
+      writeFileSync(
+        join(outputRoot, scheduledGameMediaFile),
+        JSON.stringify({
+          ...data,
+          ...(coverPreparation?.covers.length ? { covers: coverPreparation.covers } : {}),
+        }),
+        { flag: "wx" },
+      );
   }
   const artworkEvidence = `${JSON.stringify(evidence, null, 2)}\n`;
   writeFileSync(join(outputRoot, "artwork-evidence.json"), artworkEvidence, { flag: "wx" });
@@ -1055,7 +1107,12 @@ async function prepareArtworkProposalRun(
           const provider = inspector.batchStatus();
           mediaDue.progress.retainArtworkProviderBackoff(mediaDue.providerRoot, provider);
           const attempt = mediaPlan.finish(
-            gameMedia.records,
+            [
+              ...gameMedia.records,
+              ...(coverPreparation && scheduledCoverTools
+                ? coverPreparation.records.map(scheduledCoverTools.asCoverProgress)
+                : []),
+            ],
             provider.retry_at,
             `sha256:${createHash("sha256").update(artworkEvidence).digest("hex")}`,
           );
