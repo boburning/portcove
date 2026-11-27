@@ -1016,6 +1016,20 @@ mod tests {
             serde_json::to_value(registered).unwrap()
         );
 
+        let saved = service
+            .add_games_to_library(&[crate::LibraryMembershipRequest {
+                port_id: CANONICAL.into(),
+                origin: crate::LibraryMembershipOrigin::Manual,
+                sources: Vec::new(),
+            }])
+            .unwrap();
+        assert_eq!(
+            saved[0].outcome,
+            crate::LibraryMembershipOutcomeKind::AlreadyInLibrary
+        );
+        assert!(service.library_memberships().unwrap().is_empty());
+
+        // Simulate a canonical save that predated detection of the local association.
         service
             .library
             .add_library_memberships(

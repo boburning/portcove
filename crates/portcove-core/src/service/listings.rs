@@ -227,6 +227,33 @@ impl PortcoveService {
         Ok((!occupied).then_some(canonical))
     }
 
+    fn has_personal_registration_for_canonical(
+        catalog: &Catalog,
+        connection: &rusqlite::Connection,
+        port_id: &str,
+        budget: &mut usize,
+    ) -> Result<bool> {
+        let Some(repository_id) = catalog.listing(port_id)?.observed_github_repository_id() else {
+            return Ok(false);
+        };
+        let personal_id = format!("github-{repository_id}");
+        if personal_id == port_id {
+            return Ok(false);
+        }
+        let Some((record, retained)) =
+            Library::external_runtime_with_port_bounded_from(connection, &personal_id, budget)?
+        else {
+            return Ok(false);
+        };
+        Ok(record.user_selected.is_some()
+            && Self::unoccupied_personal_listing_match(
+                catalog,
+                connection,
+                retained.listing(&personal_id)?,
+            )?
+            .is_some_and(|canonical| canonical.id == port_id))
+    }
+
     pub(super) fn listing_statuses_from(
         &self,
         catalog: &Catalog,
@@ -387,7 +414,19 @@ impl PortcoveService {
             }
         }
         drop(connection);
-        self.library.add_library_memberships(requests, &present)
+        let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
+        self.library.add_library_memberships_with_check(
+            requests,
+            &present,
+            |connection, port_id| {
+                Self::has_personal_registration_for_canonical(
+                    &self.catalog,
+                    connection,
+                    port_id,
+                    &mut budget,
+                )
+            },
+        )
     }
 
     pub fn library_memberships(&self) -> Result<Vec<crate::LibraryMembership>> {

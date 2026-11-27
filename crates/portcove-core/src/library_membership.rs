@@ -185,6 +185,15 @@ impl Library {
         requests: &[LibraryMembershipRequest],
         already_in_library: &std::collections::HashSet<String>,
     ) -> Result<Vec<LibraryMembershipOutcome>> {
+        self.add_library_memberships_with_check(requests, already_in_library, |_, _| Ok(false))
+    }
+
+    pub(crate) fn add_library_memberships_with_check(
+        &self,
+        requests: &[LibraryMembershipRequest],
+        already_in_library: &std::collections::HashSet<String>,
+        mut has_associated_registration: impl FnMut(&rusqlite::Connection, &str) -> Result<bool>,
+    ) -> Result<Vec<LibraryMembershipOutcome>> {
         if requests.len() > MAX_LIBRARY_MEMBERSHIP_BATCH {
             return Err(PortcoveError::usage(
                 "add at most 512 games per request; submit the rest separately",
@@ -199,7 +208,9 @@ impl Library {
         let now = Self::now();
         let mut outcomes = Vec::with_capacity(requests.len());
         for request in requests {
-            let kind = if already_in_library.contains(&request.port_id) {
+            let kind = if already_in_library.contains(&request.port_id)
+                || has_associated_registration(&transaction, &request.port_id)?
+            {
                 LibraryMembershipOutcomeKind::AlreadyInLibrary
             } else if transaction
                 .query_row(
