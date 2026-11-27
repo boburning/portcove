@@ -22092,6 +22092,223 @@ fn main() {
         }
     }
 
+    /// #4890: a populated ACGC-PC-Port 0.9.x playtest copy updates to the
+    /// reviewed Nookery v1.0.0 contract and rolls back to its retained one.
+    /// Synthetic bytes only; no Nookery or playtest program runs.
+    #[tokio::test]
+    async fn nookery_update_keeps_playtest_data_and_rollback_keeps_its_contract() {
+        const ID: &str = "animal-crossing-pc-port";
+        const SAVE: &str = "save/card_a/DobutsunomoriP_MURA.gci";
+        let current = crate::test_fixture::host_declared_embedded_catalog(&[ID]);
+        let new_port = current.port(ID).unwrap().clone();
+        let host = Platform::current().unwrap();
+        let mut old_port = new_port.clone();
+        for platform in [host, Platform::WindowsX86_64] {
+            old_port
+                .executable_hints
+                .insert(platform, vec!["AnimalCrossing.exe".into()]);
+            old_port
+                .release
+                .asset_hints
+                .insert(platform, vec!["ACGC-PC-Port".into()]);
+        }
+        old_port.launch_arguments.clear();
+        old_port.persistent_paths = ["save", "settings.ini", "keybindings.ini", "texture_pack"]
+            .map(String::from)
+            .to_vec();
+        old_port.runtime_mutable_paths.clear();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let old = register_forward_install(
+            &library,
+            &old_port,
+            "v0.9.3-playtest",
+            true,
+            &[
+                ("rom/GAFE01.iso", b"staged playtest disc"),
+                (SAVE, b"playtest town"),
+                ("settings.ini", b"[Graphics]\nfullscreen=1\n"),
+                ("keybindings.ini", b"[Keyboard]\nA=X\n"),
+                ("texture_pack/custom.png", b"player texture"),
+                (LAUNCH_MARKER, b"1"),
+            ],
+        );
+        let new = register_forward_install(
+            &library,
+            &new_port,
+            "v1.0.0",
+            false,
+            &[("rom/GAFE01.iso", b"staged playtest disc")],
+        );
+        let mut service = service_with_release(library.clone(), "v1.0.0");
+        service.replace_catalog_for_test(current);
+        let retained = service.persistence_contract_for_install(&old).unwrap();
+        assert_eq!(retained.port.persistent_paths, old_port.persistent_paths);
+
+        let spec = |service: &PortcoveService, install: &InstallRecord| {
+            let port = service.installed_port(install).unwrap();
+            let adapter = crate::adapter::AdapterRegistry.get(port.adapter);
+            let executable = adapter.find_executable(&port, host, &install.path).unwrap();
+            adapter
+                .launch_spec_with_executable(
+                    crate::adapter::LaunchSpecRequest {
+                        library: &library,
+                        port: &port,
+                        platform: host,
+                        install_root: &install.path,
+                        selected_executable: &executable,
+                        source: None,
+                        source_record: None,
+                        disc_progress: None,
+                    },
+                    &|| Ok(()),
+                )
+                .unwrap()
+        };
+
+        let updated = service.update(ID, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(updated.id, new.id);
+        for (relative, bytes) in [
+            (SAVE, b"playtest town".as_slice()),
+            ("settings.ini", b"[Graphics]\nfullscreen=1\n"),
+            ("keybindings.ini", b"[Keyboard]\nA=X\n"),
+            ("texture_pack/custom.png", b"player texture"),
+        ] {
+            assert_eq!(
+                fs::read(new.path.join(relative)).unwrap(),
+                bytes,
+                "{relative}"
+            );
+        }
+        for relative in ["config.json", "config.json.bad", "input.json", "imgui.ini"] {
+            assert!(!new.path.join(relative).exists(), "{relative}");
+        }
+        assert!(service.verify(ID).unwrap().valid);
+        let launch = spec(&service, &updated);
+        assert_eq!(launch.executable, new.path.join("Nookery.exe"));
+        assert_eq!(launch.working_directory, new.path);
+        assert_eq!(
+            launch.arguments,
+            ["--user-dir", ".", "--disc", "rom/GAFE01.iso"]
+        );
+
+        // Writes Nookery makes in its pinned data folder on first launch.
+        fs::write(new.path.join(SAVE), b"nookery town").unwrap();
+        fs::write(new.path.join("config.json"), b"{\"version\":2}").unwrap();
+        fs::write(new.path.join("input.json"), b"{\"profiles\":[]}").unwrap();
+        fs::write(new.path.join("imgui.ini"), b"[Window]").unwrap();
+        fs::write(new.path.join(LAUNCH_MARKER), b"1").unwrap();
+        assert!(service.verify(ID).unwrap().valid);
+
+        let rolled_back = service.rollback(ID).unwrap();
+        assert_eq!(rolled_back.id, old.id);
+        assert_eq!(
+            serde_json::to_value(service.installed_port(&rolled_back).unwrap()).unwrap(),
+            serde_json::to_value(&old_port).unwrap()
+        );
+        let launch = spec(&service, &rolled_back);
+        assert_eq!(launch.executable, old.path.join("AnimalCrossing.exe"));
+        assert_eq!(launch.working_directory, old.path);
+        assert!(launch.arguments.is_empty());
+        // The shared save scope follows the player; the INI settings Nookery
+        // only imports stay as the playtest left them.
+        for (relative, bytes) in [
+            (SAVE, b"nookery town".as_slice()),
+            ("settings.ini", b"[Graphics]\nfullscreen=1\n"),
+            ("keybindings.ini", b"[Keyboard]\nA=X\n"),
+            ("texture_pack/custom.png", b"player texture"),
+        ] {
+            assert_eq!(
+                fs::read(old.path.join(relative)).unwrap(),
+                bytes,
+                "{relative}"
+            );
+        }
+        for relative in ["config.json", "input.json", "imgui.ini"] {
+            assert!(!old.path.join(relative).exists(), "{relative}");
+        }
+        assert!(service.verify(ID).unwrap().valid);
+        let user = library.user_dir(ID);
+        assert_eq!(
+            fs::read(user.join("config.json")).unwrap(),
+            b"{\"version\":2}"
+        );
+        assert_eq!(
+            fs::read(user.join("input.json")).unwrap(),
+            b"{\"profiles\":[]}"
+        );
+    }
+
+    /// #4890: the managed route follows later Nookery releases under the same
+    /// definition. Every data path the stable player writes in its pinned
+    /// `--user-dir .` (both memory cards, JSON settings and input profiles,
+    /// the quarantined settings copy and NES ROMs) moves to the next version
+    /// and back on rollback. Synthetic bytes only; no Nookery program runs.
+    #[tokio::test]
+    async fn nookery_update_and_rollback_keep_stable_player_data() {
+        const ID: &str = "animal-crossing-pc-port";
+        let current = crate::test_fixture::host_declared_embedded_catalog(&[ID]);
+        let port = current.port(ID).unwrap().clone();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let data: [(&str, &[u8]); 8] = [
+            ("save/card_a/DobutsunomoriP_MURA.gci", b"town"),
+            ("save/card_a/DobutsunomoriP_F_SAVE.gci", b"nes saves"),
+            ("save/card_b/visited_town.gci", b"visited town"),
+            ("config.json", b"{\"version\":2}"),
+            ("config.json.bad", b"{broken"),
+            ("input.json", b"{\"profiles\":[1]}"),
+            ("nes_roms/player.nes", b"player rom"),
+            ("texture_pack/custom.png", b"player texture"),
+        ];
+        let mut files = vec![
+            ("rom/GAFE01.iso", b"staged disc".as_slice()),
+            (LAUNCH_MARKER, b"1".as_slice()),
+        ];
+        files.extend(data);
+        let old = register_forward_install(&library, &port, "v1.0.0", true, &files);
+        let new = register_forward_install(
+            &library,
+            &port,
+            "v1.0.1",
+            false,
+            &[("rom/GAFE01.iso", b"staged disc")],
+        );
+        let mut service = service_with_release(library.clone(), "v1.0.1");
+        service.replace_catalog_for_test(current);
+
+        let updated = service.update(ID, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(updated.id, new.id);
+        for (relative, bytes) in data {
+            assert_eq!(
+                fs::read(new.path.join(relative)).unwrap(),
+                bytes,
+                "{relative}"
+            );
+        }
+        assert!(service.verify(ID).unwrap().valid);
+
+        fs::write(new.path.join("config.json"), b"{\"version\":3}").unwrap();
+        fs::write(new.path.join("save/card_b/visited_town.gci"), b"revisited").unwrap();
+        fs::write(new.path.join(LAUNCH_MARKER), b"1").unwrap();
+
+        let rolled_back = service.rollback(ID).unwrap();
+        assert_eq!(rolled_back.id, old.id);
+        for (relative, bytes) in data {
+            let expected: &[u8] = match relative {
+                "config.json" => b"{\"version\":3}",
+                "save/card_b/visited_town.gci" => b"revisited",
+                _ => bytes,
+            };
+            assert_eq!(
+                fs::read(old.path.join(relative)).unwrap(),
+                expected,
+                "{relative}"
+            );
+        }
+        assert!(service.verify(ID).unwrap().valid);
+    }
+
     #[test]
     fn interrupted_activation_recovers_with_newly_admitted_retained_preferences() {
         const PORT: &str = "zelda64-recomp";

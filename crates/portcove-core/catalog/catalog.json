@@ -35159,7 +35159,8 @@
         "repository": "flyngmt/Nookery",
         "asset_hints": {
           "windows-x86-64": [
-            "ACGC-PC-Port"
+            "Nookery-v",
+            "-windows-x86_64.zip"
           ]
         }
       },
@@ -35168,14 +35169,27 @@
       "runtime_source_materialization": "gamecube-iso",
       "executable_hints": {
         "windows-x86-64": [
-          "AnimalCrossing.exe"
+          "Nookery.exe"
         ]
       },
+      "launch_arguments": [
+        "--user-dir",
+        ".",
+        "--disc",
+        "rom/GAFE01.iso"
+      ],
       "persistent_paths": [
         "save",
         "settings.ini",
         "keybindings.ini",
-        "texture_pack"
+        "texture_pack",
+        "config.json",
+        "config.json.bad",
+        "input.json",
+        "nes_roms"
+      ],
+      "runtime_mutable_paths": [
+        "imgui.ini"
       ],
       "presentation": {
         "installation_method": "staged-game-files",
@@ -35232,7 +35246,7 @@
             }
           ],
           "warnings": [
-            "The Nookery packages in this guide are installed and updated through upstream. The existing Portcove-managed Windows playtest uses AnimalCrossing.exe and its own retained setup and data contract.",
+            "Portcove manages only the Windows x64 package. It opens your registered disc in Nookery.exe and keeps your saves and settings in the Portcove installation. The other packages in this guide are installed and updated through upstream.",
             "Keep a separate backup before moving from a playtest or updating. Keep the original disc image, the old player and its data until you verify the town in Nookery.",
             "Follow your operating system’s security prompts. For Android updates, back up data before installing a compatible update over the existing app."
           ],
