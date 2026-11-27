@@ -70,15 +70,7 @@ export function openArtworkCheckpoint(directory: string) {
     observationHash(readOwned(directory, "owner.json")) !== observationHash(checkpointOwner)
   )
     throw new Error("Output directory is not a recognized preparation checkpoint.");
-  try {
-    mkdirSync(join(directory, "active.lock"));
-  } catch (error) {
-    if (errorCode(error) !== "EEXIST") throw error;
-    throw new Error(
-      "Preparation checkpoint is locked. Verify the previous preparation process has stopped before using the checkpoint recovery procedure.",
-      { cause: error },
-    );
-  }
+  mkdirSync(join(directory, "active.lock"));
 }
 function readOwned(root: string, name: string): unknown {
   const filename = join(root, name);
