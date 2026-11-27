@@ -7,7 +7,7 @@ import { DiscoveryBudget } from "./discovery-budget.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { parseRecompManifest } from "./discovery-ecosystems.mts";
-import { parseCatalogSource } from "./catalog-authoring.mts";
+import { parseCatalogSource, type AuthoredListing } from "./catalog-authoring.mts";
 
 const limits = { requests: 12, bytes: 8 * 1024 * 1024, milliseconds: 120000 };
 interface CachedFact {
@@ -47,12 +47,43 @@ export interface PortFactsOptions {
   fetcher?: typeof fetch;
 }
 
-export const discoveryScopePolicy = "github-primary-game-scope/3";
+export const discoveryScopePolicy = "github-primary-game-scope/4";
 
 const namesScummVm = (values: readonly unknown[]) =>
   values.some(
     (value) => typeof value === "string" && /(?:^|[^A-Z0-9])scummvm(?:$|[^A-Z0-9])/iu.test(value),
   );
+
+function launcherModPortals(value: unknown): NonNullable<AuthoredListing["mod_portals"]> {
+  if (!isRecord(value)) return [];
+  const portals: NonNullable<AuthoredListing["mod_portals"]> = [];
+  const instructions = "The upstream project lists this community. Follow its setup instructions.";
+  if (
+    typeof value.thunderstore === "string" &&
+    value.thunderstore.length <= 128 &&
+    /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/u.test(value.thunderstore)
+  )
+    portals.push({
+      id: "upstream-thunderstore",
+      site: "community_site",
+      name: "Thunderstore",
+      url: `https://thunderstore.io/c/${value.thunderstore}/`,
+      instructions,
+    });
+  if (
+    typeof value.gamebanana === "number" &&
+    Number.isSafeInteger(value.gamebanana) &&
+    value.gamebanana > 0
+  )
+    portals.push({
+      id: "upstream-gamebanana",
+      site: "community_site",
+      name: "GameBanana",
+      url: `https://gamebanana.com/games/${value.gamebanana}`,
+      instructions,
+    });
+  return portals;
+}
 
 function launcherScopeEvidence(value: unknown, repository: string) {
   if (
@@ -99,12 +130,14 @@ function launcherScopeEvidence(value: unknown, repository: string) {
     )
   )
     throw new Error("Manifest does not declare bounded package-relative program candidates");
+  const portals = launcherModPortals(value.mods);
   return {
     format: 1,
     repository,
     game_input_declared: true,
     program_count: programs.length,
     names_scummvm: namesScummVm([repository, value.name, ...programs]),
+    ...(portals.length ? { mod_portals: portals } : {}),
   };
 }
 
