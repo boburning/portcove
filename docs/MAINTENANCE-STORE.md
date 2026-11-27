@@ -1729,8 +1729,11 @@ or receipt. Retained-artifact reports and restore checks remain available offlin
 A repeated deferral stays visible as the age of the last verified recovery point
 and with its remaining allowance. If a recovery's preflight finds that the conservative export estimate exceeds
 its admitted reservation, the same invocation can make one newly admitted
-attempt sized to that estimate. It reuses the verified local seed but replans
-against a new production snapshot. The normal provider meter, recovery reserve
+attempt sized to that estimate. When the scratch connection is demonstrably
+separate from the source, recovery verifies and restores its seed and computes the
+local history prefixes before reserving provider capacity. An unreadable or corrupt
+seed fails here without creating a provider reservation. An admitted retry reuses
+the local proof and replans against a new production snapshot. The normal provider meter, recovery reserve
 and hard ceiling still apply; a denied initial admission or denied retry defers
 work. Normal collection failure does not grant permission for a full export.
 
