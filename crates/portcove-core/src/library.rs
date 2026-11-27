@@ -3199,9 +3199,7 @@ impl Library {
             }
             if let Some((_, retained)) =
                 Self::external_runtime_with_port_bounded_from(connection, &id, &mut budget)?
-                && retained
-                    .listing(&id)?
-                    .retains_github_repository_id(repository_id)
+                && retained.listing(&id)?.observed_github_repository_id() == Some(repository_id)
             {
                 return Err(PortcoveError::conflict(
                     "This project already has a registration in this library. Keep or review that existing entry.",

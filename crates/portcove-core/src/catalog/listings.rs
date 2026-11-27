@@ -797,14 +797,17 @@ impl PortListing {
         portcove_listing_carrier::admitted_github_repository_id(&self.id)
     }
 
-    pub(crate) fn retains_github_repository_id(&self, expected: u64) -> bool {
-        self.upstream_observation.as_ref().is_some_and(|observed| {
-            observed.provider == "github"
-                && observed.repository_id == Some(expected)
-                && observed.observed_at.is_some()
-                && crate::release::catalog_download_repository(&self.project_url)
-                    .is_ok_and(|name| name.eq_ignore_ascii_case(&observed.repository))
-        })
+    pub(crate) fn observed_github_repository_id(&self) -> Option<u64> {
+        let observed = self.upstream_observation.as_ref()?;
+        if observed.provider == "github"
+            && observed.observed_at.is_some()
+            && crate::release::catalog_download_repository(&self.project_url)
+                .is_ok_and(|name| name.eq_ignore_ascii_case(&observed.repository))
+        {
+            observed.repository_id
+        } else {
+            None
+        }
     }
 
     fn validate_observation_metadata(&self) -> Result<()> {
@@ -1491,10 +1494,14 @@ impl Catalog {
         })?;
         let repository = crate::release::catalog_download_repository(&proposed.project_url)?;
         if self.listings().iter().any(|row| {
-            row.id == proposed.id
-                || crate::release::catalog_download_repository(&row.project_url)
-                    .is_ok_and(|name| name.eq_ignore_ascii_case(&repository))
-                || row.retains_github_repository_id(repository_id)
+            let known_id = row
+                .admitted_github_repository_id()
+                .or_else(|| row.observed_github_repository_id());
+            match known_id {
+                Some(known_id) => known_id == repository_id,
+                None => crate::release::catalog_download_repository(&row.project_url)
+                    .is_ok_and(|name| name.eq_ignore_ascii_case(&repository)),
+            }
         }) {
             return Err(PortcoveError::conflict(
                 "Portcove already lists this project. Select its catalog entry to use your files.",
@@ -1581,6 +1588,65 @@ mod tests {
         directory["listings"][1]["release_url"] =
             json!("https://github.com/elsewhere/unknown-port/releases");
         assert!(CatalogListingDocument::from_json(&directory.to_string()).is_err());
+    }
+
+    #[test]
+    fn personal_project_uses_verified_repository_id_before_the_address() {
+        let proposed: PortListing = serde_json::from_value(json!({
+            "id": "github-123",
+            "name": "Fixture port",
+            "summary": "Public repository selected by the player.",
+            "project_url": "https://github.com/example/reused"
+        }))
+        .unwrap();
+        let mut row = proposed.clone();
+        row.id = "github-456".into();
+        let catalog = Catalog::for_user_selected_listing(row.clone()).unwrap();
+        assert!(catalog.require_personal_project_unlisted(&proposed).is_ok());
+
+        row.id = proposed.id.clone();
+        row.project_url = "https://github.com/example/moved".into();
+        let catalog = Catalog::for_user_selected_listing(row.clone()).unwrap();
+        assert!(
+            catalog
+                .require_personal_project_unlisted(&proposed)
+                .is_err()
+        );
+
+        row.id = "legacy-port".into();
+        row.project_url.clone_from(&proposed.project_url);
+        let catalog = Catalog::for_user_selected_listing(row.clone()).unwrap();
+        assert!(
+            catalog
+                .require_personal_project_unlisted(&proposed)
+                .is_err()
+        );
+
+        row.upstream_observation = Some(crate::ListingUpstreamObservation {
+            provider: "github".into(),
+            repository: "example/reused".into(),
+            repository_id: Some(456),
+            status: crate::ListingObservationStatus::Complete,
+            attempted_at: "2026-09-15T06:00:00Z".into(),
+            observed_at: Some("2026-09-15T06:00:00Z".into()),
+            fresh_until: Some("2026-09-15T18:00:00Z".into()),
+            facts_sha256: Some("a".repeat(64)),
+            release_limit: 4,
+            releases: Vec::new(),
+        });
+        let catalog = Catalog::for_user_selected_listing(row.clone()).unwrap();
+        assert!(catalog.require_personal_project_unlisted(&proposed).is_ok());
+
+        row.project_url = "https://github.com/example/moved".into();
+        let observed = row.upstream_observation.as_mut().unwrap();
+        observed.repository = "example/moved".into();
+        observed.repository_id = Some(123);
+        let catalog = Catalog::for_user_selected_listing(row).unwrap();
+        assert!(
+            catalog
+                .require_personal_project_unlisted(&proposed)
+                .is_err()
+        );
     }
 
     /// The release-tools signer binds an added legacy row to
