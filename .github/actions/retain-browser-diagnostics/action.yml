@@ -27,6 +27,7 @@ runs:
           outputs/uiux-remainder/**/*.png
           outputs/ui-refinement/**/*.png
           outputs/uiux-task-isolation/**/*.png
+          outputs/recovery-review/**/*.png
           work/installation-rendered/**/*.png
         include-hidden-files: true
         retention-days: 7
