@@ -291,8 +291,11 @@ fn is_digest(value: &str) -> bool {
 
 fn github_release_page_matches(expected: &str, displayed: &str) -> bool {
     fn parts(url: &str) -> Option<(&str, &str)> {
-        url.strip_prefix("https://github.com/")?
-            .split_once("/releases/tag/")
+        let project = url.strip_prefix("https://github.com/")?;
+        let (owner, remaining) = project.split_once('/')?;
+        let (repository, route) = remaining.split_once('/')?;
+        let slug = &project[..owner.len() + 1 + repository.len()];
+        Some((slug, route.strip_prefix("releases/tag/")?))
     }
     match (parts(expected), parts(displayed)) {
         (Some((repository, tag)), Some((shown_repository, shown_tag))) => {
