@@ -25,10 +25,7 @@
     "summary": "Upstream reports reaching all ten worlds through Level Select and the ending movie. That does not establish a complete playthrough. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/zap0xfce2/Kula-World-Rerolled",
     "listed_at": "2026-10-25",
-    "platforms": [
-      "linux-x86-64",
-      "macos-aarch64"
-    ],
+    "platforms": ["linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/zap0xfce2/Kula-World-Rerolled",
     "manual_setup": {
@@ -52,17 +49,13 @@
     "original_game": {
       "format_version": 1,
       "id": "kula-world",
-      "evidence_urls": [
-        "https://github.com/zap0xfce2/Kula-World-Recompiled"
-      ],
+      "evidence_urls": ["https://github.com/zap0xfce2/Kula-World-Recompiled"],
       "source_editions": [
         {
           "id": "kula-world-playstation-europe-sces-01000",
           "title": "Kula World (Europe, SCES-01000)",
           "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/zap0xfce2/Kula-World-Recompiled"
-          ]
+          "evidence_urls": ["https://github.com/zap0xfce2/Kula-World-Recompiled"]
         }
       ]
     },
