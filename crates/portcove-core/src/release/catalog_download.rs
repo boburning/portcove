@@ -13,6 +13,29 @@ pub(crate) const MAX_RELEASE_WINDOW: usize = 1_000;
 /// the provider's own completeness limit, not a Portcove cap.
 const ASSET_LIMIT: usize = 1_000;
 
+#[derive(Deserialize)]
+pub(crate) struct CatalogGithubRepository {
+    pub(crate) id: u64,
+    pub(crate) full_name: String,
+    private: Option<bool>,
+}
+
+impl CatalogGithubRepository {
+    fn require_valid(&self, expected_id: Option<u64>) -> Result<()> {
+        if portcove_listing_carrier::admitted_github_repository_id(&format!("github-{}", self.id))
+            != Some(self.id)
+            || expected_id.is_some_and(|expected| expected != self.id)
+            || repository_from_url(&format!("https://github.com/{}", self.full_name))?
+                != self.full_name
+        {
+            return Err(PortcoveError::verification(
+                "GitHub returned a different or invalid repository identity",
+            ));
+        }
+        Ok(())
+    }
+}
+
 pub(crate) fn repository_from_url(value: &str) -> Result<String> {
     let url = reqwest::Url::parse(value).map_err(|_| {
         PortcoveError::unsupported("upstream releases require a GitHub repository URL")
@@ -72,6 +95,77 @@ fn valid_download_origin(url: &reqwest::Url) -> bool {
 }
 
 impl GithubReleaseProvider {
+    pub(crate) fn for_personal_project_lookup() -> Result<Self> {
+        // The fixed anonymous client has no library cache or credentials.
+        // Share its request budget across previews and saves in this process.
+        static PROVIDER: std::sync::Mutex<Option<GithubReleaseProvider>> =
+            std::sync::Mutex::new(None);
+        let mut provider = PROVIDER
+            .lock()
+            .map_err(|_| PortcoveError::state("public GitHub lookup is unavailable"))?;
+        if let Some(client) = provider.as_ref() {
+            return Ok(client.clone());
+        }
+        let client = Self::build_with_credential(
+            None,
+            "https://api.github.com",
+            "https://github.com",
+            PROVIDER_NETWORK_BOUNDS,
+            Some(GithubCredential {
+                token: None,
+                source: GithubAuthSource::Anonymous,
+                environment_variable: None,
+                intent: 0,
+            }),
+            false,
+        )?;
+        *provider = Some(client.clone());
+        Ok(client)
+    }
+
+    /// Verify an explicitly supplied public project. Only the repository
+    /// address is sent to GitHub; runtime coordinates stay in the caller.
+    pub(crate) async fn public_catalog_repository(
+        &self,
+        project_url: &str,
+    ) -> Result<CatalogGithubRepository> {
+        let repository = repository_from_url(project_url)?;
+        if !project_url
+            .strip_suffix('/')
+            .unwrap_or(project_url)
+            .eq_ignore_ascii_case(&format!("https://github.com/{repository}"))
+        {
+            return Err(PortcoveError::usage(
+                "enter the public GitHub project's main address",
+            ));
+        }
+        let api_url = self.catalog_download_api_repository(&repository, None);
+        let current: CatalogGithubRepository = self
+            .anonymous_metadata(&api_url, 64 * 1024, "GitHub public project")
+            .await?;
+        current.require_valid(None)?;
+        if current.private != Some(false) {
+            return Err(PortcoveError::unsupported("choose a public GitHub project"));
+        }
+        if !current.full_name.eq_ignore_ascii_case(&repository) {
+            return Err(PortcoveError::conflict(
+                "this GitHub project has moved; enter its current project address",
+            ));
+        }
+        Ok(current)
+    }
+
+    async fn catalog_repository_identity(
+        &self,
+        repository: &str,
+        id: Option<u64>,
+    ) -> Result<CatalogGithubRepository> {
+        let url = self.catalog_download_api_repository(repository, id);
+        let current: CatalogGithubRepository = self.get_json(&url).await?;
+        current.require_valid(id)?;
+        Ok(current)
+    }
+
     /// The default ten-release window, as fixtures read it.
     #[cfg(test)]
     pub(crate) async fn catalog_download_options(
@@ -321,21 +415,9 @@ impl GithubReleaseProvider {
             (Err(error), None) => return Err(error),
             (Err(_), Some(_)) => {}
         }
-        #[derive(Deserialize)]
-        struct RepositoryIdentity {
-            id: u64,
-            full_name: String,
-        }
-        let url = self.catalog_download_api_repository(repository, repository_id);
-        let current: RepositoryIdentity = self.get_json(&url).await?;
-        if Some(current.id) != repository_id
-            || repository_from_url(&format!("https://github.com/{}", current.full_name))?
-                != current.full_name
-        {
-            return Err(PortcoveError::verification(
-                "GitHub repository identity does not match the admitted repository ID",
-            ));
-        }
+        let current = self
+            .catalog_repository_identity(repository, repository_id)
+            .await?;
         check(&current.full_name)?;
         Ok(Cow::Owned(current.full_name))
     }
@@ -809,5 +891,64 @@ mod tests {
         ] {
             assert!(repository_from_url(url).is_err(), "{url}");
         }
+    }
+
+    #[tokio::test]
+    async fn personal_project_lookup_requires_a_public_exact_repository_root() {
+        let (root, requests, server) = crate::test_http::serve_routed_http(4, |request| {
+            let path = request.split_whitespace().nth(1).unwrap();
+            let body = match path.strip_prefix('/').unwrap() {
+                "repos/Owner/Public" => r#"{"id":42,"full_name":"Owner/Public","private":false}"#,
+                "repos/Owner/Private" => r#"{"id":43,"full_name":"Owner/Private","private":true}"#,
+                "repos/Owner/Moved" => r#"{"id":42,"full_name":"Owner/Public","private":false}"#,
+                "repos/Owner/Unknown" => r#"{"id":44,"full_name":"Owner/Unknown"}"#,
+                _ => panic!("the lookup requested something other than repository metadata"),
+            };
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+        });
+        let provider = GithubReleaseProvider::with_api_root(root).unwrap();
+        for address in [
+            "https://github.com/Owner/Public/releases",
+            "https://github.com/Owner/other/../Public",
+            "https://github.com/Owner/Public?token=fixture",
+            "https://github.com/Owner/Public.git",
+        ] {
+            assert!(provider.public_catalog_repository(address).await.is_err());
+        }
+        assert!(requests.try_recv().is_err());
+        let identity = provider
+            .public_catalog_repository("https://github.com/Owner/Public/")
+            .await
+            .unwrap();
+        assert_eq!(
+            (identity.id, identity.full_name.as_str()),
+            (42, "Owner/Public")
+        );
+        for (name, code) in [
+            ("Private", crate::ErrorCode::Unsupported),
+            ("Moved", crate::ErrorCode::Conflict),
+            ("Unknown", crate::ErrorCode::Unsupported),
+        ] {
+            let address = format!("https://github.com/Owner/{name}");
+            let refusal = provider
+                .public_catalog_repository(&address)
+                .await
+                .err()
+                .expect("an ineligible repository must be refused");
+            assert_eq!(refusal.code, code, "{name}");
+        }
+        // The fixture sends the request receipt after writing the response.
+        server.join().unwrap();
+        let sent = requests.try_iter().collect::<Vec<_>>();
+        assert_eq!(sent.len(), 4);
+        assert!(sent.iter().all(|request| {
+            !request.lines().any(|line| {
+                line.split_once(':')
+                    .is_some_and(|(header, _)| header.eq_ignore_ascii_case("authorization"))
+            })
+        }));
     }
 }

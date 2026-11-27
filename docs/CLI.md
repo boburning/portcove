@@ -219,6 +219,20 @@ record. It does not remove handed-off files. Each port has one active managed
 installation or external registration. A separate downloaded setup may coexist
 with an external registration until a reviewed change replaces its launch target.
 
+If a public GitHub port is missing from Discover, use **Add games → Use an
+existing installation → Add a port missing from Discover**. Enter the project's
+main GitHub address and choose the executable you already set up. Review the
+start folder and confirm the registration. The equivalent CLI commands are
+`external select-project-preview PROJECT_URL EXECUTABLE --working-directory FOLDER`
+and `external select-project PROJECT_URL EXECUTABLE --working-directory FOLDER --expected-preview SHA256 --yes`.
+Pass one `--arg` per launch option to both commands when needed.
+
+Portcove sends just the project address to GitHub to verify its public
+repository ID. It keeps your launch details in this library. If the signed
+catalog later adds that exact repository identity, the existing library entry
+picks up its catalog details without moving files or changing its launch
+settings. If a catalog entry already names the project, select it in Discover.
+
 When an upstream update changes the executable or working directory, use
 `external select-relink-preview PORT_ID EXECUTABLE --working-directory DIRECTORY`
 and `external select-relink` with the matching `--expected-preview` and `--yes`.

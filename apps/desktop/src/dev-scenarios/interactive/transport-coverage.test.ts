@@ -44,7 +44,7 @@ const unsupportedByReason: Record<string, string[]> = {
     poll_github_device_login recheck_host_tool
     preserve_mod_file recover_ghostship_legacy_data recover_library_import refresh_game_file_query
     refresh_official_definition register_external_runtime
-    register_user_selected_runtime relink_external_runtime relink_game_file_root
+    register_user_selected_runtime register_personal_github_runtime relink_external_runtime relink_game_file_root
     relink_mod_setup_original relink_source relink_user_selected_runtime relocate_output
     remove_external_runtime remove_game_file_root remove_library_membership remove_port remove_source
     reset_artwork suppress_artwork unhide_artwork reset_output_location restore_backup revoke_catalog_key
@@ -72,7 +72,7 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_external_runtime_relink preview_managed_route_change preview_removal
     preview_source_removal preview_steam_artwork preview_steam_batch_add
     preview_steam_entry
-    preview_user_selected_runtime preview_user_selected_runtime_relink
+    preview_user_selected_runtime preview_personal_github_runtime preview_user_selected_runtime_relink
     review_exact_release plan_install_batch review_game_setting review_game_settings_change_set review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
     review_library_selection scan_game_file_roots
     scan_source_inbox

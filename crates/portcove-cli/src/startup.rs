@@ -171,11 +171,13 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             ExternalCommand::ChangeToManaged { .. } => Recovering,
             ExternalCommand::Preview { .. }
             | ExternalCommand::SelectPreview { .. }
+            | ExternalCommand::SelectProjectPreview { .. }
             | ExternalCommand::SelectRelinkPreview { .. }
             | ExternalCommand::RemovalPreview { .. }
             | ExternalCommand::RelinkPreview { .. } => ReadOnly,
             ExternalCommand::Register { .. }
             | ExternalCommand::Select { .. }
+            | ExternalCommand::SelectProject { .. }
             | ExternalCommand::SelectRelink { .. }
             | ExternalCommand::Remove { .. }
             | ExternalCommand::Relink { .. } => Recovering,

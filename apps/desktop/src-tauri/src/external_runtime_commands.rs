@@ -5,7 +5,7 @@ use crate::{
 use portcove_core::{
     ExternalRuntimePreview, ExternalRuntimeRecord, ExternalRuntimeRelinkPreview,
     ExternalRuntimeRemovalPreview, ManagedRouteChangePreview, ManagedRouteChangeResult,
-    PortcoveError, ReleaseChannel,
+    PersonalProjectRuntimePreview, PortcoveError, ReleaseChannel,
 };
 use std::path::PathBuf;
 use tauri::Manager;
@@ -84,6 +84,103 @@ pub(crate) async fn preview_user_selected_runtime(
             .choose_user_selected_runtime(&port_id, &executable, &working_directory, &arguments)
             .map_err(Into::into)
     })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn preview_personal_github_runtime(
+    state: tauri::State<'_, DesktopState>,
+    project_url: String,
+    executable: PathBuf,
+    working_directory: PathBuf,
+    generation: u64,
+) -> DesktopResult<ExternalRuntimePreview> {
+    personal_github_review(
+        state.inner().clone(),
+        project_url,
+        executable,
+        working_directory,
+        generation,
+    )
+    .await
+    .map(|review| review.registration)
+}
+
+async fn personal_github_review(
+    state: DesktopState,
+    project_url: String,
+    executable: PathBuf,
+    working_directory: PathBuf,
+    generation: u64,
+) -> DesktopResult<PersonalProjectRuntimePreview> {
+    blocking_async_service_at_generation(state, generation, move |service| async move {
+        service
+            .preview_personal_github_runtime(&project_url, &executable, &working_directory, &[])
+            .await
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn register_personal_github_runtime(
+    app: tauri::AppHandle,
+    project_url: String,
+    executable: PathBuf,
+    working_directory: PathBuf,
+    expected_preview: String,
+    generation: u64,
+) -> DesktopResult<Option<ExternalRuntimeRecord>> {
+    let state = app
+        .try_state::<DesktopState>()
+        .ok_or_else(|| PortcoveError::unsupported("Desktop application state is unavailable"))?;
+    let review = personal_github_review(
+        state.inner().clone(),
+        project_url.clone(),
+        executable.clone(),
+        working_directory.clone(),
+        generation,
+    )
+    .await?;
+    if review.registration.preview_sha256 != expected_preview {
+        return Err(PortcoveError::conflict(
+            "the project or selected launch details changed; review them again",
+        )
+        .into());
+    }
+    crate::require_library_generation(crate::state_generation(state.inner()), generation)?;
+    let confirmed = confirm_destructive(
+        &app,
+        "Add personal port",
+        format!(
+            "Save {} with executable {} and start folder {}? Only add a program you trust. Your files stay where they are, and you handle setup and updates.",
+            review.project_url,
+            review.registration.executable.display(),
+            review.registration.path.display()
+        ),
+        "Add port",
+    )
+    .await;
+    if !confirmed {
+        return Ok(None);
+    }
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .register_personal_github_runtime(
+                    &project_url,
+                    &executable,
+                    &working_directory,
+                    &[],
+                    &expected_preview,
+                )
+                .await
+                .map(Some)
+                .map_err(Into::into)
+        },
+    )
     .await
 }
 

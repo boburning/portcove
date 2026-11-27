@@ -1077,6 +1077,38 @@ pub(crate) enum ExternalCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Review a local executable for a public GitHub port that Portcove does not list yet.
+    SelectProjectPreview {
+        /// The public GitHub project's main HTTPS address.
+        project_url: String,
+        /// The native game executable or launcher you chose.
+        executable: PathBuf,
+        /// Existing working directory for the selected executable.
+        #[arg(long)]
+        working_directory: PathBuf,
+        /// One literal launch argument per occurrence.
+        #[arg(long = "arg", allow_hyphen_values = true)]
+        arguments: Vec<String>,
+    },
+    /// Save the reviewed launch details for a personal upstream project.
+    SelectProject {
+        /// Exact public GitHub project address used in the review.
+        project_url: String,
+        /// Exact native executable or launcher path shown in the review.
+        executable: PathBuf,
+        /// Exact working directory shown in the review.
+        #[arg(long)]
+        working_directory: PathBuf,
+        /// One literal launch argument per occurrence, in the reviewed order.
+        #[arg(long = "arg", allow_hyphen_values = true)]
+        arguments: Vec<String>,
+        /// Exact fingerprint from external select-project-preview.
+        #[arg(long)]
+        expected_preview: String,
+        /// Confirm saving the reviewed registration without a prompt.
+        #[arg(long)]
+        yes: bool,
+    },
     /// Review a replacement folder against the existing retained runtime contract.
     RelinkPreview {
         /// Catalog port ID; run `portcove catalog list` to find it.

@@ -772,6 +772,16 @@ impl PortListing {
         portcove_listing_carrier::admitted_github_repository_id(&self.id)
     }
 
+    pub(crate) fn retains_github_repository_id(&self, expected: u64) -> bool {
+        self.upstream_observation.as_ref().is_some_and(|observed| {
+            observed.provider == "github"
+                && observed.repository_id == Some(expected)
+                && observed.observed_at.is_some()
+                && crate::release::catalog_download_repository(&self.project_url)
+                    .is_ok_and(|name| name.eq_ignore_ascii_case(&observed.repository))
+        })
+    }
+
     fn validate_observation_metadata(&self) -> Result<()> {
         let invalid = || {
             PortcoveError::usage("invalid descriptive listing observation or maintenance metadata")
@@ -1356,6 +1366,24 @@ impl Catalog {
             }
         }
         self.with_projected_listing_document(document)
+    }
+
+    pub(crate) fn require_personal_project_unlisted(&self, proposed: &PortListing) -> Result<()> {
+        let repository_id = proposed.admitted_github_repository_id().ok_or_else(|| {
+            PortcoveError::verification("personal registration requires a stable repository ID")
+        })?;
+        let repository = crate::release::catalog_download_repository(&proposed.project_url)?;
+        if self.listings().iter().any(|row| {
+            row.id == proposed.id
+                || crate::release::catalog_download_repository(&row.project_url)
+                    .is_ok_and(|name| name.eq_ignore_ascii_case(&repository))
+                || row.retains_github_repository_id(repository_id)
+        }) {
+            return Err(PortcoveError::conflict(
+                "Portcove already lists this project. Select its catalog entry to use your files.",
+            ));
+        }
+        Ok(())
     }
 
     /// Durable launch intent retains only the descriptive project and an explicit

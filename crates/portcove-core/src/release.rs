@@ -33,6 +33,7 @@ mod forbidden_memories_qualification;
 mod managed_variant;
 mod observation;
 mod uploader_continuity;
+pub(crate) use catalog_download::CatalogGithubRepository;
 pub(crate) use catalog_download::repository_from_url as catalog_download_repository;
 pub(crate) use exact::ExactReleaseRefusal;
 pub use exact::{
@@ -917,6 +918,16 @@ impl GithubReleaseProvider {
         // managed grant. Revalidate public repository identity on the actual API.
         // The request is unconditional and anonymous, so it always draws from the
         // anonymous allowance; an allowance GitHub reported exhausted is not asked.
+        self.anonymous_metadata(url, PROVIDER_JSON_MAX_BYTES, "scoped GitHub metadata")
+            .await
+    }
+
+    async fn anonymous_metadata<T: DeserializeOwned>(
+        &self,
+        url: &str,
+        max_bytes: usize,
+        label: &str,
+    ) -> Result<T> {
         let reservation = self
             .request_budget
             .admit(RequestCredential::Anonymous, false)?;
@@ -930,9 +941,7 @@ impl GithubReleaseProvider {
                 ),
             );
         }
-        let bytes =
-            bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, "scoped GitHub metadata")
-                .await?;
+        let bytes = bounded_response_bytes(response, max_bytes, label).await?;
         serde_json::from_slice(&bytes).map_err(|error| PortcoveError::network(error.to_string()))
     }
 
