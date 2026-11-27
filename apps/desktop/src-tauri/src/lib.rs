@@ -3393,6 +3393,8 @@ pub fn run() -> std::process::ExitCode {
             external_runtime_commands::preview_external_runtime,
             external_runtime_commands::preview_user_selected_runtime,
             external_runtime_commands::register_user_selected_runtime,
+            external_runtime_commands::preview_personal_github_runtime,
+            external_runtime_commands::register_personal_github_runtime,
             external_runtime_commands::preview_user_selected_runtime_relink,
             external_runtime_commands::relink_user_selected_runtime,
             catalog_download::catalog_download_candidates,

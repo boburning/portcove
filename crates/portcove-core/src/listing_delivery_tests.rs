@@ -199,6 +199,98 @@ async fn authenticated_listings_add_correct_withdraw_without_managed_authority()
 }
 
 #[tokio::test]
+async fn registered_personal_project_joins_and_survives_signed_admission_and_withdrawal() {
+    const ID: &str = "github-982741653";
+    let (_temp, library) = library();
+    let source = tempfile::tempdir().unwrap();
+    let executable = crate::test_fixture::build_probe(source.path());
+    let executable_bytes = fs::read(&executable).unwrap();
+    let save = source.path().join("player-save.dat");
+    fs::write(&save, b"retained original save").unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let local = service
+        .fixture_personal_runtime_context(982741653, "FixtureOwner/BeforeRename")
+        .unwrap();
+    let args = ["--help".into()];
+    let preview = local
+        .preview_user_selected_runtime(ID, &executable, source.path(), &args)
+        .unwrap();
+    let authorization = local
+        .authorize_user_selected_runtime(
+            ID,
+            &executable,
+            source.path(),
+            &args,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let guard = library.try_lock_port(ID, "busy-personal-fixture").unwrap();
+    assert!(
+        local
+            .register_user_selected_runtime(
+                ID,
+                &executable,
+                source.path(),
+                &args,
+                &authorization.token
+            )
+            .is_err()
+    );
+    drop(guard);
+    let registration = local
+        .register_user_selected_runtime(ID, &executable, source.path(), &args, &authorization.token)
+        .unwrap();
+    let retained = serde_json::to_value(registration).unwrap();
+    assert!(library.load_catalog().unwrap().0.listing(ID).is_err());
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let admission = json!({
+        "listing_delivery_schema": 1, "revision": 1, "withdrawn_ids": [],
+        "directory": { "format_version": 17, "listings": [{
+            "id": ID, "name": "Official port name",
+            "summary": "Fixture signed admission after an upstream rename.",
+            "project_url": "https://github.com/FixtureOwner/AfterRename"
+        }] }
+    });
+    let root = publish(&fixture, &key, 1, &admission).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let joined = PortcoveService::new(library.clone()).unwrap();
+    assert_eq!(
+        joined.catalog().listing(ID).unwrap().name,
+        "Official port name"
+    );
+    assert!(
+        joined
+            .fixture_personal_runtime_context(982741653, "FixtureOwner/AfterRename")
+            .is_err()
+    );
+    assert!(joined.catalog().port(ID).is_err());
+
+    let withdrawal = json!({
+        "listing_delivery_schema": 1, "revision": 2, "withdrawn_ids": [ID],
+        "directory": {"format_version": 17, "listings": []}
+    });
+    let root = publish(&fixture, &key, 2, &withdrawal).await;
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let withdrawn = PortcoveService::new(library.clone()).unwrap();
+    assert!(withdrawn.catalog().listing(ID).is_err());
+    assert!(
+        withdrawn
+            .listing_statuses()
+            .unwrap()
+            .iter()
+            .any(|row| row.port_id == ID)
+    );
+    let (record, prior) = library.external_runtime_with_port(ID).unwrap().unwrap();
+    assert_eq!(serde_json::to_value(record).unwrap(), retained);
+    assert_eq!(prior.listing(ID).unwrap().name, "FixtureOwner/BeforeRename");
+    assert_eq!(fs::read(&executable).unwrap(), executable_bytes);
+    assert_eq!(fs::read(save).unwrap(), b"retained original save");
+}
+
+#[tokio::test]
 async fn artwork_snapshot_rechecks_a_withdrawn_cover_on_an_unchanged_receiver() {
     use crate::{
         ArtworkResolvedSource, ArtworkSlot, CompositeReleaseProvider, DestinationArtworkRole,

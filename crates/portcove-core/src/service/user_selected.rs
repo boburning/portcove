@@ -98,6 +98,15 @@ impl PortcoveService {
         ))
     }
 
+    #[cfg(test)]
+    pub(crate) fn fixture_personal_runtime_context(
+        &self,
+        repository_id: u64,
+        full_name: &str,
+    ) -> Result<Self> {
+        self.personal_runtime_context(repository_id, full_name)
+    }
+
     pub(super) fn require_user_selected_path_ownership(
         &self,
         executable: &Path,

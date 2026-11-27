@@ -1691,6 +1691,32 @@ export const desktopApi = {
       arguments: arguments_,
       generation,
     }),
+  previewPersonalGithubRuntime: (
+    projectUrl: string,
+    executable: string,
+    workingDirectory: string,
+    generation: number,
+  ) =>
+    invoke<ExternalRuntimePreview>("preview_personal_github_runtime", {
+      projectUrl,
+      executable,
+      workingDirectory,
+      generation,
+    }),
+  registerPersonalGithubRuntime: (
+    projectUrl: string,
+    executable: string,
+    workingDirectory: string,
+    expectedPreview: string,
+    generation: number,
+  ) =>
+    invoke<ExternalRuntimeRecord | null>("register_personal_github_runtime", {
+      projectUrl,
+      executable,
+      workingDirectory,
+      expectedPreview,
+      generation,
+    }),
   registerUserSelectedRuntime: (
     portId: string,
     executable: string,
