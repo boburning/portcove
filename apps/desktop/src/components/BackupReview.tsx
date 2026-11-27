@@ -375,6 +375,13 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
           </small>
         )}
       </div>
+      {action === "restore" && (
+        <p className="text-sm leading-relaxed font-medium">
+          {preview.safety_backup_will_be_created
+            ? t("details.safetyBackup")
+            : t("details.noSafetyBackup")}
+        </p>
+      )}
       <dl className="grid min-w-0 gap-3 rounded-pc-md border border-pc-border bg-pc-surface-muted p-3">
         <div>
           <dt className="text-xs font-semibold">{t("details.selectedBackup")}</dt>
@@ -399,11 +406,6 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
         {action === "restore" ? (
           <>
             <p>{t("details.restoreResult")}</p>
-            <p>
-              {preview.safety_backup_will_be_created
-                ? t("details.safetyBackup")
-                : t("details.noSafetyBackup")}
-            </p>
             <p>{t("details.restoreStopped")}</p>
             <p>{t("details.restoreInterrupted")}</p>
           </>
