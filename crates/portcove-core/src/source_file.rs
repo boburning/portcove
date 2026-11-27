@@ -407,8 +407,17 @@ fn hash_reader(
     if reader.read(&mut [0_u8; 1])? != 0 {
         return Err(PortcoveError::source("source grew while hashing"));
     }
-    let (canonical_n64_sha256, canonical_n64_sha1, canonical_n64_size, canonical_n64_xxh3_64) =
-        n64.finish()?;
+    let (canonical_n64_sha256, canonical_n64_sha1, canonical_n64_size, canonical_n64_xxh3_64) = n64
+        .finish()
+        .map(|identity| {
+            (
+                Some(identity.sha256),
+                Some(identity.sha1),
+                Some(identity.size),
+                Some(identity.xxh3_64),
+            )
+        })
+        .unwrap_or_default();
     let (copier_headerless_sha256, copier_headerless_sha1) = headerless
         .map(|(sha256, sha1)| {
             (
@@ -465,6 +474,13 @@ fn hash_storage_reader(
         sha256: hex::encode(sha256.finalize()),
         size,
     })
+}
+
+struct N64CanonicalIdentity {
+    sha256: String,
+    sha1: String,
+    size: u64,
+    xxh3_64: u64,
 }
 
 #[derive(Default)]
@@ -604,20 +620,20 @@ impl N64CanonicalDigest {
         }
     }
 
-    fn finish(mut self) -> Result<(Option<String>, Option<String>, Option<u64>, Option<u64>)> {
+    fn finish(mut self) -> Option<N64CanonicalIdentity> {
         if self.order.is_none() || matches!(self.order, Some(N64ByteOrder::Invalid)) {
-            return Ok((None, None, None, None));
+            return None;
         }
         if self.pending_len > 0 {
             let pending = self.pending;
             self.hash_words(&pending);
         }
-        Ok((
-            Some(hex::encode(self.sha256.finalize())),
-            Some(hex::encode(self.sha1.finalize())),
-            Some(self.size),
-            Some(self.xxh3.digest()),
-        ))
+        Some(N64CanonicalIdentity {
+            sha256: hex::encode(self.sha256.finalize()),
+            sha1: hex::encode(self.sha1.finalize()),
+            size: self.size,
+            xxh3_64: self.xxh3.digest(),
+        })
     }
 }
 
@@ -991,10 +1007,11 @@ mod tests {
             let chunks = [&encoded[..1], &encoded[1..3], &encoded[3..7], &encoded[7..]];
             let (digest, normalized) = canonical_digest(&chunks);
             assert_eq!(normalized, canonical);
-            let (sha256, sha1, size, _) = digest.finish().unwrap();
-            assert_eq!(sha256.unwrap(), hex::encode(Sha256::digest(canonical)));
-            assert_eq!(sha1.unwrap(), hex::encode(Sha1::digest(canonical)));
-            assert_eq!(size, Some(canonical.len() as u64));
+            let identity = digest.finish().unwrap();
+            assert_eq!(identity.sha256, hex::encode(Sha256::digest(canonical)));
+            assert_eq!(identity.sha1, hex::encode(Sha1::digest(canonical)));
+            assert_eq!(identity.size, canonical.len() as u64);
+            assert_eq!(identity.xxh3_64, xxhash_rust::xxh3::xxh3_64(&canonical));
         }
     }
 
@@ -1017,10 +1034,11 @@ mod tests {
             let mut digest = N64CanonicalDigest::default();
             digest.update(&encoded[..3]).unwrap();
             digest.update(&encoded[3..]).unwrap();
-            let (sha256, sha1, size, _) = digest.finish().unwrap();
-            assert_eq!(sha256.unwrap(), hex::encode(Sha256::digest(&expected)));
-            assert_eq!(sha1.unwrap(), hex::encode(Sha1::digest(&expected)));
-            assert_eq!(size, Some(8));
+            let identity = digest.finish().unwrap();
+            assert_eq!(identity.sha256, hex::encode(Sha256::digest(&expected)));
+            assert_eq!(identity.sha1, hex::encode(Sha1::digest(&expected)));
+            assert_eq!(identity.size, 8);
+            assert_eq!(identity.xxh3_64, xxhash_rust::xxh3::xxh3_64(&expected));
         }
     }
 
@@ -1035,7 +1053,7 @@ mod tests {
         assert!(matches!(digest.order, Some(N64ByteOrder::Invalid)));
         assert_eq!(digest.work.buffered_bytes, 4);
         assert_eq!(digest.work.digested_bytes, 0);
-        assert_eq!(digest.finish().unwrap(), (None, None, None, None));
+        assert!(digest.finish().is_none());
     }
 
     #[test]
@@ -1048,7 +1066,7 @@ mod tests {
         ] {
             let mut digest = N64CanonicalDigest::default();
             digest.update(bytes).unwrap();
-            assert_eq!(digest.finish().unwrap(), (None, None, None, None));
+            assert!(digest.finish().is_none());
         }
     }
 
