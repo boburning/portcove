@@ -1484,16 +1484,19 @@ export async function installScenarios({
     // Core took before this real activating update, and the per-library setting.
     const snapshotPolicyText =
       "Automatic snapshots before version changes are on for this library.";
-    const snapshotCoverageText = "Portcove can snapshot existing saves and settings it manages";
+    const snapshotCoverageHint =
+      "Saves & backups shows what Portcove covers and lists completed backups.";
     const visibleDetailPanel = () => browser.findElement(By.css('[role="tabpanel"]:not([hidden])'));
     const visibleSnapshotPolicy = async (owner: WebElement) => {
       const policy = await owner.findElement(By.css("[data-automatic-snapshot-policy]"));
       await browser.wait(
-        async () => (await policy.getText()).includes(snapshotPolicyText),
+        async () => {
+          const text = await policy.getText();
+          return text.includes(snapshotPolicyText) && text.includes(snapshotCoverageHint);
+        },
         15_000,
-        "The current library must report enabled automatic snapshots",
+        "The policy must report enabled automatic snapshots and direct players to coverage",
       );
-      assert.ok((await policy.getText()).includes(snapshotCoverageText));
     };
     const snapshotEvidence = async (name: string, target: WebElement) => {
       await executeBrowserScript(browser, 'arguments[0].scrollIntoView({block:"center"});', target);
@@ -1544,7 +1547,16 @@ export async function installScenarios({
 
       await openFixture(port, true);
       await revealDetailSection(browser, "Saves & backups");
-      await visibleSnapshotPolicy(await visibleDetailPanel());
+      const savesPanel = await visibleDetailPanel();
+      await visibleSnapshotPolicy(savesPanel);
+      const coverage = await savesPanel.findElement(
+        By.css('section[aria-label="Saved-data coverage"]'),
+      );
+      assert.match(
+        await coverage.getText(),
+        /Portcove checks the managed saves and settings folder when creating a backup\. Other locations are not covered\./u,
+      );
+      await snapshotEvidence("native-automatic-snapshot-coverage", coverage);
       const row = `[aria-labelledby="detail-saves-and-storage"] [data-backup-id="${snapshot.id}"]`;
       const historyLabel = await browser.wait(
         until.elementLocated(By.css(`${row} [data-automatic-snapshot]`)),
