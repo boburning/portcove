@@ -92,6 +92,10 @@ it.each([1280, 320])(
     const headingBounds = heading.element().getBoundingClientRect();
     expect(headingBounds.top).toBeGreaterThanOrEqual(details.getBoundingClientRect().top);
     expect(headingBounds.bottom).toBeLessThanOrEqual(detailsBottom);
+    const title = dialog.getByRole("heading", { name: "Create recovery bundle" }).element();
+    const titleBounds = title.getBoundingClientRect();
+    expect(titleBounds.top).toBeGreaterThanOrEqual(dialog.element().getBoundingClientRect().top);
+    expect(titleBounds.bottom).toBeLessThanOrEqual(details.getBoundingClientRect().top);
     const panelBottom = dialog.element().getBoundingClientRect().bottom;
     expect(close.getBoundingClientRect().top).toBeGreaterThanOrEqual(detailsBottom);
     expect(action.getBoundingClientRect().top).toBeGreaterThanOrEqual(detailsBottom);
@@ -107,6 +111,7 @@ it.each([1280, 320])(
     await userEvent.keyboard("{PageDown}");
     await expect.poll(() => details.scrollTop).toBeGreaterThan(0);
     expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(500);
+    expect(title.getBoundingClientRect().top).toBe(titleBounds.top);
   },
 );
 
