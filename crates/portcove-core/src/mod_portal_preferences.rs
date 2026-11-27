@@ -164,7 +164,11 @@ impl PortcoveService {
         if self.catalog().listing(port_id).is_ok() || self.catalog().port(port_id).is_ok() {
             return Ok(());
         }
-        if crate::Library::external_runtime_with_port_from(connection, port_id)?.is_some() {
+        // A pending setup still identifies the player's entry after catalog
+        // withdrawal. Its retained record does not supply automatic mod links.
+        if Self::pending_download_port_ids_from(connection, Some(port_id))?.contains(port_id)
+            || crate::Library::external_runtime_with_port_from(connection, port_id)?.is_some()
+        {
             return Ok(());
         }
         self.catalog().port(port_id).map(|_| ())
