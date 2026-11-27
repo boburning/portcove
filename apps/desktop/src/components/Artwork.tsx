@@ -7,6 +7,7 @@ import {
   useEffect,
   useLayoutEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type ComponentType,
@@ -16,6 +17,7 @@ import { Gamepad2 } from "lucide-react";
 import {
   useArtwork,
   useArtworkVisibility,
+  useCatalogArtworkKey,
   useCollectionCovers,
   useCoverCollection,
   usesAutomaticArtwork,
@@ -452,10 +454,17 @@ function ArtworkSlotControl({
     originalGameId: string | undefined;
   } | null>(null);
   const originalGameId = port.presentation?.original_game?.id;
-  const currentIdentity = useRef({ cache, portId: port.id, originalGameId, slot });
+  const catalogArtworkKey = useCatalogArtworkKey(port.id);
+  // A native picker may outlive a refresh elsewhere in the catalog. An edit to
+  // the selected listing retires that picker even if the old mapping returns.
+  const pickerScope = useMemo(
+    () => ({ catalogArtworkKey, originalGameId }),
+    [catalogArtworkKey, originalGameId],
+  );
+  const currentIdentity = useRef({ cache, portId: port.id, originalGameId, slot, pickerScope });
   useLayoutEffect(() => {
-    currentIdentity.current = { cache, portId: port.id, originalGameId, slot };
-  }, [cache, port.id, originalGameId, slot]);
+    currentIdentity.current = { cache, portId: port.id, originalGameId, slot, pickerScope };
+  }, [cache, port.id, originalGameId, slot, pickerScope]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -528,6 +537,7 @@ function ArtworkSlotControl({
     currentIdentity.current.slot === slot &&
     currentIdentity.current.cache?.generation === cache?.generation;
   const stillCurrent = () => stillInView() && currentIdentity.current.cache === cache;
+  const stillPicking = () => stillInView() && currentIdentity.current.pickerScope === pickerScope;
   const refreshCurrent = async (committedRevision?: number) => {
     const current = currentIdentity.current.cache;
     if (!stillInView() || !current) return;
@@ -611,7 +621,7 @@ function ArtworkSlotControl({
     setError(undefined);
     try {
       const path = await pickArtworkPath();
-      if (!stillCurrent() || !path) return;
+      if (!stillPicking() || !path) return;
       const preview = await desktopApi.previewLocalArtwork(port.id, path, cache.generation);
       // Keep the completed preview across a cache refresh. Apply still needs the
       // original revision from the current cache, and review respects moved focus.
@@ -624,9 +634,14 @@ function ArtworkSlotControl({
       );
       staged = stageImage({ kind: "local", path }, revision, preview, preserveFocus);
     } catch (value) {
-      if (stillCurrent()) setError(errorText(value));
+      if (stillPicking()) setError(errorText(value));
     } finally {
-      finishChange(pickerButton.current, initiator, !staged);
+      finishChange(
+        pickerButton.current,
+        initiator,
+        !staged && stillPicking(),
+        currentIdentity.current.cache,
+      );
     }
   };
 
