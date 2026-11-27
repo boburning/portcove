@@ -21,6 +21,7 @@ import {
 import type { DiscoveryCheckpoint } from "./discovery-checkpoint.mts";
 import { collectDiscoveryRun } from "./discovery-collection.mts";
 import type { DiscoveryCollectionHost } from "./discovery-collection.mts";
+import { sourcePortTopicFamily } from "./discovery-ecosystems.mts";
 import {
   externalHintSummary,
   externalListIds,
@@ -169,6 +170,14 @@ function listingCandidatePath(lead: DiscoveryLead, covered: ReadonlySet<string>)
 function listingScopeHint(lead: DiscoveryLead) {
   if (lead.manifest?.types.some((type) => type === "port" || type === "recomp"))
     return { kind: "retained-manifest", manifest_sha256: sha256(lead.manifest) } as const;
+  if (
+    lead.release_hint?.assets_observed === false &&
+    lead.search_families?.includes(sourcePortTopicFamily)
+  )
+    return {
+      kind: "source-port-topic",
+      release_sampled_at: lead.release_hint.observed_at,
+    } as const;
   if (lead.release_hint?.assets_observed === false && lead.external_lists?.length)
     return {
       kind: "curated-source",

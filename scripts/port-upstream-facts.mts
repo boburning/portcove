@@ -47,7 +47,7 @@ export interface PortFactsOptions {
   fetcher?: typeof fetch;
 }
 
-export const discoveryScopePolicy = "github-primary-single-game-manifest/2";
+export const discoveryScopePolicy = "github-primary-game-scope/3";
 
 const namesScummVm = (values: readonly unknown[]) =>
   values.some(
@@ -106,6 +106,89 @@ function launcherScopeEvidence(value: unknown, repository: string) {
     program_count: programs.length,
     names_scummvm: namesScummVm([repository, value.name, ...programs]),
   };
+}
+
+function desktopEntryScopeEvidence(text: string, repository: string) {
+  let group = "";
+  let entries = 0;
+  const fields = new Map<string, string>();
+  for (const raw of text.split(/\r?\n/u)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    if (line.startsWith("[") && line.endsWith("]")) {
+      group = line;
+      if (group === "[Desktop Entry]") entries++;
+      continue;
+    }
+    if (group !== "[Desktop Entry]") continue;
+    const separator = line.indexOf("=");
+    if (separator < 1) return undefined;
+    const key = line.slice(0, separator).trim();
+    if (!key || fields.has(key)) return undefined;
+    fields.set(key, line.slice(separator + 1).trim());
+  }
+  const name = fields.get("Name");
+  const categories = fields.get("Categories") ?? "";
+  const executable = /^([A-Za-z0-9][A-Za-z0-9_.-]{0,127})(?: +%[fFuU])?$/u.exec(
+    fields.get("Exec") ?? "",
+  )?.[1];
+  if (
+    entries !== 1 ||
+    fields.get("Type") !== "Application" ||
+    !name ||
+    name.length > 256 ||
+    /\p{Cc}/u.test(name) ||
+    !/^[A-Za-z][A-Za-z0-9-]*(?:;[A-Za-z][A-Za-z0-9-]*)*;?$/u.test(categories) ||
+    !categories.split(";").includes("Game") ||
+    ["Hidden", "NoDisplay", "Terminal", "DBusActivatable"].some(
+      (key) => fields.has(key) && fields.get(key) !== "false",
+    ) ||
+    fields.has("OnlyShowIn") ||
+    fields.has("NotShowIn") ||
+    !executable ||
+    (fields.has("TryExec") && fields.get("TryExec") !== executable) ||
+    executable !== repository.split("/")[1]
+  )
+    return undefined;
+  return {
+    format: 1,
+    category: "Game",
+    names_scummvm: namesScummVm([repository, name, executable]),
+  };
+}
+
+function ordinaryEvidenceBlob(entry: unknown): entry is Record<string, unknown> & { sha: string } {
+  return (
+    isRecord(entry) &&
+    entry.type === "blob" &&
+    (entry.mode === "100644" || entry.mode === "100755") &&
+    typeof entry.sha === "string" &&
+    /^[a-f0-9]{40}$/u.test(entry.sha)
+  );
+}
+
+function boundedEvidenceBody(body: unknown, path: string, sha: string) {
+  if (
+    !isRecord(body) ||
+    body.type !== "file" ||
+    body.path !== path ||
+    body.encoding !== "base64" ||
+    typeof body.content !== "string" ||
+    body.content.length > 90_000 ||
+    body.sha !== sha
+  )
+    return null;
+  const encoded = body.content.replace(/[\r\n]/gu, "");
+  const bytes = Buffer.from(encoded, "base64");
+  if (
+    !bytes.length ||
+    bytes.length > 64 * 1024 ||
+    bytes.length !== body.size ||
+    bytes.toString("base64") !== encoded ||
+    createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex") !== sha
+  )
+    return null;
+  return bytes;
 }
 
 async function observeDiscoveryScope(
@@ -178,42 +261,101 @@ async function observeDiscoveryScope(
   const manifestPath = [".recomp.json", ".recomp-board.json", "recomplauncher.json"].find((name) =>
     rootEntries.some(({ path }) => path === name),
   );
-  if (manifestPath === undefined) return outcome("held", "optional-project-manifest-unavailable");
-  const entries = rootEntries.filter(({ path }) => path === manifestPath);
-  const manifestEntry = entries[0];
-  if (
-    entries.length !== 1 ||
-    !isRecord(manifestEntry) ||
-    manifestEntry.type !== "blob" ||
-    (manifestEntry.mode !== "100644" && manifestEntry.mode !== "100755") ||
-    typeof manifestEntry.sha !== "string" ||
-    !/^[a-f0-9]{40}$/u.test(manifestEntry.sha)
-  )
-    return outcome("held", "unsupported-project-manifest-entry");
-  const fact = await read(`${location}/contents/${manifestPath}?ref=${commit}`, 24);
+  let evidencePath: string;
+  let entry: unknown;
+  if (manifestPath === undefined) {
+    const topics: unknown[] = Array.isArray(project.topics) ? project.topics : [];
+    if (!topics.includes("source-port"))
+      return outcome("held", "project-scope-evidence-unavailable");
+    if (namesScummVm([project.full_name, ...topics]))
+      return outcome("restricted", "scummvm-out-of-scope");
+    const complete = await read(`${location}/git/trees/${treeId}?recursive=1`, 24);
+    if (complete.status === "unavailable")
+      return outcome(
+        "unavailable",
+        complete.reason ?? "desktop-entry-tree-unobserved",
+        complete.retry_after,
+      );
+    if (
+      !isRecord(complete.body) ||
+      complete.body.sha !== treeId ||
+      complete.body.truncated !== false ||
+      !Array.isArray(complete.body.tree)
+    )
+      return outcome("held", "desktop-entry-tree-incomplete");
+    const files = (complete.body.tree as unknown[]).filter(
+      (value): value is Record<string, unknown> & { path: string } =>
+        isRecord(value) && typeof value.path === "string",
+    );
+    if (
+      files.length !== complete.body.tree.length ||
+      new Set(files.map(({ path }) => path)).size !== files.length
+    )
+      return outcome("held", "desktop-entry-tree-incomplete");
+    const desktops = files.filter(({ path }) => path.endsWith(".desktop"));
+    if (desktops.length !== 1) return outcome("held", "single-desktop-entry-unresolved");
+    entry = desktops[0];
+    evidencePath = desktops[0]!.path;
+    if (
+      evidencePath.length > 240 ||
+      !evidencePath
+        .split("/")
+        .every((part) => /^[A-Za-z0-9_.-]+$/u.test(part) && part !== "." && part !== "..") ||
+      evidencePath
+        .split("/")
+        .slice(0, -1)
+        .some((part) =>
+          /^(?:tests?|fixtures?|examples?|samples?|docs?|vendor|third[-_]party|external|\.github)$/iu.test(
+            part,
+          ),
+        )
+    )
+      return outcome("held", "unsupported-project-desktop-entry");
+  } else {
+    evidencePath = manifestPath;
+    entry = rootEntries.find(({ path }) => path === manifestPath);
+  }
+  if (!ordinaryEvidenceBlob(entry))
+    return outcome(
+      "held",
+      manifestPath ? "unsupported-project-manifest-entry" : "unsupported-project-desktop-entry",
+    );
+  const fact = await read(`${location}/contents/${evidencePath}?ref=${commit}`, 24);
   if (fact.status === "unavailable")
-    return outcome("unavailable", fact.reason ?? "project-manifest-unobserved", fact.retry_after);
-  const body = fact.body;
-  if (
-    !isRecord(body) ||
-    body.type !== "file" ||
-    body.path !== manifestPath ||
-    body.encoding !== "base64" ||
-    typeof body.content !== "string" ||
-    body.content.length > 90_000 ||
-    body.sha !== manifestEntry.sha
-  )
-    return outcome("held", "unsupported-project-manifest");
-  const encoded = body.content.replace(/[\r\n]/gu, "");
-  const bytes = Buffer.from(encoded, "base64");
-  if (
-    !bytes.length ||
-    bytes.length > 64 * 1024 ||
-    bytes.length !== body.size ||
-    bytes.toString("base64") !== encoded ||
-    createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex") !== body.sha
-  )
-    return outcome("held", "project-manifest-bytes-unverified");
+    return outcome(
+      "unavailable",
+      fact.reason ?? "project-scope-evidence-unobserved",
+      fact.retry_after,
+    );
+  const bytes = boundedEvidenceBody(fact.body, evidencePath, entry.sha);
+  if (!bytes) return outcome("held", "project-scope-evidence-bytes-unverified");
+  const binding = {
+    policy: discoveryScopePolicy,
+    state: "eligible" as const,
+    repository_id: repositoryId,
+    commit,
+    tree: treeId,
+    evidence_path: evidencePath,
+  };
+  if (manifestPath === undefined) {
+    let desktop;
+    try {
+      desktop = desktopEntryScopeEvidence(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+        project.full_name,
+      );
+    } catch {
+      return outcome("held", "unsupported-project-desktop-entry");
+    }
+    if (!desktop) return outcome("held", "unsupported-project-desktop-entry");
+    if (desktop.names_scummvm) return outcome("restricted", "scummvm-out-of-scope");
+    return {
+      ...binding,
+      desktop_entry_blob: entry.sha,
+      desktop_entry_sha256: createHash("sha256").update(bytes).digest("hex"),
+      desktop_entry: desktop,
+    };
+  }
 
   let manifest: ReturnType<typeof parseRecompManifest> | ReturnType<typeof launcherScopeEvidence>;
   try {
@@ -232,13 +374,9 @@ async function observeDiscoveryScope(
   )
     return outcome("restricted", "scummvm-out-of-scope");
   return {
-    policy: discoveryScopePolicy,
-    state: "eligible" as const,
-    repository_id: repositoryId,
-    commit,
-    tree: treeId,
+    ...binding,
     manifest_path: manifestPath,
-    manifest_blob: manifestEntry.sha,
+    manifest_blob: entry.sha,
     manifest_sha256: createHash("sha256").update(bytes).digest("hex"),
     manifest,
   };
