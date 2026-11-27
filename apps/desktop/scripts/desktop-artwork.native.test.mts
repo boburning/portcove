@@ -239,7 +239,7 @@ async function artworkContract(subject: Artwork) {
       return value;
     },
     wait: async (condition: unknown, deadline: number, message?: string): Promise<unknown> => {
-      assert.equal(deadline, 10_000, "Retain the finite artwork wait budget");
+      assert.equal(deadline, 45_000, "Retain the finite artwork read and decode waits");
       let result: unknown;
       if (typeof condition === "function") result = await Reflect.apply(condition, undefined, []);
       else {
