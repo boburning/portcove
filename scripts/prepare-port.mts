@@ -10,7 +10,6 @@ import {
   packagePlayerProjectionKey,
 } from "./package-player-observation.mts";
 import {
-  mkdirSync,
   mkdtempSync,
   lstatSync,
   readFileSync,
@@ -79,6 +78,7 @@ import type {
   ImageValidator,
 } from "./inspect-igdb-artwork.mts";
 import {
+  openArtworkCheckpoint as openCheckpoint,
   prepareArtworkWorkset,
   readKnownGoneArtwork,
   retainedCoverDigests,
@@ -118,7 +118,6 @@ interface PrepareOptions {
   facts?: Pick<PortFactsOptions, "fetcher" | "now" | "token">;
   artwork?: Pick<ArtworkPreparationOptions, "inspectGame" | "inspectImage">;
 }
-const owner = { format_version: 1, tool: "portcove-prepare-port" };
 const repositoryCatalogPath = join("crates", "portcove-core", "catalog");
 type PackageFacts = Pick<
   Awaited<ReturnType<typeof collectPortFacts>>,
@@ -395,25 +394,6 @@ function packageHintFeedback(
       };
     }),
   };
-}
-function openCheckpoint(directory: string) {
-  try {
-    mkdirSync(directory);
-    writeFileSync(join(directory, "owner.json"), JSON.stringify(owner), { flag: "wx" });
-  } catch (error) {
-    if (errorCode(error) !== "EEXIST") throw error;
-  }
-  const info = lstatSync(directory);
-  const ownerInfo = lstatSync(join(directory, "owner.json"));
-  if (
-    !info.isDirectory() ||
-    info.isSymbolicLink() ||
-    !ownerInfo.isFile() ||
-    ownerInfo.isSymbolicLink() ||
-    observationHash(readArtworkJson(join(directory, "owner.json"))) !== observationHash(owner)
-  )
-    throw new Error("Output directory is not a recognized preparation checkpoint.");
-  mkdirSync(join(directory, "active.lock"));
 }
 function immutableJson(directory: string, name: string, value: unknown) {
   const bytes = `${JSON.stringify(value, null, 2)}\n`;

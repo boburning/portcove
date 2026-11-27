@@ -2255,6 +2255,23 @@ An exact matching provider retry outside the current time is skipped for this
 pass and reconsidered later. The result counts due IDs outside the pass,
 including deferred work. The output remains a proposal for catalog review.
 
+Use the same checkpoint for a bounded game media pass.
+
+```bash
+node scripts/generate-catalog.mts --prepare-proposal crates/portcove-core/catalog/catalog.json --hero-media igdb --media-checkpoint EXISTING_CHECKPOINT --media-due-limit 24 --validator-cli TRUSTED_CLI --output-dir NEW_PROPOSAL
+```
+
+The pass selects due catalog identities, skips ScummVM, and tracks each logo,
+background, key-art and screenshot observation independently. The existing cover
+queue uses its own progress. The media pass retains each output for review
+and advances the checkpoint after writing the receipts. Reuse the checkpoint
+with a new proposal directory on each invocation. An interrupted batch resumes
+from the saved round. New arrivals join the next round. A changed identity,
+reviewed mapping, current media or decoder wakes the affected entry. Live
+provider deferrals retain their retry time. The command reports attempted,
+deferred and due work for the operator. The proposal still requires acceptance
+through the catalog delivery path.
+
 A logical workset may exceed 400 IDs. The catalog generator's `--prepare-artwork`
 runs a larger workset as consecutive operations of at most 400 IDs over the same
 input, assembles the proposal per port and reconciles exact-image Gone observations
