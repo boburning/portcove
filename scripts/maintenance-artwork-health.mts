@@ -17,6 +17,7 @@ import {
   createIgdbInspector,
   isConfirmedIgdbImageGone,
   gameMediaDimensionsFit,
+  gameMediaImageTarget,
   gameMediaRoles,
 } from "./inspect-igdb-artwork.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
@@ -148,7 +149,7 @@ function mediaHealthReference(asset: unknown) {
     asset.url !== "https://images.igdb.com/igdb/image/upload/t_" + variant + "/" + imageId + ".png"
   )
     return;
-  return { key: variant + "/" + imageId, imageId, role, sha256: asset.sha256 };
+  return { key: gameMediaImageTarget(role, imageId), imageId, role, sha256: asset.sha256 };
 }
 
 export function mediaHealthInventory(document: unknown) {
@@ -198,6 +199,7 @@ async function observeImageWindow<T>(
   byteBudget: number,
   targetId: (target: T) => string,
   read: (target: T, remaining: number) => Promise<Content>,
+  variant?: (target: T) => (typeof gameMediaRoles)[MediaRole]["variant"],
 ) {
   const observations: ImageRecord[] = [];
   for (const target of selected) {
@@ -213,7 +215,9 @@ async function observeImageWindow<T>(
     } catch (error) {
       observations.push({
         image_id,
-        status: isConfirmedIgdbImageGone(error, image_id) ? "gone" : "unavailable",
+        status: isConfirmedIgdbImageGone(error, image_id, variant?.(target))
+          ? "gone"
+          : "unavailable",
       });
     }
   }
@@ -251,6 +255,7 @@ export async function observeMediaArtworkWindow(
     mediaImageBytes,
     (target) => target.imageId,
     (target, remaining) => inspector.inspectMediaImage(target.imageId, target.role, remaining),
+    (target) => gameMediaRoles[target.role].variant,
   );
   return {
     window: { index: window.index, windows: window.windows, eligible: inventory.size },

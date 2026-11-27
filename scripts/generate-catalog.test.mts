@@ -655,7 +655,7 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
         },
       ],
     },
-    gone_image_ids: ["goneshot", "neveradmitted"],
+    gone_media_targets: ["720p/goneshot", "720p/neveradmitted"],
     records: [
       {
         port_id: "main-port",

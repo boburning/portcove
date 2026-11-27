@@ -7576,15 +7576,17 @@ each accepted logo, key-art image, background, and screenshot for the same
 subject. A fully covered subject skips provider lookup. Each role retains its
 catalog limits. With `--hero-media igdb --refresh-artwork`, the selected ports
 also recheck the exact accepted IGDB assets. Shared references use one request
-per image and role in an operation. Changed bytes and provider failures keep
-the accepted mapping for review. Exact HTTP 410 observations sweep
-all candidate references and prevent batch reselection; failed or incomplete
-requests do not establish absence or withdrawal.
+per exact CDN variant and image in an operation. Changed bytes and provider
+failures keep the accepted mapping for review. An HTTP 410 withdraws references
+to the exact CDN variant and prevents its reselection in the batch. For example,
+a withdrawn logo does not withdraw a cover with the same provider image ID.
+Failed or incomplete requests leave withdrawal unresolved.
 
 The artwork evidence includes logo, key-art, background, and screenshot
 coverage by port, original release, and IGDB game identity. It records accepted
 catalog asset IDs independently of IGDB image IDs, as well as fresh proposals
-and exact observed withdrawals. An empty provider
+and exact observed withdrawals. `game_media.gone_media_targets` records each
+withdrawn CDN target as `variant/image_id`. An empty provider
 inventory is missing evidence for that role in that provider. A failed,
 incomplete or unrun query remains unknown. Conflicting provider identities
 stay visible for review. The default report also retains listing-only entries
