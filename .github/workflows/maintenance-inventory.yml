@@ -98,6 +98,9 @@ jobs:
       PORTCOVE_MAINTENANCE_PURPOSE: ${{ inputs.purpose || 'schedule' }}
       PORTCOVE_MAINTENANCE_RESOURCE_EVIDENCE: ${{ github.workspace }}/work/maintenance-report/resource.jsonl
     steps:
+      - name: Reserve time for maintenance job output delivery
+        if: github.event_name == 'schedule'
+        run: echo "PORTCOVE_GAME_MEDIA_LATEST_START=$((EPOCHSECONDS + 69 * 60))" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Upstream snapshots are mapped at their producer's commit, which must be local.
@@ -524,9 +527,20 @@ jobs:
       - name: Check that collection kept the reconciled intake fence
         if: ${{ !cancelled() && github.event_name == 'schedule' && steps.collect.outputs.completed == 'true' && needs.reconcile-intake-receipts.result == 'success' && needs.reconcile-intake-receipts.outputs.receipt_outcome == 'verified' }}
         run: jq -e '.hosted_intake.receipt_fence == "verified"' work/maintenance-evidence/collect.json > /dev/null
+      - name: Admit the game media pass within the remaining job time
+        id: game-media-window
+        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.core-cli.outcome == 'success' }}
+        timeout-minutes: 1
+        run: |
+          if (( EPOCHSECONDS < PORTCOVE_GAME_MEDIA_LATEST_START )); then
+            echo 'admitted=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Game media preparation deferred without attempts. The next schedule retries with its existing checkpoint.' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Restore the missing game media checkpoint
         id: game-media-cache
-        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.core-cli.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.game-media-window.outputs.admitted == 'true' }}
+        timeout-minutes: 2
         continue-on-error: true
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -536,6 +550,7 @@ jobs:
       - name: Restore the game media provider retry clock
         id: game-media-provider
         if: ${{ !cancelled() && steps.game-media-cache.outcome == 'success' }}
+        timeout-minutes: 2
         continue-on-error: true
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -593,6 +608,7 @@ jobs:
           echo 'checkpoint=true' >> "$GITHUB_OUTPUT"
       - name: Retain the provider retry clock even if proposal preparation fails
         if: ${{ !cancelled() && steps.game-media-provider.outcome == 'success' && hashFiles('work/maintenance-game-media-provider/artwork-provider-admission.json') != '' }}
+        timeout-minutes: 1
         continue-on-error: true
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -603,6 +619,7 @@ jobs:
       - name: Retain the scheduled game media proposal and receipt
         id: game-media-report
         if: ${{ !cancelled() && steps.game-media.outcome == 'success' }}
+        timeout-minutes: 2
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -617,6 +634,7 @@ jobs:
           retention-days: 30
       - name: Retain the due game media checkpoint for the next schedule
         if: ${{ !cancelled() && steps.game-media.outputs.checkpoint == 'true' && steps.game-media-report.outcome == 'success' }}
+        timeout-minutes: 1
         continue-on-error: true
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

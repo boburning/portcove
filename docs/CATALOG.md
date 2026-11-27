@@ -2281,7 +2281,9 @@ through the catalog delivery path.
 
 Scheduled Maintenance inventory uses this queue for up to 48 due identities
 after retaining its inventory and recovery artifacts. It uses the Core CLI
-already built by the job for validation. The 32 MiB image allowance spans
+already built by the job for validation. When the main work leaves too little
+time for the bounded media pass, the job defers it to the next schedule and
+keeps the existing checkpoint. The 32 MiB image allowance spans
 provider batches. The reader stops at the first chunk over the allowance
 and includes that chunk in the transfer count. The `PORTCOVE_IGDB_CREDENTIALS`
 Actions secret uses the maintainer credential file's `client_id` and

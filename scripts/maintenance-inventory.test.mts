@@ -292,6 +292,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     uses?: string;
     env?: Record<string, string>;
     with?: Record<string, unknown>;
+    "timeout-minutes"?: number;
   };
   type Job = {
     uses?: string;
@@ -335,6 +336,21 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     (step) => step.name === "Retain the backup for independent restore proof",
   )!;
   assert.ok(collect!.steps.indexOf(media) > collect!.steps.indexOf(recoveryUpload));
+  const clock = collect!.steps.find(
+    (step) => step.name === "Reserve time for maintenance job output delivery",
+  )!;
+  const window = collect!.steps.find(
+    (step) => step.name === "Admit the game media pass within the remaining job time",
+  )!;
+  assert.match(clock.run!, /PORTCOVE_GAME_MEDIA_LATEST_START=\$\(\(EPOCHSECONDS \+ 69 \* 60\)\)/u);
+  assert.match(window.run!, /EPOCHSECONDS < PORTCOVE_GAME_MEDIA_LATEST_START/u);
+  assert.match(window.run!, /deferred without attempts/u);
+  const mediaTail = collect!.steps.slice(collect!.steps.indexOf(window));
+  assert.ok(mediaTail.every((step) => step["timeout-minutes"]));
+  assert.ok(
+    69 + mediaTail.reduce((minutes, step) => minutes + step["timeout-minutes"]!, 0) <
+      collect!["timeout-minutes"]!,
+  );
   assert.match(media.run!, /--media-provider-checkpoint/u);
   const providerSave = collect!.steps.find(
     (step) => step.name === "Retain the provider retry clock even if proposal preparation fails",
