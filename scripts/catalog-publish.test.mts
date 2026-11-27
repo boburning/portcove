@@ -1675,6 +1675,35 @@ void test("exact provider cross-links enrich the signed listing without changing
     undefined,
     "an authored provider link takes precedence",
   );
+  const bound = { ...listingOnly, id: "github-123" };
+  const boundBefore = projectListingDelivery({ format_version: 17, listings: [bound] }, [], null, {
+    modPortalDefaults: defaults,
+  });
+  const renamed = {
+    ...bound,
+    project_url: "https://github.com/new-owner/renamed-game",
+    release_url: "https://github.com/new-owner/renamed-game/releases",
+  };
+  const withoutRegistry = listingModPortalDefaults(catalog, undefined, new Set(), now);
+  const boundAfter = projectListingDelivery(
+    { format_version: 17, listings: [renamed] },
+    [],
+    boundBefore.bytes,
+    { modPortalDefaults: withoutRegistry },
+  );
+  assert.equal(boundAfter.generated_mod_portals, 1);
+  assert.equal(rows(boundAfter.bytes)[0]?.project_url, renamed.project_url);
+  const retained = requiredFixture(rows(boundBefore.bytes)[0]);
+  assert.deepEqual(rows(boundAfter.bytes)[0]?.mod_portals, retained.mod_portals);
+  assert.equal(withoutRegistry({ ...renamed, id: "github-456" }, retained), undefined);
+  assert.equal(
+    withoutRegistry({ ...renamed, original_game: { id: "different-game" } }, retained),
+    undefined,
+  );
+  assert.equal(
+    withoutRegistry({ ...listingOnly, project_url: renamed.project_url }, publishedListingOnly),
+    undefined,
+  );
   const withdrawn = projectListingDelivery(canonical, [], first.bytes, {
     modPortalDefaults: listingModPortalDefaults(
       catalog,
