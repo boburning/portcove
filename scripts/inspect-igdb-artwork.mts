@@ -1340,12 +1340,16 @@ export function createIgdbInspector(
   fetchImpl: ArtworkFetch = fetch,
   control: {
     signal?: AbortSignal;
+    maximumOperationImageBytes?: number;
     onBackoff?: (status: {
       metadata_retry_at: string | null;
       image_retry_at: string | null;
     }) => void;
   } = {},
 ) {
+  const operationImageBudget = control.maximumOperationImageBytes ?? Infinity;
+  const imageBudget = () =>
+    Math.min(maximumBatchBytes - used("image_bytes"), operationImageBudget - metrics.image_bytes);
   let tokenPromise: Promise<{ clientId: string; token: string }> | undefined;
   let lastGameRequest = 0;
   let gameRetryAt = 0;
@@ -1493,10 +1497,10 @@ export function createIgdbInspector(
     remainingBytes: number,
   ): Promise<Record<string, unknown> & { sha256: string; bytes: number }> {
     if (!matchesString(imagePattern, imageId)) throw new Error("Invalid image identity.");
-    if (used("image_requests") >= 400 || used("image_bytes") >= maximumBatchBytes)
+    if (used("image_requests") >= 400 || imageBudget() <= 0)
       throw new ArtworkBatchExhausted("Artwork image budget reached.");
     await waitForImages();
-    if (used("image_requests") >= 400 || used("image_bytes") >= maximumBatchBytes)
+    if (used("image_requests") >= 400 || imageBudget() <= 0)
       throw new ArtworkBatchExhausted("Artwork image budget reached.");
     const requestSignal = signal();
     metrics.image_requests++;
@@ -1530,7 +1534,7 @@ export function createIgdbInspector(
         (length) => {
           metrics.image_bytes += length;
         },
-        Math.min(remainingBytes, maximumBatchBytes - used("image_bytes")),
+        Math.min(remainingBytes, imageBudget()),
       );
       const sha256 = createHash("sha256").update(bytes).digest("hex");
       const validated = await validateImage(bytes);

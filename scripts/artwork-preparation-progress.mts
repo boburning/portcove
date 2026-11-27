@@ -1,4 +1,12 @@
-import { lstatSync, mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
+import {
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmdirSync,
+  writeFileSync,
+  renameSync,
+} from "node:fs";
 import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { isRecord, errorCode } from "./runtime-values.mts";
@@ -157,6 +165,66 @@ function replaceOwned(root: string, name: string, value: unknown) {
   const temporary = `${filename}.${randomUUID()}.next`;
   writeFileSync(temporary, bytes, { flag: "wx", mode: 0o600 });
   renameSync(temporary, filename);
+}
+
+/** Retain the active game-media round and its exact receipts between hosted passes. */
+export function snapshotGameMediaCheckpoint(source: string, destination: string) {
+  const maximum = 48 * 1024 * 1024;
+  const maximumFiles = 2 * 8192 + 8;
+  openArtworkCheckpoint(source);
+  try {
+    mkdirSync(destination);
+    const copied = new Set<string>();
+    let bytes = 0;
+    function retain(name: string, value: unknown) {
+      if (copied.has(name)) return;
+      const content = JSON.stringify(value);
+      bytes += Buffer.byteLength(content);
+      if (bytes > maximum || copied.size >= maximumFiles)
+        throw new Error("Game media continuation exceeds its hosted snapshot budget");
+      writeFileSync(join(destination, name), content, { flag: "wx", mode: 0o600 });
+      copied.add(name);
+    }
+    function retainReceipt(name: string, value: unknown) {
+      const hash = observationHash(value);
+      const receipt = `artwork-attempt-${hash}.json`;
+      const stored = readOwned(source, receipt);
+      if (stored === null || observationHash(stored) !== hash)
+        throw new Error("Hosted game media continuation differs from its receipt");
+      retain(name, value);
+      retain(receipt, stored);
+    }
+    retain("owner.json", checkpointOwner);
+    const providerName = "artwork-provider-admission.json";
+    const provider = readOwned(source, providerName);
+    if (provider !== null) retainReceipt(providerName, provider);
+    const roundName = "game-media-due-round.json";
+    const round = readOwned(source, roundName);
+    if (round !== null) {
+      if (
+        !isRecord(round) ||
+        typeof round.ids_sha256 !== "string" ||
+        !/^[a-f0-9]{64}$/u.test(round.ids_sha256)
+      )
+        throw new Error("Invalid hosted game media round");
+      const name = `game-media-due-ids-${round.ids_sha256}.json`;
+      const ids = readOwned(source, name);
+      if (ids === null || observationHash(ids) !== round.ids_sha256)
+        throw new Error("Hosted game media round differs from its retained workset");
+      retainReceipt(roundName, round);
+      retain(name, ids);
+    }
+    for (const name of readdirSync(source)) {
+      if (/^game-media-progress-[a-z0-9][a-z0-9-]{0,127}\.json$/u.test(name)) {
+        const progress = readOwned(source, name);
+        if (progress === null) throw new Error("Hosted game media progress is missing");
+        retainReceipt(name, progress);
+      }
+    }
+    return { files: copied.size, bytes };
+  } finally {
+    rmdirSync(join(source, "active.lock"));
+  }
 }
 /** Save the round once and advance a small cursor between bounded passes. A
  * newly due identity joins the next round without displacing retained work. */

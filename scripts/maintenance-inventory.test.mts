@@ -292,6 +292,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     uses?: string;
     env?: Record<string, string>;
     with?: Record<string, unknown>;
+    "timeout-minutes"?: number;
   };
   type Job = {
     uses?: string;
@@ -325,6 +326,51 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const { collect, "restore-proof": restoreProof } = workflow.jobs;
+  const media = collect!.steps.find((step) => step.run?.includes("--media-image-budget-mib"))!;
+  assert.match(media.if!, /github.event_name == 'schedule'/u);
+  assert.deepEqual(media.env, { IGDB_CREDENTIALS: "${{ secrets.PORTCOVE_IGDB_CREDENTIALS }}" });
+  assert.match(media.run!, /--media-due-limit 48 --media-image-budget-mib 32/u);
+  assert.match(media.run!, /provider-credentials-unavailable/u);
+  assert.match(media.run!, /env -i [^\n]*\n\s*node scripts\/generate-catalog\.mts/u);
+  const recoveryUpload = collect!.steps.find(
+    (step) => step.name === "Retain the backup for independent restore proof",
+  )!;
+  assert.ok(collect!.steps.indexOf(media) > collect!.steps.indexOf(recoveryUpload));
+  const clock = collect!.steps.find(
+    (step) => step.name === "Reserve time for maintenance job output delivery",
+  )!;
+  const window = collect!.steps.find(
+    (step) => step.name === "Admit the game media pass within the remaining job time",
+  )!;
+  assert.match(clock.run!, /PORTCOVE_GAME_MEDIA_LATEST_START=\$\(\(EPOCHSECONDS \+ 69 \* 60\)\)/u);
+  assert.match(window.run!, /EPOCHSECONDS < PORTCOVE_GAME_MEDIA_LATEST_START/u);
+  assert.match(window.run!, /deferred without attempts/u);
+  const mediaTail = collect!.steps.slice(collect!.steps.indexOf(window));
+  assert.ok(mediaTail.every((step) => step["timeout-minutes"]));
+  assert.ok(
+    69 + mediaTail.reduce((minutes, step) => minutes + step["timeout-minutes"]!, 0) <
+      collect!["timeout-minutes"]!,
+  );
+  assert.match(media.run!, /--media-provider-checkpoint/u);
+  const providerSave = collect!.steps.find(
+    (step) => step.name === "Retain the provider retry clock even if proposal preparation fails",
+  )!;
+  assert.match(providerSave.if!, /artwork-provider-admission\.json/u);
+  assert.doesNotMatch(providerSave.if!, /steps\.game-media\.(outcome|outputs)/u);
+  assert.doesNotMatch(String(providerSave.with?.path), /checkpoint|active\.lock|credentials/u);
+  const mediaArtifact = collect!.steps.find((step) =>
+    String(step.with?.name).startsWith("maintenance-game-media-"),
+  )!;
+  assert.match(mediaArtifact.if!, /steps\.game-media\.outcome == 'success'/u);
+  assert.doesNotMatch(
+    String(mediaArtifact.with?.path),
+    /credentials|maintenance-game-media-state/u,
+  );
+  const mediaSave = collect!.steps.find(
+    (step) => step.name === "Retain the due game media checkpoint for the next schedule",
+  )!;
+  assert.ok(collect!.steps.indexOf(mediaSave) > collect!.steps.indexOf(mediaArtifact));
+  assert.match(mediaSave.if!, /steps\.game-media-report\.outcome == 'success'/u);
   assert.deepEqual(Object.keys(workflow.jobs), [
     "reconcile-intake-receipts",
     "collect",
@@ -512,13 +558,13 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(render.env, undefined);
   assert.match(render.run!, /--database-env PORTCOVE_MAINTENANCE_LOCAL_URL/u);
 
-  assert.equal(
-    collect!.steps.at(-1)?.name,
-    "Check that collection kept the reconciled intake fence",
-  );
-  assert.match(collect!.steps.at(-1)?.run ?? "", /receipt_fence == "verified"/u);
+  const fence = collect!.steps.find(
+    (step) => step.name === "Check that collection kept the reconciled intake fence",
+  )!;
+  assert.ok(collect!.steps.indexOf(fence) < collect!.steps.indexOf(media));
+  assert.match(fence.run ?? "", /receipt_fence == "verified"/u);
   assert.match(
-    collect!.steps.at(-1)?.if ?? "",
+    fence.if ?? "",
     /needs\.reconcile-intake-receipts\.outputs\.receipt_outcome == 'verified'/u,
   );
   const evidence = collect!.steps.find((step) => step.name === "Record run evidence")!;
@@ -544,7 +590,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   );
   assert.match(workerExecute.env!.HOSTED_INTAKE_MODE!, /inputs.mode/u);
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
-  assert.equal(uploads.length, 3);
+  assert.equal(uploads.length, 4);
   for (const upload of uploads) assert.equal(upload.with!["retention-days"], 30);
 });
 
