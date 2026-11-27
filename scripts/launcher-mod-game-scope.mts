@@ -8,10 +8,25 @@ function exactProductCode(system: unknown, value: unknown) {
   return undefined;
 }
 
-type GameScope = { system: string; codes: ReadonlySet<string> };
+type GameScope = { system: string; codes: ReadonlySet<string>; sharedEditionBinding?: string };
 
-/** Only a reviewed game input contract for this exact operational port can
- * authorize a new automatic link. Display names and fuzzy IDs are unused. */
+function editionKey(listing: Record<string, unknown>) {
+  const game = listing.original_game;
+  if (!isRecord(game) || typeof game.id !== "string" || !Array.isArray(game.source_editions))
+    return;
+  const [edition] = game.source_editions;
+  if (
+    game.source_editions.length === 1 &&
+    isRecord(edition) &&
+    typeof edition.id === "string" &&
+    typeof edition.system === "string"
+  )
+    return JSON.stringify([game.id, edition.id, edition.system]);
+}
+
+/** The game input contract supplies the exact product codes. The reviewed
+ * game and edition relationship can reuse those codes for descriptive
+ * matching only. No runtime or provider scope crosses implementations. */
 export function launcherModGameScopes(catalog: unknown, listings: readonly unknown[]) {
   const result = new Map<string, GameScope>();
   if (
@@ -81,6 +96,37 @@ export function launcherModGameScopes(catalog: unknown, listings: readonly unkno
       }
     }
     if (codes.size) result.set(listing.id, { system: edition.system, codes });
+  }
+
+  const shared = new Map<string, GameScope | null>();
+  for (const listing of listings) {
+    if (!isRecord(listing) || typeof listing.id !== "string") continue;
+    const own = result.get(listing.id);
+    const key = editionKey(listing);
+    if (!own || !key) continue;
+    const sharedEditionBinding = JSON.stringify([key, [...own.codes].sort()]);
+    const previous = shared.get(key);
+    if (previous === undefined) shared.set(key, { ...own, sharedEditionBinding });
+    else if (previous?.sharedEditionBinding !== sharedEditionBinding) shared.set(key, null);
+  }
+  for (const listing of listings) {
+    if (!isRecord(listing) || typeof listing.id !== "string" || result.has(listing.id)) continue;
+    const key = editionKey(listing);
+    const edition =
+      isRecord(listing.original_game) && Array.isArray(listing.original_game.source_editions)
+        ? listing.original_game.source_editions[0]
+        : undefined;
+    // An explicit representation or local profile must resolve under its own
+    // declared contract even when a related listing has a usable scope.
+    if (
+      !key ||
+      !isRecord(edition) ||
+      edition.verified_sources !== undefined ||
+      ports.get(listing.id)?.source_profile !== undefined
+    )
+      continue;
+    const scope = shared.get(key);
+    if (scope) result.set(listing.id, scope);
   }
   return result;
 }

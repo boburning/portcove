@@ -3889,3 +3889,177 @@ void test("admission mod defaults keep one source ID and cannot revive after wit
   assert.deepEqual(project(undefined, withdrawn.bytes).bytes, withdrawn.bytes);
   assert.equal(links(project(undefined, null, new Set([port.id])).bytes), undefined);
 });
+
+void test("a listing-only port reuses exact edition evidence for its own mod source", async () => {
+  const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { firstPartyListingModDefaults } = await import("./listing-mod-portal-projection.mts");
+  const { launcherModGameScopes } = await import("./launcher-mod-game-scope.mts");
+  const { launcherModSubjects, recordLauncherModAttempt } =
+    await import("./upstream-launcher-mod-progress.mts");
+  const { catalogObservationSources } = await import("./catalog-upstream-observer.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const donorId = fixtureListing.id;
+  const { catalog, original_game } = launcherWebsiteGameFixture(donorId);
+  const donor = { ...fixtureListing, original_game };
+  const recipient = {
+    ...fixtureListing,
+    id: "github-812",
+    project_url: "https://github.com/owner/separate-port",
+    original_game,
+    mod_portals: undefined,
+  };
+  const listings = [donor, recipient];
+  const scopes = launcherModGameScopes(catalog, listings);
+  assert.equal(scopes.get(donorId)?.sharedEditionBinding, undefined);
+  assert.deepEqual([...requiredFixture(scopes.get(recipient.id)).codes], ["SLUS-01212"]);
+  const sources = catalogObservationSources({ ...catalog, listings }).sources;
+  const ids = Object.fromEntries(
+    sources.map((source) => [
+      source.key,
+      { repository_id: source.repository === "owner/separate-port" ? 812 : 567 },
+    ]),
+  );
+  const [subject] = launcherModSubjects(sources, ids, undefined, scopes).filter(
+    (row) => row.port_id === recipient.id,
+  );
+  const binding = requiredFixture(subject).binding;
+  const now = Date.parse("2026-11-26T12:00:00Z");
+  const proof = {
+    state: "observed" as const,
+    repository_id: 812,
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+    blob: "c".repeat(40),
+    manifest_sha256: "d".repeat(64),
+    game_input_ids: ["SLUS-01212"],
+    mod_portals: [
+      {
+        id: "upstream-thunderstore",
+        name: "Thunderstore",
+        site: "community_site" as const,
+        instructions: "The upstream project lists this community. Follow its setup instructions.",
+        url: "https://thunderstore.io/c/fixture-community/",
+      },
+    ],
+  };
+  const row = recordLauncherModAttempt(binding, undefined, proof, now, 3600000);
+  const read = (bytes: Buffer) =>
+    fixtureRecords(
+      fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings,
+    ).find((listing) => listing.id === recipient.id);
+  const project = (
+    input = catalog,
+    observed: typeof row | null = row,
+    others = listings,
+    previous?: Buffer,
+  ) =>
+    projectListingDelivery({ format_version: 17, listings: others }, [], previous ?? null, {
+      now,
+      firstPartyModDefaults: firstPartyListingModDefaults(
+        input,
+        others,
+        observed === null
+          ? undefined
+          : {
+              sources: ids,
+              launcher_mod_sources: { [recipient.id]: observed },
+            },
+        new Set(),
+        now,
+      ),
+    });
+  const current = project();
+  assert.equal(current.generated_mod_portals, 1);
+  assert.deepEqual(read(current.bytes)?.mod_portals, [
+    { ...proof.mod_portals[0], id: "obs-gh-thunderstore-812" },
+  ]);
+  const outage = recordLauncherModAttempt(
+    binding,
+    row,
+    { state: "unavailable", reason: "provider-outage" },
+    now,
+    3600000,
+  );
+  assert.deepEqual(project(catalog, outage, listings, current.bytes).bytes, current.bytes);
+  assert.deepEqual(project(catalog, null, listings, current.bytes).bytes, current.bytes);
+  const renamed = { ...recipient, project_url: "https://github.com/owner/renamed-port" };
+  assert.deepEqual(
+    read(project(catalog, row, [donor, renamed], current.bytes).bytes)?.mod_portals,
+    read(current.bytes)?.mod_portals,
+  );
+  const { game_input_ids: _legacyIds, ...legacyProof } = proof;
+  const changedPortal = {
+    ...proof.mod_portals[0]!,
+    url: "https://thunderstore.io/c/new-fixture-community/",
+  };
+  for (const replacement of [legacyProof, { ...proof, mod_portals: [changedPortal] }]) {
+    const updated = recordLauncherModAttempt(binding, row, replacement, now, 3600000);
+    assert.equal(
+      read(project(catalog, updated, [donor, renamed], current.bytes).bytes)?.mod_portals,
+      undefined,
+    );
+  }
+
+  const corrected = structuredClone(catalog);
+  corrected.source_catalog.identities[0]!.variants[0]!.product_codes = ["SLUS-03434"];
+  const [correctedSubject] = launcherModSubjects(
+    sources,
+    ids,
+    undefined,
+    launcherModGameScopes(corrected, listings),
+  ).filter((item) => item.port_id === recipient.id);
+  assert.notEqual(requiredFixture(correctedSubject).binding, binding);
+  assert.equal(
+    read(project(corrected, row, listings, current.bytes).bytes)?.mod_portals,
+    undefined,
+  );
+  assert.equal(
+    read(project(corrected, row, [donor, renamed], current.bytes).bytes)?.mod_portals,
+    undefined,
+  );
+
+  const otherEdition = {
+    ...recipient,
+    original_game: {
+      ...original_game,
+      source_editions: original_game.source_editions.map((edition) => ({
+        ...edition,
+        id: "other-edition",
+      })),
+    },
+  };
+  assert.equal(launcherModGameScopes(catalog, [donor, otherEdition]).has(recipient.id), false);
+  assert.equal(
+    read(project(catalog, row, [donor, otherEdition], current.bytes).bytes)?.mod_portals,
+    undefined,
+  );
+  assert.equal(
+    read(project(catalog, null, [donor, otherEdition], current.bytes).bytes)?.mod_portals,
+    undefined,
+  );
+
+  const conflictingId = "conflicting-implementation";
+  const conflicting = structuredClone(catalog);
+  conflicting.ports.push({
+    ...conflicting.ports[0]!,
+    id: conflictingId,
+    source_profile: "conflicting-profile",
+  });
+  conflicting.source_catalog.contracts.push({
+    ...conflicting.source_catalog.contracts[0]!,
+    port_id: conflictingId,
+    profile_id: "conflicting-profile",
+  });
+  conflicting.source_catalog.identities.push({
+    ...corrected.source_catalog.identities[0]!,
+    id: "conflicting-profile",
+  });
+  const ambiguous = launcherModGameScopes(conflicting, [
+    donor,
+    recipient,
+    { ...donor, id: conflictingId },
+  ]);
+  assert.equal(ambiguous.has(donorId), true);
+  assert.equal(ambiguous.has(conflictingId), true);
+  assert.equal(ambiguous.has(recipient.id), false);
+});

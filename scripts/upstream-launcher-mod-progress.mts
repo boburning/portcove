@@ -46,10 +46,26 @@ export function launcherModScopes(sources: readonly ObservableSource[]) {
   return scopes.filter(({ slug }) => bySlug.get(slug.toLowerCase())?.size === 1);
 }
 
+export function launcherModSubjectBinding(
+  portId: string,
+  repositoryId: number,
+  originalGame: unknown,
+  sharedEditionBinding?: string,
+) {
+  return observationHash([
+    launcherModObservationPolicy,
+    portId,
+    repositoryId,
+    originalGame,
+    ...(sharedEditionBinding ? [sharedEditionBinding] : []),
+  ]);
+}
+
 export function launcherModSubjects(
   sources: readonly ObservableSource[],
   identities: Readonly<Record<string, { repository_id: number | null }>>,
   scopes = launcherModScopes(sources),
+  gameScopes?: ReadonlyMap<string, { sharedEditionBinding?: string }>,
 ) {
   const byRepositoryId = new Map<number, Set<string>>();
   for (const source of sources) {
@@ -75,12 +91,12 @@ export function launcherModSubjects(
         source_key,
         slug,
         repository_id,
-        binding: observationHash([
-          launcherModObservationPolicy,
+        binding: launcherModSubjectBinding(
           port_id,
           repository_id,
           original_game,
-        ]),
+          gameScopes?.get(port_id)?.sharedEditionBinding,
+        ),
       },
     ];
   });

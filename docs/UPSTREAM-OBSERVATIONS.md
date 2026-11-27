@@ -1754,6 +1754,16 @@ game input ID must match the current catalog’s reviewed game contract. Prefixe
 missing IDs and ambiguous editions cannot authorize a website. Each attempt
 uses at most four GitHub reads, with a 256 KiB response limit per read.
 
+A listing can reuse reviewed product codes when its canonical game, single
+source edition and system all match. Every reviewed mapping for that edition
+must agree on the code set. A listing with its own source profile or
+representation declaration uses its own contract. The adopted codes help
+verify only the listing’s own repository declaration. When shared codes
+change, the observer reassesses the declaration. With a readable checkpoint,
+publication withholds a link until the new evidence qualifies. If the checkpoint
+cannot be read, publication can carry forward a signed link for the same game,
+edition and project until assessment resumes.
+
 The checkpoint records the policy and subject binding, last attempt, result,
 last complete observation, and next due time. A temporary outage keeps the
 original date on usable evidence. A verified manifest absence or conflicting
