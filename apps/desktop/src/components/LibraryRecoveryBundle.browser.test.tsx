@@ -208,7 +208,7 @@ it("waits for the copy worker to stop and offers continuation from its exact sta
     operation_id: "copy-operation",
     parent_operation_id: null,
     target: null,
-    sequence: 1,
+    sequence: 2,
     timestamp_ms: 1,
     phase: "Copying recovery data",
     completed: 4096,
@@ -219,6 +219,7 @@ it("waits for the copy worker to stop and offers continuation from its exact sta
     .spyOn(desktopApi, "createLibraryRecoveryBundle")
     .mockImplementation((_destination, _plan, _generation, report) => {
       report?.(progress);
+      report?.({ ...progress, sequence: 1, completed: 1024 });
       return pending;
     });
   const cancel = vi.spyOn(desktopApi, "cancelOperation").mockResolvedValue({
@@ -242,9 +243,9 @@ it("waits for the copy worker to stop and offers continuation from its exact sta
   const { dialog } = await openCreationReview(<Workspace />);
   try {
     await dialog.getByRole("button", { name: "Copy and verify", exact: true }).click();
-    await expect
-      .element(dialog.getByRole("progressbar", { name: "Recovery data copied" }))
-      .toBeVisible();
+    const progressBar = dialog.getByRole("progressbar", { name: "Recovery data copied" });
+    await expect.element(progressBar).toBeVisible();
+    await expect.element(progressBar).toHaveAttribute("value", "4096");
     await dialog.getByRole("button", { name: "Hide details", exact: true }).click();
     await expect.element(dialog).not.toBeInTheDocument();
     await expect

@@ -1366,7 +1366,11 @@ The intake workflow reads back the authenticated bot receipt and records its
 comment URL and exact body digest against the original planned operation. The
 daily inventory reuses its one verified native queue read to reconcile before
 refreshing handoff conditions. Failed or partial intake reads retain the original
-plan. A receipt transaction failure records an intake-specific gap. Other source
+plan. The scheduled workflow records a resource deferral separately from a
+verified receipt read or a failure. A deferred read supplies no revision fence
+or audit tickets and retries at the next scheduled opportunity. Its resource
+admission evidence records the limiting condition and provider reset, when
+available. A receipt transaction failure records an intake-specific gap. Other source
 collections, reporting, backup and restore continue, and the receipt outcome is
 checked after the report and backup are retained. An owner can use the intake workflow's `receipts` mode after an
 interruption. These paths make no new intake or Project mutation. They require

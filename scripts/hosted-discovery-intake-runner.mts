@@ -8,6 +8,7 @@ import {
   assertScheduledAuditCaller,
   hostedIntakeMaxPasses,
   scheduledAuditRequests,
+  type AuditContinuation,
 } from "./hosted-discovery-intake-audits.mts";
 
 interface Outcome {
@@ -273,16 +274,26 @@ export async function scheduledIntakeReceipts(
   }
 }
 
-type ScheduledReceiptPass = Awaited<ReturnType<typeof scheduledIntakeReceipts>>;
+interface ScheduledReceiptPass {
+  tickets: readonly AuditContinuation[];
+  revision: string | undefined;
+  receipts: Awaited<ReturnType<typeof scheduledIntakeReceipts>>["receipts"];
+}
 
 export function scheduledReceiptOutcome(pass: ScheduledReceiptPass) {
   const revision = pass.revision;
   const succeeded = pass.receipts.status === "passed" && !!revision && !/[\r\n]/u.test(revision);
+  const deferred =
+    pass.receipts.status === "unavailable" &&
+    "reason" in pass.receipts &&
+    pass.receipts.reason === "resource-deferred";
+  const outcome = succeeded ? "verified" : deferred ? "deferred" : "failed";
   return {
     output:
-      `audit_continuations=${JSON.stringify(pass.tickets)}\n` +
-      `receipt_revision=${succeeded ? revision : ""}\n`,
-    succeeded,
+      `audit_continuations=${JSON.stringify(deferred ? [] : pass.tickets)}\n` +
+      `receipt_revision=${succeeded ? revision : ""}\n` +
+      `receipt_outcome=${outcome}\n`,
+    outcome,
   };
 }
 
@@ -315,9 +326,9 @@ async function main() {
   if (scheduledMode === "scheduled-receipts") {
     const before = await scheduledIntakeReceipts("before-audits", process.env);
     recordReceipts(before);
-    const { output, succeeded } = scheduledReceiptOutcome(before);
+    const { output, outcome } = scheduledReceiptOutcome(before);
     if (process.env.GITHUB_OUTPUT) writeFileSync(process.env.GITHUB_OUTPUT, output, { flag: "a" });
-    if (!succeeded) process.exitCode = 1;
+    if (outcome === "failed") process.exitCode = 1;
     return;
   }
   const scheduled = scheduledAuditRequests(process.env);
