@@ -188,6 +188,7 @@ mod tests {
             document: Arc::new(Indexed::new(document)),
             listings: Arc::new(Indexed::new(listings)),
             user_selected_listing: false,
+            cover_assignments: Arc::default(),
             retained_definitions: Arc::default(),
         }
     }

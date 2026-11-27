@@ -3,7 +3,7 @@
 use super::*;
 use crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT;
 use crate::catalog_media::IGDB_SCENE_LISTING_FORMAT;
-use crate::{CatalogListingDocument, ListingAvailability, Platform, PortListing};
+use crate::{CatalogListingDocument, IgdbArtwork, ListingAvailability, Platform, PortListing};
 use std::{collections::BTreeMap, sync::LazyLock};
 
 // A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
@@ -29,6 +29,7 @@ pub(crate) const VERIFIED_EDITION_LISTING_FORMAT: u32 = 14;
 pub(crate) const MOD_PORTAL_LISTING_FORMAT: u32 = 16;
 pub(crate) const REPOSITORY_BOUND_LISTING_FORMAT: u32 = 17;
 pub(crate) const OFFICIAL_SETUP_LISTING_FORMAT: u32 = 18;
+pub(crate) const ASSIGNED_COVER_LISTING_FORMAT: u32 = 19;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -188,9 +189,9 @@ pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=OFFICIAL_SETUP_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=ASSIGNED_COVER_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 18",
+                "listing export supports formats 5 through 19",
             ));
         }
         let mut document = self.clone();
@@ -426,7 +427,7 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=OFFICIAL_SETUP_LISTING_FORMAT) {
+        if !matches!(self.format_version, 1..=ASSIGNED_COVER_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
@@ -1146,6 +1147,79 @@ impl PortListing {
 }
 
 impl Catalog {
+    pub(crate) fn with_signed_cover_assignments(mut self, signed: &CatalogListingDocument) -> Self {
+        self.cover_assignments = Arc::new(
+            signed
+                .listings
+                .iter()
+                .filter(|listing| {
+                    signed.format_version >= ASSIGNED_COVER_LISTING_FORMAT
+                        && listing.artwork.is_none()
+                        && listing.collection_covers.is_none()
+                })
+                .map(|listing| listing.id.clone())
+                .collect(),
+        );
+        self
+    }
+
+    /// Signed current-format rows supply their own cover decisions. Legacy
+    /// rows can still use a unique exact-edition cover.
+    pub(crate) fn automatic_cover<'a>(&'a self, port: &'a PortListing) -> Option<&'a IgdbArtwork> {
+        if let Some(cover) = &port.artwork {
+            return Some(cover);
+        }
+        if port.collection_covers.is_some() || self.cover_assignments.contains(&port.id) {
+            return None;
+        }
+        let game = port.original_game.as_ref()?;
+        let [edition] = game.source_editions.as_slice() else {
+            return None;
+        };
+        let mut shared = None;
+        for candidate in self.listings() {
+            let Some((donor, cover)) = candidate
+                .original_game
+                .as_ref()
+                .zip(candidate.artwork.as_ref())
+            else {
+                continue;
+            };
+            let [donor_edition] = donor.source_editions.as_slice() else {
+                continue;
+            };
+            if donor.id != game.id
+                || donor_edition.id != edition.id
+                || donor_edition.system != edition.system
+                || cover.match_kind != crate::IgdbArtworkMatch::UnderlyingGame
+            {
+                continue;
+            }
+            if shared.is_some_and(|previous| previous != cover) {
+                return None;
+            }
+            shared = Some(cover);
+        }
+        shared
+    }
+
+    /// Export automatic defaults without revealing or applying local choices.
+    /// Format 19 exports materialize legacy rows' effective cover assignments.
+    pub fn export_listings(&self, format_version: Option<u32>) -> Result<CatalogListingDocument> {
+        let mut exported = match format_version {
+            Some(format) => self.listing_document().export_format(format)?,
+            None => self.listing_document().clone(),
+        };
+        if exported.format_version >= ASSIGNED_COVER_LISTING_FORMAT {
+            for (entry, current) in exported.listings.iter_mut().zip(self.listings()) {
+                if entry.artwork.is_none() {
+                    entry.artwork = self.automatic_cover(current).cloned();
+                }
+            }
+        }
+        Ok(exported)
+    }
+
     pub fn listing_document(&self) -> &CatalogListingDocument {
         &self.listings
     }
@@ -2039,7 +2113,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":OFFICIAL_SETUP_LISTING_FORMAT + 1,"listings":[listing()]}),
+            json!({"format_version":ASSIGNED_COVER_LISTING_FORMAT + 1,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -2652,7 +2726,7 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
-        let unsupported_format = OFFICIAL_SETUP_LISTING_FORMAT + 1;
+        let unsupported_format = ASSIGNED_COVER_LISTING_FORMAT + 1;
         let mut future = document;
         future.format_version = unsupported_format;
         future.promote_projected_format();

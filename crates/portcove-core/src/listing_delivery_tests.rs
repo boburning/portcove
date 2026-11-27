@@ -680,7 +680,7 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     candidate["revision"] = json!(2);
     // Readers reject unknown formats and retain the previously accepted directory.
     candidate["directory"]["format_version"] =
-        json!(crate::catalog::listings::OFFICIAL_SETUP_LISTING_FORMAT + 1);
+        json!(crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT + 1);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -736,6 +736,119 @@ async fn publish_compact(
             Some((key, version)),
         )
         .await
+}
+
+#[tokio::test]
+async fn signed_assigned_covers_honor_a_missing_default_without_losing_local_choices() {
+    use crate::{ArtworkResolvedSource, ArtworkSlot};
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (temp, library) = library();
+    let mut initial = feed(1);
+    let mut donor = initial["directory"]["listings"][0].clone();
+    donor["id"] = json!("fixture-donor");
+    donor["original_game"] = json!({
+        "format_version": 1,
+        "id": "fixture-original",
+        "evidence_urls": ["https://example.invalid/original"],
+        "source_editions": [{
+            "id": "fixture-edition",
+            "title": "Fixture edition",
+            "system": "pc",
+            "evidence_urls": ["https://example.invalid/edition"]
+        }]
+    });
+    let mut recipient = donor.clone();
+    recipient["id"] = json!("fixture-recipient");
+    recipient["project_url"] = json!("https://example.invalid/recipient");
+    let mut excluded = recipient.clone();
+    excluded["id"] = json!("fixture-excluded");
+    excluded["project_url"] = json!("https://example.invalid/excluded");
+    let artwork = json!({
+        "game_id": 70,
+        "game_slug": "fixture-original",
+        "cover_id": 71,
+        "image_id": "editioncover",
+        "image_sha256": "a".repeat(64),
+        "match_kind": "underlying-game"
+    });
+    donor["artwork"] = artwork.clone();
+    initial["directory"] = json!({
+        "format_version": crate::catalog::listings::OFFICIAL_SETUP_LISTING_FORMAT,
+        "listings": [donor, recipient, excluded]
+    });
+    let root = publish_compact(&fixture, &key, 1, &initial).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let before = PortcoveService::new(library.clone()).unwrap();
+    let slot = ArtworkSlot::Cover;
+    assert!(matches!(
+        before
+            .artwork("fixture-excluded", slot)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::IgdbCover { .. }
+    ));
+    let image_path = temp.path().join("local-cover.png");
+    image::RgbImage::from_pixel(8, 12, image::Rgb([32, 64, 128]))
+        .save(&image_path)
+        .unwrap();
+    let choice = before
+        .import_artwork("fixture-excluded", slot, &image_path, 0)
+        .unwrap();
+
+    let mut successor = initial;
+    successor["revision"] = json!(2);
+    successor["directory"]["format_version"] =
+        json!(crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT);
+    successor["directory"]["listings"][1]["artwork"] = artwork;
+    let root = publish_compact(&fixture, &key, 2, &successor).await;
+    let receipt = refresh(&library, &fixture, &root).await.unwrap();
+    assert!(receipt.selected);
+    assert_eq!(receipt.revision, Some(2));
+    let after = PortcoveService::new(library).unwrap();
+    assert_eq!(
+        after.catalog().listing_document().format_version,
+        crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT
+    );
+    assert!(matches!(
+        after
+            .artwork("fixture-recipient", slot)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::IgdbCover { .. }
+    ));
+    let persisted = after.artwork("fixture-excluded", slot).unwrap();
+    assert_eq!(persisted.choice, choice.choice);
+    assert!(matches!(
+        persisted.resolved_source,
+        ArtworkResolvedSource::LocalImport { .. }
+    ));
+    let reset = after
+        .reset_artwork("fixture-excluded", slot, persisted.choice.revision)
+        .unwrap();
+    assert_eq!(
+        reset.resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    let handoff = after
+        .destination_artwork(
+            "fixture-excluded",
+            crate::DestinationArtworkRole::PortraitCover,
+        )
+        .unwrap();
+    assert_eq!(
+        handoff.source,
+        crate::DestinationArtworkSource::GeneratedFallback
+    );
+    assert_eq!(
+        after
+            .artwork_thumbnail("fixture-excluded", slot, reset.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
 }
 
 #[tokio::test]
@@ -1652,7 +1765,7 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     let mut unsupported = current.clone();
     unsupported["carrier"] = json!("unsupported");
     edition_directory["directory"]["format_version"] =
-        json!(crate::catalog::listings::OFFICIAL_SETUP_LISTING_FORMAT + 1);
+        json!(crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT + 1);
     let unsupported_format = carrier(&serde_json::to_vec(&edition_directory).unwrap());
     let mut trailing = current.clone();
     let mut concatenated = gzip(&next);
