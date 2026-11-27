@@ -8,10 +8,28 @@ function exactProductCode(system: unknown, value: unknown) {
   return undefined;
 }
 
-type GameScope = { system: string; codes: ReadonlySet<string> };
+type GameScope = { system: string; codes: ReadonlySet<string>; sharedEditionBinding?: string };
 
-/** Only a reviewed game input contract for this exact operational port can
- * authorize a new automatic link. Display names and fuzzy IDs are unused. */
+function sharedEdition(listing: Record<string, unknown>) {
+  const game = listing.original_game;
+  if (!isRecord(game) || typeof game.id !== "string" || !Array.isArray(game.source_editions))
+    return;
+  const edition: unknown = game.source_editions[0];
+  if (
+    game.source_editions.length === 1 &&
+    isRecord(edition) &&
+    typeof edition.id === "string" &&
+    typeof edition.system === "string"
+  )
+    return {
+      key: JSON.stringify([game.id, edition.id, edition.system]),
+      hasVerifiedSources: edition.verified_sources !== undefined,
+    };
+}
+
+/** The game input contract supplies the exact product codes. The reviewed
+ * game and edition relationship can reuse those codes for descriptive
+ * matching only. No runtime or provider scope crosses implementations. */
 export function launcherModGameScopes(catalog: unknown, listings: readonly unknown[]) {
   const result = new Map<string, GameScope>();
   if (
@@ -81,6 +99,33 @@ export function launcherModGameScopes(catalog: unknown, listings: readonly unkno
       }
     }
     if (codes.size) result.set(listing.id, { system: edition.system, codes });
+  }
+
+  const shared = new Map<string, GameScope | null>();
+  for (const listing of listings) {
+    if (!isRecord(listing) || typeof listing.id !== "string") continue;
+    const own = result.get(listing.id);
+    const edition = sharedEdition(listing);
+    if (!own || !edition) continue;
+    const { key } = edition;
+    const sharedEditionBinding = JSON.stringify([key, [...own.codes].sort()]);
+    const previous = shared.get(key);
+    if (previous === undefined) shared.set(key, { ...own, sharedEditionBinding });
+    else if (previous?.sharedEditionBinding !== sharedEditionBinding) shared.set(key, null);
+  }
+  for (const listing of listings) {
+    if (!isRecord(listing) || typeof listing.id !== "string" || result.has(listing.id)) continue;
+    const edition = sharedEdition(listing);
+    // An explicit representation or local profile must resolve under its own
+    // declared contract even when a related listing has a usable scope.
+    if (
+      !edition ||
+      edition.hasVerifiedSources ||
+      ports.get(listing.id)?.source_profile !== undefined
+    )
+      continue;
+    const scope = shared.get(edition.key);
+    if (scope) result.set(listing.id, scope);
   }
   return result;
 }

@@ -969,9 +969,9 @@ export async function advanceCatalogObservations(
   if (observeLauncherMods) {
     const gameScopes = launcherModGameScopes(
       catalog,
-      sources.flatMap((source) => source.ports.map((port) => port.listing)),
+      isRecord(catalog) && Array.isArray(catalog.listings) ? catalog.listings : [],
     );
-    const subjects = launcherModSubjects(sources, state.sources);
+    const subjects = launcherModSubjects(sources, state.sources, undefined, gameScopes);
     const old = state.launcher_mod_sources ?? {};
     const progress = Object.fromEntries(
       subjects.flatMap(({ port_id, binding }) =>

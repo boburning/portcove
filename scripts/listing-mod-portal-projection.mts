@@ -10,6 +10,7 @@ import { observationHash } from "./upstream-observer.mts";
 import { catalogObservationSources } from "./catalog-upstream-observer.mts";
 import {
   launcherModScopes,
+  launcherModSubjectBinding,
   launcherModSubjects,
   validateFirstPartyModProgress,
   type FirstPartyModProgress,
@@ -262,7 +263,10 @@ export function firstPartyListingModDefaults(
   const scopes = launcherModScopes(sources);
   const scopeByPort = new Map(scopes.map((scope) => [scope.port_id, scope]));
   const subjects = new Map(
-    launcherModSubjects(sources, ids, scopes).map((subject) => [subject.port_id, subject]),
+    launcherModSubjects(sources, ids, scopes, gameScopes).map((subject) => [
+      subject.port_id,
+      subject,
+    ]),
   );
   const raw = state?.launcher_mod_sources;
   if (raw !== undefined) validateFirstPartyModProgress(raw, now);
@@ -290,20 +294,35 @@ export function firstPartyListingModDefaults(
     }
     const provider = (portal: { name: string }) =>
       portal.name === "Thunderstore" ? "thunderstore" : "gamebanana";
+    let sharedRenamePortals: readonly Pick<Portal, "name" | "url">[] | undefined;
     if (entry && !subject) {
       // A renamed source may lack a current checkpoint. Keep only authenticated
       // prior websites under the same admitted ID, and honor explicit absence.
       const result = entry.last_complete?.result;
+      const verified = result && verifyLauncherModGameScope(result, gameScope);
       if (
         admittedId === undefined ||
         !previous ||
         entry.outcome === "held" ||
-        result?.state === "absent" ||
-        (result?.state === "observed" &&
-          (result.repository_id !== admittedId ||
-            verifyLauncherModGameScope(result, gameScope).state === "held"))
+        verified?.state === "absent" ||
+        verified?.state === "held" ||
+        (result?.state === "observed" && result.repository_id !== admittedId)
       )
         return [];
+      if (gameScope.sharedEditionBinding) {
+        if (
+          verified?.state !== "observed" ||
+          entry.binding !==
+            launcherModSubjectBinding(
+              listing.id,
+              admittedId,
+              scope.original_game,
+              gameScope.sharedEditionBinding,
+            )
+        )
+          return [];
+        sharedRenamePortals = verified.mod_portals;
+      }
     }
     if (entry && subject) {
       if (entry.binding !== subject.binding) return [];
@@ -324,6 +343,10 @@ export function firstPartyListingModDefaults(
             }));
       }
     }
+    // A readable checkpoint must substantiate current shared codes. If the
+    // entire checkpoint is unavailable, fall back to the previously signed
+    // source under the unchanged game, edition and repository checks below.
+    if (gameScope.sharedEditionBinding && state && !sharedRenamePortals) return [];
     const expectedId = subject?.repository_id ?? admittedId;
     if (
       previous?.id !== listing.id ||
@@ -335,6 +358,13 @@ export function firstPartyListingModDefaults(
     const retained: Portal[] = [];
     for (const portal of listingPortals(previous)) {
       if (!isBoundLauncherModPortal(portal, expectedId)) continue;
+      if (
+        sharedRenamePortals &&
+        !sharedRenamePortals.some(
+          (source) => source.name === portal.name && source.url === portal.url,
+        )
+      )
+        continue;
       const providerId = provider(portal);
       if (blocked.has(providerId)) continue;
       blocked.add(providerId);

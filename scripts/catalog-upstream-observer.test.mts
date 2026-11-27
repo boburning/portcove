@@ -5757,3 +5757,64 @@ void test("first-party mod observation shares the opportunity budget and retains
   assert.equal(held?.reason, "game-input-scope-conflict");
   assert.equal(held?.last_complete, undefined);
 });
+
+void test("the observer enrolls a listing-only port using its accepted shared edition", async () => {
+  const h = harness();
+  const original_game = {
+    id: "shared-fixture-original",
+    source_editions: [{ id: "fixture-usa", system: "playstation" }],
+  };
+  const input = {
+    ports: h.input.ports.flatMap((port) => {
+      if (port.id === "other-port") return [];
+      return [port.id === "held-port" ? { ...port, source_profile: "fixture-disc" } : port];
+    }),
+    listings: [
+      { id: "held-port", original_game },
+      { id: "other-port", project_url: "https://github.com/owner/other", original_game },
+    ],
+    source_catalog: {
+      contracts: [
+        {
+          port_id: "held-port",
+          role: "game",
+          admission_mode: "enforced",
+          profile_id: "fixture-disc",
+          supported_variant_ids: ["usa"],
+        },
+      ],
+      identities: [
+        {
+          id: "fixture-disc",
+          variants: [{ id: "usa", product_codes: ["SLUS-01212"] }],
+        },
+      ],
+    },
+  };
+  const first = await advanceCatalogObservations(input, null, h.options);
+  const visits: number[] = [];
+  h.options.launcherModRequestLimit = 4;
+  h.options.observeLauncherMods = async (repo, account) => {
+    account.admitRequest();
+    visits.push(repo.id);
+    return {
+      state: "absent",
+      repository_id: repo.id,
+      commit: "a".repeat(40),
+      tree: "b".repeat(40),
+    };
+  };
+  const assessment = await advanceCatalogObservations(input, first.checkpoint, h.options);
+  assert.deepEqual(visits, [8]);
+  assert.equal(assessment.report.launcher_mod_sources?.enrolled, 1);
+  const old = assessment.checkpoint.launcher_mod_sources?.["other-port"];
+  assert.equal(old?.outcome, "absent");
+  const corrected = structuredClone(input);
+  corrected.source_catalog.identities[0]!.variants[0]!.product_codes = ["SLUS-03434"];
+  const reassessed = await advanceCatalogObservations(corrected, assessment.checkpoint, h.options);
+  assert.deepEqual(visits, [8, 8]);
+  assert.notEqual(
+    reassessed.checkpoint.launcher_mod_sources?.["other-port"]?.binding,
+    old?.binding,
+  );
+});
