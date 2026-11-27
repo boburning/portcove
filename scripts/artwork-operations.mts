@@ -3,6 +3,7 @@ import {
   catalogGameMediaRoles,
   gameMediaImageTarget,
   reconcileCatalogArtworkWithdrawals,
+  withholdChangedHeroProposals,
 } from "./inspect-igdb-artwork.mts";
 import { hashPattern, imagePattern, matchesString, positiveId } from "./catalog-cover-mapping.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -109,6 +110,7 @@ export async function prepareGameMediaInOperations(
     catalog: ArtworkCatalog,
     gone: string[],
     cleared: ReadonlySet<string>,
+    held: string[],
   ) => Promise<GameMediaPreparation>,
 ): Promise<GameMediaPreparation> {
   const ids = selectedPortIds ?? catalog.ports.map((port) => port.id);
@@ -118,7 +120,7 @@ export async function prepareGameMediaInOperations(
     ),
   );
   if (ids.length <= ARTWORK_OPERATION_PORTS)
-    return operation(selectedPortIds, catalog, [], cleared);
+    return operation(selectedPortIds, catalog, [], cleared, []);
   let media: GameMediaPreparation = { catalog, records: [], gone_media_targets: [] };
   for (let start = 0; start < ids.length; start += ARTWORK_OPERATION_PORTS) {
     const next = await operation(
@@ -126,6 +128,7 @@ export async function prepareGameMediaInOperations(
       media.catalog,
       media.gone_media_targets,
       cleared,
+      media.held_media_targets ?? [],
     );
     media = { ...next, records: [...media.records, ...next.records] };
   }
@@ -139,6 +142,12 @@ export async function prepareGameMediaInOperations(
       gone.has(gameMediaImageTarget(record.role, record.image_id))
     )
       record.reason = "selected-image-gone-later-in-batch";
+  withholdChangedHeroProposals(
+    catalog,
+    media.catalog,
+    media.records,
+    new Set(media.held_media_targets),
+  );
   return media;
 }
 

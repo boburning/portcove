@@ -1462,6 +1462,87 @@ void test("an observed Gone logo sweeps every reference to its variant and prese
   );
 });
 
+void test("changed retained media holds fresh proposals across artwork operations", async () => {
+  const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
+  const { ARTWORK_OPERATION_PORTS, prepareGameMediaInOperations } =
+    await import("./artwork-operations.mts");
+  const url = "https://example.org/sample";
+  const base = { name: "Sample", project_url: url };
+  const pin = {
+    id: "retained-screenshot",
+    role: "screenshot",
+    sha256: "a".repeat(64),
+    subject: { kind: "port", port_id: "retained" },
+    igdb: { game_id: 7, record_id: 9, image_id: "sharedshot" },
+  };
+  for (const [filler, pinDigest] of [
+    [0, "a"],
+    [0, "b"],
+    [ARTWORK_OPERATION_PORTS - 1, "a"],
+    [ARTWORK_OPERATION_PORTS - 1, "b"],
+  ] as const) {
+    const untouched = Array.from({ length: filler }, (_, i) => ({
+      ...base,
+      id: `unselected-${i}`,
+    }));
+    const catalog = {
+      ports: [
+        { ...base, id: "first" },
+        ...untouched,
+        {
+          ...base,
+          id: "retained",
+          presentation: { media: [{ ...pin, sha256: pinDigest.repeat(64) }] },
+        },
+        { ...base, id: "last" },
+      ],
+    };
+    const excluded = new Set(untouched.map(({ id }) => id));
+    let requests = 0;
+    const result = await prepareGameMediaInOperations(
+      catalog,
+      undefined,
+      (ids, current, gone, cleared, held) =>
+        prepareCatalogGameMedia(current, {
+          ...(ids ? { selectedPortIds: ids } : {}),
+          refreshPortIds: !ids || ids.includes("retained") ? ["retained"] : [],
+          excludedPortIds: excluded,
+          explicitClearPortIds: cleared,
+          knownGoneMediaTargets: gone,
+          knownHeldMediaTargets: held,
+          inspector: {
+            inspectGame: async () => [
+              { id: 7, name: "Sample", slug: "sample", websites: [{ url }] },
+            ],
+            inspectGameMedia: async (_game, role) =>
+              role === "screenshot" ? [{ id: 9, game: 7, image_id: "sharedshot" }] : [],
+            inspectMediaImage: async () => ({
+              sha256: (++requests === 1 ? "a" : "b").repeat(64),
+              bytes: 100,
+              width: 640,
+              height: 360,
+              format: "png",
+              validator: "portcove-core",
+            }),
+          },
+        }),
+    );
+    assert.equal(requests, 2);
+    assert.deepEqual(result.catalog.ports, catalog.ports);
+    assert.deepEqual(result.gone_media_targets, []);
+    assert.deepEqual(result.held_media_targets, ["720p/sharedshot"]);
+    assert.deepEqual(
+      result.records.filter(({ role }) => role === "screenshot").map(({ reason }) => reason),
+      [
+        "image-bytes-held-for-review",
+        pinDigest === "a" ? "retained-image-bytes-changed" : "retained-image-verified",
+        "existing-scene-retained",
+        "image-bytes-held-for-review",
+      ],
+    );
+  }
+});
+
 for (const unavailableMedia of [false, true]) {
   void test(`cover Gone preserves other variants through ${unavailableMedia ? "unavailable" : "successful"} media lookup`, async () => {
     const { createIgdbInspector, prepareCatalogArtwork, prepareCatalogGameMedia } =
