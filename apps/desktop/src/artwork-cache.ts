@@ -118,8 +118,7 @@ export class ArtworkCache {
   private entries = new Map<string, ArtworkDisplay>();
   private displaySequence = 0;
   private listeners = new Map<string, Set<() => void>>();
-  private pending = new Map<string, Promise<void>>();
-  private minimumChoiceRevisions = new Map<string, number>();
+  private pending = new Map<string, { choice: Promise<void>; preview: Promise<void> }>();
   private scheduled: ScheduledArtworkTask[] = [];
   private runningLanes = new Set<string>();
   private exclusiveRunning = false;
@@ -132,6 +131,7 @@ export class ArtworkCache {
   constructor(
     readonly generation: number,
     readonly catalogArtworkKey = "",
+    private readonly minimumChoiceRevisions = new Map<string, number>(),
   ) {}
 
   /** A stable snapshot token for views subscribing to several admitted images. */
@@ -671,7 +671,7 @@ export class ArtworkCache {
     const key = this.key(portId, slot);
     const pending = this.pending.get(key);
     if (pending)
-      return pending.then(() => {
+      return pending.preview.then(() => {
         this.refreshQueuedInterest(key, stillInterested, priority);
         if (!this.entries.has(key) && (stillInterested() || this.listeners.has(key)))
           return this.load(portId, slot, refresh, stillInterested, priority);
@@ -680,7 +680,8 @@ export class ArtworkCache {
       this.refreshQueuedInterest(key, stillInterested, priority);
       return Promise.resolve();
     }
-    const result = this.schedule(portId, async () => {
+    let thumbnail: Promise<void> | undefined;
+    const choice = this.schedule(portId, async () => {
       if (!stillInterested() && !this.listeners.has(key)) return;
       this.publish(portId, slot, {
         ...this.read(portId, slot),
@@ -705,7 +706,9 @@ export class ArtworkCache {
           });
           return;
         }
-        await this.display(portId, slot, state, stillInterested, priority);
+        if (this.minimumChoiceRevisions.has(key))
+          this.requireChoiceRevision(key, state.choice.revision);
+        thumbnail = this.display(portId, slot, state, stillInterested, priority) ?? undefined;
       } catch (error) {
         const previous = this.read(portId, slot);
         this.publish(portId, slot, {
@@ -716,12 +719,14 @@ export class ArtworkCache {
         });
       }
     });
-    this.pending.set(key, result);
-    void result.then(
+    // The choice scheduler releases the lane before the independent image decode.
+    const preview = choice.then(() => thumbnail);
+    this.pending.set(key, { choice, preview });
+    void choice.then(
       () => this.pending.delete(key),
       () => this.pending.delete(key),
     );
-    return result;
+    return preview;
   }
 
   /**
@@ -757,7 +762,7 @@ export class ArtworkCache {
         this.publish(portId, slot, { loading: true });
     }
     // Discard any older reply already in flight before asking for fresh state.
-    await this.pending.get(key);
+    await this.pending.get(key)?.choice;
     if (stillInterested()) await this.load(portId, slot, true, stillInterested);
   }
 
