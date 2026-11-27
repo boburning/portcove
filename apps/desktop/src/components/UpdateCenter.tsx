@@ -872,17 +872,22 @@ function UpdateCenterView(model: UpdateCenterModel) {
   const counts = activitySectionCounts(model);
   useEffect(() => {
     const list = tabList.current;
-    if (!list || list.scrollWidth <= list.clientWidth) return;
-    const selected = list.querySelector('[role="tab"][aria-selected="true"]');
-    if (!selected) return;
-    const visible = list.getBoundingClientRect();
-    const tab = selected.getBoundingClientRect();
-    const clearance = Number.parseFloat(getComputedStyle(list).paddingInlineStart);
-    if (tab.left < visible.left + clearance) {
-      list.scrollBy(tab.left - visible.left - clearance, 0);
-    } else if (tab.right > visible.right - clearance) {
-      list.scrollBy(tab.right - visible.right + clearance, 0);
-    }
+    if (!list) return;
+    const observer = new ResizeObserver(() => {
+      if (list.scrollWidth <= list.clientWidth) return;
+      const selected = list.querySelector('[role="tab"][aria-selected="true"]');
+      if (!selected) return;
+      const visible = list.getBoundingClientRect();
+      const tab = selected.getBoundingClientRect();
+      const clearance = Number.parseFloat(getComputedStyle(list).paddingInlineStart);
+      if (tab.left < visible.left + clearance) {
+        list.scrollBy(tab.left - visible.left - clearance, 0);
+      } else if (tab.right > visible.right - clearance) {
+        list.scrollBy(tab.right - visible.right + clearance, 0);
+      }
+    });
+    observer.observe(list);
+    return () => observer.disconnect();
   }, [model.selectedSection]);
   return (
     <Tabs.Root
@@ -909,7 +914,7 @@ function UpdateCenterView(model: UpdateCenterModel) {
             aria-describedby={`${countId}-${value}`}
             render={<Button variant="ghost" className="activity-tab" />}
           >
-            {label}
+            <span className="activity-tab-label">{label}</span>
             <span
               className="activity-tab-count"
               aria-hidden="true"

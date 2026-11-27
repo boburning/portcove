@@ -268,6 +268,7 @@ for (const theme of ["dark", "light"]) {
     await page.getByRole("tab", { name: "Game updates", exact: true }).click();
     await expect.poll(() => document.querySelectorAll(".update-row").length).toBeGreaterThan(0);
     const sections = page.getByRole("tablist", { name: "Activity sections" });
+    const strip = sections.element();
     const tabs = sections.getByRole("tab").elements();
     expect(tabs).toHaveLength(3);
     for (const width of [320, 240]) {
@@ -278,6 +279,7 @@ for (const theme of ["dark", "light"]) {
         expect(bounds.top).toBeCloseTo(rowTop);
         expect(bounds.height).toBeGreaterThanOrEqual(44);
       }
+      if (width === 320) expect(strip.scrollWidth).toBeLessThanOrEqual(strip.clientWidth + 1);
       const overflowing = [...document.querySelectorAll<HTMLElement>("main *")]
         .filter((element) => element.getBoundingClientRect().right > innerWidth + 1)
         .map((element) => `${element.tagName}.${element.className}: ${element.textContent}`);
@@ -292,7 +294,6 @@ for (const theme of ["dark", "light"]) {
     await userEvent.keyboard("{ArrowRight}{Enter}");
     await expect.element(history).toHaveFocus();
     await expect.element(history).toHaveAttribute("aria-selected", "true");
-    const strip = sections.element();
     await expect
       .poll(() => {
         const viewport = strip.getBoundingClientRect();
@@ -300,6 +301,16 @@ for (const theme of ["dark", "light"]) {
         return focused.left >= viewport.left - 1 && focused.right <= viewport.right + 1;
       })
       .toBe(true);
+    const historyButton = history.element();
+    const button = historyButton.getBoundingClientRect();
+    const label = historyButton.querySelector(".activity-tab-label")!;
+    const title = document.createRange();
+    title.selectNodeContents(label);
+    const badge = historyButton.querySelector(".activity-tab-count")!.getBoundingClientRect();
+    for (const content of [title.getBoundingClientRect(), badge]) {
+      expect(content.left).toBeGreaterThanOrEqual(button.left - 1);
+      expect(content.right).toBeLessThanOrEqual(button.right + 1);
+    }
   });
   for (const mode of ["spacing overrides", "200% authored text"]) {
     it(`keeps ${theme} Settings usable at 320px with ${mode}`, async () => {
