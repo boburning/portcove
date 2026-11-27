@@ -95551,6 +95551,15 @@
         "warnings": [],
         "help_url": "https://www.kartkrew.org/"
       },
+      "mod_portals": [
+        {
+          "id": "kart-krew-addons",
+          "site": "community_site",
+          "name": "Ring Racers server add-ons",
+          "url": "https://ms.kartkrew.org/",
+          "instructions": "Browse the add-ons listed on Ring Racers servers. Check the add-on's game version before using it."
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "dr-robotniks-ring-racers",
