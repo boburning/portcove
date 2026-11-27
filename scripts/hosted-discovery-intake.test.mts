@@ -2274,6 +2274,47 @@ void test("explicit observations match exactly one immutable owner and never cre
   );
 });
 
+void test("explicit observations retain the canonical owner after a verified repository move", async () => {
+  const observation = {
+    ...candidate,
+    port_key: "existing-key",
+    intent: { kind: "observe-existing", issue: 1000150 },
+  };
+  const movedName = "new-owner/native-game";
+  const beforeName = new URL(candidate.upstream).pathname.slice(1);
+  const fixtureWithMove = async () => {
+    const f = await existingOwnerFixture([observation], 2);
+    f.repositoryAliases.set(beforeName, movedName);
+    f.bridge.durable.resolveRepository = async (name) => (name === beforeName ? movedName : name);
+    return f;
+  };
+  const accepted = await fixtureWithMove();
+  const before = structuredClone(accepted.issues);
+  const result = await accepted.bridge.process(accepted.request, accepted.all());
+  assert.equal(result.status, "complete");
+  assert.equal(result.delivery[0]?.status, "existing");
+  assert.equal(result.delivery[0]?.canonical_issue, 1000150);
+  assert.equal(result.plan[0]?.location?.current, `https://github.com/${movedName}`);
+  assert.deepEqual(accepted.issues, before);
+  assert.equal(accepted.creations, 0);
+  const comments = accepted.comments.size;
+  await accepted.bridge.process(accepted.request, accepted.all());
+  assert.equal(accepted.comments.size, comments);
+
+  const differentOldPath = await fixtureWithMove();
+  differentOldPath.issues[0]!.body = differentOldPath.issues[0]!.body.replaceAll(
+    candidate.upstream,
+    "https://github.com/unrelated/native-game",
+  );
+  const held = await differentOldPath.bridge.process(
+    differentOldPath.request,
+    differentOldPath.all(),
+  );
+  assert.equal(held.status, "complete_with_holds");
+  assert.equal(held.delivery[0]?.created_comment, undefined);
+  assert.equal(differentOldPath.creations, 0);
+});
+
 void test("scheduled audits verify the exact original owner workflow attempt and request", () => {
   const sha = "a".repeat(40);
   const origin = `900/2@${sha}`;
