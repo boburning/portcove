@@ -262,6 +262,7 @@ pub(crate) fn verify_destination(
     library: &Library,
     expected_metadata: &LibraryMetadata,
     content: &[LibraryTreePlan],
+    include_mod_portal_preferences: bool,
 ) -> Result<()> {
     let destination_root = library.root();
     crate::artwork_store::validate_transfer_inventory(expected_metadata, content)?;
@@ -275,7 +276,7 @@ pub(crate) fn verify_destination(
             .detail("content_root", &tree.relative_path));
         }
     }
-    verify_metadata(library, expected_metadata)?;
+    verify_metadata_for_transfer(library, expected_metadata, include_mod_portal_preferences)?;
     let catalogs =
         crate::library_import::PortabilityCatalogs::from_root(expected_metadata, destination_root)?;
     if let Some(artwork) = &expected_metadata.artwork {
@@ -360,7 +361,18 @@ pub(crate) fn verify_metadata(
     library: &Library,
     expected_metadata: &LibraryMetadata,
 ) -> Result<()> {
-    let mut metadata = library.metadata_for_root(&fs::canonicalize(library.root())?)?;
+    verify_metadata_for_transfer(library, expected_metadata, true)
+}
+
+fn verify_metadata_for_transfer(
+    library: &Library,
+    expected_metadata: &LibraryMetadata,
+    include_mod_portal_preferences: bool,
+) -> Result<()> {
+    let mut metadata = library.metadata_for_transfer(
+        &fs::canonicalize(library.root())?,
+        include_mod_portal_preferences,
+    )?;
     let mut expected = expected_metadata.clone();
     for source in expected
         .source_references

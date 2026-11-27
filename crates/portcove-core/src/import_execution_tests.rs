@@ -1448,6 +1448,94 @@ fn import_carries_saved_library_entries_under_schema_seven_and_rejects_forgery()
 }
 
 #[test]
+fn mod_portal_choices_round_trip_through_export_and_interrupted_import() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let destination = temp.path().join("destination");
+    let library = Library::open(&source).unwrap();
+    let expected = crate::mod_portal_preferences::record_portability_fixture(&library);
+    let service = PortcoveService::new(library).unwrap();
+    service.write_library_metadata(&export).unwrap();
+    assert_eq!(
+        service.export_library_metadata().unwrap().schema_version,
+        17
+    );
+    drop(service);
+
+    let original = fs::read(&export).unwrap();
+    let metadata: LibraryMetadata = serde_json::from_slice(&original).unwrap();
+    let mut older = metadata.clone();
+    older.schema_version = 16;
+    let mut duplicate = metadata.clone();
+    duplicate.mod_portal_preferences.push(expected.clone());
+    let mut invalid_scope = metadata.clone();
+    invalid_scope.mod_portal_preferences[0].hidden_communities[0].community =
+        Some("foreign/scope".into());
+    let mut invalid_revision = metadata.clone();
+    invalid_revision.mod_portal_preferences[0]
+        .preferences
+        .revision = 0;
+    for invalid in [older, duplicate, invalid_scope, invalid_revision] {
+        fs::write(&export, serde_json::to_vec_pretty(&invalid).unwrap()).unwrap();
+        assert!(PortcoveService::plan_library_import(&export, &source, &destination).is_err());
+        assert!(!destination.exists());
+    }
+
+    fs::write(&export, original).unwrap();
+    let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+    assert_eq!(plan.metadata.mod_portal_preferences, [expected.clone()]);
+    start_import(
+        &export,
+        &source,
+        &destination,
+        &plan.plan_sha256,
+        &|phase| {
+            if phase == TransferPhase::Verified {
+                return Err(PortcoveError::state(
+                    "fixture interruption after metadata restore",
+                ));
+            }
+            Ok(())
+        },
+    )
+    .unwrap_err();
+    assert!(
+        PortcoveService::resume_library_import(&destination)
+            .unwrap()
+            .completed
+    );
+    let restored = PortcoveService::new(Library::open(&destination).unwrap()).unwrap();
+    assert_eq!(
+        restored
+            .export_library_metadata()
+            .unwrap()
+            .mod_portal_preferences,
+        [expected.clone()]
+    );
+    // A prior reader can write a new raw revision without knowing the sidecar.
+    restored
+        .library()
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE mod_portal_preferences SET revision = 8 WHERE port_id=?1",
+            [&expected.port_id],
+        )
+        .unwrap();
+    let mut current = expected;
+    current.preferences.revision = 8;
+    current.hidden_communities.clear();
+    assert_eq!(
+        restored
+            .export_library_metadata()
+            .unwrap()
+            .mod_portal_preferences,
+        [current]
+    );
+}
+
+#[test]
 fn an_export_without_saved_library_entries_keeps_its_older_schema() {
     let temp = tempfile::tempdir().unwrap();
     let source = temp.path().join("source");

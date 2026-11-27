@@ -29,6 +29,12 @@ pub(crate) struct TransferJournal {
 }
 
 impl TransferJournal {
+    pub(crate) const CURRENT_SCHEMA: u32 = 2;
+
+    pub(crate) fn includes_mod_portal_preferences(&self) -> bool {
+        self.schema_version >= Self::CURRENT_SCHEMA
+    }
+
     pub fn read(source: &Path) -> Result<Self> {
         validate_recovery_directory(source)?;
         let path = source.join("recovery").join(JOURNAL);
@@ -48,7 +54,9 @@ impl TransferJournal {
     fn validate(&self, source: &Path) -> Result<()> {
         let destination = &self.plan.destination_root;
         let actual_destination = crate::path::resolve_existing_ancestor(destination)?;
-        if self.schema_version != 1
+        if !matches!(self.schema_version, 1 | Self::CURRENT_SCHEMA)
+            || (!self.includes_mod_portal_preferences()
+                && !self.plan.metadata.mod_portal_preferences.is_empty())
             || uuid::Uuid::parse_str(&self.transfer_id).is_err()
             || self.plan.source_root != fs::canonicalize(source)?
             || actual_destination != *destination

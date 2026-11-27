@@ -123,7 +123,10 @@ pub use external_mod_portal::{
     ModPortalPreferenceView, ModPortalsView,
 };
 mod mod_portal_preferences;
-pub use mod_portal_preferences::{LocalModPage, ModPortalChoices, ModPortalPreferences};
+pub use mod_portal_preferences::{
+    HiddenCommunity, LibraryModPortalPreference, LocalModPage, ModPortalChoices,
+    ModPortalPreferences,
+};
 mod gamebanana;
 mod github_mods;
 mod jakmods;

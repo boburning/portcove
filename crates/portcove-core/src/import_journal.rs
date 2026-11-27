@@ -530,6 +530,9 @@ pub(crate) fn metadata_tables_empty(connection: &rusqlite::Connection) -> Result
     if crate::library_membership::any_memberships(connection)? {
         return Ok(false);
     }
+    if crate::mod_portal_preferences::any_preferences(connection)? {
+        return Ok(false);
+    }
     let has_artwork: bool = connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='artwork_assets')",
         [],

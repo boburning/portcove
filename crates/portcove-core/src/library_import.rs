@@ -431,7 +431,7 @@ pub(crate) fn validate_metadata(
     metadata: &LibraryMetadata,
     catalogs: &PortabilityCatalogs,
 ) -> Result<()> {
-    if !matches!(metadata.schema_version, 1..=16) {
+    if !matches!(metadata.schema_version, 1..=17) {
         return Err(PortcoveError::unsupported(
             "unsupported library metadata schema",
         ));
@@ -463,7 +463,7 @@ pub(crate) fn validate_metadata(
         _ => artwork_expected.as_slice(),
     };
     match (&metadata.artwork, metadata.schema_version) {
-        (Some(artwork), 3..=16) => {
+        (Some(artwork), 3..=17) => {
             if metadata.schema_version < 16 && artwork.contains_suppression() {
                 return Err(PortcoveError::verification(
                     "artwork suppression requires library metadata schema 16",
@@ -677,24 +677,29 @@ pub(crate) fn validate_metadata(
 fn retained_references_by_install(
     metadata: &LibraryMetadata,
 ) -> Result<BTreeMap<&str, Vec<&crate::RetainedBuildReference>>> {
-    if !metadata.profiles.is_empty() && !matches!(metadata.schema_version, 6..=16) {
+    if !metadata.profiles.is_empty() && metadata.schema_version < 6 {
         return Err(PortcoveError::verification(
             "profiles require library metadata schema 6",
         ));
     }
-    if !metadata.library_memberships.is_empty() && !matches!(metadata.schema_version, 7..=16) {
+    if !metadata.library_memberships.is_empty() && metadata.schema_version < 7 {
         return Err(PortcoveError::verification(
             "library memberships require library metadata schema 7",
         ));
     }
     crate::library_membership::validate_export(&metadata.library_memberships)?;
+    if !metadata.mod_portal_preferences.is_empty() && metadata.schema_version < 17 {
+        return Err(PortcoveError::verification(
+            "mod source choices require library metadata schema 17",
+        ));
+    }
+    crate::mod_portal_preferences::validate_export(&metadata.mod_portal_preferences)?;
     crate::profile::validate_export(
         &metadata.profiles,
         &metadata.retained_build_references,
         metadata.schema_version >= 11,
     )?;
-    if !metadata.retained_build_references.is_empty() && !matches!(metadata.schema_version, 5..=16)
-    {
+    if !metadata.retained_build_references.is_empty() && metadata.schema_version < 5 {
         return Err(PortcoveError::verification(
             "retained build references require library metadata schema 5",
         ));

@@ -31,6 +31,9 @@ pub struct LibraryMetadata {
     /// so an older reader refuses the export instead of silently dropping them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub library_memberships: Vec<crate::LibraryMembership>,
+    /// Local mod source choices and hidden communities, from metadata schema 17.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mod_portal_preferences: Vec<crate::LibraryModPortalPreference>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<crate::ArtworkMetadata>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -156,6 +159,14 @@ impl Library {
     }
 
     pub(crate) fn metadata_for_root(&self, managed_root: &Path) -> Result<LibraryMetadata> {
+        self.metadata_for_transfer(managed_root, true)
+    }
+
+    pub(crate) fn metadata_for_transfer(
+        &self,
+        managed_root: &Path,
+        include_mod_portal_preferences: bool,
+    ) -> Result<LibraryMetadata> {
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let source_references = Self::sources_from(&transaction)?;
@@ -190,6 +201,11 @@ impl Library {
         }
         let profiles = crate::profile::export(&transaction)?;
         let library_memberships = Self::library_memberships_from(&transaction)?;
+        let mod_portal_preferences = if include_mod_portal_preferences {
+            crate::mod_portal_preferences::export(&transaction)?
+        } else {
+            Vec::new()
+        };
         let artwork = crate::artwork_store::snapshot(&transaction)?;
         transaction.commit()?;
         let mut metadata = LibraryMetadata {
@@ -218,6 +234,7 @@ impl Library {
             retained_build_references,
             profiles,
             library_memberships,
+            mod_portal_preferences,
             artwork: Some(artwork),
             portability_authority: None,
         };

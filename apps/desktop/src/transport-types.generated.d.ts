@@ -5649,6 +5649,10 @@ export interface LibraryMetadata {
    * so an older reader refuses the export instead of silently dropping them.
    */
   library_memberships?: LibraryMembership[];
+  /**
+   * Local mod source choices and hidden communities, from metadata schema 17.
+   */
+  mod_portal_preferences?: LibraryModPortalPreference[];
   original_root: string;
   port_settings: LibraryPortSettings[];
   portability_authority?: PortabilityAuthority | null;
@@ -5727,6 +5731,31 @@ export interface LibraryMembership {
 export interface LibraryMembershipSource {
   profile_id: string;
   sha256: string;
+}
+/**
+ * A player's portable mod-browsing choices and exact hidden communities.
+ */
+export interface LibraryModPortalPreference {
+  hidden_communities?: HiddenCommunity[];
+  port_id: string;
+  preferences: ModPortalPreferences;
+}
+export interface HiddenCommunity {
+  community: string | null;
+  source: string;
+}
+export interface ModPortalPreferences {
+  choices: ModPortalChoices;
+  revision: number;
+  [k: string]: unknown;
+}
+export interface ModPortalChoices {
+  hidden_sources: string[];
+  local_page: LocalModPage | null;
+}
+export interface LocalModPage {
+  name: string;
+  url: string;
 }
 export interface LibraryPortSettings {
   active_install_id: string | null;
@@ -6293,19 +6322,6 @@ export interface AutomaticModPortal {
   name: string;
   source: string;
   [k: string]: unknown;
-}
-export interface ModPortalPreferences {
-  choices: ModPortalChoices;
-  revision: number;
-  [k: string]: unknown;
-}
-export interface ModPortalChoices {
-  hidden_sources: string[];
-  local_page: LocalModPage | null;
-}
-export interface LocalModPage {
-  name: string;
-  url: string;
 }
 export interface OutputModSetupDraftPreview {
   conflicts: AssetConflict[];

@@ -88,20 +88,205 @@ fn read_choices(connection: &Connection, port_id: &str) -> Result<ModPortalPrefe
     let Some((revision, json)) = row else {
         return Ok(ModPortalPreferences::default());
     };
+    Ok(ModPortalPreferences {
+        revision,
+        choices: decode_choices(&json)?,
+    })
+}
+
+fn decode_choices(json: &str) -> Result<ModPortalChoices> {
     if json.len() > MAX_STORED_BYTES {
         return Err(PortcoveError::verification(
             "Stored mod source choices exceed their limit",
         ));
     }
-    let choices: ModPortalChoices = serde_json::from_str(&json)?;
+    let choices: ModPortalChoices = serde_json::from_str(json)?;
     choices.validate()?;
-    Ok(ModPortalPreferences { revision, choices })
+    Ok(choices)
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-struct HiddenCommunity {
-    source: String,
-    community: Option<String>,
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct HiddenCommunity {
+    pub source: String,
+    pub community: Option<String>,
+}
+
+/// A player's portable mod-browsing choices and exact hidden communities.
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LibraryModPortalPreference {
+    pub port_id: String,
+    pub preferences: ModPortalPreferences,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hidden_communities: Vec<HiddenCommunity>,
+}
+
+pub(crate) fn validate_export(entries: &[LibraryModPortalPreference]) -> Result<()> {
+    if entries
+        .windows(2)
+        .any(|pair| pair[0].port_id >= pair[1].port_id)
+    {
+        return Err(PortcoveError::verification(
+            "Portable mod source choices are duplicated or out of order",
+        ));
+    }
+    for entry in entries {
+        let communities = &entry.hidden_communities;
+        let choices = &entry.preferences.choices;
+        choices.validate()?;
+        let mut distinct = std::collections::HashSet::new();
+        if entry.port_id.is_empty()
+            || entry.port_id.len() > 128
+            || !entry
+                .port_id
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+            || !(1..=i64::MAX as u64).contains(&entry.preferences.revision)
+            || communities.len() > MAX_HIDDEN_SOURCES
+            || serde_json::to_vec(choices)?.len() > MAX_STORED_BYTES
+            || serde_json::to_vec(communities)?.len() > MAX_STORED_BYTES
+            || choices
+                .hidden_sources
+                .iter()
+                .filter(|source| !communities.iter().any(|entry| entry.source == **source))
+                .count()
+                + communities.len()
+                > MAX_HIDDEN_SOURCES
+            || communities.iter().any(|binding| {
+                !is_generated_thunderstore_source(&binding.source)
+                    || !distinct.insert(binding)
+                    || binding.community.as_ref().is_some_and(|community| {
+                        !(crate::ModProviderBinding::Thunderstore {
+                            community: community.clone(),
+                        })
+                        .valid_coordinates()
+                    })
+            })
+        {
+            return Err(
+                PortcoveError::verification("Portable mod source choices are invalid")
+                    .detail("port_id", &entry.port_id),
+            );
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn export(connection: &Connection) -> Result<Vec<LibraryModPortalPreference>> {
+    let query = if has_community_table(connection)? {
+        "SELECT choices.port_id, choices.revision, choices.choices_json, communities.bindings_json
+         FROM mod_portal_preferences AS choices
+         LEFT JOIN mod_portal_hidden_communities AS communities
+           ON choices.port_id = communities.port_id
+          AND choices.revision = communities.preference_revision
+         ORDER BY choices.port_id"
+    } else {
+        "SELECT port_id, revision, choices_json, NULL
+         FROM mod_portal_preferences ORDER BY port_id"
+    };
+    let mut statement = connection.prepare(query)?;
+    let mut rows = statement.query([])?;
+    let mut entries = Vec::new();
+    while let Some(row) = rows.next()? {
+        let port_id: String = row.get(0)?;
+        let revision = row.get(1)?;
+        let json: String = row.get(2)?;
+        let choices = decode_choices(&json)?;
+        let bindings: Option<String> = row.get(3)?;
+        entries.push(LibraryModPortalPreference {
+            hidden_communities: decode_hidden_communities(bindings.as_deref())?,
+            port_id,
+            preferences: ModPortalPreferences { revision, choices },
+        });
+    }
+    validate_export(&entries)?;
+    Ok(entries)
+}
+
+pub(crate) fn restore(
+    transaction: &Transaction<'_>,
+    entries: &[LibraryModPortalPreference],
+) -> Result<()> {
+    for entry in entries {
+        let revision = entry.preferences.revision;
+        transaction.execute(
+            "INSERT INTO mod_portal_preferences (port_id, revision, choices_json) VALUES (?1, ?2, ?3)",
+            params![
+                entry.port_id,
+                revision,
+                serde_json::to_string(&entry.preferences.choices)?
+            ],
+        )?;
+        write_communities(
+            transaction,
+            &entry.port_id,
+            revision,
+            &entry.hidden_communities,
+        )?;
+    }
+    Ok(())
+}
+
+pub(crate) fn any_preferences(connection: &Connection) -> Result<bool> {
+    let table = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master
+         WHERE type='table' AND name='mod_portal_preferences')",
+        [],
+        |row| row.get::<_, bool>(0),
+    )?;
+    if table
+        && connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM mod_portal_preferences)",
+            [],
+            |row| row.get::<_, bool>(0),
+        )?
+    {
+        return Ok(true);
+    }
+    Ok(has_community_table(connection)?
+        && connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM mod_portal_hidden_communities)",
+            [],
+            |row| row.get::<_, bool>(0),
+        )?)
+}
+
+#[cfg(test)]
+pub(crate) fn record_portability_fixture(library: &crate::Library) -> LibraryModPortalPreference {
+    let source = "obs-gh-thunderstore-12345";
+    let entry = LibraryModPortalPreference {
+        port_id: "zelda64-recomp".into(),
+        preferences: ModPortalPreferences {
+            revision: 7,
+            choices: ModPortalChoices {
+                local_page: Some(LocalModPage {
+                    name: "My mods".into(),
+                    url: "https://thunderstore.io/c/fixture-active/".into(),
+                }),
+                hidden_sources: vec![source.into()],
+            },
+        },
+        hidden_communities: vec![
+            HiddenCommunity {
+                source: source.into(),
+                community: Some("fixture-active".into()),
+            },
+            HiddenCommunity {
+                source: source.into(),
+                community: Some("fixture-dormant".into()),
+            },
+            HiddenCommunity {
+                source: "obs-gh-thunderstore-54321".into(),
+                community: None,
+            },
+        ],
+    };
+    let mut database = library.connection().unwrap();
+    let transaction = database.transaction().unwrap();
+    restore(&transaction, std::slice::from_ref(&entry)).unwrap();
+    transaction.commit().unwrap();
+    entry
 }
 
 fn has_community_table(connection: &Connection) -> Result<bool> {
@@ -129,6 +314,10 @@ fn hidden_communities(
             |row| row.get(0),
         )
         .optional()?;
+    decode_hidden_communities(stored.as_deref())
+}
+
+fn decode_hidden_communities(stored: Option<&str>) -> Result<Vec<HiddenCommunity>> {
     let Some(json) = stored else {
         return Ok(Vec::new());
     };
@@ -137,7 +326,7 @@ fn hidden_communities(
             "Stored hidden mod communities exceed their limit",
         ));
     }
-    let communities: Vec<HiddenCommunity> = serde_json::from_str(&json)?;
+    let communities: Vec<HiddenCommunity> = serde_json::from_str(json)?;
     if communities.len() > MAX_HIDDEN_SOURCES {
         return Err(PortcoveError::verification(
             "Too many stored hidden mod communities",
