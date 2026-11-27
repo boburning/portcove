@@ -6799,6 +6799,14 @@
         "source_editions": []
       },
       "original_game_title": "1080° Snowboarding",
+      "artwork": {
+        "game_id": 3328,
+        "cover_id": 605286,
+        "image_id": "cocz1i",
+        "image_sha256": "ae2c75fb8a633f8b3d84e5db80db39307da3768cccbcedf73485bee7b3df70db",
+        "game_slug": "1080-snowboarding",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -6818,6 +6826,14 @@
         "source_editions": []
       },
       "original_game_title": "1944: The Loop Master",
+      "artwork": {
+        "game_id": 6079,
+        "cover_id": 120194,
+        "image_id": "co2kqq",
+        "image_sha256": "579ee10f2150de3901bd31cc14315637d91de1ad1b204b0f68d4ff66621571cb",
+        "game_slug": "1944-the-loop-master",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -7129,6 +7145,14 @@
         "source_editions": []
       },
       "original_game_title": "A2 Racer",
+      "artwork": {
+        "game_id": 92803,
+        "cover_id": 472640,
+        "image_id": "coa4ow",
+        "image_sha256": "175d775cba6f06ab92f3ce8fbbda05ac599b66acc274dc5162a8059bd011bc2b",
+        "game_slug": "a2-racer",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -7148,6 +7172,14 @@
         "source_editions": []
       },
       "original_game_title": "A2 Racer II",
+      "artwork": {
+        "game_id": 80309,
+        "cover_id": 302896,
+        "image_id": "co6hps",
+        "image_sha256": "1ce411ea39cfa386382121801fb9941f9c08042587db85d2e3f30f1a914b256b",
+        "game_slug": "a2-racer-ii",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -7264,6 +7296,14 @@
         ]
       },
       "original_game_title": "Fuzion Frenzy",
+      "artwork": {
+        "game_id": 5842,
+        "cover_id": 106359,
+        "image_id": "co2a2f",
+        "image_sha256": "1f08d230f3ce4dfddbc75effebb45cf866b64ded24a6e29d497dd5dbe52cb840",
+        "game_slug": "fuzion-frenzy",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -7691,6 +7731,14 @@
         "source_editions": []
       },
       "original_game_title": "Ace Combat 04: Shattered Skies",
+      "artwork": {
+        "game_id": 9763,
+        "cover_id": 548238,
+        "image_id": "cobr0u",
+        "image_sha256": "1cbbf9837d2368742175a7195bd6ab8c6693053968308f8efa71244c0fd23e42",
+        "game_slug": "ace-combat-04-shattered-skies",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -7755,6 +7803,14 @@
         "source_editions": []
       },
       "original_game_title": "Ace Combat 2",
+      "artwork": {
+        "game_id": 14750,
+        "cover_id": 126199,
+        "image_id": "co2pdj",
+        "image_sha256": "72080945d234d8cea99288607d4adc29ff14b0e57305ff7a4a022155ecee5090",
+        "game_slug": "ace-combat-2",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },

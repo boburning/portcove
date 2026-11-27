@@ -13,6 +13,14 @@
       "evidence_urls": ["https://github.com/xvilo/a2-racer-davilex-decomp"],
       "source_editions": []
     },
-    "original_game_title": "A2 Racer"
+    "original_game_title": "A2 Racer",
+    "artwork": {
+      "game_id": 92803,
+      "cover_id": 472640,
+      "image_id": "coa4ow",
+      "image_sha256": "175d775cba6f06ab92f3ce8fbbda05ac599b66acc274dc5162a8059bd011bc2b",
+      "game_slug": "a2-racer",
+      "match_kind": "underlying-game"
+    }
   }
 }

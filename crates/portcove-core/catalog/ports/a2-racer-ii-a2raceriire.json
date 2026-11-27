@@ -13,6 +13,14 @@
       "evidence_urls": ["https://github.com/jjmhalew/A2RacerIIRE"],
       "source_editions": []
     },
-    "original_game_title": "A2 Racer II"
+    "original_game_title": "A2 Racer II",
+    "artwork": {
+      "game_id": 80309,
+      "cover_id": 302896,
+      "image_id": "co6hps",
+      "image_sha256": "1ce411ea39cfa386382121801fb9941f9c08042587db85d2e3f30f1a914b256b",
+      "game_slug": "a2-racer-ii",
+      "match_kind": "underlying-game"
+    }
   }
 }
