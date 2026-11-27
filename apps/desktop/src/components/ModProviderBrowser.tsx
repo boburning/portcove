@@ -37,6 +37,21 @@ import { ActionRow, Notice } from "./ui/patterns";
 
 type Project = ProviderProjectView["project"];
 type File = Project["files"][number];
+
+function eligibleProjectFiles(view: ProviderProjectView) {
+  if (view.freshness === "stale" || view.project.obsolete || view.project.status_unknown) return [];
+  return view.project.files.filter(
+    (file) => !file.status_unknown && view.eligible_file_ids?.includes(file.file_id),
+  );
+}
+
+function unambiguousProjectFile(view: ProviderProjectView) {
+  if (view.eligible_file_ids?.length !== 1 || view.project.unreadable_files !== 0) return;
+  if (view.project.files.some((file) => file.status_unknown)) return;
+  const eligible = eligibleProjectFiles(view);
+  if (eligible.length === 1) return eligible[0];
+}
+
 export type ModDraftReviewState = { headingId: string; open: boolean };
 
 type Props = {
@@ -361,12 +376,6 @@ export function ModProviderBrowser({
     draft.additions.some(
       (entry) => modProjectKey(entry.provider, entry.project, entry.gameId) === lookup(item),
     );
-  const eligible = (view: ProviderProjectView) =>
-    view.freshness === "stale" || view.project.obsolete || view.project.status_unknown
-      ? []
-      : view.project.files.filter(
-          (file) => !file.status_unknown && view.eligible_file_ids?.includes(file.file_id),
-        );
   const queue = (item: Project, file: File) => {
     if (!item.game_id) return;
     const gameId = item.game_id;
@@ -402,6 +411,7 @@ export function ModProviderBrowser({
     }));
   const inspect = async (item: Project, add: boolean) => {
     const id = ++requestId.current.generation;
+    const isCurrent = () => alive.current && id === requestId.current.generation;
     returnFocus.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setFailure(undefined);
@@ -418,7 +428,7 @@ export function ModProviderBrowser({
         generation,
         item.provider,
       );
-      if (!alive.current || id !== requestId.current.generation) return;
+      if (!isCurrent()) return;
       if (
         read.port_id !== portId ||
         read.project.provider !== item.provider ||
@@ -427,23 +437,17 @@ export function ModProviderBrowser({
       ) {
         throw new Error(t("mods.gameChanged"));
       }
-      const candidates = eligible(read);
-      if (
-        add &&
-        candidates.length === 1 &&
-        read.eligible_file_ids?.length === 1 &&
-        read.project.unreadable_files === 0 &&
-        read.project.files.every((file) => !file.status_unknown)
-      ) {
-        queue(item, candidates[0]!);
+      const singleFile = add ? unambiguousProjectFile(read) : undefined;
+      if (singleFile) {
+        queue(item, singleFile);
         return;
       }
       setProject(item);
       setFiles(read);
     } catch (error) {
-      if (alive.current && id === requestId.current.generation) setFailure(errorText(error));
+      if (isCurrent()) setFailure(errorText(error));
     } finally {
-      if (alive.current && id === requestId.current.generation) setWorking(undefined);
+      if (isCurrent()) setWorking(undefined);
     }
   };
   const closeDetails = () => {
@@ -761,7 +765,9 @@ export function ModProviderBrowser({
             files &&
             (!installedIds || updateFiles) && (
               <>
-                {eligible(files).length === 0 && <p>{t("mods.workspace.browseOnly")}</p>}
+                {eligibleProjectFiles(files).length === 0 && (
+                  <p>{t("mods.workspace.browseOnly")}</p>
+                )}
                 {files.project.unreadable_files > 0 && (
                   <p>
                     {t("mods.browse.unreadable", {
@@ -779,7 +785,7 @@ export function ModProviderBrowser({
                         <span>{t("mods.browse.eligibilityUnknown")}</span>
                       </li>
                     ))}
-                  {eligible(files)
+                  {eligibleProjectFiles(files)
                     .filter((file) => !updateFiles || updateFiles.includes(file.file_id))
                     .map((file) => (
                       <li key={file.file_id} className="flex flex-wrap items-center gap-2">
