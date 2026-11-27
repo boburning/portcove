@@ -47,6 +47,7 @@ import {
   managedSetupReleaseAdviceText,
 } from "./catalog-setup-release-advice.mts";
 import { isRecord } from "./runtime-values.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
 
 interface Difference {
   path: string;
@@ -570,6 +571,9 @@ async function prepareArtworkProposal(fullProposal = false) {
   const validateImage = proposalImageValidator(inspectProposal, cli, outputRoot);
   const heroMedia = option("--hero-media");
   if (heroMedia !== null && heroMedia !== "igdb") throw new Error("--hero-media requires igdb.");
+  const excludedMedia = new Set(
+    heroMedia ? authored.records.filter(usesScummvmEngine).map(({ listing }) => listing.id) : [],
+  );
   const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
   const covers = await prepareCoverArtworkInOperations(
     input,
@@ -591,6 +595,8 @@ async function prepareArtworkProposal(fullProposal = false) {
           prepareCatalogGameMedia(catalog, {
             inspector,
             identities,
+            acceptedCatalog: acceptedArtwork,
+            excludedPortIds: excludedMedia,
             knownGoneMediaTargets: gone,
             refreshPortIds: ids ? refreshPortIds.filter((id) => ids.includes(id)) : refreshPortIds,
             ...(ids ? { selectedPortIds: ids } : {}),

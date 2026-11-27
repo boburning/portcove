@@ -626,6 +626,133 @@ void test("unavailable image-type overflow stays unknown without disabling game-
   assert.equal(provider.providerMetrics.game_requests, 3);
 });
 
+void test("reviewed media discovers missing roles by exact game, edition and system", async () => {
+  const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
+  const { sceneCoverage } = await import("./artwork-operations.mts");
+  const subject = { kind: "original", game_id: "new-original", source_edition_id: "game-2002" };
+  const artwork = (game_id: number, slug: string) => ({
+    id: `accepted-shot-${game_id}`,
+    role: "screenshot",
+    subject,
+    sha256: "a".repeat(64),
+    url: `https://images.igdb.com/igdb/image/upload/t_720p/accepted${game_id}.png`,
+    source_url: `https://www.igdb.com/games/${slug}`,
+    edition_neutral: true,
+    igdb: {
+      game_id,
+      game_slug: slug,
+      record_id: 15,
+      image_id: `accepted${game_id}`,
+      kind: "screenshot",
+    },
+  });
+  const port = (
+    id: string,
+    edition = "game-2002",
+    system = "playstation-2",
+    media?: unknown[],
+  ) => ({
+    id,
+    name: "Shared title",
+    project_url: `https://example.org/${id}`,
+    presentation: {
+      original_game: { id: "new-original", source_editions: [{ id: edition, system }] },
+      ...(media === undefined ? {} : { media }),
+    },
+  });
+  const donor = port("donor", undefined, undefined, [artwork(7, "reviewed-game")]);
+  const recipient = port("new-port");
+  const sibling = port("another-new-port");
+  const otherEdition = port("other-release", "game-2003");
+  const otherSystem = port("other-system", undefined, "windows");
+  const excluded = port("excluded", undefined, undefined, []);
+  const seedReads: unknown[] = [];
+  const mediaReads: string[] = [];
+  const inspector = {
+    async inspectGame(identity: unknown) {
+      assert.ok(isRecord(identity));
+      if (identity.kind === "port") return [];
+      seedReads.push(identity.game_id);
+      assert.equal(identity.slug, "reviewed-game");
+      return [{ id: 7, slug: "reviewed-game", name: "Different provider title" }];
+    },
+    async inspectGameMedia(id: number, role: string) {
+      assert.equal(id, 7);
+      return role === "logo" ? [{ id: 10, game: 7, image_id: "sharedlogo" }] : [];
+    },
+    async inspectMediaImage(id: string) {
+      mediaReads.push(id);
+      return {
+        sha256: "b".repeat(64),
+        bytes: 16,
+        width: 400,
+        height: 200,
+        format: "png" as const,
+        validator: "portcove-core" as const,
+      };
+    },
+  };
+  const result = await prepareCatalogGameMedia(
+    { ports: [recipient, sibling, otherEdition, otherSystem, excluded] },
+    {
+      acceptedCatalog: { ports: [donor] },
+      inspector,
+    },
+  );
+  assert.deepEqual(seedReads, [7]);
+  assert.deepEqual(mediaReads, ["sharedlogo"]);
+  for (const current of result.catalog.ports.slice(0, 2)) {
+    const media = current.presentation?.media;
+    assert.ok(Array.isArray(media));
+    assert.equal(media.length, 1);
+    const asset: unknown = media[0];
+    assert.ok(isRecord(asset));
+    assert.deepEqual(asset.subject, subject);
+    assert.equal(asset.role, "logo");
+    assert.equal(asset.edition_neutral, undefined);
+  }
+  assert.deepEqual(result.catalog.ports.slice(2), [otherEdition, otherSystem, excluded]);
+  const conflict = port("conflicting-donor", undefined, undefined, [artwork(8, "another-game")]);
+  seedReads.length = 0;
+  const held = await prepareCatalogGameMedia(
+    { ports: [recipient] },
+    {
+      acceptedCatalog: { ports: [donor, conflict] },
+      inspector,
+    },
+  );
+  assert.deepEqual(seedReads, []);
+  assert.equal(held.records.filter((record) => record.reason === "identity-ambiguous").length, 4);
+  assert.equal(
+    sceneCoverage({ ports: [recipient] }, held).filter(({ state }) => state === "conflicting")
+      .length,
+    4,
+  );
+  assert.deepEqual(held.catalog.ports, [recipient]);
+  const corrected = await prepareCatalogGameMedia(
+    { ports: [recipient] },
+    {
+      acceptedCatalog: { ports: [donor, conflict] },
+      identities: {
+        [recipient.id]: {
+          underlying_game: {
+            source_edition_id: subject.source_edition_id,
+            game_id: 7,
+            slug: "reviewed-game",
+            names: ["Different provider title"],
+            evidence_url: "https://www.igdb.com/games/reviewed-game",
+          },
+        },
+      },
+      inspector,
+    },
+  );
+  assert.deepEqual(seedReads, [7]);
+  assert.ok(
+    corrected.records.some((record) => record.role === "logo" && record.reason === "role-selected"),
+  );
+});
+
 void test("game media preparation binds each typed role to the same exact game", async () => {
   const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
   const inspected: string[] = [];

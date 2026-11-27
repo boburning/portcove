@@ -304,7 +304,7 @@ export function sceneCoverage(
                 : "outside-proposal-input",
             );
           const state =
-            knownGames.size > 1
+            knownGames.size > 1 || reasons.includes("identity-ambiguous")
               ? "conflicting"
               : admitted.length
                 ? "admitted"

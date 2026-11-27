@@ -7582,6 +7582,14 @@ to the exact CDN variant and prevents its reselection in the batch. For example,
 a withdrawn logo does not withdraw a cover with the same provider image ID.
 Failed or incomplete requests leave withdrawal unresolved.
 
+When no explicit original-edition identity is supplied, media preparation can
+reuse a fixed IGDB identity from accepted typed artwork for the same original
+game, edition and system. It rechecks the exact provider game ID and slug,
+shares provider requests within the operation, and retains the edition scope
+on newly proposed roles. Conflicting accepted associations leave those gaps
+unresolved until corrected. Project media never supplies an original-edition
+identity.
+
 The artwork evidence includes logo, key-art, background, and screenshot
 coverage by port, original release, and IGDB game identity. It records accepted
 catalog asset IDs independently of IGDB image IDs, as well as fresh proposals
