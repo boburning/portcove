@@ -2729,7 +2729,7 @@ void test("format 15 restrictions require the released reader and never reach ol
   assert.deepEqual(decoded.directory.listings[0]!.restrictions, restrictions);
 
   assert.throws(
-    () => projectListingDelivery({ format_version: 18, listings: [current] }, [], null, { now: 0 }),
+    () => projectListingDelivery({ format_version: 19, listings: [current] }, [], null, { now: 0 }),
     /supported bounded canonical directory/u,
   );
 });
