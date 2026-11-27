@@ -7585,7 +7585,8 @@ Failed or incomplete requests leave withdrawal unresolved.
 The artwork evidence includes logo, key-art, background, and screenshot
 coverage by port, original release, and IGDB game identity. It records accepted
 catalog asset IDs independently of IGDB image IDs, as well as fresh proposals
-and exact observed withdrawals. An empty provider
+and exact observed withdrawals. `game_media.gone_media_targets` records each
+withdrawn CDN target as `variant/image_id`. An empty provider
 inventory is missing evidence for that role in that provider. A failed,
 incomplete or unrun query remains unknown. Conflicting provider identities
 stay visible for review. The default report also retains listing-only entries
