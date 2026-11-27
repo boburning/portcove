@@ -2762,6 +2762,52 @@ void test("format-16 mod website changes preserve an independent signed release 
   assert.equal(withdrawn.mod_portals, undefined);
 });
 
+void test("format-18 setup links preserve release observations and require a supporting reader", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery, requireCompactListingReader } =
+    await import("./listing-observation-delivery.mts");
+  const { compactListingCarrier } = await import("./listing-directory-carrier.mts");
+  const listing = {
+    ...fixtureListing,
+    original_game: {
+      format_version: 1,
+      id: "fixture-original",
+      source_editions: [],
+      evidence_urls: ["https://github.com/owner/game"],
+    },
+  };
+  const prior = projectListingDelivery(
+    { format_version: 17, listings: [listing] },
+    [fixturePolicy(listing).listing_update],
+    null,
+  ).bytes;
+  const observation = decodedListingDelivery(prior).directory.listings[0]!.upstream_observation;
+  assert.ok(observation);
+  const target = "separate-official-setup";
+  const linked = { ...listing, official_setup_id: target };
+  const directory = { format_version: 18, listings: [linked] };
+  const projected = projectListingDelivery(directory, [], prior, { compatible: directory, now: 0 });
+  assert.equal(projected.retained, 1);
+  const delivered = decodedListingDelivery(projected.bytes).directory;
+  assert.equal(delivered.format_version, 18);
+  assert.equal(delivered.listings[0]!.official_setup_id, target);
+  assert.deepEqual(delivered.listings[0]!.upstream_observation, observation);
+  const reader = {
+    ok: true,
+    command: "capabilities",
+    data: {
+      product: "Portcove",
+      product_version: "fixture",
+      listing_formats: [16, 17],
+      listing_delivery_carriers: [compactListingCarrier],
+    },
+  };
+  assert.throws(() => requireCompactListingReader(reader, 18), /listing format 18/u);
+  reader.data.listing_formats.push(18);
+  assert.equal(requireCompactListingReader(reader, 18), "fixture");
+});
+
 void test("format 17 projects a new repository-bound listing and preserves earlier release facts", async () => {
   const { fixtureListing, fixtureDelivery, fixturePolicy } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");

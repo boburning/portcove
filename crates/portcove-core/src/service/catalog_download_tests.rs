@@ -1647,6 +1647,13 @@ async fn discovery_completeness_requires_the_end_of_each_selected_asset_inventor
 async fn download_without_published_digest_retains_honest_provenance_and_non_owning_handoff() {
     let (_temporary, mut service, request) = fixture();
     let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
+    listing.original_game = Catalog::embedded()
+        .unwrap()
+        .listing("chameleon-twist-recompiled")
+        .unwrap()
+        .original_game
+        .clone();
+    listing.official_setup_id = Some("chameleon-twist-jp-recompiled".into());
     listing.mod_portals.push(crate::ListingModPortal {
         id: "community".into(),
         site: crate::ModPortalSite::CommunitySite,
@@ -1657,7 +1664,7 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     service.catalog = service
         .catalog
         .with_listing_document(crate::CatalogListingDocument {
-            format_version: 16,
+            format_version: 18,
             listings: vec![listing],
         })
         .unwrap();
@@ -1709,6 +1716,13 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     assert!(stored.get("format_version").is_none(), "{stored}");
     assert!(stored.get("progress").is_none(), "{stored}");
     assert!(stored["listing"].get("mod_portals").is_none(), "{stored}");
+    assert!(
+        stored["listing"].get("official_setup_id").is_none(),
+        "{stored}"
+    );
+    let mut invalid = pending.clone();
+    invalid.listing.official_setup_id = Some("chameleon-twist-jp-recompiled".into());
+    assert!(validate_record(&invalid).is_err());
     assert_eq!(
         pending.stage_kind(),
         Some(crate::PendingSetupStageKind::ArtifactObtained)

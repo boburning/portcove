@@ -393,8 +393,12 @@ preparation report. It is raised when a later reader generation replaces the
 compact carrier.
 
 Format 16 adds descriptive mod website links. Format 17 binds GitHub listing
-identity and acquisition observations to a stable numeric repository ID. The
-live publisher checks the protected release against `liveListingReaderFloors`
+identity and acquisition observations to a stable numeric repository ID.
+Format 18 allows an explicit link from a listing to a separate official
+definition for the same original game. The link initiates the existing
+availability check. The official definition and policy retain authority for
+each operation. Live format 18 awaits a supported released reader.
+The live publisher checks the protected release against `liveListingReaderFloors`
 and runs the official binary to verify the candidate format before activation.
 When an older compact reader rejects a successor, it can select its last
 accepted directory while the stored provenance remains current. After that

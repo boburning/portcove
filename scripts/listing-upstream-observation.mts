@@ -42,6 +42,8 @@ export function listingDeclarationHash(listing: Record<string, unknown>) {
   delete declaration.implementation;
   // Mod community navigation is independent of release identity and coverage.
   delete declaration.mod_portals;
+  // A separate official setup is not evidence about this listing's releases.
+  delete declaration.official_setup_id;
   return observationHash(declaration);
 }
 /** At most this many assets of one release are observed. */

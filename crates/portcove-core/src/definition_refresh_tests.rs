@@ -1,6 +1,6 @@
 use super::*;
 use policy::provisioning::{apply_fixture, review_fixture};
-use policy::refresh::{DefinitionRefreshDisposition, refresh_fixture};
+use policy::refresh::{DefinitionRefreshDisposition, refresh_fixture, refresh_linked_fixture};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -119,15 +119,106 @@ fn provision(library: &Library, root: &[u8]) {
 }
 
 fn ordinary_targets() -> Vec<(String, Vec<u8>)> {
+    ordinary_targets_for_original(None)
+}
+
+fn ordinary_targets_for_original(
+    original: Option<&crate::OriginalGameIdentity>,
+) -> Vec<(String, Vec<u8>)> {
     let mut document =
         serde_json::to_value(Catalog::embedded().unwrap().authoritative_document()).unwrap();
     let metadata = serde_json::to_value(metadata_catalog().authoritative_document()).unwrap();
-    document["ports"]
-        .as_array_mut()
-        .unwrap()
-        .push(metadata["ports"][0].clone());
+    let mut port = metadata["ports"][0].clone();
+    if let Some(original) = original {
+        port["presentation"] = serde_json::json!({ "original_game": original });
+    }
+    document["ports"].as_array_mut().unwrap().push(port);
     let catalog = Catalog::from_json(&document.to_string()).unwrap();
     repository_targets_for(&catalog, ID)
+}
+
+#[tokio::test]
+async fn reviewed_setup_link_verifies_original_identity_before_policy_admission() {
+    use policy::provisioning::official_catalog::reviewed_setup_game;
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let embedded = Catalog::embedded().unwrap();
+    let mut directory = embedded.listing_document().clone();
+    let listing = directory
+        .listings
+        .iter_mut()
+        .find(|listing| listing.id == "chameleon-twist-recompiled")
+        .unwrap();
+    let listing_id = listing.id.clone();
+    let original = listing.original_game.clone().unwrap();
+    listing.official_setup_id = Some(ID.into());
+    directory.format_version = 18;
+    let catalog = embedded.with_listing_document(directory).unwrap();
+    assert_eq!(
+        reviewed_setup_game(&catalog, &listing_id, ID).unwrap(),
+        original.id
+    );
+    assert!(reviewed_setup_game(&catalog, &listing_id, "different-managed-setup").is_err());
+    assert!(reviewed_setup_game(&catalog, "unlisted-project", ID).is_err());
+    assert!(catalog.port(ID).is_err());
+
+    let mut targets = ordinary_targets_for_original(Some(&original));
+    let policy = availability_for(&targets, ID, 1);
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&policy).unwrap(),
+    ));
+    let root = fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 1)),
+        )
+        .await;
+    let (_directory, library) = library();
+    provision(&library, &root);
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let error = refresh_linked_fixture(
+        &service,
+        &source(&fixture),
+        ID,
+        "unrelated-game",
+        &root,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(
+        error.details["definition_refresh_phase"],
+        "listing_setup_identity"
+    );
+    assert_eq!(error.details["definition_policy_changed"], "false");
+    assert!(
+        library
+            .definition_selection_status()
+            .unwrap()
+            .selected
+            .is_none()
+    );
+    let result = refresh_linked_fixture(
+        &service,
+        &source(&fixture),
+        ID,
+        &original.id,
+        &root,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert!(matches!(
+        result.disposition,
+        DefinitionRefreshDisposition::Selected
+    ));
+    assert_eq!(result.stable_id, ID);
+    assert!(result.policy_changed);
 }
 
 fn ordinary_availability(revision: u64) -> Value {

@@ -28,6 +28,7 @@ const MAX_FUNDING_URLS: usize = 12;
 pub(crate) const VERIFIED_EDITION_LISTING_FORMAT: u32 = 14;
 pub(crate) const MOD_PORTAL_LISTING_FORMAT: u32 = 16;
 pub(crate) const REPOSITORY_BOUND_LISTING_FORMAT: u32 = 17;
+pub(crate) const OFFICIAL_SETUP_LISTING_FORMAT: u32 = 18;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -61,6 +62,7 @@ impl From<&PortDefinition> for PortListing {
             listed_at: None,
             funding_urls: None,
             mod_portals: Vec::new(),
+            official_setup_id: None,
             platforms: port.platforms.clone(),
             availability: ListingAvailability::Unknown,
             download_block_reason: None,
@@ -186,13 +188,18 @@ pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=REPOSITORY_BOUND_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=OFFICIAL_SETUP_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 17",
+                "listing export supports formats 5 through 18",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < OFFICIAL_SETUP_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                listing.official_setup_id = None;
+            }
+        }
         if format_version < MOD_PORTAL_LISTING_FORMAT {
             for listing in &mut document.listings {
                 listing.mod_portals.clear();
@@ -256,6 +263,13 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self
+            .listings
+            .iter()
+            .any(|listing| listing.official_setup_id.is_some())
+        {
+            self.format_version = self.format_version.max(OFFICIAL_SETUP_LISTING_FORMAT);
+        }
         if self
             .listings
             .iter()
@@ -412,11 +426,21 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=REPOSITORY_BOUND_LISTING_FORMAT) {
+        if !matches!(self.format_version, 1..=OFFICIAL_SETUP_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        if self.format_version < OFFICIAL_SETUP_LISTING_FORMAT
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.official_setup_id.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "reviewed official setup links require listing format 18",
+            ));
         }
         if self.format_version < REPOSITORY_BOUND_LISTING_FORMAT
             && self
@@ -946,6 +970,19 @@ impl PortListing {
     pub fn validate(&self) -> Result<()> {
         self.validate_observation_metadata()?;
         crate::mod_source::validate_listing_portals(&self.mod_portals)?;
+        if let Some(target) = &self.official_setup_id
+            && (target == &self.id
+                || target.is_empty()
+                || target.len() > 255
+                || !target
+                    .bytes()
+                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+                || self.original_game.is_none())
+        {
+            return Err(PortcoveError::usage(
+                "an official setup link requires a distinct stable ID and an exact original game",
+            ));
+        }
         if let Some(date) = &self.listed_at
             && !valid_listed_at(date)
         {
@@ -1339,9 +1376,15 @@ impl Catalog {
                 } else {
                     Vec::new()
                 };
+                let official_setup_id = if same_scope {
+                    listing.official_setup_id.take()
+                } else {
+                    None
+                };
                 *listing = PortListing {
                     implementation,
                     mod_portals,
+                    official_setup_id,
                     compatibility: listing.compatibility.clone(),
                     upstream_observation: listing.upstream_observation.clone(),
                     availability_override_reason: listing.availability_override_reason.clone(),
@@ -1996,13 +2039,53 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":REPOSITORY_BOUND_LISTING_FORMAT + 1,"listings":[listing()]}),
+            json!({"format_version":OFFICIAL_SETUP_LISTING_FORMAT + 1,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
         ] {
             assert!(CatalogListingDocument::from_json(&document.to_string()).is_err());
         }
+    }
+
+    #[test]
+    fn official_setup_link_requires_format_and_keeps_external_listing_identity() {
+        let catalog = Catalog::embedded().unwrap();
+        let mut listing = catalog
+            .listing("chameleon-twist-recompiled")
+            .unwrap()
+            .clone();
+        let before = listing.clone();
+        let target = "chameleon-twist-jp-recompiled";
+        listing.official_setup_id = Some(target.into());
+        let document = CatalogListingDocument {
+            format_version: OFFICIAL_SETUP_LISTING_FORMAT,
+            listings: vec![listing],
+        };
+        document.validate().unwrap();
+        let legacy = document.export_format(17).unwrap();
+        assert_eq!(legacy.listings, vec![before]);
+        assert_eq!(
+            portcove_listing_carrier::legacy_row_projection(
+                &serde_json::to_value(&document.listings[0]).unwrap()
+            ),
+            serde_json::to_value(&document.export_format(11).unwrap().listings[0]).unwrap()
+        );
+        let mut invalid = document.clone();
+        invalid.format_version = 17;
+        assert!(invalid.validate().is_err());
+        invalid.format_version = OFFICIAL_SETUP_LISTING_FORMAT;
+        for target in [
+            Some("official/chameleon-twist-jp-recompiled"),
+            Some("chameleon-twist-recompiled"),
+            Some(""),
+        ] {
+            invalid.listings[0].official_setup_id = target.map(str::to_owned);
+            assert!(invalid.validate().is_err());
+        }
+        invalid.listings[0].official_setup_id = Some(target.into());
+        invalid.listings[0].original_game = None;
+        assert!(invalid.validate().is_err());
     }
 
     #[test]
@@ -2569,7 +2652,7 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
-        let unsupported_format = REPOSITORY_BOUND_LISTING_FORMAT + 1;
+        let unsupported_format = OFFICIAL_SETUP_LISTING_FORMAT + 1;
         let mut future = document;
         future.format_version = unsupported_format;
         future.promote_projected_format();
