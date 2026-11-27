@@ -728,11 +728,15 @@ void test("reviewed media discovers missing roles by exact game, edition and sys
       inspector,
     },
   );
-  const assets = multi.catalog.ports[0]?.presentation?.media;
-  assert.ok(Array.isArray(assets));
+  const media = multi.catalog.ports[0]?.presentation?.media;
+  assert.ok(Array.isArray(media));
+  const assets = (media as unknown[]).map((asset) => {
+    assert.ok(isRecord(asset) && isRecord(asset.subject));
+    return { id: asset.id, edition: asset.subject.source_edition_id };
+  });
   assert.equal(assets.length, 2);
   assert.deepEqual(
-    assets.map(({ subject: scope }) => scope.source_edition_id),
+    assets.map(({ edition }) => edition),
     ["game-2002", "game-2003"],
   );
   assert.equal(new Set(assets.map(({ id }) => id)).size, 2);
