@@ -653,6 +653,23 @@ mod tests {
         }
     }
 
+    #[test]
+    fn artifact_player_machines_follow_headers_even_when_suffixes_disagree() {
+        let entries = [
+            ("game.bin", pe(0x8664, EXECUTABLE)),
+            ("library.exe", pe(0x8664, EXECUTABLE | 0x2000)),
+        ];
+        let (_temporary, path, size, digest) = archive(&entries);
+        let inspection =
+            inspect_listing_artifact_archive(&path, Platform::WindowsX86_64, size, &digest)
+                .unwrap();
+        let [player] = inspection.player_candidates.as_slice() else {
+            panic!("expected exactly one executable image");
+        };
+        assert_eq!(player.path, "game.bin");
+        assert_eq!(player.machine, "pe-x86-64");
+    }
+
     fn platform_machine(bytes: &[u8]) -> String {
         machine::classify(&mut std::io::Cursor::new(bytes))
             .unwrap()
@@ -1194,10 +1211,8 @@ mod tests {
                 for (index, player) in players.iter().chain(&excluded).enumerate() {
                     let path = text(&player["path"]);
                     let machine = text(&player["machine"]);
-                    let windows_program = path.ends_with(".exe");
-                    if !machine::is_machine_name(&machine)
-                        || windows_program != machine.starts_with("pe-")
-                    {
+                    // The inspector classifies executable headers, independently of suffix.
+                    if !machine::is_machine_name(&machine) {
                         problems.push(format!("{at}: {path} has no producible {machine}"));
                     }
                     if crate::route_facts::player_candidates(std::slice::from_ref(&path)).is_empty()

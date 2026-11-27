@@ -1176,9 +1176,16 @@ export function assembleCatalogRecords(
       (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) ||
       a.listing.id.localeCompare(b.listing.id, "en"),
   );
+  const generatedIds = new Set(generation.enrollments.map(({ port_id }) => port_id));
   const ports = records.flatMap((record) => {
     const port = projectAuthoredPort(record);
-    return port ? [port] : [];
+    if (!port) return [];
+    // Generated operational copy describes the verified route. Directory copy
+    // remains authored and stays bound to the original release-text evidence.
+    if (generatedIds.has(port.id)) {
+      port.summary = "Register a copy you prepared from the upstream project.";
+    }
+    return [port];
   });
   const hasReferences = ports.some((port) => {
     const presentation = port.presentation;

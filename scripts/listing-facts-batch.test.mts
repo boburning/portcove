@@ -3993,6 +3993,13 @@ void test("the decide job withholds refused identities and re-checks the batch b
     /generate-catalog\.mts[\s\S]*--amend[\s\S]*format-patch/u,
   );
   assert.match(steps[index("rechecked_gate")]!.run!, /generate-catalog\.mts --check/u);
+  const strictInspection =
+    /\/cli\/portcove" --technical-details catalog inspect-proposal --repository-authoring\s*\\\s+crates\/portcove-core\/catalog\/catalog\.json/u;
+  assert.match(
+    workflow.jobs.combine!.steps.find((step) => step.id === "gate")!.run!,
+    strictInspection,
+  );
+  assert.match(steps[index("rechecked_gate")]!.run!, strictInspection);
   assert.match(
     steps[index("rechecked_checks")]!.run!,
     /verify --base HEAD~1 --own-run true --reproduce false/u,
