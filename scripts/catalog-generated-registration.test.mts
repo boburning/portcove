@@ -140,6 +140,7 @@ import {
   listingProviderIdentity,
   projectListingObservation,
   withoutListingReleaseText,
+  withReleaseText,
 } from "./listing-upstream-observation.mts";
 import { withholdRefused } from "./listing-facts-batch.mts";
 import { accumulatedObservations } from "./listing-facts-observations.mts";
@@ -5789,12 +5790,16 @@ void test("a release whose title or first body line states a prerelease is never
   });
   assert.equal(remark.observation.tag, "v3.0");
   assert.equal(remark.observed_releases.find((r) => r.release_id === 2)!.statement, null);
-  // Unobserved text is UNKNOWN optional evidence, not a statement: it is
-  // recorded as such, queued for review, and the release is never offered on
-  // unread text.
-  const unobserved = await run(null);
-  assert.equal(unobserved.observation.tag, "v3.0");
-  assert.equal(unobserved.observed_releases.find((r) => r.release_id === 2)!.text, "unobserved");
+  // Older facts can include inspected bytes with unobserved release text.
+  const unobserved = structuredClone(remark);
+  Object.assign(
+    unobserved.observed_releases.find((r) => r.release_id === 2)!,
+    {
+      text: "unobserved",
+      title: null,
+      statement: null,
+    },
+  );
   assert.equal(reasonOf(decide(listing(id), unobserved)), "release-text-unobserved");
   const generation = generateRegistrations([listing(id)], table(unobserved));
   assert.deepEqual(registrationQueues(generation).release_text_unobserved, [id]);
@@ -11424,12 +11429,13 @@ void test("youkaicountry-yknytt: releases titled as betas are withheld once thei
   const id = "youkaicountry-yknytt";
   const record = listing(id);
   const repository = `fixture-owner/${id}`;
-  const observation = textObservation(repository, [
+  const releases = [
     { id: 1, tag: "0.7.0", at: "2026-08-01T00:00:00Z", title: "v0.7.0 beta" },
     { id: 2, tag: "0.7.1", at: "2026-09-01T00:00:00Z", title: "v0.7.1 beta" },
     { id: 3, tag: "0.7.2", at: "2026-10-01T00:00:00Z", title: "v0.7.2 beta" },
     { id: 4, tag: "0.7.3", at: "2026-11-01T00:00:00Z", title: "v0.7.3 beta" },
-  ]);
+  ];
+  const observation = textObservation(repository, releases);
   // The text travels beside (never inside) the Core-shaped observation.
   const policy = projectListingObservation(record.listing, observation, 12);
   assert.equal(
@@ -11443,26 +11449,52 @@ void test("youkaicountry-yknytt: releases titled as betas are withheld once thei
   });
   const facts = observed.table.entries[0]!;
   assert.equal(facts.ineligible?.reason, "no-stable-release");
-  // An older handoff without release text: the same releases are recorded
-  // unobserved and the fit never offers them on unread text.
+  // An old handoff without release text defers archive inspection.
+  const inspected: string[] = [];
   const unread = await derive([record], throughHandoff(record, observation, false), undefined, {
     classify: anyNameClassifier,
+    inspect: inspector({}, inspected),
   });
-  const unreadFacts = unread.table.entries[0]!;
-  assert.equal(unreadFacts.observation.tag, "0.7.3");
-  assert.ok(unreadFacts.observed_releases.every((release) => release.text === "unobserved"));
-  assert.equal(reasonOf(decide(record, unreadFacts)), "release-text-unobserved");
-  assert.match(gateOn(record, unreadFacts), /own text nobody read/u);
+  assert.deepEqual(inspected, []);
+  assert.deepEqual(unread.needs, []);
+  assert.deepEqual(unread.table.entries, []);
+  assert.equal(unread.report[0]?.outcome, "unknown");
+  assert.equal(unread.report[0]?.reason, "release-text-unobserved");
   // Text of other facts is never attached.
   const stale = textObservation(repository, [
     { id: 4, tag: "0.7.3", at: "2026-11-01T00:00:00Z", title: "v0.7.3" },
   ]);
-  const report = throughHandoff(record, observation) as {
-    listings: { upstream_observation: Record<string, unknown> }[];
+  const report = {
+    listings: [
+      {
+        id,
+        upstream_observation: withReleaseText(policy.listing_update.upstream_observation, {
+          ...policy.listing_release_text,
+          facts_sha256: stale.facts_sha256,
+        }),
+      },
+    ],
   };
-  report.listings[0]!.upstream_observation.facts_sha256 = stale.facts_sha256;
   const mismatched = await derive([record], report, undefined, { classify: anyNameClassifier });
-  assert.ok(mismatched.table.entries[0]!.observed_releases.every((r) => r.text === "unobserved"));
+  assert.deepEqual(mismatched.needs, []);
+  assert.equal(mismatched.report[0]?.reason, "release-text-unobserved");
+
+  // Observed text wakes the same candidate without a version or asset change.
+  const stable = textObservation(
+    repository,
+    releases.map((release) => (release.id === 4 ? { ...release, title: "v0.7.3" } : release)),
+  );
+  const rechecked = await derive([record], throughHandoff(record, stable), unread.table, {
+    classify: anyNameClassifier,
+    state: unread.state,
+    inspect: inspector({}, inspected),
+  });
+  assert.equal(inspected.length, 1);
+  assert.equal(rechecked.table.entries[0]?.observation.tag, "0.7.3");
+  assert.equal(
+    rechecked.table.entries[0]?.observed_releases.find((r) => r.release_id === 4)?.text,
+    "observed",
+  );
 });
 
 void test("Faxanadu: newer releases skipped by their words alone are hand-checked, never silently replaced (#1422 3a)", async () => {

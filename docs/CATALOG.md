@@ -5083,6 +5083,13 @@ visible release of `youkaicountry-yknytt` is titled `vX beta` and none is
 flagged; with its text unobserved the fit had enrolled tag `0.7.3`, and with
 it observed the identity is `no-stable-release`.
 
+Before downloading new archive bytes for this registration route, the worker
+checks whether the selected release's text is observed. Missing text leaves a
+`release-text-unobserved` outcome in the worker report. A later bounded
+observer pass can supply the text and make the same release eligible for
+inspection. Existing exact archive receipts can still be reused, and the
+upstream package chooser operates independently.
+
 ##### Other package forms
 
 A release can offer its program in a form the worker does not read beside
