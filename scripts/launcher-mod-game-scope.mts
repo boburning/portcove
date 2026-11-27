@@ -5,6 +5,7 @@ function exactProductCode(system: unknown, value: unknown) {
   if (typeof value !== "string") return undefined;
   if (system === "playstation" && /^S[CL][A-Z]{2}-[0-9]{5}$/u.test(value)) return value;
   if (system === "nintendo-gamecube" && /^[A-Z0-9]{6}$/u.test(value)) return value;
+  if (system === "xbox-360" && /^[0-9A-F]{8}$/u.test(value) && value !== "00000000") return value;
   return undefined;
 }
 

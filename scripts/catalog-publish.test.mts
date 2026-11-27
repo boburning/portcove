@@ -3535,7 +3535,11 @@ function decodedListingDelivery(bytes: Buffer) {
   };
 }
 
-function launcherWebsiteGameFixture(id: string) {
+function launcherWebsiteGameFixture(
+  id: string,
+  system = "playstation",
+  productCode = "SLUS-01212",
+) {
   return {
     original_game: {
       id: "fixture-original-game",
@@ -3543,9 +3547,9 @@ function launcherWebsiteGameFixture(id: string) {
       evidence_urls: ["https://github.com/owner/game"],
       source_editions: [
         {
-          id: "fixture-playstation",
-          title: "Fixture game (PlayStation)",
-          system: "playstation",
+          id: `fixture-${system}`,
+          title: "Fixture game edition",
+          system,
           evidence_urls: ["https://github.com/owner/game"],
         },
       ],
@@ -3563,7 +3567,7 @@ function launcherWebsiteGameFixture(id: string) {
         identities: [
           {
             id: "fixture-profile",
-            variants: [{ id: "fixture-usa", product_codes: ["SLUS-01212"] }],
+            variants: [{ id: "fixture-usa", product_codes: [productCode] }],
           },
         ],
         contracts: [
@@ -3579,6 +3583,91 @@ function launcherWebsiteGameFixture(id: string) {
     },
   };
 }
+
+void test("Xbox 360 mod sources require exact title IDs and keep descriptive scope", async () => {
+  const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { catalogObservationSources } = await import("./catalog-upstream-observer.mts");
+  const { launcherModGameScopes, verifyLauncherModGameScope } =
+    await import("./launcher-mod-game-scope.mts");
+  const { firstPartyListingModDefaults } = await import("./listing-mod-portal-projection.mts");
+  const { launcherModSubjects, recordLauncherModAttempt } =
+    await import("./upstream-launcher-mod-progress.mts");
+  const code = "1234ABCD";
+  const { catalog, original_game } = launcherWebsiteGameFixture(
+    fixtureListing.id,
+    "xbox-360",
+    code,
+  );
+  const donor = { ...fixtureListing, original_game };
+  const recipient = {
+    ...fixtureListing,
+    id: "github-812",
+    project_url: "https://github.com/owner/unknown-xbox-project",
+    original_game,
+    mod_portals: undefined,
+  };
+  const listings = [donor, recipient];
+  const scopes = launcherModGameScopes(catalog, listings);
+  const scope = requiredFixture(scopes.get(recipient.id));
+  assert.equal(scope.system, "xbox-360");
+  assert.deepEqual([...scope.codes], [code]);
+  const sources = catalogObservationSources({ ...catalog, listings }).sources;
+  const sourcesById = Object.fromEntries(
+    sources.map((source) => [
+      source.key,
+      { repository_id: source.repository === "owner/unknown-xbox-project" ? 812 : 567 },
+    ]),
+  );
+  const subjectFor = (current: typeof scopes) =>
+    requiredFixture(
+      launcherModSubjects(sources, sourcesById, undefined, current).find(
+        ({ port_id }) => port_id === recipient.id,
+      ),
+    );
+  const subject = subjectFor(scopes);
+  assert.notEqual(subject.binding, subjectFor(new Map()).binding, "reconsider missing scope");
+  const proof = {
+    state: "observed" as const,
+    repository_id: 812,
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+    blob: "c".repeat(40),
+    manifest_sha256: "d".repeat(64),
+    game_input_ids: [code],
+    mod_portals: [
+      {
+        id: "upstream-gamebanana",
+        name: "GameBanana",
+        site: "community_site" as const,
+        instructions: "The upstream project lists this community. Follow its setup instructions.",
+        url: "https://gamebanana.com/games/456",
+      },
+    ],
+  };
+  assert.equal(verifyLauncherModGameScope(proof, scope).state, "observed");
+  for (const wrong of ["1234ABCE", "1234abcd", "0x1234ABCD"]) {
+    assert.equal(
+      verifyLauncherModGameScope({ ...proof, game_input_ids: [wrong] }, scope).state,
+      "held",
+    );
+  }
+  const now = Date.parse("2026-11-27T12:00:00Z");
+  const row = recordLauncherModAttempt(subject.binding, undefined, proof, now, 3600000);
+  const build = (selectedCatalog: typeof catalog) =>
+    firstPartyListingModDefaults(
+      selectedCatalog,
+      listings,
+      { sources: sourcesById, launcher_mod_sources: { [recipient.id]: row } },
+      new Set(),
+      now,
+    )(recipient, undefined);
+  assert.deepEqual(build(catalog), [{ ...proof.mod_portals[0], id: "obs-gh-gamebanana-812" }]);
+  const changed = structuredClone(catalog);
+  changed.source_catalog.identities[0]!.variants[0]!.product_codes = ["1234ABCE"];
+  assert.deepEqual(build(changed), []);
+  changed.source_catalog.identities[0]!.variants[0]!.product_codes = ["00000000"];
+  assert.equal(launcherModGameScopes(changed, listings).has(recipient.id), false);
+});
 
 void test("signed listing projection accepts only bound first-party websites and handles correction and withdrawal", async () => {
   const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
