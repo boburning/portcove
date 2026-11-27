@@ -89,9 +89,10 @@ export function checkDiscoveryRegistrationDelta(
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const mode = process.argv[2];
   const [head, producer] = process.argv.slice(3);
+  const delta = mode === "delta";
   const review = mode === "review";
   if (
-    review
+    review || delta
       ? process.argv.length !== 5 ||
         !head ||
         !producer ||
@@ -99,18 +100,28 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         !gitSha.test(producer)
       : process.argv.length !== 3 || (mode !== "authored" && mode !== "generated")
   )
-    throw new Error("Expected authored, generated or exact review catalog admission scope.");
-  const staged = runCheckedGit(["diff", "--cached", "--name-status", "--no-renames", "-z"]);
+    throw new Error("Expected authored, generated, review or composed catalog admission scope.");
+  const staged = runCheckedGit([
+    "diff",
+    "--name-status",
+    "--no-renames",
+    "-z",
+    ...(delta && head && producer ? [head, producer] : ["--cached"]),
+  ]);
   const additions = checkDiscoveryAdmissionPaths(staged, mode !== "authored");
   if (mode !== "authored") {
     const baseline: unknown = JSON.parse(
-      runCheckedGit(["show", `HEAD:${generatedAdmissionRegistration}`]),
+      runCheckedGit(["show", `${delta ? head : "HEAD"}:${generatedAdmissionRegistration}`]),
     );
     const proposed: unknown = JSON.parse(
-      runCheckedGit(["show", `:${generatedAdmissionRegistration}`]),
+      runCheckedGit(["show", `${delta ? producer : ""}:${generatedAdmissionRegistration}`]),
     );
     checkDiscoveryRegistrationDelta(baseline, proposed, additions.length);
   }
+  if (delta)
+    console.log(
+      [...additions, generatedAdmissionDirectory, generatedAdmissionRegistration].join("\n"),
+    );
   if (review && head && producer)
     checkDiscoveryReplayTree(
       head,

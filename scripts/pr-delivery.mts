@@ -717,9 +717,12 @@ export class PullRequestDeliveryClient {
     binding?: { run: number; attempt: number },
     composition?: { target: string; tree: string },
     localCheckout?: string,
+    expectedBase?: string,
   ) {
     if (localCheckout !== undefined && !composition)
       throw new Error("Merge --verify-local-composition requires --target and --tree");
+    if (expectedBase !== undefined && (!expectedBase || !composition))
+      throw new Error("Merge --target-ref requires --target and --tree");
     if (
       composition &&
       ![composition.target, composition.tree].every((sha) => /^[0-9a-f]{40}$/u.test(sha))
@@ -756,6 +759,8 @@ export class PullRequestDeliveryClient {
       assertSuccessfulWorkflowJobs(state.jobs, state.contexts, { head, ...binding });
     }
     const targetRef = state.pull.base.ref;
+    if (expectedBase !== undefined && targetRef !== expectedBase)
+      throw new Error("Merge base differs from the authorized target ref");
     if (expected) {
       if (!targetRef) throw new Error("Merge target branch is unavailable");
       if ((await this.branch(targetRef)).commit.sha !== expected.target)
@@ -1762,6 +1767,7 @@ const deliveryFlags: Readonly<Record<string, readonly string[]>> = {
     "--pr",
     "--head",
     "--target",
+    "--target-ref",
     "--tree",
     "--run",
     "--attempt",
@@ -1825,6 +1831,7 @@ const deliveryValues: Readonly<Record<string, string>> = {
   "--pr": "number-or-url",
   "--head": "40-character-sha",
   "--target": "reviewed-target-sha",
+  "--target-ref": "authorized-base-branch",
   "--tree": "reviewed-composed-tree-sha",
   "--snapshot-file": "absolute-observation-file.json",
   "--run": "run-id",
@@ -2238,6 +2245,7 @@ async function main(argv: string[]) {
         ? { target: optionText(options, "--target"), tree: optionText(options, "--tree") }
         : undefined,
       options["--verify-local-composition"] ? process.cwd() : undefined,
+      options["--target-ref"] ? optionText(options, "--target-ref") : undefined,
     );
     const directory = path.join(projectRoot, "work/pr-delivery");
     const closureReceipt = retainMergeReceipt(directory, { number, head, ...merged });

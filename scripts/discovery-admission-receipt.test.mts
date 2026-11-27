@@ -159,6 +159,28 @@ void test("guarded admission can retrieve an exact successful review despite lat
   });
 });
 
+void test("delivery resolves the newest live review artifact before verifying its exact attempt", async () => {
+  const fixture = reviewFixture();
+  const request = { ...fixture.request, review: "240" };
+  const inventory = "repos/boburning/portcove/actions/runs/240/artifacts?per_page=100";
+  const load = (total_count: number) => async (path: string) =>
+    path === inventory
+      ? {
+          total_count,
+          artifacts: [
+            { name: "catalog-admission-review-240-3", expired: true },
+            fixture.artifact,
+            { name: "catalog-admission-review-240-1", expired: false },
+          ],
+        }
+      : fixture.load(path);
+  assert.equal((await verifyCatalogAdmissionReview(request, load(3))).review, "240/2");
+  await assert.rejects(
+    verifyCatalogAdmissionReview(request, load(4)),
+    /enumeration is incomplete/u,
+  );
+});
+
 void test("guarded admission refuses foreign attempts, missing review steps, and changed artifacts", async () => {
   const foreign = reviewFixture();
   foreign.review.workflow_id++;
@@ -518,6 +540,7 @@ void test("an SDK retry leaves independent allowance for exact post-creation rea
       APP_SLUG: app,
       GH_TOKEN: "fixture",
       COMMIT: commit,
+      GITHUB_RUN_ID: "141",
       GITHUB_REPOSITORY: repo,
     },
     async (input, init) => {
@@ -534,6 +557,7 @@ void test("an SDK retry leaves independent allowance for exact post-creation rea
         assert.equal(typeof init.body, "string");
         const body: unknown = JSON.parse(init.body as string);
         assert.ok(isRecord(body) && body.draft === true);
+        assert.match(String(body.body), /^<!-- portcove-admission-review:141 -->\n/u);
         return Response.json(row, { status: 201 });
       }
       lookups++;
@@ -570,6 +594,8 @@ void test("independent review binds the open App proposal to the exact replay he
     catalogAdmissionGitHub(mode, { ...env, PROPOSAL: row.html_url }, async (input, init) => {
       const url = new URL(input instanceof Request ? input.url : input);
       assert.equal(init?.method, "GET");
+      if (mode === "delivery" && url.pathname === `/repos/${repo}/pulls/22`)
+        return Response.json(record);
       assert.equal(url.pathname, `/repos/${repo}/pulls`);
       assert.equal(url.searchParams.get("head"), "boburning:automation/catalog-admission-12-1");
       return Response.json([record]);
@@ -578,6 +604,37 @@ void test("independent review binds the open App proposal to the exact replay he
   assert.equal(await readProposal({ ...row, state: "closed" }), "");
   assert.equal(await readProposal({ ...row, draft: true }, "qualification"), "draft");
   assert.equal(await readProposal({ ...row, draft: false }, "qualification"), "ready");
+  const marker = "<!-- portcove-admission-review:141 -->";
+  const ready = { ...row, draft: false, body: `${marker}\n\nEvidence.` };
+  assert.deepEqual(JSON.parse(await readProposal(ready, "delivery")), {
+    state: "ready",
+    proposal: row.html_url,
+    number: 22,
+    review_run: "141",
+  });
+  for (const body of [undefined, "Unbound", `${marker}\n${marker}`, ` ${marker}`])
+    await assert.rejects(readProposal({ ...ready, body }, "delivery"), /review run locator/u);
+  await assert.rejects(
+    readProposal({ ...ready, user: { login: "foreign[bot]" } }, "delivery"),
+    /exact catalog admission proposal readback differs/iu,
+  );
+  assert.deepEqual(JSON.parse(await readProposal({ ...row, draft: true }, "delivery")), {
+    state: "draft",
+  });
+  const merged = "e".repeat(40);
+  const closed = { ...ready, state: "closed", merge_commit_sha: merged };
+  assert.deepEqual(JSON.parse(await readProposal({ ...closed, merged: true }, "delivery")), {
+    state: "merged",
+    proposal: row.html_url,
+    number: 22,
+    head: commit,
+    merge_commit_sha: merged,
+  });
+  assert.deepEqual(JSON.parse(await readProposal({ ...closed, merged: false }, "delivery")), {
+    state: "closed",
+    number: 22,
+  });
+  await assert.rejects(readProposal(closed, "delivery"), /could not be reconciled/u);
   assert.equal(
     await readProposal({ ...row, state: "closed", draft: true }, "qualification"),
     "closed",
@@ -623,6 +680,17 @@ void test("admission reviews carry current verifier code into an older producer 
     readFileSync(new URL("../.github/workflows/catalog-admission.yml", import.meta.url), "utf8"),
   );
   assert.ok(isRecord(workflow) && isRecord(workflow.jobs) && isRecord(workflow.jobs.review));
+  const propose = workflow.jobs.propose;
+  assert.ok(isRecord(propose) && isRecord(propose.env) && Array.isArray(propose.steps));
+  assert.equal(propose.env.CONTROLLER_SOURCE, "${{ github.workflow_sha }}");
+  const writerSteps = (propose.steps as unknown[]).filter(isRecord);
+  const prepare = writerSteps.find(({ name }) => name === "Prepare the trusted proposal writer");
+  const open = writerSteps.find(({ id }) => id === "open");
+  assert.match(String(prepare?.run), /--detach "\$writer" "\$CONTROLLER_SOURCE"/u);
+  assert.match(
+    String(open?.run),
+    /node "\$writer\/scripts\/discovery-admission-github\.mts" deliver/u,
+  );
   const job = workflow.jobs.review;
   assert.equal(job.environment, undefined);
   assert.ok(isRecord(job.env) && Array.isArray(job.steps));
@@ -653,6 +721,41 @@ void test("admission reviews carry current verifier code into an older producer 
   assert.match(ready.run, /qualification\)[\s\S]*gh pr ready "\$PROPOSAL"[\s\S]*qualification\)/u);
   assert.match(ready.run, /branch-fence\)[\s\S]*gh pr ready "\$PROPOSAL"[\s\S]*branch-fence\)/u);
   assert.doesNotMatch(ready.run, /gh pr merge|--admin/u);
+});
+
+void test("admission delivery binds a read-only proof before minting its merge credential", () => {
+  const workflow: unknown = parse(
+    readFileSync(
+      new URL("../.github/workflows/catalog-admission-delivery.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.ok(isRecord(workflow) && isRecord(workflow.permissions) && isRecord(workflow.jobs));
+  assert.ok(Object.values(workflow.permissions).every((access) => access === "read"));
+  const job = workflow.jobs.deliver;
+  assert.ok(isRecord(job) && Array.isArray(job.steps));
+  const steps = (job.steps as unknown[]).filter(isRecord);
+  const checkout = steps[0]?.with;
+  assert.ok(isRecord(checkout));
+  assert.equal(checkout.ref, "${{ github.workflow_sha }}");
+  assert.equal(checkout["persist-credentials"], false);
+  const proof = steps.find(({ id }) => id === "proof");
+  const app = steps.find(({ id }) => id === "app");
+  const merge = steps.find(({ name }) => name === "Merge through the guarded delivery route");
+  assert.ok(proof && app && merge && isRecord(proof.env) && isRecord(merge.env));
+  assert.equal(proof.env.GH_TOKEN, "${{ github.token }}");
+  assert.match(
+    String(proof.run),
+    /discovery-admission-review-receipt\.mts[\s\S]+merge-tree[\s\S]+--no-checkout/u,
+  );
+  assert.match(String(app.if), /steps\.proof\.outputs\.number.+AUTO_MERGE == 'true'/u);
+  assert.ok(steps.indexOf(proof) < steps.indexOf(app));
+  assert.ok(steps.indexOf(app) < steps.indexOf(merge));
+  assert.equal(merge.env.PORTCOVE_MERGE_TOKEN, "${{ steps.app.outputs.token }}");
+  assert.match(
+    String(merge.run),
+    /pr-delivery\.mts" merge[\s\S]+--target-ref main[\s\S]+--verify-local-composition/u,
+  );
 });
 
 void test("automated readiness requires the reviewed update and deletion rules on its exact branch", async () => {
