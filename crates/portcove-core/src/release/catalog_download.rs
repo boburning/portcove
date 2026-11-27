@@ -895,7 +895,7 @@ mod tests {
 
     #[tokio::test]
     async fn personal_project_lookup_requires_a_public_exact_repository_root() {
-        let (root, requests, _server) = crate::test_http::serve_routed_http(4, |request| {
+        let (root, requests, server) = crate::test_http::serve_routed_http(4, |request| {
             let path = request.split_whitespace().nth(1).unwrap();
             let body = match path.strip_prefix('/').unwrap() {
                 "repos/Owner/Public" => r#"{"id":42,"full_name":"Owner/Public","private":false}"#,
@@ -927,10 +927,21 @@ mod tests {
             (identity.id, identity.full_name.as_str()),
             (42, "Owner/Public")
         );
-        for name in ["Private", "Moved", "Unknown"] {
+        for (name, code) in [
+            ("Private", crate::ErrorCode::Unsupported),
+            ("Moved", crate::ErrorCode::Conflict),
+            ("Unknown", crate::ErrorCode::Unsupported),
+        ] {
             let address = format!("https://github.com/Owner/{name}");
-            assert!(provider.public_catalog_repository(&address).await.is_err());
+            let refusal = provider
+                .public_catalog_repository(&address)
+                .await
+                .err()
+                .expect("an ineligible repository must be refused");
+            assert_eq!(refusal.code, code, "{name}");
         }
+        // The fixture sends the request receipt after writing the response.
+        server.join().unwrap();
         let sent = requests.try_iter().collect::<Vec<_>>();
         assert_eq!(sent.len(), 4);
         assert!(sent.iter().all(|request| {

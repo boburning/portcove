@@ -1083,6 +1083,7 @@ pub(crate) enum ExternalCommand {
         project_url: String,
         /// The native game executable or launcher you chose.
         executable: PathBuf,
+        /// Existing working directory for the selected executable.
         #[arg(long)]
         working_directory: PathBuf,
         /// One literal launch argument per occurrence.
@@ -1091,10 +1092,14 @@ pub(crate) enum ExternalCommand {
     },
     /// Save the reviewed launch details for a personal upstream project.
     SelectProject {
+        /// Exact public GitHub project address used in the review.
         project_url: String,
+        /// Exact native executable or launcher path shown in the review.
         executable: PathBuf,
+        /// Exact working directory shown in the review.
         #[arg(long)]
         working_directory: PathBuf,
+        /// One literal launch argument per occurrence, in the reviewed order.
         #[arg(long = "arg", allow_hyphen_values = true)]
         arguments: Vec<String>,
         /// Exact fingerprint from external select-project-preview.
