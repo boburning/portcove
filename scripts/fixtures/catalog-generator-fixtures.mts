@@ -218,7 +218,7 @@ export function proposalDecoderFixture(
   writeFileSync(
     helper,
     `
-    export { readArtworkJson, readArtworkInput, reconcileCatalogArtworkWithdrawals, assertPreparedArtwork, catalogGameMediaRoles, gameMediaImageTarget } from './real-artwork.mts';
+    export { readArtworkJson, readArtworkInput, reconcileCatalogArtworkWithdrawals, assertPreparedArtwork, catalogGameMediaRoles, gameMediaImageTarget, withholdChangedHeroProposals } from './real-artwork.mts';
     import { createCoreImageValidator as actualValidator } from './real-artwork.mts';
     import { appendFileSync, readFileSync } from 'node:fs';
     import { createHash } from 'node:crypto';
