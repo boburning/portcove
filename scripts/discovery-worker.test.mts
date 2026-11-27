@@ -723,16 +723,16 @@ void test("scheduled listing preview resumes retained release evidence and binds
     ...leads,
     records: {
       "5": leads.records["5"]!,
+      "6": lead(6, {
+        search_families: ["libultraship", "n64recomp"],
+        release_hint: withoutAssets,
+      }),
       "7": lead(7, { status: "researched", manifest, release_hint: withoutAssets }),
       "8": lead(8, { external_lists: ["quiver"], release_hint: withoutAssets }),
       "9": lead(9, { release_hint: withoutAssets }),
       "10": lead(10, { manifest, release_hint: withoutAssets }),
       "11": lead(11, { status: "held", manifest, release_hint: withoutAssets }),
       "12": lead(12, { search_families: ["source-port-topic"], release_hint: withoutAssets }),
-      "13": lead(13, {
-        search_families: ["libultraship", "n64recomp"],
-        release_hint: withoutAssets,
-      }),
     },
   };
   const sourceOnlyRound = nextListingPreviewRound(sourceOnlyLeads, undefined, start, covered);
