@@ -1301,7 +1301,10 @@ void test("an exhausted provider quota waits for its reset between passes and co
   );
   assert.equal(memory.loads(), 1, "the next pass reuses its lead records instead of rereading");
   assert.equal(preview?.receipt.committed.revision, run.passes.at(-1)?.revision);
-  assert.deepEqual(preview?.handoff.candidates.map(({ repository_id }) => repository_id), [9001]);
+  assert.deepEqual(
+    preview?.handoff.candidates.map(({ repository_id }) => repository_id),
+    [9001],
+  );
   const [nomination] = preview?.receipt.evidence ?? [];
   assert.ok(nomination && !nomination.input.desktop_asset_hint);
   assert.equal(nomination.input.scope.kind, "source-port-topic");
