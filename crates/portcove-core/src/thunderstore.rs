@@ -1152,3 +1152,6 @@ mod tests;
 #[cfg(test)]
 #[path = "provider_thunderstore_tests.rs"]
 mod lifecycle_tests;
+
+#[cfg(test)]
+pub(crate) use lifecycle_tests::installed_timer_fixture;
