@@ -19,7 +19,10 @@ import {
 export type ScheduledCover = { id: string; artwork: IgdbArtwork };
 type Decisions = ReadonlyMap<string, ReviewedOriginalMediaDecision>;
 type Listing = Record<string, unknown>;
-type Inspector = Pick<ReturnType<typeof createIgdbInspector>, "inspectGame" | "inspectImage">;
+type Inspector = Pick<
+  ReturnType<typeof createIgdbInspector>,
+  "inspectGame" | "inspectImage" | "signal"
+>;
 type CoverObservations = Parameters<typeof advanceArtworkCheckpoint>[1];
 
 function scheduledCoverScope(key: string, artwork: IgdbArtwork) {
@@ -47,12 +50,16 @@ export async function prepareScheduledCovers(
   reviewed: Decisions,
   inspector: Inspector,
 ) {
-  const seen = new Set<string>();
+  const representatives = new Map<string, string>();
+  const representativeByPort = new Map<string, string>();
   const inputs = authored.flatMap((record) => {
     const { listing } = record;
     const match = selected.has(listing.id) && reviewedScope(record, reviewed);
-    if (!match || seen.has(match.scope.key)) return [];
-    seen.add(match.scope.key);
+    if (!match) return [];
+    const representative = representatives.get(match.scope.key);
+    representativeByPort.set(listing.id, representative ?? listing.id);
+    if (representative) return [];
+    representatives.set(match.scope.key, listing.id);
     return [
       {
         id: listing.id,
@@ -62,32 +69,44 @@ export async function prepareScheduledCovers(
       },
     ];
   });
-  if (!inputs.length) return { covers: [], records: [] };
+  if (!inputs.length) return { covers: [], records: [], progress: [] };
+  // The inspector still enforces its request deadline. Treat expiry as an
+  // unavailable observation so completed covers and other artwork roles proceed.
   const result = await prepareCatalogArtwork(
     { ports: inputs },
-    { ...inspector, reviewedOriginalMedia: reviewed, reviewedOriginalOnly: true },
+    {
+      inspectGame: inspector.inspectGame,
+      inspectImage: inspector.inspectImage,
+      reviewedOriginalMedia: reviewed,
+      reviewedOriginalOnly: true,
+    },
   );
   const covers: ScheduledCover[] = result.records.flatMap((record) =>
     record.reason === "exact-original-game-cover" && record.mapping
       ? [{ id: record.port_id, artwork: record.mapping }]
       : [],
   );
-  return { covers, records: result.records };
+  const recordsByPort = new Map(result.records.map((record) => [record.port_id, record]));
+  const progress = [...representativeByPort].flatMap(([id, representative]) => {
+    const record = recordsByPort.get(representative);
+    return record ? [asCoverProgress(id, record)] : [];
+  });
+  return { covers, records: result.records, progress };
 }
 
-export function asCoverProgress(record: ArtworkRecord) {
-  const retry = record.exceptions.some(({ reason }) =>
-    /unavailable|budget|incomplete/u.test(reason),
-  );
+function asCoverProgress(portId: string, record: ArtworkRecord) {
+  const failure = record.exceptions[0]?.reason;
+  let reason = failure ?? "no-exact-provider-observation";
+  if (record.mapping) reason = "role-selected";
+  else if (failure?.includes("budget")) reason = "batch-provider-budget-exhausted";
+  else if (failure && /unavailable|incomplete|identity-response-invalid/u.test(failure))
+    reason = "media-provider-unavailable-or-incomplete";
+  else if (failure === "identity-not-unique") reason = "identity-ambiguous";
   return {
-    port_id: record.port_id,
+    port_id: portId,
     role: "cover" as const,
-    subject: { kind: "port" as const, port_id: record.port_id },
-    reason: record.mapping
-      ? "role-selected"
-      : retry
-        ? "media-provider-unavailable-or-incomplete"
-        : "provider-role-empty",
+    subject: { kind: "port" as const, port_id: portId },
+    reason,
   };
 }
 

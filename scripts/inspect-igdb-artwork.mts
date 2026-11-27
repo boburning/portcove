@@ -431,6 +431,7 @@ function identifiedGame(
   const values: unknown[] = matches;
   if (!values.every(validObservedMetadata)) return { reason: "identity-response-invalid" };
   if (matches.length >= 21) return { reason: "identity-query-incomplete" };
+  if (values.length === 0) return { reason: "identity-not-found" };
   if (declared.game_id != null && matches.length !== 1) return { reason: "identity-not-unique" };
   const eligible = values.filter((game) => matchesIdentity(game, declared));
   const game = eligible.length === 1 ? eligible[0] : undefined;

@@ -2206,6 +2206,91 @@ void test("scheduled missing covers reuse an exact edition and survive transient
   );
   assert.equal(games, 1);
   assert.equal(prepared.covers.length, 1);
+  assert.deepEqual(
+    prepared.progress.map(({ port_id, reason }) => [port_id, reason]),
+    [
+      [donor.id, "role-selected"],
+      [peer.id, "role-selected"],
+    ],
+  );
+  for (const matches of [
+    [],
+    [
+      { id: 70, name: "Cover game", slug: "cover-game" },
+      { id: 70, name: "Cover game", slug: "cover-game" },
+    ],
+  ]) {
+    const unresolved = await prepareScheduledCovers(
+      authored,
+      new Set([donor.id, peer.id, withheld.id]),
+      reviewed,
+      {
+        inspectGame: async () => matches,
+        inspectImage: async () => assert.fail("unresolved identity must not fetch an image"),
+      },
+    );
+    const reason = matches.length ? "identity-ambiguous" : "identity-not-found";
+    assert.deepEqual(
+      unresolved.progress.map(({ port_id, reason }) => [port_id, reason]),
+      [
+        [donor.id, reason],
+        [peer.id, reason],
+      ],
+    );
+    assert.deepEqual(unresolved.covers, []);
+  }
+
+  const otherGame = {
+    ...game,
+    id: "other-game",
+    source_editions: [{ ...edition, id: "other-pc", title: "Other game" }],
+  };
+  const other = checkedAuthoredPort({
+    format_version: 1,
+    listing: { ...peer, id: "other-cover", original_game: otherGame },
+  });
+  const twoReviewed = new Map(reviewed).set(
+    JSON.stringify(["other-game", "other-pc", edition.system]),
+    {
+      ...reviewed.values().next().value!,
+      original_game_id: "other-game",
+      source_edition_id: "other-pc",
+      game_id: 80,
+      slug: "other-game",
+    },
+  );
+  const deadline = new AbortController();
+  const partial = await prepareScheduledCovers(
+    [...authored, other],
+    new Set([donor.id, peer.id, withheld.id, other.listing.id]),
+    twoReviewed,
+    {
+      signal: deadline.signal,
+      inspectGame: async (identity) => {
+        if (fixtureRecord(identity).game_id === 80) {
+          deadline.abort(new DOMException("Cover deadline expired", "TimeoutError"));
+          deadline.signal.throwIfAborted();
+        }
+        return [
+          {
+            id: 70,
+            name: "Cover game",
+            slug: "cover-game",
+            cover: { id: 71, image_id: "covergame" },
+          },
+        ];
+      },
+      inspectImage: async () => image,
+    },
+  );
+  assert.deepEqual(partial.covers, prepared.covers);
+  assert.deepEqual(
+    partial.progress.map(({ port_id, reason }) => [port_id, reason]),
+    [
+      ...prepared.progress.map(({ port_id, reason }) => [port_id, reason]),
+      [other.listing.id, "media-provider-unavailable-or-incomplete"],
+    ],
+  );
   const options = {
     authored,
     reviewed,

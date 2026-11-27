@@ -1108,12 +1108,7 @@ async function prepareArtworkProposalRun(
           const provider = inspector.batchStatus();
           mediaDue.progress.retainArtworkProviderBackoff(mediaDue.providerRoot, provider);
           const attempt = mediaPlan.finish(
-            [
-              ...gameMedia.records,
-              ...(coverPreparation && scheduledCoverTools
-                ? coverPreparation.records.map(scheduledCoverTools.asCoverProgress)
-                : []),
-            ],
+            [...gameMedia.records, ...(coverPreparation?.progress ?? [])],
             provider.retry_at,
             `sha256:${createHash("sha256").update(artworkEvidence).digest("hex")}`,
           );
