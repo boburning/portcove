@@ -13,6 +13,7 @@ import {
   DiscoveryStoreRefused,
   discoveryStatusQuery,
   readDiscoverySnapshot,
+  readSeededDiscoveryRows,
   postgresDiscoveryStore,
   measureDiscoverySeed,
 } from "./discovery-store.mts";
@@ -1903,6 +1904,77 @@ void test(
       ),
       0,
       "moved plan rolls back acquisition before returning any payload",
+    );
+  },
+);
+
+void test(
+  "local seed hydration continues beyond its index page and reconciles the tail",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const authoritative = fixture.start("authoritative").owner;
+    const seed = fixture.start("seed").owner;
+    const entries = Array.from({ length: 4100 }, (_, index) => ({
+      id: 10_000 + index,
+      key: `lead-${10_000 + index}-é"'雪`,
+    }));
+    const hints = Object.fromEntries(entries.map(({ id, key }) => [key, { id }]));
+    const records = entries.map(({ id }) => ({ id, repository: `ports/game-${id}` }));
+    for (const environment of [authoritative, seed]) {
+      migrate(environment);
+      const store = postgresDiscoveryStore(environment);
+      const owner = lease("1");
+      const acquired = store.acquire(owner, options);
+      store.commit(owner, acquired.revision, {
+        definition: options.definition,
+        leaseSeconds: 600,
+        state: { leads: { external: { hints } } },
+        observations: [],
+        watches: [],
+        leadRecords: records,
+      });
+      store.finish(owner, "complete", {});
+    }
+
+    const tail = entries.at(-1)!;
+    runSql(
+      authoritative,
+      `DELETE FROM portcove_maintenance.discovery_external_hints
+       WHERE scope = 'primary' AND hint->>'id' = '${tail.id}';
+       UPDATE portcove_maintenance.discovery_lead_records
+       SET record = record || '{"repository":"ports/updated-tail"}'::jsonb
+       WHERE scope = 'primary' AND lead_id = ${tail.id};`,
+    );
+
+    const plan = measureDiscoverySeed(authoritative, seed, "primary");
+    assert.ok(plan);
+    assert.equal(Object.keys(plan.hints.hashes).length, entries.length);
+    assert.equal(Object.keys(plan.leads.hashes).length, entries.length);
+    assert.deepEqual(plan.hints.rows[tail.key], { id: tail.id });
+    assert.deepEqual(plan.leads.rows[String(tail.id)], records.at(-1));
+    const hydratedHints = readSeededDiscoveryRows(
+      authoritative,
+      seed,
+      "primary",
+      "hints",
+      plan.hintsBytes,
+      plan.hints,
+    );
+    const hydratedLeads = readSeededDiscoveryRows(
+      authoritative,
+      seed,
+      "primary",
+      "leads",
+      plan.leadsBytes,
+      plan.leads,
+    );
+    delete hints[tail.key];
+    records[records.length - 1] = { id: tail.id, repository: "ports/updated-tail" };
+    assert.deepEqual(hydratedHints?.rows, hints);
+    assert.deepEqual(
+      hydratedLeads?.rows,
+      Object.fromEntries(records.map((record) => [record.id, record])),
     );
   },
 );

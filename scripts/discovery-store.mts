@@ -183,6 +183,7 @@ const seedTables = {
   leads: { table: "discovery_lead_records", key: "lead_id", value: "record" },
 } as const;
 type SeedRowKind = keyof typeof seedTables;
+const seedPageRowLimit = 4096;
 
 /** Local PostgreSQL computes fingerprints from the actual seed values, using
  * the same jsonb serialization as production. The seed is not authoritative:
@@ -205,14 +206,13 @@ function loadSeedRows(
     throw new MaintenanceStoreError("Discovery seed must be an independent local database");
   const { table, key, value } = seedTables[kind];
   const relation = "portcove_maintenance." + table;
-  const orderedKey = kind === "hints" ? `${key} COLLATE "C"` : key;
   const hardLimit = outputLimitBytes - 1; // Leave room for psql's trailing newline.
   const preferred = Math.min(pageBytes, hardLimit);
   const hashes = Object.create(null) as Record<string, string>;
   const rows = Object.create(null) as Record<string, unknown>;
   let after: string | undefined;
   for (;;) {
-    const cursor = after === undefined ? "" : `AND ${orderedKey} > ${sqlLiteral(after)}`;
+    const cursor = after === undefined ? "" : `AND ${key} > ${sqlLiteral(after)}`;
     let output: string;
     try {
       output = runSql(
@@ -224,15 +224,17 @@ function loadSeedRows(
           SELECT ${key}, ${value},
             octet_length(to_json(${key}::text)::text) + octet_length(${value}::text) + 72 AS byte_size
           FROM ${relation} WHERE scope = ${sqlLiteral(scope)} ${cursor}
+          -- Use the primary-key collation so the index can supply a bounded prefix.
+          ORDER BY ${key} LIMIT ${seedPageRowLimit}
         ), sized AS (
           SELECT ${key}, ${value},
-            sum(byte_size + 2) OVER (ORDER BY ${orderedKey}) AS running,
-            row_number() OVER (ORDER BY ${orderedKey}) AS position
+            sum(byte_size + 2) OVER (ORDER BY ${key}) AS running,
+            row_number() OVER (ORDER BY ${key}) AS position
           FROM entries
         ), page AS (
           SELECT coalesce(json_agg(json_build_array(${key}::text, ${value},
             encode(sha256(convert_to(${value}::text, 'UTF8')), 'hex'))
-            ORDER BY ${orderedKey}), '[]')::text AS data
+            ORDER BY ${key}), '[]')::text AS data
           FROM sized WHERE running <= ${preferred} - 2 OR position = 1
         ) SELECT CASE WHEN octet_length(data) <= ${hardLimit} THEN data ELSE 'null' END FROM page;`,
         { timeoutMs: 300_000 },
