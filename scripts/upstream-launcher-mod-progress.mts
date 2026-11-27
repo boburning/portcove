@@ -122,7 +122,7 @@ export function selectLauncherModWork<T>(
   const reviewQuota =
     limit === 1
       ? Number(lastReviewed <= lastUnresolved)
-      : Math.min(reviewed.length, limit - Math.max(1, Math.floor(limit / 4)));
+      : Math.min(reviewed.length, limit - Math.ceil(limit / 4));
   const probing = unresolved.slice(0, limit - reviewQuota);
   const established = reviewed.slice(0, limit - probing.length);
   if (probing.length && lastUnresolved < lastReviewed)
