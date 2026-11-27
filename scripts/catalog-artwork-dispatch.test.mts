@@ -328,3 +328,105 @@ void test("explicit IGDB hero preparation retains unknown acquisition when its s
   assert.equal(record(evidence.provider_metrics).authentication_requests, 0);
   assert.equal(record(evidence.provider_metrics).image_requests, 0);
 });
+
+void test("hero preparation retains reviewed directory media for a managed listing", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-managed-media-dispatch-"));
+  const output = join(scratch, "proposal");
+  const result = run(
+    "--prepare-artwork",
+    join(catalogRoot, "catalog.json"),
+    "--output-dir",
+    output,
+    "--credentials-file",
+    join(scratch, "absent-private-credentials.json"),
+    "--artwork-ids",
+    "tomba-recompiled",
+    "--hero-media",
+    "igdb",
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const evidence = fixtureJson(readFileSync(join(output, "artwork-evidence.json"), "utf8"));
+  const details = record(evidence.game_media);
+  const original = (entry: Record<string, unknown>) =>
+    record(entry.subject).source_edition_id === "tomba-playstation";
+  const coverage = records(details.coverage).filter(original);
+  const header = coverage.find((item) => item.role === "header");
+  assert.equal(header?.state, "admitted");
+  assert.deepEqual(header?.provider_game_ids, [4097]);
+  const observed = records(details.records).filter(original);
+  assert.equal(observed.find((item) => item.role === "header")?.reason, "existing-scene-retained");
+  const logo = observed.find((item) => item.role === "logo");
+  assert.equal(logo?.reason, "identity-provider-unavailable");
+  assert.equal(record(evidence.provider_metrics).authentication_requests, 0);
+  assert.match(String(details.accepted_media_context_sha256), /^[a-f0-9]{64}$/u);
+});
+
+void test("full artwork preparation checks typed scenes through the listing validator", () => {
+  const id = "tomba-recompiled";
+  const authored = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", `${id}.json`))),
+    id,
+  );
+  const asset = requiredFixture(
+    records(authored.listing.media).find((item) => item.role === "header"),
+  );
+  const logo = {
+    ...asset,
+    id: "fixture-original-logo",
+    role: "logo",
+    width: 300,
+    height: 200,
+    url: "https://images.igdb.com/igdb/image/upload/t_logo_med_2x/testlogo.png",
+    igdb: {
+      game_id: 4097,
+      game_slug: record(asset.igdb).game_slug,
+      image_id: "testlogo",
+      record_id: 10,
+      kind: "logo",
+    },
+  };
+  const fixture = proposalDecoderFixture(0, false, "--prepare-proposal", undefined, {
+    portId: id,
+    assets: [asset, logo],
+  });
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  const strict = fixtureCatalog(
+    fixtureJson(readFileSync(join(fixture.output, "catalog-proposal.json"))),
+  );
+  const strictPort = requiredFixture(strict.ports.find((port) => port.id === id));
+  assert.deepEqual(record(strictPort.presentation).media, [logo]);
+  const bytes = readFileSync(join(fixture.output, "listing-media-proposal.json"));
+  const directory = record(fixtureJson(bytes));
+  assert.equal(records(directory.listings)[0]?.id, id);
+  assert.deepEqual(records(directory.listings)[0]?.media, [logo, asset]);
+  const evidence = record(fixtureJson(readFileSync(join(fixture.output, "artwork-evidence.json"))));
+  const check = record(record(evidence.game_media).listing_check);
+  assert.equal(check.input_sha256, createHash("sha256").update(bytes).digest("hex"));
+  assert.equal(fixture.processes.filter((item) => record(item).listings === true).length, 1);
+  const withdrawn = proposalDecoderFixture(0, false, "--prepare-proposal", undefined, {
+    portId: id,
+    assets: [],
+    accepted: [asset],
+    gone: [`720p/${String(record(asset.igdb).image_id)}`],
+  });
+  assert.equal(withdrawn.result.status, 0, withdrawn.result.stderr);
+  const removal = record(
+    fixtureJson(readFileSync(join(withdrawn.output, "listing-media-proposal.json"))),
+  );
+  const changed = records(removal.listings).find((item) => item.id === id);
+  assert.ok(changed);
+  assert.equal(Object.hasOwn(changed, "media"), false);
+
+  const overridden = proposalDecoderFixture(
+    0,
+    false,
+    "--prepare-proposal",
+    (input) => {
+      const port = requiredFixture(input.ports.find((port) => port.id === id));
+      port.presentation = { ...record(port.presentation), media: [logo] };
+    },
+    { portId: id, assets: [], accepted: [asset] },
+  );
+  assert.equal(overridden.result.status, 0, overridden.result.stderr);
+  assert.equal(existsSync(join(overridden.output, "listing-media-proposal.json")), false);
+});

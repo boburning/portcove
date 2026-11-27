@@ -21,6 +21,7 @@ import {
   serializeCurrentCatalog,
   readCatalogSource,
   catalogSourceNames,
+  typedIgdbScene,
 } from "./catalog-authoring.mts";
 import type { CurrentCatalog, NamedRecord } from "./catalog-authoring.mts";
 import { createHash } from "node:crypto";
@@ -35,6 +36,8 @@ import {
   createCoreImageValidator,
   readArtworkJson,
   readArtworkInput,
+  gameMediaImageTarget,
+  catalogGameMediaRoles,
 } from "./inspect-igdb-artwork.mts";
 import type { ImageValidator } from "./inspect-igdb-artwork.mts";
 import {
@@ -47,6 +50,9 @@ import {
   managedSetupReleaseAdviceText,
 } from "./catalog-setup-release-advice.mts";
 import { isRecord } from "./runtime-values.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
+import { originalEditionMediaKey } from "./shared-original-media.mts";
+import { isDeepStrictEqual } from "node:util";
 
 interface Difference {
   path: string;
@@ -523,6 +529,124 @@ function proposalImageValidator(
         };
 }
 
+function originalSceneScope(game: unknown, subject: Record<string, unknown>) {
+  if (
+    !isRecord(game) ||
+    typeof game.id !== "string" ||
+    game.id !== subject.game_id ||
+    !Array.isArray(game.source_editions)
+  )
+    return undefined;
+  const edition = (game.source_editions as unknown[]).find(
+    (value) => isRecord(value) && value.id === subject.source_edition_id,
+  );
+  return originalEditionMediaKey(game.id, edition);
+}
+
+function splitListingSceneProposal(
+  catalog: CurrentCatalog,
+  beforePreparation: CurrentCatalog,
+  goneTargets: readonly string[],
+  excluded: ReadonlySet<string>,
+) {
+  const accepted = new Map(authored.directory.listings.map((listing) => [listing.id, listing]));
+  const baseline = new Map(
+    beforePreparation.ports.map(({ id, presentation }) => [id, presentation]),
+  );
+  const staged = new Map<
+    string,
+    { legacy: unknown[]; scenes: Record<string, unknown>[]; game: unknown }
+  >();
+  const pending: { port_id: string; asset: Record<string, unknown> }[] = [];
+  const gone = new Set(goneTargets);
+  const ports = catalog.ports.map((port) => {
+    const presentation = port.presentation;
+    if (excluded.has(port.id) || !isRecord(presentation) || !Array.isArray(presentation.media))
+      return port;
+    const media: unknown[] = presentation.media;
+    const scenes = media.filter(isRecord).filter(typedIgdbScene);
+    const legacy = media.filter((asset) => !typedIgdbScene(asset));
+    const listing = accepted.get(port.id);
+    const acceptedMedia: unknown[] = Array.isArray(listing?.media) ? listing.media : [];
+    const acceptedLegacy = acceptedMedia.filter((asset) => !typedIgdbScene(asset));
+    const matchingProject = listing?.project_url === port.project_url;
+    const prior = baseline.get(port.id);
+    const priorMedia = isRecord(prior) ? prior.media : undefined;
+    const canAlign =
+      matchingProject &&
+      (priorMedia === undefined ||
+        (Array.isArray(priorMedia) &&
+          priorMedia.length > 0 &&
+          isDeepStrictEqual(priorMedia, acceptedLegacy)));
+    const prepared = scenes.filter((asset) => {
+      const subject = isRecord(asset.subject) ? asset.subject : null;
+      if (listing && canAlign && subject) {
+        if (subject.kind === "port" && subject.port_id === port.id) return true;
+        const scope = originalSceneScope(listing.original_game, subject);
+        if (
+          subject.kind === "original" &&
+          scope &&
+          scope === originalSceneScope(presentation.original_game, subject)
+        )
+          return true;
+      }
+      pending.push({ port_id: port.id, asset });
+      return false;
+    });
+    if (
+      canAlign &&
+      (prepared.length ||
+        (legacy.length &&
+          acceptedMedia.some(typedIgdbScene) &&
+          !isDeepStrictEqual(legacy, priorMedia) &&
+          !isDeepStrictEqual(legacy, acceptedLegacy)))
+    )
+      staged.set(port.id, { legacy, scenes: prepared, game: presentation.original_game });
+    if (!scenes.length) return port;
+    const strictPresentation = { ...presentation };
+    if (legacy.length) strictPresentation.media = legacy;
+    else delete strictPresentation.media;
+    return { ...port, presentation: strictPresentation };
+  });
+  const listings = authored.directory.listings.flatMap((listing) => {
+    if (excluded.has(listing.id)) return [];
+    const stage = staged.get(listing.id);
+    const media: unknown[] = Array.isArray(listing.media) ? listing.media : [];
+    const currentScenes = media.filter(isRecord).filter(typedIgdbScene);
+    const retained = currentScenes.filter((asset) => {
+      if (isRecord(asset.igdb) && typeof asset.igdb.image_id === "string") {
+        const role = catalogGameMediaRoles.find((role) => role === asset.role);
+        if (role && gone.has(gameMediaImageTarget(role, asset.igdb.image_id))) return false;
+      }
+      if (stage && isRecord(asset.subject) && asset.subject.kind === "original") {
+        const scope = originalSceneScope(listing.original_game, asset.subject);
+        if (!scope || scope !== originalSceneScope(stage.game, asset.subject)) return false;
+      }
+      return !stage?.scenes.some(
+        (next) =>
+          next.id === asset.id ||
+          (next.role === "header" &&
+            asset.role === "header" &&
+            isDeepStrictEqual(next.subject, asset.subject)),
+      );
+    });
+    if (!stage && retained.length === currentScenes.length) return [];
+    const legacy = stage?.legacy.length
+      ? stage.legacy
+      : media.filter((asset) => !typedIgdbScene(asset));
+    const updated = { ...listing };
+    const nextMedia = [...legacy, ...retained, ...(stage?.scenes ?? [])];
+    if (nextMedia.length) updated.media = nextMedia;
+    else delete updated.media;
+    return [updated];
+  });
+  return {
+    catalog: { ...catalog, ports },
+    directory: { format_version: Math.max(13, authored.directory.format_version), listings },
+    pending,
+  };
+}
+
 async function prepareArtworkProposal(fullProposal = false) {
   validateArtworkProposalArguments(fullProposal);
   const captured = readArtworkInput(
@@ -570,6 +694,21 @@ async function prepareArtworkProposal(fullProposal = false) {
   const validateImage = proposalImageValidator(inspectProposal, cli, outputRoot);
   const heroMedia = option("--hero-media");
   if (heroMedia !== null && heroMedia !== "igdb") throw new Error("--hero-media requires igdb.");
+  const excludedMedia = new Set(
+    heroMedia ? authored.records.filter(usesScummvmEngine).map(({ listing }) => listing.id) : [],
+  );
+  const acceptedMedia = {
+    // Typed media can be present on a managed port's descriptive listing even
+    // when the strict operational catalog deliberately omits it.
+    ports: heroMedia
+      ? authored.directory.listings.map(({ id, name, project_url, original_game, media }) => ({
+          id,
+          name,
+          project_url,
+          presentation: { original_game, media },
+        }))
+      : [],
+  };
   const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
   const covers = await prepareCoverArtworkInOperations(
     input,
@@ -587,20 +726,38 @@ async function prepareArtworkProposal(fullProposal = false) {
   );
   const gameMedia =
     heroMedia === "igdb"
-      ? await prepareGameMediaInOperations(covers.catalog, selectedPortIds, (ids, catalog, gone) =>
-          prepareCatalogGameMedia(catalog, {
-            inspector,
-            identities,
-            knownGoneMediaTargets: gone,
-            refreshPortIds: ids ? refreshPortIds.filter((id) => ids.includes(id)) : refreshPortIds,
-            ...(ids ? { selectedPortIds: ids } : {}),
-          }),
+      ? await prepareGameMediaInOperations(
+          covers.catalog,
+          selectedPortIds,
+          (ids, catalog, gone, cleared) =>
+            prepareCatalogGameMedia(catalog, {
+              inspector,
+              identities,
+              acceptedCatalog: acceptedMedia,
+              excludedPortIds: excludedMedia,
+              explicitClearPortIds: cleared,
+              knownGoneMediaTargets: gone,
+              refreshPortIds: ids
+                ? refreshPortIds.filter((id) => ids.includes(id))
+                : refreshPortIds,
+              ...(ids ? { selectedPortIds: ids } : {}),
+            }),
         )
       : undefined;
   const result = { ...covers, catalog: gameMedia?.catalog ?? covers.catalog };
   finishPhase("artwork_preparation");
   validateCurrentCatalog(result.catalog);
-  const proposalBytes = Buffer.from(`${JSON.stringify(result.catalog, null, 2)}\n`);
+  const sceneProposal =
+    fullProposal && gameMedia
+      ? splitListingSceneProposal(
+          result.catalog,
+          input,
+          gameMedia.gone_media_targets,
+          excludedMedia,
+        )
+      : null;
+  const proposedCatalog = sceneProposal?.catalog ?? result.catalog;
+  const proposalBytes = Buffer.from(`${JSON.stringify(proposedCatalog, null, 2)}\n`);
   const proposalChecks =
     inspectProposal && beforeChecks
       ? {
@@ -608,8 +765,16 @@ async function prepareArtworkProposal(fullProposal = false) {
           output: inspectProposal.inspect("output", proposalBytes, true),
         }
       : undefined;
+  const listingProposal = sceneProposal?.directory.listings.length
+    ? Buffer.from(`${JSON.stringify(sceneProposal.directory, null, 2)}\n`)
+    : null;
+  const listingCheck = listingProposal
+    ? inspectProposal?.inspectListings("listing-media", listingProposal)
+    : null;
   finishPhase("output_preparation_and_declarations");
-  const compatibilityReview = fullProposal ? compatibilityFixtureReview(result.catalog) : undefined;
+  const compatibilityReview = fullProposal
+    ? compatibilityFixtureReview(proposedCatalog)
+    : undefined;
   finishPhase("compatibility_review");
   const preparationCosts = {
     clock: "process.hrtime.bigint",
@@ -635,8 +800,8 @@ async function prepareArtworkProposal(fullProposal = false) {
     input_sha256: digest(input),
     accepted_catalog_sha256: digest(current),
     accepted_artwork_context_sha256: digest(acceptedArtwork),
-    proposed_catalog_sha256: digest(result.catalog),
-    differences: differences(input, result.catalog),
+    proposed_catalog_sha256: digest(proposedCatalog),
+    differences: differences(input, proposedCatalog),
     records: result.records,
     metrics: result.metrics,
     gone_image_ids: result.gone_image_ids,
@@ -644,9 +809,17 @@ async function prepareArtworkProposal(fullProposal = false) {
     ...(gameMedia
       ? {
           game_media: {
+            accepted_media_context_sha256: digest(acceptedMedia),
+            ...(listingCheck
+              ? {
+                  validated_listing_proposal: "listing-media-proposal.json",
+                  listing_check: listingCheck,
+                }
+              : {}),
+            ...(sceneProposal?.pending.length ? { unbound_scenes: sceneProposal.pending } : {}),
             records: gameMedia.records,
             gone_media_targets: gameMedia.gone_media_targets,
-            coverage: sceneCoverage(acceptedArtwork, gameMedia, selectedPortIds),
+            coverage: sceneCoverage(acceptedMedia, gameMedia, selectedPortIds),
           },
         }
       : {}),
@@ -657,6 +830,8 @@ async function prepareArtworkProposal(fullProposal = false) {
   writeFileSync(join(outputRoot, "catalog-proposal.json"), proposalBytes, {
     flag: "wx",
   });
+  if (listingProposal && listingCheck)
+    writeFileSync(join(outputRoot, "listing-media-proposal.json"), listingProposal, { flag: "wx" });
   writeFileSync(
     join(outputRoot, "artwork-evidence.json"),
     `${JSON.stringify(evidence, null, 2)}\n`,
@@ -671,10 +846,10 @@ async function prepareArtworkProposal(fullProposal = false) {
           format_version: 1,
           accepted_catalog_sha256: digest(current),
           input_catalog_sha256: digest(input),
-          proposed_catalog_sha256: digest(result.catalog),
-          differences: differences(current, result.catalog),
-          proposal_changes: proposalChanges(current, result.catalog),
-          declaration_cases: declarationCases(current, result.catalog, proposalChecks),
+          proposed_catalog_sha256: digest(proposedCatalog),
+          differences: differences(current, proposedCatalog),
+          proposal_changes: proposalChanges(current, proposedCatalog),
+          declaration_cases: declarationCases(current, proposedCatalog, proposalChecks),
           compatibility_fixture_review: compatibilityReview,
           preparation_costs: preparationCosts,
           checks: proposalChecks,

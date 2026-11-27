@@ -197,6 +197,12 @@ export function proposalDecoderFixture(
   failInitialization = false,
   mode = "--prepare-proposal",
   editInput?: (input: FixtureCatalog, catalogs: string) => void,
+  scene?: {
+    portId: string;
+    assets: Record<string, unknown>[];
+    accepted?: Record<string, unknown>[];
+    gone?: string[];
+  },
 ) {
   const fixture = isolatedGenerator();
   if (editInput) {
@@ -223,8 +229,13 @@ export function proposalDecoderFixture(
     export function createIgdbInspector(_credentials, validateImage) {
       return {validateImage,providerMetrics:{authentication_requests:0,game_requests:0,image_requests:0}};
     }
-    export async function prepareCatalogGameMedia() {
-      throw new Error('Game-media acquisition is not modeled by this decoder-only fixture.');
+    export async function prepareCatalogGameMedia(catalog) {
+      if (!process.env.FIXTURE_MEDIA_SCENE) throw new Error('Game-media acquisition requires a fixture scene.');
+      const { portId, assets, gone } = JSON.parse(process.env.FIXTURE_MEDIA_SCENE);
+      const port = catalog.ports.find(({ id }) => id === portId);
+      if (!port) throw new Error('Fixture scene has no port.');
+      const updated = { ...port, presentation: { ...port.presentation, media: [...(port.presentation?.media ?? []), ...assets] } };
+      return { catalog: assets.length ? { ...catalog, ports: catalog.ports.map((entry) => entry === port ? updated : entry) } : catalog, records: [], gone_media_targets: gone ?? [] };
     }
     // The generator may split a large catalog into several operations; the
     // fixture's images belong to the whole run, not to each operation.
@@ -258,11 +269,15 @@ export function proposalDecoderFixture(
       const bytes=readFileSync(args.at(-1));
       const sha256=createHash('sha256').update(bytes).digest('hex');
       const inspection=args.includes('inspect-proposal');
+      const listings=args.includes('inspect-listings');
       const repository_authoring=args.includes('--repository-authoring');
-      appendFileSync(process.env.FIXTURE_PROCESS_LOG,JSON.stringify({artifact,inspection,repository_authoring})+'\\n');
+      appendFileSync(process.env.FIXTURE_PROCESS_LOG,JSON.stringify({artifact,inspection,repository_authoring,...(listings?{listings}: {})})+'\\n');
       if(++calls===1 && inspection)writeFileSync(process.env.FIXTURE_SELECTED_CLI,'selected file changed after capture');
-      const data=inspection?{format_version:1,input_sha256:sha256,input_bytes:bytes.length,ports:[],scope:repository_authoring?'repository-summary-policy':'runtime-admission'}
+      if (inspection && JSON.parse(bytes).ports.some((port) => port.presentation?.media?.some((asset) => asset.igdb && ['header','screenshot'].includes(asset.role))))
+        return { status: 2, signal: null, stdout: '{}', stderr: 'Typed scenes require a listing directory' };
+      const data=listings?JSON.parse(bytes):inspection?{format_version:1,input_sha256:sha256,input_bytes:bytes.length,ports:[],scope:repository_authoring?'repository-summary-policy':'runtime-admission'}
         :{selection:{sha256,byte_size:bytes.length,width:1,height:1,format:'jpeg'}};
+      if (listings) for (const listing of data.listings) if (listing.media?.length === 0) delete listing.media;
       return {status:0,signal:null,stdout:JSON.stringify({data}),stderr:''};
     };
     syncBuiltinESMExports();
@@ -272,6 +287,13 @@ export function proposalDecoderFixture(
   const factoryLog = join(fixture.scratch, "factory.log");
   const processLog = join(fixture.scratch, "process.log");
   syncFixtureSource(fixture.catalogs);
+  if (scene?.accepted) {
+    const file = join(fixture.catalogs, "ports", `${scene.portId}.json`);
+    const record = fixtureJson(readFileSync(file));
+    if (!isRecord(record.listing)) throw new Error("Missing fixture media listing");
+    record.listing.media = scene.accepted;
+    writeFileSync(file, JSON.stringify(record));
+  }
   const result = spawnSync(
     process.execPath,
     [
@@ -284,6 +306,7 @@ export function proposalDecoderFixture(
       cli,
       "--output-dir",
       output,
+      ...(scene ? ["--hero-media", "igdb", "--artwork-ids", scene.portId] : []),
     ],
     {
       cwd: fixture.scratch,
@@ -296,6 +319,7 @@ export function proposalDecoderFixture(
         FIXTURE_FAIL_INITIALIZATION: failInitialization ? "yes" : "no",
         FIXTURE_FACTORY_LOG: factoryLog,
         FIXTURE_PROCESS_LOG: processLog,
+        ...(scene ? { FIXTURE_MEDIA_SCENE: JSON.stringify(scene) } : {}),
       },
     },
   );

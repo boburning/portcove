@@ -1732,17 +1732,28 @@ void test("a Gone image found by a later media operation relabels an earlier ope
   const ports = Array.from({ length: 401 }, (_, index) => ({
     id: `port-${index}`,
     name: `Port ${index}`,
+    ...(index >= 399 ? { presentation: { media: index === 399 ? [] : [{ id: "old" }] } } : {}),
   }));
   const subject = (id: string) => ({ kind: "port" as const, port_id: id });
   let calls = 0;
   const result = await prepareGameMediaInOperations(
     { ports },
     undefined,
-    async (ids, catalog, gone) => {
+    async (ids, catalog, gone, cleared) => {
       calls++;
       const first = ids![0]!;
+      assert.deepEqual([...cleared], ["port-399"]);
+      if (calls === 2) assert.deepEqual(catalog.ports.at(-1)?.presentation?.media, []);
       return {
-        catalog,
+        catalog:
+          calls === 1
+            ? {
+                ...catalog,
+                ports: catalog.ports.map((port) =>
+                  port.id === "port-400" ? { ...port, presentation: { media: [] } } : port,
+                ),
+              }
+            : catalog,
         records: [
           calls === 1
             ? {
