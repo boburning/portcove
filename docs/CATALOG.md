@@ -2301,7 +2301,11 @@ preparation or proposal upload.
 A missing cover can use the same rotation when a maintained mapping names an
 exact provider game and single original edition. The worker looks up a shared
 edition once, with a 45-second budget and a quarter of the image allowance for
-covers. The publisher checks the image again for first acceptance and retains
+covers. Each selected port using that edition receives the same observation in
+its retry record. A missing provider identity, a conflicting identity, and a
+temporary provider failure have different outcomes. If the cover deadline
+expires, completed results remain in the proposal and work on other roles
+continues. The publisher checks the image again for first acceptance and retains
 the signed default during provider outages. Changed bytes retain the existing
 pin and hold new recipients. A confirmed withdrawal is recorded in the signed
 checkpoint for the shared edition. Automatic restoration requires a newer

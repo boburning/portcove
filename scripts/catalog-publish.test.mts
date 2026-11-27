@@ -2133,7 +2133,7 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
   );
 });
 
-void test("scheduled missing covers reuse an exact edition and survive transient provider failures", async () => {
+void test("scheduled missing covers reuse an exact edition and survive transient provider failures", async (context) => {
   const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
   const { prepareScheduledCovers, projectScheduledCovers } =
     await import("./listing-scheduled-cover.mts");
@@ -2206,6 +2206,129 @@ void test("scheduled missing covers reuse an exact edition and survive transient
   );
   assert.equal(games, 1);
   assert.equal(prepared.covers.length, 1);
+  assert.deepEqual(
+    prepared.progress.map(({ port_id, reason }) => [port_id, reason]),
+    [
+      [donor.id, "role-selected"],
+      [peer.id, "role-selected"],
+    ],
+  );
+  for (const matches of [
+    [],
+    [
+      { id: 70, name: "Cover game", slug: "cover-game" },
+      { id: 70, name: "Cover game", slug: "cover-game" },
+    ],
+  ]) {
+    const unresolved = await prepareScheduledCovers(
+      authored,
+      new Set([donor.id, peer.id, withheld.id]),
+      reviewed,
+      {
+        inspectGame: async () => matches,
+        inspectImage: async () => assert.fail("unresolved identity must not fetch an image"),
+      },
+    );
+    const reason = matches.length ? "identity-ambiguous" : "identity-not-found";
+    assert.deepEqual(
+      unresolved.progress.map(({ port_id, reason }) => [port_id, reason]),
+      [
+        [donor.id, reason],
+        [peer.id, reason],
+      ],
+    );
+    assert.deepEqual(unresolved.covers, []);
+  }
+
+  const otherGame = {
+    ...game,
+    id: "other-game",
+    source_editions: [{ ...edition, id: "other-pc", title: "Other game" }],
+  };
+  const other = checkedAuthoredPort({
+    format_version: 1,
+    listing: { ...peer, id: "other-cover", original_game: otherGame },
+  });
+  const twoReviewed = new Map(reviewed).set(
+    JSON.stringify(["other-game", "other-pc", edition.system]),
+    {
+      ...reviewed.values().next().value!,
+      original_game_id: "other-game",
+      source_edition_id: "other-pc",
+      game_id: 80,
+      slug: "other-game",
+    },
+  );
+  const deadline = new AbortController();
+  const { setTimeout: wait } = await import("node:timers/promises");
+  const partial = await prepareScheduledCovers(
+    [...authored, other],
+    new Set([donor.id, peer.id, withheld.id, other.listing.id]),
+    twoReviewed,
+    {
+      signal: deadline.signal,
+      inspectGame: async (identity) => {
+        if (fixtureRecord(identity).game_id === 80) {
+          deadline.abort(new DOMException("Cover deadline expired", "TimeoutError"));
+          await wait(1, undefined, { signal: deadline.signal });
+        }
+        return [
+          {
+            id: 70,
+            name: "Cover game",
+            slug: "cover-game",
+            cover: { id: 71, image_id: "covergame" },
+          },
+        ];
+      },
+      inspectImage: async () => image,
+    },
+  );
+  assert.deepEqual(partial.covers, prepared.covers);
+  assert.deepEqual(
+    partial.progress.map(({ port_id, reason }) => [port_id, reason]),
+    [
+      ...prepared.progress.map(({ port_id, reason }) => [port_id, reason]),
+      [other.listing.id, "batch-provider-budget-exhausted"],
+    ],
+  );
+  const { planDueGameMedia } = await import("./artwork-preparation-progress.mts");
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-cover-progress-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const ids = [donor.id, peer.id, other.listing.id];
+  const now = Date.now();
+  const plan = planDueGameMedia(
+    root,
+    ids.map((id) => ({ id, input_sha256: image.sha256 })),
+    3,
+    now,
+  );
+  assert.deepEqual(
+    plan.finish(
+      [
+        ...partial.progress,
+        {
+          port_id: other.listing.id,
+          role: "logo",
+          reason: "role-selected",
+          subject: { kind: "port", port_id: other.listing.id },
+        },
+      ],
+      null,
+      "partial-cover-fixture",
+      now,
+    ),
+    { attempted: 3, deferred: 1 },
+  );
+  const retainedProgress = fixtureRecord(
+    JSON.parse(
+      readFileSync(path.join(root, `game-media-progress-${other.listing.id}.json`), "utf8"),
+    ),
+  );
+  assert.equal(retainedProgress.deferred, true);
+  assert.deepEqual(Object.values(fixtureRecord(retainedProgress.successful)), [
+    new Date(now).toISOString(),
+  ]);
   const options = {
     authored,
     reviewed,
