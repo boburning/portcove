@@ -396,8 +396,9 @@ Format 16 adds descriptive mod website links. Format 17 binds GitHub listing
 identity and acquisition observations to a stable numeric repository ID. The
 live publisher checks the protected release against `liveListingReaderFloors`
 and runs the official binary to verify the candidate format before activation.
-Older compact readers keep their last accepted directory if they reject a
-successor.
+When an older compact reader rejects a successor, it can select its last
+accepted directory while the stored provenance remains current. After that
+provenance expires it uses its bundled directory until the application updates.
 
 With a qualified format-16 reader, the publisher can add a browser link to a
 listed Thunderstore community. The registry must explicitly refer to the same
@@ -512,7 +513,8 @@ remote-tracking ref:
   Sigstore trusted root, read anonymously with `gh attestation trusted-root`.
 - The single regular archive member is unpacked privately. Its capability
   report, run in a private directory with no credentials, must name the
-  `gzip-base64-json-v1` carrier, listing format 15 and the release version.
+  `gzip-base64-json-v1` carrier, the candidate listing format and the release
+  version. The protected release must meet that format's reader floor.
 
 If the Preview pointer changes between preparation and publication, that
 recheck fails the push and nothing from the run is published. Freshness then

@@ -259,10 +259,11 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   deduplication. Existing incomplete collection and failure rules still apply.
 - **Minimum supported preview for live listing updates:** Preview 14
   (`0.1.0-preview.14`) for format 15, and Preview 20 (`0.1.0-preview.20`) for
-  formats 16 and 17. Listing changes reach only the compact carrier. Previews
-  that support the carrier keep their last accepted directory when a successor
-  requires a newer reader. Previews before 14 keep the
-  last legacy listing directory (revision 47), their library, installed
+  formats 16 and 17. Listing changes reach only the compact carrier. When a
+  successor requires a later reader, older compact readers can select their
+  last accepted directory while its provenance remains current. After expiry
+  they use their bundled directory until the application updates. Previews
+  before 14 keep the frozen legacy listing directory (revision 49), their library, installed
   games, originals, saves, settings and launch, and they still receive
   definition and policy updates. They receive no further listing changes until
   the application is updated. The application updater reads
