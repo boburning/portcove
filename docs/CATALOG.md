@@ -2279,9 +2279,11 @@ retry deadlines when it receives them. The command reports attempted,
 deferred and due work for the operator. The proposal still requires acceptance
 through the catalog delivery path.
 
-Scheduled Maintenance inventory uses this queue for up to 48 due identities.
-It allows 32 MiB of image bodies across provider batches and uses the Core CLI
-already built by the job for validation. The `PORTCOVE_IGDB_CREDENTIALS`
+Scheduled Maintenance inventory uses this queue for up to 48 due identities
+after retaining its inventory and recovery artifacts. It uses the Core CLI
+already built by the job for validation. The 32 MiB image allowance spans
+provider batches. The reader stops at the first chunk over the allowance
+and includes that chunk in the transfer count. The `PORTCOVE_IGDB_CREDENTIALS`
 Actions secret uses the maintainer credential file's `client_id` and
 `client_secret` fields. When the secret is absent, the job records a deferral
 with zero attempts. The next schedule checks for it again.
@@ -2290,7 +2292,9 @@ The job retains the proposal and a receipt before advancing its resume cache.
 The cache contains the current round and the exact receipts referenced by its
 progress. Earlier working copies stay out of the cache. The cache is at most
 48 MiB before compression, and losing it allows the queue to resume from the
-catalog. Scheduled proposals still go through the catalog acceptance path.
+catalog. A separate resume file keeps provider retry deadlines after a failed
+preparation or proposal upload. Scheduled proposals still go through the catalog
+acceptance path.
 
 A logical workset may exceed 400 IDs. The catalog generator's `--prepare-artwork`
 runs a larger workset as consecutive operations of at most 400 IDs over the same

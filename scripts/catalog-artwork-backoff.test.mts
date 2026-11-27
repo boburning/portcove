@@ -31,6 +31,31 @@ void test("the hosted image transfer budget survives provider batch rotation", a
   assert.equal(inspector.providerMetrics.image_bytes, 3);
 });
 
+void test("an over-budget streamed image counts its delivered chunk and stops new requests", async () => {
+  const { createIgdbInspector, ArtworkBatchExhausted } = await import("./inspect-igdb-artwork.mts");
+  const inspector = createIgdbInspector(
+    null,
+    () => assert.fail("the over-budget body reached the decoder"),
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array(2));
+            controller.enqueue(new Uint8Array(2));
+            controller.close();
+          },
+        }),
+        { headers: { "content-type": "image/jpeg" } },
+      ),
+    { maximumOperationImageBytes: 3 },
+  );
+  await assert.rejects(inspector.inspectImage("streamed"), ArtworkBatchExhausted);
+  inspector.beginBatch();
+  await assert.rejects(inspector.inspectImage("next"), ArtworkBatchExhausted);
+  assert.equal(inspector.providerMetrics.image_requests, 1);
+  assert.equal(inspector.providerMetrics.image_bytes, 4);
+});
+
 async function flushProviderTimers(context: TestContext) {
   await new Promise((resolve) => setImmediate(resolve));
   context.mock.timers.tick(0);

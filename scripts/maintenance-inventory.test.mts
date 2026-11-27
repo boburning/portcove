@@ -331,6 +331,17 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.match(media.run!, /--media-due-limit 48 --media-image-budget-mib 32/u);
   assert.match(media.run!, /provider-credentials-unavailable/u);
   assert.match(media.run!, /env -i [^\n]*\n\s*node scripts\/generate-catalog\.mts/u);
+  const recoveryUpload = collect!.steps.find(
+    (step) => step.name === "Retain the backup for independent restore proof",
+  )!;
+  assert.ok(collect!.steps.indexOf(media) > collect!.steps.indexOf(recoveryUpload));
+  assert.match(media.run!, /--media-provider-checkpoint/u);
+  const providerSave = collect!.steps.find(
+    (step) => step.name === "Retain the provider retry clock even if proposal preparation fails",
+  )!;
+  assert.match(providerSave.if!, /artwork-provider-admission\.json/u);
+  assert.doesNotMatch(providerSave.if!, /steps\.game-media\.(outcome|outputs)/u);
+  assert.doesNotMatch(String(providerSave.with?.path), /checkpoint|active\.lock|credentials/u);
   const mediaArtifact = collect!.steps.find((step) =>
     String(step.with?.name).startsWith("maintenance-game-media-"),
   )!;
@@ -531,13 +542,13 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(render.env, undefined);
   assert.match(render.run!, /--database-env PORTCOVE_MAINTENANCE_LOCAL_URL/u);
 
-  assert.equal(
-    collect!.steps.at(-1)?.name,
-    "Check that collection kept the reconciled intake fence",
-  );
-  assert.match(collect!.steps.at(-1)?.run ?? "", /receipt_fence == "verified"/u);
+  const fence = collect!.steps.find(
+    (step) => step.name === "Check that collection kept the reconciled intake fence",
+  )!;
+  assert.ok(collect!.steps.indexOf(fence) < collect!.steps.indexOf(media));
+  assert.match(fence.run ?? "", /receipt_fence == "verified"/u);
   assert.match(
-    collect!.steps.at(-1)?.if ?? "",
+    fence.if ?? "",
     /needs\.reconcile-intake-receipts\.outputs\.receipt_outcome == 'verified'/u,
   );
   const evidence = collect!.steps.find((step) => step.name === "Record run evidence")!;
