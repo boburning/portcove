@@ -22,7 +22,7 @@ jobs:
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.id == github.event.repository.id
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 25
     environment: catalog-admission
     outputs:
       commit: ${{ steps.replay.outputs.commit }}

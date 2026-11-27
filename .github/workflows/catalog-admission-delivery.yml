@@ -27,7 +27,7 @@ jobs:
       github.event.workflow_run.head_repository.id == github.event.repository.id &&
       startsWith(github.event.workflow_run.head_branch, 'automation/catalog-admission-')
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 23
     environment: catalog-admission
     env:
       CI_RUN: ${{ github.event.workflow_run.id }}

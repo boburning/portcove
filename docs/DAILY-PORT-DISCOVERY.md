@@ -1233,7 +1233,9 @@ The delivery job verifies the independent receipt and runs catalog generation in
 the composition with current `main`. Only the reviewed listing additions and
 their two generated catalog files can change. The guarded merge checks the
 full CI attempt, target, tree, and closure intent. It records the resulting
-revision after reading it back from GitHub. Enable
+revision after reading it back from GitHub. Keep App proposals targeted at
+`main` while delivery runs. GitHub enforces the head at merge time. Portcove
+checks the base before the merge request and during readback. Enable
 `PORTCOVE_CATALOG_ADMISSION_AUTO_MERGE` only with owner approval for this
 protected merge path. When the flag is unset, the job retains its read-only
 proof. An older proposal without a review locator, a stale composition, or a
