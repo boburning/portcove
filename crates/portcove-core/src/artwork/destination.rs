@@ -515,7 +515,7 @@ impl PortcoveService {
                 handoff.source = DestinationArtworkSource::GeneratedFallback;
                 if automatic {
                     self.require_current_artwork_listing(&port)?;
-                    if let Some(artwork) = self.automatic_cover(&port) {
+                    if let Some(artwork) = self.catalog().automatic_cover(&port) {
                         handoff.source = DestinationArtworkSource::CatalogDefault {
                             artwork: artwork.clone(),
                         };
