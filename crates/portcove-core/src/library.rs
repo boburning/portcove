@@ -3935,6 +3935,7 @@ impl Library {
         self.activate_staged_with_identity(port_id, None)
     }
 
+    #[cfg(any(windows, test))]
     pub(crate) fn activate_staged_exact(
         &self,
         previous: &InstallRecord,

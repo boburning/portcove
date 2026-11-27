@@ -3471,6 +3471,7 @@ impl Installer {
         Ok(Some(crate::game_settings::RetainedSettingsDefaults {
             contract: settings.clone(),
             shipped: manifest.shipped_settings_defaults,
+            #[cfg(windows)]
             capture_gaps: manifest.shipped_settings_capture_gaps,
         }))
     }
