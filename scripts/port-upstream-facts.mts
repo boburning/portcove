@@ -47,7 +47,7 @@ export interface PortFactsOptions {
   fetcher?: typeof fetch;
 }
 
-export const discoveryScopePolicy = "github-primary-game-scope/5";
+export const discoveryScopePolicy = "github-primary-game-scope/6";
 
 const namesScummVm = (values: readonly unknown[]) =>
   values.some(
@@ -119,7 +119,7 @@ function legacyLauncherGameInput(game: unknown) {
   return { id: "game", label: game.label, formats, check };
 }
 
-function launcherScopeEvidence(value: unknown, repository: string, purpose: LauncherScopePurpose) {
+function launcherScopeEvidence(value: unknown, repository: string) {
   if (
     !isRecord(value) ||
     value.format !== 1 ||
@@ -132,9 +132,8 @@ function launcherScopeEvidence(value: unknown, repository: string, purpose: Laun
     value.start.program.length > 16
   )
     throw new Error("Manifest does not identify this repository and one game launch route");
-  // Older launcher manifests can establish descriptive mod evidence only.
-  const legacy = purpose === "launcher-mods" && value.inputs === undefined;
-  if (purpose === "launcher-mods" && value.inputs !== undefined && value.game !== undefined)
+  const legacy = value.inputs === undefined;
+  if (!legacy && value.game !== undefined)
     throw new Error("Manifest declares both legacy and named game inputs");
   const input: unknown = legacy
     ? legacyLauncherGameInput(value.game)
@@ -476,7 +475,7 @@ async function observeDiscoveryScope(
     const value = parseCatalogSource(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     manifest =
       manifestPath === "recomplauncher.json"
-        ? launcherScopeEvidence(value, project.full_name, purpose)
+        ? launcherScopeEvidence(value, project.full_name)
         : parseRecompManifest(value);
   } catch {
     return outcome("held", "unsupported-project-manifest");
