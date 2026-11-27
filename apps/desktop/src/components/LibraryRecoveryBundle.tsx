@@ -448,57 +448,13 @@ function RecoveryBundleDialog({
               showMutationSummary={false}
             />
           )}
-          {creation && (
-            <section aria-label="Creation review" className="grid gap-2">
-              <h3 ref={reviewHeading} tabIndex={-1} className="text-sm font-semibold">
-                Review what Portcove will copy
-              </h3>
-              <PathValue label="Source library" value={creation.source_root} />
-              <PathValue label="Bundle destination" value={creation.destination_root} />
-              <p>Required space {formatBytes(creation.required_bytes)}</p>
-              <p>Use a destination that supports folders private to your account.</p>
-              <BundleCoverage coverage={creation.coverage} exclusions={creation.exclusions} />
-            </section>
-          )}
-          {verified && (
-            <section aria-label="Verified recovery bundle" className="grid gap-2">
-              <h3 className="text-sm font-semibold" role="status">
-                Bundle verified
-              </h3>
-              <PathValue label="Bundle folder" value={verified.path} />
-              <p>{bundleAuthority}</p>
-              <BundleCoverage coverage={verified.coverage} exclusions={verified.exclusions} />
-              <details>
-                <summary data-focusable>Verification details</summary>
-                <PathValue label="Bundle ID" value={verified.bundle_id} />
-                <PathValue label="Receipt SHA-256" value={verified.receipt_sha256} />
-              </details>
-            </section>
-          )}
-          {restore && (
-            <section aria-label="Restore review" className="grid gap-2">
-              <h3 ref={reviewHeading} tabIndex={-1} className="text-sm font-semibold">
-                Review the restore destination
-              </h3>
-              <PathValue label="Restore destination" value={restore.destination_root} />
-              <p>
-                Required space {formatBytes(restore.required_bytes)}. Your current library stays
-                selected.
-              </p>
-            </section>
-          )}
-          {restored && (
-            <section className="grid gap-2">
-              <h3 role="status" className="text-sm font-semibold">
-                Library restored
-              </h3>
-              <PathValue label="Restored library" value={restored} />
-              <p>
-                To use it, close this review and choose the restored folder under Library and
-                storage.
-              </p>
-            </section>
-          )}
+          <RecoveryReviewSections
+            creation={creation}
+            verified={verified}
+            restore={restore}
+            restored={restored}
+            reviewHeading={reviewHeading}
+          />
           {pending && <RecoveryCopyProgress pending={pending} copy={copy} />}
           {!destinationOccupied && (
             <ActionReviewFailure
@@ -518,16 +474,7 @@ function RecoveryBundleDialog({
                 aria-disabled={Boolean(pending)}
                 onClick={() =>
                   void run("Checking the reviewed bundle folder…", async () => {
-                    const bundle = await desktopApi.inspectLibraryRecoveryBundle(
-                      createReceipt.destination_root,
-                      createReceipt.plan_sha256,
-                    );
-                    if (
-                      bundle.path !== createReceipt.destination_root ||
-                      bundle.source_library_id !== createReceipt.source_library_id ||
-                      (createReceipt.bundle_id && bundle.bundle_id !== createReceipt.bundle_id)
-                    )
-                      throw new Error("The verified bundle does not match the reviewed copy.");
+                    const bundle = await inspectReviewedBundle(createReceipt);
                     setTransferred(true);
                     setVerified(bundle);
                   })
@@ -548,15 +495,7 @@ function RecoveryBundleDialog({
                 void run("Checking the reviewed restore destination…", async () => {
                   const expected = restoreReceipt.destination_root;
                   try {
-                    const result = await desktopApi.readLibraryRecoveryRestore(
-                      expected,
-                      restoreReceipt.plan_sha256,
-                    );
-                    if (
-                      restoreReceipt.transfer_id &&
-                      result.transfer_id !== restoreReceipt.transfer_id
-                    )
-                      throw new Error("The restored library does not match the reviewed transfer.");
+                    const result = await readReviewedRestore(restoreReceipt);
                     acceptRestoredDestination(result, expected);
                     setTransferred(true);
                     setRecovery(undefined);
@@ -753,6 +692,101 @@ function RecoveryBundleDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function RecoveryReviewSections({
+  creation,
+  verified,
+  restore,
+  restored,
+  reviewHeading,
+}: {
+  creation: LibraryRecoveryBundlePlan | undefined;
+  verified: LibraryRecoveryBundle | undefined;
+  restore: LibraryRecoveryRestorePlan | undefined;
+  restored: string | undefined;
+  reviewHeading: RefObject<HTMLHeadingElement | null>;
+}) {
+  return (
+    <>
+      {creation && (
+        <section aria-label="Creation review" className="grid gap-2">
+          <h3 ref={reviewHeading} tabIndex={-1} className="text-sm font-semibold">
+            Review what Portcove will copy
+          </h3>
+          <PathValue label="Source library" value={creation.source_root} />
+          <PathValue label="Bundle destination" value={creation.destination_root} />
+          <p>Required space {formatBytes(creation.required_bytes)}</p>
+          <p>Use a destination that supports folders private to your account.</p>
+          <BundleCoverage coverage={creation.coverage} exclusions={creation.exclusions} />
+        </section>
+      )}
+      {verified && (
+        <section aria-label="Verified recovery bundle" className="grid gap-2">
+          <h3 className="text-sm font-semibold" role="status">
+            Bundle verified
+          </h3>
+          <PathValue label="Bundle folder" value={verified.path} />
+          <p>{bundleAuthority}</p>
+          <BundleCoverage coverage={verified.coverage} exclusions={verified.exclusions} />
+          <details>
+            <summary data-focusable>Verification details</summary>
+            <PathValue label="Bundle ID" value={verified.bundle_id} />
+            <PathValue label="Receipt SHA-256" value={verified.receipt_sha256} />
+          </details>
+        </section>
+      )}
+      {restore && (
+        <section aria-label="Restore review" className="grid gap-2">
+          <h3 ref={reviewHeading} tabIndex={-1} className="text-sm font-semibold">
+            Review the restore destination
+          </h3>
+          <PathValue label="Restore destination" value={restore.destination_root} />
+          <p>
+            Required space {formatBytes(restore.required_bytes)}. Your current library stays
+            selected.
+          </p>
+        </section>
+      )}
+      {restored && (
+        <section className="grid gap-2">
+          <h3 role="status" className="text-sm font-semibold">
+            Library restored
+          </h3>
+          <PathValue label="Restored library" value={restored} />
+          <p>
+            To use it, close this review and choose the restored folder under Library and storage.
+          </p>
+        </section>
+      )}
+    </>
+  );
+}
+
+async function inspectReviewedBundle(receipt: CreationReadback) {
+  const bundle = await desktopApi.inspectLibraryRecoveryBundle(
+    receipt.destination_root,
+    receipt.plan_sha256,
+  );
+  if (
+    bundle.path !== receipt.destination_root ||
+    bundle.source_library_id !== receipt.source_library_id ||
+    (receipt.bundle_id && bundle.bundle_id !== receipt.bundle_id)
+  ) {
+    throw new Error("The verified bundle does not match the reviewed copy.");
+  }
+  return bundle;
+}
+
+async function readReviewedRestore(receipt: RestoreReadback) {
+  const result = await desktopApi.readLibraryRecoveryRestore(
+    receipt.destination_root,
+    receipt.plan_sha256,
+  );
+  if (receipt.transfer_id && result.transfer_id !== receipt.transfer_id) {
+    throw new Error("The restored library does not match the reviewed transfer.");
+  }
+  return result;
 }
 
 function recoveryFailureSummary(
