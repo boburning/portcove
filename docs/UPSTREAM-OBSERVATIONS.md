@@ -1743,16 +1743,27 @@ browser navigation only.
 ### First-party launcher websites
 
 The existing hosted opportunity gives due first-party mod observations up to
-one twentieth of its GitHub request allowance. The oldest attempted subjects
-get the first turns. A subject needs one accepted implementation, an observed
-numeric repository ID, a matching public project root and an accepted game
-input with exact product codes. The observer reads
-the current default commit, its complete root tree, and the exact
+one twentieth of its GitHub request allowance. A subject needs one accepted
+implementation, an observed numeric repository ID and a matching public project
+root. The observer checks reviewed game scopes and unresolved scopes in separate
+lanes within the same request allowance. When both lanes have due work, reviewed
+scopes get most slots and unresolved scopes get a reserved share. A single slot
+goes to the lane serviced least recently. Each lane orders due work by the
+last attempt or, on the first pass, by the listing date. Legacy listings
+without a date enter the existing backfill.
+
+The observer reads the current default commit, its complete root tree, and the exact
 `recomplauncher.json` blob. It checks the repository and a single declared game
 before recording bounded GameBanana and Thunderstore coordinates. Every manifest
 game input ID must match the current catalog’s reviewed game contract. Prefixes,
 missing IDs and ambiguous editions cannot authorize a website. Each attempt
 uses at most four GitHub reads, with a 256 KiB response limit per read.
+
+Without a reviewed game scope, the observer can record an absent manifest or
+an unresolved declaration. The unresolved result cannot supply publisher input.
+The checkpoint reconsiders those results weekly, retries transient failures
+under the existing cadence, and makes the subject due when a reviewed game scope
+becomes available.
 
 A listing can reuse reviewed product codes when its canonical game, single
 source edition and system all match. Every reviewed mapping for that edition

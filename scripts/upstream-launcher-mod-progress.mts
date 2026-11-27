@@ -8,6 +8,7 @@ import {
 import { admittedGithubRepositoryId } from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
 
 type Complete = Extract<LauncherModObservation, { state: "observed" | "absent" }>;
 export interface FirstPartyModProgress {
@@ -31,6 +32,7 @@ export function launcherModScopes(sources: readonly ObservableSource[]) {
     const [port] = source.ports;
     if (source.ports.length !== 1 || !port?.listing || typeof port.listing.project_url !== "string")
       continue;
+    if (usesScummvmEngine({ listing: port.listing })) continue;
     try {
       if (githubRepository(port.listing.project_url)?.toLowerCase() !== slug) continue;
     } catch {
@@ -41,6 +43,7 @@ export function launcherModScopes(sources: readonly ObservableSource[]) {
       source_key: source.key,
       slug: source.repository,
       original_game: port.listing.original_game ?? null,
+      listed_at: typeof port.listing.listed_at === "string" ? port.listing.listed_at : "",
     });
   }
   return scopes.filter(({ slug }) => bySlug.get(slug.toLowerCase())?.size === 1);
@@ -76,7 +79,7 @@ export function launcherModSubjects(
     for (const port of source.ports) ports.add(port.id);
     byRepositoryId.set(id, ports);
   }
-  return scopes.flatMap(({ port_id, source_key, slug, original_game }) => {
+  return scopes.flatMap(({ port_id, source_key, slug, original_game, listed_at }) => {
     const repository_id = identities[source_key]?.repository_id;
     const declared = admittedGithubRepositoryId(port_id);
     if (
@@ -91,15 +94,40 @@ export function launcherModSubjects(
         source_key,
         slug,
         repository_id,
+        listed_at,
         binding: launcherModSubjectBinding(
           port_id,
           repository_id,
           original_game,
-          gameScopes?.get(port_id)?.sharedEditionBinding,
+          gameScopes && !gameScopes.has(port_id)
+            ? "unresolved-original-game-scope"
+            : gameScopes?.get(port_id)?.sharedEditionBinding,
         ),
       },
     ];
   });
+}
+
+/** Give established scopes most of each allowance and leave a bounded share for
+ * missing scopes. A single-slot run goes to the lane serviced least recently. */
+export function selectLauncherModWork<T>(
+  reviewed: readonly T[],
+  unresolved: readonly T[],
+  limit: number,
+  lastReviewed: string,
+  lastUnresolved: string,
+) {
+  if (limit < 1) return [];
+  if (!reviewed.length || !unresolved.length) return [...reviewed, ...unresolved].slice(0, limit);
+  const reviewQuota =
+    limit === 1
+      ? Number(lastReviewed <= lastUnresolved)
+      : Math.min(reviewed.length, limit - Math.max(1, Math.floor(limit / 4)));
+  const probing = unresolved.slice(0, limit - reviewQuota);
+  const established = reviewed.slice(0, limit - probing.length);
+  if (probing.length && lastUnresolved < lastReviewed)
+    return [...probing.slice(0, 1), ...established, ...probing.slice(1)];
+  return [...established, ...probing];
 }
 
 export function recordLauncherModAttempt(

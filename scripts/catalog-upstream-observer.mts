@@ -45,6 +45,7 @@ import {
   type FirstPartyModProgress,
   launcherModSubjects,
   recordLauncherModAttempt,
+  selectLauncherModWork,
   validateFirstPartyModProgress,
 } from "./upstream-launcher-mod-progress.mts";
 import {
@@ -978,20 +979,19 @@ export async function advanceCatalogObservations(
         old[port_id]?.binding === binding ? [[port_id, old[port_id]]] : [],
       ),
     ) as Record<string, FirstPartyModProgress>;
-    const enrolled = subjects.filter(({ port_id }) => gameScopes.has(port_id));
-    const due = enrolled
+    const due = subjects
       .filter(
         ({ port_id }) =>
           Date.parse(progress[port_id]?.next_due_at ?? "") <= now() || !progress[port_id],
       )
       .sort(
         (a, b) =>
-          (progress[a.port_id]?.last_attempt_at ?? "").localeCompare(
-            progress[b.port_id]?.last_attempt_at ?? "",
+          (progress[a.port_id]?.last_attempt_at ?? a.listed_at).localeCompare(
+            progress[b.port_id]?.last_attempt_at ?? b.listed_at,
           ) || a.port_id.localeCompare(b.port_id),
       );
     launcherModSummary = {
-      enrolled: enrolled.length,
+      enrolled: subjects.length,
       due: due.length,
       attempted: 0,
       complete: 0,
@@ -1006,7 +1006,22 @@ export async function advanceCatalogObservations(
       Math.floor((options.launcherModRequestLimit ?? Math.floor(capacity() / 20)) / 4),
       Math.floor(capacity() / 4),
     );
-    for (const subject of due.slice(0, launcherAttempts)) {
+    let lastReviewed = "",
+      lastUnresolved = "";
+    for (const [port, row] of Object.entries(progress)) {
+      if (gameScopes.has(port)) {
+        if (row.last_attempt_at > lastReviewed) lastReviewed = row.last_attempt_at;
+      } else if (row.last_attempt_at > lastUnresolved) lastUnresolved = row.last_attempt_at;
+    }
+    const reviewed = due.filter(({ port_id }) => gameScopes.has(port_id));
+    const unresolved = due.filter(({ port_id }) => !gameScopes.has(port_id));
+    for (const subject of selectLauncherModWork(
+      reviewed,
+      unresolved,
+      launcherAttempts,
+      lastReviewed,
+      lastUnresolved,
+    )) {
       if (options.signal?.aborted || capacity() < 4) break;
       let result: LauncherModObservation;
       try {
@@ -1026,14 +1041,18 @@ export async function advanceCatalogObservations(
         if (result.repository_id !== subject.repository_id)
           throw new Error("First-party mod observation returned a different repository ID");
       }
-      result = verifyLauncherModGameScope(result, gameScopes.get(subject.port_id));
+      const scope = gameScopes.get(subject.port_id);
+      result =
+        !scope && result.state === "observed"
+          ? { state: "held", reason: "game-input-scope-unproven" }
+          : verifyLauncherModGameScope(result, scope);
       if (result.state === "observed" || result.state === "absent") launcherModSummary.complete++;
       progress[subject.port_id] = recordLauncherModAttempt(
         subject.binding,
         progress[subject.port_id],
         result,
         now(),
-        template.cadence_hours * 3600000,
+        (!scope && result.state !== "unavailable" ? 7 * 24 : template.cadence_hours) * 3600000,
       );
     }
     launcherModSummary.requests = requests - requestsBeforeLauncher;

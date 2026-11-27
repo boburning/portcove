@@ -5818,3 +5818,102 @@ void test("the observer enrolls a listing-only port using its accepted shared ed
     old?.binding,
   );
 });
+
+void test("first-party due work reserves a share for missing scopes and follows the oldest lane with one slot", async () => {
+  const { selectLauncherModWork } = await import("./upstream-launcher-mod-progress.mts");
+  const reviewed = ["old-reviewed", "new-reviewed", "later-reviewed", "last-reviewed"];
+  const unresolved = ["old-unresolved", "new-unresolved", "later-unresolved"];
+  assert.deepEqual(selectLauncherModWork(reviewed, unresolved, 0, "", ""), []);
+  assert.deepEqual(selectLauncherModWork(reviewed, unresolved, 1, "", ""), ["old-reviewed"]);
+  assert.deepEqual(selectLauncherModWork(reviewed, unresolved, 1, "2026-11-27T00:00:00Z", ""), [
+    "old-unresolved",
+  ]);
+  assert.deepEqual(selectLauncherModWork(reviewed, unresolved, 4, "", ""), [
+    "old-reviewed",
+    "new-reviewed",
+    "later-reviewed",
+    "old-unresolved",
+  ]);
+  assert.deepEqual(selectLauncherModWork(reviewed.slice(0, 1), unresolved, 3, "", ""), [
+    "old-reviewed",
+    "old-unresolved",
+    "new-unresolved",
+  ]);
+});
+
+void test("first-party observation retains a missing game scope and reassesses when exact evidence arrives", async () => {
+  const h = harness();
+  const listings = [
+    {
+      id: "other-port",
+      project_url: "https://github.com/owner/other",
+      original_game: {
+        id: "fixture-original",
+        source_editions: [{ id: "fixture-usa", system: "playstation" }],
+      },
+    },
+  ];
+  const input = { ...h.input, listings };
+  const first = await advanceCatalogObservations(input, null, h.options);
+  const proof = {
+    state: "observed" as const,
+    repository_id: 8,
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+    blob: "c".repeat(40),
+    manifest_sha256: "d".repeat(64),
+    game_input_ids: ["SLUS-01212"],
+    mod_portals: [
+      {
+        id: "upstream-gamebanana",
+        site: "community_site" as const,
+        name: "GameBanana",
+        url: "https://gamebanana.com/games/123",
+        instructions: "The upstream project lists this community. Follow its setup instructions.",
+      },
+    ],
+  };
+  let requests = 0;
+  h.options.launcherModRequestLimit = 4;
+  h.options.observeLauncherMods = async (repo, account) => {
+    assert.equal(repo.id, 8);
+    account.admitRequest();
+    requests++;
+    // The parser can produce no accepted portal from a present but unsupported declaration.
+    return requests === 1 ? { ...proof, mod_portals: [] } : proof;
+  };
+  const unproven = await advanceCatalogObservations(input, first.checkpoint, h.options);
+  const held = unproven.checkpoint.launcher_mod_sources?.["other-port"];
+  assert.equal(held?.outcome, "held");
+  assert.equal(held?.reason, "game-input-scope-unproven");
+  assert.equal(held?.last_complete, undefined);
+  assert.equal(requests, 1);
+  const replay = await advanceCatalogObservations(input, unproven.checkpoint, h.options);
+  assert.equal(requests, 1);
+  const known = {
+    ...input,
+    ports: input.ports.map((port) =>
+      port.id === "other-port" ? { ...port, source_profile: "fixture-disc" } : port,
+    ),
+    source_catalog: {
+      identities: [
+        { id: "fixture-disc", variants: [{ id: "usa", product_codes: ["SLUS-01212"] }] },
+      ],
+      contracts: [
+        {
+          port_id: "other-port",
+          role: "game",
+          admission_mode: "enforced",
+          profile_id: "fixture-disc",
+          supported_variant_ids: ["usa"],
+        },
+      ],
+    },
+  };
+  const reassessed = await advanceCatalogObservations(known, replay.checkpoint, h.options);
+  const resolved = reassessed.checkpoint.launcher_mod_sources?.["other-port"];
+  assert.equal(requests, 2);
+  assert.notEqual(resolved?.binding, held?.binding);
+  assert.equal(resolved?.outcome, "observed");
+  assert.deepEqual(resolved?.last_complete?.result, proof);
+});
