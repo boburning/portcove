@@ -426,11 +426,18 @@ function artworkCatalog(
       const { listing, integration, igdb_regional_cover } = record;
       const presentation = integration?.presentation;
       const companion = isRecord(presentation) ? presentation.companion_cover : undefined;
+      const game = listing.original_game;
+      const edition = game?.source_editions.length === 1 ? game.source_editions[0] : undefined;
+      const regionalCoverEdition =
+        igdb_regional_cover && edition?.system && game?.id
+          ? observationHash([game.id, edition.id, edition.system])
+          : undefined;
       return {
         id: listing.id,
         name: listing.name,
         project_url: listing.project_url,
         ...(igdb_regional_cover ? { igdb_regional_cover } : {}),
+        ...(regionalCoverEdition ? { regional_cover_edition: regionalCoverEdition } : {}),
         ...(listing.original_game_title
           ? {
               underlying_game: {
