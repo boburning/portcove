@@ -1225,9 +1225,19 @@ export class HostedIntakeBridge {
       const expected = matching[0];
       const authored = records.find((record) => record.listing.id === c.port_key);
       const knownIds = expected?.body ? portRepositoryIds(expected.body) : [];
+      const ownerUpstreams = portUpstreamMarkers(expected?.body);
+      const ownerUpstream = normalizedUpstream(ownerUpstreams[0]);
+      const currentUpstream = normalizedUpstream(c.upstream);
+      const verifiedOwnerMove =
+        p.location !== undefined &&
+        ownerUpstream === normalizedUpstream(p.location.declared) &&
+        currentUpstream === normalizedUpstream(p.location.current) &&
+        p.location.repository_id === c.repository_id &&
+        knownIds.length === 1 &&
+        knownIds[0] === c.repository_id;
       const exactAuthoredOwner =
         authored?.listing.issue_number === target &&
-        normalizedUpstream(authored.listing.project_url) === normalizedUpstream(c.upstream);
+        normalizedUpstream(authored.listing.project_url) === currentUpstream;
       if (
         identity.disposition !== "Existing canonical owner" ||
         identity.issues.length !== 1 ||
@@ -1239,8 +1249,8 @@ export class HostedIntakeBridge {
         !expected ||
         expected.number !== target ||
         !expected.body?.includes("<!-- portcove-port -->") ||
-        portUpstreamMarkers(expected.body).length !== 1 ||
-        normalizedUpstream(portUpstreamMarkers(expected.body)[0]) !== normalizedUpstream(c.upstream)
+        ownerUpstreams.length !== 1 ||
+        (ownerUpstream !== currentUpstream && !verifiedOwnerMove)
       )
         throw new CandidateIdentityConflict(
           "Explicit observation target does not own the implementation key and repository",
