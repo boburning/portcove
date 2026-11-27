@@ -3020,6 +3020,11 @@ impl Library {
         port_id: &str,
         budget: &mut u64,
     ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
+        if *budget == 0 {
+            return Err(PortcoveError::unsupported(
+                "browsing metadata budget reached",
+            ));
+        }
         let connection = self.connection().inspect_err(|_| {
             *budget = budget.saturating_sub((*budget).min(MAX_RETAINED_REGISTRATION_BYTES));
         })?;
