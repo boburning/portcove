@@ -1217,6 +1217,15 @@ Set `PORTCOVE_CATALOG_ADMISSION_ENABLED` to `true` after confirming the
 installation. The App token is requested after replay, generation and the
 staged-path check succeed.
 
+For guarded delivery, verify the retained replay receipt with
+`node scripts/discovery-admission-review-receipt.mts --review RUN/ATTEMPT --producer RUN/ATTEMPT --pull NUMBER --source SHA --head SHA --tree SHA`.
+Use the admission workflow attempt for `--review` and the original maintenance
+attempt for `--producer`. The command checks the completed workflow and review
+steps on `main`, the GitHub artifact digest, and the exact pull request, source,
+head and tree in the receipt. Use the proposal's own tree for `--tree` and
+check the composition with current `main` separately before merge. The replay
+check needs read access only.
+
 Automatic scope uses a first-party declaration bound to the verified repository
 ID and the exact default-branch commit. The maintained `.recomp.json` and
 `.recomp-board.json` rules take precedence. A root `recomplauncher.json` can
