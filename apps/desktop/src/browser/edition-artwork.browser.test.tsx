@@ -129,8 +129,13 @@ function heroImage(variant: "continue" | "detail") {
 }
 
 async function expectWithdrawnHeader() {
+  const workspaceRead = vi.mocked(desktopApi.workspaceSnapshot);
+  const before = workspaceRead.mock.calls.length;
   await controlledAct(() => window.dispatchEvent(new Event("focus")));
+  await expect.poll(() => workspaceRead.mock.calls.length).toBeGreaterThan(before);
   await expect.poll(() => heroImage("detail")).toEqual(["text", undefined, undefined]);
+  const identity = page.getByRole("group", { name: "Game and port identity", exact: true });
+  await expect.element(identity.getByText("PlayStation", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back to Library", exact: true }).click();
   await expect.poll(() => heroImage("continue")).toEqual(["text", undefined, undefined]);
 }
@@ -211,9 +216,15 @@ it.each(scenes)("renders %s edition artwork safely in Continue and Overview", as
     if (scene === "current") {
       workspaceRead.mockResolvedValue({
         ...snapshot,
-        listing_catalog: { format_version: 15, listings: [] },
+        listing_catalog: {
+          format_version: 15,
+          listings: snapshot.listing_catalog!.listings.map((listing) => ({
+            ...listing,
+            media: [],
+          })),
+        },
       });
-      vi.spyOn(desktopApi, "workspaceChanged").mockResolvedValue(true);
+      vi.spyOn(desktopApi, "workspaceChanged").mockResolvedValueOnce(true).mockResolvedValue(false);
       await expectWithdrawnHeader();
     }
 
