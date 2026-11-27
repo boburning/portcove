@@ -173,6 +173,22 @@ it("uses stable game presentation for every reviewed family regardless of order 
   }
 });
 
+it("keeps the reviewed JoJo editions distinct within the same original game", () => {
+  const game = "jojo-s-bizarre-adventure-heritage-for-the-future";
+  const [playstation, xbox360] = reviewed[game];
+  const group = groups.find(({ id }) => id === `game:${game}`)!;
+  expect(group.ports.map(({ id }) => id).sort()).toEqual([playstation, xbox360]);
+  const editions = [playstation, xbox360].map((portId) =>
+    canonicalDirectory.listings
+      .find(({ id }) => id === portId)
+      ?.original_game?.source_editions?.map(({ id, system }) => [id, system]),
+  );
+  expect(editions).toEqual([
+    [[`${game}-playstation`, "playstation"]],
+    [["jojo-s-bizarre-adventure-hd-ver-xbox-360", "xbox-360"]],
+  ]);
+});
+
 it.each(["Roll Away", "KulaQuest"])(
   "finds the original game and all options by regional alias %s",
   (query) => {
