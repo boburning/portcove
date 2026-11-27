@@ -1248,9 +1248,11 @@ Automatic scope uses a first-party declaration bound to the verified repository
 ID and the exact default-branch commit. The maintained `.recomp.json` and
 `.recomp-board.json` rules take precedence. A root `recomplauncher.json` can
 also identify a single-game project when it names the same repository, declares
-one required game input and lists bounded package-relative program candidates. Portcove
-records which source established scope and leaves game and edition matching to
-the existing authoring contracts. The scheduled observer can later use
+one required game input and lists bounded package-relative program candidates.
+This can be a single named game input or the older single `game` declaration.
+A document that mixes both forms or declares a separate legacy update input is
+held for review. Portcove records the evidence and uses the existing authoring
+rules for game and edition matching. The scheduled observer can later use
 `mods.thunderstore` and `mods.gamebanana` from the same bound manifest after
 its game input IDs agree with the accepted game contract. The listing can be
 prepared before that match. Launch arguments, data paths, loader claims and
