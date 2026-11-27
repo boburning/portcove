@@ -1193,10 +1193,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     id: string,
     status: "partial" | "unavailable" | "failed" | "pending-inspection",
     outcome?: ReportRow["outcome"],
+    reason: string = status,
   ) => {
     const prior = entries.get(id);
     if (!prior || prior.ineligible) {
-      row(id, outcome ?? "unknown", status);
+      row(id, outcome ?? "unknown", reason);
       return;
     }
     if (status === "pending-inspection") {
@@ -1205,7 +1206,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
           ...prior,
           attempt: { status, first_at: now, last_at: now, failures: 1 },
         });
-      row(id, outcome ?? "retained-last-good", status);
+      row(id, outcome ?? "retained-last-good", reason);
       return;
     }
     const attempt =
@@ -1224,7 +1225,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       return;
     }
     entries.set(id, { ...prior, attempt });
-    row(id, outcome ?? "retained-last-good", status);
+    row(id, outcome ?? "retained-last-good", reason);
   };
   /** Facts for known candidates with Core's current name verdicts; undefined if a name is unclassified. */
   const factFor = (
@@ -1558,6 +1559,16 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
           !reusableRefusals.has(`${asset.id}/${asset.sha256}`),
       )
       .reduce((sum, asset) => sum + asset.size, 0);
+    // The generated registration fit already requires the chosen release's
+    // text. Acquire that upstream evidence before reading novel archive bytes.
+    // Read-only package discovery and previously inspected bytes are independent.
+    if (
+      cost > 0 &&
+      releaseTextFacts(release, candidates.get(id)!, wordsOf(id)).text !== "observed"
+    ) {
+      notComplete(id, "partial", undefined, "release-text-unobserved");
+      return;
+    }
     needs.push({
       id,
       repositoryId,
