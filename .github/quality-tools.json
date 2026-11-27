@@ -24,7 +24,7 @@
     {
       "id": "cargo-deny",
       "crate": "cargo-deny",
-      "version": "0.20.2",
+      "version": "0.22.0",
       "command": ["cargo", "deny", "--version"],
       "tier": "required",
       "ci_install": "prebuilt"
