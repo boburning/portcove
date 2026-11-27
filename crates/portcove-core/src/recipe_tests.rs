@@ -1648,7 +1648,8 @@ fn shared_closure_recipe(w: &World) -> (ProfileRecipe, crate::ProviderInstallPla
 async fn a_shared_closure_costs_its_plan_once_in_records_and_the_review() {
     let w = world();
     let members = 300;
-    grow_setup(&w, members);
+    // This scenario starts with a retained setup and measures recipe acquisition.
+    stored_setup(&w, members);
     let (recipe, provider_plan) = shared_closure_recipe(&w);
     let first = recipe.packages[1].native_id.clone();
     w.service
@@ -1696,7 +1697,7 @@ async fn a_shared_closure_costs_its_plan_once_in_records_and_the_review() {
         tree_bytes(&records)
     );
 
-    // A restart resumes the same review from the records.
+    // Replanning reconstructs the same review from the retained records.
     let resumed = w.service.plan_recipe_import(&recipe).unwrap();
     assert_eq!(resumed.staging.acquisitions.len(), members);
     assert_eq!(
