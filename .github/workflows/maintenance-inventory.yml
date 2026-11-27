@@ -215,7 +215,8 @@ jobs:
               --release-health --release-content --publication --delivery --upstream --hosted-intake
               --intake-receipt-revision "${INTAKE_RECEIPT_REVISION:-unavailable}"
               --progress scripts/upstream-progress/sources-v1.json
-              --artwork-health work/maintenance-report/cover-artwork-health.json)
+              --artwork-health work/maintenance-report/cover-artwork-health.json
+              --media-artwork-health work/maintenance-report/media-artwork-health.json)
           else
             unset PORTCOVE_ROADMAP_GH_TOKEN
           fi

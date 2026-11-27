@@ -481,6 +481,10 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     collection.run!,
     /--artwork-health work\/maintenance-report\/cover-artwork-health\.json/u,
   );
+  assert.match(
+    collection.run!,
+    /--media-artwork-health work\/maintenance-report\/media-artwork-health\.json/u,
+  );
   const coverHealth = collect!.steps.find(
     (step) => step.name === "Verify a bounded window of accepted cover and media references",
   )!;
@@ -5614,7 +5618,7 @@ void test(
 );
 
 void test("scheduled retained media health shares fixed variants while distinguishing exact roles", async () => {
-  const { mediaHealthInventory, observeMediaArtworkWindow } =
+  const { mediaHealthInventory, observeMediaArtworkWindow, projectMediaArtworkHealth } =
     await import("./maintenance-artwork-health.mts");
   const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
   const body = "bounded image";
@@ -5683,9 +5687,99 @@ void test("scheduled retained media health shares fixed variants while distingui
       ["logo_med_2x/shared", [{ role: "logo", state: "gone" }]],
     ],
   );
+  const producer = { workflow: "fixture", run: "1", attempt: "1", revision: "a".repeat(40) };
+  const context = { inventory, listingsSha256: digest, cliSha256: digest, producer, now: 0 };
+  const receipt = {
+    format: 1,
+    authority: "none",
+    producer,
+    listings_sha256: digest,
+    cli_sha256: digest,
+    observed_at: new Date(0).toISOString(),
+    retry_at: null,
+    ...observed,
+  };
+  const projected = projectMediaArtworkHealth(receipt, context);
+  assert.equal(projected.expected, 3);
+  assert.equal(projected.complete, false);
+  assert.deepEqual(projected.counts, {
+    unchanged: 1,
+    mismatch: 1,
+    gone: 1,
+    unavailable: 1,
+    deferred: 0,
+  });
+  assert.deepEqual(
+    [...projected.facts.keys()],
+    ["artwork:720p/shared", "artwork:logo_med_2x/shared"],
+  );
+  assert.deepEqual(
+    projected.gaps.map(({ subject_key }) => subject_key),
+    ["artwork:720p/unavailable"],
+  );
+  assert.throws(
+    () => projectMediaArtworkHealth({ ...receipt, listings_sha256: "b".repeat(64) }, context),
+    /Unbound media health report/u,
+  );
+  assert.throws(
+    () => projectMediaArtworkHealth({ ...receipt, images: observed.images.toReversed() }, context),
+    /committed image window/u,
+  );
+  assert.throws(
+    () =>
+      projectMediaArtworkHealth(
+        { ...receipt, images: [{ ...observed.images[0], roles: [] }, ...observed.images.slice(1)] },
+        context,
+      ),
+    /committed artwork roles/u,
+  );
+  assert.throws(
+    () => projectMediaArtworkHealth({ ...receipt, image_bytes: 0 }, context),
+    /validated image budget/u,
+  );
+  const logo = {
+    ...observed.images[2],
+    status: "read",
+    content: { sha256: digest, bytes: Buffer.byteLength(body), width: 568, height: 320 },
+    roles: [{ role: "logo", state: "unchanged" }],
+  };
+  const logoReceipt = { ...receipt, image_bytes: 2 * Buffer.byteLength(body) };
+  assert.doesNotThrow(() =>
+    projectMediaArtworkHealth(
+      { ...logoReceipt, images: [...observed.images.slice(0, 2), logo] },
+      context,
+    ),
+  );
+  assert.throws(
+    () =>
+      projectMediaArtworkHealth(
+        {
+          ...logoReceipt,
+          images: [
+            ...observed.images.slice(0, 2),
+            { ...logo, content: { ...logo.content, width: 569 } },
+          ],
+        },
+        context,
+      ),
+    /invalid Core content evidence/u,
+  );
+  assert.doesNotThrow(() =>
+    projectMediaArtworkHealth({ ...receipt, image_bytes: 18 * 1024 * 1024 }, context),
+  );
   const closed = await observeMediaArtworkWindow(inventory, inspector, AbortSignal.abort(), 0);
   assert.equal(visited.length, 3);
   assert.ok(closed.images.every(({ status }) => status === "deferred"));
+  assert.throws(
+    () => projectMediaArtworkHealth({ ...receipt, ...closed }, context),
+    /inconsistent image accounting/u,
+  );
+  assert.doesNotThrow(() =>
+    projectMediaArtworkHealth(
+      { ...receipt, ...closed, image_requests: 0, image_bytes: 0 },
+      context,
+    ),
+  );
 });
 
 void test("scheduled artwork health skips Core validation after the phase deadline", async (context) => {
@@ -5705,3 +5799,77 @@ void test("scheduled artwork health skips Core validation after the phase deadli
     process.platform === "win32" ? "validator.exe" : "validator",
   ]);
 });
+
+void test(
+  "scheduled media health retains current facts through a provider outage and unchanged replay",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("media-health");
+    migrate(store.owner);
+    const target = "720p/shared";
+    const key = "artwork:" + target;
+    const first = {
+      status: "read",
+      target,
+      image_id: "shared",
+      content: { sha256: "a".repeat(64), width: 400, height: 300, bytes: 10 },
+    };
+    const contentHash = createHash("sha256").update(canonicalJson(first)).digest("hex");
+    const insert = (
+      attempt: number,
+      facts: ReadonlyMap<string, unknown>,
+      previous: ReadonlyMap<string, string>,
+    ) =>
+      runSql(
+        store.owner,
+        collectionSql({
+          mode: "all",
+          revision: "a".repeat(40),
+          cliSha256: "a".repeat(64),
+          apiSchema: 1,
+          runner: "fixture",
+          startedAt: new Date().toISOString(),
+          platform: "linux-x86-64",
+          subjects: [],
+          mediaArtworkHealth: {
+            revision: `scheduled-media-health:${attempt}-1`,
+            complete: facts.size > 0,
+            expected: 1,
+            facts,
+            gaps: facts.size
+              ? []
+              : [{ subject_key: key, code: "unavailable", message: "provider unavailable" }],
+          },
+          latest: { catalog: new Map(), core: new Map(), mediaArtworkHealth: previous },
+        }),
+      );
+    const accepted = new Map([[key, first]]);
+    const previous = new Map([[key, contentHash]]);
+    insert(1, accepted, new Map());
+    insert(2, new Map(), previous);
+    insert(3, accepted, previous);
+    assert.equal(
+      runSql(
+        store.owner,
+        `
+      SELECT count(*) FROM portcove_maintenance.observations o
+      JOIN portcove_maintenance.collection_runs r USING (run_id)
+      WHERE r.source = 'media-artwork-health';
+    `,
+      ).trim(),
+      "1",
+    );
+    assert.equal(
+      runSql(
+        store.owner,
+        `
+      SELECT content_sha256 FROM portcove_maintenance.run_members(
+        portcove_maintenance.latest_run('media-artwork-health')
+      );
+    `,
+      ).trim(),
+      contentHash,
+    );
+  },
+);

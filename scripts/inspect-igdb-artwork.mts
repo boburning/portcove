@@ -1554,8 +1554,7 @@ export function createIgdbInspector(
         result.validator !== "portcove-core" ||
         !positiveId(result.width) ||
         !positiveId(result.height) ||
-        result.width > (role === "logo" ? 568 : 1280) ||
-        result.height > (role === "logo" ? 320 : 720)
+        !gameMediaDimensionsFit(role, result.width, result.height)
       )
         throw new Error("Game media did not pass its core content and fit-variant contract.");
       return {
@@ -1582,6 +1581,9 @@ export const gameMediaRoles = {
   },
 } as const;
 type GameMediaRole = keyof typeof gameMediaRoles;
+export function gameMediaDimensionsFit(role: GameMediaRole, width: number, height: number) {
+  return width <= (role === "logo" ? 568 : 1280) && height <= (role === "logo" ? 320 : 720);
+}
 export const catalogGameMediaRoles = Object.freeze(Object.keys(gameMediaRoles) as GameMediaRole[]);
 const gameMediaRoleLimits: Readonly<Record<GameMediaRole, number>> = {
   header: 2,
