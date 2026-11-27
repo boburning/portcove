@@ -592,70 +592,29 @@ function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
   );
 }
 
-function ListingDeliveryControls({
-  disabled,
-  onChanged,
+function ListingDirectoryStatus({
+  status,
+  error,
+  waiting,
+  retry,
 }: {
-  disabled: boolean;
-  onChanged?: (() => Promise<unknown>) | undefined;
+  status: ListingDeliveryStatus | undefined;
+  error: string | undefined;
+  waiting: boolean;
+  retry: () => void;
 }) {
   const { t } = useAppTranslation("catalogUpdates");
-  const metadataId = useId();
-  const targetsId = useId();
-  const [status, setStatus] = useState<ListingDeliveryStatus>();
-  const [metadata, setMetadata] = useState("");
-  const [targets, setTargets] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
-  const [statusError, setStatusError] = useState<string>();
-  const [statusAttempt, setStatusAttempt] = useState(0);
-  useEffect(() => {
-    let current = true;
-    void desktopApi
-      .listingDeliveryStatus()
-      .then((value) => {
-        if (current) setStatus(value);
-      })
-      .catch((cause: unknown) => {
-        if (current) setStatusError(errorText(cause));
-      });
-    return () => {
-      current = false;
-    };
-  }, [statusAttempt]);
-  const refresh = async () => {
-    setBusy(true);
-    setError(undefined);
-    try {
-      setStatus(await desktopApi.refreshCatalogListings(metadata, targets, () => {}));
-      setStatusError(undefined);
-      await onChanged?.();
-    } catch (cause) {
-      setError(errorText(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
-    <section className="grid gap-2">
-      <h3>{t("listings.title")}</h3>
-      {statusError !== undefined && (
+    <>
+      {error !== undefined && (
         <div>
-          <p role="alert">{t("listings.statusFailed", { error: statusError })}</p>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setStatusError(undefined);
-              setStatusAttempt((attempt) => attempt + 1);
-            }}
-          >
+          <p role="alert">{t("listings.statusFailed", { error })}</p>
+          <Button variant="outline" onClick={retry}>
             {t("listings.retryStatus")}
           </Button>
         </div>
       )}
-      {!status && statusError === undefined && !busy && !error && (
-        <p role="status">{t("listings.checkingStatus")}</p>
-      )}
+      {waiting && <p role="status">{t("listings.checkingStatus")}</p>}
       {status && (
         <p>
           {status.selected
@@ -674,6 +633,95 @@ function ListingDeliveryControls({
           count={1}
         />
       )}
+    </>
+  );
+}
+
+function useListingDirectoryStatus() {
+  const [status, setStatus] = useState<ListingDeliveryStatus>();
+  const [statusError, setStatusError] = useState<string>();
+  const [statusAttempt, setStatusAttempt] = useState(0);
+  useEffect(() => {
+    let current = true;
+    void desktopApi
+      .listingDeliveryStatus()
+      .then((value) => {
+        if (current) setStatus(value);
+      })
+      .catch((cause: unknown) => {
+        if (current) setStatusError(errorText(cause));
+      });
+    return () => {
+      current = false;
+    };
+  }, [statusAttempt]);
+  return {
+    status,
+    statusError,
+    retryStatus: () => {
+      setStatusError(undefined);
+      setStatusAttempt((attempt) => attempt + 1);
+    },
+    recordRefresh: (status: ListingDeliveryStatus) => {
+      setStatus(status);
+      setStatusError(undefined);
+    },
+  };
+}
+
+function canRefreshListingDirectory({
+  disabled,
+  busy,
+  waitingForStatus,
+  metadata,
+  targets,
+}: {
+  disabled: boolean;
+  busy: boolean;
+  waitingForStatus: boolean;
+  metadata: string;
+  targets: string;
+}) {
+  return !disabled && !busy && !waitingForStatus && Boolean(metadata && targets);
+}
+
+function ListingDeliveryControls({
+  disabled,
+  onChanged,
+}: {
+  disabled: boolean;
+  onChanged?: (() => Promise<unknown>) | undefined;
+}) {
+  const { t } = useAppTranslation("catalogUpdates");
+  const metadataId = useId();
+  const targetsId = useId();
+  const { status, statusError, retryStatus, recordRefresh } = useListingDirectoryStatus();
+  const [metadata, setMetadata] = useState("");
+  const [targets, setTargets] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  const waitingForStatus = !status && statusError === undefined && !error;
+  const refresh = async () => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      recordRefresh(await desktopApi.refreshCatalogListings(metadata, targets, () => {}));
+      await onChanged?.();
+    } catch (cause) {
+      setError(errorText(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="grid gap-2">
+      <h3>{t("listings.title")}</h3>
+      <ListingDirectoryStatus
+        status={status}
+        error={statusError}
+        waiting={waitingForStatus && !busy}
+        retry={retryStatus}
+      />
       <details>
         <summary>{t("listings.settings")}</summary>
         <p>{t("listings.description")}</p>
@@ -699,11 +747,7 @@ function ListingDeliveryControls({
         </label>
         <Button
           disabled={
-            disabled ||
-            busy ||
-            (!status && statusError === undefined && !error) ||
-            !metadata ||
-            !targets
+            !canRefreshListingDirectory({ disabled, busy, waitingForStatus, metadata, targets })
           }
           onClick={() => {
             void refresh();
