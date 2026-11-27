@@ -20,6 +20,7 @@ export function checkCatalogAdmissionBranchFence(
     isRecord(rule) &&
     rule.type === type &&
     (type !== "update" ||
+      rule.parameters === undefined ||
       (isRecord(rule.parameters) && rule.parameters.update_allows_fetch_and_merge === false));
   if (
     !isRecord(ruleset) ||
@@ -115,7 +116,10 @@ export async function catalogAdmissionGitHub(
       (!rulesetId ||
         !/^[1-9]\d{0,14}$/u.test(rulesetId) ||
         !reviewedAt ||
-        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(reviewedAt)))
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/u.test(
+          reviewedAt,
+        ) ||
+        !Number.isFinite(Date.parse(reviewedAt))))
   )
     throw new Error("Catalog admission requires the exact workflow and App context.");
   const branch = `automation/catalog-admission-${run}-${attempt}`;

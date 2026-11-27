@@ -1188,12 +1188,15 @@ deleting, or replacing that head while the operation runs. The job checks the
 exact App proposal and head before and after changing draft status. An
 already-ready or closed proposal needs no update. A ready event may request a
 full rerun. Require the exact full CI attempt separately before guarded merge.
+Manual retargeting invalidates the automatic proposal check. The branch rule
+does not lock pull request metadata.
 
 The owner reviews the dedicated active repository ruleset for
 `refs/heads/automation/catalog-admission-*` with no exclusions or bypass
 actors. Restrict updates and deletion, with upstream fetch-and-merge disabled.
+GitHub can omit the update parameters for the default restrictive setting.
 Creation stays available for a new batch. Pin the reviewed ruleset ID and its
-public `updated_at` in `PORTCOVE_CATALOG_ADMISSION_RULESET_ID` and
+exact public `updated_at` string in `PORTCOVE_CATALOG_ADMISSION_RULESET_ID` and
 `PORTCOVE_CATALOG_ADMISSION_RULESET_REVIEWED_AT`. GitHub may omit the bypass
 list for the App and workflow read tokens, so the owner checks it before
 pinning the revision. Leave these variables unset until the rule is approved

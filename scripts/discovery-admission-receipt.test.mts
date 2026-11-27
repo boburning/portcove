@@ -525,10 +525,10 @@ void test("admission reviews carry current verifier code into an older producer 
   assert.doesNotMatch(ready.run, /gh pr merge|--admin/u);
 });
 
-void test("automated readiness requires the reviewed update and deletion rules on its exact branch", () => {
+void test("automated readiness requires the reviewed update and deletion rules on its exact branch", async () => {
   const id = 104;
   const source = "boburning/portcove";
-  const reviewedAt = "2026-11-27T12:10:00Z";
+  const reviewedAt = "2026-11-11T09:38:18.625-05:00";
   const rules = [
     { type: "update", parameters: { update_allows_fetch_and_merge: false } },
     { type: "deletion" },
@@ -553,6 +553,41 @@ void test("automated readiness requires the reviewed update and deletion rules o
   }));
   checkCatalogAdmissionBranchFence(ruleset, applicable, id, reviewedAt);
   checkCatalogAdmissionBranchFence({ ...ruleset, bypass_actors: [] }, applicable, id, reviewedAt);
+  const defaultRules = [{ type: "update" }, { type: "deletion" }];
+  const appliedDefault = applicable.map(({ parameters: _parameters, ...rule }) => rule);
+  checkCatalogAdmissionBranchFence(
+    { ...ruleset, rules: defaultRules },
+    appliedDefault,
+    id,
+    reviewedAt,
+  );
+  assert.equal(
+    await catalogAdmissionGitHub(
+      "branch-fence",
+      {
+        DISCOVERY_RUN: "12",
+        DISCOVERY_ATTEMPT: "1",
+        EXPECTED_APP: "catalog-admission",
+        GH_TOKEN: "fixture",
+        COMMIT: "a".repeat(40),
+        GITHUB_REPOSITORY: source,
+        ADMISSION_RULESET_ID: String(id),
+        ADMISSION_RULESET_REVIEWED_AT: reviewedAt,
+      },
+      async (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        assert.equal(init?.method, "GET");
+        if (url.pathname === `/repos/${source}/rulesets/${id}`)
+          return Response.json({ ...ruleset, rules: defaultRules });
+        assert.equal(
+          url.pathname,
+          `/repos/${source}/rules/branches/automation%2Fcatalog-admission-12-1`,
+        );
+        return Response.json(appliedDefault);
+      },
+    ),
+    "locked",
+  );
   for (const altered of [
     { ...ruleset, updated_at: "2026-11-27T12:11:00Z" },
     { ...ruleset, enforcement: "evaluate" },
