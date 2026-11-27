@@ -1755,6 +1755,15 @@ void test("a sharded run plans, inspects each shard and combines to the unsharde
   assert.deepEqual(combined.state, whole.state);
   assert.equal(combined.settled, whole.settled);
   assert.deepEqual(combined.ineligible, whole.ineligible);
+  assert.equal(combined.archive_body_bytes, undefined);
+  const measuredPlan = { ...plan, archive_body_bytes: 0 };
+  const measuredShards = results.map(({ only, result }, index) => ({
+    only,
+    result: { ...result, archive_body_bytes: index + 1 },
+  }));
+  assert.equal(combineShards(measuredPlan, measuredShards).archive_body_bytes, 36);
+  assert.equal(combineShards(measuredPlan, measuredShards.slice(1)).archive_body_bytes, undefined);
+  assert.equal(combineShards({ ...measuredPlan, needs: [] }, []).archive_body_bytes, 0);
   assert.throws(() => combineShards(plan, [results[0]!, { ...results[0]! }]), /is in two shards/u);
 });
 
@@ -6197,7 +6206,10 @@ void test("every archive answering 404 is upstream-unavailable; one 404 is that 
   const original = globalThis.fetch;
   const work = await mkdtemp(join(tmpdir(), "portcove-404-"));
   try {
-    const inspect = cliInspector("/nonexistent/portcove", work);
+    const received: number[] = [];
+    const inspect = cliInspector("/nonexistent/portcove", work, {
+      recordArchiveBodyBytes: (bytes) => received.push(bytes),
+    });
     const asset = {
       id: 11,
       name: windowsZip,
@@ -6220,6 +6232,18 @@ void test("every archive answering 404 is upstream-unavailable; one 404 is that 
         return true;
       });
     }
+    assert.deepEqual(received, [0, 0, 0, 0]);
+    globalThis.fetch = async () => new Response("partial");
+    await assert.rejects(
+      inspect(asset, "windows-x86-64"),
+      (error: unknown) => error instanceof InspectionError && error.refusal === "digest-mismatch",
+    );
+    assert.equal(received.at(-1), 7, "a failed archive still records its received body");
+    await assert.rejects(
+      inspect({ ...asset, size: 4 }, "windows-x86-64"),
+      (error: unknown) => error instanceof InspectionError && error.refusal === "size-exceeded",
+    );
+    assert.equal(received.at(-1), 7, "received bytes can exceed the provider size");
   } finally {
     globalThis.fetch = original;
     await rm(work, { recursive: true, force: true });
