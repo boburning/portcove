@@ -1376,6 +1376,53 @@ void test(
         { outcome: "deferred", reserved: 0 },
       ],
     );
+
+    const fit = (request: string, reading = constrained) =>
+      acquireMaintenanceReservation(source, {
+        meter: reading,
+        request,
+        operation: "recovery-catchup",
+        reason: "test",
+        fitSeededRecovery: true,
+      });
+    const seeded = fit("seeded-recovery");
+    assert.ok(seeded.attempt_id);
+    assert.equal(seeded.reservation_basis, "available-seeded-recovery");
+    assert.equal(seeded.operation_reservation_bytes, seeded.available_after_reserves_bytes);
+    assert.ok(seeded.operation_reservation_bytes < 48_000_000);
+    assert.equal(fit("competing-recovery").attempt_id, null);
+    await assert.rejects(
+      runAdmittedMaintenance(source, seeded, (bytes) => {
+        assert.equal(bytes, seeded.operation_reservation_bytes);
+        throw new Error("unknown outcome");
+      }),
+      /unknown outcome/u,
+    );
+    assert.deepEqual(ledger("seeded-recovery"), [
+      { outcome: "failed", reserved: seeded.operation_reservation_bytes, estimate: null },
+    ]);
+    assert.equal(fit("after-unknown").attempt_id, null);
+
+    const thresholds = fixture.start("seeded-threshold").owner;
+    migrate(thresholds);
+    const threshold = (request: string, available: number) =>
+      acquireMaintenanceReservation(thresholds, {
+        meter: { ...meter, transferBytes: ceiling - available },
+        request,
+        operation: "recovery-catchup",
+        reason: "test",
+        fitSeededRecovery: true,
+      });
+    const minimum = threshold("minimum-seeded", 8_000_000);
+    assert.ok(minimum.attempt_id);
+    assert.equal(minimum.operation_reservation_bytes, 8_000_000);
+    runSql(
+      thresholds,
+      "UPDATE portcove_maintenance_meta.resource_admissions SET outcome='completed', estimate_bytes=0, finished_at=clock_timestamp() - interval '3 hours';",
+    );
+    const belowMinimum = threshold("below-minimum-seeded", 7_999_999);
+    assert.equal(belowMinimum.available_after_reserves_bytes, 7_999_999);
+    assert.equal(belowMinimum.attempt_id, null);
   },
 );
 

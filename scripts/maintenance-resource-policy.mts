@@ -37,6 +37,8 @@ export const admissionTimeout = 2 * 60 * 60 * 1000;
 const sampleLifetime = 5 * 60 * 1000;
 const bootstrapAllowance = 5 * mb;
 const recoveryDailyForecast = 22 * mb;
+// Leave room for measured preflight and protocol overhead even on a tight day.
+const seededRecoveryMinimum = 8 * mb;
 const normalReserve = 2_000 * mb;
 const emergencyReserve = 350 * mb;
 const transitionReset = "2026-12-01T00:00:00.000Z";
@@ -359,9 +361,19 @@ export function acquireMaintenanceReservation(
     executor?: boolean;
     reservationBytes?: number | undefined;
     measuredDiscovery?: boolean | undefined;
+    fitSeededRecovery?: boolean | undefined;
   },
 ) {
   const { meter, operation, request, revision, reason } = input;
+  if (
+    input.fitSeededRecovery &&
+    ((operation !== "recovery" && operation !== "recovery-catchup") ||
+      input.reservationBytes !== undefined ||
+      input.measuredDiscovery)
+  )
+    throw new MaintenanceStoreError(
+      "A reduced reservation applies only to initial seeded recovery",
+    );
   const now = input.now ?? Date.now();
   const limits = policyLimits(
     meter,
@@ -373,6 +385,7 @@ export function acquireMaintenanceReservation(
   const reserved = limits.operation_reservation_bytes;
   const age = now - Date.parse(meter.sampledAt);
   const useCutover = meter.sampleOrigin === "november-cutover";
+  const fitSeededRecovery = input.fitSeededRecovery === true && !useCutover;
   if (
     !Number.isFinite(age) ||
     age < 0 ||
@@ -422,26 +435,35 @@ export function acquireMaintenanceReservation(
           WHERE (period_start = ${period}::timestamptz AND reset_at <> ${reset}::timestamptz)
              OR (period_start < ${period}::timestamptz AND reset_at > ${period}::timestamptz)
              OR period_start > ${period}::timestamptz) AS period_compatible
+    ), capacity AS (
+      SELECT *, ${limits.ceiling_bytes} - ${meter.transferBytes} - unresolved AS available
+      FROM balance, state
+    ), candidate AS (
+      SELECT *,
+        CASE WHEN ${fitSeededRecovery} AND available >= ${seededRecoveryMinimum}
+          THEN least(${reserved}, available) ELSE ${reserved} END AS requested_bytes
+      FROM capacity
     ), decision AS (
       SELECT *, ${meter.transferBytes} >= coalesce(high_water, 0) AND period_compatible AND
         clock_timestamp() >= ${sampled}::timestamptz AND
         (${useCutover} OR clock_timestamp() <= ${sampled}::timestamptz + interval '5 minutes') AND
         clock_timestamp() + interval '2 hours' < ${reset}::timestamptz AS valid,
-        NOT duplicate AND ${meter.transferBytes} + unresolved + ${reserved} <= ${limits.ceiling_bytes} AS fits
-      FROM balance, state
+        NOT duplicate AND requested_bytes <= available AS fits
+      FROM candidate
     ), observed AS (
       INSERT INTO ${table}
         (attempt_id, request_key, operation, source_revision, reason, period_start, reset_at, sampled_at, sample_origin,
          reported_bytes, reserved_bytes, outcome, finished_at)
       SELECT ${sqlLiteral(id)}::uuid, ${sqlLiteral(request)}, ${sqlLiteral(operation)}, ${revision ? sqlLiteral(revision) : "NULL"},
         ${sqlLiteral(reason)}, ${period}, ${reset}, ${sampled}, ${sqlLiteral(meter.sampleOrigin ?? "live")}, ${meter.transferBytes},
-        CASE WHEN fits THEN ${reserved} ELSE 0 END,
+        CASE WHEN fits THEN requested_bytes ELSE 0 END,
         CASE WHEN fits THEN 'running' ELSE 'deferred' END, CASE WHEN NOT fits THEN clock_timestamp() END
       FROM decision WHERE valid
       RETURNING attempt_id, outcome, started_at
     )
     SELECT json_build_object('attempt_id', (SELECT attempt_id FROM observed WHERE outcome = 'running'), 'duplicate', duplicate, 'equivalent_completed', equivalent_completed,
       'started_at', (SELECT started_at FROM observed WHERE outcome = 'running'),
+      'requested_bytes', requested_bytes,
       'prior_meter_high_water_bytes', high_water, 'unreconciled_bytes', unresolved,
       'provider_growth_since_accounting_bytes', CASE WHEN NOT ${useCutover} THEN ${meter.transferBytes} - initial END,
       'unattributed_growth_lower_bound_bytes', CASE WHEN NOT ${useCutover} AND initial IS NOT NULL
@@ -461,12 +483,17 @@ export function acquireMaintenanceReservation(
     equivalent_completed: boolean;
     prior_meter_high_water_bytes: number | null;
     unreconciled_bytes: number;
+    requested_bytes: number;
     provider_growth_since_accounting_bytes: number | null;
     reason: string;
   };
+  const { requested_bytes: requestedBytes, ...receipt } = status;
   return {
-    ...status,
+    ...receipt,
     ...limits,
+    operation_reservation_bytes: requestedBytes,
+    reservation_basis:
+      requestedBytes < reserved ? "available-seeded-recovery" : limits.reservation_basis,
     meter,
     operation,
     request,
@@ -501,6 +528,8 @@ export async function withMaintenanceAdmission<T>(
     /** Expected reservation; only an explicitly fenced discovery plan can lower the default. */
     reservationBytes?: number;
     measuredDiscovery?: boolean;
+    /** Let the initial, verified-seed attempt fit live capacity before its snapshot preflight. */
+    fitSeededRecovery?: boolean;
   } = {},
 ): Promise<T> {
   operationReservation(operation, options.reservationBytes, options.measuredDiscovery);
@@ -587,6 +616,7 @@ export async function withMaintenanceAdmission<T>(
     reason,
     reservationBytes: options.reservationBytes,
     measuredDiscovery: options.measuredDiscovery,
+    fitSeededRecovery: options.fitSeededRecovery,
   });
   const coalesced =
     admission.reason === "equivalent-request" &&

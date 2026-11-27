@@ -252,8 +252,9 @@ export function createBackupRecovery(options: Omit<BackupReuseOptions, "reserved
   // For an ambiguous local API connection, retain the source schema check
   // before opening the prefix database. A populated source cannot be restored into.
   let seed = separate ? verifyLocalSeed(options) : undefined;
-  return (reservedBytes: number) =>
+  const recover = (reservedBytes: number) =>
     backupPrepared({ ...options, reservedBytes }, () => (seed ??= verifyLocalSeed(options)));
+  return Object.assign(recover, { hasVerifiedSeed: seed?.base !== undefined });
 }
 
 /** Retry only a measured pre-export deferral, using a fresh ledger admission. */
