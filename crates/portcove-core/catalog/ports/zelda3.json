@@ -55,7 +55,17 @@
         "https://github.com/snesrev/zelda3/releases/tag/v0.3",
         "https://github.com/snesrev/zelda3"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-a-link-to-the-past-super-nintendo",
+          "title": "The Legend of Zelda: A Link to the Past (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/snesrev/zelda3/releases/tag/v0.3",
+            "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/zelda3.json"
+          ]
+        }
+      ]
     }
   },
   "external_registration_v1": true,

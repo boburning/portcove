@@ -57,7 +57,17 @@
         "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md",
         "https://github.com/Blizz127/parasite-eve-decomp-port"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "parasite-eve-playstation",
+          "title": "Parasite Eve (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md",
+            "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/blizz127-parasite-eve-decomp-port.json"
+          ]
+        }
+      ]
     }
   }
 }

@@ -40,7 +40,17 @@
       "format_version": 1,
       "id": "digimon-world-2003",
       "evidence_urls": ["https://github.com/gascarcella/dw2003recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "digimon-world-2003-playstation",
+          "title": "Digimon World 2003 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/gascarcella/dw2003recomp",
+            "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/dw2003recomp-gascarcella-digimon-world-2003.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
