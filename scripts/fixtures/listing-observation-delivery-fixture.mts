@@ -15,11 +15,14 @@ export const fixtureListing = {
   platforms: ["windows-x86-64"],
   download_asset_hints: { "windows-x86-64": ["windows", "x64"] },
 };
-export function fixturePolicy(listing: Record<string, unknown> = fixtureListing) {
+export function fixturePolicy(
+  listing: Record<string, unknown> = fixtureListing,
+  repository = { id: 42, name: "owner/game" },
+) {
   const facts = {
     repository: {
-      id: 42,
-      full_name: "owner/game",
+      id: repository.id,
+      full_name: repository.name,
       default_branch: "main",
       archived: false,
       disabled: false,
@@ -37,8 +40,7 @@ export function fixturePolicy(listing: Record<string, unknown> = fixtureListing)
           {
             id: 11,
             name: "game-windows-x64.zip",
-            browser_download_url:
-              "https://github.com/owner/game/releases/download/v1.0/game-windows-x64.zip",
+            browser_download_url: `https://github.com/${repository.name}/releases/download/v1.0/game-windows-x64.zip`,
             size: 42,
             digest: null,
           },

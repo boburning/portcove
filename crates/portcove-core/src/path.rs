@@ -145,6 +145,29 @@ pub(crate) fn read_bounded_regular(path: &Path, limit: u64) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
+#[cfg(test)]
+thread_local! {
+    static AVAILABLE_SPACE_OVERRIDE: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) };
+}
+
+/// Runs `run` while transfer preflight observes `bytes` of free space.
+#[cfg(test)]
+pub(crate) fn with_available_space<T>(bytes: u64, run: impl FnOnce() -> T) -> T {
+    AVAILABLE_SPACE_OVERRIDE.with(|value| value.set(Some(bytes)));
+    let result = run();
+    AVAILABLE_SPACE_OVERRIDE.with(|value| value.set(None));
+    result
+}
+
+/// Free space for library transfer preflight (import, move, recovery bundle).
+pub(crate) fn transfer_available_space(path: &Path) -> Result<u64> {
+    #[cfg(test)]
+    if let Some(bytes) = AVAILABLE_SPACE_OVERRIDE.with(std::cell::Cell::get) {
+        return Ok(bytes);
+    }
+    Ok(fs4::available_space(path)?)
+}
+
 /// Streams one JSON document from a regular, non-link file. For durable
 /// Portcove documents whose size follows the library they describe (transfer
 /// journals carrying a reviewed plan); fixed-shape documents use

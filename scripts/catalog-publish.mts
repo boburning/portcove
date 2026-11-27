@@ -6,6 +6,8 @@
 // The compiled root (`crates/portcove-core/catalog/official-definition-root.json`)
 // and the owner's offline Targets stay authoritative; this script only writes
 // configuration. Every signer and the assembler re-verify all inputs.
+import { artworkCheckpointTarget } from "./listing-artwork-checkpoint.mts";
+import { digest, readApprovedCoverJournal } from "./catalog-cover-approval-journal.mts";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -60,6 +62,7 @@ export type Plan = {
   retain_bodies?: "ledger" | "window";
   /** Whether a published listing-floor ledger exists to extend. */
   listing_ledger?: "backfill" | "extend";
+  cover_approvals_sha256?: string;
 };
 
 function readJson(file: string): unknown {
@@ -157,6 +160,8 @@ export function inspectionReport(stdout: string): string {
  * generation time within five minutes of now, while versions and expiries come
  * from the one plan so every role signs the same repository.
  */
+const coverApprovalsName = "cover-approvals.json";
+
 export function contextConfig(work: string, now: Date) {
   const plan = readPlan(work);
   return {
@@ -179,6 +184,9 @@ export function contextConfig(work: string, now: Date) {
             prior: plan.listing_ledger === "extend" ? priorListingLedger : null,
           },
         }
+      : {}),
+    ...(plan.cover_approvals_sha256
+      ? { cover_approvals: { path: coverApprovalsName, sha256: plan.cover_approvals_sha256 } }
       : {}),
     versions: plan.versions,
     expires: plan.expires,
@@ -504,7 +512,11 @@ export function sameStaticPublicationTargets(
 ) {
   const previous = { ...published };
   delete previous[historyTarget];
-  for (const target of [listingDeliveryTarget, compactListingDeliveryTarget])
+  for (const target of [
+    listingDeliveryTarget,
+    compactListingDeliveryTarget,
+    artworkCheckpointTarget,
+  ])
     if (!Object.hasOwn(bundle, target)) delete previous[target];
   return sameTargets(bundle, previous);
 }
@@ -583,6 +595,30 @@ async function main(argv: string[]) {
     });
     if (mode === "segmented") cpSync(history, path.join(work, "history"), { recursive: true });
     if (mode) plan.history = mode;
+    if (args.includes("--cover-approval-report")) {
+      const observation = readJson(flag(args, "cover-approval-report"));
+      if (!isRecord(observation)) throw new Error("Cover approval observation report is malformed");
+      if (observation.cover_approvals !== undefined) {
+        if (
+          !site ||
+          !digest(publishedTargets(site)[artworkCheckpointTarget]) ||
+          !isRecord(observation.released_cover_proof) ||
+          !digest(observation.target_sha256) ||
+          observation.released_cover_proof.listing_wire_sha256 !== observation.target_sha256 ||
+          sha256(path.join(work, "bundle", compactListingDeliveryTarget)) !==
+            observation.target_sha256 ||
+          sha256(path.join(work, "bundle", artworkCheckpointTarget)) !==
+            observation.released_cover_proof.checkpoint_sha256
+        )
+          throw new Error(
+            "Cover approval differs from the exact released-reader publication bundle",
+          );
+        const journal = readApprovedCoverJournal(observation.cover_approvals);
+        const file = path.join(work, coverApprovalsName);
+        writeFileSync(file, JSON.stringify(journal) + "\n", { flag: "wx", mode: 0o600 });
+        plan.cover_approvals_sha256 = sha256(file);
+      }
+    }
     const index = args.indexOf("--retain-bodies");
     const { notice, ...retention } = retentionPlan(
       versions ? site : null,

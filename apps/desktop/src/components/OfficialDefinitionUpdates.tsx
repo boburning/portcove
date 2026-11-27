@@ -8,6 +8,7 @@ import { OperationCancellation } from "./OperationCancellation";
 import { Button } from "./ui/button";
 import type { TFunction } from "i18next";
 import { useAppTranslation } from "../localization";
+import type { OperationEvent } from "../types";
 
 type Props = {
   portId: string;
@@ -17,6 +18,7 @@ type Props = {
   perform: Perform;
   onChanged: () => Promise<unknown>;
   openSettings: () => void;
+  expectedSetupId?: string | undefined;
 };
 
 const outcomes = { selected: true, ineligible: true, revoked: true } as const;
@@ -38,7 +40,12 @@ function noticeCopy(t: TFunction<"catalogUpdates">, notice: Notice) {
 }
 
 export function OfficialDefinitionUpdates(props: Props) {
-  return <DefinitionControls key={`${props.generation}:${props.portId}`} {...props} />;
+  return (
+    <DefinitionControls
+      key={`${props.generation}:${props.portId}:${props.expectedSetupId ?? ""}`}
+      {...props}
+    />
+  );
 }
 
 function DefinitionControls({
@@ -49,6 +56,7 @@ function DefinitionControls({
   perform,
   onChanged,
   openSettings,
+  expectedSetupId,
 }: Props) {
   const { t } = useAppTranslation("catalogUpdates");
   const [submitting, setSubmitting] = useState(false);
@@ -80,19 +88,18 @@ function DefinitionControls({
         // Activity records this name at start; see docs/LOCALIZATION.md.
         `Checking setup availability for ${portName}…`,
         async (reportEvent) => {
-          const refreshed = await desktopApi.refreshOfficialDefinition(
-            portId,
-            generation,
-            (event) => {
-              reportEvent?.(event);
-              if (current.active && event.type === "started" && event.parent_operation_id === null)
-                setOperationId((previous) => previous ?? event.operation_id);
-            },
-          );
+          const onEvent = (event: OperationEvent) => {
+            reportEvent?.(event);
+            if (current.active && event.type === "started" && event.parent_operation_id === null)
+              setOperationId((previous) => previous ?? event.operation_id);
+          };
+          const refreshed = await (expectedSetupId
+            ? desktopApi.refreshOfficialDefinition(portId, generation, onEvent, expectedSetupId)
+            : desktopApi.refreshOfficialDefinition(portId, generation, onEvent));
           if (
             refreshed.refresh_schema !== 1 ||
             refreshed.namespace !== "official" ||
-            refreshed.stable_id !== portId ||
+            refreshed.stable_id !== (expectedSetupId ?? portId) ||
             !Object.hasOwn(outcomes, refreshed.disposition)
           )
             throw new UnsupportedSetupResult(

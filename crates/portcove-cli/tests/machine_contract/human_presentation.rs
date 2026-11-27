@@ -390,7 +390,7 @@ fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
     let current = read(&["--json", "catalog", "listings"]);
     let implementation = read(&["--json", "catalog", "listings", "--format-version", "12"]);
     let legacy = read(&["--json", "catalog", "listings", "--format-version", "11"]);
-    assert_eq!(current["format_version"], 15);
+    assert!(current["format_version"].as_u64().unwrap() >= 16);
     assert_eq!(implementation["format_version"], 12);
     assert_eq!(legacy["format_version"], 11);
     // Consume the compiled producer's documents through the actual Core reader,
@@ -419,9 +419,14 @@ fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
     }));
     let mut removed_scenes = 0;
     let mut removed_restrictions = 0;
+    let mut removed_verified_sources = 0;
+    let mut removed_mod_portals = 0;
     for (original, exported) in current_listings.iter().zip(implementation_listings) {
         let mut expected = original.clone();
         let row = expected.as_object_mut().unwrap();
+        if row.remove("mod_portals").is_some() {
+            removed_mod_portals += 1;
+        }
         // Readers below listing format 15 keep only the legacy download string.
         if row.remove("restrictions").is_some() {
             removed_restrictions += 1;
@@ -432,6 +437,24 @@ fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
                 "listing {} keeps its legacy download string",
                 original["id"]
             );
+        }
+        // Format 14 introduced verified source bindings. Older formats keep
+        // the edition descriptions and their evidence, with no bindings.
+        if let Some(editions) = row
+            .get_mut("original_game")
+            .and_then(|game| game.get_mut("source_editions"))
+            .and_then(Value::as_array_mut)
+        {
+            for edition in editions {
+                if edition
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("verified_sources")
+                    .is_some()
+                {
+                    removed_verified_sources += 1;
+                }
+            }
         }
         if let Some(media) = row.get_mut("media").and_then(Value::as_array_mut) {
             let count = media.len();
@@ -447,12 +470,20 @@ fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
         assert_eq!(&expected, exported, "listing {}", original["id"]);
     }
     assert!(
+        removed_mod_portals > 0,
+        "the bundled catalog has reviewed mod portals"
+    );
+    assert!(
         removed_scenes > 0,
         "the bundled catalog has reviewed IGDB scenes"
     );
     assert!(
         removed_restrictions > 0,
         "the bundled catalog has typed acquisition restrictions"
+    );
+    assert!(
+        removed_verified_sources > 0,
+        "the bundled catalog has verified source-edition bindings"
     );
     for (original, exported) in implementation_listings.iter().zip(legacy_listings) {
         assert!(exported.get("implementation").is_none());

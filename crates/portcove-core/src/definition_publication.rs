@@ -4,6 +4,9 @@ use crate::definition_repository::publisher_policy::{
     inspect_publication_policy, launch_assessment::inspect_publication_launch,
 };
 use crate::{DefinitionContentIndex, PortcoveError, Result};
+use portcove_listing_carrier::{
+    COMPACT_TARGET, COVER_CHECKPOINT_MAX, COVER_CHECKPOINT_TARGET, check_cover_checkpoint,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -55,6 +58,8 @@ pub struct DefinitionPublicationInspection {
     pub definitions: Vec<DefinitionPublicationIdentity>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub listings: Option<ListingPublicationIdentity>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cover_checkpoint: Option<CoverCheckpointPublicationIdentity>,
     pub scope: &'static str,
 }
 
@@ -66,6 +71,13 @@ pub struct ListingPublicationIdentity {
     pub sha256: String,
     pub listing_count: usize,
     pub withdrawn_count: usize,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct CoverCheckpointPublicationIdentity {
+    pub target: &'static str,
+    pub sha256: String,
+    pub listing_decoded_sha256: String,
 }
 
 fn inspect_listing_publication(
@@ -116,6 +128,8 @@ pub fn inspect_definition_publication_bytes(
     for (name, bytes) in files {
         let bound = if portcove_listing_carrier::is_listing_target(name) {
             portcove_listing_carrier::MAX_BYTES
+        } else if name == COVER_CHECKPOINT_TARGET {
+            COVER_CHECKPOINT_MAX
         } else if name == INDEX {
             crate::definition_index::MAX_INDEX_BYTES
         } else if name.starts_with("policy/") {
@@ -149,7 +163,7 @@ pub fn inspect_definition_publication_bytes(
         Ok(inspection)
     };
     let legacy = inspect_listing(portcove_listing_carrier::LEGACY_TARGET)?;
-    let compact = inspect_listing(portcove_listing_carrier::COMPACT_TARGET)?;
+    let compact = inspect_listing(COMPACT_TARGET)?;
     if let Some((new, new_digest)) = &compact {
         let (old, old_digest) = legacy.as_ref().ok_or_else(invalid)?;
         if new.revision < old.revision || (new.revision == old.revision && new_digest != old_digest)
@@ -157,6 +171,20 @@ pub fn inspect_definition_publication_bytes(
             return Err(invalid());
         }
     }
+    let cover_checkpoint = files
+        .get(COVER_CHECKPOINT_TARGET)
+        .map(|bytes| {
+            let (_, listing_digest) = compact.as_ref().ok_or_else(invalid)?;
+            check_cover_checkpoint(bytes, listing_digest)
+                .map_err(|error| PortcoveError::verification(error.to_string()))?;
+            expected.insert(COVER_CHECKPOINT_TARGET.into());
+            Ok::<_, PortcoveError>(CoverCheckpointPublicationIdentity {
+                target: COVER_CHECKPOINT_TARGET,
+                sha256: hash(bytes),
+                listing_decoded_sha256: listing_digest.clone(),
+            })
+        })
+        .transpose()?;
     let listings = compact.or(legacy).map(|(record, _)| record);
     let mut definitions = Vec::new();
     for definition in index.definitions() {
@@ -221,7 +249,13 @@ pub fn inspect_definition_publication_bytes(
     }
     definitions.sort_by(|a, b| (&a.namespace, &a.stable_id).cmp(&(&b.namespace, &b.stable_id)));
     let report = DefinitionPublicationInspection {
-        publication_schema: if listings.is_some() { 2 } else { 1 },
+        publication_schema: if cover_checkpoint.is_some() {
+            3
+        } else if listings.is_some() {
+            2
+        } else {
+            1
+        },
         authority: "none",
         index_sha256,
         files: files
@@ -239,6 +273,7 @@ pub fn inspect_definition_publication_bytes(
             "inert-managed-definition-publication-inspection"
         },
         listings,
+        cover_checkpoint,
     };
     // Leave space for the existing CLI machine envelope under its caller's
     // 4 MiB captured-manifest budget. This is a producer-only refusal.
@@ -346,6 +381,8 @@ fn read_bundle(root: &Path) -> Result<BTreeMap<String, Vec<u8>>> {
                 }
                 let cap = if portcove_listing_carrier::is_listing_target(&target) {
                     portcove_listing_carrier::MAX_BYTES
+                } else if target == COVER_CHECKPOINT_TARGET {
+                    COVER_CHECKPOINT_MAX
                 } else if target == INDEX {
                     crate::definition_index::MAX_INDEX_BYTES
                 } else if target.starts_with("policy/") {

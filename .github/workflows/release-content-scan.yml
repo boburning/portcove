@@ -13,6 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -28,9 +29,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - name: Install locked scan dependencies before credentials
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Install archive listers
         run: |
           if ! command -v 7z >/dev/null || ! command -v unsquashfs >/dev/null; then
@@ -38,12 +44,19 @@ jobs:
             sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install -y \
               --no-install-recommends p7zip-full squashfs-tools
           fi
-      - name: Restore scanned-asset checkpoint
+      - name: Restore retained scan checkpoint
+        id: checkpoint
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p work/release-content-scan
+          node scripts/release-content-checkpoint.mts restore work/release-content-scan/checkpoint.json >> "$GITHUB_OUTPUT"
+      - name: Restore legacy scan checkpoint
+        if: steps.checkpoint.outputs.source == 'legacy'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: work/release-content-scan/checkpoint.json
-          key: release-content-scan-v1-main-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: release-content-scan-v1-main-
+          key: ${{ steps.checkpoint.outputs.cache }}
       - name: Scan new release packages within budgets
         id: scan
         env:
@@ -52,24 +65,21 @@ jobs:
           mkdir -p work/release-content-scan
           node scripts/release-content-scan.mts scan \
             --listings crates/portcove-core/catalog/listings.json \
+            --complete-targets \
             --checkpoint work/release-content-scan/checkpoint.json \
             --checkpoint-out work/release-content-scan/checkpoint.next.json \
+            --retained-checkpoint \
             --output work/release-content-scan/report.json \
             --accounting .github/release-content-accounting.json \
             --max-assets 160 \
             --max-total-bytes 40000000000 \
             --minutes 75
           mv work/release-content-scan/checkpoint.next.json work/release-content-scan/checkpoint.json
+          node scripts/release-content-checkpoint.mts check work/release-content-scan/checkpoint.json
           node scripts/release-content-scan.mts summary \
             --report work/release-content-scan/report.json >> "$GITHUB_STEP_SUMMARY"
           node scripts/release-content-scan.mts annotations \
             --report work/release-content-scan/report.json
-      - name: Preserve scanned-asset checkpoint
-        if: ${{ !cancelled() && steps.scan.outcome == 'success' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: work/release-content-scan/checkpoint.json
-          key: release-content-scan-v1-main-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Retain scan report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -77,4 +87,12 @@ jobs:
           name: release-content-scan-${{ github.run_id }}-${{ github.run_attempt }}
           path: work/release-content-scan/report.json
           if-no-files-found: warn
+          retention-days: 30
+      - name: Retain scheduled scan checkpoint
+        if: ${{ success() && steps.scan.outcome == 'success' && github.event_name == 'schedule' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-content-checkpoint-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/release-content-scan/checkpoint.json
+          if-no-files-found: error
           retention-days: 30

@@ -56,7 +56,6 @@ export type ArtworkFraming = NonNullable<ArtworkState["choice"]["framing"]>;
 export type ArtworkSelectionFraming = Requests.TransportInputs["desktop_artwork_selection_framing"];
 export type ArtworkSelectionPreview =
   Generated.TransportOutputs["desktop_artwork_selection_preview"];
-export type ArtworkAttribution = ArtworkState["attribution"][number];
 export type SteamGridDbKeyStatus = Generated.TransportOutputs["steamgriddb_key_status"];
 export type SteamGridDbListingReport = Generated.TransportOutputs["steamgriddb_listing_report"];
 export type SteamGridDbGame = Generated.TransportOutputs["steamgriddb_games"][number];
@@ -78,6 +77,7 @@ export type GameSettingsChangeSetReview =
   Generated.TransportOutputs["game_settings_change_set_review"];
 export type GameSettingsEdit = Requests.TransportInputs["game_settings_edit"];
 export type GameUpdateAcquisition = Generated.TransportOutputs["game_update_acquisition"];
+export type ModPortalsView = Generated.TransportOutputs["mod_portals_view"];
 export type ModSetupsView = Generated.TransportOutputs["mod_setups_view"];
 export type ModSetupView = NonNullable<ModSetupsView["inventory"]>["profiles"][number];
 export type ModSetupOriginalReview = Generated.TransportOutputs["profile_original_review"];

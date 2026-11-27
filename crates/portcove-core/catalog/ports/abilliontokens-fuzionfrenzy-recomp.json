@@ -20,6 +20,14 @@
         }
       ]
     },
-    "original_game_title": "Fuzion Frenzy"
+    "original_game_title": "Fuzion Frenzy",
+    "artwork": {
+      "game_id": 5842,
+      "cover_id": 106359,
+      "image_id": "co2a2f",
+      "image_sha256": "1f08d230f3ce4dfddbc75effebb45cf866b64ded24a6e29d497dd5dbe52cb840",
+      "game_slug": "fuzion-frenzy",
+      "match_kind": "underlying-game"
+    }
   }
 }

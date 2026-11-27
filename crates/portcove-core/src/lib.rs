@@ -118,7 +118,12 @@ mod dfu_mod;
 mod disc_filesystem;
 mod disc_product;
 mod external_mod_portal;
-pub use external_mod_portal::{ExternalModBrowser, ExternalModPortal, ExternalModSite};
+pub use external_mod_portal::{
+    AutomaticModPortal, ExternalModBrowser, ExternalModPortal, ExternalModSite,
+    ModPortalPreferenceView, ModPortalsView,
+};
+mod mod_portal_preferences;
+pub use mod_portal_preferences::{LocalModPage, ModPortalChoices, ModPortalPreferences};
 mod gamebanana;
 mod github_mods;
 mod jakmods;
@@ -126,7 +131,8 @@ mod mod_package;
 mod mod_provider;
 mod mod_source;
 pub use mod_source::{
-    ModCompanionLayout, ModPortalSite, ModSource, ModSourceAuthority, ModSourceKind,
+    ListingModPortal, ModCompanionLayout, ModPortalSite, ModSource, ModSourceAuthority,
+    ModSourceKind,
 };
 mod moddb_feed;
 mod native_mod_list;
@@ -315,6 +321,7 @@ pub use exit_explanation::{
 };
 pub use external_runtime::{
     ExternalRuntimePreview, ExternalRuntimeRelinkPreview, ExternalRuntimeRemovalPreview,
+    PersonalProjectRuntimePreview,
 };
 pub use failure::{
     FailurePresentation, FailureRecoveryTarget, FailureReport, FailureTone, MutationState,
@@ -530,6 +537,7 @@ pub use signed_catalog::{
 };
 pub use source::SourceRelinkPlan;
 pub use source_assessment::*;
+mod successor_support;
 pub use source_batch::{
     RegisteredSourceInspectionBatch, RegisteredSourceInspectionLimits, RegisteredSourceObservation,
 };
@@ -562,6 +570,9 @@ pub use source_reuse::{
 pub use store_install::{
     GameStore, RegisteredStoreInstall, RegisteredStoreInstalls, StoreGameInstall,
     StoreGameInstalls, StoreInstallHost, StoreOriginalFolder, SystemStoreInstallHost,
+};
+pub use successor_support::{
+    SuccessorEvidencePreparation, SuccessorEvidenceSubject, SupportCoordinates,
 };
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{

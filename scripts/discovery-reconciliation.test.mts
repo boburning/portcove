@@ -554,3 +554,115 @@ void test("original-game display cleanup retains the canonical issue's source-ed
     "Existing canonical owner",
   );
 });
+
+void test("accepted catalog owners survive renames and refuse recycled repository paths without issues", async () => {
+  const { reconcileDiscoveryIntakeIdentity } = await import("./discovery-intake-identity.mts");
+  const authoredWithoutIssue = {
+    format_version: 1 as const,
+    upstream_lineage: {
+      format_version: 1 as const,
+      target_key: "portable-edition",
+      origin: {
+        project_url: "https://github.com/original/game",
+        repository: { host: "github.com", id: "42" },
+      },
+      decisions: [],
+    },
+    listing: {
+      id: "portable-edition",
+      name: "Portable project",
+      summary: "Retained portable source edition.",
+      project_url: "https://github.com/original/game",
+      original_game_title: "Portable Game",
+    },
+  };
+  const observed = {
+    kind: "implementation" as const,
+    repository: "transferred/game",
+    repository_id: 42,
+    game_key: "portablegame",
+  };
+  const assess = (lead = observed, records = [authoredWithoutIssue]) =>
+    reconcileDiscoveryIntakeIdentity(lead, [], records, []);
+  const renamed = assess();
+  assert.equal(renamed.disposition, "Existing canonical owner");
+  assert.deepEqual(renamed.catalog_ids, ["portable-edition"]);
+  assert.deepEqual(renamed.issues, []);
+  assert.equal(renamed.repository_identity_known, true);
+  const staleIssue = reconcileDiscoveryIntakeIdentity(
+    observed,
+    [{ number: 17, title: "Unrelated work", state: "OPEN", body: "No implementation ownership." }],
+    [{ ...authoredWithoutIssue, listing: { ...authoredWithoutIssue.listing, issue_number: 17 } }],
+    [],
+  );
+  assert.equal(staleIssue.disposition, "Existing canonical owner");
+  assert.deepEqual(staleIssue.catalog_ids, ["portable-edition"]);
+  assert.deepEqual(staleIssue.issues, []);
+  const linkedRecord = {
+    ...authoredWithoutIssue,
+    listing: { ...authoredWithoutIssue.listing, issue_number: 17 },
+  };
+  const reviewedIssue = {
+    number: 17,
+    title: "[Port] Portable game",
+    state: "OPEN",
+    body: "Underlying game: **Portable Game**.\nGitHub repository ID: 42.\n<!-- portcove-port -->\n<!-- portcove-upstream: https://github.com/original/game -->\nReviewed source-family alias: https://github.com/other/fork (GitHub repository ID: 43)",
+  };
+  const reviewedAlias = reconcileDiscoveryIntakeIdentity(
+    { ...observed, repository_id: 43, repository: "other/fork", catalog_id: "portable-edition" },
+    [reviewedIssue],
+    [linkedRecord],
+    [],
+  );
+  assert.equal(reviewedAlias.disposition, "Existing canonical owner");
+  assert.deepEqual(reviewedAlias.catalog_ids, ["portable-edition"]);
+  assert.deepEqual(reviewedAlias.issues, [17]);
+  const recycled = reconcileDiscoveryIntakeIdentity(
+    { ...observed, repository_id: 77 },
+    [reviewedIssue],
+    [linkedRecord],
+    [
+      {
+        id: 77,
+        repository: "original/game",
+        url: "https://github.com/original/game",
+        description: "An unrelated repository acquired the old path.",
+        revision: "revision",
+        observed_at: "2026-11-26T00:00:00Z",
+        evidence: "public repository metadata",
+        status: "pending",
+      },
+    ],
+  );
+  assert.equal(recycled.disposition, "New canonical intake");
+  assert.equal(
+    assess({ ...observed, game_key: "differentgame" }).disposition,
+    "New canonical intake",
+  );
+  const reuse = assess({ ...observed, repository: "original/game", repository_id: 77 });
+  assert.equal(reuse.disposition, "Identity conflict");
+  assert.deepEqual(reuse.catalog_ids, ["portable-edition"]);
+  const keyReuse = reconcileDiscoveryIntakeIdentity(
+    {
+      ...observed,
+      repository: "unrelated/project",
+      repository_id: 88,
+      game_key: "differentgame",
+      catalog_id: "portable-edition",
+    },
+    [],
+    [authoredWithoutIssue],
+    [],
+  );
+  assert.equal(keyReuse.disposition, "Identity conflict");
+  assert.deepEqual(keyReuse.catalog_ids, ["portable-edition"]);
+  const ambiguity = assess(observed, [
+    authoredWithoutIssue,
+    {
+      ...authoredWithoutIssue,
+      listing: { ...authoredWithoutIssue.listing, id: "another-implementation" },
+    },
+  ]);
+  assert.equal(ambiguity.disposition, "Identity ambiguous");
+  assert.deepEqual(ambiguity.catalog_ids, ["another-implementation", "portable-edition"]);
+});

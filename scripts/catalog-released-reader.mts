@@ -179,7 +179,10 @@ export function pagesWorktreeRevision(checkout: string, pages: string) {
 /** Anonymous live sources over the protected checkout, the Pages worktree's
  * checked-out commit and public GitHub. */
 export function liveReleasedReaderSources(checkout: string, privateRoot: string, pages: string) {
-  const pagesRevision = pagesWorktreeRevision(checkout, pages);
+  return releasedReaderSourcesAt(checkout, privateRoot, pagesWorktreeRevision(checkout, pages));
+}
+
+function releasedReaderSourcesAt(checkout: string, privateRoot: string, pagesRevision: string) {
   let trustedRoot: unknown;
   const sources: ReleasedReaderSources = {
     pagesRevision,
@@ -222,6 +225,37 @@ export function liveReleasedReaderSources(checkout: string, privateRoot: string,
     },
   };
   return sources;
+}
+
+/** Fetch the release selection only when scheduled preparation has an eligible addition.
+ * No Pages checkout or historical source blobs are needed for this proof. */
+export async function acquireScheduledCatalogReader(privateRoot: string) {
+  // The protected-source ancestry proof needs commit history. Fetch it in a
+  // private repository so the shallow Pages read cannot change the checkout.
+  const checkout = path.join(privateRoot, "release-git");
+  mkdirSync(checkout, { mode: 0o700 });
+  git(checkout, ["init", "--quiet", "--bare"]);
+  git(checkout, ["remote", "add", "origin", `https://github.com/${repository}.git`]);
+  git(checkout, [
+    "fetch",
+    "--no-tags",
+    "--filter=tree:0",
+    "origin",
+    "refs/heads/main:refs/remotes/origin/main",
+  ]);
+  git(checkout, [
+    "fetch",
+    "--no-tags",
+    "--depth=1",
+    "--filter=blob:none",
+    "origin",
+    "refs/heads/gh-pages",
+  ]);
+  const pagesRevision = git(checkout, ["rev-parse", "--verify", "FETCH_HEAD^{commit}"]).trim();
+  return acquireCatalogReleasedReader(
+    privateRoot,
+    releasedReaderSourcesAt(checkout, privateRoot, pagesRevision),
+  );
 }
 
 /** Harness budget for the anonymous attestation read: up to four attempts,
@@ -341,6 +375,29 @@ export async function acquireCatalogReleasedReader(
   };
 }
 
+export function requireReleasedReaderReceipt(reader: unknown) {
+  if (
+    !isRecord(reader) ||
+    typeof reader.version !== "string" ||
+    typeof reader.tag !== "string" ||
+    ![reader.feed_commit, reader.source, reader.tag_object].every(
+      (value) => typeof value === "string" && hex40.test(value),
+    ) ||
+    ![reader.archive_sha256, reader.checksum_sha256].every(
+      (value) => typeof value === "string" && /^[a-f0-9]{64}$/u.test(value),
+    ) ||
+    typeof reader.release_id !== "number" ||
+    !Number.isSafeInteger(reader.release_id) ||
+    reader.release_id < 1 ||
+    typeof reader.archive_bytes !== "number" ||
+    !Number.isSafeInteger(reader.archive_bytes) ||
+    reader.archive_bytes < 1 ||
+    reader.archive_bytes > packageMaximum
+  )
+    throw new Error("Released reader proof has no verified release identity");
+  return reader;
+}
+
 /** Publish-time recheck: the fresh Pages base still selects the prepared
  * release and has not withdrawn it. */
 export function requireCurrentCatalogReaderSelection(expected: unknown, site: string) {
@@ -356,7 +413,11 @@ export function requireCurrentCatalogReaderSelection(expected: unknown, site: st
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  if (process.argv[2] === "select") {
+  if (process.argv[2] === "acquire-scheduled") {
+    const root = process.argv[3];
+    if (!root) throw new Error("acquire-scheduled requires a private work directory");
+    console.log(JSON.stringify(await acquireScheduledCatalogReader(root)));
+  } else if (process.argv[2] === "select") {
     // Read-only preflight: what automatic selection would verify and probe now.
     const work = process.argv[3];
     const pages = process.argv[4] ?? "site";

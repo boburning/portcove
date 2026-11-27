@@ -43,7 +43,10 @@
   },
   "original_game_review": {
     "disposition": "framework",
-    "reason": "The authored summary explicitly identifies a development renderer/framework rather than a complete game runtime. Original-game identity must not imply playable game scope; review a future title-specific runtime separately.",
-    "evidence_urls": ["https://github.com/sp00nznet/ww#readme", "https://github.com/sp00nznet/ww"]
+    "reason": "The upstream README specifies a Windows renderer and manual frame loop using the original US GameCube disc (GZLE01). Retain the renderer scope until upstream delivers a useful title-specific runtime.",
+    "evidence_urls": [
+      "https://github.com/sp00nznet/ww/blob/b02a1d5b32e6452287f021612e0ac075ac472331/README.md",
+      "https://github.com/sp00nznet/ww"
+    ]
   }
 }

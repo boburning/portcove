@@ -1116,7 +1116,10 @@ async fn recipe_acquisition_uses_the_recipes_runtime_instead_of_the_reference_se
     assert!(!waiting.can_apply);
     assert_eq!(waiting.runtime.status, RecipeInputStatus::Available);
     assert_eq!(waiting.packages[0].status, RecipeInputStatus::Unavailable);
-    assert_eq!(waiting.provider_checks, [input.native_id.clone()]);
+    assert_eq!(
+        waiting.provider_checks.as_slice(),
+        std::slice::from_ref(&input.native_id)
+    );
 
     let wrapped = o2r(
         w._temporary.path(),
@@ -1497,7 +1500,10 @@ fn a_staged_step_that_changed_leaves_the_review_instead_of_repeating_as_ready() 
     assert_eq!(refused.code, ErrorCode::Conflict);
     // The next review shows that one package as missing; the others stay ready.
     let next = w.service.plan_recipe_import(&recipe).unwrap();
-    assert_eq!(next.provider_checks, [changed.native_id.clone()]);
+    assert_eq!(
+        next.provider_checks.as_slice(),
+        std::slice::from_ref(&changed.native_id)
+    );
     assert_eq!(next.staging.acquisitions.len(), acquisitions.len() - 1);
 }
 
@@ -1692,6 +1698,11 @@ async fn a_shared_closure_costs_its_plan_once_in_records_and_the_review() {
 
     // A restart resumes the same review from the records.
     let resumed = w.service.plan_recipe_import(&recipe).unwrap();
+    assert_eq!(resumed.staging.acquisitions.len(), members);
+    assert_eq!(
+        resumed.staging.provider_plans.as_slice(),
+        std::slice::from_ref(&provider_plan)
+    );
     assert_eq!(resumed.plan_sha256, ready.plan_sha256);
     let token = w
         .service
@@ -2044,12 +2055,15 @@ async fn a_review_budget_refusal_while_acquiring_keeps_earlier_progress() {
     server.join().unwrap();
     let first = recipe.packages[1].native_id.clone();
     let second = recipe.packages[2].native_id.clone();
-    assert_eq!(batch.acquired, [first.clone()]);
+    assert_eq!(batch.acquired.as_slice(), std::slice::from_ref(&first));
     let failure = batch.failure.unwrap();
     assert_eq!(failure.native_id, second);
     assert!(failure.message.contains("review budget"), "{failure:?}");
     assert_eq!(batch.plan.staging.acquisitions.len(), 1);
-    assert_eq!(batch.plan.provider_checks, [second.clone()]);
+    assert_eq!(
+        batch.plan.provider_checks.as_slice(),
+        std::slice::from_ref(&second)
+    );
 
     // The staged step was recorded: reopening the recipe resumes with it.
     let resumed = w.service.plan_recipe_import(&recipe).unwrap();

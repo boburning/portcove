@@ -251,6 +251,23 @@ pub(crate) enum ProfileCommand {
         /// Catalog port ID.
         port_id: String,
     },
+    /// Save the game's local mod website choices. Omit the website and hidden sources to reset.
+    SetModPortals {
+        /// Catalog port ID.
+        port_id: String,
+        /// Current mod website choice revision from `profile setups --json`.
+        #[arg(long)]
+        expected_revision: u64,
+        /// Public HTTPS website for this game.
+        #[arg(long, requires = "name")]
+        url: Option<String>,
+        /// Display name for the local website.
+        #[arg(long, requires = "url")]
+        name: Option<String>,
+        /// Exact automatic source ID to hide. Repeat to hide more than one.
+        #[arg(long)]
+        hide: Vec<String>,
+    },
     /// Export a profile revision as a shareable recipe: identity only, no files or saves.
     RecipeExport {
         /// Catalog port ID owning the profile.
@@ -365,7 +382,7 @@ pub(crate) enum ProfileCommand {
     },
     /// Browse a game's mods on its reviewed provider (GameBanana or Thunderstore); reads only.
     ProviderBrowse {
-        /// Catalog port ID with a reviewed provider binding.
+        /// Catalog port ID with a reviewed provider binding or descriptive source.
         port_id: String,
         /// Page number, from 1.
         #[arg(long, default_value_t = 1)]
@@ -373,6 +390,9 @@ pub(crate) enum ProfileCommand {
         /// Reviewed provider when the port offers more than one.
         #[arg(long)]
         provider: Option<String>,
+        /// Exact source ID from the port's mod websites, browsed without install support.
+        #[arg(long, conflicts_with = "provider")]
+        portal_source: Option<String>,
     },
     /// Show one mod's files or versions and the IDs `provider-plan` takes; reads only.
     ProviderProject {
@@ -484,6 +504,7 @@ impl ProfileCommand {
             Self::InspectModFile { .. } => "profile.inspect-mod-file",
             Self::PreserveModFile { .. } => "profile.preserve-mod-file",
             Self::Setups { .. } => "profile.setups",
+            Self::SetModPortals { .. } => "profile.set-mod-portals",
             Self::RecipeExport { .. } => "profile.recipe-export",
             Self::RecipeInspect { .. } => "profile.recipe-inspect",
             Self::RecipeAcquire { .. } => "profile.recipe-acquire",
@@ -769,7 +790,10 @@ fn stale_note(
     })
 }
 
-pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -> String {
+pub(crate) fn provider_browse_text(
+    result: &portcove_core::ProviderBrowsePage,
+    portal_source: Option<&str>,
+) -> String {
     let page = &result.page;
     let total = if page.total == 0 && !page.projects.is_empty() {
         "total unknown".to_owned()
@@ -818,17 +842,25 @@ pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -
     }
     if !page.complete {
         if page.page < result.last_page {
+            let scope = match portal_source {
+                Some(source) => format!("--portal-source {}", clean(source)),
+                None => format!("--provider {}", clean(&result.provider)),
+            };
             lines.push(format!(
-                "More mods: `portcove profile provider-browse {} --page {} --provider {}`.",
+                "More mods: `portcove profile provider-browse {} --page {} {}`.",
                 clean(&result.port_id),
                 page.page + 1,
-                clean(&result.provider)
+                scope
             ));
         } else {
             lines.push(format!("More mods are listed on {provider} itself."));
         }
     }
-    if !page.projects.is_empty() {
+    if portal_source.is_some() {
+        lines.push(
+            "This source is available for browsing. Open its website for project details.".into(),
+        );
+    } else if !page.projects.is_empty() {
         lines.push(format!(
             "See a mod's files: `portcove profile provider-project {} MOD_ID --provider {}`.",
             clean(&result.port_id),
@@ -1175,11 +1207,20 @@ pub(crate) async fn execute(
             port_id,
             page,
             provider,
+            portal_source,
         } => {
-            let result = service
-                .browse_provider_mods_for_provider(&port_id, page, provider.as_deref())
-                .await?;
-            render_read_success(mode, name, result, provider_browse_text)
+            let result = if let Some(source) = &portal_source {
+                service
+                    .browse_external_provider_mods(&port_id, source, None, page)
+                    .await?
+            } else {
+                service
+                    .browse_provider_mods_for_provider(&port_id, page, provider.as_deref())
+                    .await?
+            };
+            render_read_success(mode, name, result, |page| {
+                provider_browse_text(page, portal_source.as_deref())
+            })
         }
         ProfileCommand::ProviderProject {
             port_id,
@@ -1637,6 +1678,27 @@ pub(crate) async fn execute(
                 )
             },
         ),
+        ProfileCommand::SetModPortals {
+            port_id,
+            expected_revision,
+            url,
+            name: page_name,
+            hide,
+        } => {
+            let saved = service.set_mod_portal_preferences(
+                &port_id,
+                expected_revision,
+                portcove_core::ModPortalChoices {
+                    local_page: url
+                        .zip(page_name)
+                        .map(|(url, name)| portcove_core::LocalModPage { name, url }),
+                    hidden_sources: hide,
+                },
+            )?;
+            render_read_success(mode, name, saved, |_| {
+                "Saved local mod website choices".into()
+            })
+        }
         ProfileCommand::Setups { port_id } => {
             render_read_success(mode, name, service.mod_setups(&port_id)?, |view| {
                 let mut lines = view
@@ -2138,13 +2200,15 @@ mod provider_text_tests {
             observed_at: 0,
             freshness: ProviderFreshness::Fresh,
         };
-        let empty = provider_browse_text(&page(Vec::new(), 41, 4, false));
+        let empty = provider_browse_text(&page(Vec::new(), 41, 4, false), None);
         assert!(empty.contains("No mods on this page."));
         assert!(empty.contains("provider-browse shipwright --page 5 --provider gamebanana"));
-        let unknown = provider_browse_text(&page(vec![project(false, 0, false)], 0, 1, false));
+        let unknown =
+            provider_browse_text(&page(vec![project(false, 0, false)], 0, 1, false), None);
         assert!(unknown.contains("total unknown"));
         assert!(unknown.contains("provider-browse shipwright --page 2 --provider gamebanana"));
-        let last = provider_browse_text(&page(vec![project(false, 0, false)], 1000, 50, false));
+        let last =
+            provider_browse_text(&page(vec![project(false, 0, false)], 1000, 50, false), None);
         assert!(!last.contains("--page 51"));
         assert!(last.contains("GameBanana itself"));
     }

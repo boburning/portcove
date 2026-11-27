@@ -157,6 +157,8 @@ async fn authenticate(
             }
             let maximum = if portcove_listing_carrier::is_listing_target(name.raw()) {
                 portcove_listing_carrier::MAX_BYTES as u64
+            } else if name.raw() == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+                portcove_listing_carrier::COVER_CHECKPOINT_MAX as u64
             } else if name.raw().starts_with("policy/") {
                 65536
             } else if name.raw() == "definitions/index.json" {
@@ -190,6 +192,7 @@ async fn authenticate(
         }
     }
     bundle::listing_targets(&logical.files)?;
+    bundle::checked_cover_checkpoint(&logical.files)?;
     Ok(logical)
 }
 fn validate_public_paths(files: &PublicHistory) -> Result<()> {
@@ -235,10 +238,12 @@ fn validate_public_paths(files: &PublicHistory) -> Result<()> {
 pub(super) async fn inspect_prior(
     context: &Context,
     path: &Path,
+    proposed_cover_approvals: Option<&serde_json::Value>,
 ) -> Result<(
     PublicHistory,
     Option<super::history_checkpoint::PreparedHistory>,
     Option<listing_floor_ledger::Output>,
+    Option<serde_json::Value>,
 )> {
     let expects_thin = context.thin_history && context.history_store.is_some();
     let files = if expects_thin {
@@ -259,6 +264,32 @@ pub(super) async fn inspect_prior(
     .await?;
     let roles = current_roles(&files)?;
     let pointer = logical.files.get(super::history_checkpoint::TARGET);
+    let prior_cover = bundle::checked_cover_checkpoint(&logical.files)?;
+    let next_cover = bundle::checked_cover_checkpoint(&context.targets)?;
+    // The retained full repository is verified below. If a signed segmented
+    // pointer exists, its store and exact predecessor are verified as well.
+    if next_cover.is_some()
+        && !logical
+            .files
+            .contains_key(portcove_listing_carrier::COMPACT_TARGET)
+    {
+        return invalid("cover observations require a previously active compact listing");
+    }
+    portcove_listing_carrier::check_cover_checkpoint_successor(
+        prior_cover
+            .as_ref()
+            .map(|(bytes, sha)| (*bytes, sha.as_str())),
+        next_cover
+            .as_ref()
+            .map(|(bytes, sha)| (*bytes, sha.as_str())),
+    )
+    .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
+    let cover_approvals = super::cover_approval::select(
+        super::cover_approval::from_policy(at(&roles, "official-policy.json")?)?,
+        proposed_cover_approvals,
+        &logical.files,
+        &context.targets,
+    )?;
     let thin = context.thin_history && pointer.is_some();
     let mut floors = HistoricalRevisionFloors {
         ledger: context
@@ -270,6 +301,12 @@ pub(super) async fn inspect_prior(
     verify_history(&context.into(), &files, |role, version, targets| {
         floors.observe(&files, &logical, role, version, targets)
     })?;
+    floors.cover_history.check_current(
+        prior_cover
+            .as_ref()
+            .map(|(bytes, sha)| (*bytes, sha.as_str())),
+        pointer.is_none(),
+    )?;
     floors.check_ledger_floors()?;
     let ledger = context
         .listing_ledger
@@ -394,6 +431,11 @@ pub(super) async fn inspect_prior(
             if !thin {
                 verified.verify_archive(store, &file_inventory)?;
             }
+            verified.check_cover_predecessor(
+                prior_cover
+                    .as_ref()
+                    .map(|(bytes, sha)| (*bytes, sha.as_str())),
+            )?;
             verified.check_new(&context.targets)?;
             let readback = verified.readback(store);
             let mut prepared = verified.advance(input, next_timestamp, next_policy)?;
@@ -413,7 +455,7 @@ pub(super) async fn inspect_prior(
     } else {
         None
     };
-    Ok((files, history, ledger))
+    Ok((files, history, ledger, cover_approvals))
 }
 
 fn current_immutable_inventory(
@@ -543,6 +585,79 @@ pub(super) fn historical_policy_revision(target: &str, value: &serde_json::Value
 }
 
 #[derive(Default)]
+struct HistoricalCoverFloor(BTreeMap<u64, Option<String>>);
+
+impl HistoricalCoverFloor {
+    fn observe(&mut self, files: &PublicHistory, version: u64, targets: &Targets) -> Result<()> {
+        use portcove_listing_carrier::{COVER_CHECKPOINT_MAX, COVER_CHECKPOINT_TARGET};
+        let Some((_, identity)) = targets
+            .targets
+            .iter()
+            .find(|(name, _)| name.raw() == COVER_CHECKPOINT_TARGET)
+        else {
+            self.0.insert(version, None);
+            return Ok(());
+        };
+        let digest = hex::encode(&identity.hashes.sha256);
+        let path = format!("targets/{digest}.{COVER_CHECKPOINT_TARGET}");
+        let raw = files.get(&path).ok_or_else(|| {
+            TufRepositoryError::Invalid(format!(
+                "catalog historical cover checkpoint body is missing: {path}"
+            ))
+        })?;
+        if raw.bytes() != identity.length
+            || raw.bytes() > COVER_CHECKPOINT_MAX as u64
+            || raw.digest() != digest
+        {
+            return invalid("catalog historical cover checkpoint identity/bound differs");
+        }
+        self.0.insert(version, Some(digest));
+        Ok(())
+    }
+
+    fn check_current(&self, cover: Option<(&[u8], &str)>, full: bool) -> Result<()> {
+        let Some((first, _)) = self.0.iter().find(|(_, digest)| digest.is_some()) else {
+            return Ok(());
+        };
+        if self.0.range(*first..).any(|(_, digest)| digest.is_none()) {
+            return invalid(
+                "catalog signed policy omitted an authenticated historical cover checkpoint",
+            );
+        }
+        let latest = self
+            .0
+            .values()
+            .next_back()
+            .and_then(Option::as_ref)
+            .expect("cover history was checked for omissions");
+        let Some((bytes, listing)) = cover else {
+            return invalid(
+                "catalog current policy omitted an authenticated historical cover checkpoint",
+            );
+        };
+        if &sha(bytes) != latest {
+            return invalid("catalog current policy selected an older cover checkpoint");
+        }
+        if !full {
+            return Ok(());
+        }
+        let predecessor = self
+            .0
+            .values()
+            .rev()
+            .filter_map(Option::as_ref)
+            .find(|digest| *digest != latest);
+        match predecessor {
+            Some(previous) => portcove_listing_carrier::check_cover_checkpoint_predecessor_digest(
+                bytes, listing, previous,
+            ),
+            None => portcove_listing_carrier::check_cover_checkpoint_successor(None, cover),
+        }
+        .map_err(|error| TufRepositoryError::Invalid(error.to_string()))
+    }
+}
+
+#[derive(Default)]
 struct HistoricalRevisionFloors {
     definitions: BTreeMap<(String, String), serde_json::Value>,
     policies: BTreeMap<String, (u64, String)>,
@@ -550,6 +665,7 @@ struct HistoricalRevisionFloors {
     listing_revisions: BTreeMap<u64, String>,
     legacy_listing: Option<(super::history_checkpoint::ListingFloor, Vec<u8>)>,
     compact_listing: Option<super::history_checkpoint::ListingFloor>,
+    cover_history: HistoricalCoverFloor,
     /// Published listing-floor ledger, consulted only for a listing body that
     /// is absent from the retained tree (#1422 body window).
     ledger: Option<Ledger>,
@@ -574,11 +690,16 @@ impl HistoricalRevisionFloors {
         targets: &Targets,
     ) -> Result<()> {
         let definition_role = role == "official-definitions.json";
+        if !definition_role {
+            self.cover_history.observe(files, version, targets)?;
+        }
         for (target, identity) in &targets.targets {
             if definition_role && target.raw() != "definitions/index.json" {
                 continue;
             }
-            if target.raw() == super::history_checkpoint::TARGET {
+            if target.raw() == super::history_checkpoint::TARGET
+                || target.raw() == portcove_listing_carrier::COVER_CHECKPOINT_TARGET
+            {
                 continue;
             }
             if !definition_role && !target.raw().starts_with("policy/official/") {
@@ -1095,6 +1216,10 @@ fn repository_report(
         expires,
         index_sha256: index_sha256.to_owned(),
         listing_floor_ledger: None,
+        cover_approvals: super::cover_approval::from_policy(at(
+            &actual_roles,
+            "official-policy.json",
+        )?)?,
         authority: "none",
     })
 }
@@ -1112,6 +1237,8 @@ struct VerificationConfig {
     repository: String,
     #[serde(default)]
     history_store: Option<String>,
+    #[serde(default)]
+    verify_cover_history: bool,
 }
 
 #[derive(Deserialize)]
@@ -1227,6 +1354,13 @@ pub async fn verify_definition_history(path: &Path) -> Result<DefinitionHistoryR
         policy_versions += usize::from(role == "official-policy.json");
         floors.observe(&files, &logical, role, version, targets)
     })?;
+    let cover = bundle::checked_cover_checkpoint(&logical.files)?;
+    floors.cover_history.check_current(
+        cover.as_ref().map(|(bytes, sha)| (*bytes, sha.as_str())),
+        !logical
+            .files
+            .contains_key(super::history_checkpoint::TARGET),
+    )?;
     floors.check_ledger_floors()?;
     let ledger_report = match &ledger {
         Some(prior) => {
@@ -1320,6 +1454,33 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     if at(&roles, "targets.json")? != &top_bytes {
         return invalid("catalog public offline Targets differs from appointed bytes");
     }
+    let cover = bundle::checked_cover_checkpoint(&logical.files)?;
+    if config.verify_cover_history && config.history_store.is_none() {
+        if logical
+            .files
+            .contains_key(super::history_checkpoint::TARGET)
+        {
+            return invalid("catalog cover verification requires its authenticated history store");
+        }
+        let trust = HistoryTrust {
+            root_bytes: &root_bytes,
+            root: &root,
+            top: &top,
+            next_top: None,
+            online_targets: false,
+        };
+        let mut floor = HistoricalCoverFloor::default();
+        verify_history(&trust, &files, |role, version, targets| {
+            if role == "official-policy.json" {
+                floor.observe(&files, version, targets)?;
+            }
+            Ok(())
+        })?;
+        floor.check_current(
+            cover.as_ref().map(|(bytes, sha)| (*bytes, sha.as_str())),
+            true,
+        )?;
+    }
     if let Some(store) = config.history_store.as_deref() {
         let store = io::resolve(base, store)?;
         let timestamp: Signed<TufTimestamp> =
@@ -1333,7 +1494,8 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
             &delegation_sha256,
             timestamp.signed.version.get(),
             policy.signed.version.get(),
-        )?;
+        )?
+        .check_cover_predecessor(cover.as_ref().map(|(bytes, sha)| (*bytes, sha.as_str())))?;
     }
     let index_sha256 = sha(at(&logical.files, "definitions/index.json")?);
     if io::read(path, CONFIG_MAX)? != config_raw

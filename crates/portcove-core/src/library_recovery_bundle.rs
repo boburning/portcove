@@ -137,7 +137,7 @@ fn prepare(
     let parent = destination_root
         .parent()
         .ok_or_else(|| PortcoveError::usage("recovery bundle destination needs a parent"))?;
-    let available_bytes = fs4::available_space(parent)?;
+    let available_bytes = crate::path::transfer_available_space(parent)?;
     let mut plan = LibraryRecoveryBundlePlan {
         source_root,
         destination_root,

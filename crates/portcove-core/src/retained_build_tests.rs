@@ -956,6 +956,42 @@ fn binding_past_the_old_history_boundary_retires_explicitly_and_keeps_the_instal
     let restored = bind(&service, "custom", &first);
     assert_eq!(restored.build.install_id, first.id);
     assert_eq!(restored.history.len(), MAX_OFFERED_REVISIONS);
+
+    // Records are local history of the reference: they leave with it, and a
+    // port removed and installed again starts without stale retirements.
+    let connection = library.connection().unwrap();
+    assert!(
+        !retirements_from(&connection, &first.port_id, "custom")
+            .unwrap()
+            .is_empty()
+    );
+    connection
+        .execute(
+            "INSERT INTO retained_build_retirements(port_id, setup_id, binding_revision,
+             retired_revision, install_id, revision_json, reason, retired_at)
+             SELECT port_id, 'other-setup', binding_revision, retired_revision, install_id,
+             revision_json, reason, retired_at FROM retained_build_retirements LIMIT 1",
+            [],
+        )
+        .unwrap();
+    release(&service, "custom");
+    assert!(
+        retirements_from(&connection, &first.port_id, "custom")
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        retirements_from(&connection, &first.port_id, "other-setup")
+            .unwrap()
+            .len(),
+        1
+    );
+    library.remove_port(&first.port_id).unwrap();
+    assert!(
+        retirements_from(&connection, &first.port_id, "other-setup")
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]

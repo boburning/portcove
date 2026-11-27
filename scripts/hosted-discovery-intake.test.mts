@@ -160,6 +160,7 @@ async function fixture(
   candidates = [candidate],
   schemaVersion = 1,
   checkpoints?: HostedIntakeCheckpointStore,
+  transportTimeoutMs?: number,
 ) {
   const comments = new Map<
     number,
@@ -203,42 +204,46 @@ async function fixture(
       throw new Error("Unexpected domain transport");
     },
   });
-  const sdk = await fixtureGitHub(({ method: _method, endpoint, body }) => {
-    const value = body as { body: string };
-    if (_method === "GET") {
-      if (endpoint === "repos/boburning/portcove/issues/177")
-        return {
-          node_id: "I177",
-          comments: [...comments.values()].filter((c) => c.issue_url === issueUrl).length,
-          updated_at: "2026-10-28T00:00:00Z",
-        };
-      const listing = endpoint.match(/issues\/(\d+)\/comments\?per_page=(?:20|100)$/u);
-      if (listing)
-        return [...comments.values()].filter(
-          (c) =>
-            c.issue_url === `https://api.github.com/repos/boburning/portcove/issues/${listing[1]}`,
+  const sdk = await fixtureGitHub(
+    ({ method: _method, endpoint, body }) => {
+      const value = body as { body: string };
+      if (_method === "GET") {
+        if (endpoint === "repos/boburning/portcove/issues/177")
+          return {
+            node_id: "I177",
+            comments: [...comments.values()].filter((c) => c.issue_url === issueUrl).length,
+            updated_at: "2026-10-28T00:00:00Z",
+          };
+        const listing = endpoint.match(/issues\/(\d+)\/comments\?per_page=(?:20|100)$/u);
+        if (listing)
+          return [...comments.values()].filter(
+            (c) =>
+              c.issue_url ===
+              `https://api.github.com/repos/boburning/portcove/issues/${listing[1]}`,
+          );
+        const c = comments.get(Number(endpoint.split("/").at(-1)));
+        if (!c) throw new Error("Unknown comment read");
+        return structuredClone(c);
+      }
+      const id = _method === "POST" ? commentId++ : Number(endpoint.split("/").at(-1));
+      const target = endpoint.match(/issues\/(\d+)\/comments$/u)?.[1] ?? "177";
+      const c = {
+        id,
+        body: value.body,
+        user: { login: "github-actions[bot]" },
+        issue_url: `https://api.github.com/repos/boburning/portcove/issues/${target}`,
+      };
+      comments.set(id, c);
+      if (target === "177")
+        snapshots.push(
+          expandHostedReceiptWire(
+            JSON.parse(value.body.match(/```json\n([\s\S]+)\n```$/u)![1]!),
+          ) as (typeof snapshots)[number],
         );
-      const c = comments.get(Number(endpoint.split("/").at(-1)));
-      if (!c) throw new Error("Unknown comment read");
       return structuredClone(c);
-    }
-    const id = _method === "POST" ? commentId++ : Number(endpoint.split("/").at(-1));
-    const target = endpoint.match(/issues\/(\d+)\/comments$/u)?.[1] ?? "177";
-    const c = {
-      id,
-      body: value.body,
-      user: { login: "github-actions[bot]" },
-      issue_url: `https://api.github.com/repos/boburning/portcove/issues/${target}`,
-    };
-    comments.set(id, c);
-    if (target === "177")
-      snapshots.push(
-        expandHostedReceiptWire(
-          JSON.parse(value.body.match(/```json\n([\s\S]+)\n```$/u)![1]!),
-        ) as (typeof snapshots)[number],
-      );
-    return structuredClone(c);
-  });
+    },
+    transportTimeoutMs === undefined ? {} : { timeoutMs: transportTimeoutMs },
+  );
   client.createPortIssue = async (input) => {
     if (input.inventory)
       requireRoadmapInventory(input.inventory, config.repository, client, "identity");
@@ -672,6 +677,40 @@ void test("existing observations deduplicate across proposals and preserve non-n
   assert.equal(f.fields.Priority, "High");
   assert.equal(f.normalizations, 0);
   assert.equal(f.creations, 0);
+});
+
+void test("hosted intake parks an issue-free catalog owner and delivers a separate candidate", async () => {
+  const known = {
+    ...candidate,
+    title: "Dungeon Crawl Stone Soup",
+    game: "Dungeon Crawl Stone Soup",
+    upstream: "https://github.com/renamed/crawl",
+    repository_id: 23038334,
+    port_key: "crawl-renamed",
+  };
+  const f = await fixture(
+    [
+      known,
+      {
+        ...known,
+        title: "Recycled repository",
+        game: "Different game",
+        upstream: "https://github.com/crawl/crawl",
+        repository_id: 123454321,
+        port_key: "recycled-crawl",
+      },
+      candidate,
+    ].map((item) => ({ ...item, intent: { kind: "create" } })),
+    2,
+  );
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.status, "complete_with_holds");
+  assert.equal(result.delivery[0]!.hold?.repository_id, 23038334);
+  assert.equal(result.delivery[0]!.created_issue, undefined);
+  assert.equal(result.delivery[1]!.hold?.repository_id, 123454321);
+  assert.equal(result.delivery[2]!.status, "delivered");
+  assert.equal(f.creations, 1);
+  assert.equal((await f.bridge.status(f.request, f.all())).status, "complete_with_holds");
 });
 void test("a transferred immutable catalog repository routes to its original owner", async () => {
   const c = {
@@ -1342,7 +1381,7 @@ void test("multibyte evidence fits without duplicating proposal text in the rece
 for (const count of [29, 48])
   void test(
     `${count} candidates fit one receipt and retain every scoped doctor and the full-doctor obligation`,
-    { timeout: 120_000 },
+    { timeout: 210_000 },
     async () => {
       const candidates = Array.from({ length: count }, (_, index) => ({
         ...candidate,
@@ -1352,7 +1391,9 @@ for (const count of [29, 48])
         port_key: `discovery-receipt-capacity-test-game-implementation-${index}`,
         repository_id: candidate.repository_id + index,
       }));
-      const f = await fixture(candidates);
+      // The full receipt and every intermediate round trip use the real SDK.
+      // Leave room under the test timeout for status and recovery assertions.
+      const f = await fixture(candidates, 1, undefined, 180_000);
       const inventory = f.bridge.inventory.bind(f.bridge);
       f.bridge.inventory = (cache, full) => {
         if (full) throw new Error(`Fixture full doctor input unavailable: ${"界".repeat(1500)}`);

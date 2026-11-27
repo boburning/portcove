@@ -994,7 +994,7 @@ export type OutputListingStatuses = PortListingStatus[];
 /**
  * A read-only provider browser Core can run for a portal.
  */
-export type ExternalModBrowser = "quaddicted" | "mod_db_feed";
+export type ExternalModBrowser = "quaddicted" | "mod_db_feed" | "provider_catalog";
 /**
  * The site family a portal belongs to, for its link label.
  */
@@ -1662,6 +1662,7 @@ export interface TransportOutputs {
   mod_code_review: OutputModCodeReview;
   mod_file_preservation_plan: ModFilePreservationPlan;
   mod_file_preservation_result: OutputModFilePreservationResult;
+  mod_portals_view: OutputModPortalsView;
   mod_setup_draft_preview: OutputModSetupDraftPreview;
   mod_setups_view: OutputModSetupsView;
   moddb_file_notices: OutputModdbFileNotices;
@@ -1742,6 +1743,7 @@ export interface TransportOutputs {
   steamgriddb_listing_report: OutputSteamgriddbListingReport;
   storage: StorageSummary;
   store_game_installs: OutputStoreGameInstalls;
+  successor_evidence_preparation: OutputSuccessorEvidencePreparation;
   update_batch_outcome: OutputUpdateBatchOutcome;
   update_check: UpdateCheck;
   update_check_forecast: OutputUpdateCheckForecast;
@@ -3989,7 +3991,16 @@ export interface PortListing {
   listed_at?: string | null;
   manual_setup?: ManualSetupGuide | null;
   media?: CatalogMediaAsset[];
+  /**
+   * Reviewed community links for this listing. Requires listing format 16.
+   */
+  mod_portals?: ListingModPortal[];
   name: string;
+  /**
+   * Exact official definition to check from this listing. It confers no
+   * acquisition or runtime ownership and requires listing format 18.
+   */
+  official_setup_id?: string | null;
   original_game?: OriginalGameIdentity | null;
   original_game_title?: string | null;
   /**
@@ -4014,6 +4025,16 @@ export interface PortListing {
    */
   upstream_observation?: ListingUpstreamObservation | null;
   variant_label?: string | null;
+}
+/**
+ * A reviewed link to a mod community for this exact listing.
+ */
+export interface ListingModPortal {
+  id: string;
+  instructions: string;
+  name: string;
+  site: ModPortalSite;
+  url: string;
 }
 export interface ListingReleaseMaintenance {
   /**
@@ -6233,6 +6254,59 @@ export interface OutputModFilePreservationResult {
   preserved_path: string;
   [k: string]: unknown;
 }
+export interface OutputModPortalsView {
+  external_mod_portals: ExternalModPortal[];
+  mod_portal_preferences: ModPortalPreferenceView;
+  [k: string]: unknown;
+}
+export interface ExternalModPortal {
+  /**
+   * The current port and platform qualify for the optional read-only provider browser.
+   */
+  browse_available?: boolean;
+  /**
+   * The read-only browser this source can use, when it has one.
+   */
+  browser?: ExternalModBrowser | null;
+  /**
+   * Catalog-authored setup guide for files from this source.
+   */
+  instructions: string;
+  /**
+   * Player-facing site or collection name from the catalog.
+   */
+  name: string;
+  site: ExternalModSite;
+  /**
+   * The declared source ID. Clients pass it back to open a page.
+   */
+  source: string;
+  url: string;
+  [k: string]: unknown;
+}
+export interface ModPortalPreferenceView {
+  automatic_sources: AutomaticModPortal[];
+  preferences: ModPortalPreferences;
+  [k: string]: unknown;
+}
+export interface AutomaticModPortal {
+  name: string;
+  source: string;
+  [k: string]: unknown;
+}
+export interface ModPortalPreferences {
+  choices: ModPortalChoices;
+  revision: number;
+  [k: string]: unknown;
+}
+export interface ModPortalChoices {
+  hidden_sources: string[];
+  local_page: LocalModPage | null;
+}
+export interface LocalModPage {
+  name: string;
+  url: string;
+}
 export interface OutputModSetupDraftPreview {
   conflicts: AssetConflict[];
   conflicts_truncated: boolean;
@@ -6308,6 +6382,10 @@ export interface OutputModSetupsView {
   later_mods_take_priority: boolean;
   live: LiveMods | null;
   /**
+   * Local descriptive link choices and the defaults they can hide.
+   */
+  mod_portal_preferences?: ModPortalPreferenceView | null;
+  /**
    * Package file types the game loads, such as `o2r`.
    */
   package_types: string[];
@@ -6330,31 +6408,6 @@ export interface OutputModSetupsView {
    * False when the game has no reviewed managed mod package contract.
    */
   supported: boolean;
-  [k: string]: unknown;
-}
-export interface ExternalModPortal {
-  /**
-   * The current port and platform qualify for the optional read-only provider browser.
-   */
-  browse_available?: boolean;
-  /**
-   * The read-only browser this source can use, when it has one.
-   */
-  browser?: ExternalModBrowser | null;
-  /**
-   * Catalog-authored setup guide for files from this source.
-   */
-  instructions: string;
-  /**
-   * Player-facing site or collection name from the catalog.
-   */
-  name: string;
-  site: ExternalModSite;
-  /**
-   * The declared source ID. Clients pass it back to open a page.
-   */
-  source: string;
-  url: string;
   [k: string]: unknown;
 }
 /**
@@ -8101,6 +8154,47 @@ export interface StoreGameInstall {
 export interface StoreOriginalFolder {
   path: string;
   profile_id: string;
+  [k: string]: unknown;
+}
+/**
+ * Immutable operands for a future exact lifecycle evidence check. Preparation
+ * has no publication or support authority.
+ */
+export interface OutputSuccessorEvidencePreparation {
+  anchor_observations: SourceEvidence[];
+  predecessor: SuccessorEvidenceSubject;
+  rule_version: number;
+  selected_at: number;
+  successor: SuccessorEvidenceSubject;
+  [k: string]: unknown;
+}
+/**
+ * The custody and operational coordinates of one exact managed package.
+ */
+export interface SuccessorEvidenceSubject {
+  artifact_sha256: string;
+  asset_id: number;
+  channel: ReleaseChannel;
+  contract_id: string;
+  coordinates: SupportCoordinates;
+  definition: DefinitionSelectionIdentity;
+  definition_sha256: string;
+  platform: Platform;
+  policy_sha256: string;
+  release_id: number;
+  repository_id: number;
+  tag: string;
+  trust_anchor_sha256: string;
+  variants: SourceIdentity[];
+  [k: string]: unknown;
+}
+/**
+ * Conservative comparisons derived from complete typed operational coordinates.
+ */
+export interface SupportCoordinates {
+  data: string;
+  launch: string;
+  setup: string;
   [k: string]: unknown;
 }
 export interface OutputUpdateBatchOutcome {

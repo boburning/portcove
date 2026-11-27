@@ -116,6 +116,7 @@ import {
   GithubStatusError,
   identityRefusals,
   refusalRecord,
+  reproductionArchiveTransfer,
   withholdRefused,
   withheldSummary,
   parseProviderRelease,
@@ -2554,7 +2555,11 @@ void test("only deliver and merge mint the App token, in the facts-batch environ
       );
       // The key reaches the mint step alone; the token only the steps that write.
       for (const other of job.steps.filter((candidate) => candidate !== step)) {
-        assert.doesNotMatch(JSON.stringify(other), /secrets\.|FACTS_BATCH_APP/u, name);
+        assert.doesNotMatch(
+          JSON.stringify(other),
+          /secrets\.|FACTS_BATCH_APP_ID|FACTS_BATCH_APP_PRIVATE_KEY/u,
+          name,
+        );
         if (JSON.stringify(other).includes("steps.app.outputs.token"))
           assert.match(
             JSON.stringify(other.env ?? {}),
@@ -2569,7 +2574,9 @@ void test("only deliver and merge mint the App token, in the facts-batch environ
       );
       assert.ok(firstUse > minted, `${name} uses the token after minting it`);
       // Pushes carry a step-scoped credential, never a persisted one or a URL token.
-      for (const candidate of job.steps.filter((item) => /git push/u.test(item.run ?? ""))) {
+      for (const candidate of job.steps.filter((item) =>
+        /\bgit(?: -c \S+)* push\b/u.test(item.run ?? ""),
+      )) {
         assert.match(
           candidate.run!,
           /GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http\.https:\/\/github\.com\/\.extraheader/u,
@@ -2629,10 +2636,39 @@ void test("only deliver and merge mint the App token, in the facts-batch environ
   );
   // The App token opens the pull request; the state is saved only after.
   const deliver = workflow.jobs.deliver!;
+  const pushed = deliver.steps.find((step) => step.name === "Push the one-commit batch branch")!;
   const opened = deliver.steps.find((step) => /open-pull-request/u.test(step.run ?? ""))!;
+  assert.ok(deliver.steps.indexOf(pushed) < deliver.steps.indexOf(opened));
+  const slugCheck =
+    /\[\[ "\$EXPECTED_APP_SLUG" =~ [^\n]+ && "\$APP_SLUG" == "\$EXPECTED_APP_SLUG" \]\]/u;
+  for (const step of [merge.steps[bound]!, pushed]) {
+    assert.equal(step.env!.EXPECTED_APP_SLUG, "${{ vars.PORTCOVE_FACTS_BATCH_APP_SLUG }}");
+    assert.equal(step.env!.APP_SLUG, "${{ steps.app.outputs['app-slug'] }}");
+    assert.match(step.run!, slugCheck);
+  }
+  assert.ok(pushed.run!.search(slugCheck) < pushed.run!.indexOf("git -c"));
   assert.equal(opened.env!.GITHUB_TOKEN, "${{ steps.app.outputs.token }}");
   // No documentation or code path asks a person to approve, close or reopen a batch.
   assert.doesNotMatch(text, /Approve workflows|approval-required|close and reopen/iu);
+});
+
+void test("the shard plan ships the inspector without debug sections", () => {
+  const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
+    jobs: { prepare: { steps: { run?: string; with?: { name?: string } }[] } };
+  };
+  const steps = workflow.jobs.prepare.steps;
+  const build = steps.findIndex((step) =>
+    step.run?.includes("cargo build --locked -p portcove-cli"),
+  );
+  const upload = steps.findIndex((step) =>
+    step.with?.name?.startsWith("listing-facts-batch-plan-"),
+  );
+  assert.ok(build >= 0 && upload > build);
+  const script = steps[build]?.run ?? "";
+  assert.match(
+    script,
+    /cp target\/debug\/portcove "\$WORK\/cli\/portcove"[\s\S]*?strip --strip-debug "\$WORK\/cli\/portcove"/u,
+  );
 });
 
 void test("deliver and merge never execute batch or artifact content; the mint comes last (F1)", () => {
@@ -4108,4 +4144,36 @@ void test("refusals of every reproduced identity for one reason stop the job ins
   assert.equal(systemicRefusal(1, [refusal("a")]), undefined);
   assert.equal(systemicRefusal(3, [refusal("a"), refusal("b")]), undefined);
   assert.equal(systemicRefusal(2, [refusal("a"), refusal("b", "mismatch")]), undefined);
+});
+
+void test("reproduction transfer reports partial and missing shard measurements independently of refusal", () => {
+  const directory = mkdtempSync(join(tmpdir(), "facts-reproduction-transfer-"));
+  try {
+    const write = (name: string, value: unknown) =>
+      writeFileSync(join(directory, name), JSON.stringify(value));
+    const refused = refusalRecord(
+      1,
+      [{ port_id: "fixture-port", reason: "over-budget", detail: "partial archive" }],
+      123,
+    );
+    assert.equal(refused.transient, true);
+    write("refusals-0.json", refused);
+    write("refusals-1.json", refusalRecord(0, [], 0));
+    write("refusals-2.json", refusalRecord(0, []));
+    write("refusals-3.json", refusalRecord(0, [], -1));
+    write("refusals-5.json", refusalRecord(0, [], 999));
+    assert.deepEqual(reproductionArchiveTransfer(directory, 5), {
+      expected_shards: 5,
+      measured_shards: 2,
+      archive_body_bytes: 123,
+    });
+    assert.deepEqual(reproductionArchiveTransfer(join(directory, "absent"), 5), {
+      expected_shards: 5,
+      measured_shards: 0,
+      archive_body_bytes: null,
+    });
+    assert.equal(reproductionArchiveTransfer(directory, 0), undefined);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

@@ -274,6 +274,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "successor_evidence_preparation",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::SuccessorEvidencePreparation,
+                >(contract)),
+            ),
+            (
                 "definition_authority_review",
                 serde_json::json!(schema_for_contract::<
                     portcove_core::DefinitionAuthorityReview,
@@ -918,6 +924,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             (
                 "live_mods",
                 serde_json::json!(schema_for_contract::<portcove_core::LiveMods>(contract)),
+            ),
+            (
+                "mod_portals_view",
+                serde_json::json!(schema_for_contract::<portcove_core::ModPortalsView>(
+                    contract
+                )),
             ),
             (
                 "mod_setups_view",

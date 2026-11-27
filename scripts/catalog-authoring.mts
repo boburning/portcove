@@ -1,3 +1,7 @@
+import {
+  isBoundLauncherModPortal,
+  observedLauncherModPortalPrefix,
+} from "./first-party-mod-portal.mts";
 import { checkImplementationMetadata } from "./implementation-metadata.mts";
 import type { ImplementationMetadata } from "./implementation-metadata.mts";
 import {
@@ -26,6 +30,7 @@ import {
 } from "./catalog-generated-registration.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
+import type { ModPortalSite } from "../apps/desktop/src/transport-types.generated.d.ts";
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -51,6 +56,14 @@ import type {
 } from "./catalog-acquisition-restrictions.mts";
 import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineage.mts";
 import type { UpstreamLineage } from "./upstream-lineage.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
+import { sharedOriginalMedia, typedIgdbScene } from "./shared-original-media.mts";
+import {
+  checkReviewedOriginalMedia,
+  indexAuthoredOriginalMedia,
+} from "./reviewed-original-media.mts";
+import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
+export { typedIgdbScene } from "./shared-original-media.mts";
 
 // These are checked authoring projections, not a second catalog schema. Unknown
 // metadata is retained verbatim; the captured Core inspector owns admission.
@@ -98,6 +111,13 @@ export interface AuthoredListing extends NamedRecord {
   listed_at?: string;
   /** Reviewed upstream support pages. Descriptive only; requires listing format 10. */
   funding_urls?: string[];
+  mod_portals?: {
+    id: string;
+    site: ModPortalSite;
+    name: string;
+    url: string;
+    instructions: string;
+  }[];
   release_url?: string;
   setup_url?: string;
   manual_setup?: unknown;
@@ -110,6 +130,12 @@ export interface AuthoredPort extends Record<string, unknown> {
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
   igdb_regional_cover?: IgdbRegionalCover;
+  /** Reviewed IGDB preparation decisions at the exact shared original edition scope. */
+  igdb_original_media_v1?: ReviewedOriginalMediaDecision[];
+  /** Keep this variant out of the exact same-edition shared cover policy. */
+  igdb_no_shared_cover?: true;
+  /** Suppress generated community browser links for this implementation. */
+  no_observed_mod_portals?: true;
   /** Ordered platforms with an independently reviewed flat, single-program archive. */
   reviewed_flat_package_layout_v1?: string[];
   /** Desktop review copy, outside signed and retained definition schemas. */
@@ -164,13 +190,6 @@ const listingPresentationFields = [
   "media",
 ] as const;
 
-export function typedIgdbScene(asset: unknown) {
-  return (
-    isRecord(asset) &&
-    (asset.role === "header" || asset.role === "screenshot") &&
-    asset.igdb != null
-  );
-}
 const sharedPortFields = ["id", "name", "summary", "project_url"] as const;
 const listingFields = new Set([
   "compatibility",
@@ -186,6 +205,7 @@ const listingFields = new Set([
   "issue_number",
   "listed_at",
   "funding_urls",
+  "mod_portals",
   "release_url",
   "setup_url",
 ]);
@@ -220,6 +240,12 @@ function boundedText(value: unknown, maximum: number): value is string {
   return true;
 }
 
+export function admittedGithubRepositoryId(id: string): number | undefined {
+  if (!/^github-[1-9][0-9]*$/u.test(id)) return undefined;
+  const repositoryId = Number(id.slice(7));
+  return Number.isSafeInteger(repositoryId) ? repositoryId : undefined;
+}
+
 function publicUrl(value: unknown, field: string) {
   if (!boundedText(value, 4096))
     throw new Error(`Listing ${field} requires a bounded public HTTPS URL.`);
@@ -231,6 +257,114 @@ function publicUrl(value: unknown, field: string) {
   }
   if (url.protocol !== "https:" || url.username || url.password)
     throw new Error(`Listing ${field} requires a credential-free HTTPS URL.`);
+  return value;
+}
+
+export const observedModPortalPrefix = "obs-ts-";
+
+function projectReviewedProviderWebsites(record: AuthoredPort): AuthoredListing {
+  const { integration, listing } = record;
+  const bindings: unknown = integration?.mod_provider_bindings;
+  if (
+    !Array.isArray(bindings) ||
+    integration?.legacy_mod_provider_held === true ||
+    record.no_observed_mod_portals ||
+    usesScummvmEngine(record)
+  )
+    return listing;
+
+  const authored = listing.mod_portals ?? [];
+  const portals = [...authored];
+  const reviewed = (bindings as unknown[]).filter(isRecord);
+  for (const provider of ["gamebanana", "thunderstore"] as const) {
+    const matches = reviewed.filter((binding) => binding.provider === provider);
+    const binding = matches[0];
+    if (matches.length !== 1 || !binding || Object.keys(binding).length !== 2) continue;
+    const id = `reviewed-${provider}`;
+    const host = provider === "gamebanana" ? "gamebanana.com" : "thunderstore.io";
+    if (
+      portals.length >= 8 ||
+      authored.some(
+        (portal) =>
+          portal.id === id || new URL(portal.url).hostname.replace(/^www\./u, "") === host,
+      )
+    )
+      continue;
+    let url: string;
+    if (provider === "gamebanana") {
+      const game = binding.game_id;
+      if (typeof game !== "number" || !Number.isSafeInteger(game) || game < 1) continue;
+      url = `https://${host}/games/${game}`;
+    } else {
+      const community = binding.community;
+      if (!boundedText(community, 80) || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(community))
+        continue;
+      url = `https://${host}/c/${community}/`;
+    }
+    portals.push({
+      id,
+      site: "community_site",
+      name: provider === "gamebanana" ? "GameBanana" : "Thunderstore",
+      url,
+      instructions: "Open the community to browse its mods.",
+    });
+  }
+  if (portals.length === authored.length) return listing;
+  checkListingModPortals(portals, listing.id);
+  return { ...listing, mod_portals: portals };
+}
+
+function checkListingModPortals(value: unknown, listingId: string) {
+  const repositoryId = admittedGithubRepositoryId(listingId);
+  const hosts = new Map<string, string | null>([
+    ["community_site", null],
+    ["mod_db", "www.moddb.com"],
+    ["mod_io", "mod.io"],
+    ["nexus_mods", "www.nexusmods.com"],
+  ]);
+  const ids = new Set<string>();
+  if (!Array.isArray(value) || value.length === 0 || value.length > 8)
+    throw new Error("Listing mod_portals requires one to eight reviewed community links.");
+  for (const portal of value as unknown[]) {
+    if (
+      !isRecord(portal) ||
+      Object.keys(portal).length !== 5 ||
+      !boundedText(portal.id, 64) ||
+      !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(portal.id) ||
+      portal.id.startsWith(observedModPortalPrefix) ||
+      (portal.id.startsWith(observedLauncherModPortalPrefix) &&
+        (repositoryId === undefined || !isBoundLauncherModPortal(portal, repositoryId))) ||
+      ids.has(portal.id) ||
+      typeof portal.site !== "string" ||
+      !hosts.has(portal.site) ||
+      !boundedText(portal.name, 80) ||
+      !boundedText(portal.instructions, 400) ||
+      /[<>]/u.test(portal.name + portal.instructions) ||
+      !boundedText(portal.url, 256)
+    )
+      throw new Error("Invalid listing mod portal declaration.");
+    publicUrl(portal.url, "mod_portals");
+    const url = new URL(portal.url);
+    const host = hosts.get(portal.site);
+    if (
+      url.href !== portal.url ||
+      url.port ||
+      url.search ||
+      url.hash ||
+      portal.url.includes("?") ||
+      portal.url.includes("#") ||
+      /[\\%]/u.test(portal.url) ||
+      !url.hostname.includes(".") ||
+      /(?:\.localhost|\.local|\.internal)$/u.test(url.hostname) ||
+      /^\d+(?:\.\d+){3}$/u.test(url.hostname) ||
+      !url.hostname
+        .split(".")
+        .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(label)) ||
+      (host && url.hostname !== host)
+    )
+      throw new Error("Invalid listing mod portal URL.");
+    ids.add(portal.id);
+  }
 }
 
 function checkPlayerCopy(id: string, field: string, text: unknown) {
@@ -611,6 +745,10 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     (!validArtworkCollection(listing.collection_covers) || listing.artwork != null)
   )
     throw new Error("Invalid authored cover collection.");
+  if (value.igdb_no_shared_cover !== undefined && value.igdb_no_shared_cover !== true)
+    throw new Error("An authored shared cover exclusion must be true.");
+  if (value.no_observed_mod_portals !== undefined && value.no_observed_mod_portals !== true)
+    throw new Error("An authored generated mod portal exclusion must be true.");
   const regional = value.igdb_regional_cover;
   if (regional !== undefined) {
     if (listing.collection_covers !== undefined)
@@ -651,9 +789,29 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     listing.manual_setup,
     value.route_facts_v1 !== undefined,
   );
-  publicUrl(listing.project_url, "project_url");
-  for (const field of ["release_url", "setup_url"] as const)
-    if (listing[field] !== undefined) publicUrl(listing[field], field);
+  const projectUrl = publicUrl(listing.project_url, "project_url");
+  const releaseUrl =
+    listing.release_url === undefined ? undefined : publicUrl(listing.release_url, "release_url");
+  if (listing.setup_url !== undefined) publicUrl(listing.setup_url, "setup_url");
+  if (admittedGithubRepositoryId(listing.id) !== undefined) {
+    const project = projectUrl.replace(/\/$/u, "");
+    const release = releaseUrl?.replace(/\/$/u, "");
+    const canonicalProject =
+      /^https:\/\/github\.com\/[A-Za-z0-9_-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/u;
+    const canonicalRelease =
+      /^https:\/\/github\.com\/[A-Za-z0-9_-]{1,100}\/[A-Za-z0-9_.-]{1,100}(?:\/releases)?$/u;
+    const scope = project.toLowerCase();
+    if (
+      !canonicalProject.test(project) ||
+      scope.endsWith("/.") ||
+      scope.endsWith("/..") ||
+      scope.endsWith(".git") ||
+      (release !== undefined &&
+        (!canonicalRelease.test(release) ||
+          ![scope, `${scope}/releases`].includes(release.toLowerCase())))
+    )
+      throw new Error("A repository-bound listing needs one GitHub project and its release scope.");
+  }
   if (
     listing.availability !== undefined &&
     (typeof listing.availability !== "string" ||
@@ -732,6 +890,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     throw new Error("Listing issue_number must be a positive integer.");
   if (listing.listed_at !== undefined && !isCalendarDate(listing.listed_at))
     throw new Error("Listing listed_at must be a real calendar date written YYYY-MM-DD.");
+  if (listing.mod_portals !== undefined) checkListingModPortals(listing.mod_portals, listing.id);
   if (listing.funding_urls !== undefined) {
     const urls: unknown = listing.funding_urls;
     // Core treats an empty list as absent; authored files omit the field instead.
@@ -812,6 +971,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       }
     }
   }
+  checkReviewedOriginalMedia(value.igdb_original_media_v1, listing.original_game);
   for (const field of ["original_game_title", "variant_label"] as const)
     if (listing[field] !== undefined && !boundedText(listing[field], 512))
       throw new Error(`Listing ${field} requires bounded nonempty text.`);
@@ -943,6 +1103,15 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
   });
 }
 
+export function projectEmbeddedOriginalGame(
+  originalGame: NonNullable<AuthoredListing["original_game"]>,
+) {
+  const original = structuredClone(originalGame);
+  // Verified source bindings belong to the versioned listing directory.
+  for (const edition of original.source_editions) delete edition.verified_sources;
+  return original;
+}
+
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
   const declared = projectReviewedFlatPackageLayout(input);
   const record = projectSettingsQualification(
@@ -965,9 +1134,7 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
       presentation[field] = managedGuide;
       integration.presentation = presentation;
     } else if (field === "original_game" && record.listing.original_game) {
-      const original = structuredClone(record.listing.original_game);
-      for (const edition of original.source_editions) delete edition.verified_sources;
-      presentation[field] = original;
+      presentation[field] = projectEmbeddedOriginalGame(record.listing.original_game);
       integration.presentation = presentation;
     } else if (Object.hasOwn(record.listing, field)) {
       const value = record.listing[field];
@@ -997,6 +1164,7 @@ export function assembleCatalogRecords(
   const authored = inputs.map((record) => checkedAuthoredPort(record));
   if (new Set(authored.map((record) => record.listing.id)).size !== authored.length)
     throw new Error("Catalog source has duplicate stable listing IDs.");
+  const reviewedOriginalMedia = indexAuthoredOriginalMedia(authored);
   // Data-derived user-selected registration routes. Each generated record then
   // passes exactly the validation a hand-authored record does.
   const generation = generateRegistrations(authored, listingPackageFacts);
@@ -1026,13 +1194,13 @@ export function assembleCatalogRecords(
     ...(hasReferences ? { schema_version: 3 } : {}),
     ports,
   });
-  const listings = records
+  const listed = records
     .map(projectRouteFacts)
     .map(projectPackagePlayerFacts)
     .map((record) => {
       const hints = listingDownloadAssetHints(record);
       return {
-        ...projectListingRestrictions(structuredClone(record.listing)),
+        ...projectListingRestrictions(structuredClone(projectReviewedProviderWebsites(record))),
         ...(hints === undefined ? {} : { download_asset_hints: hints }),
         platforms: [
           ...(Array.isArray(record.integration?.platforms)
@@ -1060,6 +1228,11 @@ export function assembleCatalogRecords(
           : {}),
       };
     });
+  const listings = sharedOriginalMedia(
+    listed,
+    new Set(records.filter(usesScummvmEngine).map(({ listing }) => listing.id)),
+    reviewedOriginalMedia,
+  );
   const extendedMedia = listings.some(
     (listing) =>
       Array.isArray(listing.media) &&
@@ -1092,7 +1265,7 @@ export function assembleCatalogRecords(
   const hasVerifiedEditions = listings.some((listing) =>
     listing.original_game?.source_editions.some((edition) => edition.verified_sources?.length),
   );
-  const format_version = typedRestrictions
+  const precedingFormat = typedRestrictions
     ? 15
     : hasVerifiedEditions
       ? 14
@@ -1132,10 +1305,18 @@ export function assembleCatalogRecords(
                                 )
                               ? 2
                               : 1;
+  const format_version = listings.some(
+    (listing) => admittedGithubRepositoryId(listing.id) !== undefined,
+  )
+    ? 17
+    : listings.some((listing) => listing.mod_portals?.length)
+      ? 16
+      : precedingFormat;
   return {
     records,
     /** The checked authored records before generated registration routes were added. */
     authored,
+    reviewedOriginalMedia,
     catalog,
     directory: { format_version, listings },
     generation,

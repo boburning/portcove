@@ -83,6 +83,29 @@ void test("full proposal preparation cannot combine with ordinary catalog writes
   }
 });
 
+void test("Core image validator hashing accepts an executable beyond the controller payload bound", async (context) => {
+  const { hashCoreImageValidatorFile } = await import("./inspect-igdb-artwork.mts");
+  const { truncateSync, rmSync, symlinkSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-validator-digest-"));
+  context.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const file = join(scratch, "validator");
+  writeFileSync(file, "");
+  assert.throws(() => hashCoreImageValidatorFile(file), /nonempty regular file/u);
+  assert.throws(() => hashCoreImageValidatorFile(scratch), /regular file|EISDIR/u);
+  const chunk = Buffer.alloc(1024 * 1024);
+  truncateSync(file, 128 * chunk.length + 1);
+  const expected = createHash("sha256");
+  for (let index = 0; index < 128; index++) expected.update(chunk);
+  expected.update(Buffer.from([0]));
+  assert.equal(hashCoreImageValidatorFile(file), expected.digest("hex"));
+  if (process.platform !== "win32") {
+    const alias = join(scratch, "alias");
+    symlinkSync(file, alias);
+    assert.throws(() => hashCoreImageValidatorFile(alias), /ELOOP/u);
+  }
+});
+
 void test("captured proposal bytes remain exact after the caller path changes", async () => {
   const { readArtworkInput } = await import("./inspect-igdb-artwork.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-proposal-bytes-"));
@@ -580,6 +603,19 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
               sha256: "b".repeat(64),
               igdb: { game_id: 11, image_id: "goneshot" },
             },
+            {
+              id: "maintained-logo",
+              role: "logo",
+              subject: direct,
+              sha256: "c".repeat(64),
+              igdb: { game_id: 11, image_id: "approvedlogo" },
+            },
+            {
+              id: "manualheader",
+              role: "header",
+              subject: { ...subject, source_edition_id: "two" },
+              sha256: "d".repeat(64),
+            },
           ],
         },
       },
@@ -591,7 +627,18 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
       ports: [
         {
           id: "main-port",
-          presentation: { original_game: { id: "game", source_editions: [{ id: "three" }] } },
+          presentation: {
+            original_game: { id: "game", source_editions: [{ id: "two" }, { id: "three" }] },
+            media: [
+              {
+                id: "igdb-header-original-22",
+                role: "header",
+                subject: { ...subject, source_edition_id: "two" },
+                sha256: "d".repeat(64),
+                igdb: { game_id: 22, image_id: "manualheader" },
+              },
+            ],
+          },
         },
         {
           id: "candidate",
@@ -608,7 +655,7 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
         },
       ],
     },
-    gone_image_ids: ["goneshot", "neveradmitted"],
+    gone_media_targets: ["720p/goneshot", "720p/neveradmitted"],
     records: [
       {
         port_id: "main-port",
@@ -636,14 +683,36 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
   };
   const rows = sceneCoverage(accepted, preparation);
   const main = rows.filter((row) => row.port_id === "main-port");
-  assert.equal(main.length, 8);
-  assert.deepEqual(
-    main.map((row) => row.state),
-    ["missing", "withdrawn", "conflicting", "unknown", "unknown", "unknown", "unknown", "unknown"],
+  assert.equal(main.length, 16);
+  const portRoles = Object.fromEntries(
+    main.filter(({ subject }) => subject.kind === "port").map((row) => [row.role, row]),
   );
-  assert.deepEqual(main[1]?.withdrawn_image_ids, ["goneshot"]);
-  assert.deepEqual(main[2]?.admitted_image_ids, ["catalogheader"]);
-  assert.deepEqual(main[2]?.provider_game_ids, [20, 21]);
+  assert.equal(portRoles.header?.state, "missing");
+  assert.equal(portRoles.key_art?.state, "unknown");
+  assert.equal(portRoles.screenshot?.state, "withdrawn");
+  assert.deepEqual(portRoles.screenshot?.withdrawn_image_ids, ["goneshot"]);
+  assert.equal(portRoles.logo?.state, "admitted");
+  assert.deepEqual(portRoles.logo?.admitted_catalog_asset_ids, ["maintained-logo"]);
+  assert.deepEqual(portRoles.logo?.admitted_image_ids, ["approvedlogo"]);
+  const manualHeader = main.find(
+    (row) =>
+      row.role === "header" &&
+      row.subject.kind === "original" &&
+      row.subject.source_edition_id === "two",
+  );
+  assert.equal(manualHeader?.state, "admitted");
+  assert.deepEqual(manualHeader?.admitted_catalog_asset_ids, ["manualheader"]);
+  assert.deepEqual(manualHeader?.admitted_image_ids, []);
+  assert.deepEqual(manualHeader?.proposed_image_ids, ["manualheader"]);
+  const conflicting = main.find(
+    (row) =>
+      row.role === "header" &&
+      row.subject.kind === "original" &&
+      row.subject.source_edition_id === "one",
+  );
+  assert.equal(conflicting?.state, "conflicting");
+  assert.deepEqual(conflicting?.admitted_image_ids, ["catalogheader"]);
+  assert.deepEqual(conflicting?.provider_game_ids, [20, 21]);
   const candidate = rows.find((row) => row.port_id === "candidate" && row.role === "screenshot");
   assert.equal(candidate?.state, "proposed");
   assert.deepEqual(candidate?.proposed_image_ids, ["proposedshot"]);
@@ -658,5 +727,15 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
     sceneCoverage(accepted, preparation, ["retained-listing"]),
     rows.filter((row) => row.port_id === "retained-listing"),
   );
-  assert.equal(sceneCoverage(accepted, { ...preparation, records: [] })[2]?.state, "admitted");
+  const unobserved = sceneCoverage(accepted, { ...preparation, records: [] });
+  assert.equal(
+    unobserved.find(
+      (row) =>
+        row.port_id === "main-port" &&
+        row.role === "header" &&
+        row.subject.kind === "original" &&
+        row.subject.source_edition_id === "one",
+    )?.state,
+    "admitted",
+  );
 });

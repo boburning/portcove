@@ -207,6 +207,18 @@ export function assembleReviewedPublication(
   portId: string,
   projection: Buffer,
 ) {
+  const prepared = document(projection);
+  const sources = isRecord(prepared.catalog) ? prepared.catalog.source_catalog : null;
+  if (
+    isRecord(sources) &&
+    Array.isArray(sources.qualification) &&
+    sources.qualification.some(
+      (record) => isRecord(record) && Object.hasOwn(record, "successor_support"),
+    )
+  )
+    throw new Error(
+      "successor support publication requires the released reader and reviewed evidence producer",
+    );
   const before = definitions(prior);
   const after = definitions(reviewed);
   const selected = after.get(portId);
@@ -305,6 +317,26 @@ export function assembleReviewedPublication(
       !entry.required_features.includes(feature)
     )
       throw new Error(`${description} require schema 4 and the named reader`);
+  }
+  const modSources = ports.flatMap((port) =>
+    isRecord(port) && Array.isArray(port.mod_sources) ? (port.mod_sources as unknown[]) : [],
+  );
+  if (modSources.length > 0) {
+    named ||= projected.contract_schema === 3;
+    if (
+      entry.definition_schema !== 4 ||
+      !Array.isArray(entry.required_features) ||
+      !entry.required_features.includes("mods.sources-v1")
+    )
+      throw new Error("mod sources require schema 4 and the named reader");
+    if (
+      modSources.some(
+        (source) =>
+          isRecord(source) && Array.isArray(source.platforms) && source.platforms.length === 0,
+      ) &&
+      !entry.required_features.includes("mods.platform-independent-portals-v1")
+    )
+      throw new Error("platform-independent mod portals require the named reader");
   }
   if (!named && entry.definition_schema !== projected.contract_schema) {
     throw new Error("reviewed definition and generated projection schemas differ");

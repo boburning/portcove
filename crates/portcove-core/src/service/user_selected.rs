@@ -2,6 +2,102 @@
 use super::*;
 
 impl PortcoveService {
+    /// Review a specific upstream project and an executable the player selected.
+    /// The provider receives only the project address. The temporary listing
+    /// cannot enter the public catalog or grant any managed operation.
+    pub async fn preview_personal_github_runtime(
+        &self,
+        project_url: &str,
+        executable: &Path,
+        working_directory: &Path,
+        arguments: &[String],
+    ) -> Result<crate::PersonalProjectRuntimePreview> {
+        let (project, service) = self.personal_github_runtime_context(project_url).await?;
+        let registration = service.preview_user_selected_runtime(
+            &format!("github-{}", project.id),
+            executable,
+            working_directory,
+            arguments,
+        )?;
+        Ok(crate::PersonalProjectRuntimePreview {
+            repository_id: project.id,
+            project_url: format!("https://github.com/{}", project.full_name),
+            registration,
+        })
+    }
+
+    /// Save the exact reviewed private registration using the existing exclusive
+    /// installation owner and immutable review checks.
+    pub async fn register_personal_github_runtime(
+        &self,
+        project_url: &str,
+        executable: &Path,
+        working_directory: &Path,
+        arguments: &[String],
+        expected_preview_sha256: &str,
+    ) -> Result<ExternalRuntimeRecord> {
+        let (project, service) = self.personal_github_runtime_context(project_url).await?;
+        let port_id = format!("github-{}", project.id);
+        let authorization = service.authorize_user_selected_runtime(
+            &port_id,
+            executable,
+            working_directory,
+            arguments,
+            expected_preview_sha256,
+        )?;
+        service.register_user_selected_runtime(
+            &port_id,
+            executable,
+            working_directory,
+            arguments,
+            &authorization.token,
+        )
+    }
+
+    async fn personal_github_runtime_context(
+        &self,
+        project_url: &str,
+    ) -> Result<(crate::release::CatalogGithubRepository, Self)> {
+        let project = crate::GithubReleaseProvider::for_personal_project_lookup()?
+            .public_catalog_repository(project_url)
+            .await?;
+        let service = self.personal_runtime_context(project.id, &project.full_name)?;
+        Ok((project, service))
+    }
+
+    fn personal_runtime_context(&self, repository_id: u64, full_name: &str) -> Result<Self> {
+        let (current, provenance) = self.library.load_catalog()?;
+        let listing = serde_json::from_value(serde_json::json!({
+            "id": format!("github-{repository_id}"),
+            "name": full_name,
+            "summary": "Public upstream project selected for this library.",
+            "project_url": format!("https://github.com/{full_name}"),
+        }))?;
+        current.require_personal_project_unlisted(&listing)?;
+        Library::require_no_legacy_personal_project_registration(
+            &self.library.connection()?,
+            &listing,
+        )?;
+        let private_catalog = Catalog::for_user_selected_listing(listing)?;
+        let mut service = Self::from_catalog(
+            self.library.clone(),
+            self.releases.clone(),
+            private_catalog,
+            provenance,
+        );
+        service.personal_registration = true;
+        Ok(service)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn fixture_personal_runtime_context(
+        &self,
+        repository_id: u64,
+        full_name: &str,
+    ) -> Result<Self> {
+        self.personal_runtime_context(repository_id, full_name)
+    }
+
     pub(super) fn require_user_selected_path_ownership(
         &self,
         executable: &Path,
@@ -176,7 +272,7 @@ impl PortcoveService {
         arguments: &[String],
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<ExternalRuntimePreview> {
-        let pending = self.pending_setup_registration(port_id)?;
+        let pending = self.pending_user_selection(port_id)?;
         let listing = match &pending {
             Some((record, _)) => &record.listing,
             None => self.catalog.listing(port_id)?,
@@ -225,6 +321,18 @@ impl PortcoveService {
             ))?);
         }
         Ok(preview)
+    }
+
+    fn pending_user_selection(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<(crate::PendingSetupRecord, String)>> {
+        if self.personal_registration {
+            self.require_no_pending_setup(port_id)?;
+            Ok(None)
+        } else {
+            self.pending_setup_registration(port_id)
+        }
     }
 
     pub(super) fn with_user_selected_readiness(&self, mut status: PortStatus) -> PortStatus {
@@ -360,7 +468,9 @@ impl PortcoveService {
             ));
         }
         // A saved setup resumes at this reviewed plan after an interruption.
-        self.record_pending_registration_review(port_id, &preview)?;
+        if !self.personal_registration {
+            self.record_pending_registration_review(port_id, &preview)?;
+        }
         self.library
             .issue_authorization("register_user_selected", port_id, &preview.preview_sha256)
     }
@@ -392,14 +502,16 @@ impl PortcoveService {
             )?;
             // A staged setup whose bound facts changed cannot complete here;
             // the retained package digest check can be cancelled.
-            self.require_pending_setup_continuable(port_id, &|| operation.checkpoint())?;
+            if !self.personal_registration {
+                self.require_pending_setup_continuable(port_id, &|| operation.checkpoint())?;
+            }
             self.library.consume_authorization(
                 authorization_token,
                 "register_user_selected",
                 port_id,
                 &preview.preview_sha256,
             )?;
-            let pending = self.pending_setup_registration(port_id)?;
+            let pending = self.pending_user_selection(port_id)?;
             let accepted_selected =
                 pending.is_none() && self.current_user_selected_definition(port_id)?.is_some();
             let retained = if accepted_selected {
@@ -429,6 +541,9 @@ impl PortcoveService {
                     .flatten(),
                 shared_preferences: None,
             };
+            if self.personal_registration {
+                return self.library.register_personal_runtime(record, &retained);
+            }
             self.library.register_external_runtime_finishing_setup(
                 record,
                 &retained,
@@ -641,6 +756,149 @@ mod tests {
         working: &Path,
     ) -> ExternalRuntimeRecord {
         register_with_arguments(service, id, executable, working, &["--help".into()])
+    }
+
+    #[test]
+    fn private_repository_registration_joins_the_same_public_id_without_rekeying() {
+        const ID: &str = "github-982741653";
+        let (_temporary, service, executable, working) = fixture("personal-fixture");
+        let exact_paths = fs::read(&executable).unwrap();
+        let local = service
+            .personal_runtime_context(982741653, "FixtureOwner/FixturePort")
+            .unwrap();
+        let registration = register(&local, ID, &executable, &working);
+        assert!(
+            local
+                .preview_user_selected_runtime(ID, &executable, &working, &[])
+                .is_err()
+        );
+
+        let reopened = PortcoveService::new(service.library.clone()).unwrap();
+        assert!(reopened.catalog().listing(ID).is_err());
+        let connection = reopened.library.connection().unwrap();
+        let local_view = reopened
+            .catalog_with_registered_listings(reopened.catalog().clone(), &connection)
+            .unwrap();
+        assert_eq!(
+            local_view.listing(ID).unwrap().name,
+            "FixtureOwner/FixturePort"
+        );
+        assert!(local_view.port(ID).is_err());
+
+        let mut canonical = reopened.catalog().listing_document().clone();
+        let mut accepted = local_view.listing(ID).unwrap().clone();
+        accepted.project_url = "https://github.com/FixtureOwner/RenamedPort".into();
+        accepted.name = "Reviewed port name".into();
+        canonical.listings.push(accepted);
+        let canonical = reopened
+            .catalog()
+            .clone()
+            .with_projected_listing_document(canonical)
+            .unwrap();
+        let joined = reopened
+            .catalog_with_registered_listings(canonical, &connection)
+            .unwrap();
+        assert_eq!(joined.listing(ID).unwrap().name, "Reviewed port name");
+        assert_eq!(
+            joined.listings().iter().filter(|row| row.id == ID).count(),
+            1
+        );
+        let (retained, retained_catalog) = reopened
+            .library
+            .external_runtime_with_port(ID)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(retained).unwrap(),
+            serde_json::to_value(registration).unwrap()
+        );
+        assert_eq!(
+            retained_catalog.listing(ID).unwrap().name,
+            "FixtureOwner/FixturePort"
+        );
+        assert_eq!(fs::read(&executable).unwrap(), exact_paths);
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"player save"
+        );
+    }
+
+    #[test]
+    fn a_withdrawn_legacy_registration_blocks_only_its_verified_repository() {
+        const REPO: u64 = 982741655;
+        const LEGACY: &str = "historical-port-fixture";
+        let (_temporary, mut service, executable, working) = fixture(LEGACY);
+        let stale = service
+            .personal_runtime_context(REPO, "FixtureOwner/RenamedPort")
+            .unwrap();
+        let mut old = stale.catalog().listings()[0].clone();
+        old.id = LEGACY.into();
+        old.project_url = "https://github.com/FixtureOwner/OldPort".into();
+        old.upstream_observation = Some(crate::ListingUpstreamObservation {
+            provider: "github".into(),
+            repository: "FixtureOwner/OldPort".into(),
+            repository_id: Some(REPO),
+            status: crate::ListingObservationStatus::Complete,
+            attempted_at: "2026-09-15T06:00:00Z".into(),
+            observed_at: Some("2026-09-15T06:00:00Z".into()),
+            fresh_until: Some("2026-09-15T18:00:00Z".into()),
+            facts_sha256: Some("a".repeat(64)),
+            release_limit: 4,
+            releases: Vec::new(),
+        });
+        service.catalog = Catalog::for_user_selected_listing(old).unwrap();
+        let prior = register(&service, LEGACY, &executable, &working);
+
+        assert!(
+            service
+                .library
+                .load_catalog()
+                .unwrap()
+                .0
+                .listing(LEGACY)
+                .is_err()
+        );
+        let refused = service
+            .personal_runtime_context(REPO, "FixtureOwner/RenamedPort")
+            .err()
+            .unwrap();
+        assert!(refused.message.contains("already has a registration"));
+        assert!(
+            service
+                .personal_runtime_context(REPO + 1, "FixtureOwner/OldPort")
+                .is_ok(),
+            "a reused address alone is not the retained repository's identity"
+        );
+        let port_id = format!("github-{REPO}");
+        let review = stale
+            .preview_user_selected_runtime(&port_id, &executable, &working, &[])
+            .unwrap();
+        let allow = stale
+            .authorize_user_selected_runtime(
+                &port_id,
+                &executable,
+                &working,
+                &[],
+                &review.preview_sha256,
+            )
+            .unwrap();
+        let refused = stale
+            .register_user_selected_runtime(&port_id, &executable, &working, &[], &allow.token)
+            .unwrap_err();
+        assert!(refused.message.contains("already has a registration"));
+        let (retained, _) = service
+            .library
+            .external_runtime_with_port(LEGACY)
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained.id, prior.id);
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(&port_id)
+                .unwrap()
+                .is_none()
+        );
     }
 
     fn register_with_arguments(

@@ -801,6 +801,14 @@ impl std::fmt::Display for HttpStatus {
 impl StdError for HttpStatus {}
 
 fn map_tough_error(error: tough::error::Error) -> PortcoveError {
+    let error = match error {
+        tough::error::Error::DatastoreInit { source, .. }
+        | tough::error::Error::DatastoreCreate { source, .. }
+        | tough::error::Error::DatastoreOpen { source, .. }
+        | tough::error::Error::DatastoreRemove { source, .. } => return source.into(),
+        error => error,
+    };
+
     let mut current: Option<&(dyn StdError + 'static)> = Some(&error);
     let mut network = false;
     let mut missing_url: Option<String> = None;

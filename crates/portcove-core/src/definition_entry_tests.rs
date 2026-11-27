@@ -2871,6 +2871,19 @@ fn mod_sources_require_their_named_reader_and_refuse_only_their_definition() {
     assert!(crate::definition_capabilities::requires_newer_engine(
         &newer
     ));
+    let mut unscoped = entry.clone();
+    unscoped["port"]["mod_sources"][0]["platforms"] = json!([]);
+    unscoped["required_features"] = json!(["mods.sources-v1"]);
+    assert!(
+        inspect(&unscoped)
+            .unwrap_err()
+            .message
+            .contains("mods.platform-independent-portals-v1")
+    );
+    unscoped["required_features"] =
+        json!(["mods.platform-independent-portals-v1", "mods.sources-v1"]);
+    assert!(inspect(&unscoped).unwrap().port().mod_sources[0].is_platform_independent_portal());
+
     // This reader refuses an unknown kind or an invalid address per definition.
     entry["required_features"] = json!(["mods.sources-v1"]);
     let mut unknown = entry.clone();

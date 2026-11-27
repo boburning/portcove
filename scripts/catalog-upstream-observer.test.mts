@@ -5033,8 +5033,18 @@ void test("the mod-provider registry keeps exact discovery evidence across obser
   response = () => Response.json(registry(ship));
   const incomplete = await observe(limited.checkpoint);
   assert.equal(incomplete.checkpoint.mod_provider_registry?.exception, "identity-changed");
+  assert.deepEqual(incomplete.checkpoint.mod_provider_registry?.identity_conflicts, [
+    "2-ship-2-harkinian",
+  ]);
   assert.deepEqual(incomplete.checkpoint.mod_provider_registry?.last_complete, complete);
 
+  h.advanceClock(h.options.config.cadence_hours * 3600000);
+  response = () => new Response(null, { status: 503 });
+  const outage = await observe(incomplete.checkpoint);
+  assert.equal(outage.checkpoint.mod_provider_registry?.exception, "unavailable");
+  assert.deepEqual(outage.checkpoint.mod_provider_registry?.identity_conflicts, [
+    "2-ship-2-harkinian",
+  ]);
   h.advanceClock(h.options.config.cadence_hours * 3600000);
   response = () =>
     Response.json(
@@ -5043,8 +5053,9 @@ void test("the mod-provider registry keeps exact discovery evidence across obser
         thunderstore: { listed: false, wikiUrl: "https://example.com/games/20371" },
       }),
     );
-  const recovered = await observe(incomplete.checkpoint);
+  const recovered = await observe(outage.checkpoint);
   assert.equal(recovered.checkpoint.mod_provider_registry?.exception, null);
+  assert.equal(recovered.checkpoint.mod_provider_registry?.identity_conflicts, undefined);
   assert.equal(
     recovered.checkpoint.mod_provider_registry?.last_complete?.communities[0]?.gamebanana_game,
     null,
@@ -5608,4 +5619,123 @@ void test("a non-quota GitLab 403 is a failed rejection that notifies and is not
     assert.ok(g.requests() > before);
     assert.equal(next.notify_exception, false, "the same exception notifies only once");
   }
+});
+
+void test("first-party mod observation shares the opportunity budget and retains last success on outage", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    ports: h.input.ports.map((port) =>
+      port.id === "other-port" ? { ...port, source_profile: "fixture-disc" } : port,
+    ),
+    listings: [
+      {
+        id: "other-port",
+        project_url: "https://github.com/owner/other",
+        original_game: { source_editions: [{ system: "nintendo-gamecube" }] },
+      },
+    ],
+    source_catalog: {
+      contracts: [
+        {
+          port_id: "other-port",
+          role: "game",
+          admission_mode: "enforced",
+          profile_id: "fixture-disc",
+          supported_variant_ids: ["usa", "europe"],
+        },
+      ],
+      identities: [
+        {
+          id: "fixture-disc",
+          variants: [
+            { id: "usa", product_codes: ["GPIE01"] },
+            { id: "europe", product_codes: ["GPIP01"] },
+          ],
+        },
+      ],
+    },
+  };
+  const first = await advanceCatalogObservations(input, null, h.options);
+  const proof = {
+    state: "observed" as const,
+    repository_id: 8,
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+    blob: "c".repeat(40),
+    manifest_sha256: "d".repeat(64),
+    game_input_ids: ["GPIE01", "GPIP01"],
+    mod_portals: [
+      {
+        id: "upstream-gamebanana",
+        site: "community_site" as const,
+        name: "GameBanana",
+        url: "https://gamebanana.com/games/123",
+        instructions: "The upstream project lists this community. Follow its setup instructions.",
+      },
+    ],
+  };
+  const modResults = [
+    proof,
+    { state: "unavailable", reason: "provider-outage" },
+    { ...proof, game_input_ids: ["GPIE01", "GPI"] },
+  ] satisfies Awaited<ReturnType<NonNullable<CatalogObservationOptions["observeLauncherMods"]>>>[];
+  let reads = 0;
+  h.options.observeLauncherMods = async (repository, account) => {
+    assert.deepEqual(repository, { id: 8, slug: "owner/other" });
+    account.admitRequest();
+    account.observeResponse(new Response());
+    account.consumeResponseBytes(18);
+    reads++;
+    return modResults.shift()!;
+  };
+  h.options.launcherModRequestLimit = 3;
+  const deferred = await advanceCatalogObservations(input, first.checkpoint, h.options);
+  assert.equal(reads, 0);
+  assert.deepEqual(deferred.report.launcher_mod_sources, {
+    enrolled: 1,
+    due: 1,
+    attempted: 0,
+    complete: 0,
+    deferred: 1,
+    requests: 0,
+  });
+  h.options.launcherModRequestLimit = 4;
+  const observed = await advanceCatalogObservations(input, deferred.checkpoint, h.options);
+  assert.equal(reads, 1);
+  assert.equal(observed.report.launcher_mod_sources?.requests, 1);
+  assert.equal(observed.report.launcher_mod_sources?.complete, 1);
+  const row = observed.checkpoint.launcher_mod_sources?.["other-port"];
+  assert.equal(row?.outcome, "observed");
+  assert.deepEqual(row?.last_complete?.result, proof);
+  assert.deepEqual(
+    validateCatalogObserverCheckpoint(
+      decodeStoredObserverCheckpoint(
+        encodeStoredObserverCheckpoint(observed.checkpoint),
+        h.options.now!() + 1000,
+        h.options.now,
+      ),
+      h.options.now!(),
+    ).launcher_mod_sources,
+    observed.checkpoint.launcher_mod_sources,
+  );
+  const replay = await advanceCatalogObservations(input, observed.checkpoint, h.options);
+  assert.equal(reads, 1);
+  h.advanceClock(24 * 3600000);
+  const outage = await advanceCatalogObservations(input, replay.checkpoint, h.options);
+  assert.equal(reads, 2);
+  assert.equal(outage.report.launcher_mod_sources?.complete, 0);
+  assert.equal(outage.checkpoint.launcher_mod_sources?.["other-port"]?.outcome, "unavailable");
+  assert.deepEqual(
+    outage.checkpoint.launcher_mod_sources?.["other-port"]?.last_complete,
+    row?.last_complete,
+  );
+  h.advanceClock(24 * 3600000);
+  const conflicting = await advanceCatalogObservations(input, outage.checkpoint, h.options);
+  assert.equal(reads, 3);
+  assert.equal(conflicting.report.launcher_mod_sources?.complete, 0);
+  const held = conflicting.checkpoint.launcher_mod_sources?.["other-port"];
+  assert.equal(held?.outcome, "held");
+  assert.equal(held?.reason, "game-input-scope-conflict");
+  assert.equal(held?.last_complete, undefined);
 });

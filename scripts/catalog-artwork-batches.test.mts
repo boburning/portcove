@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, readdirSync, mkdtempSync, writeFileSync, rmdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -1124,6 +1124,118 @@ void test("an explicit refresh reuses a recent result and samples an older one a
   }
 });
 
+void test("game media due rounds resume, serve older work and retain role outcomes across deferral", async (context) => {
+  const { planDueGameMedia } = await import("./artwork-preparation-progress.mts");
+  const root = mkdtempSync(join(tmpdir(), "portcove-game-media-due-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const at = Date.parse("2026-11-28T00:00:00Z");
+  const binding = "a".repeat(64);
+  const initial = ["bravo", "charlie", "delta"].map((id) => ({ id, input_sha256: binding }));
+  const plan = (items = initial, now = at) => planDueGameMedia(root, items, 1, now);
+  const observation = (port_id: string, reason: string, role: "header" | "logo" = "header") => ({
+    port_id,
+    reason,
+    role,
+    subject: { kind: "port" as const, port_id },
+  });
+  assert.deepEqual(plan().selected, ["bravo"]);
+  const resumed = plan();
+  assert.deepEqual(resumed.selected, ["bravo"]);
+  assert.deepEqual(
+    resumed.finish(
+      [observation("bravo", "role-selected"), observation("bravo", "provider-role-empty", "logo")],
+      null,
+      "first-receipt",
+      at,
+    ),
+    { attempted: 1, deferred: 0 },
+  );
+  const withNew = [{ id: "alpha", input_sha256: binding }, ...initial];
+  const second = plan(withNew);
+  assert.deepEqual(second.selected, ["charlie"]);
+  const retry = new Date(at + 60_000).toISOString();
+  assert.deepEqual(
+    second.finish(
+      [observation("charlie", "batch-provider-budget-exhausted")],
+      retry,
+      "deferral-receipt",
+      at,
+    ),
+    { attempted: 0, deferred: 1 },
+  );
+  const held = record(fixtureJson(readFileSync(join(root, "game-media-progress-charlie.json"))));
+  assert.equal(held.last_attempt, null);
+  assert.equal(held.next_due, retry);
+  const third = plan(withNew);
+  assert.deepEqual(third.selected, ["delta"]);
+  third.finish([observation("delta", "provider-role-empty")], null, "third-receipt", at);
+  assert.deepEqual(plan(withNew).selected, ["alpha"]);
+  const changed = [
+    { id: "bravo", input_sha256: "b".repeat(64) },
+    ...withNew.filter(({ id }) => id !== "bravo"),
+  ];
+  plan(withNew).finish([observation("alpha", "provider-role-empty")], null, "new-receipt", at);
+  assert.deepEqual(plan(changed).selected, ["bravo"]);
+  assert.deepEqual(
+    plan(
+      initial.filter(({ id }) => id === "charlie"),
+      at + 60_000,
+    ).selected,
+    ["charlie"],
+  );
+  const successful = record(
+    fixtureJson(readFileSync(join(root, "game-media-progress-bravo.json"))),
+  );
+  assert.deepEqual(Object.values(record(successful.successful)), [new Date(at).toISOString()]);
+  assert.deepEqual(
+    (successful.roles as Array<{ reason: string }>).map(({ reason }) => reason),
+    ["role-selected", "provider-role-empty"],
+  );
+  const later = at + 28 * 24 * 60 * 60 * 1000;
+  const one = initial.filter(({ id }) => id === "bravo");
+  const unavailable = plan(one, later);
+  assert.deepEqual(unavailable.selected, ["bravo"]);
+  unavailable.finish(
+    [observation("bravo", "identity-provider-unavailable")],
+    null,
+    "outage",
+    later,
+  );
+  const file = join(root, "game-media-progress-bravo.json");
+  const afterOutage = record(fixtureJson(readFileSync(file)));
+  assert.deepEqual(afterOutage.successful, successful.successful);
+  assert.equal(afterOutage.last_attempt, successful.last_attempt);
+  writeFileSync(file, JSON.stringify({ ...afterOutage, next_due: new Date(later).toISOString() }));
+  assert.throws(() => plan(one, later), /does not match its retained receipt/u);
+});
+
+void test("a hosted media snapshot resumes the active round without copying historical receipts", async (context) => {
+  const { openArtworkCheckpoint, planDueGameMedia, snapshotGameMediaCheckpoint } =
+    await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-hosted-game-media-"));
+  context.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const source = join(scratch, "source");
+  const destination = join(scratch, "destination");
+  openArtworkCheckpoint(source);
+  const items = ["first", "second"].map((id) => ({ id, input_sha256: "a".repeat(64) }));
+  const now = Date.parse("2026-11-28T00:00:00Z");
+  const plan = planDueGameMedia(source, items, 1, now);
+  assert.deepEqual(plan.selected, ["first"]);
+  plan.finish([], null, "fixture", now);
+  writeFileSync(join(source, `artwork-attempt-${"c".repeat(64)}.json`), "{}");
+  rmdirSync(join(source, "active.lock"));
+  const snapshot = snapshotGameMediaCheckpoint(source, destination);
+  assert.equal(snapshot.files, readdirSync(destination).length);
+  assert.ok(snapshot.bytes > 0);
+  assert.ok(!readdirSync(destination).includes(`artwork-attempt-${"c".repeat(64)}.json`));
+  assert.deepEqual(planDueGameMedia(destination, items, 1, now).selected, ["second"]);
+  writeFileSync(join(source, "game-media-progress-first.json"), "{}");
+  assert.throws(
+    () => snapshotGameMediaCheckpoint(source, join(scratch, "tampered")),
+    /differs from its receipt/u,
+  );
+});
+
 void test("bounded due maintenance rotates attempted retained covers without admitting unreviewed rows", async () => {
   const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-retained-limit-"));
@@ -1164,6 +1276,130 @@ void test("bounded due maintenance rotates attempted retained covers without adm
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+});
+
+void test("bounded full artwork rounds finish older missing and retained work before new arrivals", async (t) => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-due-round-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const fixture = scalableArtworkFixture(5);
+  const all = fixture.catalog.ports;
+  all[2]!.presentation = {
+    artwork: {
+      game_id: 3,
+      cover_id: 3,
+      image_id: "scale2",
+      image_sha256: "d".repeat(64),
+      game_slug: "scale-2",
+      match_kind: "port",
+    },
+  };
+  let now = Date.parse("2026-11-21T00:00:00Z");
+  const options = {
+    root: scratch,
+    inspector: fixture.inspector,
+    validatorIdentity: null,
+    identities: {},
+    maintenance: true,
+    dueCoverLimit: 1,
+    now: () => now,
+  };
+  const firstCatalog = { ...fixture.catalog, ports: all.slice(0, 3) };
+  fixture.fail("Scale 0");
+  const first = await prepareArtworkWorkset(firstCatalog, options);
+  assert.deepEqual(first.workset.selected_port_ids, ["scale-0"]);
+  assert.deepEqual(first.continuation.pending_port_ids, ["scale-0"]);
+  assert.equal(first.continuation.unselected_due_count, 2);
+  assert.equal(first.continuation.complete, false);
+
+  now++;
+  const expanded = { ...fixture.catalog, ports: all.slice(0, 4) };
+  await assert.rejects(
+    prepareArtworkWorkset(expanded, {
+      ...options,
+      onProgress(id) {
+        assert.equal(id, "scale-1");
+        throw new Error("Stopped after per-item checkpoint");
+      },
+    }),
+    /Stopped after per-item checkpoint/,
+  );
+  assert.deepEqual(fixture.requests, ["Scale 0", "Scale 1"]);
+  now++;
+  const third = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(third.workset.selected_port_ids, ["scale-2"]);
+  assert.ok(third.workset.carried_port_ids.includes("scale-1"));
+  assert.equal(third.continuation.unselected_due_count, 3);
+  assert.equal(third.continuation.complete, false);
+  assert.deepEqual(fixture.requests, ["Scale 0", "Scale 1", "Scale 2"]);
+
+  fixture.fail(null);
+  const nextRound = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(nextRound.workset.selected_port_ids, ["scale-3"]);
+  assert.deepEqual(fixture.requests, ["Scale 0", "Scale 1", "Scale 2", "Scale 3"]);
+  const cursorPath = join(scratch, "artwork-due-round.json");
+  const retained = readFileSync(cursorPath, "utf8");
+  const cursor = JSON.parse(retained) as { next: number };
+  writeFileSync(cursorPath, JSON.stringify({ ...cursor, next: cursor.next + 1 }));
+  await assert.rejects(
+    prepareArtworkWorkset(fixture.catalog, options),
+    /artwork due cursor does not match its receipt/,
+  );
+  assert.equal(fixture.requests.length, 4);
+  writeFileSync(cursorPath, retained);
+
+  const secondArrival = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(secondArrival.workset.selected_port_ids, ["scale-4"]);
+  const olderRetry = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(olderRetry.workset.selected_port_ids, ["scale-0"]);
+  assert.equal(
+    olderRetry.records.find(({ port_id }) => port_id === "scale-0")?.mapping?.image_id,
+    "scale0",
+  );
+});
+
+void test("bounded artwork keeps provider backoff pending without consuming a later pass", async (t) => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-due-retry-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const fixture = scalableArtworkFixture(2);
+  let now = Date.parse("2026-11-21T00:00:00Z");
+  const retryAt = now + 60_000;
+  fixture.fail("Scale 0");
+  const options = {
+    root: scratch,
+    inspector: {
+      ...fixture.inspector,
+      batchStatus: () => ({
+        deadline: now + 10_000,
+        retry_at:
+          now < retryAt && fixture.requests.at(-1) === "Scale 0"
+            ? new Date(retryAt).toISOString()
+            : null,
+      }),
+    },
+    validatorIdentity: null,
+    identities: {},
+    maintenance: true,
+    dueCoverLimit: 1,
+    now: () => now,
+  };
+  const first = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(first.continuation.pending_port_ids, ["scale-0"]);
+  const second = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(second.workset.selected_port_ids, ["scale-1"]);
+  const deferred = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(deferred.workset.selected_port_ids, []);
+  assert.equal(deferred.continuation.unselected_due_count, 1);
+  assert.equal(deferred.continuation.complete, false);
+  assert.deepEqual(fixture.requests, ["Scale 0", "Scale 1"]);
+
+  now = retryAt;
+  fixture.fail(null);
+  const resumed = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(resumed.workset.selected_port_ids, ["scale-0"]);
+  assert.equal(resumed.continuation.complete, true);
+  assert.deepEqual(fixture.requests, ["Scale 0", "Scale 1", "Scale 0"]);
 });
 
 void test("due maintenance revalidates the same game and cover role", async () => {
@@ -1374,6 +1610,54 @@ void test("provider backoff survives continuation and applies to newly added ide
   }
 });
 
+void test("unavailable cover refresh retains its successful observation clock and remains due", async (t) => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-retained-clock-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const fixture = scalableArtworkFixture(1);
+  const artwork = {
+    game_id: 1,
+    cover_id: 1,
+    image_id: "scale0",
+    image_sha256: "d".repeat(64),
+    game_slug: "scale-0",
+    match_kind: "port",
+  };
+  fixture.catalog.ports[0]!.presentation = { artwork };
+  const started = Date.parse("2026-10-01T00:00:00Z");
+  let now = started;
+  const options = {
+    root: scratch,
+    identities: {},
+    validatorIdentity: null,
+    maintenance: true,
+    dueCoverLimit: 1,
+    now: () => now,
+    inspector: fixture.inspector,
+  };
+  const state = () =>
+    JSON.parse(
+      readFileSync(join(scratch, "artwork-maintenance-progress-scale-0.json"), "utf8"),
+    ) as { observed_at: string; last_live_observation_at: string | null };
+
+  await prepareArtworkWorkset(fixture.catalog, options);
+  assert.equal(state().last_live_observation_at, new Date(started).toISOString());
+  now += 28 * 86400000;
+  fixture.fail("Scale 0");
+  const unavailable = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(unavailable.records[0]?.mapping, artwork);
+  assert.deepEqual(unavailable.continuation.pending_port_ids, ["scale-0"]);
+  assert.equal(state().observed_at, new Date(now).toISOString());
+  assert.equal(state().last_live_observation_at, new Date(started).toISOString());
+
+  now++;
+  fixture.fail(null);
+  const recovered = await prepareArtworkWorkset(fixture.catalog, options);
+  assert.deepEqual(recovered.workset.selected_port_ids, ["scale-0"]);
+  assert.equal(recovered.continuation.complete, true);
+  assert.equal(state().last_live_observation_at, new Date(now).toISOString());
+});
+
 void test("memoized image reuse cannot refresh the original observation clock", async () => {
   const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-memo-clock-"));
@@ -1560,18 +1844,28 @@ void test("a Gone image found by a later media operation relabels an earlier ope
   const ports = Array.from({ length: 401 }, (_, index) => ({
     id: `port-${index}`,
     name: `Port ${index}`,
+    ...(index >= 399 ? { presentation: { media: index === 399 ? [] : [{ id: "old" }] } } : {}),
   }));
   const subject = (id: string) => ({ kind: "port" as const, port_id: id });
   let calls = 0;
   const result = await prepareGameMediaInOperations(
     { ports },
     undefined,
-    [],
-    async (ids, catalog, gone) => {
+    async (ids, catalog, gone, cleared) => {
       calls++;
       const first = ids![0]!;
+      assert.deepEqual([...cleared], ["port-399"]);
+      if (calls === 2) assert.deepEqual(catalog.ports.at(-1)?.presentation?.media, []);
       return {
-        catalog,
+        catalog:
+          calls === 1
+            ? {
+                ...catalog,
+                ports: catalog.ports.map((port) =>
+                  port.id === "port-400" ? { ...port, presentation: { media: [] } } : port,
+                ),
+              }
+            : catalog,
         records: [
           calls === 1
             ? {
@@ -1588,12 +1882,13 @@ void test("a Gone image found by a later media operation relabels an earlier ope
                 reason: "image-gone",
               },
         ],
-        gone_image_ids: calls === 1 ? [...gone] : [...new Set([...gone, "shared"])].sort(),
+        gone_media_targets:
+          calls === 1 ? [...gone] : [...new Set([...gone, "logo_med_2x/shared"])].sort(),
       };
     },
   );
   assert.equal(calls, 2);
-  assert.deepEqual(result.gone_image_ids, ["shared"]);
+  assert.deepEqual(result.gone_media_targets, ["logo_med_2x/shared"]);
   assert.equal(result.records.length, 2);
   assert.equal(
     result.records.find((record) => record.port_id === "port-0")?.reason,
@@ -1794,4 +2089,73 @@ void test("a sparse refresh withdraws matching collection members outside the se
   assert.deepEqual(result.catalog.ports[1]?.presentation?.collection_covers, [second]);
   assert.ok(result.workset.invalidated_port_ids.includes("collection-other"));
   assert.deepEqual(fixture.accepted.ports[1]?.presentation?.collection_covers, [first, second]);
+});
+
+void test("explicit cover review revalidates only the retained original even when the port has its own cover", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-original-cover-review-"));
+  try {
+    const fixture = scalableArtworkFixture(2);
+    const artwork = {
+      game_id: 42,
+      cover_id: 1,
+      image_id: "acceptedimage",
+      image_sha256: "d".repeat(64),
+      game_slug: "original-game",
+      match_kind: "underlying-game",
+    };
+    const port = requiredFixture(fixture.catalog.ports[0]);
+    const original = {
+      game_id: 42,
+      slug: "original-game",
+      names: ["Original Game"],
+      evidence_url: "https://example.org/original",
+    };
+    port.presentation = { artwork };
+    port.underlying_game = original;
+    const requests: string[] = [];
+    const result = await prepareArtworkWorkset(fixture.catalog, {
+      root: scratch,
+      validatorIdentity: null,
+      identities: { "scale-0": { underlying_game: original } },
+      selectedPortIds: ["scale-0"],
+      refreshPortIds: ["scale-0"],
+      revalidateAccepted: true,
+      inspector: {
+        inspectGame(identity) {
+          requests.push(identity.kind);
+          if (identity.kind === "port")
+            return [
+              {
+                id: 1,
+                name: "Scale 0",
+                slug: "scale-0",
+                websites: [{ url: port.project_url }],
+                cover: { id: 3, image_id: "distinctportcover" },
+              },
+            ];
+          assert.equal(identity.game_id, 42);
+          assert.equal(identity.slug, "original-game");
+          return [
+            {
+              id: 42,
+              name: "Original Game",
+              slug: "original-game",
+              cover: { id: 2, image_id: "replacementimage" },
+            },
+          ];
+        },
+        inspectImage() {
+          return fixture.inspector.inspectImage();
+        },
+      },
+    });
+    assert.deepEqual(requests, ["underlying-game"]);
+    assert.equal(result.records.length, 1);
+    assert.equal(result.records[0]?.mapping?.image_id, "replacementimage");
+    assert.equal(result.records[0]?.mapping?.match_kind, "underlying-game");
+    assert.equal(result.continuation.complete, true);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });

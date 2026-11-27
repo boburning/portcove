@@ -21,7 +21,9 @@ import {
 import { useAppTranslation } from "../localization";
 import type {
   ModSetupDraftPreview,
+  ModSetupRevision,
   ModSetupView,
+  ModSetupsView,
   ProviderCatalog,
   ProviderInstallPlan,
   ProviderProjectView,
@@ -35,6 +37,21 @@ import { ActionRow, Notice } from "./ui/patterns";
 
 type Project = ProviderProjectView["project"];
 type File = Project["files"][number];
+
+function eligibleProjectFiles(view: ProviderProjectView) {
+  if (view.freshness === "stale" || view.project.obsolete || view.project.status_unknown) return [];
+  return view.project.files.filter(
+    (file) => !file.status_unknown && view.eligible_file_ids?.includes(file.file_id),
+  );
+}
+
+function unambiguousProjectFile(view: ProviderProjectView) {
+  if (view.eligible_file_ids?.length !== 1 || view.project.unreadable_files !== 0) return;
+  if (view.project.files.some((file) => file.status_unknown)) return;
+  const eligible = eligibleProjectFiles(view);
+  if (eligible.length === 1) return eligible[0];
+}
+
 export type ModDraftReviewState = { headingId: string; open: boolean };
 
 type Props = {
@@ -52,7 +69,7 @@ type Props = {
   setDraft: Dispatch<SetStateAction<ModDraft>>;
   onBusyChange: (busy: boolean) => void;
   onReviewChange?: (state: ModDraftReviewState | undefined) => void;
-  onInstalled: (message: string) => void;
+  onInstalled: (receipt: ModSetupRevision) => void;
   onRefresh?: () => void;
   onApplying?: (applying: boolean) => void;
   reviewFromPlay?: number | undefined;
@@ -96,6 +113,139 @@ export function providerName(provider: string) {
   return provider;
 }
 
+function useProviderCatalogs(
+  portId: string,
+  generation: number,
+  source: string | undefined,
+  active: boolean,
+) {
+  const [catalogs, setCatalogs] = useState<Record<string, ProviderCatalog>>({});
+  const [catalogFailures, setCatalogFailures] = useState<
+    Record<string, { browseUrl?: string } | undefined>
+  >({});
+  const [loading, setLoading] = useState(new Set<string>());
+  const requests = useRef(new Map<string, AbortController>());
+  useEffect(() => {
+    const pending = requests.current;
+    return () => {
+      for (const request of pending.values()) request.abort();
+      pending.clear();
+    };
+  }, []);
+  const loadCatalog = (provider: string) => {
+    if (requests.current.has(provider)) return;
+    const request = new AbortController();
+    requests.current.set(provider, request);
+    setLoading((current) => new Set(current).add(provider));
+    setCatalogFailures((current) => ({ ...current, [provider]: undefined }));
+    void desktopApi
+      .modProviderCatalog(portId, provider, generation)
+      .then(async (result) => {
+        if (request.signal.aborted) return;
+        setCatalogs((current) => ({ ...current, [provider]: result }));
+        // A large catalog arrives in bounded reads. Keep showing what is known,
+        // labeled partial, while later reads continue from the provider page.
+        let merged = result;
+        while (merged.next_page !== undefined && merged.next_page !== null) {
+          let next: ProviderCatalog;
+          try {
+            next = await desktopApi.modProviderCatalog(
+              portId,
+              provider,
+              generation,
+              merged.next_page,
+            );
+          } catch {
+            merged = { ...merged, next_page: null, complete: false };
+            if (!request.signal.aborted)
+              setCatalogs((current) => ({ ...current, [provider]: merged }));
+            return;
+          }
+          if (request.signal.aborted) return;
+          merged = mergeCatalogReads(merged, next);
+          setCatalogs((current) => ({ ...current, [provider]: merged }));
+        }
+      })
+      .catch((error: unknown) => {
+        if (request.signal.aborted) return;
+        const url = failurePresentation(error)?.technical_context.provider_browse_url;
+        const verifiedUrl =
+          provider === "thunderstore" &&
+          typeof url === "string" &&
+          /^https:\/\/thunderstore\.io\/c\/[a-zA-Z0-9_-]{1,128}\/$/u.test(url);
+        setCatalogFailures((current) => ({
+          ...current,
+          [provider]: verifiedUrl ? { browseUrl: url } : {},
+        }));
+      })
+      .finally(() => {
+        if (request.signal.aborted) return;
+        requests.current.delete(provider);
+        setLoading((current) => {
+          const next = new Set(current);
+          next.delete(provider);
+          return next;
+        });
+      });
+  };
+  const refreshVisible = useEffectEvent(() => {
+    if (active && source && !catalogs[source] && !catalogFailures[source]) loadCatalog(source);
+  });
+  useEffect(() => {
+    refreshVisible();
+  }, [active, source]);
+  return { catalogs, catalogFailures, loading, loadCatalog };
+}
+
+export function reviewedProviderChoices(
+  view: Pick<ModSetupsView, "provider" | "providers"> | undefined,
+): readonly string[] {
+  if (view?.providers?.length) return view.providers;
+  return view?.provider ? [view.provider] : [];
+}
+
+export function ReadOnlyModProviderBrowser({
+  portId,
+  generation,
+  sources,
+  active,
+}: {
+  portId: string;
+  generation: number;
+  sources: readonly string[];
+  active: boolean;
+}) {
+  const [choice, setSource] = useState<string>();
+  const source =
+    choice && sources.includes(choice) ? choice : sources.length === 1 ? sources[0] : undefined;
+  const { catalogs, catalogFailures, loading, loadCatalog } = useProviderCatalogs(
+    portId,
+    generation,
+    source,
+    active,
+  );
+  return (
+    <ModProviderCatalog
+      catalog={source ? catalogs[source] : undefined}
+      source={source ?? ""}
+      sources={sources}
+      locked={false}
+      loading={Boolean(source && loading.has(source))}
+      failed={Boolean(source && catalogFailures[source])}
+      browseUrl={source ? catalogFailures[source]?.browseUrl : undefined}
+      setSource={setSource}
+      refresh={() => {
+        if (source) loadCatalog(source);
+      }}
+      openProject={(project) =>
+        desktopApi.openProviderModProject(portId, project.project_id, generation, project.provider)
+      }
+      providerLabel={providerName}
+      active={active}
+    />
+  );
+}
+
 export function ModProviderBrowser({
   portId,
   generation,
@@ -127,11 +277,12 @@ export function ModProviderBrowser({
       : sources.length === 1
         ? sources[0]
         : undefined;
-  const [catalogs, setCatalogs] = useState<Record<string, ProviderCatalog>>({});
-  const [catalogFailures, setCatalogFailures] = useState<
-    Record<string, { browseUrl?: string } | undefined>
-  >({});
-  const [catalogLoading, setCatalogLoading] = useState<string>();
+  const { catalogs, catalogFailures, loading, loadCatalog } = useProviderCatalogs(
+    portId,
+    generation,
+    source,
+    active && browsing,
+  );
   const [project, setProject] = useState<Project>();
   const [updateFiles, setUpdateFiles] = useState<readonly string[]>();
   const [files, setFiles] = useState<ProviderProjectView>();
@@ -170,7 +321,6 @@ export function ModProviderBrowser({
   const staged = useRef<ProviderInstallPlan[]>([]);
   const cleanup = useRef<Promise<unknown>>(Promise.resolve());
   const applying = useRef(false);
-  const catalogInFlight = useRef(new Set<string>());
   const requestId = useRef({ generation: 0 });
   const discard = (items: readonly ProviderInstallPlan[]) => {
     if (!items.length) return;
@@ -208,63 +358,6 @@ export function ModProviderBrowser({
     if (project) detailHeading.current?.focus();
   }, [project]);
 
-  const loadCatalog = (provider: string) => {
-    if (catalogInFlight.current.has(provider)) return;
-    catalogInFlight.current.add(provider);
-    setCatalogLoading(provider);
-    setCatalogFailures((current) => ({ ...current, [provider]: undefined }));
-    void desktopApi
-      .modProviderCatalog(portId, provider, generation)
-      .then(async (result) => {
-        if (!alive.current) return;
-        setCatalogs((current) => ({ ...current, [provider]: result }));
-        // A large catalog arrives in bounded reads. Keep showing what is known,
-        // labeled partial, while later reads continue from the provider page.
-        let merged = result;
-        while (merged.next_page !== undefined && merged.next_page !== null) {
-          let next: ProviderCatalog;
-          try {
-            next = await desktopApi.modProviderCatalog(
-              portId,
-              provider,
-              generation,
-              merged.next_page,
-            );
-          } catch {
-            merged = { ...merged, next_page: null, complete: false };
-            if (alive.current) setCatalogs((current) => ({ ...current, [provider]: merged }));
-            return;
-          }
-          if (!alive.current) return;
-          merged = mergeCatalogReads(merged, next);
-          setCatalogs((current) => ({ ...current, [provider]: merged }));
-        }
-      })
-      .catch((error: unknown) => {
-        if (!alive.current) return;
-        const url = failurePresentation(error)?.technical_context.provider_browse_url;
-        const verifiedUrl =
-          provider === "thunderstore" &&
-          typeof url === "string" &&
-          /^https:\/\/thunderstore\.io\/c\/[a-zA-Z0-9_-]{1,128}\/$/u.test(url);
-        setCatalogFailures((current) => ({
-          ...current,
-          [provider]: verifiedUrl ? { browseUrl: url } : {},
-        }));
-      })
-      .finally(() => {
-        catalogInFlight.current.delete(provider);
-        if (alive.current)
-          setCatalogLoading((current) => (current === provider ? undefined : current));
-      });
-  };
-  useEffect(() => {
-    if (active && browsing && source && !catalogs[source] && !catalogFailures[source])
-      loadCatalog(source);
-    // Catalog results and pending requests are keyed by reviewed source.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, browsing, source]);
-
   const installed = new Map<string, string[]>();
   for (const item of selected.revision.packages ?? []) {
     if (!item.provider) continue;
@@ -283,12 +376,6 @@ export function ModProviderBrowser({
     draft.additions.some(
       (entry) => modProjectKey(entry.provider, entry.project, entry.gameId) === lookup(item),
     );
-  const eligible = (view: ProviderProjectView) =>
-    view.freshness === "stale" || view.project.obsolete || view.project.status_unknown
-      ? []
-      : view.project.files.filter(
-          (file) => !file.status_unknown && view.eligible_file_ids?.includes(file.file_id),
-        );
   const queue = (item: Project, file: File) => {
     if (!item.game_id) return;
     const gameId = item.game_id;
@@ -324,6 +411,7 @@ export function ModProviderBrowser({
     }));
   const inspect = async (item: Project, add: boolean) => {
     const id = ++requestId.current.generation;
+    const isCurrent = () => alive.current && id === requestId.current.generation;
     returnFocus.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setFailure(undefined);
@@ -340,7 +428,7 @@ export function ModProviderBrowser({
         generation,
         item.provider,
       );
-      if (!alive.current || id !== requestId.current.generation) return;
+      if (!isCurrent()) return;
       if (
         read.port_id !== portId ||
         read.project.provider !== item.provider ||
@@ -349,23 +437,17 @@ export function ModProviderBrowser({
       ) {
         throw new Error(t("mods.gameChanged"));
       }
-      const candidates = eligible(read);
-      if (
-        add &&
-        candidates.length === 1 &&
-        read.eligible_file_ids?.length === 1 &&
-        read.project.unreadable_files === 0 &&
-        read.project.files.every((file) => !file.status_unknown)
-      ) {
-        queue(item, candidates[0]!);
+      const singleFile = add ? unambiguousProjectFile(read) : undefined;
+      if (singleFile) {
+        queue(item, singleFile);
         return;
       }
       setProject(item);
       setFiles(read);
     } catch (error) {
-      if (alive.current && id === requestId.current.generation) setFailure(errorText(error));
+      if (isCurrent()) setFailure(errorText(error));
     } finally {
-      if (alive.current && id === requestId.current.generation) setWorking(undefined);
+      if (isCurrent()) setWorking(undefined);
     }
   };
   const closeDetails = () => {
@@ -445,13 +527,13 @@ export function ModProviderBrowser({
     }
   };
   const apply = async (allowCode: boolean) => {
-    if (!plans) return;
+    if (!plans || applying.current) return;
     setFailure(undefined);
     setWorking("apply");
     applying.current = true;
     onApplying?.(true);
     try {
-      await desktopApi.applyModSetupDraft(
+      const receipt = await desktopApi.applyModSetupDraft(
         portId,
         profileId,
         revision,
@@ -464,7 +546,7 @@ export function ModProviderBrowser({
       if (alive.current) {
         staged.current = [];
         closeReview();
-        onInstalled(t("mods.workspace.applied"));
+        onInstalled(receipt);
         if (playOrigin) onAppliedFromPlay?.();
       }
     } catch (error) {
@@ -588,7 +670,7 @@ export function ModProviderBrowser({
             catalog={source ? catalogs[source] : undefined}
             source={source ?? ""}
             sources={sources}
-            loading={Boolean(source && catalogLoading === source)}
+            loading={Boolean(source && loading.has(source))}
             failed={Boolean(source && catalogFailures[source])}
             browseUrl={source ? catalogFailures[source]?.browseUrl : undefined}
             locked={disabled}
@@ -683,7 +765,9 @@ export function ModProviderBrowser({
             files &&
             (!installedIds || updateFiles) && (
               <>
-                {eligible(files).length === 0 && <p>{t("mods.workspace.browseOnly")}</p>}
+                {eligibleProjectFiles(files).length === 0 && (
+                  <p>{t("mods.workspace.browseOnly")}</p>
+                )}
                 {files.project.unreadable_files > 0 && (
                   <p>
                     {t("mods.browse.unreadable", {
@@ -701,7 +785,7 @@ export function ModProviderBrowser({
                         <span>{t("mods.browse.eligibilityUnknown")}</span>
                       </li>
                     ))}
-                  {eligible(files)
+                  {eligibleProjectFiles(files)
                     .filter((file) => !updateFiles || updateFiles.includes(file.file_id))
                     .map((file) => (
                       <li key={file.file_id} className="flex flex-wrap items-center gap-2">

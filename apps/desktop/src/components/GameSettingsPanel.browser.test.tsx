@@ -765,12 +765,61 @@ it("holds an edited file across a materialized setup revision change", async () 
   expect(host.textContent).toContain("Setup Weekend setup · Game version 1.2");
   await click("Read settings again");
   expect(read).toHaveBeenCalledTimes(2);
-  expect(host.textContent).toContain("Your draft is held here");
+  expect(host.textContent).toContain("This draft belongs to an earlier setup or file.");
+  expect(host.textContent).toContain("discard this draft and enter your changes again.");
   expect(host.querySelector("input")?.value).toBe("40");
   expect(button("Review changes").matches(":disabled")).toBe(true);
   expect(review).not.toHaveBeenCalled();
   await click("Discard draft");
   expect(host.querySelector("input")?.value).toBe("70");
+});
+
+it("restores review of the same draft when a temporarily unavailable file returns", async () => {
+  const settingsView = settings();
+  const initial = {
+    ...observed(settingsView),
+    setup_name: "Weekend setup",
+    setup: { id: "profile", revision: 1 },
+  };
+  const unavailable = { ...initial, settings: { ...initial.settings, files: [] } };
+  const read = vi
+    .spyOn(desktopApi, "gameSettingsChangeSetView")
+    .mockResolvedValueOnce(initial)
+    .mockResolvedValueOnce(unavailable)
+    .mockResolvedValueOnce(initial);
+  const review = vi.spyOn(desktopApi, "reviewGameSettingsChangeSet");
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  mounted.push({ root, host });
+  await act(async () =>
+    root.render(
+      <GameSettingsControl
+        portId="shipwright"
+        installId="newer-catalog-install"
+        generation={1}
+        busy={false}
+      />,
+    ),
+  );
+  await click("Read game settings");
+  await click("Use default");
+  expect(host.querySelector("input")?.value).toBe("40");
+  expect(host.textContent).toContain("Setup Weekend setup · Game version 1.2");
+  await click("Read settings again");
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(host.textContent).toContain(
+    "Read settings again to check for the original setup and file.",
+  );
+  expect(host.querySelector("input")?.value).toBe("40");
+  expect(button("Review changes").matches(":disabled")).toBe(true);
+  expect(review).not.toHaveBeenCalled();
+  await click("Read settings again");
+  expect(read).toHaveBeenCalledTimes(3);
+  expect(host.querySelector("input")?.value).toBe("40");
+  expect(button("Review changes").matches(":disabled")).toBe(false);
+  expect(review).not.toHaveBeenCalled();
 });
 
 it("keeps a committed write confirmed through failed readback and refreshes the saved value", async () => {

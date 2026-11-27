@@ -1,4 +1,6 @@
 import { isRecord } from "./runtime-values.mts";
+import { orderedJsonSha256 } from "./json-values.mts";
+import { externalRepository } from "./discovery-claims.mts";
 import { discoveryCheckpointBytes, investigationWindow } from "./discovery-checkpoint.mts";
 import { ecosystemSearchFamilies, parseRecompManifest } from "./discovery-ecosystems.mts";
 import type { RecompManifest } from "./discovery-ecosystems.mts";
@@ -57,7 +59,69 @@ export interface DiscoveryLead {
   /** Curated community lists that named this repository; provenance only. */
   external_lists?: string[];
   external_change?: { fingerprint: string; observed_at: string };
-  release_hint?: { assets_observed: boolean; observed_at: string; evidence: string };
+  release_hint?: {
+    assets_observed: boolean;
+    observed_at: string;
+    evidence: string;
+    desktop_release?: DesktopReleaseHint;
+  };
+  /** A failed read is a retry clock, not evidence that packages are absent. */
+  release_probe?: { attempted_at: string; outcome: "unavailable" | "invalid-response" };
+}
+
+interface DesktopReleaseHint {
+  format_version: 1;
+  project_url: string;
+  release_id: number;
+  response_sha256: string;
+}
+
+/** Keep the compact, repository-bound part of a complete sampled response.
+ * This is evidence to revisit a listing candidate, never package qualification.
+ */
+export function observedLeadReleases(value: unknown, projectUrl: string) {
+  if (!Array.isArray(value)) throw new Error("Malformed lead release hints");
+  const project = externalRepository(projectUrl);
+  let assetsObserved = false;
+  let releaseId: number | undefined;
+  for (const release of value as unknown[]) {
+    if (!isRecord(release) || typeof release.draft !== "boolean" || !Array.isArray(release.assets))
+      throw new Error("Malformed release record");
+    for (const asset of release.assets as unknown[]) {
+      if (!isRecord(asset) || typeof asset.state !== "string" || typeof asset.name !== "string")
+        throw new Error("Malformed release asset");
+      if (
+        release.draft ||
+        asset.state !== "uploaded" ||
+        !/\.(?:zip|tar\.gz|AppImage|exe|msi|dmg)$/iu.test(asset.name)
+      )
+        continue;
+      assetsObserved = true;
+      if (
+        releaseId === undefined &&
+        project?.host === "github" &&
+        typeof release.html_url === "string" &&
+        externalRepository(release.html_url)?.key === project.key &&
+        typeof release.id === "number" &&
+        Number.isSafeInteger(release.id) &&
+        release.id > 0
+      )
+        releaseId = release.id;
+    }
+  }
+  const desktopRelease: DesktopReleaseHint | undefined =
+    project && releaseId !== undefined
+      ? {
+          format_version: 1,
+          project_url: project.key,
+          release_id: releaseId,
+          response_sha256: orderedJsonSha256(value),
+        }
+      : undefined;
+  return {
+    assets_observed: assetsObserved,
+    ...(desktopRelease ? { desktop_release: desktopRelease } : {}),
+  };
 }
 export interface LeadBackfill {
   slice: LeadSlice;
@@ -270,6 +334,30 @@ export function parseLeadState(value: unknown): LeadState {
         typeof raw.release_hint.evidence !== "string")
     )
       throw new Error("Invalid lead release hint");
+    if (isRecord(raw.release_hint) && raw.release_hint.desktop_release !== undefined) {
+      const release = raw.release_hint.desktop_release;
+      if (
+        raw.release_hint.assets_observed !== true ||
+        !isRecord(release) ||
+        release.format_version !== 1 ||
+        typeof release.project_url !== "string" ||
+        !/^https:\/\/github\.com\//u.test(release.project_url) ||
+        externalRepository(release.project_url)?.key !== release.project_url ||
+        typeof release.release_id !== "number" ||
+        !Number.isSafeInteger(release.release_id) ||
+        release.release_id <= 0 ||
+        typeof release.response_sha256 !== "string" ||
+        !/^[a-f0-9]{64}$/u.test(release.response_sha256)
+      )
+        throw new Error("Invalid retained desktop release hint");
+    }
+    if (
+      raw.release_probe !== undefined &&
+      (!isRecord(raw.release_probe) ||
+        !clock(raw.release_probe.attempted_at) ||
+        !["unavailable", "invalid-response"].includes(String(raw.release_probe.outcome)))
+    )
+      throw new Error("Invalid lead release probe");
   }
   return structuredClone(value) as unknown as LeadState;
 }
@@ -361,6 +449,10 @@ export function retainLeadResults(
             ...(old?.search_families ? { search_families: old.search_families } : {}),
             ...(old?.external_lists ? { external_lists: old.external_lists } : {}),
             ...(old?.external_change ? { external_change: old.external_change } : {}),
+            // Release observations are dated evidence for the immutable repository,
+            // not a qualification of its current source revision or location.
+            ...(old?.release_hint ? { release_hint: old.release_hint } : {}),
+            ...(old?.release_probe ? { release_probe: old.release_probe } : {}),
           };
     if (family)
       next.records[String(id)]!.search_families = [
@@ -780,4 +872,27 @@ export function pendingLeads(
         a.observed_at.localeCompare(b.observed_at) ||
         a.id - b.id,
     );
+}
+
+/** Fair release-probe ordering includes failed attempts without overwriting the
+ * last successful package observation. A lead is not retried in the same run. */
+export function selectLeadReleaseChecks(
+  state: LeadState,
+  known: ReadonlySet<string>,
+  startedAt: string,
+  unattended: boolean,
+) {
+  const lastAttempt = (lead: DiscoveryLead) =>
+    [lead.release_hint?.observed_at ?? "", lead.release_probe?.attempted_at ?? ""].sort().at(-1)!;
+  const pending = pendingLeads(state, known, Date.parse(startedAt));
+  if (unattended)
+    return pending
+      .filter((lead) => lastAttempt(lead) < startedAt)
+      .toSorted((a, b) => lastAttempt(a).localeCompare(lastAttempt(b)) || a.id - b.id);
+  return pending
+    .filter((lead) => {
+      const at = lastAttempt(lead);
+      return !at || Date.parse(startedAt) - Date.parse(at) >= 7 * 86400000;
+    })
+    .slice(0, 4);
 }

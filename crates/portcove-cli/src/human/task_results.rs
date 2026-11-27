@@ -601,9 +601,28 @@ pub(crate) fn cancellation_requested(state: &CancellationState, operation_id: &s
 }
 
 pub(crate) fn external_preview(preview: &ExternalRuntimePreview, catalog: &Catalog) -> String {
+    external_preview_with_action(preview, catalog, "external select")
+}
+
+pub(crate) fn personal_project_runtime_preview(
+    preview: &portcove_core::PersonalProjectRuntimePreview,
+    catalog: &Catalog,
+) -> String {
+    format!(
+        "Project: {}\n{}",
+        clean(&preview.project_url),
+        external_preview_with_action(&preview.registration, catalog, "external select-project")
+    )
+}
+
+fn external_preview_with_action(
+    preview: &ExternalRuntimePreview,
+    catalog: &Catalog,
+    action: &str,
+) -> String {
     if let Some(selection) = &preview.user_selected {
         return format!(
-            "User-managed installation review\nPort: {}\nExecutable: {}\nWorking directory: {}\nArguments: {}\nReview SHA-256: {}\nYou selected this executable. Portcove has not authenticated it as an official package. You or the upstream launcher own setup and updates. Portcove will launch it and can remove the registration; it does not update, back up, restore, roll back or delete its files.\nNext step: Use external select with the same executable, working directory, arguments and --expected-preview {}.",
+            "User-managed installation review\nPort: {}\nExecutable: {}\nWorking directory: {}\nArguments: {}\nReview SHA-256: {}\nYou selected this executable. Portcove has not authenticated it as an official package. You or the upstream launcher own setup and updates. Portcove will launch it and can remove the registration; it does not update, back up, restore, roll back or delete its files.\nNext step: Use {action} with the same reviewed inputs and --expected-preview {}.",
             port_name(catalog, &preview.port_id),
             clean(&preview.executable.display().to_string()),
             clean(&preview.path.display().to_string()),

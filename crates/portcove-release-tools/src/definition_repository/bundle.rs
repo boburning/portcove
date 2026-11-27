@@ -1,4 +1,5 @@
 use super::*;
+use portcove_listing_carrier::{COMPACT_TARGET, COVER_CHECKPOINT_TARGET, check_cover_checkpoint};
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Inspection {
@@ -10,6 +11,15 @@ struct Inspection {
     scope: String,
     #[serde(default)]
     listings: Option<ListingIdentity>,
+    #[serde(default)]
+    cover_checkpoint: Option<CoverCheckpointIdentity>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CoverCheckpointIdentity {
+    target: String,
+    sha256: String,
+    listing_decoded_sha256: String,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -106,10 +116,20 @@ pub(super) fn listing_revision(target: &str, raw: &[u8]) -> Result<ListingRevisi
     let revision = document["revision"]
         .as_u64()
         .filter(|n| (1..=9_007_199_254_740_991).contains(n));
-    let listing_count = document["directory"]["listings"]
+    let listings = document["directory"]["listings"]
         .as_array()
-        .map(Vec::len)
-        .filter(|n| *n <= 10000);
+        .filter(|rows| rows.len() <= portcove_listing_carrier::MAX_LISTING_ENTRIES);
+    if listings.is_some_and(|rows| {
+        rows.iter().any(|row| {
+            row["id"]
+                .as_str()
+                .and_then(portcove_listing_carrier::admitted_github_repository_id)
+                .is_some()
+        })
+    }) {
+        return invalid("repository-bound listing cannot appear in the legacy directory");
+    }
+    let listing_count = listings.map(Vec::len);
     let withdrawn_ids = listing_withdrawals(&document)?;
     match (
         document["listing_delivery_schema"].as_u64(),
@@ -244,6 +264,11 @@ pub(super) fn check_legacy_successor(prior: &[u8], proposal: &[u8], compact: &[u
                 tightened = true;
             }
             None if held(row) => {
+                if portcove_listing_carrier::admitted_github_repository_id(id).is_some() {
+                    return invalid(
+                        "repository-bound listing cannot appear in the legacy directory",
+                    );
+                }
                 if row.get("upstream_observation").is_some()
                     || portcove_listing_carrier::legacy_row_projection(current_row(id)?) != *row
                 {
@@ -309,16 +334,46 @@ pub(super) fn listing_targets(files: &Files) -> Result<ListingTargets> {
     Ok(ListingTargets { legacy, compact })
 }
 
+pub(super) fn checked_cover_checkpoint(files: &Files) -> Result<Option<(&[u8], String)>> {
+    let Some(cover) = files.get(COVER_CHECKPOINT_TARGET) else {
+        return Ok(None);
+    };
+    let compact = files.get(COMPACT_TARGET).ok_or_else(|| {
+        TufRepositoryError::Invalid("cover checkpoint has no active compact listing".into())
+    })?;
+    let listing = listing_revision(COMPACT_TARGET, compact)?;
+    check_cover_checkpoint(cover, &listing.decoded_sha256)
+        .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
+    Ok(Some((cover, listing.decoded_sha256)))
+}
+
+fn contains_successor_support(value: &serde_json::Value) -> bool {
+    match value {
+        serde_json::Value::Object(object) => {
+            object.contains_key("successor_support")
+                || object.values().any(contains_successor_support)
+        }
+        serde_json::Value::Array(values) => values.iter().any(contains_successor_support),
+        _ => false,
+    }
+}
+
 pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
     let report: Inspection = serde_json::from_slice(manifest)?;
     if !matches!(
         (
             report.publication_schema,
             report.listings.is_some(),
+            report.cover_checkpoint.is_some(),
             report.scope.as_str()
         ),
-        (1, false, "inert-managed-definition-publication-inspection")
-            | (2, true, "inert-catalog-publication-inspection")
+        (
+            1,
+            false,
+            false,
+            "inert-managed-definition-publication-inspection"
+        ) | (2, true, false, "inert-catalog-publication-inspection")
+            | (3, true, true, "inert-catalog-publication-inspection")
     ) || report.authority != "none"
         || report.files.is_empty()
         || report.files.len() > BUNDLE_FILES
@@ -368,6 +423,17 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
                 && listings.withdrawn_count == active.withdrawn_ids.len() => {}
         _ => return invalid("listing target/inspection identity differs"),
     }
+    match (&report.cover_checkpoint, checked_cover_checkpoint(&files)?) {
+        (None, None) => {}
+        (Some(checkpoint), Some((bytes, listing)))
+            if checkpoint.target == COVER_CHECKPOINT_TARGET
+                && checkpoint.sha256 == sha(bytes)
+                && checkpoint.listing_decoded_sha256 == listing =>
+        {
+            allowed.insert(COVER_CHECKPOINT_TARGET.into());
+        }
+        _ => return invalid("cover checkpoint/inspection identity differs"),
+    }
     let mut content = BTreeMap::new();
     for c in &index.contents {
         if !content_path(&c.target)
@@ -385,6 +451,12 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
             return invalid("indexed catalog leaf length differs");
         }
         expected(raw, &c.sha256)?;
+        let document: serde_json::Value = serde_json::from_slice(raw)?;
+        if contains_successor_support(&document) {
+            return invalid(
+                "successor support requires independently verified evidence and a released reader",
+            );
+        }
         content.insert(c.target.clone(), c);
     }
     let entries = index

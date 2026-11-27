@@ -21,6 +21,7 @@ import {
 import type { DiscoveryCheckpoint } from "./discovery-checkpoint.mts";
 import { collectDiscoveryRun } from "./discovery-collection.mts";
 import type { DiscoveryCollectionHost } from "./discovery-collection.mts";
+import { sourcePortTopicFamily } from "./discovery-ecosystems.mts";
 import {
   externalHintSummary,
   externalListIds,
@@ -28,17 +29,25 @@ import {
   leadPaths,
 } from "./discovery-external-lists.mts";
 import { discoveryGitHubScope } from "./discovery-github.mts";
-import { leadFamilyIds, parseLeadState, replaceLeadStateEnvelope } from "./discovery-leads.mts";
+import {
+  leadFamilyIds,
+  observedLeadReleases,
+  parseLeadState,
+  replaceLeadStateEnvelope,
+} from "./discovery-leads.mts";
 import type { DiscoveryLead, LeadState } from "./discovery-leads.mts";
 import type { CollectedSource, SourceContext } from "./daily-discovery-sources.mts";
 import {
   DiscoveryStoreRefused,
   discoveryStatusQuery,
   postgresDiscoveryStore,
+  measureDiscoverySeed,
   readDiscoverySnapshot,
+  requireStoredLeadId,
 } from "./discovery-store.mts";
 import type {
   DiscoveryKnownRevision,
+  DiscoverySeedPlan,
   DiscoveryLease,
   DiscoveryProviderObservation,
   DiscoveryStore,
@@ -101,6 +110,34 @@ export interface DiscoveryWorkerState {
   checkpoint: DiscoveryCheckpoint;
   research_progress: Record<string, unknown>;
   backoff_until?: string;
+  listing_preview_round?: ListingPreviewRound;
+}
+
+interface ListingPreviewRound {
+  run_started_at: string;
+  first_id: number;
+  through_id: number;
+}
+
+function readListingPreviewRound(value: unknown): ListingPreviewRound | undefined {
+  if (value === undefined) return undefined;
+  if (
+    !isRecord(value) ||
+    typeof value.run_started_at !== "string" ||
+    !Number.isFinite(Date.parse(value.run_started_at)) ||
+    typeof value.first_id !== "number" ||
+    typeof value.through_id !== "number" ||
+    !Number.isSafeInteger(value.first_id) ||
+    !Number.isSafeInteger(value.through_id) ||
+    value.first_id <= 0 ||
+    value.through_id < value.first_id
+  )
+    throw new Error("Invalid retained discovery preview round.");
+  return {
+    run_started_at: value.run_started_at,
+    first_id: value.first_id,
+    through_id: value.through_id,
+  };
 }
 
 export function parseWorkerState(value: unknown): DiscoveryWorkerState {
@@ -112,12 +149,94 @@ export function parseWorkerState(value: unknown): DiscoveryWorkerState {
     };
   if (value.format !== discoveryWorkerStateFormat)
     throw new Error("Stored discovery state has an unsupported format; preserve and reconcile");
+  const listingPreviewRound = readListingPreviewRound(value.listing_preview_round);
   return {
     leads: parseLeadState(value.leads),
     checkpoint: parseDiscoveryCheckpoint(value.checkpoint),
     research_progress: isRecord(value.research_progress) ? { ...value.research_progress } : {},
     ...(typeof value.backoff_until === "string" ? { backoff_until: value.backoff_until } : {}),
+    ...(listingPreviewRound ? { listing_preview_round: listingPreviewRound } : {}),
   };
+}
+
+function listingCandidatePath(lead: DiscoveryLead, covered: ReadonlySet<string>) {
+  if (lead.status !== "pending" && lead.status !== "researched") return undefined;
+  const project = externalRepository(lead.url);
+  if (project?.key !== lead.url.toLowerCase() || covered.has(project.key)) return undefined;
+  return project.key;
+}
+
+/** Nominate a listing for fresh scope validation even without a desktop asset hint. */
+function listingScopeHint(lead: DiscoveryLead) {
+  if (lead.manifest?.types.some((type) => type === "port" || type === "recomp"))
+    return { kind: "retained-manifest", manifest_sha256: sha256(lead.manifest) } as const;
+  if (
+    lead.release_hint?.assets_observed === false &&
+    lead.search_families?.includes(sourcePortTopicFamily)
+  )
+    return {
+      kind: "source-port-topic",
+      release_sampled_at: lead.release_hint.observed_at,
+    } as const;
+  if (lead.release_hint?.assets_observed === false && lead.external_lists?.length)
+    return {
+      kind: "curated-source",
+      sources: [...new Set(lead.external_lists)].sort(),
+      release_sampled_at: lead.release_hint.observed_at,
+    } as const;
+  return undefined;
+}
+
+/** An admitted run advances past the previous round's first candidate. Freeze
+ * the upper ID until that cohort has had a turn so new arrivals cannot extend it.
+ */
+export function nextListingPreviewRound(
+  leads: LeadState,
+  previous: ListingPreviewRound | undefined,
+  startedAt: string,
+  covered: ReadonlySet<string>,
+): ListingPreviewRound | undefined {
+  if (previous?.run_started_at === startedAt) return undefined;
+  const eligible = Object.values(leads.records)
+    .filter((lead) => {
+      const project = listingCandidatePath(lead, covered);
+      return (
+        project &&
+        (lead.release_hint?.desktop_release?.project_url === project || listingScopeHint(lead))
+      );
+    })
+    .map(({ id }) => id)
+    .sort((a, b) => a - b);
+  if (previous) {
+    const first = eligible.find((id) => id > previous.first_id && id <= previous.through_id);
+    if (first !== undefined)
+      return {
+        run_started_at: startedAt,
+        first_id: first,
+        through_id: previous.through_id,
+      };
+  }
+  const first = eligible[0];
+  if (first === undefined) return undefined;
+  return {
+    run_started_at: startedAt,
+    first_id: first,
+    through_id: eligible.at(-1) ?? first,
+  };
+}
+
+function indexStoredLeadRecords(
+  rows: readonly unknown[],
+  recordDigests?: Map<string, string>,
+): Record<string, unknown> {
+  const records: Record<string, unknown> = {};
+  for (const row of rows) {
+    const id = String(requireStoredLeadId(row));
+    if (Object.hasOwn(records, id)) throw new Error(`Duplicate stored discovery lead id ${id}`);
+    records[id] = row;
+    recordDigests?.set(id, sha256(row));
+  }
+  return records;
 }
 
 const sorted = (values: readonly string[] | undefined) =>
@@ -211,6 +330,7 @@ export interface DiscoveryWorkerOptions {
    * an earlier pass (a release checked, a search window completed) is not redone.
    */
   runStartedAt?: string;
+  rotateListingPreview?: boolean;
   /** This pass's budget; its limits come from physical resources. */
   budget?: DiscoveryBudget;
   now?: () => number;
@@ -220,6 +340,8 @@ export interface DiscoveryWorkerOptions {
    * reading them again.
    */
   retained?: DiscoveryRetainedState;
+  /** Only a retained in-memory revision is admitted for this pass. */
+  knownOnly?: boolean;
   /** Receives what this pass committed, for the next pass to reuse. */
   retain?: (retained: DiscoveryRetainedState | undefined) => void;
 }
@@ -319,6 +441,7 @@ export async function runDiscoveryWorker(
       definition: discoveryDefinitionDigest,
       sourceRevision: options.sourceRevision,
       runner: options.runner,
+      ...(options.knownOnly ? { knownOnly: true } : {}),
       ...(known
         ? {
             known: {
@@ -338,39 +461,45 @@ export async function runDiscoveryWorker(
   // The store omits a revision this process committed and still holds in full.
   const reused = grant.unchanged === true && options.retained ? options.retained : undefined;
   options.retain?.(undefined);
-  const state = parseWorkerState(reused ? structuredClone(reused.state) : grant.state);
+  let state: DiscoveryWorkerState;
+  const recordDigests = new Map<string, string>();
   const grantDefinition = reused ? reused.definition : grant.definition_sha256;
   // Lead records live in rows; the state document carries everything else.
   // Records still embedded in an older document are kept and move into rows
   // with the first commit. Reused state already carries every stored record.
-  let loaded: { records: unknown[]; bytes: number };
+  let validationStage = "retained state could not be validated";
+  committed.received_bytes = grant.received_bytes ?? 0;
   try {
-    loaded = reused
+    state = parseWorkerState(reused ? structuredClone(reused.state) : grant.state);
+    validationStage = "lead records could not be loaded";
+    const loaded = reused
       ? { records: Object.values(state.leads.records), bytes: 0 }
       : options.store.loadLeadRecords(scope);
+    committed.received_bytes += loaded.bytes;
+    validationStage = "lead records could not be validated";
+    const storedRecords = indexStoredLeadRecords(loaded.records, recordDigests);
+    state.leads = parseLeadState({
+      ...state.leads,
+      records: { ...storedRecords, ...state.leads.records },
+    });
   } catch (error) {
-    // Close the attempt and release the lease rather than leaving them held.
-    const reason = `lead records could not be loaded: ${errorMessage(error).slice(0, 400)}`;
-    const failed = result("failed", { reason, attempt_id: lease.attempt });
+    // No malformed continuation may leave an owned attempt running or be reset.
+    const reason = `${validationStage}: ${errorMessage(error).slice(0, 400)}`;
+    const failed = result(error instanceof DiscoveryStoreRefused ? "deferred" : "failed", {
+      reason,
+      attempt_id: lease.attempt,
+    });
     try {
       const { notes: _notes, ...summary } = failed;
       options.store.finish(lease, "failed", summary);
     } catch (finishError) {
-      if (!(finishError instanceof DiscoveryStoreRefused)) throw finishError;
+      if (!(finishError instanceof DiscoveryStoreRefused))
+        throw new Error(`${reason}; lease cleanup failed: ${errorMessage(finishError)}`, {
+          cause: finishError,
+        });
     }
     return failed;
   }
-  const recordDigests = new Map<string, string>();
-  const storedRecords: Record<string, unknown> = {};
-  for (const raw of loaded.records)
-    if (isRecord(raw) && Number.isSafeInteger(raw.id)) {
-      storedRecords[String(raw.id)] = raw;
-      recordDigests.set(String(raw.id), sha256(raw));
-    }
-  state.leads = parseLeadState({
-    ...state.leads,
-    records: { ...storedRecords, ...state.leads.records },
-  });
   const initialDigest = learnedDigest({ leads: state.leads, checkpoint: state.checkpoint });
   let revision = grant.revision;
   // Stored state and its observations commit together, so everything in the
@@ -392,7 +521,6 @@ export async function runDiscoveryWorker(
     }
     return { observations, watches, records };
   };
-  committed.received_bytes = (grant.received_bytes ?? 0) + loaded.bytes;
   // State written under other collector definitions (for example an earlier
   // parser version) is not assumed to have rows under this one; the first commit
   // resends them and the store keeps one row per identical content.
@@ -423,6 +551,7 @@ export async function runDiscoveryWorker(
     leads: { ...host.leads, records: {} },
     checkpoint: host.checkpoint,
     research_progress: state.research_progress,
+    ...(state.listing_preview_round ? { listing_preview_round: state.listing_preview_round } : {}),
     ...(budget.usage.backoff_until ? { backoff_until: budget.usage.backoff_until } : {}),
   });
   let lastCommit = now();
@@ -579,6 +708,28 @@ export async function runDiscoveryWorker(
       reason = `${error.reason}: ${error.message}`;
     } else outcome = "failed";
   }
+  if (
+    !stale &&
+    !halted &&
+    options.rotateListingPreview &&
+    (outcome === "complete" || outcome === "partial")
+  ) {
+    try {
+      const round = nextListingPreviewRound(
+        host.leads,
+        state.listing_preview_round,
+        runStartedAt,
+        options.covered(),
+      );
+      if (round) {
+        state.listing_preview_round = round;
+        dirty = true;
+      }
+    } catch (error) {
+      outcome = "failed";
+      reason = `retained listing selection failed: ${errorMessage(error).slice(0, 400)}`;
+    }
+  }
   if (stale) {
     outcome = "deferred";
     reason =
@@ -661,7 +812,7 @@ export async function runDiscoveryWorker(
 
 export interface DiscoveryPassOptions extends Omit<
   DiscoveryWorkerOptions,
-  "budget" | "transferBytes" | "runStartedAt" | "retained" | "retain"
+  "budget" | "transferBytes" | "runStartedAt" | "retained" | "retain" | "knownOnly"
 > {
   /** Epoch milliseconds by which collection must stop, before final commits. */
   deadline: number;
@@ -675,10 +826,115 @@ export interface DiscoveryPassOptions extends Omit<
    */
   admit: (
     pass: number,
-    run: (admitted: { bytes: number; deadline: number }) => Promise<DiscoveryWorkerResult>,
+    run: (admitted: {
+      bytes: number;
+      deadline: number;
+      knownOnly?: boolean;
+    }) => Promise<DiscoveryWorkerResult>,
+    hasRetainedRevision: boolean,
   ) => Promise<DiscoveryWorkerResult | undefined>;
   sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
   signal?: AbortSignal;
+  previewListings?: (preview: ReturnType<typeof scheduledListingPreview>) => void;
+}
+
+/** Select retained lead evidence for the unsigned preparer. These hints nominate candidates;
+ * product scope, package eligibility and all catalog writes have separate owners. */
+type ListingPreviewInput = {
+  repository_id: number;
+  repository: string;
+  lead_revision: string;
+  observed_at: string;
+} & (
+  | { desktop_asset_hint: true; release_id: number; release_response_sha256: string }
+  | { desktop_asset_hint: false; scope: NonNullable<ReturnType<typeof listingScopeHint>> }
+);
+
+export function scheduledListingPreview(
+  retained: DiscoveryRetainedState,
+  runStartedAt: string,
+  covered: ReadonlySet<string>,
+  sourceRevision: string,
+  releaseEvidence: (repositoryId: number) => unknown,
+) {
+  const { leads, listing_preview_round: round } = parseWorkerState(retained.state);
+  const observed = Object.values(leads.records)
+    .flatMap<ListingPreviewInput>((lead) => {
+      if (
+        round?.run_started_at === runStartedAt &&
+        (lead.id < round.first_id || lead.id > round.through_id)
+      )
+        return [];
+      const project = listingCandidatePath(lead, covered);
+      const hint = lead.release_hint;
+      if (!project) return [];
+      let release = hint?.desktop_release;
+      // Older retained records never established a release identity. Reuse
+      // their provider response only if this run collected its exact bytes.
+      if (!release && hint?.assets_observed && hint.observed_at === runStartedAt) {
+        try {
+          release = observedLeadReleases(releaseEvidence(lead.id), lead.url).desktop_release;
+        } catch {
+          // Independent scope hints can still go to preparation.
+        }
+      }
+      const identity = {
+        repository_id: lead.id,
+        repository: lead.repository,
+        lead_revision: lead.revision,
+      };
+      if (hint && release?.project_url === project)
+        return [
+          {
+            ...identity,
+            observed_at: hint.observed_at,
+            desktop_asset_hint: true as const,
+            release_id: release.release_id,
+            release_response_sha256: release.response_sha256,
+          },
+        ];
+      const scope = listingScopeHint(lead);
+      return scope
+        ? [
+            {
+              ...identity,
+              observed_at: lead.observed_at,
+              desktop_asset_hint: false as const,
+              scope,
+            },
+          ]
+        : [];
+    })
+    .sort((a, b) => a.repository_id - b.repository_id);
+  const evidence = observed.map((input) => ({ input, sha256: sha256(input) }));
+  return {
+    handoff: {
+      format: "portcove-discovery-listing-handoff",
+      format_version: 1,
+      candidates: evidence.map(({ input, sha256: digest }) => ({
+        id: `github-${input.repository_id}`,
+        project_url: `https://github.com/${input.repository}`,
+        repository_id: input.repository_id,
+        evidence_sha256: digest,
+      })),
+    },
+    receipt: {
+      format: "portcove-discovery-listing-preview",
+      format_version: 2,
+      collector_source: sourceRevision,
+      committed: {
+        generation: retained.generation,
+        revision: retained.revision,
+        definition: retained.definition,
+        attempt: retained.attempt,
+      },
+      run_started_at: runStartedAt,
+      ...(round?.run_started_at === runStartedAt ? { round } : {}),
+      retained_record_count: Object.keys(leads.records).length,
+      selection: "retained-release-and-scope-hints-for-unsigned-preparation",
+      evidence,
+    },
+  };
 }
 
 const cancellableSleep = (milliseconds: number, signal?: AbortSignal) =>
@@ -731,31 +987,38 @@ async function collectPasses(options: DiscoveryPassOptions) {
   for (let pass = 1; ; pass++) {
     let result: DiscoveryWorkerResult | undefined;
     try {
-      result = await options.admit(pass, async ({ bytes, deadline }) => {
-        const finishBy = Math.min(options.deadline, deadline - options.finalizationMs);
-        const startedAt = now();
-        const budget = new DiscoveryBudget(
-          "hosted",
-          (usage) => writeFileSync(path.join(options.runDir, "budget.json"), JSON.stringify(usage)),
-          now,
-          new Date(startedAt).toISOString(),
-          {
-            requests: Number.MAX_SAFE_INTEGER,
-            bytes: options.diskBytes,
-            milliseconds: Math.max(1, finishBy - startedAt),
-          },
-        );
-        return await runDiscoveryWorker({
-          ...options,
-          budget,
-          transferBytes: bytes,
-          runStartedAt,
-          ...(retained ? { retained } : {}),
-          retain: (value) => {
-            retained = value;
-          },
-        });
-      });
+      result = await options.admit(
+        pass,
+        async ({ bytes, deadline, knownOnly }) => {
+          const finishBy = Math.min(options.deadline, deadline - options.finalizationMs);
+          const startedAt = now();
+          const budget = new DiscoveryBudget(
+            "hosted",
+            (usage) =>
+              writeFileSync(path.join(options.runDir, "budget.json"), JSON.stringify(usage)),
+            now,
+            new Date(startedAt).toISOString(),
+            {
+              requests: Number.MAX_SAFE_INTEGER,
+              bytes: options.diskBytes,
+              milliseconds: Math.max(1, finishBy - startedAt),
+            },
+          );
+          return await runDiscoveryWorker({
+            ...options,
+            budget,
+            transferBytes: bytes,
+            runStartedAt,
+            ...(knownOnly ? { knownOnly: true } : {}),
+            rotateListingPreview: options.previewListings !== undefined,
+            ...(retained ? { retained } : {}),
+            retain: (value) => {
+              retained = value;
+            },
+          });
+        },
+        retained !== undefined,
+      );
     } catch (error) {
       // Keep the record of the passes that already committed.
       failure = `pass ${pass} failed: ${errorMessage(error).slice(0, 500)}`;
@@ -777,6 +1040,25 @@ async function collectPasses(options: DiscoveryPassOptions) {
     failure || passes.some((p) => p.outcome === "failed")
       ? "failed"
       : (last?.outcome ?? "deferred");
+  if (
+    options.previewListings &&
+    retained &&
+    last?.revision === retained.revision &&
+    last.generation === retained.generation &&
+    (outcome === "complete" || outcome === "partial")
+  )
+    options.previewListings(
+      scheduledListingPreview(
+        retained,
+        runStartedAt,
+        options.covered(),
+        options.sourceRevision,
+        (repositoryId) => {
+          const file = path.join(options.runDir, `lead-release-hint-${repositoryId}.json`);
+          return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as unknown) : undefined;
+        },
+      ),
+    );
   return {
     outcome,
     passes,
@@ -850,6 +1132,34 @@ export function renderDiscoveryStatus(status: Record<string, unknown>) {
     `Canonical ownership: unknown until Roadmap reconciliation. Due watches: ${due.length}.`,
     "",
   ];
+  const reconciliation = isRecord(status.lead_reconciliation) ? status.lead_reconciliation : {};
+  const cohorts = Array.isArray(reconciliation.cohorts)
+    ? reconciliation.cohorts.filter(isRecord)
+    : [];
+  if (reconciliation.coverage === "retained-only") {
+    const total = cohorts.reduce((sum, row) => sum + Number(row.leads ?? 0), 0);
+    const overlap = cohorts
+      .filter((row) => row.upstream_seen || row.verified_intake || row.prepared_intake)
+      .reduce((sum, row) => sum + Number(row.leads ?? 0), 0);
+    const signals = new Map<string, number>();
+    for (const row of cohorts) {
+      const signal = String(row.signal);
+      signals.set(signal, (signals.get(signal) ?? 0) + Number(row.leads ?? 0));
+    }
+    lines.push(
+      `Retained lead review: ${total} scope/repository records, ${overlap} with prior upstream or intake evidence. A repository match is not a game match; absence is not evidence of new intake.`,
+      "",
+      "| Description signal | Records |",
+      "| --- | ---: |",
+    );
+    for (const [signal, count] of [...signals].sort(([a], [b]) => a.localeCompare(b)))
+      lines.push(`| ${signal} | ${count} |`);
+    lines.push(
+      "",
+      "Bounded research and overlap examples are in the status JSON; dispatch remains disabled.",
+      "",
+    );
+  }
   if (sources.length) {
     lines.push("| Source | Status | Records |", "| --- | --- | --- |");
     for (const s of sources)
@@ -1008,9 +1318,7 @@ export async function readStoredLeads(
     if (snapshot.outcome === "moved") continue;
     if (snapshot.outcome === "empty") return { outcome: "empty", bytes };
     const state = parseWorkerState(snapshot.state);
-    const records: Record<string, unknown> = {};
-    for (const raw of snapshot.records)
-      if (isRecord(raw) && Number.isSafeInteger(raw.id)) records[String(raw.id)] = raw;
+    const records = indexStoredLeadRecords(snapshot.records);
     return {
       outcome: "read",
       revision: snapshot.revision,
@@ -1024,8 +1332,12 @@ export async function readStoredLeads(
 
 /** Recent measured transfer and current state size, read before admission. */
 export const discoveryTransferForecastQuery = `SELECT json_build_object(
-  'state_bytes', coalesce((SELECT max(octet_length(state::text))
-    FROM portcove_maintenance.discovery_collection_state), 0),
+  'state_bytes', coalesce((SELECT max(octet_length(s.state::text) + coalesce(h.bytes, 0))
+    FROM portcove_maintenance.discovery_collection_state s
+    LEFT JOIN LATERAL (
+      SELECT sum(octet_length(to_jsonb(hint_key)::text) + octet_length(hint::text) + 8) + 32 AS bytes
+      FROM portcove_maintenance.discovery_external_hints WHERE scope = s.scope
+    ) h ON true), 0),
   'record_bytes', coalesce((SELECT sum(octet_length(record::text))
     FROM portcove_maintenance.discovery_lead_records), 0),
   -- Neon meters only what the database sends to the client.
@@ -1036,6 +1348,33 @@ export const discoveryTransferForecastQuery = `SELECT json_build_object(
       -- The passes of the last seven runs.
       SELECT runner FROM portcove_maintenance.discovery_collection_attempts
       GROUP BY runner ORDER BY max(acquisition) DESC LIMIT 7)), 0));`;
+
+/** Recent received bytes already include the cold acquire. Do not add a
+ * second cold acquire to that measurement; retain room for either complete
+ * read scenario plus acknowledgements and the existing protocol headroom. */
+export function discoveryPassReservation(
+  acquireBytes: number,
+  previousTransfer: number,
+  commits: number,
+) {
+  return Math.ceil(
+    Math.max(acquireBytes, previousTransfer) / 0.7 +
+      (commits * commitResponseAllowance) / 0.7 +
+      1024 * 1024,
+  );
+}
+
+/** Reserve the measured row deltas, compact grant envelope and ordinary acknowledgements. */
+export function discoverySeedReservation(
+  plan: Pick<DiscoverySeedPlan, "compactBytes" | "hintsBytes" | "leadsBytes">,
+  commits: number,
+) {
+  return discoveryPassReservation(
+    plan.compactBytes + plan.hintsBytes + plan.leadsBytes + commitResponseAllowance,
+    0,
+    commits,
+  );
+}
 
 /** Time to write the final state: a generous allowance proportional to its size. */
 export function finalizationMilliseconds(stateBytes: number) {
@@ -1208,12 +1547,21 @@ export async function discoveryWorkerMain(argv: string[]) {
   };
   try {
     // Size every pass from measured state and transfer rather than fixed limits.
+    const seed = process.env.PORTCOVE_DISCOVERY_SEED_URL
+      ? connectionFromEnvironment("PORTCOVE_DISCOVERY_SEED_URL")
+      : undefined;
+    delete process.env.PORTCOVE_DISCOVERY_SEED_URL;
+    let plan: DiscoverySeedPlan | null = null;
     let forecast: { state_bytes: number; record_bytes: number; previous_transfer_bytes: number };
     try {
       forecast = (await withMaintenanceAdmission(
         environment,
         "inspect",
-        () => queryJson(environment, discoveryTransferForecastQuery),
+        () => {
+          const forecast = queryJson(environment, discoveryTransferForecastQuery);
+          if (seed) plan = measureDiscoverySeed(environment, seed, discoveryWorkerScope);
+          return forecast;
+        },
         { request: requestKey("forecast") },
       )) as typeof forecast;
     } catch (error) {
@@ -1227,17 +1575,46 @@ export async function discoveryWorkerMain(argv: string[]) {
     const finalizationMs = finalizationMilliseconds(forecast.state_bytes + forecast.record_bytes);
     // A pass reads the whole state and its lead records once.
     let acquireBytes = forecast.state_bytes + forecast.record_bytes;
-    const store = postgresDiscoveryStore(environment);
+    const commits = Math.ceil(admissionTimeout / (3600 * 500)) + 1;
+    const measuredPlan = plan as DiscoverySeedPlan | null;
+    const selectedPlan =
+      measuredPlan &&
+      discoverySeedReservation(measuredPlan, commits) <
+        discoveryPassReservation(acquireBytes, forecast.previous_transfer_bytes, commits)
+        ? measuredPlan
+        : undefined;
+    const store = postgresDiscoveryStore(
+      environment,
+      undefined,
+      selectedPlan ? seed : undefined,
+      selectedPlan,
+    );
     const covered = (() => {
       let cache: Set<string> | undefined;
       return () => (cache ??= catalogCoveredHints());
     })();
     let previousTransfer = forecast.previous_transfer_bytes;
+    let listingPreviewSha256: string | undefined;
     const collected = await runDiscoveryPasses({
       store,
       runDir,
       covered,
       sourceRevision: process.env.GITHUB_SHA ?? "local",
+      ...(process.env.PORTCOVE_MAINTENANCE_PURPOSE === "schedule"
+        ? {
+            previewListings(preview: ReturnType<typeof scheduledListingPreview>) {
+              writeFileSync(
+                path.join(output, "listing-preview-evidence.json"),
+                JSON.stringify(preview.receipt),
+              );
+              writeFileSync(
+                path.join(output, "listing-preview-handoff.json"),
+                JSON.stringify(preview.handoff),
+              );
+              listingPreviewSha256 = sha256(preview.handoff);
+            },
+          }
+        : {}),
       runner: run
         ? `github-actions:${run}:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}`
         : `local:${os.hostname()}:${randomUUID()}`,
@@ -1258,7 +1635,7 @@ export async function discoveryWorkerMain(argv: string[]) {
         });
         return { sdk, http: createDiscoveryTransport(budget, token) };
       },
-      admit: async (pass, collect) => {
+      admit: async (pass, collect, hasRetainedRevision) => {
         // Neon meters only what the database sends to the client: the acquire
         // read of the state and lead records (omitted when a later pass reuses
         // what this run committed), then a short acknowledgement for a commit
@@ -1266,21 +1643,28 @@ export async function discoveryWorkerMain(argv: string[]) {
         // The largest response any pass of this run or a recent run received
         // covers growth, including a full read after another writer's commit.
         // The admission meters 70% of a reservation as payload.
-        const commits = Math.ceil(admissionTimeout / (3600 * 500)) + 1;
-        const reservationBytes = Math.ceil(
-          (acquireBytes + commits * commitResponseAllowance + previousTransfer) / 0.7 + 1024 * 1024,
-        );
+        // The measured initial delta and retained-only passes both refuse an
+        // unadmitted complete read if their revision fence moves.
+        const knownOnly = hasRetainedRevision;
+        const measuredSeed = pass === 1 ? selectedPlan : undefined;
+        const measuredDiscovery = knownOnly || measuredSeed !== undefined;
+        const reservationBytes = knownOnly
+          ? discoveryPassReservation(commitResponseAllowance, 0, commits)
+          : measuredSeed
+            ? discoverySeedReservation(measuredSeed, commits)
+            : discoveryPassReservation(acquireBytes, previousTransfer, commits);
         try {
           const result = await withMaintenanceAdmission(
             environment,
             "discovery",
-            async (bytes, deadline) => await collect({ bytes, deadline }),
+            async (bytes, deadline) => await collect({ bytes, deadline, knownOnly }),
             {
               request: requestKey(`pass-${pass}`),
               reservationBytes,
+              measuredDiscovery,
               // The responses this pass received, with a protocol margin.
               estimate: (value) => 200_000 + Math.ceil(value.committed.received_bytes * 1.3),
-              completed: (value) => value.outcome !== "failed",
+              completed: (value) => value.outcome !== "failed" && value.outcome !== "deferred",
             },
           );
           previousTransfer = Math.max(previousTransfer, result.committed.received_bytes);
@@ -1292,7 +1676,12 @@ export async function discoveryWorkerMain(argv: string[]) {
         }
       },
     });
-    write({ format: "portcove-discovery-run-result", format_version: 1, ...collected });
+    write({
+      format: "portcove-discovery-run-result",
+      format_version: 1,
+      ...collected,
+      ...(listingPreviewSha256 ? { listing_preview_sha256: listingPreviewSha256 } : {}),
+    });
     return collected.outcome === "failed" ? 1 : collected.outcome === "deferred" ? 75 : 0;
   } finally {
     process.off("SIGTERM", cancel);

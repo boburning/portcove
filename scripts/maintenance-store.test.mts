@@ -6,7 +6,13 @@ import path from "node:path";
 import test from "node:test";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import { postgresIntakeCheckpoints } from "./hosted-discovery-intake-checkpoint.mts";
-import { backupReusingHistory, MaintenanceBackupDeferred } from "./maintenance-backup-reuse.mts";
+import {
+  backupFingerprintResponseLimit,
+  backupReusingHistory,
+  createBackupRecovery,
+  MaintenanceBackupDeferred,
+  retryBackupAdmission,
+} from "./maintenance-backup-reuse.mts";
 import {
   acquireMaintenanceReservation,
   cutoverReading,
@@ -14,6 +20,8 @@ import {
   normalizeNeonMeter,
   sampleNeon,
   policyLimits,
+  runAdmittedMaintenance,
+  MaintenanceResourceDeferred,
   type NeonMeter,
 } from "./maintenance-resource-policy.mts";
 import {
@@ -22,11 +30,13 @@ import {
   clientEnvironment,
   connectionFromEnvironment,
   defaultMigrationDirectory,
+  digestQuery,
   libpqEnvironmentFromUrl,
   maintenanceTransfer,
   migrate,
   migrationStatus,
   migrationTransaction,
+  queryJson,
   planMigrations,
   portableRestoreSql,
   readMigrations,
@@ -36,6 +46,102 @@ import {
   storeDigest,
   withExportedSnapshot,
 } from "./maintenance-store.mts";
+
+void test("backup fingerprint responses fit the actual local client envelope", () => {
+  const clientLimit = 64 * 1024 * 1024;
+  assert.equal(backupFingerprintResponseLimit(33_600_000), 33_600_000);
+  assert.equal(backupFingerprintResponseLimit(77_000_000), clientLimit - 1);
+  assert.equal(backupFingerprintResponseLimit(308_000_000), clientLimit - 1);
+  assert.equal(backupFingerprintResponseLimit(2_000, 1_024), 1_023);
+});
+
+void test("recovery validates local destinations before admission and rechecks them before export", async (context) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-recovery-destinations-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const output = path.join(root, "backup");
+  const prefixDatabase = { PGHOST: "/fixture", PGDATABASE: "prefix" };
+  const target = { PGHOST: "/fixture", PGDATABASE: "target" };
+  const options = { source: {}, prefixDatabase, target, output };
+  assert.throws(
+    () => createBackupRecovery({ ...options, target: { PGHOST: "database.example" } }),
+    /must use a local Unix socket/u,
+  );
+  assert.throws(
+    () => createBackupRecovery({ ...options, target: { ...target, PGSERVICE: "redirected" } }),
+    /must use a direct local connection/u,
+  );
+  assert.throws(
+    () => createBackupRecovery({ ...options, target: prefixDatabase }),
+    /must be distinct/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        target: { ...prefixDatabase, PGHOST: "/fixture/.", PGPORT: "5432" },
+      }),
+    /must be distinct/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        prefixDatabase: { ...prefixDatabase, PGHOST: "/fixture,/other" },
+      }),
+    /must use a local Unix socket/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        prefixDatabase: { ...prefixDatabase, PGPORT: "5432,5433" },
+      }),
+    /one explicit database name and port/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        prefixDatabase: { ...prefixDatabase, PGHOSTADDR: "127.0.0.1" },
+      }),
+    /must use a direct local connection/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        prefixDatabase: { ...prefixDatabase, PGDATABASE: "x".repeat(64) },
+      }),
+    /one explicit database name and port/u,
+  );
+  const previous = path.join(root, "not-opened-before-admission");
+  assert.doesNotThrow(() =>
+    createBackupRecovery({
+      ...options,
+      previous,
+      source: { ...prefixDatabase, PGDATABASE: "x".repeat(64) },
+    }),
+  );
+  assert.doesNotThrow(() =>
+    createBackupRecovery({
+      ...options,
+      previous,
+      source: { ...prefixDatabase, PGDATABASE: "", PGUSER: "prefix" },
+    }),
+  );
+  assert.doesNotThrow(() =>
+    createBackupRecovery({ ...options, previous, source: { ...prefixDatabase, PGPORT: "5433" } }),
+  );
+  const recover = createBackupRecovery(options);
+  writeFileSync(output, "existing data");
+  assert.throws(() => createBackupRecovery(options), /Backup destination already exists/u);
+  await assert.rejects(recover(48_000_000), /Backup destination already exists/u);
+  await assert.rejects(
+    backupReusingHistory({ ...options, reservedBytes: 48_000_000 }),
+    /Backup destination already exists/u,
+  );
+  assert.equal(readFileSync(output, "utf8"), "existing data");
+});
 
 void test("connection URLs become libpq environment without exposing secrets in arguments", () => {
   assert.deepEqual(
@@ -653,11 +759,34 @@ void test(
       /t/u,
     );
 
+    // Schema SQL succeeds, but the final role contract cannot grant a renamed
+    // function. The ledger and the function rename must roll back together.
+    writeFileSync(
+      path.join(migrations, interrupted),
+      "ALTER FUNCTION portcove_maintenance.latest_run(text) RENAME TO interrupted_latest_run;\n",
+    );
+    assert.throws(() => migrate(store.owner, migrations), /latest_run.*does not exist/u);
+    assert.equal(migrationStatus(store.owner, migrations).schema_version, real.length);
+    assert.match(
+      runSql(
+        store.owner,
+        "SELECT to_regprocedure('portcove_maintenance.latest_run(text)') IS NOT NULL;",
+      ),
+      /t/u,
+    );
+
     writeFileSync(
       path.join(migrations, interrupted),
       "CREATE TABLE portcove_maintenance.partial (id integer);\n",
     );
     assert.deepEqual(migrate(store.owner, migrations).newly_applied, [real.length + 1]);
+    assert.match(
+      runSql(
+        store.owner,
+        "SELECT has_function_privilege('portcove_maintenance_collector', 'portcove_maintenance.latest_run(text)', 'EXECUTE');",
+      ),
+      /t/u,
+    );
     writeFileSync(
       path.join(migrations, interrupted),
       "CREATE TABLE portcove_maintenance.changed (id integer);\n",
@@ -716,6 +845,73 @@ void test(
     );
   },
 );
+
+void test(
+  "revision-fenced discovery admission fits where its conservative default does not",
+  { skip: server.skip ?? false },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const { owner } = fixture.start("measured-discovery-admission");
+    migrate(owner);
+    const meter = testMeter(0);
+    meter.transferBytes = policyLimits(meter, "discovery", Date.now()).ceiling_bytes - 5_000_000;
+    const input = { meter, operation: "discovery" as const, reason: "test measured discovery" };
+    const ordinary = acquireMaintenanceReservation(owner, {
+      ...input,
+      request: "ordinary-discovery",
+      reservationBytes: 1_625_000,
+    });
+    assert.equal(ordinary.attempt_id, null);
+    assert.equal(ordinary.operation_reservation_bytes, 16_000_000);
+    const measured = acquireMaintenanceReservation(owner, {
+      ...input,
+      request: "measured-discovery",
+      reservationBytes: 1_625_000,
+      measuredDiscovery: true,
+    });
+    assert.ok(measured.attempt_id);
+    assert.equal(measured.operation_reservation_bytes, 1_625_000);
+    assert.equal(measured.ceiling_bytes, ordinary.ceiling_bytes);
+    assert.equal(measured.reservation_basis, "revision-fenced-discovery");
+  },
+);
+
+void test("measured discovery can reserve below the bootstrap estimate without changing recovery reserves", () => {
+  const meter = testMeter(1_000_000_000);
+  const now = Date.now();
+  const defaultLimits = policyLimits(meter, "discovery", now, 1_625_000);
+  const measuredLimits = policyLimits(meter, "discovery", now, 1_625_000, true);
+  assert.equal(defaultLimits.operation_reservation_bytes, 16_000_000);
+  assert.equal(measuredLimits.operation_reservation_bytes, 1_625_000);
+  assert.equal(measuredLimits.reservation_basis, "revision-fenced-discovery");
+  assert.equal(measuredLimits.ceiling_bytes, defaultLimits.ceiling_bytes);
+  assert.equal(measuredLimits.reserve_bytes, defaultLimits.reserve_bytes);
+  assert.equal(
+    measuredLimits.future_daily_recovery_bytes,
+    defaultLimits.future_daily_recovery_bytes,
+  );
+  assert.equal(
+    policyLimits(meter, "discovery", now, 24_000_000).operation_reservation_bytes,
+    24_000_000,
+  );
+  assert.equal(
+    policyLimits(meter, "recovery", now, 1_625_000).operation_reservation_bytes,
+    48_000_000,
+  );
+  for (const bad of [0, -1, Infinity, NaN, 1.5])
+    assert.throws(
+      () => policyLimits(meter, "discovery", now, bad, true),
+      /Invalid maintenance reservation/u,
+    );
+  assert.throws(
+    () => policyLimits(meter, "recovery", now, 1_625_000, true),
+    /requires a discovery response bound/u,
+  );
+  assert.throws(
+    () => policyLimits(meter, "discovery", now, undefined, true),
+    /requires a discovery response bound/u,
+  );
+});
 
 void test("Neon Free readings preserve missing dimensions and require an active period", () => {
   const sampledAt = "2026-11-20T20:43:15.000Z";
@@ -975,6 +1171,25 @@ void test(
         WHERE attempt_id = '${first}';`,
     );
     assert.equal(take("uncertain").attempt_id, null, "an uncertain outcome stays fully charged");
+    // A known pre-export deferral charges only measured metadata. Unknown
+    // deferrals and failed exports keep their full reservation.
+    runSql(
+      owner,
+      `UPDATE portcove_maintenance_meta.resource_admissions
+        SET operation = 'recovery', outcome = 'deferred', estimate_bytes = 2000000,
+            finished_at = clock_timestamp() - interval '1 hour'
+        WHERE attempt_id = '${first}';`,
+    );
+    const measured = take("measured-preflight");
+    assert.ok(measured.attempt_id);
+    assert.ok(measured.unreconciled_bytes < 3_000_000_000);
+    runSql(
+      owner,
+      `UPDATE portcove_maintenance_meta.resource_admissions
+        SET estimate_bytes = NULL WHERE attempt_id = '${first}';`,
+    );
+    assert.equal(take("unmeasured-preflight").attempt_id, null);
+
     // The fixed cutover sample predates the completion, so it never settles.
     const cutover = {
       ...meter,
@@ -1002,6 +1217,313 @@ void test(
 );
 
 void test(
+  "recovery retries reserve and settle real ledger attempts without retrying uncertain transfers",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const evidence = path.join(fixture.root, "resource.jsonl");
+    const source = {
+      ...fixture.start("admitted-source").owner,
+      PORTCOVE_MAINTENANCE_RESOURCE_EVIDENCE: evidence,
+    };
+    // Distinct socket paths keep scratch SQL outside the measured source envelope.
+    const scratch = postgresFixture(context, server.directory!);
+    const prefixDatabase = scratch.start("prefix").owner;
+    const target = scratch.start("target").owner;
+    migrate(source);
+    runSql(
+      source,
+      `INSERT INTO portcove_maintenance.discovery_collection_state
+      (scope, definition_sha256, revision, state, state_sha256, updated_at)
+      VALUES ('primary', '${hex("a")}', 0,
+        jsonb_build_object('payload', repeat('x', 25000000)), '${hex("b")}', clock_timestamp());`,
+    );
+    const output = path.join(fixture.root, "admitted-backup");
+    const recover = createBackupRecovery({ source, prefixDatabase, target, output });
+    const meter = testMeter(0);
+    const reserve = (request: string, reservationBytes?: number, reading = meter) =>
+      acquireMaintenanceReservation(source, {
+        meter: reading,
+        request,
+        operation: "recovery",
+        reason: "test",
+        ...(reservationBytes === undefined ? {} : { reservationBytes }),
+      });
+    const ledger = (request: string) =>
+      queryJson(
+        source,
+        `SELECT coalesce(json_agg(
+      json_build_object('outcome', outcome, 'reserved', reserved_bytes, 'estimate', estimate_bytes)
+      ORDER BY started_at, attempt_id), '[]'::json) FROM portcove_maintenance_meta.resource_admissions
+      WHERE request_key = '${request}';`,
+      ) as { outcome: string; reserved: number; estimate: number | null }[];
+    const occupied = path.join(fixture.root, "occupied-backup");
+    writeFileSync(occupied, "existing data");
+    await assert.rejects(async () => {
+      const rejected = createBackupRecovery({
+        source,
+        prefixDatabase,
+        target,
+        output: occupied,
+      });
+      await retryBackupAdmission((bytes) =>
+        runAdmittedMaintenance(source, reserve("occupied-backup", bytes), rejected),
+      );
+    }, /Backup destination already exists/u);
+    assert.deepEqual(ledger("occupied-backup"), []);
+    const badSeed = path.join(fixture.root, "bad-local-recovery-seed");
+    mkdirSync(badSeed);
+    assert.throws(
+      () => createBackupRecovery({ source, prefixDatabase, target, previous: badSeed, output }),
+      /Backup manifest is missing or malformed/u,
+    );
+    rmSync(badSeed, { recursive: true });
+    const manifest = await backup(source, badSeed);
+    writeFileSync(path.join(badSeed, manifest.dump.file), "corrupt dump");
+    await assert.rejects(async () => {
+      const rejected = createBackupRecovery({
+        source,
+        prefixDatabase,
+        target,
+        previous: badSeed,
+        output,
+      });
+      await retryBackupAdmission((bytes) =>
+        runAdmittedMaintenance(source, reserve("corrupt-local-seed", bytes), rejected),
+      );
+    }, /Backup dump does not match its manifest digest/u);
+    assert.deepEqual(ledger("corrupt-local-seed"), []);
+    const result = await retryBackupAdmission((bytes) =>
+      runAdmittedMaintenance(source, reserve("real-recovery", bytes), recover, {
+        estimate: ({ transfer }) =>
+          2_000_000 +
+          Math.ceil(
+            1.25 *
+              (transfer.history_copy_bytes +
+                transfer.other_table_copy_bytes +
+                transfer.row_delta_copy_bytes +
+                transfer.row_delta_plan_bytes),
+          ),
+      }),
+    );
+    assert.equal(result.reused, false);
+    const rows = ledger("real-recovery");
+    assert.deepEqual(
+      rows.map(({ outcome }) => outcome),
+      ["deferred", "completed"],
+    );
+    assert.ok(rows[0]!.estimate! < rows[0]!.reserved);
+    assert.ok(rows[1]!.reserved > rows[0]!.reserved);
+    assert.equal(result.transfer.reserved_bytes, rows[1]!.reserved);
+    assert.ok(rows[1]!.estimate! > 0);
+
+    let calls = 0;
+    let received = 0;
+    await assert.rejects(
+      retryBackupAdmission((bytes) =>
+        runAdmittedMaintenance(source, reserve("uncertain", bytes), () => {
+          calls++;
+          received = Buffer.byteLength(runSql(source, "SELECT repeat('x', 4096);"));
+          throw new Error("uncertain export");
+        }),
+      ),
+      /uncertain export/u,
+    );
+    assert.equal(calls, 1);
+    assert.deepEqual(
+      ledger("uncertain").map(({ outcome, estimate }) => ({ outcome, estimate })),
+      [{ outcome: "failed", estimate: null }],
+    );
+
+    assert.ok(received >= 4096);
+    const receipts = readFileSync(evidence, "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const uncertainty = receipts.find(({ request }) => request === "uncertain");
+    assert.equal(uncertainty?.captured_command_stdout_bytes, received);
+    assert.equal(uncertainty?.operation_reservation_bytes, ledger("uncertain")[0]!.reserved);
+    assert.equal(uncertainty?.settlement_basis, "full-reservation");
+    assert.equal(uncertainty?.estimate_bytes, null);
+    const recoveryReceipts = receipts.filter(({ request }) => request === "real-recovery");
+    assert.deepEqual(
+      recoveryReceipts.map(({ settlement_basis, estimate_bytes }) => [
+        settlement_basis,
+        estimate_bytes,
+      ]),
+      rows.map(({ estimate }) => ["estimate-eligible", estimate]),
+    );
+
+    // Leave enough for an ordinary reservation, but not for its measured larger retry.
+    const ceiling = policyLimits(meter, "recovery", Date.now()).ceiling_bytes;
+    const charged = rows[0]!.estimate! + rows[1]!.estimate! + ledger("uncertain")[0]!.reserved;
+    const constrained = { ...meter, transferBytes: ceiling - charged - 49_000_000 };
+    let exports = 0;
+    await assert.rejects(
+      retryBackupAdmission((bytes) =>
+        runAdmittedMaintenance(source, reserve("denied-retry", bytes, constrained), () => {
+          exports++;
+          throw new MaintenanceBackupDeferred(60_000_000, 48_000_000);
+        }),
+      ),
+      MaintenanceResourceDeferred,
+    );
+    assert.equal(exports, 1);
+    assert.deepEqual(
+      ledger("denied-retry").map(({ outcome, reserved }) => ({ outcome, reserved })),
+      [
+        { outcome: "deferred", reserved: 48_000_000 },
+        { outcome: "deferred", reserved: 0 },
+      ],
+    );
+  },
+);
+
+void test(
+  "recovery caps row-delta metadata against measured remaining response bytes",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const source = fixture.start("source").owner;
+    const scratch = postgresFixture(context, server.directory!);
+    const prefixDatabase = scratch.start("prefix").owner;
+    const target = scratch.start("target").owner;
+    migrate(source);
+    runSql(
+      source,
+      `INSERT INTO portcove_maintenance.discovery_collection_state
+      (scope, definition_sha256, revision, state, state_sha256, updated_at)
+      VALUES ('primary', '${hex("a")}', 1, '{"leads":{"external":{}}}', '${hex("b")}', clock_timestamp());
+      INSERT INTO portcove_maintenance.discovery_external_hints (scope, hint_key, hint)
+      SELECT 'primary', repeat('p', 250) || lpad(n::text, 4, '0'),
+        jsonb_build_object('title', repeat('x', 1024) || n) FROM generate_series(1, 160) n;`,
+    );
+    const previous = path.join(fixture.root, "previous-backup");
+    await backup(source, previous);
+    runSql(
+      source,
+      `DELETE FROM portcove_maintenance.discovery_external_hints
+      WHERE right(hint_key, 4)::integer > 40;`,
+    );
+    // The removal list is larger than the response allowance, yet smaller
+    // than the complete-row estimate. An uncapped incremental plan would emit it.
+    const priorPayload = 2_068_000;
+    const measurement = {
+      host: source.PGHOST!,
+      payloadBytes: priorPayload,
+      byteLimit: 2_080_000,
+      deadline: Date.now() + 120_000,
+    };
+    const result = await maintenanceTransfer.run(measurement, () =>
+      backupReusingHistory({
+        source,
+        prefixDatabase,
+        target,
+        previous,
+        output: path.join(fixture.root, "current-backup"),
+        reservedBytes: 5_000_000,
+      }),
+    );
+    assert.equal(result.reused, false);
+    assert.deepEqual(result.transfer.row_delta_tables, []);
+    assert.ok(
+      measurement.payloadBytes > priorPayload && measurement.payloadBytes < measurement.byteLimit,
+    );
+    assert.deepEqual(result.manifest.tables, storeDigest(source));
+  },
+);
+
+void test(
+  "a pre-0011 portable backup restores and migrates normalized discovery hints",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const source = fixture.start("legacy").owner;
+    const target = fixture.start("upgraded").owner;
+    const directory = path.join(fixture.root, "legacy-migrations");
+    mkdirSync(directory);
+    for (const migration of readMigrations().filter(({ version }) => version <= 10)) {
+      const name = `${String(migration.version).padStart(4, "0")}_${migration.name}.sql`;
+      copyFileSync(path.join(defaultMigrationDirectory, name), path.join(directory, name));
+      runSql(source, migrationTransaction(migration));
+    }
+    assert.equal(migrationStatus(source, directory).schema_version, 10);
+    runSql(source, seed);
+    runSql(
+      source,
+      `INSERT INTO portcove_maintenance.discovery_collection_state
+      (scope, definition_sha256, revision, state, state_sha256, updated_at)
+      SELECT scope, '${hex("a")}', 4, state,
+        encode(sha256(convert_to(state::text, 'UTF8')), 'hex'), clock_timestamp()
+      FROM (VALUES
+        ('primary', '{"cursor":"next","leads":{"external":{"hints":{"one":{"repo":"a/b"},"two":{"repo":"c/d"}},"checked":2}}}'::jsonb),
+        ('empty', '{"leads":{"external":{"hints":{},"checked":0}}}'::jsonb),
+        ('plain', '{"cursor":"unchanged"}'::jsonb)
+      ) AS states(scope, state);`,
+    );
+    const logical = runSql(
+      source,
+      "SELECT jsonb_object_agg(scope, state) FROM portcove_maintenance.discovery_collection_state;",
+    );
+    const archive = path.join(fixture.root, "legacy-backup");
+    const manifest = await backup(source, archive, directory);
+    assert.equal(manifest.schema_version, 10);
+    assert.equal(manifest.tables["portcove_maintenance.discovery_external_hints"], undefined);
+    assert.deepEqual(manifest.tables, JSON.parse(runSql(source, digestQuery(10))));
+    const restored = restore(target, archive);
+    assert.equal(restored.verified, true);
+    assert.equal(restored.manifest_tables_verified, true);
+    assert.equal(restored.sequences_verified, true);
+    assert.equal(restored.schema_version, manifest.schema_version);
+    assert.equal(restored.target_schema_version, readMigrations().length);
+    assert.notDeepEqual(
+      restored.tables,
+      manifest.tables,
+      "post-migration digests cover the new schema",
+    );
+    assert.deepEqual(
+      restored.migrated,
+      readMigrations()
+        .filter(({ version }) => version > 10)
+        .map(({ version }) => version),
+    );
+    assert.equal(restored.tables["portcove_maintenance.discovery_external_hints"]?.rows, 2);
+    assert.deepEqual(
+      JSON.parse(
+        runSql(
+          target,
+          `SELECT jsonb_object_agg(scope,
+        portcove_maintenance.discovery_expanded_state(scope, state))
+        FROM portcove_maintenance.discovery_collection_state;`,
+        ),
+      ),
+      JSON.parse(logical),
+    );
+    assert.equal(
+      runSql(
+        target,
+        "SELECT collection_active FROM portcove_maintenance_meta.discovery_intake_activation;",
+      ).trim(),
+      "f",
+    );
+    assert.equal(
+      runSql(
+        target,
+        "SELECT collection_generation FROM portcove_maintenance_meta.discovery_intake_activation;",
+      ).trim(),
+      "2",
+    );
+    assert.equal(
+      runSql(
+        target,
+        "SELECT has_function_privilege('portcove_maintenance_collector', 'portcove_maintenance.discovery_acquire_compact(text,uuid,uuid,integer,text,text,text)', 'EXECUTE');",
+      ).trim(),
+      "f",
+    );
+  },
+);
+
+void test(
   "recovery reconstruction reuses history and restores current state and sequences",
   {
     skip: server.skip ?? false,
@@ -1015,8 +1537,31 @@ void test(
     const proof = fixture.start("proof").owner;
     migrate(source);
     runSql(source, seed);
+    // A large unchanged discovery state would exceed the ordinary test
+    // reservation if sent again, even though its complete digest matches.
+    runSql(
+      source,
+      `INSERT INTO portcove_maintenance.discovery_collection_state
+      (scope, definition_sha256, revision, state, state_sha256, updated_at)
+      VALUES ('primary', '${hex("a")}', 0, jsonb_build_object('fixture', repeat('x', 3000000)),
+        '${hex("b")}', clock_timestamp());
+      INSERT INTO portcove_maintenance.discovery_collection_attempts
+        (attempt_id, scope, acquisition, collection_generation, source_revision, runner, started_at, finished_at, outcome)
+      VALUES ('00000000-0000-4000-8000-000000000001', 'primary', 1, 1, 'test', 'test', clock_timestamp(), clock_timestamp(), 'complete');
+      INSERT INTO portcove_maintenance.discovery_lead_records (scope, lead_id, record, updated_attempt_id)
+      SELECT 'primary', i, jsonb_build_object('id', i, 'payload', repeat('y', 30000)),
+        '00000000-0000-4000-8000-000000000001'::uuid FROM generate_series(1, 100) i;`,
+    );
     const previous = path.join(fixture.root, "previous");
     await backup(source, previous);
+    runSql(
+      source,
+      `UPDATE portcove_maintenance.discovery_lead_records
+      SET record = jsonb_build_object('id', 1, 'payload', 'changed') WHERE scope = 'primary' AND lead_id = 1;
+      DELETE FROM portcove_maintenance.discovery_lead_records WHERE scope = 'primary' AND lead_id = 2;
+      INSERT INTO portcove_maintenance.discovery_lead_records (scope, lead_id, record, updated_attempt_id)
+      VALUES ('primary', 101, '{"id":101,"payload":"new"}', '00000000-0000-4000-8000-000000000001');`,
+    );
     runSql(source, executorSeed);
     runSql(
       source,
@@ -1047,15 +1592,51 @@ void test(
       /Protected table inventory/u,
     );
     runSql(source, "DROP TABLE portcove_maintenance.unexpected;");
-    const result = await backupReusingHistory({
+    const recover = createBackupRecovery({
       source,
       prefixDatabase: prefix,
       target,
       previous,
       output,
-      reservedBytes: 5_000_000,
     });
+    let required = 0;
+    await assert.rejects(recover(2_000_000), (error: unknown) => {
+      if (!(error instanceof MaintenanceBackupDeferred)) return false;
+      required = error.requiredBytes;
+      assert.equal(error.reservedBytes, 2_000_000);
+      return Number.isSafeInteger(required) && required > 2_000_000;
+    });
+    // Same verified local seed, fresh production snapshot, newly sized allowance.
+    const result = await recover(required + 100_000);
+    const measurement = {
+      host: source.PGHOST!,
+      payloadBytes: 0,
+      byteLimit: 2_000_000,
+      deadline: Date.now() + 60_000,
+    };
+    await maintenanceTransfer.run(measurement, () =>
+      withExportedSnapshot(source, async (_snapshot, query) => {
+        const response = await query("SELECT repeat('x', 10000);");
+        assert.ok(response.length >= 10_000);
+      }),
+    );
+    assert.ok(
+      measurement.payloadBytes >= 10_000,
+      "exported-snapshot responses are charged to admission",
+    );
     assert.ok(result.transfer.history_copy_bytes > 0 && result.transfer.history_copy_bytes < 250);
+    assert.ok(
+      result.transfer.reused_tables.includes("portcove_maintenance.discovery_collection_state"),
+    );
+    assert.ok(!result.transfer.reused_tables.includes("portcove_maintenance.collection_runs"));
+    assert.ok(result.transfer.estimated_payload_ceiling < 5_000_000);
+    assert.deepEqual(result.transfer.row_delta_tables, [
+      { table: "portcove_maintenance.discovery_lead_records", changed_or_removed_keys: 3 },
+    ]);
+    assert.ok(
+      result.transfer.row_delta_copy_bytes > 0 && result.transfer.row_delta_copy_bytes < 1000,
+    );
+    assert.ok(result.transfer.row_delta_plan_bytes > 0);
     assert.equal(result.manifest.sequences?.[0]?.last_value, "5001");
     const restored = restore(proof, output);
     assert.equal(restored.sequences_verified, true);

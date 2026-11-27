@@ -11,6 +11,9 @@ import {
   publishedVersionsFromMetadata,
   publishedTargetsFromMetadata,
 } from "./catalog-publish.mts";
+import { artworkCheckpointMax, artworkCheckpointTarget } from "./listing-artwork-checkpoint.mts";
+import { readApprovedCoverJournal } from "./catalog-cover-approval-journal.mts";
+import { orderedJsonSha256 } from "./json-values.mts";
 import {
   compactListingDeliveryTarget,
   listingDeliveryMaximum,
@@ -58,6 +61,7 @@ function immutablePath({ target, sha256 }: Identity) {
 function targetLimit(target: string) {
   if (target === listingDeliveryTarget || target === compactListingDeliveryTarget)
     return listingDeliveryMaximum;
+  if (target === artworkCheckpointTarget) return artworkCheckpointMax;
   if (target.startsWith("policy/")) return 65_536;
   return target === index ? catalogDefinitionIndexBytes : catalogDefinitionContentBytes;
 }
@@ -72,6 +76,61 @@ type ReadCatalog = (file: string, limit: number) => Promise<Buffer>;
 
 type CatalogSource = string | ReadCatalog;
 
+function roleMeta(document: unknown, role: string) {
+  if (!isRecord(document) || !isRecord(document.signed) || !isRecord(document.signed.meta))
+    throw new Error("Published cover approval metadata is unbound");
+  const meta = document.signed.meta[role];
+  if (!isRecord(meta) || !isRecord(meta.hashes) || typeof meta.hashes.sha256 !== "string")
+    throw new Error("Published cover approval role identity is missing");
+  return {
+    version: revision(meta.version),
+    bytes: revision(meta.length),
+    sha256: meta.hashes.sha256,
+  };
+}
+
+async function readCoverApprovalReadback(
+  read: ReadCatalog,
+  timestamp: Buffer,
+  versions: NonNullable<ReturnType<typeof priorVersions>>,
+) {
+  const policyPath = "metadata/" + versions.policy + ".official-policy.json";
+  const policyBytes = await read(policyPath, 8 * 1024 ** 2);
+  const policy = object(policyBytes);
+  const target =
+    isRecord(policy.signed) && isRecord(policy.signed.targets)
+      ? policy.signed.targets[compactListingDeliveryTarget]
+      : undefined;
+  const custom = isRecord(target) && isRecord(target.custom) ? target.custom : undefined;
+  if (custom?.portcove_cover_approvals_v1 === undefined) return null;
+  const journal = readApprovedCoverJournal(custom.portcove_cover_approvals_v1);
+  const snapshotIdentity = roleMeta(object(timestamp), "snapshot.json");
+  const snapshotPath = "metadata/" + versions.snapshot + ".snapshot.json";
+  const snapshot = await read(snapshotPath, 8 * 1024 ** 2);
+  const policyIdentity = roleMeta(object(snapshot), "official-policy.json");
+  const metadata = [
+    { path: snapshotPath, sha256: sha256(snapshot), bytes: snapshot.length },
+    { path: policyPath, sha256: sha256(policyBytes), bytes: policyBytes.length },
+  ];
+  for (const [actual, expected, version] of [
+    [metadata[0]!, snapshotIdentity, versions.snapshot],
+    [metadata[1]!, policyIdentity, versions.policy],
+  ] as const)
+    if (
+      actual.bytes !== expected.bytes ||
+      actual.sha256 !== expected.sha256 ||
+      version !== expected.version
+    )
+      throw new Error("Published cover approval role differs from the timestamp chain");
+  return {
+    journal: {
+      sha256: orderedJsonSha256(journal),
+      consumed_packets: journal.consumed_packets,
+    },
+    metadata,
+  };
+}
+
 async function readState(site: CatalogSource | null) {
   if (!site)
     return {
@@ -79,6 +138,8 @@ async function readState(site: CatalogSource | null) {
       timestamp: null,
       index: null,
       listings: null,
+      coverCheckpoint: null,
+      coverApprovalReadback: null,
       historyPointer: null,
       definitions: new Map<string, Definition>(),
     };
@@ -210,6 +271,13 @@ async function readState(site: CatalogSource | null) {
     listings: Object.hasOwn(targets, activeListingTarget)
       ? identity(targets, activeListingTarget)
       : null,
+    coverCheckpoint: Object.hasOwn(targets, artworkCheckpointTarget)
+      ? identity(targets, artworkCheckpointTarget)
+      : null,
+    coverApprovalReadback:
+      activeListingTarget === compactListingDeliveryTarget
+        ? await readCoverApprovalReadback(read, timestampBytes, versions)
+        : null,
     historyPointer: Object.hasOwn(targets, historyTarget) ? identity(targets, historyTarget) : null,
     definitions,
   };
@@ -257,13 +325,29 @@ export async function describeCatalogPublication(prior: CatalogSource | null, ne
     });
   const listingChanged = !isDeepStrictEqual(before.listings, after.listings);
   if (listingChanged) requireReadback(after.listings);
+  const coverChanged = !isDeepStrictEqual(before.coverCheckpoint, after.coverCheckpoint);
+  if (coverChanged) {
+    if (!after.coverCheckpoint || after.listings?.target !== compactListingDeliveryTarget)
+      throw new Error("Published cover checkpoint was dropped or has no active compact target");
+    requireReadback(after.coverCheckpoint);
+    requireReadback(after.listings);
+  }
+  if (after.coverApprovalReadback) {
+    if (!after.coverCheckpoint)
+      throw new Error("Published cover approvals require the retained cover checkpoint");
+    requireReadback(after.coverCheckpoint);
+    requireReadback(after.listings);
+  }
+  if (before.coverApprovalReadback && !after.coverApprovalReadback)
+    throw new Error("Published catalog dropped the cover approval journal");
   if (pending.size > 256 || changes.length > 128)
     throw new Error("publication receipt target count exceeds its bound");
-  const snapshot = ({ versions, timestamp, index, listings }: State) => ({
+  const snapshot = ({ versions, timestamp, index, listings, coverCheckpoint }: State) => ({
     versions,
     timestamp_sha256: timestamp,
     index,
     listings,
+    ...(coverCheckpoint ? { cover_checkpoint: coverCheckpoint } : {}),
   });
   return {
     prior: snapshot(before),
@@ -271,6 +355,7 @@ export async function describeCatalogPublication(prior: CatalogSource | null, ne
     changes,
     listingChanged,
     historyPointer: after.historyPointer,
+    ...(after.coverApprovalReadback ? { coverApprovalReadback: after.coverApprovalReadback } : {}),
     targets: [...pending.values()],
   };
 }
@@ -394,7 +479,17 @@ export async function verifyCatalogPublicationLive(
     );
   };
   await readTimestamp(false);
-  for (const entry of late?.metadata ?? []) {
+  const metadata = new Map<string, HistoryReadback>();
+  for (const entry of [
+    ...(description.coverApprovalReadback?.metadata ?? []),
+    ...(late?.metadata ?? []),
+  ]) {
+    const prior = metadata.get(entry.path);
+    if (prior && !isDeepStrictEqual(prior, entry))
+      throw new Error("Public catalog role readback inventory changed");
+    metadata.set(entry.path, entry);
+  }
+  for (const entry of metadata.values()) {
     const actual = await confirmLiveTarget(
       `${pages}${entry.path}`,
       entry.sha256,
@@ -479,7 +574,13 @@ async function main(argv: string[]) {
   const priorInputs = existsSync(priorBrowse)
     ? sha256(await readControllerToolFile(priorBrowse, 8192))
     : null;
-  const { targets, listingChanged, historyPointer: _historyPointer, ...receipt } = description;
+  const {
+    targets,
+    listingChanged,
+    historyPointer: _historyPointer,
+    coverApprovalReadback,
+    ...receipt
+  } = description;
   const serialized = `${JSON.stringify(
     {
       schema_version: 1,
@@ -502,6 +603,7 @@ async function main(argv: string[]) {
         immutable_targets: targets,
         immutable_target_bytes: bytes,
         timestamp_rechecked: true,
+        ...(coverApprovalReadback ? { cover_approvals: coverApprovalReadback } : {}),
       },
     },
     null,

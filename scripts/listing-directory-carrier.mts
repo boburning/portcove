@@ -31,6 +31,8 @@ export type ListingStopCode =
   | "withdrawal_input"
   | "missing_without_withdrawal"
   | "conflicting_observations"
+  | "cover_evidence_unavailable"
+  | "cover_reader_unavailable"
   | "core_refusal";
 
 export class ListingPublicationStop extends Error {

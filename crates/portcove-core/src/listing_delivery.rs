@@ -715,6 +715,12 @@ impl ListingDeliveryDocument {
                 {
                     crate::catalog::listings::inherit_verified_sources(original, previous);
                 }
+                if self.directory.format_version
+                    < crate::catalog::listings::MOD_PORTAL_LISTING_FORMAT
+                    && same_scope
+                {
+                    replacement.mod_portals.clone_from(&current.mod_portals);
+                }
                 // Older directories cannot express or withdraw format-12
                 // explanations. Retain only the same project's exact game
                 // scope; all fields that delivery understands remain its own.
@@ -810,11 +816,12 @@ fn verified_edition_bindings_follow_managed_scope_and_directory_version() {
         revision: 1,
         withdrawn_ids: Vec::new(),
         directory: crate::CatalogListingDocument {
-            format_version: 13,
+            format_version: catalog.listing_document().format_version,
             listings: vec![current.clone()],
-        },
+        }
+        .export_format(13)
+        .unwrap(),
     };
-    crate::catalog::listings::strip_verified_sources(&mut delivery.directory.listings[0]);
     // A carrier does not change the field authority of its decoded directory.
     for parse in [
         ListingDeliveryDocument::parse,

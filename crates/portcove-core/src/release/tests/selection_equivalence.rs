@@ -696,11 +696,19 @@ const OWN_FIXTURE_COVERAGE: &[(&str, usize)] = &[
 const MECHANISM_OWN_DEFECTS: &[&str] = &[
     "mechanism-fixture-referenced-disc LinuxX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
     "mechanism-fixture-referenced-disc LinuxX86_64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-referenced-disc MacosAarch64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-referenced-disc MacosAarch64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-referenced-disc MacosX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-referenced-disc MacosX86_64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
     "mechanism-fixture-referenced-disc WindowsX86_64 mechanism-fixture-releases.json v2.0.0 asset WrongRolePackage",
     "mechanism-fixture-referenced-disc WindowsX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
     "mechanism-fixture-referenced-disc WindowsX86_64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
     "mechanism-fixture-upstream-setup LinuxX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
     "mechanism-fixture-upstream-setup LinuxX86_64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-upstream-setup MacosAarch64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-upstream-setup MacosAarch64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-upstream-setup MacosX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
+    "mechanism-fixture-upstream-setup MacosX86_64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
     "mechanism-fixture-upstream-setup WindowsX86_64 mechanism-fixture-releases.json v3.0.0 Beta ForeignOnlyReleaseHidesOlderRelease",
     "mechanism-fixture-upstream-setup WindowsX86_64 mechanism-fixture-releases.json v3.0.0 Stable ForeignOnlyReleaseHidesOlderRelease",
 ];
@@ -744,10 +752,19 @@ fn typed_selection_matches_legacy_selection_except_named_defects() {
             .unwrap()
             .to_owned();
         adapters.entry(adapter.clone()).or_default().1 += 1;
+        let mechanism = MECHANISM_FIXTURE_PORTS.iter().any(|(_, id)| *id == port.id);
         for &platform in &port.platforms {
+            // The synthetic Mac rows qualify these two mechanisms on their own
+            // release facts. Keep the historical cross-replay population for the
+            // synthetic Windows/Linux rows and all production definitions.
+            let mechanism_mac =
+                mechanism && matches!(platform, Platform::MacosAarch64 | Platform::MacosX86_64);
             let mut seen = BTreeSet::new();
             for (fixture, list) in &lists {
                 let own = own_fixture(port, list);
+                if mechanism_mac && !own {
+                    continue;
+                }
                 if own {
                     own_pairs.insert((port.id.as_str(), fixture.as_str()));
                     adapters
@@ -759,8 +776,6 @@ fn typed_selection_matches_legacy_selection_except_named_defects() {
                 let mut record =
                     |tag: &str, channel: String, defect: Option<Defect>, detail: String| {
                         let row = format!("{} {platform:?} {fixture} {tag} {channel}", port.id);
-                        let mechanism =
-                            MECHANISM_FIXTURE_PORTS.iter().any(|(_, id)| *id == port.id);
                         match defect {
                             Some(defect) if own && mechanism => {
                                 mechanism_own.insert(format!("{row} {defect:?}"));
@@ -981,18 +996,26 @@ fn mechanism_routes_select_only_their_host_package_on_every_desktop_host() {
             .iter()
             .find(|release| release.tag_name == "v2.0.0")
             .unwrap();
-        for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
+        for platform in fixture::PLATFORMS {
             let context = format!("{port_id} {platform:?}");
             let chosen = choose_asset(port, platform, &v2.assets).unwrap();
             assert_eq!(chosen.name, asset_name(platform), "{context}");
-            let token = match platform {
-                Platform::WindowsX86_64 => "windows-x64",
-                _ => "linux-x64",
-            };
+            let token = fixture::asset_token(platform);
             for decoy in &v2.assets {
-                if decoy.name == asset_name(Platform::WindowsX86_64)
-                    || decoy.name == asset_name(Platform::LinuxX86_64)
+                if fixture::PLATFORMS
+                    .iter()
+                    .any(|&target| decoy.name == asset_name(target))
                 {
+                    if decoy.name != chosen.name {
+                        let error =
+                            choose_asset(port, platform, std::slice::from_ref(decoy)).unwrap_err();
+                        assert_eq!(
+                            error.code,
+                            crate::ErrorCode::NotFound,
+                            "{context} {}",
+                            decoy.name
+                        );
+                    }
                     continue;
                 }
                 let mut renamed = decoy.clone();

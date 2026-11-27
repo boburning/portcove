@@ -1,12 +1,162 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
-import { readFileSync, mkdtempSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import type { ArtworkPreparationOptions } from "./inspect-igdb-artwork.mts";
 
 import { requiredFixture, text, root } from "./fixtures/catalog-generator-fixtures.mts";
+
+void test("shared covers use the accepted provider asset identity through a slug rename", async () => {
+  const { checkedAuthoredPort } = await import("./catalog-authoring.mts");
+  const { indexSharedCoverRows, projectExactSharedCovers } =
+    await import("./shared-cover-projection.mts");
+  const game = {
+    format_version: 1,
+    id: "same-game",
+    evidence_urls: ["https://example.org/same-game"],
+    source_editions: [
+      {
+        id: "same-edition",
+        title: "Same game",
+        system: "pc",
+        evidence_urls: ["https://example.org/same-edition"],
+      },
+    ],
+  };
+  const cover = {
+    game_id: 2,
+    cover_id: 3,
+    image_id: "stablecover",
+    image_sha256: "a".repeat(64),
+    game_slug: "before-rename",
+    match_kind: "underlying-game" as const,
+  };
+  const listing = (id: string) => ({
+    id,
+    name: id,
+    summary: "Artwork identity fixture.",
+    project_url: `https://github.com/example/${id}`,
+    original_game: game,
+  });
+  const oldDonor = { ...listing("a-donor"), artwork: cover };
+  const renamedCover = { ...cover, game_slug: "after-rename" };
+  const newDonor = { ...listing("b-donor"), artwork: renamedCover };
+  const recipient = listing("recipient");
+  const derive = (
+    signed: readonly unknown[],
+    rows: readonly unknown[],
+    holdNewForImages = new Set<string>(),
+  ) =>
+    projectExactSharedCovers({
+      live: indexSharedCoverRows(signed),
+      authored: rows.map((row) => checkedAuthoredPort({ format_version: 1, listing: row })),
+      excludedPortIds: new Set(),
+      gone: new Set(),
+      checked: new Map(),
+      deriveDefaultsForPublishedRecipients: true,
+      holdNewForImages,
+    });
+
+  const currentAuthoring = [{ ...oldDonor, artwork: renamedCover }, newDonor, recipient];
+  const prior = [oldDonor, newDonor];
+  assert.deepEqual(derive(prior, currentAuthoring).proposals.get(recipient.id), cover);
+
+  // An image under a byte-change hold can continue serving its old recipients.
+  const hold = new Set([cover.image_id]);
+  assert.equal(derive(prior, currentAuthoring, hold).proposals.size, 0);
+  const previousRecipient = { ...recipient, artwork: renamedCover };
+  assert.deepEqual(
+    derive([...prior, previousRecipient], currentAuthoring, hold).proposals.get(recipient.id),
+    renamedCover,
+  );
+
+  const remapped = { ...previousRecipient, original_game: { ...game, id: "other-game" } };
+  assert.equal(derive([...prior, remapped], currentAuthoring, hold).proposals.size, 0);
+
+  // Different provider assets for the same edition are still ambiguous.
+  const conflicting = { ...newDonor, artwork: { ...renamedCover, cover_id: 4 } };
+  const result = derive([oldDonor, conflicting], [oldDonor, conflicting, recipient]);
+  assert.equal(result.proposals.size, 0);
+  assert.equal(result.outcomes.find(({ id }) => id === recipient.id)?.status, "ambiguous");
+});
+
+void test("reviewed original cover decisions replace stale preparation inputs", async () => {
+  const { artworkPreparationInputs, prepareCatalogArtwork } =
+    await import("./inspect-igdb-artwork.mts");
+  const { indexReviewedOriginalMedia } = await import("./reviewed-original-media.mts");
+  const project_url = "https://github.com/example/port";
+  const stale = {
+    game_id: 2,
+    game_slug: "old-game",
+    cover_id: 3,
+    image_id: "oldcover",
+    image_sha256: "a".repeat(64),
+    match_kind: "underlying-game" as const,
+  };
+  const corrected = { ...stale, game_id: 4, game_slug: "correct-game", image_id: "correctcover" };
+  const recipient = {
+    id: "recipient",
+    name: "Port",
+    project_url,
+    presentation: {
+      original_game: { id: "original", source_editions: [{ id: "pc", system: "pc" }] },
+    },
+    underlying_game: {
+      names: ["Old game"],
+      source_edition_id: "pc",
+      game_id: 2,
+      slug: "old-game",
+      evidence_url: project_url,
+    },
+  };
+  const acceptedCatalog = {
+    ports: [
+      { ...recipient, id: "stale-donor", presentation: { artwork: stale } },
+      { ...recipient, id: "correct-donor", presentation: { artwork: corrected } },
+    ],
+  };
+  const scope = {
+    original_game_id: "original",
+    source_edition_id: "pc",
+    system: "pc",
+    evidence_url: project_url,
+  };
+  const withMatch = indexReviewedOriginalMedia([
+    { ...scope, decision: "match", game_id: 4, slug: "correct-game" },
+  ]);
+  const withExclusion = indexReviewedOriginalMedia([{ ...scope, decision: "exclude" }]);
+  const options = { acceptedCatalog, inspectGame: () => [] };
+  const initial = await prepareCatalogArtwork({ ports: [recipient] }, options);
+  assert.deepEqual(initial.records[0]?.mapping, stale);
+  const repaired = await prepareCatalogArtwork(
+    { ports: [recipient] },
+    { ...options, reviewedOriginalMedia: withMatch },
+  );
+  assert.deepEqual(repaired.records[0]?.mapping, corrected);
+  const excluded = await prepareCatalogArtwork(
+    { ports: [recipient] },
+    { ...options, reviewedOriginalMedia: withExclusion },
+  );
+  assert.equal(excluded.catalog.ports[0]?.presentation?.artwork, undefined);
+  assert.ok(
+    excluded.records[0]?.exceptions.some(
+      ({ reason }) => reason === "reviewed-original-match-excluded",
+    ),
+  );
+  assert.deepEqual(
+    artworkPreparationInputs(acceptedCatalog, {}, withMatch)(recipient)
+      .accepted_original_candidates,
+    [corrected],
+  );
+  assert.deepEqual(
+    artworkPreparationInputs(acceptedCatalog, {}, withExclusion)(recipient)
+      .accepted_original_candidates,
+    [],
+  );
+});
 
 void test("a regional cover refresh refuses a mismatched localization and preserves accepted art", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
@@ -552,6 +702,334 @@ void test("unavailable image-type overflow stays unknown without disabling game-
   assert.equal(provider.providerMetrics.game_requests, 3);
 });
 
+void test("a reviewed original correction takes precedence and a scoped exclusion stays in force", async () => {
+  const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
+  const { indexReviewedOriginalMedia } = await import("./reviewed-original-media.mts");
+  const { sceneCoverage } = await import("./artwork-operations.mts");
+  const scope = {
+    original_game_id: "fixture-original",
+    source_edition_id: "retail-edition",
+    system: "dos",
+    evidence_url: "https://www.igdb.com/games/reviewed-original",
+  };
+  const port = (id: string, system = "dos") => ({
+    id,
+    name: id,
+    project_url: `https://example.org/${id}`,
+    presentation: {
+      original_game: {
+        id: scope.original_game_id,
+        source_editions: [{ id: scope.source_edition_id, system }],
+      },
+    },
+  });
+  const recipient = port("old-recipient");
+  const future = port("new-recipient");
+  const unrelated = port("different-system", "windows");
+  const calls: unknown[] = [];
+  const inspector = {
+    async inspectGame(identity: unknown) {
+      assert.ok(isRecord(identity));
+      if (identity.kind === "port") return [];
+      calls.push(identity.game_id);
+      return [{ id: 42, slug: "reviewed-original", name: "Reviewed original" }];
+    },
+    async inspectGameMedia(id: number, role: string) {
+      assert.equal(id, 42);
+      return role === "logo" ? [{ id: 9, game: id, image_id: "reviewedlogo" }] : [];
+    },
+    async inspectMediaImage() {
+      return {
+        sha256: "a".repeat(64),
+        bytes: 16,
+        width: 300,
+        height: 200,
+        format: "png" as const,
+        validator: "portcove-core" as const,
+      };
+    },
+  };
+  const input = {
+    ports: [recipient, future, unrelated],
+  };
+  const earlier = {
+    source_edition_id: scope.source_edition_id,
+    names: ["Earlier provider match"],
+    game_id: 15,
+    slug: "earlier-original",
+    evidence_url: "https://www.igdb.com/games/earlier-original",
+  };
+  const identities = { [recipient.id]: { underlying_game: earlier } };
+  const corrected = await prepareCatalogGameMedia(input, {
+    inspector,
+    identities,
+    reviewedOriginalMedia: indexReviewedOriginalMedia([
+      { ...scope, decision: "match", game_id: 42, slug: "reviewed-original" },
+    ]),
+  });
+  assert.deepEqual(calls, [42]);
+  for (const id of [recipient.id, future.id])
+    assert.ok(
+      corrected.records.some((row) => row.port_id === id && row.image_id === "reviewedlogo"),
+    );
+  assert.equal(
+    corrected.records.some(
+      (row) => row.port_id === unrelated.id && row.subject.kind === "original",
+    ),
+    false,
+  );
+
+  calls.length = 0;
+  const excluded = await prepareCatalogGameMedia(input, {
+    inspector,
+    identities,
+    acceptedCatalog: corrected.catalog,
+    reviewedOriginalMedia: indexReviewedOriginalMedia([{ ...scope, decision: "exclude" }]),
+  });
+  assert.deepEqual(calls, []);
+  for (const id of [recipient.id, future.id])
+    assert.equal(
+      excluded.records.filter(
+        (row) => row.port_id === id && row.reason === "identity-excluded-by-review",
+      ).length,
+      3,
+    );
+  assert.equal(
+    sceneCoverage(corrected.catalog, excluded).filter(({ state }) => state === "excluded").length,
+    6,
+  );
+});
+
+void test("reviewed media discovers missing roles by exact game, edition and system", async () => {
+  const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
+  const { sceneCoverage } = await import("./artwork-operations.mts");
+  const subject = { kind: "original", game_id: "new-original", source_edition_id: "game-2002" };
+  const artwork = (game_id: number, slug: string) => ({
+    id: `accepted-shot-${game_id}`,
+    role: "screenshot",
+    subject,
+    sha256: "a".repeat(64),
+    url: `https://images.igdb.com/igdb/image/upload/t_720p/accepted${game_id}.png`,
+    source_url: `https://www.igdb.com/games/${slug}`,
+    edition_neutral: true,
+    igdb: {
+      game_id,
+      game_slug: slug,
+      record_id: 15,
+      image_id: `accepted${game_id}`,
+      kind: "screenshot",
+    },
+  });
+  const port = (
+    id: string,
+    edition = "game-2002",
+    system = "playstation-2",
+    media?: unknown[],
+  ) => ({
+    id,
+    name: "Shared title",
+    project_url: `https://example.org/${id}`,
+    presentation: {
+      original_game: { id: "new-original", source_editions: [{ id: edition, system }] },
+      ...(media === undefined ? {} : { media }),
+    },
+  });
+  const donor = port("donor", undefined, undefined, [artwork(7, "reviewed-game")]);
+  const recipient = port("new-port");
+  const sibling = port("another-new-port");
+  const otherEdition = port("other-release", "game-2003");
+  const otherSystem = port("other-system", undefined, "windows");
+  const excluded = port("excluded", undefined, undefined, []);
+  const seedReads: unknown[] = [];
+  const mediaReads: string[] = [];
+  const inspector = {
+    async inspectGame(identity: unknown) {
+      assert.ok(isRecord(identity));
+      if (identity.kind === "port") return [];
+      seedReads.push(identity.game_id);
+      assert.equal(identity.slug, "reviewed-game");
+      return [{ id: 7, slug: "reviewed-game", name: "Different provider title" }];
+    },
+    async inspectGameMedia(id: number, role: string) {
+      assert.equal(id, 7);
+      return role === "logo" ? [{ id: 10, game: 7, image_id: "sharedlogo" }] : [];
+    },
+    async inspectMediaImage(id: string) {
+      mediaReads.push(id);
+      return {
+        sha256: "b".repeat(64),
+        bytes: 16,
+        width: 400,
+        height: 200,
+        format: "png" as const,
+        validator: "portcove-core" as const,
+      };
+    },
+  };
+  const result = await prepareCatalogGameMedia(
+    { ports: [recipient, sibling, otherEdition, otherSystem, excluded] },
+    {
+      acceptedCatalog: { ports: [donor] },
+      inspector,
+    },
+  );
+  assert.deepEqual(seedReads, [7]);
+  assert.deepEqual(mediaReads, ["sharedlogo"]);
+  for (const current of result.catalog.ports.slice(0, 2)) {
+    const media = current.presentation?.media;
+    assert.ok(Array.isArray(media));
+    assert.equal(media.length, 1);
+    const asset: unknown = media[0];
+    assert.ok(isRecord(asset));
+    assert.deepEqual(asset.subject, subject);
+    assert.equal(asset.role, "logo");
+    assert.equal(asset.edition_neutral, undefined);
+  }
+  assert.deepEqual(result.catalog.ports.slice(2), [otherEdition, otherSystem, excluded]);
+  const secondEdition = { id: "game-2003", system: "playstation-2" };
+  const multiEdition = port("both-releases");
+  multiEdition.presentation.original_game.source_editions.push(secondEdition);
+  const secondDonor = port("second-edition-donor", secondEdition.id, secondEdition.system, [
+    {
+      ...artwork(7, "reviewed-game"),
+      subject: { ...subject, source_edition_id: secondEdition.id },
+    },
+  ]);
+  const multi = await prepareCatalogGameMedia(
+    { ports: [multiEdition] },
+    {
+      acceptedCatalog: { ports: [donor, secondDonor] },
+      inspector,
+    },
+  );
+  const media = multi.catalog.ports[0]?.presentation?.media;
+  assert.ok(Array.isArray(media));
+  const assets = (media as unknown[]).map((asset) => {
+    assert.ok(isRecord(asset) && isRecord(asset.subject));
+    return { id: asset.id, edition: asset.subject.source_edition_id };
+  });
+  assert.equal(assets.length, 2);
+  assert.deepEqual(
+    assets.map(({ edition }) => edition),
+    ["game-2002", "game-2003"],
+  );
+  assert.equal(new Set(assets.map(({ id }) => id)).size, 2);
+  const conflict = port("conflicting-donor", undefined, undefined, [artwork(8, "another-game")]);
+  seedReads.length = 0;
+  const held = await prepareCatalogGameMedia(
+    { ports: [recipient] },
+    {
+      acceptedCatalog: { ports: [donor, conflict] },
+      inspector,
+    },
+  );
+  assert.deepEqual(seedReads, []);
+  assert.equal(held.records.filter((record) => record.reason === "identity-ambiguous").length, 4);
+  assert.equal(
+    sceneCoverage({ ports: [recipient] }, held).filter(({ state }) => state === "conflicting")
+      .length,
+    4,
+  );
+  assert.deepEqual(held.catalog.ports, [recipient]);
+  const corrected = await prepareCatalogGameMedia(
+    { ports: [recipient] },
+    {
+      acceptedCatalog: { ports: [donor, conflict] },
+      identities: {
+        [recipient.id]: {
+          underlying_game: {
+            source_edition_id: subject.source_edition_id,
+            game_id: 7,
+            slug: "reviewed-game",
+            names: ["Different provider title"],
+            evidence_url: "https://www.igdb.com/games/reviewed-game",
+          },
+        },
+      },
+      inspector,
+    },
+  );
+  assert.deepEqual(seedReads, [7]);
+  assert.ok(
+    corrected.records.some((record) => record.role === "logo" && record.reason === "role-selected"),
+  );
+  const windowsDonor = port("windows-donor", undefined, "windows", [artwork(8, "windows-game")]);
+  const systemScoped = await prepareCatalogGameMedia(
+    { ports: [recipient, otherSystem] },
+    {
+      acceptedCatalog: { ports: [donor, windowsDonor] },
+      inspector: {
+        ...inspector,
+        async inspectGame(identity) {
+          if (isRecord(identity) && identity.game_id === 8)
+            return [{ id: 8, slug: "windows-game", name: "Windows port" }];
+          return inspector.inspectGame(identity);
+        },
+        async inspectGameMedia(id, role) {
+          return role === "logo" ? [{ id: 10, game: id, image_id: `logo${id}` }] : [];
+        },
+      },
+    },
+  );
+  const scopedRoles = sceneCoverage(
+    { ports: [donor, windowsDonor, recipient, otherSystem] },
+    systemScoped,
+    [recipient.id, otherSystem.id],
+  );
+  assert.deepEqual(
+    scopedRoles
+      .filter((row) => row.subject.kind === "original" && row.role === "logo")
+      .map((row) => [row.port_id, row.state, row.provider_game_ids]),
+    [
+      [recipient.id, "proposed", [7]],
+      [otherSystem.id, "proposed", [8]],
+    ],
+  );
+  const afterWithdrawal = await prepareCatalogGameMedia(
+    { ports: [excluded] },
+    {
+      acceptedCatalog: { ports: [donor] },
+      explicitClearPortIds: new Set(),
+      inspector,
+    },
+  );
+  assert.ok(
+    afterWithdrawal.records.some((row) => row.role === "logo" && row.reason === "role-selected"),
+  );
+  const legacyMedia = {
+    id: "legacy-screenshot",
+    role: "screenshot",
+    subject,
+    sha256: "c".repeat(64),
+  };
+  const typedMedia = artwork(7, "reviewed-game");
+  const retainedHeader = {
+    ...typedMedia,
+    role: "header",
+    igdb: { ...typedMedia.igdb, kind: "artwork" },
+  };
+  const mixedAccepted = port("mixed", undefined, undefined, [legacyMedia, retainedHeader]);
+  const mixedInput = port("mixed", undefined, undefined, [legacyMedia]);
+  const mixed = await prepareCatalogGameMedia(
+    { ports: [mixedInput] },
+    { acceptedCatalog: { ports: [mixedAccepted] }, inspector },
+  );
+  assert.equal(
+    mixed.records.find((row) => row.subject.kind === "original" && row.role === "header")?.reason,
+    "existing-scene-retained",
+  );
+  const correctedSystem = port("mixed", undefined, "windows");
+  const correctedMedia = await prepareCatalogGameMedia(
+    { ports: [correctedSystem] },
+    { acceptedCatalog: { ports: [mixedAccepted] }, inspector },
+  );
+  const correctedHeader = sceneCoverage({ ports: [mixedAccepted] }, correctedMedia).find(
+    (row) => row.subject.kind === "original" && row.role === "header",
+  );
+  assert.equal(correctedHeader?.state, "unknown");
+  assert.deepEqual(correctedHeader?.admitted_image_ids, []);
+});
+
 void test("game media preparation binds each typed role to the same exact game", async () => {
   const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
   const inspected: string[] = [];
@@ -636,7 +1114,7 @@ void test("game media preparation binds each typed role to the same exact game",
     },
   );
   assert.deepEqual(relationships, ["key_art", "logo", "screenshot"]);
-  assert.deepEqual(inspected, ["with", "without", "logo", "without", "wide", "shot"]);
+  assert.deepEqual(inspected, ["with", "without", "logo", "wide", "shot"]);
   const media = requiredFixture(result.catalog.ports[0]).presentation?.media;
   assert.ok(Array.isArray(media));
   assert.deepEqual(
@@ -674,56 +1152,82 @@ void test("game media preparation binds each typed role to the same exact game",
   );
 });
 
-void test("incomplete key-art inventory preserves cached media and does not suppress the logo role", async () => {
+void test("an incomplete inventory preserves artwork, shares the failed read and recovers next pass", async () => {
   const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
-  const subject = { kind: "port", port_id: "sample" };
-  const retained = { id: "retained-header", role: "header", subject };
-  const result = await prepareCatalogGameMedia(
-    {
-      ports: [
+  const catalog = {
+    ports: ["sample", "another"].map((id) => ({
+      id,
+      name: "Sample",
+      project_url: "https://example.org/sample",
+      presentation: {
+        media: [{ id: "retained-header", role: "header", subject: { kind: "port", port_id: id } }],
+      },
+    })),
+  };
+  let recovered = false;
+  const inventories: string[] = [];
+  const options: Parameters<typeof prepareCatalogGameMedia>[1] = {
+    inspector: {
+      inspectGame: async () => [
         {
-          id: "sample",
+          id: 7,
           name: "Sample",
-          project_url: "https://example.org/sample",
-          presentation: { media: [retained] },
+          slug: "sample",
+          websites: [{ url: "https://example.org/sample" }],
         },
       ],
-    },
-    {
-      inspector: {
-        inspectGame: async () => [
-          {
-            id: 7,
-            name: "Sample",
-            slug: "sample",
-            websites: [{ url: "https://example.org/sample" }],
-          },
-        ],
-        inspectGameMedia: async (_id, kind) =>
-          kind === "logo"
-            ? [{ id: 9, game: 7, image_id: "logo" }]
-            : Array.from({ length: 21 }, () => ({})),
-        inspectMediaImage: async () => ({
-          sha256: "b".repeat(64),
-          bytes: 100,
-          width: 400,
-          height: 200,
-          format: "png",
-          validator: "portcove-core",
-        }),
+      inspectGameMedia: async (_id, kind) => {
+        inventories.push(kind);
+        if (kind === "logo") return [{ id: 9, game: 7, image_id: "logo" }];
+        if (!recovered) return Array.from({ length: 21 }, () => ({}));
+        return kind === "screenshot" ? [{ id: 10, game: 7, image_id: "scene" }] : [];
       },
+      inspectMediaImage: async () => ({
+        sha256: "b".repeat(64),
+        bytes: 100,
+        width: 400,
+        height: 200,
+        format: "png",
+        validator: "portcove-core",
+      }),
     },
+  };
+  const partial = await prepareCatalogGameMedia(catalog, options);
+  assert.deepEqual(inventories, ["key_art", "logo", "screenshot"]);
+  for (const [index, port] of partial.catalog.ports.entries()) {
+    assert.deepEqual(
+      partial.records.filter((record) => record.port_id === port.id).map(({ reason }) => reason),
+      [
+        "media-provider-unavailable-or-incomplete",
+        "role-selected",
+        "existing-scene-retained",
+        "media-provider-unavailable-or-incomplete",
+      ],
+    );
+    const media = port.presentation?.media;
+    assert.ok(Array.isArray(media));
+    assert.deepEqual(media[0], requiredFixture(catalog.ports[index]).presentation.media[0]);
+    const logo: unknown = media[1];
+    assert.ok(isRecord(logo));
+    assert.equal(logo.role, "logo");
+  }
+
+  recovered = true;
+  inventories.length = 0;
+  const retried = await prepareCatalogGameMedia(partial.catalog, options);
+  assert.deepEqual(inventories, ["key_art", "screenshot"]);
+  for (const [index, port] of retried.catalog.ports.entries()) {
+    const past = requiredFixture(partial.catalog.ports[index]).presentation?.media;
+    const current = port.presentation?.media;
+    assert.ok(Array.isArray(past) && Array.isArray(current));
+    assert.deepEqual(current[1], past[1]);
+  }
+  assert.deepEqual(
+    retried.records
+      .filter(({ role, reason }) => role === "screenshot" && reason === "role-selected")
+      .map(({ port_id, subject }) => [port_id, subject]),
+    catalog.ports.map(({ id }) => [id, { kind: "port", port_id: id }]),
   );
-  assert.equal(result.records[0]?.reason, "media-provider-unavailable-or-incomplete");
-  assert.equal(result.records[1]?.reason, "role-selected");
-  assert.equal(result.records[2]?.reason, "existing-scene-retained");
-  assert.equal(result.records[3]?.reason, "media-provider-unavailable-or-incomplete");
-  const media = requiredFixture(result.catalog.ports[0]).presentation?.media;
-  assert.ok(Array.isArray(media));
-  assert.deepEqual(media[0], retained);
-  const second: unknown = media[1];
-  assert.ok(isRecord(second));
-  assert.equal(second.role, "logo");
 });
 
 void test("new scenes stay edition-bound and preserve other reviewed scopes", async () => {
@@ -837,13 +1341,9 @@ void test("new scenes stay edition-bound and preserve other reviewed scopes", as
   });
 });
 
-void test("an observed Gone image sweeps earlier and unselected references and cannot be reselected in the batch", async () => {
-  const {
-    createIgdbInspector,
-    prepareCatalogArtwork,
-    prepareCatalogGameMedia,
-    reconcileCatalogArtworkWithdrawals,
-  } = await import("./inspect-igdb-artwork.mts");
+void test("an observed Gone logo sweeps every reference to its variant and preserves other variants", async () => {
+  const { createIgdbInspector, prepareCatalogArtwork, prepareCatalogGameMedia } =
+    await import("./inspect-igdb-artwork.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-game-media-gone-"));
   const privateFile = join(scratch, "private-fixture.json");
   writeFileSync(
@@ -851,6 +1351,7 @@ void test("an observed Gone image sweeps earlier and unselected references and c
     JSON.stringify({ client_id: "fixture-id", client_secret: "fixture-secret" }),
   );
   let imageCalls = 0;
+  const inventoryCalls: string[] = [];
   const inspector = createIgdbInspector(
     privateFile,
     () => ({ format: "png", width: 400, height: 200, validator: "portcove-core" }),
@@ -867,6 +1368,8 @@ void test("an observed Gone image sweeps earlier and unselected references and c
             },
           ]),
         );
+      if (url.endsWith("/artworks") || url.endsWith("/screenshots") || url.endsWith("/logos"))
+        inventoryCalls.push(new URL(url).pathname);
       if (url.endsWith("/artworks") || url.endsWith("/screenshots")) return new Response("[]");
       if (url.endsWith("/logos"))
         // Duplicate records for one exact image must not retry it after withdrawal.
@@ -883,7 +1386,7 @@ void test("an observed Gone image sweeps earlier and unselected references and c
     },
   );
   const catalog = {
-    ports: ["one", "two", "three", "unselected"].map((id) => ({
+    ports: ["one", "two", "three", "unselected", "excluded"].map((id) => ({
       id,
       name: "Sample",
       project_url: "https://example.org/sample",
@@ -897,13 +1400,23 @@ void test("an observed Gone image sweeps earlier and unselected references and c
           match_kind: "port",
         },
         media: [
-          { id: "retained-header", role: "header", subject: { kind: "port", port_id: id } },
           {
-            id: "withdrawn-logo",
-            role: "logo",
+            id: "retained-header",
+            role: "header",
             subject: { kind: "port", port_id: id },
             igdb: { image_id: "sharedlogo" },
           },
+          ...(["three", "unselected", "excluded"].includes(id)
+            ? [
+                {
+                  id: "withdrawn-logo",
+                  role: "logo",
+                  subject: { kind: "port", port_id: id },
+                  igdb: { image_id: "sharedlogo", game_id: 7, record_id: 9 },
+                  sha256: createHash("sha256").update("decoder-fixture").digest("hex"),
+                },
+              ]
+            : []),
         ],
       },
     })),
@@ -917,29 +1430,31 @@ void test("an observed Gone image sweeps earlier and unselected references and c
   assert.equal(imageCalls, 0);
   const result = await prepareCatalogGameMedia(covers.catalog, {
     inspector,
-    selectedPortIds: ["one", "two", "three"],
-    knownGoneImageIds: covers.gone_image_ids,
+    selectedPortIds: ["one", "two", "three", "excluded"],
+    refreshPortIds: ["three"],
+    excludedPortIds: new Set(["excluded"]),
   });
-  reconcileCatalogArtworkWithdrawals(covers, result.gone_image_ids);
+  assert.deepEqual(inventoryCalls, ["/v4/artworks", "/v4/logos", "/v4/screenshots"]);
   assert.equal(imageCalls, 2);
-  assert.deepEqual(result.gone_image_ids, ["sharedlogo"]);
-  assert.deepEqual(covers.gone_image_ids, ["sharedlogo"]);
-  assert.deepEqual(covers.workset.invalidated_port_ids, ["one", "three", "two", "unselected"]);
-  assert.equal(covers.metrics.reused, 0);
-  assert.equal(covers.metrics.fallback, 4);
-  assert.equal(covers.metrics.ports, 4);
-  assert.ok(
-    covers.records.every(
-      (record) =>
-        record.mapping === null && record.checks === null && record.reason === "generated-fallback",
-    ),
+  assert.deepEqual(result.gone_media_targets, ["logo_med_2x/sharedlogo"]);
+  assert.deepEqual(covers.gone_image_ids, []);
+  assert.deepEqual(
+    result.catalog.ports.find(({ id }) => id === "excluded"),
+    catalog.ports.find(({ id }) => id === "excluded"),
   );
-  for (const port of result.catalog.ports) {
-    assert.equal(port.presentation?.artwork, undefined);
+  for (const port of result.catalog.ports.filter(({ id }) => id !== "excluded")) {
+    const artwork = port.presentation?.artwork;
+    assert.ok(isRecord(artwork));
+    assert.equal(artwork.image_id, "sharedlogo");
     const media = port.presentation?.media;
     assert.ok(Array.isArray(media));
     assert.deepEqual(media, [
-      { id: "retained-header", role: "header", subject: { kind: "port", port_id: port.id } },
+      {
+        id: "retained-header",
+        role: "header",
+        subject: { kind: "port", port_id: port.id },
+        igdb: { image_id: "sharedlogo" },
+      },
     ]);
   }
   assert.equal(
@@ -948,8 +1463,100 @@ void test("an observed Gone image sweeps earlier and unselected references and c
   );
 });
 
+void test("changed retained media holds fresh proposals across artwork operations", async () => {
+  const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
+  const { ARTWORK_OPERATION_PORTS, prepareGameMediaInOperations } =
+    await import("./artwork-operations.mts");
+  const url = "https://example.org/sample";
+  const base = { name: "Sample", project_url: url };
+  const pin = {
+    id: "retained-screenshot",
+    role: "screenshot",
+    sha256: "a".repeat(64),
+    subject: { kind: "port", port_id: "retained" },
+    igdb: { game_id: 7, record_id: 9, image_id: "sharedshot" },
+  };
+  for (const [filler, pinDigest, retainedFirst] of [
+    [0, "a", false],
+    [0, "b", false],
+    [ARTWORK_OPERATION_PORTS - 1, "a", false],
+    [ARTWORK_OPERATION_PORTS - 1, "b", false],
+    [0, "a", true],
+    [ARTWORK_OPERATION_PORTS - 1, "a", true],
+  ] as const) {
+    const untouched = Array.from({ length: filler }, (_, i) => ({
+      ...base,
+      id: `unselected-${i}`,
+    }));
+    const first = { ...base, id: "first" };
+    const retained = {
+      ...base,
+      id: "retained",
+      presentation: { media: [{ ...pin, sha256: pinDigest.repeat(64) }] },
+    };
+    const catalog = {
+      ports: [
+        retainedFirst ? retained : first,
+        ...untouched,
+        retainedFirst ? first : retained,
+        { ...base, id: "last" },
+      ],
+    };
+    const excluded = new Set(untouched.map(({ id }) => id));
+    let requests = 0;
+    const result = await prepareGameMediaInOperations(
+      catalog,
+      undefined,
+      (ids, current, gone, cleared, held) =>
+        prepareCatalogGameMedia(current, {
+          ...(ids ? { selectedPortIds: ids } : {}),
+          refreshPortIds: !ids || ids.includes("retained") ? ["retained"] : [],
+          excludedPortIds: excluded,
+          explicitClearPortIds: cleared,
+          knownGoneMediaTargets: gone,
+          knownHeldMediaTargets: held,
+          inspector: {
+            inspectGame: async () => [
+              { id: 7, name: "Sample", slug: "sample", websites: [{ url }] },
+            ],
+            inspectGameMedia: async (_game, role) =>
+              role === "screenshot" ? [{ id: 9, game: 7, image_id: "sharedshot" }] : [],
+            inspectMediaImage: async () => ({
+              sha256: (++requests === 1 ? "a" : "b").repeat(64),
+              bytes: 100,
+              width: 640,
+              height: 360,
+              format: "png",
+              validator: "portcove-core",
+            }),
+          },
+        }),
+    );
+    assert.equal(requests, 2);
+    assert.deepEqual(result.catalog.ports, catalog.ports);
+    assert.deepEqual(result.gone_media_targets, []);
+    assert.deepEqual(result.held_media_targets, ["720p/sharedshot"]);
+    assert.deepEqual(
+      result.records.filter(({ role }) => role === "screenshot").map(({ reason }) => reason),
+      retainedFirst
+        ? [
+            "retained-image-verified",
+            "existing-scene-retained",
+            "image-bytes-held-for-review",
+            "image-bytes-held-for-review",
+          ]
+        : [
+            "image-bytes-held-for-review",
+            pinDigest === "a" ? "retained-image-bytes-changed" : "retained-image-verified",
+            "existing-scene-retained",
+            "image-bytes-held-for-review",
+          ],
+    );
+  }
+});
+
 for (const unavailableMedia of [false, true]) {
-  void test(`cover Gone excludes every media fallback before ${unavailableMedia ? "unavailable" : "repeated"} alternate-role lookup`, async () => {
+  void test(`cover Gone preserves other variants through ${unavailableMedia ? "unavailable" : "successful"} media lookup`, async () => {
     const { createIgdbInspector, prepareCatalogArtwork, prepareCatalogGameMedia } =
       await import("./inspect-igdb-artwork.mts");
     const scratch = mkdtempSync(join(tmpdir(), "portcove-cover-media-gone-"));
@@ -959,7 +1566,7 @@ for (const unavailableMedia of [false, true]) {
       mediaCalls = 0;
     const provider = createIgdbInspector(
       credentials,
-      () => ({ format: "jpeg", width: 280, height: 420, validator: "portcove-core" }),
+      () => ({ format: "png", width: 400, height: 200, validator: "portcove-core" }),
       async (url) => {
         if (url.includes("oauth2")) return new Response('{"access_token":"fixture"}');
         if (url.endsWith("/games"))
@@ -976,7 +1583,9 @@ for (const unavailableMedia of [false, true]) {
           );
         assert.ok(url.includes("images.igdb.com"), `Unexpected provider request: ${url}`);
         imageCalls++;
-        return new Response(null, { status: 410 });
+        return url.endsWith(".jpg")
+          ? new Response(null, { status: 410 })
+          : new Response("media", { headers: { "content-type": "image/png" } });
       },
     );
     const catalog = {
@@ -1013,16 +1622,15 @@ for (const unavailableMedia of [false, true]) {
     });
     assert.deepEqual(covers.gone_image_ids, ["withdrawncover"]);
     assert.equal(imageCalls, 1);
-    // Cover-only preparation must already exclude every role and unselected ref.
+    // The same provider image ID can still serve a different CDN variant.
     for (const port of covers.catalog.ports) {
       assert.equal(port.presentation?.artwork, undefined);
       const retained = port.presentation?.media;
       assert.ok(Array.isArray(retained));
-      assert.equal(retained.length, 1);
+      assert.equal(retained.length, 2);
     }
     const result = await prepareCatalogGameMedia(covers.catalog, {
       selectedPortIds: ["refreshed"],
-      knownGoneImageIds: covers.gone_image_ids,
       inspector: {
         ...provider,
         inspectGameMedia: async () => {
@@ -1034,18 +1642,15 @@ for (const unavailableMedia of [false, true]) {
         },
       },
     });
-    assert.equal(mediaCalls, 3);
-    assert.equal(
-      imageCalls,
-      1,
-      "Neither a repeated candidate nor unavailable metadata may retry an exact Gone image",
-    );
-    assert.deepEqual(result.gone_image_ids, ["withdrawncover"]);
+    assert.equal(mediaCalls, 2);
+    assert.equal(imageCalls, unavailableMedia ? 1 : 2);
+    assert.deepEqual(result.gone_media_targets, []);
     for (const port of result.catalog.ports) {
       assert.equal(port.presentation?.artwork, undefined);
-      assert.deepEqual(port.presentation?.media, [
-        { id: "retained-header", role: "header", subject: { kind: "port", port_id: port.id } },
-      ]);
+      const media = port.presentation?.media;
+      assert.ok(Array.isArray(media));
+      assert.ok(media.some((asset) => isRecord(asset) && asset.id === "gone-logo"));
+      if (!unavailableMedia && port.id === "refreshed") assert.equal(media.length, 4);
     }
     assert.equal(covers.metrics.fallback, 3);
     assert.ok(covers.records.every((record) => record.mapping === null && record.checks === null));
@@ -1054,7 +1659,7 @@ for (const unavailableMedia of [false, true]) {
         result.records.every(
           (record) =>
             record.reason === "media-provider-unavailable-or-incomplete" ||
-            (record.role === "header" && record.reason === "existing-scene-retained"),
+            record.reason === "existing-scene-retained",
         ),
       );
   });
@@ -1105,7 +1710,7 @@ void test("an exact 410 for an unselected scene stays attached to its provider g
   );
   const catalog = { ports: [{ id: "sample", name: "Sample", project_url: project }] };
   const proposal = await prepareCatalogGameMedia(catalog, { inspector });
-  assert.deepEqual(proposal.gone_image_ids, ["keyartgone", "scenegone"]);
+  assert.deepEqual(proposal.gone_media_targets, ["720p/keyartgone", "720p/scenegone"]);
   assert.deepEqual(fetched, ["keyartgone.png", "scenegone.png"]);
   const screenshot = sceneCoverage(catalog, proposal).find(({ role }) => role === "screenshot");
   assert.deepEqual(screenshot?.provider_game_ids, [7]);
@@ -1115,4 +1720,132 @@ void test("an exact 410 for an unselected scene stays attached to its provider g
   const header = sceneCoverage(catalog, proposal).find(({ role }) => role === "header");
   assert.equal(header?.state, "withdrawn");
   assert.deepEqual(header?.withdrawn_image_ids, ["keyartgone"]);
+});
+
+void test("a fully covered subject keeps every maintained media role without contacting IGDB", async () => {
+  const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
+  const id = "covered-port";
+  const media = ["key_art", "logo", "header", "screenshot"].map((role) => ({
+    id: role + "-fixture",
+    role,
+    subject: { kind: "port", port_id: id },
+  }));
+  const catalog = {
+    ports: [
+      {
+        id,
+        name: "Covered",
+        project_url: "https://example.org/covered",
+        presentation: { media },
+      },
+    ],
+  };
+  const unexpected = () => {
+    throw new Error("Retained roles do not need more provider requests");
+  };
+  const result = await prepareCatalogGameMedia(catalog, {
+    inspector: {
+      inspectGame: unexpected,
+      inspectGameMedia: unexpected,
+      inspectMediaImage: unexpected,
+    },
+  });
+  assert.deepEqual(result.catalog, catalog);
+  assert.deepEqual(
+    result.records.map(({ reason }) => reason),
+    [
+      "existing-scene-retained",
+      "existing-scene-retained",
+      "existing-scene-retained",
+      "existing-scene-retained",
+    ],
+  );
+});
+
+void test("explicit media refresh shares exact checks and only confirmed Gone withdraws maintained assets", async () => {
+  const { createIgdbInspector, prepareCatalogGameMedia } =
+    await import("./inspect-igdb-artwork.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-retained-game-media-"));
+  try {
+    const privateFile = join(scratch, "private-fixture.json");
+    writeFileSync(
+      privateFile,
+      JSON.stringify({ client_id: "fixture-id", client_secret: "fixture-secret" }),
+    );
+    const ids = ["one", "two"];
+    const catalog = {
+      ports: ids.map((id) => ({
+        id,
+        name: "Sample",
+        project_url: "https://example.org/sample",
+        presentation: {
+          original_game: {
+            id: "original",
+            source_editions: [{ id: "current" }, { id: "older" }],
+          },
+          media: ["key_art", "logo", "header", "screenshot"].map((role) => ({
+            id: "maintained-" + role,
+            role,
+            subject:
+              role === "logo"
+                ? { kind: "original", game_id: "original", source_edition_id: "older" }
+                : { kind: "port", port_id: id },
+            sha256: "a".repeat(64),
+            ...(role === "logo" ? { igdb: { image_id: "sharedlogo", game_id: 7 } } : {}),
+          })),
+        },
+      })),
+    };
+    for (const status of [200, 503, 410]) {
+      let reads = 0;
+      const inspector = createIgdbInspector(
+        privateFile,
+        () => ({ format: "png", width: 400, height: 200, validator: "portcove-core" }),
+        async (url) => {
+          if (url.includes("oauth2")) return new Response('{"access_token":"fixture-token"}');
+          if (url.endsWith("/games")) return new Response("[]");
+          assert.match(url, /logo_med_2x\/sharedlogo\.png$/u);
+          reads++;
+          return status === 200
+            ? new Response("changed-image", { headers: { "content-type": "image/png" } })
+            : new Response(null, { status });
+        },
+      );
+      const result = await prepareCatalogGameMedia(catalog, { inspector, refreshPortIds: ids });
+      assert.equal(reads, 1);
+      if (status === 410) {
+        assert.deepEqual(result.gone_media_targets, ["logo_med_2x/sharedlogo"]);
+        assert.ok(
+          result.catalog.ports.every(
+            ({ presentation }) =>
+              Array.isArray(presentation?.media) && presentation.media.length === 3,
+          ),
+        );
+        const withdrawal = result.records.find(
+          ({ reason }) => reason === "retained-image-withdrawn",
+        );
+        assert.equal(withdrawal?.image_id, "sharedlogo");
+        assert.deepEqual(withdrawal?.subject, {
+          kind: "original",
+          game_id: "original",
+          source_edition_id: "older",
+        });
+      } else {
+        assert.deepEqual(result.catalog, catalog);
+        assert.deepEqual(result.gone_media_targets, []);
+        assert.equal(
+          result.records.filter(
+            ({ reason }) =>
+              reason ===
+              (status === 200
+                ? "retained-image-bytes-changed"
+                : "media-provider-unavailable-or-incomplete"),
+          ).length,
+          2,
+        );
+      }
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });

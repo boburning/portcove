@@ -1,3 +1,49 @@
+function captureTextSelection() {
+  const selection = document.getSelection();
+  if (!selection?.anchorNode || !selection.focusNode || !selection.rangeCount) return;
+  const { anchorNode, anchorOffset, focusNode, focusOffset } = selection;
+  const { startContainer, startOffset, endContainer, endOffset } = selection.getRangeAt(0);
+  const text = selection.toString();
+
+  return () => {
+    if (!anchorNode.isConnected || !focusNode.isConnected) return;
+    // Live Range clones can retarget after edits. Check the original boundaries.
+    const unchanged = document.createRange();
+    unchanged.setStart(startContainer, startOffset);
+    unchanged.setEnd(endContainer, endOffset);
+    if (unchanged.toString() === text) {
+      selection.setBaseAndExtent(anchorNode, anchorOffset, focusNode, focusOffset);
+    }
+  };
+}
+
+function captureInputSelection(focused: Element | null) {
+  if (!(focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement)) return;
+  const { value, selectionStart, selectionEnd, selectionDirection } = focused;
+  if (selectionStart === null || selectionEnd === null) return;
+
+  return () => {
+    if (focused.isConnected && focused.value === value) {
+      focused.setSelectionRange(selectionStart, selectionEnd, selectionDirection ?? undefined);
+    }
+  };
+}
+
+function restoreCopyFocus(focused: Element | null, restoreSelection: (() => void) | undefined) {
+  try {
+    if (
+      focused instanceof HTMLElement &&
+      focused.isConnected &&
+      document.activeElement !== focused
+    ) {
+      focused.focus({ preventScroll: true });
+    }
+    restoreSelection?.();
+  } catch {
+    // A changed selection or control cannot change the original copy outcome.
+  }
+}
+
 export async function copyText(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -5,33 +51,7 @@ export async function copyText(text: string): Promise<void> {
   }
 
   const focused = document.activeElement;
-  const input =
-    focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement ? focused : null;
-  const inputSelection =
-    input && input.selectionStart !== null && input.selectionEnd !== null
-      ? {
-          value: input.value,
-          start: input.selectionStart,
-          end: input.selectionEnd,
-          direction: input.selectionDirection,
-        }
-      : null;
-  const selection = document.getSelection();
-  const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
-  const selectedText =
-    selection?.anchorNode && selection.focusNode && range
-      ? {
-          anchor: selection.anchorNode,
-          anchorOffset: selection.anchorOffset,
-          focus: selection.focusNode,
-          focusOffset: selection.focusOffset,
-          start: range.startContainer,
-          startOffset: range.startOffset,
-          end: range.endContainer,
-          endOffset: range.endOffset,
-          text: selection.toString(),
-        }
-      : null;
+  const restoreSelection = captureInputSelection(focused) ?? captureTextSelection();
   const field = document.createElement("textarea");
   field.value = text;
   field.setAttribute("readonly", "");
@@ -43,36 +63,9 @@ export async function copyText(text: string): Promise<void> {
     field.select();
     if (!document.execCommand("copy")) throw new Error("Clipboard access is unavailable.");
   } finally {
-    // A copy handler may deliberately move focus; only undo this field's own handoff.
+    // A copy handler may deliberately move focus. Only undo this field's own handoff.
     const restore = document.activeElement === field || document.activeElement === focused;
     field.remove();
-    if (restore) {
-      try {
-        if (focused instanceof HTMLElement && focused.isConnected) {
-          if (document.activeElement !== focused) focused.focus({ preventScroll: true });
-          if (input && inputSelection && input.value === inputSelection.value)
-            input.setSelectionRange(
-              inputSelection.start,
-              inputSelection.end,
-              inputSelection.direction ?? undefined,
-            );
-        }
-        if (!inputSelection && selectedText?.anchor.isConnected && selectedText.focus.isConnected) {
-          // Rebuild from the original boundaries; live Range clones can retarget after edits.
-          const unchanged = document.createRange();
-          unchanged.setStart(selectedText.start, selectedText.startOffset);
-          unchanged.setEnd(selectedText.end, selectedText.endOffset);
-          if (unchanged.toString() === selectedText.text)
-            selection?.setBaseAndExtent(
-              selectedText.anchor,
-              selectedText.anchorOffset,
-              selectedText.focus,
-              selectedText.focusOffset,
-            );
-        }
-      } catch {
-        // A changed selection or control cannot change the original copy outcome.
-      }
-    }
+    if (restore) restoreCopyFocus(focused, restoreSelection);
   }
 }

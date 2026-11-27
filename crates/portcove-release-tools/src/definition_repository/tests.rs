@@ -1246,6 +1246,62 @@ fn replace_bundle_revision(fixture: &Fixture, revision: u64) {
     fixture.set_context(context);
 }
 #[tokio::test]
+async fn successor_support_fails_at_protected_context_before_opening_role_key() {
+    let fixture = Fixture::new().await;
+    let bundle = fixture.root().join("bundle");
+    let index_path = bundle.join("definitions/index.json");
+    let mut index: serde_json::Value =
+        serde_json::from_slice(&fs::read(&index_path).unwrap()).unwrap();
+    let leaf = br#"{"catalog":{"source_catalog":{"qualification":[{"successor_support":{}}]}}}"#;
+    let digest = sha(leaf);
+    let target = format!("sha256/{digest}.json");
+    fs::remove_file(bundle.join(index["definitions"][0]["target"].as_str().unwrap())).unwrap();
+    fs::write(bundle.join(&target), leaf).unwrap();
+    index["definitions"][0]["target"] = json!(target);
+    index["contents"][0] = json!({"target":target,"sha256":digest,"length":leaf.len()});
+    let index = serde_json::to_vec(&index).unwrap();
+    fs::write(index_path, &index).unwrap();
+
+    let policy_path = bundle.join("policy/official/fixture.json");
+    let mut policy: serde_json::Value =
+        serde_json::from_slice(&fs::read(&policy_path).unwrap()).unwrap();
+    policy["decision"]["index_sha256"] = json!(sha(&index));
+    policy["decision"]["definition_sha256"] = json!(digest);
+    fs::write(policy_path, serde_json::to_vec(&policy).unwrap()).unwrap();
+
+    let report_path = fixture.root().join("inspection.json");
+    let mut report: serde_json::Value =
+        serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+    report["index_sha256"] = json!(sha(&index));
+    report["definitions"][0]["definition_target"] = json!(target);
+    report["files"] = json!(bundle::identities(
+        &io::tree(&bundle, BUNDLE_FILES, BUNDLE_MAX).unwrap()
+    ));
+    let report = serde_json::to_vec(&report).unwrap();
+    fs::write(report_path, &report).unwrap();
+    let mut context = fixture.context_value();
+    context["inspection_sha256"] = json!(sha(&report));
+    fixture.set_context(context);
+
+    let role = DefinitionOnlineRole::Definitions;
+    let config = json_file(
+        fixture.root(),
+        "absent-key.json",
+        json!({"schema_version":1,"context":"context.json",
+            "signing_key":"absent-key.pk8","output":"roles/definitions.json"}),
+    );
+    let error = sign_definition_role(role, &config)
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("successor support requires independently verified evidence"),
+        "{error}"
+    );
+    assert_eq!(fs::read_dir(&fixture.roles).unwrap().count(), 0);
+}
+
+#[tokio::test]
 async fn deletion_then_reintroduction_cannot_erase_authenticated_catalog_revision_floor() {
     let mut fixture = Fixture::new().await;
     replace_bundle_revision(&fixture, 5);
@@ -1433,6 +1489,46 @@ fn explicit_legacy_withdrawal_preserves_other_rows_and_cannot_clear_a_withdrawal
         )
         .is_err()
     );
+}
+
+#[test]
+fn legacy_safety_successor_cannot_add_a_repository_bound_listing() {
+    let prior = json!({
+        "listing_delivery_schema":1,"revision":3,"withdrawn_ids":[],
+        "directory":{"format_version":11,"listings":[{"id":"existing"}]}
+    });
+    let bound = json!({
+        "id":"github-123","project_url":"https://github.com/example/new-port",
+        "download_block_reason":"The package is held."
+    });
+    let mut next = prior.clone();
+    next["revision"] = json!(9);
+    next["directory"]["listings"][0]["download_block_reason"] = json!("Reviewed hold");
+    let compact = json!({
+        "listing_delivery_schema":1,"revision":20,"withdrawn_ids":[],
+        "directory":{"format_version":17,"listings":[
+            next["directory"]["listings"][0].clone(),bound.clone()
+        ]}
+    });
+    let prior = serde_json::to_vec(&prior).unwrap();
+    let compact = serde_json::to_vec(&compact).unwrap();
+    bundle::check_legacy_successor(&prior, &serde_json::to_vec(&next).unwrap(), &compact).unwrap();
+    next["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .push(bound);
+    let refusal =
+        bundle::check_legacy_successor(&prior, &serde_json::to_vec(&next).unwrap(), &compact)
+            .unwrap_err();
+    assert!(refusal.to_string().contains("repository-bound listing"));
+
+    let refusal = bundle::listing_revision(
+        portcove_listing_carrier::LEGACY_TARGET,
+        &serde_json::to_vec(&next).unwrap(),
+    )
+    .err()
+    .expect("plain legacy recovery must also reject repository-bound rows");
+    assert!(refusal.to_string().contains("repository-bound listing"));
 }
 
 #[test]
@@ -1958,6 +2054,181 @@ fn select_compact_payload(
     let mut context = fixture.context_value();
     context["inspection_sha256"] = json!(sha(&bytes));
     fixture.set_context(context);
+}
+
+#[tokio::test]
+async fn full_catalog_history_keeps_signed_cover_withdrawals_across_publications() {
+    use portcove_listing_carrier::{COMPACT_TARGET, COVER_CHECKPOINT_TARGET};
+
+    let mut fixture = Fixture::new().await;
+    replace_listing_directory(&fixture, 1);
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("legacy"))
+        .await
+        .unwrap();
+
+    fn advance(fixture: &mut Fixture, previous: &str, version: u64) {
+        let mut context = fixture.context_value();
+        context["previous_repository"] = json!(previous);
+        for role in ["definitions", "policy", "snapshot", "timestamp"] {
+            context["versions"][role] = json!(version);
+        }
+        fixture.set_context(context);
+        fixture.roles = fixture.root().join(format!("roles-{version}"));
+        fs::create_dir(&fixture.roles).unwrap();
+    }
+    advance(&mut fixture, "legacy", 2);
+    select_compact(&fixture, 2, false, true);
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("compact"))
+        .await
+        .unwrap();
+
+    let bundle_path = fixture.root().join("bundle");
+    let compact = fs::read(bundle_path.join(COMPACT_TARGET)).unwrap();
+    let (_, listing_digest) = portcove_listing_carrier::decode(&compact).unwrap();
+    let mut checkpoint = json!({
+        "checkpoint_schema": 1,
+        "listing_sha256": listing_digest,
+        "prior_checkpoint_sha256": null,
+        "entries": [{
+            "id": "fixture", "scope": "a".repeat(64), "image_id": "cofixture",
+            "prior_sha256": "b".repeat(64), "observed_at": "2026-11-21T12:00:00.000Z",
+            "receipt": format!("sha256:{}", "c".repeat(64)), "state": "gone",
+        }],
+    });
+    let set_checkpoint = |fixture: &Fixture, value: Option<&serde_json::Value>| {
+        let inspection_path = fixture.root().join("inspection.json");
+        let mut inspection: serde_json::Value =
+            serde_json::from_slice(&fs::read(&inspection_path).unwrap()).unwrap();
+        let checkpoint_path = bundle_path.join(COVER_CHECKPOINT_TARGET);
+        if let Some(value) = value {
+            let raw = serde_json::to_vec(value).unwrap();
+            fs::write(checkpoint_path, &raw).unwrap();
+            inspection["publication_schema"] = json!(3);
+            inspection["cover_checkpoint"] = json!({
+                "target": COVER_CHECKPOINT_TARGET, "sha256": sha(&raw),
+                "listing_decoded_sha256": listing_digest,
+            });
+        } else {
+            fs::remove_file(checkpoint_path).unwrap();
+            inspection["publication_schema"] = json!(2);
+            inspection
+                .as_object_mut()
+                .unwrap()
+                .remove("cover_checkpoint");
+        }
+        inspection["files"] = json!(bundle::identities(
+            &io::tree(&bundle_path, BUNDLE_FILES, BUNDLE_MAX).unwrap()
+        ));
+        let raw = serde_json::to_vec(&inspection).unwrap();
+        fs::write(inspection_path, &raw).unwrap();
+        let mut context = fixture.context_value();
+        context["inspection_sha256"] = json!(sha(&raw));
+        fixture.set_context(context);
+    };
+
+    advance(&mut fixture, "compact", 3);
+    set_checkpoint(&fixture, Some(&checkpoint));
+    fixture.sign_all().await;
+    let published = assemble_definition_repository(&fixture.assembly("cover"))
+        .await
+        .unwrap();
+    let verify = json_file(
+        fixture.root(),
+        "verify-cover.json",
+        json!({
+            "schema_version":1, "repository":"cover", "verify_cover_history": true,
+            "trusted_root":"root.json", "trusted_root_sha256":published.root_sha256,
+            "offline_targets":"targets.json", "offline_targets_sha256":published.offline_targets_sha256,
+        }),
+    );
+    assert_eq!(
+        verify_definition_repository(&verify).await.unwrap().files,
+        published.files
+    );
+
+    advance(&mut fixture, "cover", 4);
+    load_context(&fixture.context).await.unwrap();
+
+    set_checkpoint(&fixture, None);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("cover observation checkpoint"),
+        "{failure}"
+    );
+    // Rewind the live timestamp while retaining the newer signed policy. The
+    // full history must still remember that the cover checkpoint was present.
+    let timestamp_path = fixture.root().join("cover/metadata/timestamp.json");
+    let signed_timestamp = fs::read(&timestamp_path).unwrap();
+    fs::copy(
+        fixture.root().join("compact/metadata/timestamp.json"),
+        &timestamp_path,
+    )
+    .unwrap();
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("omitted an authenticated historical cover checkpoint"),
+        "{failure}"
+    );
+    fs::write(timestamp_path, signed_timestamp).unwrap();
+    checkpoint["entries"][0]["observed_at"] = json!("2026-11-22T12:00:00.000Z");
+    checkpoint["entries"][0]["state"] = json!("restored");
+    set_checkpoint(&fixture, Some(&checkpoint));
+    assert!(load_context(&fixture.context).await.is_err());
+    let actual_prior = published
+        .files
+        .iter()
+        .find(|file| file.target.ends_with(COVER_CHECKPOINT_TARGET))
+        .unwrap();
+    checkpoint["prior_checkpoint_sha256"] = json!(actual_prior.sha256);
+    set_checkpoint(&fixture, Some(&checkpoint));
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("restored-cover"))
+        .await
+        .unwrap();
+    let mut verification: serde_json::Value =
+        serde_json::from_slice(&fs::read(&verify).unwrap()).unwrap();
+    verification["repository"] = json!("restored-cover");
+    fs::write(&verify, serde_json::to_vec(&verification).unwrap()).unwrap();
+    verify_definition_repository(&verify).await.unwrap();
+
+    let restored_repository = fixture.root().join("restored-cover");
+    let timestamp_path = restored_repository.join("metadata/timestamp.json");
+    let restored_timestamp = fs::read(&timestamp_path).unwrap();
+    fs::copy(
+        fixture.root().join("cover/metadata/timestamp.json"),
+        &timestamp_path,
+    )
+    .unwrap();
+    let failure = verify_definition_repository(&verify)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("selected an older cover checkpoint"),
+        "{failure}"
+    );
+    fs::write(timestamp_path, restored_timestamp).unwrap();
+    fs::remove_file(restored_repository.join(&actual_prior.target)).unwrap();
+    let failure = verify_definition_repository(&verify)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("historical cover checkpoint body is missing"),
+        "{failure}"
+    );
 }
 
 #[tokio::test]

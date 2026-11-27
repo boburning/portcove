@@ -24,7 +24,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { channels } from "../apps/desktop/src/catalog-values.generated.ts";
 import { isRecord } from "./runtime-values.mts";
-import { readScheduledArtworkHealth } from "./maintenance-artwork-health.mts";
+import {
+  readScheduledArtworkHealth,
+  readScheduledMediaArtworkHealth,
+} from "./maintenance-artwork-health.mts";
 import { inspectCatalogDefinitions } from "./observe-configured-upstream.mts";
 import {
   MaintenanceStoreError,
@@ -36,6 +39,8 @@ import {
 import { portCatalogMarkers, portKeyMarkers } from "./roadmap-issue.mts";
 import { explicitBlockerFields } from "./roadmap-qualification.mts";
 import {
+  backlogLifecycleReview,
+  dependencyWake,
   issueReconsiderations,
   reconsiderationSql,
   targetReconsiderations,
@@ -819,9 +824,12 @@ export interface IssueInventory {
     id: string;
     number: number;
     title: string;
+    url?: string;
     state: string;
     body?: string;
-    blockedBy?: { nodes: readonly { number: number; state: string }[] };
+    blockedBy?: {
+      nodes: readonly { id?: string; url?: string; number: number; state: string }[];
+    };
   }[];
   memberships: readonly {
     project_id: string;
@@ -865,13 +873,19 @@ export function issueFacts(inventory: IssueInventory) {
       `issue:${issue.number}`,
       {
         number: issue.number,
+        node_id: issue.id,
         title: issue.title,
+        url: issue.url,
         state: issue.state,
         catalog_ids: [...new Set(portCatalogMarkers(issue.body))].sort(),
         port_keys: [...new Set(portKeyMarkers(issue.body))].sort(),
         blocked_by: (issue.blockedBy?.nodes ?? [])
-          .map(({ number, state }) => ({ number, state }))
-          .sort((left, right) => left.number - right.number),
+          .map(({ id, url, number, state }) => ({ number, state, node_id: id, url }))
+          .sort(
+            (left, right) =>
+              left.number - right.number ||
+              (left.node_id ?? "").localeCompare(right.node_id ?? "", "en"),
+          ),
         project: (memberships.get(issue.id) ?? [])
           .map(({ project_id, isArchived, fieldValues }) => ({
             project_id,
@@ -1444,6 +1458,15 @@ export const staleCollectionPattern = /stale maintenance collection for /u;
 /** Another run finished after the changes-only baseline was read. */
 export const baselineChangedPattern = /maintenance baseline changed for /u;
 
+type ArtworkHealthCollection = {
+  revision: string;
+  failed?: boolean;
+  complete: boolean;
+  expected: number | null;
+  facts: ReadonlyMap<string, unknown>;
+  gaps: SourceGap[];
+};
+
 /**
  * One transaction: the catalog and Core runs, their observations, assessments and
  * transitions. In `all` mode a source stores only changed subjects plus absences
@@ -1468,6 +1491,7 @@ export function collectionSql(input: {
     issues?: ReadonlyMap<string, string>;
     releaseHealth?: ReadonlyMap<string, string>;
     artworkHealth?: ReadonlyMap<string, string>;
+    mediaArtworkHealth?: ReadonlyMap<string, string>;
     releaseContent?: ReadonlyMap<string, string>;
     upstream?: ReadonlyMap<string, string>;
     hostedIntake?: ReadonlyMap<string, string>;
@@ -1520,14 +1544,8 @@ export function collectionSql(input: {
     /** Deferred ports; each carries the findings this report already has for it. */
     gaps: SourceGap[];
   };
-  artworkHealth?: {
-    revision: string;
-    failed?: boolean;
-    complete: boolean;
-    expected: number | null;
-    facts: ReadonlyMap<string, unknown>;
-    gaps: SourceGap[];
-  };
+  artworkHealth?: ArtworkHealthCollection;
+  mediaArtworkHealth?: ArtworkHealthCollection;
   upstream?: UpstreamObservation;
   progress?: ProgressCollection;
   hostedIntake?: HostedIntakeObservation;
@@ -1585,6 +1603,7 @@ export function collectionSql(input: {
            ...(input.issues ? ["issues-project"] : []),
            ...(input.releaseHealth ? ["release-health"] : []),
            ...(input.artworkHealth ? ["cover-artwork-health"] : []),
+           ...(input.mediaArtworkHealth ? ["media-artwork-health"] : []),
            ...(input.releaseContent ? ["release-content"] : []),
            ...(input.upstream ? ["upstream-observations"] : []),
            ...(input.hostedIntake ? ["hosted-intake"] : []),
@@ -1978,34 +1997,44 @@ export function collectionSql(input: {
       input.targets.failure ? null : input.targets.expected,
     ]);
   }
-  const artworkHealthRun = `cover-artwork-health:${token}`;
-  if (input.artworkHealth) {
+  const artworkSources = {
+    "cover-artwork-health": "artworkHealth",
+    "media-artwork-health": "mediaArtworkHealth",
+  } as const;
+  const artworkRuns = Object.entries(artworkSources).map(([source, key]) => ({
+    source,
+    key,
+    run: `${source}:${token}`,
+  }));
+  for (const { source, key, run } of artworkRuns) {
+    const observation = input[key];
+    if (!observation) continue;
     if (input.mode !== "all")
-      throw new MaintenanceStoreError("Cover artwork health collection requires --all");
+      throw new MaintenanceStoreError(`${source} collection requires --all`);
     lines.push(
       `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
-        (${literal(artworkHealthRun)}, 'cover-artwork-health', ${literal(input.runner)}, ${literal(input.artworkHealth.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
+        (${literal(run)}, ${literal(source)}, ${literal(input.runner)}, ${literal(observation.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     const artworkFacts = new Map<string, Fact>();
-    for (const [key, payload] of input.artworkHealth.facts)
-      artworkFacts.set(key, {
+    for (const [subject, payload] of observation.facts)
+      artworkFacts.set(subject, {
         digest: sha256(canonicalJson(payload)),
-        scope: { source: "cover-artwork-health", authority: "none" },
-        revision: input.artworkHealth.revision,
+        scope: { source, authority: "none" },
+        revision: observation.revision,
         payload,
       });
     runs.push([
-      artworkHealthRun,
-      input.artworkHealth.revision,
-      input.artworkHealth.failed ? "failed" : input.artworkHealth.complete ? "complete" : "partial",
-      input.artworkHealth.gaps,
+      run,
+      observation.revision,
+      observation.failed ? "failed" : observation.complete ? "complete" : "partial",
+      observation.gaps,
       artworkFacts,
-      input.latest?.artworkHealth,
-      input.artworkHealth.expected,
+      input.latest?.[key],
+      observation.expected,
     ]);
   }
   const sourceOf = new Map([
-    [artworkHealthRun, "cover-artwork-health"],
+    ...artworkRuns.map(({ run, source }) => [run, source] as const),
     [targetsRun, "core-target-routes"],
     [publicationRun, "definition-publication"],
     [deliveryRun, "definition-delivery"],
@@ -2217,6 +2246,7 @@ export async function collect(options: {
   /** With `all`, also collect the latest scheduled release-health report. */
   releaseHealth?: (() => Promise<ReleaseHealthInput>) | undefined;
   artworkHealth?: string | undefined;
+  mediaArtworkHealth?: string | undefined;
   /** With `all`, also collect the latest scheduled release-content scan report. */
   releaseContent?: (() => Promise<ReleaseContentInput>) | undefined;
   /** With `all`, also collect the newest retained upstream observer checkpoint. */
@@ -2442,6 +2472,18 @@ export async function collect(options: {
         readScheduledArtworkHealth(options.artworkHealth!, revision, cliSha256),
       )
     : undefined;
+  if (options.mediaArtworkHealth && !options.all)
+    throw new MaintenanceStoreError("Media artwork health collection requires --all");
+  const mediaRead = options.mediaArtworkHealth
+    ? await sourceOutcome(() =>
+        readScheduledMediaArtworkHealth(
+          options.mediaArtworkHealth!,
+          revision,
+          cliSha256,
+          reviewedListingsBytes ?? committedBytes(revision, listingsPath),
+        ),
+      )
+    : undefined;
   const contentRead = options.releaseContent
     ? await sourceOutcome(async () => {
         const report = await options.releaseContent!();
@@ -2543,6 +2585,20 @@ export async function collect(options: {
                 },
           }
         : {}),
+      ...(mediaRead
+        ? {
+            mediaArtworkHealth: mediaRead.ok
+              ? mediaRead.value
+              : {
+                  revision: "media-artwork-health:unavailable",
+                  failed: true,
+                  complete: false,
+                  expected: null,
+                  facts: new Map(),
+                  gaps: [failedSource("source:media-artwork-health", mediaRead.message)],
+                },
+          }
+        : {}),
       ...(contentRead
         ? {
             releaseContent: contentRead.ok
@@ -2612,6 +2668,7 @@ export async function collect(options: {
               ...(issueRead ? { issues: members("issues-project") } : {}),
               ...(healthRead ? { releaseHealth: members("release-health") } : {}),
               ...(artworkRead ? { artworkHealth: members("cover-artwork-health") } : {}),
+              ...(mediaRead ? { mediaArtworkHealth: members("media-artwork-health") } : {}),
               ...(contentRead ? { releaseContent: members("release-content") } : {}),
               ...(upstream ? { upstream: members("upstream-observations") } : {}),
               ...(hostedIntake ? { hostedIntake: members("hosted-intake") } : {}),
@@ -2629,6 +2686,7 @@ export async function collect(options: {
     ...(issueRead ? ["issues-project"] : []),
     ...(healthRead ? ["release-health"] : []),
     ...(artworkRead ? ["cover-artwork-health"] : []),
+    ...(mediaRead ? ["media-artwork-health"] : []),
     ...(contentRead ? ["release-content"] : []),
     ...(upstream ? ["upstream-observations"] : []),
     ...(hostedIntake ? ["hosted-intake"] : []),
@@ -2702,11 +2760,15 @@ export async function collect(options: {
     cli_sha256: cliSha256,
     subjects: subjects.length,
     issues: issueInventory?.issues.length ?? null,
+    backlog_lifecycle: issueInventory?.roadmap_project_id
+      ? backlogLifecycleReview(issueFacts(issueInventory), issueInventory.roadmap_project_id)
+      : null,
     /** Sources whose read failed alone; their runs record the gap and prior facts stay current. */
     failed_sources: [
       ...(issueRead && !issueRead.ok ? ["issues-project"] : []),
       ...(healthRead && !healthRead.ok ? ["release-health"] : []),
       ...(artworkRead && !artworkRead.ok ? ["cover-artwork-health"] : []),
+      ...(mediaRead && !mediaRead.ok ? ["media-artwork-health"] : []),
       ...(contentRead && !contentRead.ok ? ["release-content"] : []),
       ...(upstream?.failed ? ["upstream-observations"] : []),
       ...(hostedIntake?.failed ? ["hosted-intake"] : []),
@@ -2730,6 +2792,18 @@ export async function collect(options: {
           counts: artworkRead.value.counts,
         }
       : artworkRead
+        ? { coverage: "failed" }
+        : null,
+    media_artwork_health: mediaRead?.ok
+      ? {
+          coverage: mediaRead.value.complete ? "complete" : "partial",
+          expected: mediaRead.value.expected,
+          counts: mediaRead.value.counts,
+          image_requests: mediaRead.value.image_requests,
+          image_bytes: mediaRead.value.image_bytes,
+          retry_at: mediaRead.value.retry_at,
+        }
+      : mediaRead
         ? { coverage: "failed" }
         : null,
     release_content: contentRead
@@ -2780,13 +2854,13 @@ const reportQuery = (
   through: string,
   withInterventionEvidence: boolean,
 ) => `WITH latest_issue AS (
-    SELECT DISTINCT ON (o.subject_key) o.payload
+    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'issues-project' AND r.coverage <> 'in_progress'
       ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), present_issue AS (
-    SELECT payload FROM latest_issue WHERE payload <> portcove_maintenance.absent_payload()
+    SELECT subject_key, payload FROM latest_issue WHERE payload <> portcove_maintenance.absent_payload()
   ), latest_health AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
       FROM portcove_maintenance.observations o
@@ -2834,7 +2908,7 @@ const reportQuery = (
     SELECT cl.platform, m.subject_key
       FROM core_latest cl CROSS JOIN LATERAL portcove_maintenance.run_members(cl.run_id) m
       WHERE cl.member_digest IS NOT NULL
-    UNION ALL
+    UNION
     SELECT cl.platform, o.subject_key
       FROM core_latest cl JOIN portcove_maintenance.observations o ON o.run_id = cl.run_id
       WHERE cl.member_digest IS NULL
@@ -2845,6 +2919,50 @@ const reportQuery = (
     SELECT c.*, split_part(c.subject_key, '@', 1) AS port_key, split_part(c.subject_key, '@', 2) AS platform
       FROM portcove_maintenance.subject_current c
       WHERE NOT starts_with(c.subject_key, 'handoff:')
+  ), assessed_ports AS (
+    SELECT DISTINCT port_key FROM assessed
+  ), issue_catalog_keys AS (
+    -- Match jsonb's top-level membership for retained array, string or object values.
+    SELECT i.subject_key, marker.value #>> '{}' AS catalog_id
+      FROM present_issue i
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE jsonb_typeof(i.payload -> 'catalog_ids')
+          WHEN 'array' THEN i.payload -> 'catalog_ids'
+          WHEN 'string' THEN jsonb_build_array(i.payload -> 'catalog_ids')
+          ELSE '[]'::jsonb
+        END
+      ) marker(value)
+      WHERE jsonb_typeof(marker.value) = 'string'
+    UNION ALL
+    SELECT i.subject_key, marker.catalog_id
+      FROM present_issue i
+      CROSS JOIN LATERAL jsonb_object_keys(
+        CASE WHEN jsonb_typeof(i.payload -> 'catalog_ids') = 'object'
+          THEN i.payload -> 'catalog_ids' ELSE '{}'::jsonb END
+      ) marker(catalog_id)
+  ), issue_links AS (
+    SELECT p.port_key, k.subject_key
+      FROM assessed_ports p
+      JOIN issue_catalog_keys k ON k.catalog_id = substring(p.port_key FROM 6)
+    UNION
+    SELECT p.port_key, i.subject_key
+      FROM assessed_ports p
+      JOIN latest_catalog c ON c.subject_key = p.port_key
+      JOIN present_issue i
+        ON i.payload ->> 'number' = c.payload -> 'authored_record' -> 'listing' ->> 'issue_number'
+  ), port_work AS (
+    SELECT l.port_key, json_agg(json_build_object(
+        'number', (i.payload ->> 'number')::integer,
+        'state', i.payload ->> 'state',
+        'title', i.payload ->> 'title',
+        'project', i.payload -> 'project',
+        'blocked_by', i.payload -> 'blocked_by',
+        'canonical', i.payload ->> 'number' = c.payload -> 'authored_record' -> 'listing' ->> 'issue_number'
+      ) ORDER BY (i.payload ->> 'number')::integer) AS work
+      FROM issue_links l
+      JOIN present_issue i ON i.subject_key = l.subject_key
+      LEFT JOIN latest_catalog c ON c.subject_key = l.port_key
+      GROUP BY l.port_key
   )
 SELECT json_build_object(
   'handoffs', ${openHandoffsSql},
@@ -2887,10 +3005,23 @@ SELECT json_build_object(
       WHERE source = 'definition-delivery' AND coverage = 'complete'
       ORDER BY acquisition DESC LIMIT 1),
   'universe_inputs', json_build_object(
-    'records', (SELECT coalesce(json_agg(lc.payload -> 'authored_record' ORDER BY lc.subject_key), '[]')
-                  FROM latest_catalog lc
-                 WHERE lc.payload <> portcove_maintenance.absent_payload()
-                   AND jsonb_typeof(lc.payload -> 'authored_record') = 'object'),
+    -- buildUniverse needs identity and lineage, while assessment explanations use the full stored facts.
+    'records', (SELECT coalesce(json_agg(
+        jsonb_build_object('listing', CASE WHEN jsonb_typeof(record.value -> 'listing') = 'object' THEN (
+          SELECT coalesce(jsonb_object_agg(field.key,
+            CASE WHEN field.key = 'original_game' AND jsonb_typeof(field.value) = 'object'
+              THEN jsonb_build_object('id', field.value -> 'id') ELSE field.value END), '{}')
+          FROM jsonb_each(record.value -> 'listing') field
+          WHERE field.key IN ('id', 'name', 'issue_number', 'project_url', 'original_game_title', 'original_game')
+        ) ELSE record.value -> 'listing' END) || (
+          SELECT coalesce(jsonb_object_agg(field.key, field.value), '{}')
+          FROM jsonb_each(record.value) field
+          WHERE field.key IN ('upstream_lineage', 'original_game_review')
+        ) ORDER BY lc.subject_key), '[]')
+      FROM latest_catalog lc
+      CROSS JOIN LATERAL (VALUES (lc.payload -> 'authored_record')) record(value)
+      WHERE lc.payload <> portcove_maintenance.absent_payload()
+        AND jsonb_typeof(record.value) = 'object'),
     'issues', (SELECT coalesce(json_object_agg('issue:' || (i.payload ->> 'number'), i.payload), '{}')
                  FROM present_issue i),
     'intake', (SELECT coalesce(json_object_agg(h.subject_key, h.payload), '{}')
@@ -2984,8 +3115,7 @@ SELECT json_build_object(
                    WHERE ob.subject_key = c.port_key AND r.coverage <> 'in_progress'
                      AND (r.source = 'catalog-records' OR r.source = '${corePrefix}' || c.platform)
                    ORDER BY r.source, r.acquisition DESC, ob.observation_id DESC) o) AS observations,
-        EXISTS (SELECT 1 FROM core_member m WHERE m.platform = c.platform AND m.subject_key = c.port_key)
-          AS in_latest_core_run,
+        m.subject_key IS NOT NULL AS in_latest_core_run,
         (SELECT json_build_object('code', g.code, 'message', g.message) FROM core_gap g
           WHERE g.platform = c.platform AND g.subject_key = c.port_key LIMIT 1) AS latest_core_gap,
         lc.payload = portcove_maintenance.absent_payload() AS removed,
@@ -3029,17 +3159,12 @@ SELECT json_build_object(
                         'artifact_sha256', q -> 'scope' ->> 'artifact_sha256')), '[]')
                         FROM jsonb_array_elements(coalesce(lc.payload -> 'scoped_qualification', '[]')) q)
         ) AS identity,
-        (SELECT coalesce(json_agg(json_build_object('number', (i.payload ->> 'number')::integer,
-                   'state', i.payload ->> 'state', 'title', i.payload ->> 'title',
-                   'project', i.payload -> 'project', 'blocked_by', i.payload -> 'blocked_by',
-                   'canonical', (i.payload ->> 'number') = (lc.payload -> 'authored_record' -> 'listing' ->> 'issue_number'))
-                 ORDER BY (i.payload ->> 'number')::integer), '[]')
-           FROM present_issue i
-           WHERE i.payload -> 'catalog_ids' ? substring(c.port_key FROM 6)
-              OR (i.payload ->> 'number') = (lc.payload -> 'authored_record' -> 'listing' ->> 'issue_number')) AS work
+        coalesce(w.work, '[]') AS work
         FROM assessed c
         JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
-        LEFT JOIN latest_catalog lc ON lc.subject_key = c.port_key) s)
+        LEFT JOIN latest_catalog lc ON lc.subject_key = c.port_key
+        LEFT JOIN core_member m ON m.platform = c.platform AND m.subject_key = c.port_key
+        LEFT JOIN port_work w ON w.port_key = c.port_key) s)
 );`;
 
 export interface InventoryReport {
@@ -3097,6 +3222,8 @@ export interface ReconsiderationEntry {
    * recorded. Shown for its authority to reconsider; never applied automatically.
    */
   technical_changes?: { subject_key: string; state: string; changed_at: string }[];
+  /** Derived from a complete issue read; never changes the recorded condition or status. */
+  dependency_wake?: "waiting" | "review-ready" | "unknown";
 }
 
 /** Adds, to each pending deferral, the linked assessments that changed after it. */
@@ -3791,10 +3918,23 @@ export function buildReport(
     unassessed_gaps: data.unassessed_gaps,
     ...(hostedObserved ? { hosted_intake: data.hosted_intake } : {}),
     handoffs: openHandoffs(data.handoffs),
-    reconsiderations: deferralChanges(
-      data.reconsiderations,
-      data.subjects as Parameters<typeof deferralChanges>[1],
-    ),
+    reconsiderations: (() => {
+      const issues = new Map(Object.entries(data.universe_inputs.issues));
+      const complete = latestRun("issues-project")?.coverage === "complete";
+      return deferralChanges(
+        data.reconsiderations,
+        data.subjects as Parameters<typeof deferralChanges>[1],
+      ).map((entry) => {
+        if (entry.status !== "pending") return entry;
+        const wake = dependencyWake(
+          entry.condition,
+          issues.get(entry.subject_key),
+          issues,
+          complete,
+        );
+        return wake === null ? entry : { ...entry, dependency_wake: wake };
+      });
+    })(),
   };
 }
 
@@ -3894,13 +4034,30 @@ function reconsiderationSection(report: InventoryReport) {
           ? "No explicit resume condition recorded on the issue."
           : "";
     const hold = typeof value.acquisition_hold === "string" ? value.acquisition_hold : "";
-    return [hold, typeof value.blocker === "string" ? `Blocker: ${value.blocker}` : "", resume]
+    const dependencyUrls = Array.isArray(value.dependency_refs)
+      ? value.dependency_refs.flatMap((ref: unknown) =>
+          isRecord(ref) && typeof ref.url === "string" ? [ref.url] : [],
+        )
+      : [];
+    const dependencyLabels =
+      dependencyUrls.length || !Array.isArray(value.dependency_issues)
+        ? dependencyUrls
+        : value.dependency_issues.map((id) => `#${id}`);
+    const dependency = dependencyLabels.length
+      ? `Recorded dependency issues: ${dependencyLabels.join(", ")}. ${entry.dependency_wake === "review-ready" ? "All observed closed; owner review is due." : entry.dependency_wake === "waiting" ? "Waiting for dependencies." : "Current readiness is unknown."}`
+      : "";
+    return [
+      hold,
+      typeof value.blocker === "string" ? `Blocker: ${value.blocker}` : "",
+      resume,
+      dependency,
+    ]
       .filter(Boolean)
       .map(escapeHtml)
       .join("<br>");
   };
   return `<h2>Holds and deferrals</h2>
-<p>Recorded by their owners: Project Status Deferred or Blocked on an open issue, and reviewed catalog acquisition holds. Only the named authority reconsiders a deferral; a technical change is shown for that authority and never lifts it.</p>
+<p>Recorded by their owners: Project Status Deferred or Blocked on an open issue, and reviewed catalog acquisition holds. Only the named authority reconsiders a deferral; a technical change is shown for that authority and never lifts it. Closing recorded dependency issues is a review signal, not permission to resume work or change Project Status.</p>
 <table><thead><tr><th>Subject</th><th>Kind</th><th>Status</th><th>Condition</th><th>Revisit authority</th><th>Since</th><th>Technical changes since</th></tr></thead><tbody>
 ${entries
   .map(
@@ -4684,6 +4841,9 @@ export async function main(argv = process.argv.slice(2)) {
   const artworkHealth = option(args, "--artwork-health");
   if (artworkHealth !== undefined && command !== "collect")
     throw new MaintenanceStoreError("--artwork-health applies only to collect");
+  const mediaArtworkHealth = option(args, "--media-artwork-health");
+  if (mediaArtworkHealth !== undefined && command !== "collect")
+    throw new MaintenanceStoreError("--media-artwork-health applies only to collect");
   const historySubject = option(args, "--subject");
   const historyBefore = option(args, "--before");
   if ((historySubject || historyBefore) && command !== "history")
@@ -4748,6 +4908,7 @@ export async function main(argv = process.argv.slice(2)) {
       releaseContent ||
       upstreamSource ||
       artworkHealth ||
+      mediaArtworkHealth ||
       hostedSource ||
       progressManifest)
   )
@@ -4830,6 +4991,7 @@ export async function main(argv = process.argv.slice(2)) {
         issues: issues ? () => readIssueInventory(issueCredential) : undefined,
         releaseHealth: releaseHealth ? readReleaseHealth : undefined,
         artworkHealth,
+        mediaArtworkHealth,
         releaseContent: releaseContent ? readReleaseContent : undefined,
         upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
         progress: progressManifest

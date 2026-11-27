@@ -21,7 +21,16 @@
       "format_version": 1,
       "id": "pokemon-crystal",
       "evidence_urls": ["https://github.com/UNDERdecoded/Gen2Recomped"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "pokemon-crystal-game-boy-color",
+          "title": "Pokémon Crystal (Game Boy Color)",
+          "system": "game-boy-color",
+          "evidence_urls": [
+            "https://github.com/UNDERdecoded/Gen2Recomped/blob/42aa3b81312252b472cf9bf5ead4894b931cec2f/README.md#L62-L78"
+          ]
+        }
+      ]
     }
   },
   "integration": {

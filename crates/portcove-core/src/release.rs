@@ -33,6 +33,7 @@ mod forbidden_memories_qualification;
 mod managed_variant;
 mod observation;
 mod uploader_continuity;
+pub(crate) use catalog_download::CatalogGithubRepository;
 pub(crate) use catalog_download::repository_from_url as catalog_download_repository;
 pub(crate) use exact::ExactReleaseRefusal;
 pub use exact::{
@@ -322,6 +323,7 @@ struct ResolvedGithub {
     explicit_tag_commit: Option<String>,
     activity: Option<crate::UpstreamActivity>,
     fallback_reason: Option<String>,
+    live_scoped_github_selection: bool,
     newer_other_host_releases: Vec<String>,
 }
 
@@ -916,6 +918,16 @@ impl GithubReleaseProvider {
         // managed grant. Revalidate public repository identity on the actual API.
         // The request is unconditional and anonymous, so it always draws from the
         // anonymous allowance; an allowance GitHub reported exhausted is not asked.
+        self.anonymous_metadata(url, PROVIDER_JSON_MAX_BYTES, "scoped GitHub metadata")
+            .await
+    }
+
+    async fn anonymous_metadata<T: DeserializeOwned>(
+        &self,
+        url: &str,
+        max_bytes: usize,
+        label: &str,
+    ) -> Result<T> {
         let reservation = self
             .request_budget
             .admit(RequestCredential::Anonymous, false)?;
@@ -929,9 +941,7 @@ impl GithubReleaseProvider {
                 ),
             );
         }
-        let bytes =
-            bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, "scoped GitHub metadata")
-                .await?;
+        let bytes = bounded_response_bytes(response, max_bytes, label).await?;
         serde_json::from_slice(&bytes).map_err(|error| PortcoveError::network(error.to_string()))
     }
 
@@ -1070,6 +1080,7 @@ impl GithubReleaseProvider {
             explicit_tag_commit: None,
             activity: None,
             fallback_reason: entry.fallback_reason.clone(),
+            live_scoped_github_selection: false,
             newer_other_host_releases: entry.newer_other_host_releases.clone(),
         })
     }
@@ -2082,6 +2093,7 @@ impl GithubReleaseProvider {
         resolved.explicit_tag_commit = selected.explicit_tag_commit;
         resolved.upstream_activity = selected.activity;
         resolved.fallback_reason = selected.fallback_reason;
+        resolved.live_scoped_github_selection = selected.live_scoped_github_selection;
         resolved.newer_other_host_releases = selected.newer_other_host_releases;
         if let Some(variant) = selection.variant() {
             resolved.saved_variant = Some(variant.clone());
@@ -2703,6 +2715,9 @@ impl GithubReleaseProvider {
             explicit_tag_commit,
             activity,
             fallback_reason,
+            live_scoped_github_selection: scope.is_some()
+                && curated.is_some()
+                && matches!(selection, GithubSelection::Ordinary),
             newer_other_host_releases,
         })
     }
@@ -2761,6 +2776,7 @@ fn preserved_resolution(
         explicit_tag_commit: None,
         activity: None,
         fallback_reason: None,
+        live_scoped_github_selection: false,
         newer_other_host_releases: Vec::new(),
     })
 }

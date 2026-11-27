@@ -634,25 +634,31 @@ async fn pinned_real_sm64_relationships_stay_independent_and_sparse_without_fabr
             .iter()
             .any(|port| port.port_id == "super-mario-64-sm64-co-op-dx")
     );
-    // Other explicitly related projects may provide an edition, but sparse quality
-    // and missing candidate-specific edition provenance never manufacture a winner.
+    // Exact authored editions stay scoped to each project. They do not
+    // manufacture a recommendation or fill another project's unknown edition.
     assert!(
         result
             .assessment
             .as_ref()
             .is_none_or(|assessment| assessment.recommended.is_none())
     );
-    for id in ["render96ex", "super-mario-64-sm64-co-op-dx"] {
-        assert!(
-            result
-                .ports
-                .iter()
-                .find(|port| port.port_id == id)
-                .unwrap()
-                .edition_ids
-                .is_empty()
-        );
-    }
+    let editions = |id| {
+        result
+            .ports
+            .iter()
+            .find(|port| port.port_id == id)
+            .unwrap()
+            .edition_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(editions("render96ex"), ["super-mario-64-n64-usa"]);
+    assert_eq!(
+        editions("ghostship"),
+        ["super-mario-64-n64-usa", "super-mario-64-n64-japan"]
+    );
+    assert!(editions("super-mario-64-sm64-co-op-dx").is_empty());
     assert!(
         result
             .ports

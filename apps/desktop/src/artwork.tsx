@@ -31,6 +31,8 @@ const noCollection: readonly ArtworkDisplay[] = [];
 const CollectionCoversContext = createContext<ReadonlyMap<string, readonly IgdbArtwork[]>>(
   new Map(),
 );
+type CatalogArtworkEntry = readonly [id: string, ...artwork: unknown[]];
+const CatalogArtworkContext = createContext<readonly (readonly CatalogArtworkEntry[])[]>([]);
 
 export function ArtworkProvider({
   generation,
@@ -44,25 +46,26 @@ export function ArtworkProvider({
   children: ReactNode;
 }) {
   // Workspace reads share unchanged catalog references, so serialize only on change.
-  const catalogArtworkKey = useMemo(
-    () =>
-      JSON.stringify([
-        catalog?.ports.map(({ id, presentation }) => [
-          id,
-          presentation?.artwork,
-          presentation?.companion_cover,
-          presentation?.collection_covers,
-          presentation?.media,
-        ]) ?? [],
-        listings?.listings.map(({ id, artwork, media, collection_covers }) => [
-          id,
-          artwork,
-          media,
-          collection_covers,
-        ]) ?? [],
-      ]),
+  const catalogArtwork = useMemo(
+    () => [
+      catalog?.ports.map(
+        ({ id, presentation }) =>
+          [
+            id,
+            presentation?.artwork,
+            presentation?.companion_cover,
+            presentation?.collection_covers,
+            presentation?.media,
+          ] as const,
+      ) ?? [],
+      listings?.listings.map(
+        ({ id, artwork, media, collection_covers }) =>
+          [id, artwork, media, collection_covers] as const,
+      ) ?? [],
+    ],
     [catalog, listings],
   );
+  const catalogArtworkKey = useMemo(() => JSON.stringify(catalogArtwork), [catalogArtwork]);
   const cache = useMemo(
     () => new ArtworkCache(generation, catalogArtworkKey),
     [generation, catalogArtworkKey],
@@ -79,10 +82,20 @@ export function ArtworkProvider({
   }, [catalog, listings]);
   return (
     <ArtworkContext.Provider value={cache}>
-      <CollectionCoversContext.Provider value={collections}>
-        {children}
-      </CollectionCoversContext.Provider>
+      <CatalogArtworkContext.Provider value={catalogArtwork}>
+        <CollectionCoversContext.Provider value={collections}>
+          {children}
+        </CollectionCoversContext.Provider>
+      </CatalogArtworkContext.Provider>
     </ArtworkContext.Provider>
+  );
+}
+
+export function useCatalogArtworkKey(portId: string) {
+  const catalogArtwork = useContext(CatalogArtworkContext);
+  return useMemo(
+    () => JSON.stringify(catalogArtwork.map((entries) => entries.find(([id]) => id === portId))),
+    [catalogArtwork, portId],
   );
 }
 

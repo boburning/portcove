@@ -257,6 +257,13 @@ GitLab and direct manifests it is `reads:<retained reads>:validate:<cursor>`;
 it is `null` when the attempt restarts. Incomplete API coverage is UNKNOWN. It
 never means that a release or asset is absent.
 
+The configured observer report records this invocation's admitted requests,
+bounded response bytes and conditional hits in `attempt_provider_usage`.
+Provider budget stops report the measured work even when the last completed
+observation is reused. A retry delay that skips the attempt reports zero.
+An error that produces no measurement leaves this field null. The
+`observation.consumed` counters still describe the last completed interval.
+
 The statement is recorded in three places and omitted when complete:
 
 - `coverage` on the catalog checkpoint's source progress
@@ -1445,10 +1452,24 @@ is review evidence, so a person confirms it and, unless the material falls
 under a rights-basis owner exception, sets the listing's
 `download_block_reason` in a reviewed change.
 
-Each scanned asset is remembered in a cached checkpoint by rules version,
+Each scanned asset is remembered in a checkpoint by rules version,
 provider, repository, tag, name and, where the provider gives them, digest or
 size, so a successfully scanned
-release is downloaded once; a rules change rescans. Each scheduled run has an
+release is downloaded once; a rules change rescans. Scheduled runs retain the
+checkpoint separately from the report for 30 days. The next scan verifies the
+latest successful scheduled main run, its exact attempt, and the checkpoint
+archive digest before reusing that continuation. A missing checkpoint from a
+legacy producer can use the old cache during rollout. A missing or invalid
+checkpoint from an artifact-producing run stops the scan while that artifact
+is within retention. Confirmed expiry starts a fresh scan under the same
+budgets. Manual runs can read the checkpoint and only scheduled runs advance it.
+A rerun reuses its own previous successful attempt when available. A historical
+rerun stops if a newer schedule already advanced the checkpoint. The retained
+checkpoint uses the existing 8 MiB artifact receive budget. The scan preserves
+retained records at that bound. If a package result needs more space, it records
+the measured requirement and defers a new transfer until that result can fit.
+
+Each scheduled run has an
 asset budget of 160 packages that counts every attempt, a 40 GB byte budget
 that counts failed transfers too, and a 75-minute deadline that also caps every release read (each at
 most one minute), download, listing and file read, so a slow provider or
@@ -1457,7 +1478,16 @@ deadline; those targets are reported as `time-budget`. Targets that need no
 further I/O keep their outcome after the deadline: a resolved skip, a package
 reused from the checkpoint, a remembered failure, or a remembered unlistable
 retry, which stays `unlistable`. Targets that share one package
-re-check it once per run. Every target not scanned
+attempt it once per run, including transient failures. The existing checkpoint
+retains ordinary transient attempt order: fresh assets and the oldest deferred
+attempts take precedence on the next run, without increasing any budget.
+When a provider changes the digest or size metadata it supplies without proving
+that the package changed, the next attempt still uses the package's previous order.
+Successful scans and persistent failures leave that rotation. The scheduled run uses
+`--complete-targets` with the canonical listings. It drops deferred attempts for
+repositories with no remaining targets, or when every target for a repository resolves
+to a different package from a complete release read. Scoped scans and failed,
+incomplete or ambiguous reads preserve the previous attempt order. Every target not scanned
 is reported with a stable code. Persistent targets are reported as not
 scannable: `no-release`,
 `no-single-asset`, `release-unavailable` (the release read answers with a
@@ -1696,3 +1726,82 @@ readable checkpoint and reports the storage hold. The maintenance inventory
 records the registry as one discovery subject.
 A community record supplies neither a canonical Portcove port mapping nor
 runtime, package, installation or publication authority.
+
+The signed listing publisher can add a Thunderstore website when a maintained
+listing has an exact GameBanana game URL and the registry identifies one listed
+community for that game. An exact GameBanana binding on a maintained definition
+can identify the same relationship. Conflicting maintained identities leave
+the direct links available. A maintained exclusion or explicit Thunderstore
+source takes precedence. A temporary registry outage preserves the previously
+published link while its reviewed identity still matches. This projection adds
+browser navigation only.
+
+### First-party launcher websites
+
+The existing hosted opportunity gives due first-party mod observations up to
+one twentieth of its GitHub request allowance. The oldest attempted subjects
+get the first turns. A subject needs one accepted implementation, an observed
+numeric repository ID, a matching public project root and an accepted game
+input with exact product codes. The observer reads
+the current default commit, its complete root tree, and the exact
+`recomplauncher.json` blob. It checks the repository and a single declared game
+before recording bounded GameBanana and Thunderstore coordinates. Every manifest
+game input ID must match the current catalog’s reviewed game contract. Prefixes,
+missing IDs and ambiguous editions cannot authorize a website. Each attempt
+uses at most four GitHub reads, with a 256 KiB response limit per read.
+
+The checkpoint records the policy and subject binding, last attempt, result,
+last complete observation, and next due time. A temporary outage keeps the
+original date on usable evidence. A verified manifest absence or conflicting
+scope suppresses previous generated links. Releases and package inspection have
+their own progress. The observer reports due, attempted, complete and deferred
+subjects separately from release completion.
+
+The protected publisher validates those observations against the current
+catalog before adding website links to a supported signed listing format.
+Maintained sources and provider bindings take precedence for their provider.
+Maintained exclusions suppress generated links. These links can open a community
+website or allow supported browsing through the existing Core resolver. They
+cannot grant installation, package, update, or profile authority.
+
+Automatic admission can prepare a listing with unresolved game identity. The
+first-party website can be added after the current catalog and manifest establish
+the same game input. A website keeps its repository-bound source ID across later
+observations. When evidence is temporarily unavailable, the publisher can keep
+the authenticated prior website for the same listing and game. A verified rename
+can keep that website under the same admitted repository ID. A conflicting game
+or repository observation or confirmed withdrawal suppresses the link.
+Maintainer-selected websites use separate authored IDs and take precedence.
+
+## Scheduled catalog media health
+
+Within the existing scheduled artwork-health opportunity, retained IGDB
+backgrounds, logos, key art, and screenshots share one read per exact PNG
+variant. The observer reads the committed listing directory, excludes the
+deferred ScummVM engine, and uses Core's image validator without provider
+credentials. The maintenance report retains a separate `media-artwork-health.json`
+receipt bound to the workflow run, source, listing digest, and validator.
+
+The UTC-day window rotates through eligible variants. When media is present,
+it receives a 16 MiB validation budget and 30 seconds of the existing 64 MiB
+and 150-second artwork allowance. The network meter includes any final
+received chunk that exceeds the remaining validation budget. Cover observations
+retain their existing receipt and use the rest of the allowance. Provider
+backoff carries across the two phases.
+The receipt distinguishes unchanged bytes, mismatches, an exact Gone response,
+unavailable results and deferred targets. A shared image is reported
+independently for its catalog roles. The maintenance collector recomputes the
+selected variants and roles against the exact committed listing directory and
+records admitted results under `media-artwork-health`, one fact per fetched
+variant. Partial windows and provider failures retain earlier observations.
+Freshness belongs to the collection, so repeating unchanged bytes does not
+rewrite the image fact. The receipt supplies evidence for the current
+references. It does not find new images or publish catalog changes.
+
+The catalog publication preparation reads cover and media from the same
+authenticated scheduled artifact. Each receipt must match the file inventory,
+the collector's exact admission, and the committed producer directory. A
+rejected or absent media receipt leaves valid cover results available. Media
+health, receipt identity and transfer measurements are reported in
+`observed_media_health` for the publication review. This field does not grant
+media changes or determine acquisition eligibility.

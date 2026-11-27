@@ -99,7 +99,28 @@ impl PortcoveService {
     ) -> Result<DefinitionRefresh> {
         let root = provisioning::installed_compiled_root(self.library())?;
         let transport = super::super::DefinitionHttpsTransport::new(source)?;
-        refresh(self, source, stable_id, root, transport, emit).await
+        refresh(self, source, stable_id, None, root, transport, emit).await
+    }
+
+    pub(in crate::definition_repository) async fn refresh_definition_for_game(
+        &self,
+        source: &DefinitionRepositorySource,
+        stable_id: &str,
+        original_game_id: &str,
+        emit: impl FnMut(OperationEvent),
+    ) -> Result<DefinitionRefresh> {
+        let root = provisioning::installed_compiled_root(self.library())?;
+        let transport = super::super::DefinitionHttpsTransport::new(source)?;
+        refresh(
+            self,
+            source,
+            stable_id,
+            Some(original_game_id),
+            root,
+            transport,
+            emit,
+        )
+        .await
     }
 }
 
@@ -107,6 +128,7 @@ async fn refresh<T: Transport + Send + Sync + 'static>(
     service: &PortcoveService,
     source: &DefinitionRepositorySource,
     stable_id: &str,
+    original_game_id: Option<&str>,
     root: &[u8],
     transport: T,
     mut emit: impl FnMut(OperationEvent),
@@ -182,6 +204,20 @@ async fn refresh<T: Transport + Send + Sync + 'static>(
                     .await?,
             )
         };
+        if let (Some(original_game_id), Some(candidate)) = (original_game_id, &candidate) {
+            progress.phase = "listing_setup_identity";
+            let projection = candidate.inspect_catalog_projection("official", stable_id)?;
+            let port = projection.catalog().port(stable_id)?;
+            let original = port
+                .presentation
+                .as_ref()
+                .and_then(|presentation| presentation.original_game.as_ref());
+            if !original.is_some_and(|original| original.id == original_game_id) {
+                return Err(PortcoveError::verification(
+                    "the published setup no longer matches this listing's original game",
+                ));
+            }
+        }
         operation.begin_publication()?;
         admit(
             service.library(),
@@ -564,5 +600,27 @@ pub(crate) async fn refresh_fixture<T: Transport + Send + Sync + 'static>(
     emit: impl FnMut(OperationEvent),
 ) -> Result<DefinitionRefresh> {
     provisioning::installed_fixture_root(service.library(), root)?;
-    refresh(service, source, stable_id, root, transport, emit).await
+    refresh(service, source, stable_id, None, root, transport, emit).await
+}
+
+#[cfg(test)]
+pub(crate) async fn refresh_linked_fixture<T: Transport + Send + Sync + 'static>(
+    service: &PortcoveService,
+    source: &DefinitionRepositorySource,
+    stable_id: &str,
+    original_game_id: &str,
+    root: &[u8],
+    transport: T,
+) -> Result<DefinitionRefresh> {
+    provisioning::installed_fixture_root(service.library(), root)?;
+    refresh(
+        service,
+        source,
+        stable_id,
+        Some(original_game_id),
+        root,
+        transport,
+        |_| {},
+    )
+    .await
 }

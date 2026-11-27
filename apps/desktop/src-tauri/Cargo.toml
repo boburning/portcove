@@ -21,19 +21,14 @@ tauri-build = { version = "=2.7.4", features = [] }
 tauri-codegen = "=2.7.4"
 
 [dependencies]
-async-trait.workspace = true
 base64 = "0.23.1"
-bytes.workspace = true
-fs4.workspace = true
 futures-util.workspace = true
 hex.workspace = true
 jiff = "0.2.46"
 portcove-core = { path = "../../../crates/portcove-core" }
 portcove-diagnostics = { path = "../../../crates/portcove-diagnostics" }
-reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-semver.workspace = true
 schemars.workspace = true
 sha2.workspace = true
 tauri = { version = "=2.12.5", features = [] }
@@ -42,7 +37,6 @@ tauri-plugin-updater = { version = "=2.14.1", default-features = false }
 tauri-plugin-wdio-webdriver = { version = "=1.5.1", optional = true }
 thiserror.workspace = true
 tokio.workspace = true
-tokio-util.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 url.workspace = true
@@ -53,10 +47,7 @@ tauri-codegen = "=2.7.4"
 portcove-diagnostics = { path = "../../../crates/portcove-diagnostics", features = [
   "qualification-fixtures",
 ] }
-aws-lc-rs = "1.19.0"
-flate2.workspace = true
 rusqlite.workspace = true
-tar.workspace = true
 tempfile.workspace = true
 
 [target.'cfg(windows)'.dependencies]
@@ -72,16 +63,10 @@ windows = { version = "0.62.2", features = [
   "Win32_UI_Shell_PropertiesSystem",
 ] }
 windows-sys = { workspace = true, features = ["Win32_UI_WindowsAndMessaging"] }
-windows-version.workspace = true
 tauri-plugin-single-instance = "=2.5.5"
 
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
-flate2.workspace = true
-rustix.workspace = true
 tempfile.workspace = true
-
-[target.'cfg(target_os = "linux")'.dependencies]
-rustix.workspace = true

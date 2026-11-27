@@ -40,6 +40,18 @@
           "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
         },
         {
+          "name": "mechanism-setup-macos-x86_64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-setup-macos-x86_64.zip",
+          "size": 11,
+          "digest": "sha256:53fcebe0f0e2ba396169105c989cdcb8e200044a162ec8103ca60cedee2379da"
+        },
+        {
+          "name": "mechanism-setup-macos-arm64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-setup-macos-arm64.zip",
+          "size": 11,
+          "digest": "sha256:918a74bd9e6204113a6f420cdea7fa627dde07c0064795841a7f9b376ffb9236"
+        },
+        {
           "name": "mechanism-setup-installer-windows-x64.exe",
           "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v2.0.0/mechanism-setup-installer-windows-x64.exe",
           "size": 11,
@@ -76,6 +88,18 @@
           "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v1.0.0/mechanism-setup-linux-x64.zip",
           "size": 11,
           "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111112"
+        },
+        {
+          "name": "mechanism-setup-macos-x86_64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v1.0.0/mechanism-setup-macos-x86_64.zip",
+          "size": 11,
+          "digest": "sha256:ee71241009b5da46f8a0a760ef8884d0ee0a1412c0fd13b936614994acdbefb0"
+        },
+        {
+          "name": "mechanism-setup-macos-arm64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/upstream-setup/releases/download/v1.0.0/mechanism-setup-macos-arm64.zip",
+          "size": 11,
+          "digest": "sha256:1c5e1d1ae63c557c578ac6126866b08f3c5edd40e80b5ff3984f089e90b9397e"
         }
       ]
     }
@@ -114,6 +138,18 @@
           "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555552"
         },
         {
+          "name": "mechanism-disc-macos-x86_64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v2.0.0/mechanism-disc-macos-x86_64.zip",
+          "size": 11,
+          "digest": "sha256:5ce044a4884076e9ea6f51df1bd9d8ec34a5fdae5fc6c7b945ffd3e50e5c43ce"
+        },
+        {
+          "name": "mechanism-disc-macos-arm64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v2.0.0/mechanism-disc-macos-arm64.zip",
+          "size": 11,
+          "digest": "sha256:b1e08122d17116d92006bb1c16b0fb1c4400830490622d8af21361535f1f7e1b"
+        },
+        {
           "name": "mechanism-disc-builder-windows-x64.zip",
           "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v2.0.0/mechanism-disc-builder-windows-x64.zip",
           "size": 11,
@@ -144,6 +180,18 @@
           "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v1.0.0/mechanism-disc-linux-x64.zip",
           "size": 11,
           "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444442"
+        },
+        {
+          "name": "mechanism-disc-macos-x86_64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v1.0.0/mechanism-disc-macos-x86_64.zip",
+          "size": 11,
+          "digest": "sha256:3badaefff077ada6c5f80588379a9df4c2150318cc851a69405de3cdb9f8d1d4"
+        },
+        {
+          "name": "mechanism-disc-macos-arm64.zip",
+          "browser_download_url": "https://github.com/mechanism-fixture/referenced-disc/releases/download/v1.0.0/mechanism-disc-macos-arm64.zip",
+          "size": 11,
+          "digest": "sha256:9692090ca5ed61e561a6f42dc12c0cc1826b1558dbef02250427dd331516ce9f"
         }
       ]
     }

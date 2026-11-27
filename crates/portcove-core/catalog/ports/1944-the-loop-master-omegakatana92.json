@@ -13,6 +13,14 @@
       "evidence_urls": ["https://github.com/omegakatana92/1944-The-Loop-Master-Recomp"],
       "source_editions": []
     },
-    "original_game_title": "1944: The Loop Master"
+    "original_game_title": "1944: The Loop Master",
+    "artwork": {
+      "game_id": 6079,
+      "cover_id": 120194,
+      "image_id": "co2kqq",
+      "image_sha256": "579ee10f2150de3901bd31cc14315637d91de1ad1b204b0f68d4ff66621571cb",
+      "game_slug": "1944-the-loop-master",
+      "match_kind": "underlying-game"
+    }
   }
 }

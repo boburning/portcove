@@ -18,19 +18,13 @@ required to merge.
   pass the cleanup and live-listener controls. The existing native
   rejected-registration and late-disposal scenarios exercise the WebView lifetime.
   [Published API 2.12.4](https://www.npmjs.com/package/@tauri-apps/api/v/2.12.4)
-- **Localization lint.** The patch applies to `i18next-cli@>=1.82.4 <2` and
-  makes both primary-translation loaders try the configured string
-  `extract.defaultNS` before their existing namespace fallbacks. Unset and false
-  defaults use the original fallbacks. The workspace pins 1.88.0. Published
-  1.88.0 still tries only `translation`, `common` and `default` in its linter
-  (checked in `src/linter.ts`), and published 1.87.0 still misses Portcove's
-  `settings.json` and accepts a missing nested interpolation argument. The patched CLI rejects that fixture and accepts the
-  provided argument. A changed patch context or out-of-range version fails
-  installation. Remove the patch when the selected upstream CLI handles the
-  configured namespace and passes the existing nested missing/provided controls and
-  placeholder checks in `check-i18n-negative-fixture.mts`.
-  [Published CLI 1.88.0](https://www.npmjs.com/package/i18next-cli/v/1.88.0),
-  [published CLI 1.87.0](https://www.npmjs.com/package/i18next-cli/v/1.87.0)
+- **Localization lint.** i18next-cli 1.95.3 uses upstream namespace-aware
+  interpolation lint instead of the former local default-namespace patch.
+  Keep the missing and provided nested interpolation controls and the
+  translated-placeholder checks in `check-i18n-negative-fixture.mts`.
+  The same check verifies that the CLI and its glob dependency use the same
+  bounded minimatch implementation.
+  [Upstream namespace fix](https://github.com/i18next/i18next-cli/blob/v1.95.3/CHANGELOG.md#1913)
 - **Signing transport.** The `@sigstore/sign@5.1.0` patch routes signing
   requests through the explicitly scoped Portcove transport. Published 5.1.0
   owns its HTTP client and retry loop. The existing signing tests exercise scope
@@ -2516,10 +2510,12 @@ product groups. Run it as explicit acceptance from an interactive,
 non-elevated (medium-integrity) Windows desktop session. Hosted runners present
 a high-integrity token. Core refuses settings editing there by design, so a
 hosted run can only reproduce that refusal (run 44933173974). The owned install
-fixture declares one inert settings file. Desktop reviews two edits, saves them
-through native IPC and reads both copies back. An outside edit then makes a
-second review stale. Core refuses it before starting. Desktop shows Core's
-explanation, and both outside copies stay byte-identical. The executable is
+fixture declares two inert settings files. Desktop drafts edits to both files,
+retains them through navigation, then saves only the reviewed audio file through
+native IPC. An outside edit makes the next audio review stale. Core refuses it,
+and both outside copies stay byte-identical. Desktop saves the display file
+independently while retaining the held audio draft. The receipt records verified
+file bytes after comparing canonical and runtime copies. The executable is
 inert and no game starts.
 
 `just desktop-verify --scenario native-large-discovery-setup-review --require-clean`
@@ -3719,8 +3715,12 @@ The Windows normal-package case also reads the actual workspace catalog and
 catalog status, checks the reviewed original-game relationships, and retains
 `normal-package-game-first-catalog.json`. That artifact binds the loaded catalog
 digest, definition/listing provenance, independent relationship fixture, package
-and executable to the executing source revision. The fixture and oracle have
-immutable input custody. Existing packages use their own matching source and
+and executable to the executing source revision. It records the exact generated
+source document digests, checks the complete loaded population and original-game
+identities against those source documents, and checks the historical audit
+relationships among the independently reviewed entries. The isolated test profile
+turns off automatic catalog refresh so this verifies the embedded cohort. The
+source documents, fixture and oracle have immutable input custody. Existing packages use their own matching source and
 fixture; the verifier refuses a different candidate revision. A relationship
 failure fails the scenario and retains the readback. This read-only observation
 grants no source compatibility, installation permission or gameplay acceptance.

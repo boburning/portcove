@@ -15,6 +15,47 @@ function rejectedReason(result: PromiseRejectedResult): unknown {
 
 const providerClockStart = Date.UTC(2026, 9, 3, 8);
 
+void test("the hosted image transfer budget survives provider batch rotation", async () => {
+  const { createIgdbInspector, ArtworkBatchExhausted } = await import("./inspect-igdb-artwork.mts");
+  const inspector = createIgdbInspector(
+    null,
+    () => ({ width: 264, height: 374, format: "jpeg", validator: "portcove-core" }),
+    async () =>
+      new Response("abc", { headers: { "content-type": "image/jpeg", "content-length": "3" } }),
+    { maximumOperationImageBytes: 3 },
+  );
+  assert.equal((await inspector.inspectImage("first")).bytes, 3);
+  inspector.beginBatch();
+  await assert.rejects(inspector.inspectImage("second"), ArtworkBatchExhausted);
+  assert.equal(inspector.providerMetrics.image_requests, 1);
+  assert.equal(inspector.providerMetrics.image_bytes, 3);
+});
+
+void test("an over-budget streamed image counts its delivered chunk and stops new requests", async () => {
+  const { createIgdbInspector, ArtworkBatchExhausted } = await import("./inspect-igdb-artwork.mts");
+  const inspector = createIgdbInspector(
+    null,
+    () => assert.fail("the over-budget body reached the decoder"),
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array(2));
+            controller.enqueue(new Uint8Array(2));
+            controller.close();
+          },
+        }),
+        { headers: { "content-type": "image/jpeg" } },
+      ),
+    { maximumOperationImageBytes: 3 },
+  );
+  await assert.rejects(inspector.inspectImage("streamed"), ArtworkBatchExhausted);
+  inspector.beginBatch();
+  await assert.rejects(inspector.inspectImage("next"), ArtworkBatchExhausted);
+  assert.equal(inspector.providerMetrics.image_requests, 1);
+  assert.equal(inspector.providerMetrics.image_bytes, 4);
+});
+
 async function flushProviderTimers(context: TestContext) {
   await new Promise((resolve) => setImmediate(resolve));
   context.mock.timers.tick(0);
@@ -35,6 +76,7 @@ async function capturedMetadataBackoff(
   writeFileSync(privateFile, JSON.stringify({ client_id: "fixture", client_secret: "fixture" }));
   context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: providerClockStart });
   const calls: number[] = [];
+  const retryNotices: { metadata_retry_at: string | null; image_retry_at: string | null }[] = [];
   const inspector = createIgdbInspector(
     privateFile,
     () => assert.fail("metadata must not decode"),
@@ -51,6 +93,7 @@ async function capturedMetadataBackoff(
         headers: calls.length === 1 && retryAfter !== null ? { "Retry-After": retryAfter } : {},
       });
     },
+    { onBackoff: (notice) => retryNotices.push(notice) },
   );
   const request = (id: number) =>
     inspector.inspectGame({
@@ -62,7 +105,7 @@ async function capturedMetadataBackoff(
   const first = request(101).catch((error: unknown) => error);
   await flushProviderTimers(context);
   await first;
-  return { inspector, calls, request };
+  return { inspector, calls, request, retryNotices };
 }
 
 for (const [status, retryAfter] of [
@@ -75,6 +118,12 @@ for (const [status, retryAfter] of [
 ] as const) {
   void test(`metadata${status} honors Retry-After ${retryAfter}`, async (context) => {
     const fixture = await capturedMetadataBackoff(context, { status, retryAfter });
+    assert.deepEqual(fixture.retryNotices, [
+      {
+        metadata_retry_at: new Date(providerClockStart + 2000).toISOString(),
+        image_retry_at: null,
+      },
+    ]);
     const next = fixture.request(102);
     await flushProviderTimers(context);
     context.mock.timers.tick(300);

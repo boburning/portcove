@@ -268,7 +268,7 @@ async fn refusal_unsupported_platform_downloads_nothing() {
     let library = Library::open(temporary.path().join("library")).unwrap();
     let server = ReleaseServer::start(DISC_REPOSITORY, "referenced_disc", vec![package("v2.0.0")]);
     let mut document = fixture::document();
-    let other = fixture::platforms()
+    let other = fixture::PLATFORMS
         .into_iter()
         .find(|platform| *platform != host())
         .unwrap();

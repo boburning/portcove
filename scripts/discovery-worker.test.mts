@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -11,7 +12,9 @@ import { emptyCheckpoint } from "./discovery-checkpoint.mts";
 import {
   DiscoveryStoreRefused,
   discoveryStatusQuery,
+  readDiscoverySnapshot,
   postgresDiscoveryStore,
+  measureDiscoverySeed,
 } from "./discovery-store.mts";
 import type {
   DiscoveryLease,
@@ -32,16 +35,30 @@ import {
   learnedDigest,
   physicalLeadEnvelope,
   discoveryTransferForecastQuery,
+  discoveryPassReservation,
+  discoverySeedReservation,
   runDiscoveryPasses,
+  scheduledListingPreview,
+  nextListingPreviewRound,
   renderDiscoveryStatus,
   readStoredLeads,
   runDiscoveryWorker,
   storedLeadsReservation,
 } from "./discovery-worker.mts";
-import { overlayLocalResearch } from "./discovery-leads.mts";
-import type { DiscoveryLead } from "./discovery-leads.mts";
+import { observedLeadReleases, overlayLocalResearch } from "./discovery-leads.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import type { DiscoveryLead, LeadState } from "./discovery-leads.mts";
 import { selectExternalResolutions } from "./discovery-external-lists.mts";
-import { backup, migrate, queryJson, restore, runSql } from "./maintenance-store.mts";
+import {
+  backup,
+  maintenanceTransfer,
+  migrate,
+  migrationTransaction,
+  queryJson,
+  readMigrations,
+  restore,
+  runSql,
+} from "./maintenance-store.mts";
 
 const server = postgresServer();
 const hex = (digit: string) => digit.repeat(64);
@@ -381,7 +398,7 @@ async function providers(
       };
     if (/\/releases\?per_page=\d+$/u.test(endpoint)) {
       releaseReads.push(endpoint);
-      return endpoint.startsWith("repos/holdout/unseen-native-port/releases") ? releases() : [];
+      return endpoint.startsWith("repositories/9001/releases?") ? releases() : [];
     }
     return new Response(JSON.stringify({ message: "fixture" }), {
       status: 404,
@@ -577,6 +594,260 @@ void test("observations exclude local paths and clocks so unchanged projects sta
   assert.equal(leadWatch(unhinted), undefined);
 });
 
+void test("scheduled listing preview resumes retained release evidence and binds it to the repository", async (context) => {
+  const start = "2026-11-01T00:00:00.000Z";
+  const previous = "2026-10-31T00:00:00.000Z";
+  const releases = (id: number) => [
+    {
+      id: id * 100,
+      html_url: `https://github.com/ports/game-${id}/releases/tag/1.0`,
+      draft: false,
+      assets: [{ state: "uploaded", name: "windows.zip" }],
+    },
+  ];
+  const retainedRelease = (id: number) => ({
+    ...observedLeadReleases(releases(id), `https://github.com/ports/game-${id}`),
+    observed_at: previous,
+    evidence: "/old-run/release-response.json",
+  });
+  const lead = (id: number, change: Partial<DiscoveryLead> = {}): DiscoveryLead => ({
+    id,
+    repository: `ports/game-${id}`,
+    url: `https://github.com/ports/game-${id}`,
+    description: "Native port",
+    revision: "upstream-change",
+    observed_at: start,
+    evidence: "/private/lead-evidence.json",
+    status: "pending",
+    release_hint: {
+      assets_observed: true,
+      observed_at: start,
+      evidence: "/private/release-evidence.json",
+    },
+    ...change,
+  });
+  const retained: DiscoveryRetainedState = {
+    generation: 3,
+    revision: 5,
+    definition: hex("d"),
+    attempt: lease("1").attempt,
+    state: {
+      format: 1,
+      checkpoint: emptyCheckpoint(),
+      leads: {
+        format: 1,
+        next_family: 0,
+        slices: {},
+        records: Object.fromEntries(
+          [
+            lead(5),
+            lead(6, { status: "held" }),
+            lead(7, {
+              release_hint: { assets_observed: false, observed_at: start, evidence: "/x" },
+            }),
+            lead(8, {
+              release_hint: {
+                assets_observed: true,
+                observed_at: "2026-10-31T00:00:00.000Z",
+                evidence: "/x",
+              },
+            }),
+            lead(9, {
+              repository: "moved/game-9",
+              url: "https://github.com/moved/game-9",
+            }),
+            lead(10),
+            lead(11, {
+              release_hint: retainedRelease(11),
+              release_probe: { attempted_at: start, outcome: "unavailable" },
+            }),
+            lead(12, {
+              repository: "renamed/game-12",
+              url: "https://github.com/renamed/game-12",
+              release_hint: retainedRelease(12),
+            }),
+          ].map((row) => [row.id, row]),
+        ),
+      },
+    },
+  };
+  const preview = scheduledListingPreview(
+    retained,
+    start,
+    new Set(["https://github.com/ports/game-10"]),
+    "source",
+    (id) => {
+      assert.ok(id < 11, "retained release evidence must not need previous-run files");
+      return releases(id);
+    },
+  );
+  assert.equal(preview.receipt.retained_record_count, 8);
+  assert.equal(preview.receipt.committed.revision, 5);
+  assert.equal(preview.receipt.committed.generation, 3);
+  assert.equal(preview.receipt.evidence.length, 2);
+  assert.ok(preview.receipt.evidence[0]!.input.desktop_asset_hint);
+  assert.equal(preview.receipt.evidence[0]!.input.release_id, 500);
+  const digest = createHash("sha256")
+    .update(JSON.stringify(preview.receipt.evidence[0]!.input))
+    .digest("hex");
+  assert.deepEqual(
+    preview.handoff.candidates.map(({ id }) => id),
+    ["github-5", "github-11"],
+  );
+  assert.deepEqual(preview.handoff.candidates[0], {
+    id: "github-5",
+    project_url: "https://github.com/ports/game-5",
+    repository_id: 5,
+    evidence_sha256: digest,
+  });
+  assert.ok(preview.receipt.evidence[1]!.input.desktop_asset_hint);
+  assert.equal(preview.receipt.evidence[1]!.input.release_id, 1100);
+  assert.equal(preview.receipt.evidence[1]?.input.observed_at, previous);
+  assert.doesNotMatch(JSON.stringify(preview), /\/(?:private|old-run)/u);
+
+  const { leads } = parseWorkerState(retained.state);
+  leads.records["5"]!.release_hint = retainedRelease(5);
+  const covered = new Set(["https://github.com/ports/game-10"]);
+  const manifest = {
+    game: "Exact scoped port",
+    systems: ["SNES"],
+    types: ["port"],
+    toolchains: [],
+    targets: [],
+  };
+  const withoutAssets = {
+    assets_observed: false,
+    observed_at: previous,
+    evidence: "/private/no-assets",
+  };
+  const sourceOnlyLeads: LeadState = {
+    ...leads,
+    records: {
+      "5": leads.records["5"]!,
+      "6": lead(6, {
+        search_families: ["libultraship", "n64recomp"],
+        release_hint: withoutAssets,
+      }),
+      "7": lead(7, { status: "researched", manifest, release_hint: withoutAssets }),
+      "8": lead(8, { external_lists: ["quiver"], release_hint: withoutAssets }),
+      "9": lead(9, { release_hint: withoutAssets }),
+      "10": lead(10, { manifest, release_hint: withoutAssets }),
+      "11": lead(11, { status: "held", manifest, release_hint: withoutAssets }),
+      "12": lead(12, { search_families: ["source-port-topic"], release_hint: withoutAssets }),
+    },
+  };
+  const sourceOnlyRound = nextListingPreviewRound(sourceOnlyLeads, undefined, start, covered);
+  assert.ok(sourceOnlyRound);
+  const sourceOnlyPreview = scheduledListingPreview(
+    {
+      ...retained,
+      state: { ...retained.state, leads: sourceOnlyLeads, listing_preview_round: sourceOnlyRound },
+    },
+    start,
+    covered,
+    "source",
+    () => assert.fail("scope nominations do not reread release evidence"),
+  );
+  assert.deepEqual(
+    sourceOnlyPreview.handoff.candidates.map(({ id }) => id),
+    ["github-5", "github-7", "github-8", "github-12"],
+  );
+  const [withPackage, withManifest, withCurated, withTopic] =
+    sourceOnlyPreview.receipt.evidence.map(({ input }) => input);
+  assert.ok(withPackage?.desktop_asset_hint);
+  assert.ok(withManifest && !withManifest.desktop_asset_hint);
+  assert.ok(withCurated && !withCurated.desktop_asset_hint);
+  assert.ok(
+    withTopic && !withTopic.desktop_asset_hint && withTopic.scope.kind === "source-port-topic",
+  );
+  assert.equal(withManifest.scope.kind, "retained-manifest");
+  assert.deepEqual(withCurated.scope, {
+    kind: "curated-source",
+    sources: ["quiver"],
+    release_sampled_at: previous,
+  });
+  assert.doesNotMatch(JSON.stringify(sourceOnlyPreview), /\/private/u);
+
+  sourceOnlyLeads.records["8"]!.release_hint = retainedRelease(8);
+  const subsequent = scheduledListingPreview(
+    {
+      ...retained,
+      state: { ...retained.state, leads: sourceOnlyLeads, listing_preview_round: sourceOnlyRound },
+    },
+    start,
+    covered,
+    "source",
+    () => undefined,
+  );
+  assert.equal(subsequent.handoff.candidates[2]?.id, "github-8");
+  assert.equal(subsequent.receipt.evidence[2]?.input.desktop_asset_hint, true);
+
+  const first = nextListingPreviewRound(leads, undefined, start, covered);
+  assert.ok(first);
+  const previewRound = (round: NonNullable<typeof first>) =>
+    scheduledListingPreview(
+      { ...retained, state: { ...retained.state, leads, listing_preview_round: round } },
+      round.run_started_at,
+      covered,
+      "source",
+      () => undefined,
+    ).handoff.candidates.map(({ repository_id }) => repository_id);
+  assert.deepEqual(previewRound(first), [5, 11]);
+  assert.equal(nextListingPreviewRound(leads, first, start, covered), undefined);
+
+  // Assume preparation could only reach the first candidate before its
+  // deadline. New IDs arrive before and after the previously selected range.
+  leads.records["1"] = lead(1, { release_hint: retainedRelease(1) });
+  leads.records["20"] = lead(20, { release_hint: retainedRelease(20) });
+  assert.deepEqual(previewRound(first), [5, 11], "later passes preserve the admitted round");
+  const second = nextListingPreviewRound(leads, first, "2026-11-02T00:00:00Z", covered);
+  assert.ok(second);
+  assert.deepEqual(previewRound(second), [11]);
+  assert.equal(second.through_id, first.through_id);
+  const nextCycle = nextListingPreviewRound(leads, second, "2026-11-03T00:00:00Z", covered);
+  assert.ok(nextCycle);
+  assert.deepEqual(previewRound(nextCycle), [1, 5, 11, 20]);
+
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-preview-round-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const memory = memoryStore();
+  memory.leads.set(5, leads.records["5"]);
+  memory.leads.set(7, sourceOnlyLeads.records["7"]);
+  memory.leads.set(8, lead(8, { external_lists: ["quiver"], release_hint: withoutAssets }));
+  memory.leads.set(11, leads.records["11"]);
+  const runPreview = async (runStartedAt: string) => {
+    const timestamp = Date.parse(runStartedAt);
+    let selected: number[] | undefined;
+    const run = await runDiscoveryPasses({
+      store: memory.store,
+      runDir: root,
+      covered: () => covered,
+      sourceRevision: "fixture",
+      runner: "fixture",
+      now: () => timestamp,
+      deadline: timestamp + 60_000,
+      diskBytes: 8 * 1024 * 1024,
+      finalizationMs: 1_000,
+      previewListings: (value) => {
+        selected = value.handoff.candidates.map(({ repository_id }) => repository_id);
+      },
+      admit: (_pass, run) => run({ bytes: 1024 * 1024, deadline: timestamp + 60_000 }),
+      connect: () => Promise.reject(new GitHubApiError("deadline_exceeded", "fixture deadline")),
+    });
+    assert.equal(run.outcome, "partial");
+    return selected;
+  };
+  assert.deepEqual(await runPreview(start), [5, 7, 8, 11]);
+  assert.deepEqual(parseWorkerState(memory.state()).listing_preview_round, first);
+  memory.leads.set(1, leads.records["1"]);
+  memory.leads.set(20, leads.records["20"]);
+  assert.deepEqual(await runPreview("2026-11-02T00:00:00Z"), [7, 8, 11]);
+  assert.equal(parseWorkerState(memory.state()).listing_preview_round?.through_id, 11);
+  assert.deepEqual(await runPreview("2026-11-03T00:00:00Z"), [8, 11]);
+  assert.deepEqual(await runPreview("2026-11-04T00:00:00Z"), [11]);
+  assert.deepEqual(await runPreview("2026-11-05T00:00:00Z"), [1, 5, 7, 8, 11, 20]);
+});
+
 void test(
   "local lead state imports once with its recorded strength",
   { skip: server.skip ?? false, timeout: 120_000 },
@@ -622,7 +893,33 @@ void test(
   "a local runner reads the shared store's leads without a lease and keeps its research",
   { skip: server.skip ?? false, timeout: 120_000 },
   async (context) => {
-    const environment = postgresFixture(context, server.directory!).start("snapshot").owner;
+    const fixture = postgresFixture(context, server.directory!);
+    const legacy = fixture.start("legacy-hints").owner;
+    // Exercise the actual upgrade from the prior schema, not just a fresh install.
+    const migrations = readMigrations();
+    const split = migrations.find(({ name }) => name === "discovery_external_hints");
+    assert.ok(split);
+    for (const migration of migrations.filter(({ version }) => version < split.version))
+      runSql(legacy, migrationTransaction(migration));
+    const old = {
+      leads: { external: { lists: {}, hints: { "legacy-key": { title: "legacy" } } } },
+    };
+    runSql(
+      legacy,
+      `INSERT INTO portcove_maintenance.discovery_collection_state
+      (scope, definition_sha256, revision, state, state_sha256, updated_at)
+      VALUES ('primary', '${hex("d")}', 0, '${JSON.stringify(old)}'::jsonb, '${hex("a")}', clock_timestamp());`,
+    );
+    migrate(legacy);
+    assert.deepEqual(
+      queryJson(
+        legacy,
+        "SELECT portcove_maintenance.discovery_expanded_state(scope, state) FROM portcove_maintenance.discovery_collection_state;",
+      ),
+      old,
+    );
+    assert.equal(count(legacy, "discovery_external_hints"), 1);
+    const environment = fixture.start("snapshot").owner;
     migrate(environment);
     assert.equal((await readStoredLeads(environment)).outcome, "empty");
     const store = postgresDiscoveryStore(environment);
@@ -644,7 +941,25 @@ void test(
       leaseSeconds: 600,
       state: {
         format: 1,
-        leads: { format: 1, next_family: 3, slices: {}, records: {} },
+        leads: {
+          format: 1,
+          next_family: 3,
+          slices: {},
+          records: {},
+          external: {
+            lists: {},
+            hints: {
+              "https://github.com/ports/game-1": {
+                url: "https://github.com/ports/game-1",
+                host: "github",
+                title: "Game",
+                lists: ["decomp-buddy-finds"],
+                first_observed_at: "2026-11-01T00:00:00.000Z",
+                last_observed_at: "2026-11-01T00:00:00.000Z",
+              },
+            },
+          },
+        },
         checkpoint: emptyCheckpoint(),
         research_progress: {},
       },
@@ -658,6 +973,28 @@ void test(
     if (read.outcome !== "read") return;
     assert.equal(read.revision, 1);
     assert.equal(read.leads.next_family, 3, "the store's continuation comes along");
+    assert.equal(read.leads.external?.hints["https://github.com/ports/game-1"]?.title, "Game");
+    assert.equal(count(environment, "discovery_external_hints"), 1);
+    assert.equal(
+      queryJson(
+        environment,
+        "SELECT to_json(state #> '{leads,external,hints}' IS NULL) FROM portcove_maintenance.discovery_collection_state;",
+      ),
+      true,
+    );
+    store.finish(owner, "complete", {});
+    const next = lease("2");
+    const grant = store.acquire(next, options);
+    assert.deepEqual((grant.state.leads as { external: unknown }).external, read.leads.external);
+    const state = structuredClone(grant.state);
+    const external = (state.leads as { external: { hints: Record<string, unknown> } }).external;
+    delete external.hints["https://github.com/ports/game-1"];
+    commit(store, next, grant.revision, state);
+    assert.equal(count(environment, "discovery_external_hints"), 0);
+    assert.throws(() => commit(store, owner, grant.revision, grant.state), DiscoveryStoreRefused);
+    const after = await readStoredLeads(environment);
+    assert.equal(after.outcome, "read");
+    if (after.outcome === "read") assert.deepEqual(after.leads.external?.hints, {});
     assert.deepEqual(Object.keys(read.leads.records).sort(), ["1", "2"]);
     assert.ok(read.bytes > 0);
 
@@ -690,6 +1027,55 @@ void test(
     assert.equal(merged.records["2"]!.disposition, undefined);
     assert.equal(merged.records["3"]!.revision, "c");
     assert.equal(merged.next_family, 3);
+
+    store.finish(next, "complete", {});
+    // The migration casts ->>'id' to bigint, which admits JSON strings as well
+    // as numbers. Put the invalid row before a valid one in the same page.
+    runSql(
+      environment,
+      `UPDATE portcove_maintenance.discovery_lead_records
+        SET record = jsonb_set(record, '{id}', to_jsonb('1'::text))
+        WHERE scope = 'primary' AND lead_id = 1;`,
+    );
+    const persisted = () =>
+      queryJson(
+        environment,
+        `SELECT json_build_object('revision', revision, 'state', state, 'state_sha256', state_sha256,
+          'rows', (SELECT json_agg(record ORDER BY lead_id)
+          FROM portcove_maintenance.discovery_lead_records WHERE scope = 'primary'))
+        FROM portcove_maintenance.discovery_collection_state WHERE scope = 'primary';`,
+      );
+    const before = persisted();
+    const diagnostic = /Invalid stored discovery lead id: expected a positive safe integer/u;
+    await assert.rejects(readStoredLeads(environment), diagnostic);
+    let providerCalls = 0;
+    const result = await runDiscoveryWorker({
+      store,
+      runDir: fixture.root,
+      sourceRevision: "fixture",
+      runner: "invalid-stored-lead",
+      covered: () => new Set(),
+      now: () => Date.parse("2026-11-01T05:00:00.000Z"),
+      connect: async () => {
+        providerCalls++;
+        throw new Error("not reached");
+      },
+    });
+    assert.equal(result.outcome, "failed");
+    assert.match(result.reason ?? "", diagnostic);
+    assert.equal(providerCalls, 0);
+    assert.deepEqual(persisted(), before);
+    assert.deepEqual(
+      queryJson(
+        environment,
+        `SELECT json_build_object('outcome', a.outcome, 'reason', a.result->>'reason',
+          'closed', a.finished_at IS NOT NULL AND s.lease_token IS NULL)
+        FROM portcove_maintenance.discovery_collection_attempts a
+        JOIN portcove_maintenance.discovery_collection_state s USING (scope)
+        WHERE a.runner = 'invalid-stored-lead';`,
+      ),
+      { outcome: "failed", reason: result.reason, closed: true },
+    );
   },
 );
 
@@ -801,7 +1187,8 @@ void test(
     const store = postgresDiscoveryStore(environment);
     const first = lease("1");
     const grant = store.acquire(first, options);
-    assert.equal(commit(store, first, grant.revision, { cursor: 1 }).revision, 1);
+    const state = { cursor: 1, padding: "x".repeat(2 * 1024 * 1024) };
+    assert.equal(commit(store, first, grant.revision, state).revision, 1);
     store.finish(first, "partial", {});
     const held = {
       revision: 1,
@@ -809,7 +1196,17 @@ void test(
       definition: hex("d"),
       attempt: first.attempt,
     };
-    const reused = store.acquire(lease("2"), { ...options, known: held });
+    const transfer = () => ({
+      host: environment.PGHOST!,
+      payloadBytes: 0,
+      byteLimit: 65_536,
+      deadline: Date.now() + 10_000,
+    });
+    const warm = transfer();
+    const reused = maintenanceTransfer.run(warm, () =>
+      store.acquire(lease("2"), { ...options, known: held, knownOnly: true }),
+    );
+    assert.ok(warm.payloadBytes > 0 && warm.payloadBytes < 1024, String(warm.payloadBytes));
     assert.equal(reused.unchanged, true);
     assert.deepEqual(reused.state, {}, "the held state is not sent again");
     assert.equal(reused.revision, 1);
@@ -821,10 +1218,39 @@ void test(
       // Another store that reached the same revision through other commits.
       ["attempt", { ...held, attempt: lease("9").attempt }],
     ] as const) {
-      const owner = lease({ revision: "3", generation: "4", definition: "5", attempt: "6" }[name]);
+      const index = { revision: 3, generation: 4, definition: 5, attempt: 6 }[name];
+      const refused = lease(String(index));
+      const warm = transfer();
+      assert.throws(
+        () =>
+          maintenanceTransfer.run(warm, () =>
+            store.acquire(refused, { ...options, known, knownOnly: true }),
+          ),
+        {
+          name: "Error",
+          reason: "stale-writer",
+          message: /complete read needs its own admission/u,
+        },
+        name,
+      );
+      assert.ok(warm.payloadBytes > 0 && warm.payloadBytes < 1024, String(warm.payloadBytes));
+      assert.equal(
+        queryJson(
+          environment,
+          `SELECT to_jsonb(outcome) FROM portcove_maintenance.discovery_collection_attempts
+          WHERE attempt_id = '${refused.attempt}'::uuid`,
+        ),
+        "failed",
+      );
+      const owner = lease(String(index + 10));
       const full = store.acquire(owner, { ...options, known });
       assert.equal(full.unchanged, undefined, name);
-      assert.deepEqual(full.state, { cursor: 1 }, `a different ${name} reads the stored state`);
+      assert.deepEqual(
+        full.state,
+        state,
+        `a separately admitted ${name} mismatch reads the stored state`,
+      );
+      assert.ok(full.received_bytes! > warm.byteLimit);
       store.finish(owner, "partial", {});
     }
   },
@@ -853,24 +1279,33 @@ void test("an exhausted provider quota waits for its reset between passes and co
   const now = () => clock;
   const reset = start + 20 * 60_000;
   const sleeps: number[] = [];
-  const admitted: number[] = [];
+  const admitted: [number, boolean][] = [];
   let quotaReads = 0;
+  let preview: ReturnType<typeof scheduledListingPreview> | undefined;
   const run = await runDiscoveryPasses({
     store: memory.store,
     runDir: root,
     sourceRevision: "fixture",
     runner: "fixture",
     covered: () => new Set(),
+    previewListings: (value) => {
+      preview = value;
+    },
     now,
     deadline: start + 3 * 3_600_000,
     diskBytes: 512 * 1024 * 1024,
     finalizationMs: 60_000,
     // Each pass runs under its own admission, here without a provider meter.
-    admit: async (pass, collect) => {
-      admitted.push(pass);
-      return await collect({ bytes: 64 * 1024 * 1024, deadline: Number.POSITIVE_INFINITY });
+    admit: async (pass, collect, hasRetainedRevision) => {
+      admitted.push([pass, hasRetainedRevision]);
+      return await collect({
+        bytes: 64 * 1024 * 1024,
+        deadline: Number.POSITIVE_INFINITY,
+        knownOnly: hasRetainedRevision,
+      });
     },
     sleep: async (milliseconds) => {
+      assert.equal(preview, undefined, "preview waits until the resumed collection finishes");
       sleeps.push(milliseconds);
       clock += milliseconds;
     },
@@ -904,7 +1339,14 @@ void test("an exhausted provider quota waits for its reset between passes and co
     },
   });
   assert.notEqual(run.outcome, "failed", run.passes.at(-1)?.reason ?? "");
-  assert.deepEqual(admitted, [1, 2], "each pass holds its own admission");
+  assert.deepEqual(
+    admitted,
+    [
+      [1, false],
+      [2, true],
+    ],
+    "only the resumed pass can use a retained grant",
+  );
   assert.equal(sleeps.length, 1, "one wait for the search quota reset, holding nothing");
   assert.ok(clock > reset, "collection resumed only after the reset");
   assert.equal(memory.known[0], undefined, "the first pass reads the stored state");
@@ -914,6 +1356,14 @@ void test("an exhausted provider quota waits for its reset between passes and co
     "the next pass offers the revision the first committed",
   );
   assert.equal(memory.loads(), 1, "the next pass reuses its lead records instead of rereading");
+  assert.equal(preview?.receipt.committed.revision, run.passes.at(-1)?.revision);
+  assert.deepEqual(
+    preview?.handoff.candidates.map(({ repository_id }) => repository_id),
+    [9001],
+  );
+  const [nomination] = preview?.receipt.evidence ?? [];
+  assert.ok(nomination && !nomination.input.desktop_asset_hint);
+  assert.equal(nomination.input.scope.kind, "source-port-topic");
   assert.equal(
     memory.finished.length,
     2,
@@ -1151,22 +1601,33 @@ void test("the unattended lead envelope follows physical memory", () => {
 void test(
   "stored lead records round-trip through PostgreSQL and unchanged rows are not rewritten",
   { skip: server.skip ?? false, timeout: 120_000 },
-  (context) => {
-    const environment = postgresFixture(context, server.directory!).start("records").owner;
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const environment = fixture.start("records").owner;
     migrate(environment);
     const store = postgresDiscoveryStore(environment);
     const owner = lease("1");
     store.acquire(owner, options);
     const record = { id: 77, repository: "ports/game", url: "https://github.com/ports/game" };
+    const dated = {
+      id: 78,
+      repository: "ports/another-game",
+      release_hint: {
+        assets_observed: true,
+        observed_at: "2026-11-01T05:00:00.000Z",
+        evidence: "release-sample.json",
+      },
+      release_probe: { attempted_at: "2026-11-02T05:00:00.000Z", outcome: "unavailable" },
+    };
     store.commit(owner, 0, {
       definition: hex("d"),
       leaseSeconds: 600,
       state: {},
       observations: [],
       watches: [],
-      leadRecords: [record],
+      leadRecords: [record, dated],
     });
-    assert.deepEqual(store.loadLeadRecords("primary").records, [record]);
+    assert.deepEqual(store.loadLeadRecords("primary").records, [record, dated]);
     // Many records read back completely across small pages, in key order.
     const many = Array.from({ length: 25 }, (_, index) => ({
       id: 1000 + index,
@@ -1183,7 +1644,7 @@ void test(
     const paged = postgresDiscoveryStore(environment, 1024).loadLeadRecords("primary");
     assert.deepEqual(
       (paged.records as { id: number }[]).map((r) => r.id),
-      [77, ...many.map((r) => r.id)],
+      [77, 78, ...many.map((r) => r.id)],
     );
     store.commit(owner, 2, {
       definition: hex("d"),
@@ -1204,6 +1665,244 @@ void test(
       (queryJson(environment, discoveryTransferForecastQuery) as { record_bytes: number })
         .record_bytes > 0,
       true,
+    );
+
+    const state = {
+      leads: {
+        external: {
+          lists: {},
+          hints: {
+            keep: { payload: "x".repeat(100_000) },
+            "é\"'雪": { title: "\t雪", payload: "é".repeat(410) },
+            change: { title: "old" },
+            remove: { title: "old" },
+          } as Record<string, unknown>,
+        },
+      },
+    };
+    const input = (nextState: Record<string, unknown>) => ({
+      definition: options.definition,
+      leaseSeconds: 600,
+      state: nextState,
+      observations: [],
+      watches: [],
+      leadRecords: [],
+    });
+    const seeded = store.commit(owner, 3, input(state));
+    assert.ok(seeded.bytes > 100_000);
+    // A previous verified portable recovery provides a real cross-run seed.
+    const seedPath = path.join(fixture.root, "discovery-seed-archive");
+    await backup(environment, seedPath);
+    const seedDb = fixture.start("discovery-seed").owner;
+    restore(seedDb, seedPath);
+    const before = queryJson(
+      environment,
+      "SELECT to_json(xmin::text) FROM portcove_maintenance.discovery_external_hints WHERE hint_key = 'keep';",
+    );
+    state.leads.external.hints.change = { title: "new" };
+    delete state.leads.external.hints.remove;
+    state.leads.external.hints.add = { title: "added" };
+    const changed = store.commit(owner, seeded.revision, input(state));
+    assert.ok(changed.bytes < 2_000, "unchanged large hint is not sent again");
+    assert.equal(count(environment, "discovery_external_hints"), 4);
+    assert.deepEqual(
+      queryJson(
+        environment,
+        "SELECT to_json(xmin::text) FROM portcove_maintenance.discovery_external_hints WHERE hint_key = 'keep';",
+      ),
+      before,
+    );
+    assert.deepEqual(
+      queryJson(
+        environment,
+        "SELECT portcove_maintenance.discovery_expanded_state(scope, state) FROM portcove_maintenance.discovery_collection_state;",
+      ),
+      state,
+    );
+
+    const oldAttempt = owner.attempt;
+    store.finish(owner, "complete", {});
+    const next = lease("2");
+    const warm = store.acquire(next, {
+      ...options,
+      known: {
+        revision: changed.revision,
+        generation: 1,
+        definition: options.definition,
+        attempt: oldAttempt,
+      },
+    });
+    assert.equal(warm.unchanged, true);
+    assert.deepEqual(store.loadLeadRecords("primary").records[1], dated);
+    assert.ok((warm.received_bytes ?? Infinity) < 2_000);
+    const quiet = store.commit(next, warm.revision, input(state));
+    assert.ok(quiet.bytes < 2_000, "confirmed warm baseline also sends only changes");
+    assert.throws(() => store.commit(owner, changed.revision, input({})), DiscoveryStoreRefused);
+    store.finish(next, "complete", {});
+    const coldStore = postgresDiscoveryStore(environment, 1024);
+    const cold = coldStore.acquire(lease("3"), {
+      ...options,
+      known: {
+        revision: quiet.revision,
+        generation: 1,
+        definition: options.definition,
+        attempt: oldAttempt,
+      },
+    });
+    assert.notEqual(cold.unchanged, true, "a different commit attempt forces full read");
+    assert.deepEqual(cold.state, state);
+    assert.equal(
+      cold.state_sha256,
+      queryJson(
+        environment,
+        "SELECT to_json(state_sha256) FROM portcove_maintenance.discovery_collection_state;",
+      ),
+      "invalidated warm acquisition returns the compact digest, with hints hydrated separately",
+    );
+    coldStore.finish(lease("3"), "complete", {});
+    const unseeded = postgresDiscoveryStore(environment, 1024);
+    const unseededLease = lease("9");
+    const full = unseeded.acquire(unseededLease, options);
+    assert.deepEqual(full.state, state);
+    assert.equal(full.state_sha256, cold.state_sha256);
+    const snapshot = readDiscoverySnapshot(environment, "primary", 1024);
+    assert.equal(snapshot.outcome, "read");
+    if (snapshot.outcome === "read") {
+      assert.deepEqual(snapshot.state, state);
+      assert.equal(snapshot.revision, full.revision);
+    }
+    unseeded.finish(unseededLease, "complete", {});
+
+    // Alter the seed's rows after verification to prove their actual contents,
+    // not its claimed revision, are compared against production.
+    runSql(
+      seedDb,
+      `UPDATE portcove_maintenance.discovery_external_hints
+      SET hint = '{"payload":"tampered"}' WHERE hint_key = 'change';`,
+    );
+    runSql(
+      seedDb,
+      `UPDATE portcove_maintenance.discovery_lead_records
+      SET record = '{"id":77,"repository":"wrong/game"}' WHERE lead_id = 77;`,
+    );
+    runSql(
+      environment,
+      `DELETE FROM portcove_maintenance.discovery_lead_records WHERE lead_id = 1000;`,
+    );
+    const incremental = postgresDiscoveryStore(environment, undefined, seedDb);
+    const crossRun = incremental.acquire(lease("4"), options);
+    assert.deepEqual(crossRun.state, state);
+    assert.ok(
+      (crossRun.received_bytes ?? Infinity) < 2_000,
+      "unchanged large hints stay local on a cold process read",
+    );
+    const loaded = incremental.loadLeadRecords("primary");
+    const authoritative = store.loadLeadRecords("primary");
+    assert.deepEqual(loaded.records, authoritative.records);
+    assert.ok(loaded.bytes < authoritative.bytes);
+    assert.ok(!loaded.records.some((row) => (row as { id: number }).id === 1000));
+    assert.deepEqual(loaded.records[0], record);
+    assert.deepEqual(
+      loaded.records[1],
+      dated,
+      "seed reuse retains both dated release observations",
+    );
+    incremental.finish(lease("4"), "complete", {});
+
+    const bounded = postgresDiscoveryStore(environment, 1024, seedDb);
+    const pagedSeed = bounded.acquire(lease("5"), options);
+    assert.deepEqual(pagedSeed.state, state);
+    assert.ok(
+      (pagedSeed.received_bytes ?? Infinity) < 2_000,
+      "paging keeps oversized local seeds incremental",
+    );
+    assert.deepEqual(bounded.loadLeadRecords("primary").records, authoritative.records);
+    bounded.finish(lease("5"), "complete", {});
+
+    // An oversized remote delta still uses the complete paged read when unplanned.
+    const tiny = postgresDiscoveryStore(environment, 32, seedDb);
+    const fallback = tiny.acquire(lease("13"), options);
+    assert.deepEqual(fallback.state, state);
+    assert.ok((fallback.received_bytes ?? 0) > 100_000);
+    assert.deepEqual(tiny.loadLeadRecords("primary").records, authoritative.records);
+    tiny.finish(lease("13"), "complete", {});
+
+    const measured = measureDiscoverySeed(environment, seedDb, "primary", 1024);
+    assert.ok(measured);
+    assert.ok(measured.hintsBytes < 2_000);
+    assert.ok(measured.leadsBytes < authoritative.bytes);
+    const planned = postgresDiscoveryStore(environment, undefined, seedDb, measured);
+    const plannedGrant = planned.acquire(lease("6"), options);
+    assert.deepEqual(plannedGrant.state, state);
+    assert.deepEqual(planned.loadLeadRecords("primary").records, authoritative.records);
+    planned.finish(lease("6"), "complete", {});
+
+    const laterPass = planned.acquire(lease("14"), options);
+    assert.deepEqual(laterPass.state, state);
+    assert.ok(
+      (laterPass.received_bytes ?? 0) > 100_000,
+      "a later cold pass uses complete-read admission",
+    );
+    assert.deepEqual(planned.loadLeadRecords("primary").records, authoritative.records);
+    planned.finish(lease("14"), "complete", {});
+
+    // Expiry after hint hydration must refuse the lead read, even without a
+    // measured seed. The original owner cannot publish a stale continuation.
+    const expiring = postgresDiscoveryStore(environment, 1024);
+    const expiredLease = lease("10");
+    const expiringGrant = expiring.acquire(expiredLease, options);
+    runSql(
+      environment,
+      `UPDATE portcove_maintenance.discovery_collection_state
+      SET lease_expires_at = clock_timestamp() - interval '1 second'
+      WHERE scope = 'primary';`,
+    );
+    assert.throws(() => expiring.loadLeadRecords("primary"), DiscoveryStoreRefused);
+    assert.throws(
+      () => expiring.commit(expiredLease, expiringGrant.revision, input(state)),
+      DiscoveryStoreRefused,
+    );
+    expiring.finish(expiredLease, "failed", {});
+
+    // Activation generation may move after an otherwise valid measured grant.
+    const generationPlan = measureDiscoverySeed(environment, seedDb, "primary");
+    assert.ok(generationPlan);
+    const generationStore = postgresDiscoveryStore(environment, undefined, seedDb, generationPlan);
+    const generationLease = lease("11");
+    const generationGrant = generationStore.acquire(generationLease, options);
+    runSql(
+      environment,
+      `UPDATE portcove_maintenance_meta.discovery_intake_activation
+      SET collection_generation = collection_generation + 1;`,
+    );
+    assert.throws(() => generationStore.loadLeadRecords("primary"), DiscoveryStoreRefused);
+    assert.throws(
+      () => generationStore.commit(generationLease, generationGrant.revision, input(state)),
+      DiscoveryStoreRefused,
+    );
+    assert.throws(
+      () => generationStore.finish(generationLease, "failed", {}),
+      DiscoveryStoreRefused,
+    );
+    // A new owner closes the abandoned generation and retains all data.
+    const renewed = store.acquire(lease("12"), options);
+    assert.deepEqual(renewed.state, state);
+    store.finish(lease("12"), "complete", {});
+
+    const stalePlan = measureDiscoverySeed(environment, seedDb, "primary");
+    assert.ok(stalePlan);
+    const writer = store.acquire(lease("7"), options);
+    commit(store, lease("7"), writer.revision, state);
+    store.finish(lease("7"), "complete", {});
+    const stale = postgresDiscoveryStore(environment, undefined, seedDb, stalePlan);
+    assert.throws(() => stale.acquire(lease("8"), options), DiscoveryStoreRefused);
+    assert.equal(
+      queryJson(
+        environment,
+        "SELECT count(*) FROM portcove_maintenance.discovery_collection_attempts WHERE outcome = 'running';",
+      ),
+      0,
+      "moved plan rolls back acquisition before returning any payload",
     );
   },
 );
@@ -1228,6 +1927,63 @@ void test("a failed lead-record load finishes the attempt instead of holding the
   assert.equal(result.outcome, "failed");
   assert.match(result.reason ?? "", /lead records could not be loaded/u);
   assert.deepEqual(memory.finished, ["failed"]);
+});
+
+void test("invalid retained state or lead records close the owned discovery attempt", async () => {
+  for (const invalid of ["state", "lead", "string-id", "duplicate-id"] as const) {
+    const memory = memoryStore();
+    if (invalid === "state") memory.advance({ format: 999 });
+    if (invalid === "lead") memory.leads.set(1, { id: 1 });
+    if (invalid === "string-id")
+      memory.store.loadLeadRecords = () => ({ records: [{ id: "1" }], bytes: 0 });
+    if (invalid === "duplicate-id")
+      memory.store.loadLeadRecords = () => ({ records: [{ id: 1 }, { id: 1 }], bytes: 0 });
+    const before = structuredClone(memory.state());
+    const beforeLeads = structuredClone(memory.leads);
+    let providerCalls = 0;
+    const result = await runDiscoveryWorker({
+      store: memory.store,
+      runDir: os.tmpdir(),
+      sourceRevision: "fixture",
+      runner: "fixture",
+      covered: () => new Set(),
+      now: () => Date.parse("2026-11-01T05:00:00.000Z"),
+      connect: async () => {
+        providerCalls++;
+        throw new Error("not reached");
+      },
+    });
+    assert.equal(result.outcome, "failed");
+    assert.match(
+      result.reason ?? "",
+      {
+        state: /retained state could not be validated.*unsupported format/u,
+        lead: /lead records could not be validated.*Invalid retained lead identity/u,
+        "string-id": /lead records could not be validated.*Invalid stored discovery lead id/u,
+        "duplicate-id":
+          /lead records could not be validated.*Duplicate stored discovery lead id 1/u,
+      }[invalid],
+    );
+    assert.deepEqual(memory.finished, ["failed"]);
+    assert.deepEqual(memory.state(), before);
+    assert.deepEqual(memory.leads, beforeLeads);
+    assert.equal(memory.commits.length, 0);
+    assert.equal(providerCalls, 0);
+  }
+});
+
+void test("discovery pass reservation does not charge the cold read twice", () => {
+  const acquire = 17_000_000;
+  const observed = 18_000_000;
+  const commits = 5;
+  const reservation = discoveryPassReservation(acquire, observed, commits);
+  assert.ok(Math.floor(reservation * 0.7) >= observed);
+  assert.ok(reservation < (acquire + observed) / 0.7);
+  assert.ok(Math.floor(discoveryPassReservation(observed, acquire, commits) * 0.7) >= observed);
+  const plan = { compactBytes: 8_000, hintsBytes: 621, leadsBytes: 1094 };
+  const measured = discoverySeedReservation(plan, commits);
+  assert.ok(measured < reservation);
+  assert.ok(Math.floor(measured * 0.7) >= plan.compactBytes + plan.hintsBytes + plan.leadsBytes);
 });
 
 void test("a stored-lead read reserves enough metered payload for the whole state", () => {
@@ -1346,3 +2102,157 @@ void test("only the store's own missing schema or tables read as an unmigrated s
   ])
     assert.equal(unmigratedStore(new Error(message)), false, message);
 });
+
+void test(
+  "status reconciliation distinguishes retained repository evidence from research signals",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  (context) => {
+    const environment = postgresFixture(context, server.directory!).start("lead-review").owner;
+    migrate(environment);
+    const store = postgresDiscoveryStore(environment);
+    const owner = lease("1");
+    store.acquire(owner, options);
+    const leadRecords = [
+      {
+        id: 42,
+        repository: "new-owner/renamed",
+        status: "pending",
+        description: "native recompilation",
+      },
+      {
+        id: 43,
+        repository: "owner/mixed",
+        status: "pending",
+        description: "recompiled framework",
+      },
+      { id: 44, repository: "owner/tool", status: "pending", description: "asset extractor" },
+      { id: 45, repository: "owner/empty", status: "pending", description: "" },
+      { id: 46, repository: "owner/other", status: "held", description: "project" },
+    ];
+    store.commit(owner, 0, {
+      definition: hex("d"),
+      leaseSeconds: 600,
+      state: {},
+      observations: [],
+      watches: [],
+      leadRecords,
+    });
+    runSql(
+      environment,
+      `INSERT INTO portcove_maintenance.discovery_intake_batches
+        (request_comment, request_sha256, revision, receipt_body)
+        VALUES (1, '${hex("a")}', 1, 'fixture');
+      INSERT INTO portcove_maintenance.discovery_intake_candidates
+        (request_comment, candidate_index, checkpoint) VALUES
+        (1, 0, '{"primary":{"repository_id":42},"delivery":{"status":"delivered","doctor":{"status":"passed"}}}'),
+        (1, 1, '{"primary":{"repository_id":42},"delivery":{"status":"prepared"}}'),
+        (1, 2, '{"primary":{"repository_id":43},"delivery":{"status":"delivered"}}');`,
+    );
+    // Only positive GitHub repository identities from completed or partial
+    // upstream observations count, regardless of repeated historical sightings.
+    const upstreamRuns = [
+      {
+        run: "upstream-complete",
+        source: "upstream-observations",
+        coverage: "complete",
+        sources: [
+          { provider: "github", repository_id: 42 },
+          { provider: "github", repository_id: 42 },
+          { provider: "gitlab", repository_id: 44 },
+        ],
+      },
+      {
+        run: "upstream-partial",
+        source: "upstream-observations",
+        coverage: "partial",
+        sources: [
+          { provider: "github", repository_id: 42 },
+          { provider: "github", repository_id: 43 },
+        ],
+      },
+      {
+        run: "upstream-failed",
+        source: "upstream-observations",
+        coverage: "failed",
+        sources: [{ provider: "github", repository_id: 45 }],
+      },
+      {
+        run: "unrelated-source",
+        source: "catalog",
+        coverage: "complete",
+        sources: [{ provider: "github", repository_id: 45 }],
+      },
+    ];
+    for (const { run, source, coverage, sources } of upstreamRuns) {
+      runSql(
+        environment,
+        `INSERT INTO portcove_maintenance.collection_runs
+          (run_id, source, runner, started_at)
+          VALUES ('${run}', '${source}', 'fixture', '2026-11-01T00:00:00Z');
+        INSERT INTO portcove_maintenance.observations
+          (run_id, subject_key, input_revision, content_sha256, observed_at, payload)
+          VALUES ('${run}', 'port:fixture', 'fixture', '${hex("b")}',
+            '2026-11-01T00:00:01Z', '${JSON.stringify({ sources })}'::jsonb);
+        UPDATE portcove_maintenance.collection_runs
+          SET coverage = '${coverage}', completed_at = '2026-11-01T00:01:00Z',
+            source_revision = 'fixture', expected_count = 1
+          WHERE run_id = '${run}';`,
+      );
+    }
+    const status = queryJson(environment, discoveryStatusQuery({ attempts: 5 })) as {
+      lead_reconciliation: {
+        coverage: string;
+        cohorts: {
+          signal: string;
+          leads: number;
+          upstream_seen: boolean;
+          verified_intake: boolean;
+          prepared_intake: boolean;
+        }[];
+        retained_overlap_examples: { lead_id: number }[];
+        research_examples: { lead_id: number }[];
+      };
+    };
+    const review = status.lead_reconciliation;
+    assert.equal(review.coverage, "retained-only");
+    assert.equal(
+      review.cohorts.reduce((sum, row) => sum + row.leads, 0),
+      5,
+    );
+    assert.deepEqual(review.cohorts.map((row) => row.signal).sort(), [
+      "missing-description",
+      "mixed-terms",
+      "other",
+      "port-terms",
+      "tooling-terms",
+    ]);
+    assert.deepEqual(
+      review.retained_overlap_examples.map((row) => row.lead_id),
+      [42, 43],
+    );
+    assert.deepEqual(
+      review.research_examples.map((row) => row.lead_id).sort((a, b) => a - b),
+      [44, 45],
+    );
+    const matched = review.cohorts.find((row) => row.signal === "port-terms");
+    assert.equal(matched?.verified_intake, true);
+    assert.equal(matched?.prepared_intake, true);
+    assert.equal(matched?.upstream_seen, true);
+    const partial = review.cohorts.find((row) => row.signal === "mixed-terms");
+    assert.equal(partial?.upstream_seen, true);
+    assert.equal(partial?.verified_intake, false);
+    assert.equal(
+      review.cohorts.find((row) => row.signal === "tooling-terms")?.upstream_seen,
+      false,
+    );
+    assert.equal(
+      review.cohorts.find((row) => row.signal === "missing-description")?.upstream_seen,
+      false,
+    );
+    assert.match(
+      renderDiscoveryStatus(status),
+      /5 scope\/repository records, 2 with prior upstream or intake evidence/u,
+    );
+    assert.equal(count(environment, "discovery_lead_records"), 5);
+  },
+);

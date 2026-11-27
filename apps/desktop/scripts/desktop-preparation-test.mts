@@ -24,6 +24,7 @@ import { activityOutsideCatalog } from "./desktop-catalog-update-test.mts";
 import { gameTitle, gameIdentityLabel } from "../src/port-identity.ts";
 
 export interface PreparationContext {
+  sourcePopulationInputs?: GameFirstContext["sourcePopulationInputs"];
   browser: WebDriver;
   invoke: ScenarioInvoke;
   scenario: ScenarioContext["scenario"];
@@ -131,7 +132,7 @@ import { removalReviewScenario } from "./desktop-removal-review-test.mts";
 import { cliHandoffScenario } from "./desktop-cli-handoff-test.mts";
 import { artworkScenario } from "./desktop-artwork-test.mts";
 import { artworkCorrectionScenario } from "./desktop-artwork-correction-test.mts";
-import { gameFirstScenarios } from "./desktop-game-first-test.mts";
+import { gameFirstScenarios, type GameFirstContext } from "./desktop-game-first-test.mts";
 import {
   libraryHandoffScenario,
   libraryRecoveryBundleScenario,
@@ -1354,6 +1355,7 @@ export async function preparationScenarios({
   captureLivePreparation,
   chooseOwnedLibrary,
   libraryRecoveryBundleFixture,
+  sourcePopulationInputs,
 }: PreparationContext) {
   const invoke = async (name: string, args?: Record<string, unknown>) =>
     object(await invokeRaw(name, args));
@@ -4929,6 +4931,7 @@ export async function preparationScenarios({
     output,
     artifacts,
     restartApplication,
+    sourcePopulationInputs,
   });
 }
 

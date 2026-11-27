@@ -1793,7 +1793,10 @@ mod tests {
                 payload.len()
             );
             for batch in &pass.batches {
-                assert_eq!(batch.items[0].download_keys, [key.clone()]);
+                assert_eq!(
+                    batch.items[0].download_keys.as_slice(),
+                    std::slice::from_ref(&key)
+                );
             }
         });
     }
@@ -2074,7 +2077,7 @@ mod tests {
             let log = std::fs::File::create(&log_path).unwrap();
             let mut child = crate::ChildProcessPolicy::native_command(
                 crate::ChildProcessClass::HostTool,
-                &std::env::current_exe().unwrap(),
+                std::env::current_exe().unwrap(),
             )
             .unwrap()
             .args([

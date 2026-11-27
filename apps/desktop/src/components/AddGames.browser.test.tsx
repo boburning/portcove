@@ -79,6 +79,58 @@ async function expectDiscover() {
   ).not.toBe(false);
 }
 
+it("reviews and saves a personal port from the existing installation panel", async () => {
+  const projectUrl = "https://github.com/owner/personal-port";
+  const executable = "C:\\Games\\Personal Port\\port.exe";
+  const directory = "C:\\Games\\Personal Port\\";
+  const fingerprint = "a".repeat(64);
+  vi.mocked(picker.pickHostToolExecutable).mockResolvedValue(executable);
+  const preview = vi.spyOn(desktopApi, "previewPersonalGithubRuntime").mockResolvedValue({
+    port_id: "github-42",
+    path: directory,
+    executable,
+    version: "user-managed",
+    archive_sha256: "",
+    immutable_tree_sha256: "",
+    immutable_file_count: 0,
+    preview_sha256: fingerprint,
+  });
+  const register = vi
+    .spyOn(desktopApi, "registerPersonalGithubRuntime")
+    .mockResolvedValueOnce(null)
+    .mockResolvedValueOnce({
+      id: "registration",
+      port_id: "github-42",
+      path: directory,
+      executable,
+      version: "user-managed",
+      platform: "windows-x86-64",
+      archive_sha256: "",
+      immutable_tree_sha256: "",
+      registered_at: 1,
+    });
+  await mount();
+  await route("Use an existing installation").click();
+  await page.getByText("Add a port missing from Discover", { exact: true }).click();
+  await page.getByLabelText("Public GitHub project address").fill(projectUrl);
+  await page.getByRole("button", { name: "Choose executable" }).click();
+  await page.getByRole("button", { name: "Review registration" }).click();
+  await expect.element(page.getByText("Review ready", { exact: false })).toBeVisible();
+  expect(preview).toHaveBeenCalledWith(projectUrl, executable, directory, expect.any(Number));
+  expect(register).not.toHaveBeenCalled();
+  await page.getByRole("button", { name: "Add port" }).click();
+  await expect.element(page.getByRole("button", { name: "Add port" })).toBeEnabled();
+  await page.getByRole("button", { name: "Add port" }).click();
+  await expect.element(page.getByText("Port added to your library.")).toBeVisible();
+  expect(register).toHaveBeenLastCalledWith(
+    projectUrl,
+    executable,
+    directory,
+    fingerprint,
+    expect.any(Number),
+  );
+});
+
 it("keeps native review button lookup exact for primary labels, accessible names and quotes", async () => {
   await mount();
   const matches = (label: string) => {

@@ -289,6 +289,22 @@ fn is_digest(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
+fn github_release_page_matches(expected: &str, displayed: &str) -> bool {
+    fn parts(url: &str) -> Option<(&str, &str)> {
+        let project = url.strip_prefix("https://github.com/")?;
+        let (owner, remaining) = project.split_once('/')?;
+        let (repository, route) = remaining.split_once('/')?;
+        let slug = &project[..owner.len() + 1 + repository.len()];
+        Some((slug, route.strip_prefix("releases/tag/")?))
+    }
+    match (parts(expected), parts(displayed)) {
+        (Some((repository, tag)), Some((shown_repository, shown_tag))) => {
+            repository.eq_ignore_ascii_case(shown_repository) && tag == shown_tag
+        }
+        _ => false,
+    }
+}
+
 fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     record.listing.validate()?;
     record
@@ -310,6 +326,8 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     };
     if record.format_version != expected_format
         || crate::catalog::listings::has_verified_source_editions(&record.listing)
+        || !record.listing.mod_portals.is_empty()
+        || record.listing.official_setup_id.is_some()
     {
         return Err(PortcoveError::unsupported(
             "pending setup record format does not match its provider or listing fields",
@@ -824,6 +842,7 @@ impl PortcoveService {
     ) -> Result<CatalogDownloadCandidates> {
         let channel = channel.unwrap_or(self.catalog_download_channel(port_id)?);
         let listing = self.catalog.listing(port_id)?;
+        let github_repository_id = listing.admitted_github_repository_id();
         let upstream_url = listing
             .release_url
             .as_ref()
@@ -883,7 +902,15 @@ impl PortcoveService {
         // enter the managed release resolver or the exact preview/download path.
         let observed = match provider {
             CatalogDownloadProvider::Github(provider)
-                if self.catalog.port(port_id).is_err() && release_window.is_none() =>
+                if self.catalog.port(port_id).is_err()
+                    && release_window.is_none()
+                    && github_repository_id.is_none_or(|expected| {
+                        listing
+                            .upstream_observation
+                            .as_ref()
+                            .and_then(|row| row.repository_id)
+                            == Some(expected)
+                    }) =>
             {
                 provider
                     .observed_catalog_download_options(
@@ -905,7 +932,7 @@ impl PortcoveService {
             None => {
                 provider
                     .options(
-                        repository.name(),
+                        (repository.name(), github_repository_id),
                         selected_release_id.as_ref(),
                         channel,
                         rolling_tag,
@@ -1016,10 +1043,16 @@ impl PortcoveService {
         listing.validate()?;
         self.require_download_available(port_id)?;
         let (repository, provider) = self.catalog_download_source(listing, provider)?;
-        let release_url = provider
-            .candidate_release_notes_url(repository.name(), release_id, asset_id)
+        let repository_id = listing.admitted_github_repository_id();
+        let (release_url, previous_release_url) = provider
+            .candidate_release_notes_url(repository.name(), release_id, asset_id, repository_id)
             .await?;
-        if release_url != displayed_url {
+        let numeric_page_matches = repository_id.is_some()
+            && (github_release_page_matches(&release_url, displayed_url)
+                || previous_release_url
+                    .as_deref()
+                    .is_some_and(|previous| github_release_page_matches(previous, displayed_url)));
+        if release_url != displayed_url && !numeric_page_matches {
             return Err(PortcoveError::conflict(
                 "The selected release page changed. Check downloads again.",
             ));
@@ -1070,7 +1103,12 @@ impl PortcoveService {
         let destination_path = self.download_destination(request)?;
         let (repository, provider) = self.catalog_download_source(listing, provider)?;
         let artifact = provider
-            .candidate(repository.name(), &request.release_id, &request.asset_id)
+            .candidate(
+                repository.name(),
+                &request.release_id,
+                &request.asset_id,
+                listing.admitted_github_repository_id(),
+            )
             .await?;
         if request.extract_archive && !artifact.can_extract {
             return Err(PortcoveError::unsupported(
@@ -1234,6 +1272,7 @@ impl PortcoveService {
                 .try_lock_port(&request.port_id, "download-package")?;
             self.require_download_available(&request.port_id)?;
             let listing = self.catalog.listing(&request.port_id)?;
+            let github_repository_id = listing.admitted_github_repository_id();
             let repository = CatalogDownloadRepository::parse(
                 listing
                     .release_url
@@ -1272,6 +1311,9 @@ impl PortcoveService {
             }
             self.require_download_destination(stage.path())?;
             let mut listing = self.catalog.listing(&request.port_id)?.clone();
+            // The current directory supplies these links, including any withdrawal.
+            listing.mod_portals.clear();
+            listing.official_setup_id = None;
             listing.media.retain(|asset| !asset.is_typed_igdb_scene());
             crate::catalog::listings::strip_verified_sources(&mut listing);
             let mut record = PendingSetupRecord {
@@ -1305,15 +1347,20 @@ impl PortcoveService {
                         .known_catalog_artifact_hash(&request.port_id, &record.artifact)?
                         .unwrap_or_default(),
                 };
+                let (client, url) = provider.transport(
+                    repository.name(),
+                    &record.artifact,
+                    github_repository_id,
+                )?;
                 let artifact = crate::ReleaseAsset {
                     name: record.artifact.name.clone(),
-                    url: record.artifact.download_url.clone(),
+                    url,
                     size: record.artifact.size,
                     sha256: expected_sha256,
                 };
                 let source = stage.path().join("artifact.download");
                 Installer::download_with_client(
-                    &provider.client(repository.name(), &record.artifact)?,
+                    &client,
                     &artifact,
                     &source,
                     &operation,

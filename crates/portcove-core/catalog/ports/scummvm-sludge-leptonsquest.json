@@ -12,7 +12,12 @@
         {
           "id": "leptonsquest-linux",
           "title": "SLUDGE engine game. Linux version",
-          "evidence_urls": ["https://www.scummvm.org/games/#games-sludge:leptonsquest"]
+          "evidence_urls": [
+            "https://www.scummvm.org/games/#games-sludge:leptonsquest",
+            "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L430-L448",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L168-L170"
+          ],
+          "system": "linux"
         }
       ]
     },

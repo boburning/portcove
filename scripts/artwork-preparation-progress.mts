@@ -1,11 +1,19 @@
-import { lstatSync, readFileSync, writeFileSync, renameSync } from "node:fs";
+import {
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmdirSync,
+  writeFileSync,
+  renameSync,
+} from "node:fs";
 import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 import {
   prepareCatalogArtwork,
-  artworkPreparationInput,
+  artworkPreparationInputs,
   ArtworkBatchExhausted,
   readArtworkJson,
   validArtworkMapping,
@@ -19,6 +27,7 @@ import type {
   ArtworkRecord,
   ArtworkPreparationOptions,
   ArtworkMetrics,
+  prepareCatalogGameMedia,
 } from "./inspect-igdb-artwork.mts";
 
 type Inspector = Pick<ArtworkPreparationOptions, "inspectGame" | "inspectImage"> & {
@@ -52,6 +61,25 @@ const currentLiveObservation = (state: ItemState, now: number) =>
   state.last_live_observation_at !== null &&
   now - Date.parse(state.last_live_observation_at) < refreshMs;
 const safeId = (id: string) => /^[a-z0-9][a-z0-9-]{0,127}$/u.test(id);
+
+const checkpointOwner = { format_version: 1, tool: "portcove-prepare-port" };
+
+export function openArtworkCheckpoint(directory: string) {
+  try {
+    mkdirSync(directory);
+    writeFileSync(join(directory, "owner.json"), JSON.stringify(checkpointOwner), { flag: "wx" });
+  } catch (error) {
+    if (errorCode(error) !== "EEXIST") throw error;
+  }
+  const info = lstatSync(directory);
+  if (
+    !info.isDirectory() ||
+    info.isSymbolicLink() ||
+    observationHash(readOwned(directory, "owner.json")) !== observationHash(checkpointOwner)
+  )
+    throw new Error("Output directory is not a recognized preparation checkpoint.");
+  mkdirSync(join(directory, "active.lock"));
+}
 function readOwned(root: string, name: string): unknown {
   const filename = join(root, name);
   try {
@@ -63,6 +91,60 @@ function readOwned(root: string, name: string): unknown {
     if (errorCode(error) === "ENOENT") return null;
     throw error;
   }
+}
+
+export function readKnownGoneArtwork(root: string) {
+  const document = readOwned(root, "artwork-gone.json");
+  if (
+    document !== null &&
+    (!isRecord(document) ||
+      document.format !== 1 ||
+      !Array.isArray(document.image_ids) ||
+      document.sha256 !== observationHash(document.image_ids) ||
+      document.image_ids.some(
+        (id: unknown) => typeof id !== "string" || !/^[A-Za-z0-9_]{1,128}$/u.test(id),
+      ))
+  )
+    throw new Error("Invalid retained exact-image Gone observations");
+  return new Set<string>(isRecord(document) ? (document.image_ids as string[]) : []);
+}
+
+export function restoreArtworkProviderBackoff(root: string, inspector: Inspector) {
+  const prior = readOwned(root, "artwork-provider-admission.json");
+  if (prior === null) return;
+  if (
+    !isRecord(prior) ||
+    prior.format !== 1 ||
+    [prior.metadata_retry_at, prior.image_retry_at].some(
+      (value) =>
+        value !== null && (typeof value !== "string" || !Number.isFinite(Date.parse(value))),
+    )
+  )
+    throw new Error("Invalid durable artwork provider backoff");
+  inspector.restoreProviderBackoff?.(
+    typeof prior.metadata_retry_at === "string" ? Date.parse(prior.metadata_retry_at) : 0,
+    typeof prior.image_retry_at === "string" ? Date.parse(prior.image_retry_at) : 0,
+  );
+}
+
+export function retainArtworkProviderBackoff(
+  root: string,
+  status:
+    | Pick<
+        ReturnType<NonNullable<Inspector["batchStatus"]>>,
+        "metadata_retry_at" | "image_retry_at"
+      >
+    | undefined,
+) {
+  if (
+    status &&
+    (Object.hasOwn(status, "metadata_retry_at") || Object.hasOwn(status, "image_retry_at"))
+  )
+    replaceOwned(root, "artwork-provider-admission.json", {
+      format: 1,
+      metadata_retry_at: status.metadata_retry_at ?? null,
+      image_retry_at: status.image_retry_at ?? null,
+    });
 }
 function replaceOwned(root: string, name: string, value: unknown) {
   const filename = join(root, name);
@@ -84,9 +166,303 @@ function replaceOwned(root: string, name: string, value: unknown) {
   writeFileSync(temporary, bytes, { flag: "wx", mode: 0o600 });
   renameSync(temporary, filename);
 }
+
+/** Retain the active game-media round and its exact receipts between hosted passes. */
+export function snapshotGameMediaCheckpoint(source: string, destination: string) {
+  const maximum = 48 * 1024 * 1024;
+  const maximumFiles = 2 * 8192 + 8;
+  openArtworkCheckpoint(source);
+  try {
+    mkdirSync(destination);
+    const copied = new Set<string>();
+    let bytes = 0;
+    function retain(name: string, value: unknown) {
+      if (copied.has(name)) return;
+      const content = JSON.stringify(value);
+      bytes += Buffer.byteLength(content);
+      if (bytes > maximum || copied.size >= maximumFiles)
+        throw new Error("Game media continuation exceeds its hosted snapshot budget");
+      writeFileSync(join(destination, name), content, { flag: "wx", mode: 0o600 });
+      copied.add(name);
+    }
+    function retainReceipt(name: string, value: unknown) {
+      const hash = observationHash(value);
+      const receipt = `artwork-attempt-${hash}.json`;
+      const stored = readOwned(source, receipt);
+      if (stored === null || observationHash(stored) !== hash)
+        throw new Error("Hosted game media continuation differs from its receipt");
+      retain(name, value);
+      retain(receipt, stored);
+    }
+    retain("owner.json", checkpointOwner);
+    const providerName = "artwork-provider-admission.json";
+    const provider = readOwned(source, providerName);
+    if (provider !== null) retainReceipt(providerName, provider);
+    const roundName = "game-media-due-round.json";
+    const round = readOwned(source, roundName);
+    if (round !== null) {
+      if (
+        !isRecord(round) ||
+        typeof round.ids_sha256 !== "string" ||
+        !/^[a-f0-9]{64}$/u.test(round.ids_sha256)
+      )
+        throw new Error("Invalid hosted game media round");
+      const name = `game-media-due-ids-${round.ids_sha256}.json`;
+      const ids = readOwned(source, name);
+      if (ids === null || observationHash(ids) !== round.ids_sha256)
+        throw new Error("Hosted game media round differs from its retained workset");
+      retainReceipt(roundName, round);
+      retain(name, ids);
+    }
+    for (const name of readdirSync(source)) {
+      if (/^game-media-progress-[a-z0-9][a-z0-9-]{0,127}\.json$/u.test(name)) {
+        const progress = readOwned(source, name);
+        if (progress === null) throw new Error("Hosted game media progress is missing");
+        retainReceipt(name, progress);
+      }
+    }
+    return { files: copied.size, bytes };
+  } finally {
+    rmdirSync(join(source, "active.lock"));
+  }
+}
+/** Save the round once and advance a small cursor between bounded passes. A
+ * newly due identity joins the next round without displacing retained work. */
+function boundedArtworkDuePass(
+  root: string,
+  dueIds: readonly string[],
+  runnable: ReadonlySet<string>,
+  limit: number,
+  kind: "artwork" | "game-media" = "artwork",
+) {
+  const artworkDueRoundName = `${kind}-due-round.json`;
+  const value = readOwned(root, artworkDueRoundName);
+  let round: { format: 1; ids_sha256: string; next: number } | undefined;
+  let ids: string[] = [];
+  if (value !== null) {
+    if (
+      !isRecord(value) ||
+      value.format !== 1 ||
+      typeof value.ids_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(value.ids_sha256) ||
+      typeof value.next !== "number" ||
+      !Number.isSafeInteger(value.next) ||
+      value.next < 0
+    )
+      throw new Error("Invalid retained artwork due cursor");
+    const cursorHash = observationHash(value);
+    const cursorReceipt = readOwned(root, `artwork-attempt-${cursorHash}.json`);
+    if (cursorReceipt === null || observationHash(cursorReceipt) !== cursorHash)
+      throw new Error("Retained artwork due cursor does not match its receipt");
+    const saved = readOwned(root, `${kind}-due-ids-${value.ids_sha256}.json`);
+    if (
+      !Array.isArray(saved) ||
+      saved.some((id: unknown) => typeof id !== "string" || !safeId(id)) ||
+      new Set(saved).size !== saved.length ||
+      observationHash(saved) !== value.ids_sha256 ||
+      value.next > saved.length
+    )
+      throw new Error("Invalid retained artwork due workset");
+    ids = saved as string[];
+    round = { format: 1, ids_sha256: value.ids_sha256, next: value.next };
+  }
+  if (!round || round.next === ids.length) {
+    if (runnable.size === 0) return { selected: [], finish() {} };
+    ids = [...dueIds];
+    const ids_sha256 = observationHash(ids);
+    replaceOwned(root, `${kind}-due-ids-${ids_sha256}.json`, ids);
+    round = { format: 1, ids_sha256, next: 0 };
+    replaceOwned(root, artworkDueRoundName, round);
+  }
+  const active = round;
+  const selected: string[] = [];
+  let next = active.next;
+  while (next < ids.length && selected.length < limit) {
+    const id = ids[next++]!;
+    if (runnable.has(id)) selected.push(id);
+  }
+  if (!selected.length && next === ids.length && dueIds.some((id) => runnable.has(id))) {
+    replaceOwned(root, artworkDueRoundName, { ...active, next });
+    return boundedArtworkDuePass(root, dueIds, runnable, limit, kind);
+  }
+  return {
+    selected,
+    finish() {
+      if (next !== active.next) replaceOwned(root, artworkDueRoundName, { ...active, next });
+    },
+  };
+}
+
+const dayMs = 24 * 60 * 60 * 1000;
+type MediaObservation =
+  | Awaited<ReturnType<typeof prepareCatalogGameMedia>>["records"][number]
+  | { port_id: string; role: "cover"; subject: { kind: "port"; port_id: string }; reason: string };
+
+export function planDueGameMedia(
+  root: string,
+  candidates: readonly { id: string; input_sha256: string }[],
+  limit: number,
+  now = Date.now(),
+) {
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 400)
+    throw new Error("Bounded game media requires a limit from 1 through 400");
+  const inputs = new Map(candidates.map(({ id, input_sha256 }) => [id, input_sha256]));
+  if (inputs.size !== candidates.length) throw new Error("Duplicate game media work identity");
+  const progressName = (id: string) => `game-media-progress-${id}.json`;
+  const previous = new Map<
+    string,
+    { lastAttempt: string | null; successful: Record<string, unknown> }
+  >();
+  const due = [];
+  for (const [id, input] of inputs) {
+    if (!safeId(id) || !/^[a-f0-9]{64}$/u.test(input))
+      throw new Error("Invalid game media work identity");
+    const prior = readOwned(root, progressName(id));
+    if (prior === null) {
+      due.push({ id, attempted: 0 });
+      continue;
+    }
+    if (
+      !isRecord(prior) ||
+      prior.format !== 1 ||
+      prior.port_id !== id ||
+      typeof prior.input_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(prior.input_sha256) ||
+      typeof prior.next_due !== "string" ||
+      !Number.isFinite(Date.parse(prior.next_due)) ||
+      !isRecord(prior.successful) ||
+      Object.values(prior.successful).some(
+        (value) => typeof value !== "string" || !Number.isFinite(Date.parse(value)),
+      ) ||
+      (prior.last_attempt !== null &&
+        (typeof prior.last_attempt !== "string" ||
+          !Number.isFinite(Date.parse(prior.last_attempt))))
+    )
+      throw new Error("Invalid game media progress receipt");
+    const priorHash = observationHash(prior);
+    const retained = readOwned(root, `artwork-attempt-${priorHash}.json`);
+    if (retained === null || observationHash(retained) !== priorHash)
+      throw new Error("Game media progress does not match its retained receipt");
+    previous.set(id, {
+      lastAttempt: prior.last_attempt,
+      successful: prior.input_sha256 === input ? prior.successful : {},
+    });
+    if (prior.input_sha256 !== input || Date.parse(prior.next_due) <= now)
+      due.push({ id, attempted: prior.last_attempt === null ? 0 : Date.parse(prior.last_attempt) });
+  }
+  due.sort((a, b) => a.attempted - b.attempted || a.id.localeCompare(b.id, "en"));
+  const dueIds = due.map(({ id }) => id);
+  const pass = boundedArtworkDuePass(root, dueIds, new Set(dueIds), limit, "game-media");
+  return {
+    selected: pass.selected,
+    due: dueIds.length,
+    finish(
+      records: readonly MediaObservation[],
+      retryAt: string | null,
+      receipt: string,
+      finished = Date.now(),
+    ) {
+      const byPort = new Map<string, MediaObservation[]>();
+      for (const record of records) {
+        const old = byPort.get(record.port_id) ?? [];
+        old.push(record);
+        byPort.set(record.port_id, old);
+      }
+      let attempted = 0;
+      let deferred = 0;
+      const observedAt = new Date(finished).toISOString();
+      const retry = retryAt ? Date.parse(retryAt) : 0;
+      if (!Number.isFinite(retry)) throw new Error("Invalid game media provider retry time");
+      for (const id of pass.selected) {
+        const results = byPort.get(id) ?? [];
+        const observed = results.some(
+          ({ reason }) =>
+            reason !== "batch-provider-budget-exhausted" &&
+            reason !== "identity-provider-unavailable" &&
+            reason !== "media-provider-unavailable-or-incomplete" &&
+            reason !== "existing-scene-retained" &&
+            reason !== "scene-role-capacity",
+        );
+        const transient = results.some(({ reason }) => /unavailable|incomplete/u.test(reason));
+        const blocked =
+          !results.length ||
+          (!observed && transient) ||
+          results.some(({ reason }) => reason === "batch-provider-budget-exhausted");
+        if (observed) attempted++;
+        if (blocked) deferred++;
+        const next = blocked || transient ? dayMs : refreshMs;
+        const prior = previous.get(id);
+        const successful = { ...prior?.successful };
+        for (const { subject, role, reason } of results)
+          if (reason === "role-selected" || reason === "retained-image-verified")
+            successful[observationHash([subject, role])] = observedAt;
+        replaceOwned(root, progressName(id), {
+          format: 1,
+          port_id: id,
+          input_sha256: inputs.get(id),
+          last_attempt: observed ? observedAt : (prior?.lastAttempt ?? null),
+          next_due: new Date(
+            blocked && retry > finished ? retry : Math.max(finished + next, retry),
+          ).toISOString(),
+          deferred: blocked,
+          successful,
+          roles: results,
+          receipt,
+        });
+      }
+      pass.finish();
+      return { attempted, deferred };
+    },
+  };
+}
+
 function itemStateName(id: string, refresh: boolean, maintenance: boolean) {
   const kind = maintenance ? "maintenance-" : refresh ? "refresh-" : "";
   return `artwork-${kind}progress-${id}.json`;
+}
+
+export function retainedCoverDigests(root: string, portIds: readonly string[], now: number) {
+  const observed = new Map<string, { at: number; digest: string | null }>();
+  const retain = (id: string, at: number, digest: string | null) => {
+    const previous = observed.get(id);
+    if (!previous || at > previous.at) observed.set(id, { at, digest });
+    else if (at === previous.at && previous.digest !== digest)
+      observed.set(id, { at, digest: null });
+  };
+  for (const id of portIds) {
+    for (const [refresh, maintenance] of [
+      [false, false],
+      [true, false],
+      [true, true],
+    ] as const) {
+      const state = itemState(root, id, now, refresh, maintenance);
+      if (!state) continue;
+      const { mapping, checks, exceptions } = state.result.record;
+      for (const issue of exceptions) {
+        if (
+          isRecord(issue) &&
+          (issue.reason === "collection-image-digest-changed" ||
+            issue.reason === "companion-image-digest-changed") &&
+          typeof issue.image_id === "string" &&
+          /^[A-Za-z0-9_]{1,128}$/u.test(issue.image_id)
+        )
+          retain(issue.image_id, Date.parse(state.observed_at), null);
+      }
+      if (
+        !state.complete ||
+        !state.last_live_observation_at ||
+        !mapping ||
+        !validArtworkMapping(mapping) ||
+        !checks ||
+        !("content" in checks) ||
+        !isRecord(checks.content) ||
+        checks.content.sha256 !== mapping.image_sha256
+      )
+        continue;
+      retain(mapping.image_id, Date.parse(state.last_live_observation_at), mapping.image_sha256);
+    }
+  }
+  return observed;
 }
 
 function itemState(
@@ -271,11 +647,14 @@ export async function prepareArtworkWorkset(
     acceptedCatalog?: ArtworkCatalog;
     inspector: Inspector;
     identities: unknown;
+    reviewedOriginalMedia?: ArtworkPreparationOptions["reviewedOriginalMedia"];
     validatorIdentity: string | null;
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     maintenance?: boolean;
+    revalidateAccepted?: boolean;
     retainedCoverLimit?: number;
+    dueCoverLimit?: number;
     now?: () => number;
     signal?: AbortSignal;
     onProgress?: (id: string) => void | Promise<void>;
@@ -283,36 +662,22 @@ export async function prepareArtworkWorkset(
 ) {
   const now = options.now ?? Date.now;
   const maintenance = options.maintenance === true;
-  const limit = options.retainedCoverLimit;
+  const revalidateAccepted = maintenance || options.revalidateAccepted === true;
+  const limit = options.dueCoverLimit ?? options.retainedCoverLimit;
+  if (options.dueCoverLimit !== undefined && options.retainedCoverLimit !== undefined)
+    throw new Error("Choose one bounded artwork workset scope");
   if (
     limit !== undefined &&
     (!options.maintenance || !Number.isSafeInteger(limit) || limit < 1 || limit > 400)
   )
-    throw new Error("Bounded retained artwork maintenance requires a limit from 1 through 400");
-  const providerAdmission = readOwned(options.root, "artwork-provider-admission.json");
-  if (providerAdmission !== null) {
-    if (
-      !isRecord(providerAdmission) ||
-      providerAdmission.format !== 1 ||
-      [providerAdmission.metadata_retry_at, providerAdmission.image_retry_at].some(
-        (value) =>
-          value !== null && (typeof value !== "string" || !Number.isFinite(Date.parse(value))),
-      )
-    )
-      throw new Error("Invalid durable artwork provider backoff");
-    options.inspector.restoreProviderBackoff?.(
-      typeof providerAdmission.metadata_retry_at === "string"
-        ? Date.parse(providerAdmission.metadata_retry_at)
-        : 0,
-      typeof providerAdmission.image_retry_at === "string"
-        ? Date.parse(providerAdmission.image_retry_at)
-        : 0,
-    );
-  }
+    throw new Error("Bounded artwork maintenance requires a limit from 1 through 400");
+  restoreArtworkProviderBackoff(options.root, options.inspector);
   const ports = new Map(catalog.ports.map((port) => [port.id, port]));
   const inspectedIds = options.maintenance
     ? catalog.ports
-        .filter((port) => limit === undefined || mappingImages(port).length > 0)
+        .filter(
+          (port) => options.retainedCoverLimit === undefined || mappingImages(port).length > 0,
+        )
         .map((port) => port.id)
     : [...(options.selectedPortIds ?? [])];
   if (
@@ -320,19 +685,7 @@ export async function prepareArtworkWorkset(
     inspectedIds.some((id) => !ports.has(id))
   )
     throw new Error("Artwork work requires unique known identities");
-  const goneDocument = readOwned(options.root, "artwork-gone.json");
-  if (
-    goneDocument !== null &&
-    (!isRecord(goneDocument) ||
-      goneDocument.format !== 1 ||
-      !Array.isArray(goneDocument.image_ids) ||
-      goneDocument.sha256 !== observationHash(goneDocument.image_ids) ||
-      goneDocument.image_ids.some(
-        (id: unknown) => typeof id !== "string" || !/^[A-Za-z0-9_]{1,128}$/u.test(id),
-      ))
-  )
-    throw new Error("Invalid retained exact-image Gone observations");
-  const gone = new Set<string>(isRecord(goneDocument) ? (goneDocument.image_ids as string[]) : []);
+  const gone = readKnownGoneArtwork(options.root);
   const accepted = options.acceptedCatalog ?? catalog;
   const tool = createHash("sha256");
   for (const file of [
@@ -349,17 +702,23 @@ export async function prepareArtworkWorkset(
     );
   }
   const toolIdentity = tool.digest("hex");
-  const inputs = new Map<string, ReturnType<typeof artworkPreparationInput>>();
+  const prepareInput = artworkPreparationInputs(
+    accepted,
+    options.identities,
+    options.reviewedOriginalMedia,
+  );
+  const inputs = new Map<string, ReturnType<typeof prepareInput>>();
   const baseKey = (id: string, refresh: boolean) => {
     let input = inputs.get(id);
     if (input === undefined) {
-      input = artworkPreparationInput(ports.get(id)!, accepted, options.identities);
+      input = prepareInput(ports.get(id)!);
       inputs.set(id, input);
     }
     return observationHash({
       input,
       refresh,
       maintenance,
+      revalidateAccepted,
       validator: options.validatorIdentity,
       tool: toolIdentity,
       // A newly verified image can restore an otherwise ambiguous original mapping.
@@ -378,17 +737,11 @@ export async function prepareArtworkWorkset(
   );
   const due = (id: string) => {
     const state = states.get(id);
-    const image = mappingImage(
-      state?.input_sha256 === baseKey(id, true) ? state.result.port : ports.get(id)!,
-    );
-    const referenced = mappingImages(
-      state?.input_sha256 === baseKey(id, true) ? state.result.port : ports.get(id)!,
-    );
+    if (!state?.complete || state.input_sha256 !== baseKey(id, true)) return true;
+    const images = mappingImages(state.result.port);
     return (
-      !image ||
-      referenced.some((value) => gone.has(value)) ||
-      !state ||
-      state.input_sha256 !== baseKey(id, true) ||
+      images.length === 0 ||
+      images.some((value) => gone.has(value)) ||
       !currentLiveObservation(state, now())
     );
   };
@@ -404,7 +757,25 @@ export async function prepareArtworkWorkset(
             a.localeCompare(b),
         )
     : [...(options.selectedPortIds ?? [])];
-  const selected = limit === undefined ? dueIds : dueIds.slice(0, limit);
+  const bounded =
+    options.dueCoverLimit === undefined
+      ? undefined
+      : boundedArtworkDuePass(
+          options.root,
+          dueIds,
+          new Set(
+            dueIds.filter((id) => {
+              const state = states.get(id);
+              return (
+                !state?.retry_at ||
+                state.input_sha256 !== baseKey(id, true) ||
+                Date.parse(state.retry_at) <= now()
+              );
+            }),
+          ),
+          options.dueCoverLimit,
+        );
+  const selected = bounded?.selected ?? (limit === undefined ? dueIds : dueIds.slice(0, limit));
   if (
     new Set(selected).size !== selected.length ||
     selected.some((id) => !ports.has(id)) ||
@@ -471,7 +842,10 @@ export async function prepareArtworkWorkset(
       acceptedCatalog: accepted,
       selectedPortIds: batch,
       refreshPortIds: [...refreshing],
-      revalidateAccepted: maintenance,
+      revalidateAccepted,
+      ...(options.reviewedOriginalMedia
+        ? { reviewedOriginalMedia: options.reviewedOriginalMedia }
+        : {}),
       identities: isRecord(identities)
         ? Object.fromEntries(batch.map((id) => [id, identities[id]]))
         : undefined,
@@ -487,16 +861,7 @@ export async function prepareArtworkWorkset(
           sha256: observationHash([...gone].sort((a, b) => a.localeCompare(b))),
         });
         const providerStatus = options.inspector.batchStatus?.();
-        if (
-          providerStatus &&
-          (Object.hasOwn(providerStatus, "metadata_retry_at") ||
-            Object.hasOwn(providerStatus, "image_retry_at"))
-        )
-          replaceOwned(options.root, "artwork-provider-admission.json", {
-            format: 1,
-            metadata_retry_at: providerStatus.metadata_retry_at ?? null,
-            image_retry_at: providerStatus.image_retry_at ?? null,
-          });
+        retainArtworkProviderBackoff(options.root, providerStatus);
         const value = { port, record };
         const complete = finished(record, gone);
         const live =
@@ -507,18 +872,30 @@ export async function prepareArtworkWorkset(
               record.checks.scope === "reviewed-cover-collection" &&
               record.checks.live_refresh_passed === true));
         const refreshed = refreshing.has(record.port_id);
+        const input = baseKey(record.port_id, refreshed);
+        const previous = states.get(record.port_id);
+        const retainedObservation =
+          record.reason.includes("retained-after-unavailable-refresh") &&
+          previous?.input_sha256 === input &&
+          observationHash([
+            previous.result.record.mapping,
+            previous.result.record.collection ?? [],
+          ]) === observationHash([record.mapping, record.collection ?? []])
+            ? previous.last_live_observation_at
+            : null;
         const state: ItemState = {
           format: 1,
           port_id: record.port_id,
-          input_sha256: baseKey(record.port_id, refreshed),
+          input_sha256: input,
           result_sha256: observationHash(value),
           result: value,
           complete,
           observed_at: new Date(now()).toISOString(),
-          last_live_observation_at: live ? memo.observationClock(record) : null,
+          last_live_observation_at: live ? memo.observationClock(record) : retainedObservation,
           retry_at: providerStatus?.retry_at ?? null,
         };
         replaceOwned(options.root, itemStateName(record.port_id, refreshed, maintenance), state);
+        states.set(record.port_id, state);
         apply(record.port_id, value);
         await options.onProgress?.(record.port_id);
       },
@@ -603,6 +980,7 @@ export async function prepareArtworkWorkset(
       .length,
     ...memo.metrics,
   };
+  bounded?.finish();
   return {
     catalog: output,
     records: values,

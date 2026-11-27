@@ -13,6 +13,14 @@
       "evidence_urls": ["https://github.com/shana2203/Mobius01"],
       "source_editions": []
     },
-    "original_game_title": "Ace Combat 04: Shattered Skies"
+    "original_game_title": "Ace Combat 04: Shattered Skies",
+    "artwork": {
+      "game_id": 9763,
+      "cover_id": 548238,
+      "image_id": "cobr0u",
+      "image_sha256": "1cbbf9837d2368742175a7195bd6ab8c6693053968308f8efa71244c0fd23e42",
+      "game_slug": "ace-combat-04-shattered-skies",
+      "match_kind": "underlying-game"
+    }
   }
 }

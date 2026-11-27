@@ -415,6 +415,18 @@ export const desktopApi = {
       generation,
       ...(browseOnly ? { browseOnly } : {}),
     }),
+  setModPortalPreferences: (
+    portId: string,
+    generation: number,
+    expectedRevision: number,
+    choices: import("./types").ModPortalsView["mod_portal_preferences"]["preferences"]["choices"],
+  ) =>
+    invoke<import("./types").ModPortalsView>("set_mod_portal_preferences", {
+      portId,
+      generation,
+      expectedRevision,
+      choices,
+    }),
   reviewModSetupOriginal: (target: import("./types").ModSetupOriginalTarget) =>
     invoke<import("./types").ModSetupOriginalReview>("review_mod_setup_original", target),
   selectModSetupOriginal: (target: import("./types").ModSetupOriginalTarget, instanceId: string) =>
@@ -641,7 +653,15 @@ export const desktopApi = {
     projectId: string,
     generation: number,
     provider?: string,
-  ) => invoke<void>("open_provider_mod_project", { portId, projectId, generation, provider }),
+    portal?: { source: string; url: string },
+  ) =>
+    invoke<void>("open_provider_mod_project", {
+      portId,
+      projectId,
+      generation,
+      provider,
+      portal,
+    }),
   jakModsSetupUrl: (portId: string, generation: number) =>
     invoke<string | null>("jakmods_setup_url", { portId, generation }),
   jakModsCatalog: (portId: string, generation: number) =>
@@ -667,6 +687,20 @@ export const desktopApi = {
     source: NonNullable<import("./types").ModSetupsView["external_mod_portals"]>[number]["source"],
     pageUrl: string,
   ) => invoke<void>("open_upstream_mod_notice", { portId, generation, source, pageUrl }),
+  browseExternalProviderMods: (
+    portId: string,
+    generation: number,
+    source: string,
+    url: string,
+    page: number,
+  ) =>
+    invoke<import("./types").ProviderBrowsePage>("browse_external_provider_mods", {
+      portId,
+      generation,
+      source,
+      url,
+      page,
+    }),
   modProviderCatalog: (portId: string, source: string, generation: number, startPage = 1) =>
     invoke<import("./types").ProviderCatalog>("get_mod_provider_catalog", {
       portId,
@@ -951,6 +985,7 @@ export const desktopApi = {
     portId: string,
     generation: number,
     onEvent: (event: OperationEvent) => void,
+    expectedSetupId?: string,
   ) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = onEvent;
@@ -958,6 +993,7 @@ export const desktopApi = {
       portId,
       generation,
       onEvent: channel,
+      ...(expectedSetupId ? { expectedSetupId } : {}),
     });
   },
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
@@ -1677,6 +1713,32 @@ export const desktopApi = {
       executable,
       workingDirectory,
       arguments: arguments_,
+      generation,
+    }),
+  previewPersonalGithubRuntime: (
+    projectUrl: string,
+    executable: string,
+    workingDirectory: string,
+    generation: number,
+  ) =>
+    invoke<ExternalRuntimePreview>("preview_personal_github_runtime", {
+      projectUrl,
+      executable,
+      workingDirectory,
+      generation,
+    }),
+  registerPersonalGithubRuntime: (
+    projectUrl: string,
+    executable: string,
+    workingDirectory: string,
+    expectedPreview: string,
+    generation: number,
+  ) =>
+    invoke<ExternalRuntimeRecord | null>("register_personal_github_runtime", {
+      projectUrl,
+      executable,
+      workingDirectory,
+      expectedPreview,
       generation,
     }),
   registerUserSelectedRuntime: (

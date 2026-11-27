@@ -2,7 +2,6 @@ import type { TFunction } from "i18next";
 import { CheckCircle2, Wrench } from "lucide-react";
 import { Trans } from "react-i18next";
 import { Icon } from "../../components/ui";
-import { useAppTranslation } from "../../localization";
 import { currentUpdateSnapshot, releaseChannelPresentation } from "../../view-model";
 import type { LibraryOrganization, PortStatus } from "../../types";
 import type { CatalogEntry } from "../browsing/catalog-entry";
@@ -23,13 +22,7 @@ type BrowsePortObservationsProps = {
   noticeChoice?: LibraryOrganization["update_notices"][string] | undefined;
 };
 
-/** Exact-port cached facts and descriptions, shared by singleton discovery and comparison. */
-export function BrowsePortObservations(props: BrowsePortObservationsProps) {
-  const { t } = useAppTranslation("browsing");
-  return <BrowsePortObservationsContent {...props} t={t} />;
-}
-
-/** Reuse the containing card's locale subscription when one already exists. */
+/** Exact-port cached facts and descriptions using the containing card's locale subscription. */
 export function BrowsePortObservationsContent({
   port,
   status,

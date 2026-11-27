@@ -232,6 +232,13 @@ pub struct ExternalRuntimePreview {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PersonalProjectRuntimePreview {
+    pub repository_id: u64,
+    pub project_url: String,
+    pub registration: ExternalRuntimePreview,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExternalRuntimeRemovalPreview {
     pub port_id: String,
     pub path: PathBuf,

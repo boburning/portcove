@@ -7,6 +7,7 @@ import {
   useEffect,
   useLayoutEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type ComponentType,
@@ -16,6 +17,7 @@ import { Gamepad2 } from "lucide-react";
 import {
   useArtwork,
   useArtworkVisibility,
+  useCatalogArtworkKey,
   useCollectionCovers,
   useCoverCollection,
   usesAutomaticArtwork,
@@ -446,13 +448,23 @@ function ArtworkSlotControl({
   const hideButton = useRef<HTMLButtonElement>(null);
   const returnFocus = useRef<{
     target: HTMLButtonElement | null;
-    cache: typeof cache;
+    from: Element | null;
+    generation: number | undefined;
+    portId: string;
+    originalGameId: string | undefined;
   } | null>(null);
   const originalGameId = port.presentation?.original_game?.id;
-  const currentIdentity = useRef({ cache, portId: port.id, originalGameId, slot });
+  const catalogArtworkKey = useCatalogArtworkKey(port.id);
+  // A native picker may outlive a refresh elsewhere in the catalog. An edit to
+  // the selected listing retires that picker even if the old mapping returns.
+  const pickerScope = useMemo(
+    () => ({ catalogArtworkKey, originalGameId }),
+    [catalogArtworkKey, originalGameId],
+  );
+  const currentIdentity = useRef({ cache, portId: port.id, originalGameId, slot, pickerScope });
   useLayoutEffect(() => {
-    currentIdentity.current = { cache, portId: port.id, originalGameId, slot };
-  }, [cache, port.id, originalGameId, slot]);
+    currentIdentity.current = { cache, portId: port.id, originalGameId, slot, pickerScope };
+  }, [cache, port.id, originalGameId, slot, pickerScope]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -463,19 +475,60 @@ function ArtworkSlotControl({
     if (visibilityReview) visibilityHeading.current?.focus();
   }, [visibilityReview]);
   useEffect(() => {
-    if (pending || !returnFocus.current || !isCurrentOpening()) return;
-    const { target, cache: owner } = returnFocus.current;
-    returnFocus.current = null;
+    const request = returnFocus.current;
+    if (!request || pending) return;
     const panel = slotPanel.current;
-    if (!panel || currentIdentity.current.cache !== owner || panel.closest("[hidden], [inert]"))
+    const focused = document.activeElement;
+    if (
+      !isCurrentOpening() ||
+      !active ||
+      !panel ||
+      panel.closest("[hidden], [inert]") ||
+      request.generation !== cache?.generation ||
+      request.portId !== port.id ||
+      request.originalGameId !== originalGameId ||
+      (focused !== null && focused !== document.body && focused !== request.from)
+    ) {
+      returnFocus.current = null;
       return;
+    }
+    const available = (control: HTMLButtonElement | null) =>
+      control?.isConnected && !control.disabled && !control.closest("[hidden], [inert]");
+    const primary = [request.target, pickerButton.current].find(available);
+    // A same-library cache can change while the committed choice is being read.
+    // Keep the request until the current role's action becomes available.
+    if (!primary && (display.loading || (!display.state && !display.error))) return;
     const focus =
-      [target, pickerButton.current, refreshButton.current].find(
-        (control) =>
-          control?.isConnected && !control.disabled && !control.closest("[hidden], [inert]"),
-      ) ?? panel.closest("dialog")?.querySelector<HTMLElement>("[data-artwork-editor-close]");
+      primary ??
+      (available(refreshButton.current) ? refreshButton.current : null) ??
+      panel.closest("dialog")?.querySelector<HTMLElement>("[data-artwork-editor-close]");
+    returnFocus.current = null;
     focus?.focus();
-  }, [draft, visibilityReview, pending, isCurrentOpening]);
+  }, [
+    active,
+    cache,
+    display,
+    draft,
+    isCurrentOpening,
+    originalGameId,
+    pending,
+    port.id,
+    visibilityReview,
+  ]);
+
+  const queueReturnFocus = (
+    target: HTMLButtonElement | null,
+    owner = cache,
+    from = document.activeElement,
+  ) => {
+    returnFocus.current = {
+      target,
+      from,
+      generation: owner?.generation,
+      portId: port.id,
+      originalGameId,
+    };
+  };
 
   const stillInView = () =>
     mounted.current &&
@@ -484,6 +537,7 @@ function ArtworkSlotControl({
     currentIdentity.current.slot === slot &&
     currentIdentity.current.cache?.generation === cache?.generation;
   const stillCurrent = () => stillInView() && currentIdentity.current.cache === cache;
+  const stillPicking = () => stillInView() && currentIdentity.current.pickerScope === pickerScope;
   const refreshCurrent = async (committedRevision?: number) => {
     const current = currentIdentity.current.cache;
     if (!stillInView() || !current) return;
@@ -494,7 +548,12 @@ function ArtworkSlotControl({
       committedRevision,
     );
   };
-  const focusDraftTrigger = (review: ArtworkImageReview, cancelled = false, owner = cache) => {
+  const focusDraftTrigger = (
+    review: ArtworkImageReview,
+    cancelled = false,
+    owner = cache,
+    from = document.activeElement,
+  ) => {
     const target =
       review.source.kind === "selected"
         ? frameButton.current
@@ -505,7 +564,7 @@ function ArtworkSlotControl({
               ? findButton.current
               : pickerButton.current
           : pickerButton.current;
-    returnFocus.current = { target, cache: owner };
+    queueReturnFocus(target, owner, from);
   };
   const draftIsCurrent = (review: ArtworkReviewTarget) =>
     review.portId === port.id &&
@@ -537,11 +596,16 @@ function ArtworkSlotControl({
     return true;
   };
 
-  const finishChange = (target: HTMLButtonElement | null, restoreFocus = true, owner = cache) => {
+  const finishChange = (
+    target: HTMLButtonElement | null,
+    from: Element | null,
+    restoreFocus = true,
+    owner = cache,
+  ) => {
     busy.current = false;
     if (!mounted.current) return;
     if (restoreFocus && stillInView() && currentIdentity.current.cache === owner)
-      returnFocus.current = { target, cache: owner };
+      queueReturnFocus(target, owner, from);
     setPending(false);
   };
 
@@ -557,7 +621,7 @@ function ArtworkSlotControl({
     setError(undefined);
     try {
       const path = await pickArtworkPath();
-      if (!stillCurrent() || !path) return;
+      if (!stillPicking() || !path) return;
       const preview = await desktopApi.previewLocalArtwork(port.id, path, cache.generation);
       // Keep the completed preview across a cache refresh. Apply still needs the
       // original revision from the current cache, and review respects moved focus.
@@ -570,9 +634,14 @@ function ArtworkSlotControl({
       );
       staged = stageImage({ kind: "local", path }, revision, preview, preserveFocus);
     } catch (value) {
-      if (stillCurrent()) setError(errorText(value));
+      if (stillPicking()) setError(errorText(value));
     } finally {
-      finishChange(pickerButton.current, !staged);
+      finishChange(
+        pickerButton.current,
+        initiator,
+        !staged && stillPicking(),
+        currentIdentity.current.cache,
+      );
     }
   };
 
@@ -593,6 +662,7 @@ function ArtworkSlotControl({
 
   const applyVisibility = async (review: ArtworkVisibilityReview) => {
     if (!cache || busy.current || !stillCurrent() || !draftIsCurrent(review)) return;
+    const initiator = document.activeElement;
     let focusOwner = cache;
     let focusTarget = visibilityCancel.current;
     busy.current = true;
@@ -635,7 +705,7 @@ function ArtworkSlotControl({
         focusOwner = currentIdentity.current.cache ?? cache;
       }
     } finally {
-      finishChange(focusTarget, true, focusOwner);
+      finishChange(focusTarget, initiator, true, focusOwner);
     }
   };
 
@@ -643,8 +713,8 @@ function ArtworkSlotControl({
     if (!cache || !display.state || busy.current) return;
     const revision = display.state.choice.revision;
     let staged = false;
-    const trigger =
-      document.activeElement instanceof HTMLButtonElement ? document.activeElement : null;
+    const initiator = document.activeElement;
+    const trigger = initiator instanceof HTMLButtonElement ? initiator : null;
     busy.current = true;
     returnFocus.current = null;
     setPending(true);
@@ -663,7 +733,7 @@ function ArtworkSlotControl({
     } catch (value) {
       if (stillCurrent()) setError(steamGridDbErrorText(value));
     } finally {
-      finishChange(trigger?.isConnected ? trigger : findButton.current, !staged);
+      finishChange(trigger?.isConnected ? trigger : findButton.current, initiator, !staged);
     }
   };
 
@@ -693,6 +763,7 @@ function ArtworkSlotControl({
       busy.current
     )
       return;
+    const initiator = document.activeElement;
     busy.current = true;
     returnFocus.current = null;
     setPending(true);
@@ -717,14 +788,14 @@ function ArtworkSlotControl({
       if (!stillInView()) return;
       if (!result) {
         if (currentIdentity.current.cache !== cache) {
-          focusDraftTrigger(review, true, currentIdentity.current.cache);
+          focusDraftTrigger(review, true, currentIdentity.current.cache, initiator);
           setDraft(undefined);
         }
         return;
       }
       if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
       if (!stillInView()) return;
-      focusDraftTrigger(review, false, currentIdentity.current.cache);
+      focusDraftTrigger(review, false, currentIdentity.current.cache, initiator);
       setDraft(undefined);
       setFindOpen(false);
       if (slot === "detail") setMessage("Background saved.");
@@ -916,7 +987,7 @@ function ArtworkSlotControl({
               variant="outline"
               disabled={pending}
               onClick={() => {
-                returnFocus.current = { target: visibilityTrigger(visibilityReview.action), cache };
+                queueReturnFocus(visibilityTrigger(visibilityReview.action));
                 setVisibilityReview(undefined);
                 setError(undefined);
               }}

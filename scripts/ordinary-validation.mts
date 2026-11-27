@@ -233,6 +233,15 @@ const containmentInputs = new Set([
   "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
 ]);
 const selectionContractTests = ordinaryFamily("selection-contract-tests");
+// docs/RESTRICTION-REGISTER.md names every production bound constant. A new or
+// removed bound constant needs a register edit in the same change.
+const restrictionRegisterTests = ordinaryFamily("restriction-register-tests");
+const restrictionRegisterInput = (file: string) =>
+  /^crates\/[^/]+\/src\//u.test(file) ||
+  file.startsWith("apps/desktop/src/") ||
+  file.startsWith("apps/desktop/src-tauri/src/") ||
+  /^scripts\/.+\.(?:rs|ts|tsx|mts)$/u.test(file) ||
+  file === "docs/RESTRICTION-REGISTER.md";
 
 const roadmapFeatureTests = ordinaryFamily("roadmap-feature-tests");
 const roadmapContractTests = ordinaryFamily("roadmap-contract-tests");
@@ -1641,6 +1650,10 @@ for (const [file, tests] of [
       "scripts/windows-installed-game-data.test.mts",
       "scripts/windows-historical-bootstrap.test.mts",
     ],
+  ],
+  [
+    "scripts/fixtures/discovery-windows-sharing.mts",
+    ["scripts/daily-discovery.test.mts", "scripts/fixture-module-closure.test.mts"],
   ],
   [
     "scripts/fixtures/module-closure.mts",
@@ -3487,6 +3500,9 @@ function classifyOnePath(
     addNodeTest(selection, "scripts/transport-values.test.mts");
     recognized = true;
   }
+
+  if (restrictionRegisterInput(file))
+    for (const registerTest of restrictionRegisterTests) addNodeTest(selection, registerTest);
 
   if (!recognized) selection.unknown.add(file);
 }

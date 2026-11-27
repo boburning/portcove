@@ -4,14 +4,25 @@
     "id": "marvel-ultimate-alliance-mua-bundle-recompiled",
     "project_url": "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled",
     "name": "Marvel: Ultimate Alliance / Marvel Ultimate Alliance Bundle Recompiled (saulob)",
-    "summary": "Marvel Ultimate Alliance 1, Gold Edition and 2 native PC ports via static recompilation, in one bundle with high frame rates, 4K rendering, ultrawide, HD Text, TRG launcher, and experimental Linux/Steam Deck support",
+    "summary": "Play the original Xbox 360 edition of Marvel: Ultimate Alliance in the shared recompiled launcher using your own game files.",
+    "variant_label": "Original Xbox 360 edition",
     "issue_number": 7190,
     "listed_at": "2026-11-24",
     "original_game": {
       "format_version": 1,
       "id": "marvel-ultimate-alliance",
       "evidence_urls": ["https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "marvel-ultimate-alliance-xbox-360",
+          "title": "Marvel: Ultimate Alliance (Xbox 360, Media ID 26848425)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/README.md",
+            "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/mua1.manifest.toml"
+          ]
+        }
+      ]
     },
     "original_game_title": "Marvel: Ultimate Alliance"
   }

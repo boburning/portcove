@@ -239,13 +239,19 @@ void test(
   },
   (context) => {
     const root = fixture(context);
-    const inventory = readFixtureModuleClosure(
-      fileURLToPath(new URL("../", import.meta.url)),
-      ["scripts/daily-discovery.test.mts"],
-      { includeDynamicImports: false },
-    );
+    const inventory = readFixtureModuleClosure(fileURLToPath(new URL("../", import.meta.url)), [
+      "scripts/fixtures/discovery-windows-sharing.mts",
+    ]);
     assert.ok(inventory.external.every(isBuiltin), inventory.external.join(", "));
     for (const module of inventory.modules) write(root, module.path, module.bytes);
+    write(
+      root,
+      "sharing.test.mts",
+      `import test from 'node:test';
+import { exerciseWindowsReaderSharing } from './scripts/fixtures/discovery-windows-sharing.mts';
+await test('Windows reader sharing', exerciseWindowsReaderSharing);
+`,
+    );
     const environment = { ...process.env };
     delete environment.NODE_TEST_CONTEXT;
     const result = spawnSync(
@@ -255,7 +261,7 @@ void test(
         "--test-timeout=15000",
         "--test-reporter=tap",
         "--test-name-pattern=Windows reader sharing",
-        "scripts/daily-discovery.test.mts",
+        "sharing.test.mts",
       ],
       { cwd: root, env: environment, encoding: "utf8", timeout: 20000, windowsHide: true },
     );

@@ -18,6 +18,7 @@ use std::{
 use tough::schema::{Root, Signed, Targets};
 
 mod bundle;
+mod cover_approval;
 mod history_checkpoint;
 mod io;
 mod key_inventory;
@@ -136,6 +137,8 @@ pub struct DefinitionRepositoryReport {
     /// Present only when the run maintains the listing-floor ledger (#1422).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub listing_floor_ledger: Option<LedgerReport>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cover_approvals: Option<serde_json::Value>,
     pub authority: &'static str,
 }
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -183,8 +186,16 @@ struct ContextConfig {
     #[serde(default)]
     listing_floor_ledger: Option<ListingFloorLedgerConfig>,
     previous_repository: serde_json::Value,
+    #[serde(default)]
+    cover_approvals: Option<CoverApprovalConfig>,
     versions: Four<u64>,
     expires: Four<String>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CoverApprovalConfig {
+    path: String,
+    sha256: String,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -216,6 +227,7 @@ struct Context {
     bootstrap_history: bool,
     history: Option<history_checkpoint::PreparedHistory>,
     listing_ledger: Option<listing_floor_ledger::State>,
+    cover_approvals: Option<serde_json::Value>,
     prior: public_history::PublicHistory,
     readback: Vec<(PathBuf, u64, String)>,
     trees: Vec<(PathBuf, usize, u64, String)>,
@@ -311,6 +323,21 @@ async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
         inputs.push(store.clone());
     }
     let mut readback = readback;
+    let proposed_cover_approvals = config
+        .cover_approvals
+        .as_ref()
+        .map(|input| -> Result<_> {
+            let path = io::resolve(base, &input.path)?;
+            let maximum = cover_approval::COVER_APPROVALS_MAX as u64;
+            let bytes = io::read(&path, maximum)?;
+            expected(&bytes, &input.sha256)?;
+            let journal: serde_json::Value = serde_json::from_slice(&bytes)?;
+            cover_approval::cover_approval_packets(&journal)?;
+            readback.push((path.clone(), maximum, input.sha256.clone()));
+            inputs.push(path);
+            Ok(journal)
+        })
+        .transpose()?;
     let listing_ledger = match &config.listing_floor_ledger {
         None => None,
         Some(_)
@@ -355,14 +382,18 @@ async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
         bootstrap_history: config.bootstrap_history,
         history: None,
         listing_ledger,
+        cover_approvals: None,
         prior: public_history::PublicHistory::default(),
         readback,
         trees: vec![],
     };
     if let Some(previous) = config.previous_repository.as_str() {
         let previous = io::resolve(base, previous)?;
-        let (prior, history, ledger) = repository::inspect_prior(&context, &previous).await?;
+        let (prior, history, ledger, approvals) =
+            repository::inspect_prior(&context, &previous, proposed_cover_approvals.as_ref())
+                .await?;
         context.prior = prior;
+        context.cover_approvals = approvals;
         if let Some(state) = context.listing_ledger.as_mut() {
             state.next = ledger;
         }
@@ -396,6 +427,13 @@ async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
             sha(&serde_json::to_vec(&context.prior.identities())?),
         ));
         inputs.push(previous);
+    } else if proposed_cover_approvals.is_some() {
+        return invalid("catalog cover approvals require an authenticated predecessor");
+    } else if context
+        .targets
+        .contains_key(portcove_listing_carrier::COVER_CHECKPOINT_TARGET)
+    {
+        return invalid("cover observations require an authenticated predecessor");
     } else if context.bootstrap_history || context.history_store.is_some() {
         return invalid("catalog history requires an authenticated predecessor");
     } else if !config.previous_repository.is_null() {

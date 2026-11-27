@@ -379,6 +379,7 @@ pub struct PortcoveService {
     catalog: Catalog,
     catalog_provenance: crate::CatalogProvenance,
     artwork_snapshot_reads: bool,
+    personal_registration: bool,
     pub(crate) remote_artwork: crate::artwork::RemoteArtworkRead,
     pub(crate) library: Library,
     releases: Arc<dyn ReleaseProvider>,
@@ -479,6 +480,7 @@ impl PortcoveService {
             catalog,
             catalog_provenance,
             artwork_snapshot_reads: false,
+            personal_registration: false,
             remote_artwork: Default::default(),
             library,
             releases,
@@ -557,6 +559,7 @@ impl PortcoveService {
             catalog,
             catalog_provenance,
             artwork_snapshot_reads: false,
+            personal_registration: false,
             remote_artwork: Default::default(),
             library,
             releases,
@@ -598,6 +601,7 @@ impl PortcoveService {
             catalog,
             catalog_provenance,
             artwork_snapshot_reads: false,
+            personal_registration: false,
             remote_artwork: Default::default(),
             library,
             releases,
@@ -619,6 +623,7 @@ impl PortcoveService {
             catalog,
             catalog_provenance,
             artwork_snapshot_reads: false,
+            personal_registration: false,
             remote_artwork: Default::default(),
             library,
             releases,
@@ -3286,6 +3291,45 @@ impl PortcoveService {
             variant.require_contract(port, channel, platform)?;
         }
         Ok(if permits_saved { retained } else { None })
+    }
+
+    /// Collect exact authenticated operands for offline successor review.
+    /// The predecessor service must use a separately retained, replay-checked
+    /// admission. Warming or failing resolution does not create a support claim.
+    pub async fn prepare_successor_support_evidence(
+        &self,
+        predecessor: &Self,
+        port_id: &str,
+    ) -> Result<crate::SuccessorEvidencePreparation> {
+        let platform = Platform::current()?;
+        let port = self.catalog.port(port_id)?;
+        let status = self.library.status(port_id, default_channel(port))?;
+        if status.external_runtime.is_some() {
+            return Err(PortcoveError::unsupported(
+                "external runtime is outside managed successor review",
+            ));
+        }
+        if Self::saved_package_variant(port, status.channel, platform, &status)?.is_some() {
+            return Err(PortcoveError::unsupported(
+                "saved package choices are outside ordinary successor review",
+            ));
+        }
+        let (preparation, scope) = crate::successor_support::preflight(
+            (&predecessor.library, &predecessor.catalog),
+            (&self.library, &self.catalog),
+            port_id,
+            platform,
+            status.channel,
+        )?;
+        // A required scope bypasses GitHub's ordinary token and HTTP cache.
+        // Preflight requires both platform pins before the provider is called.
+        let resolved = self
+            .releases
+            .resolve_scoped(port, status.channel, platform, Some(&scope))
+            .await?;
+        Installer::new(self.library.clone())?
+            .require_github_resolution_identity(port_id, &resolved)?;
+        crate::successor_support::bind_live_selection(preparation, &scope, port, &resolved)
     }
 
     async fn resolve_release_for_status(

@@ -153,6 +153,15 @@ bounded native launch suggestions without executing files. Registration remains
 explicit and may select an executable outside the download folder after upstream
 setup; retain its working directory and literal arguments.
 
+With no maintained executable hints, an extracted package can suggest a program
+through its root `recomplauncher.json`. Core reads format 1 and takes the first
+exact `start.program` path that matches an inspected native candidate. If the
+manifest declares `repo`, it must agree with the selected GitHub project. For a
+listing bound to a numeric repository ID, the verified release route can identify
+the same project after a rename. If the declaration is unavailable or has no usable
+match, ordinary suggestions remain available. The choice still needs confirmation. Portcove does not use its
+arguments, environment, setup commands, or loader declarations.
+
 GitLab listings use the same candidates, preview, download and pending workflow.
 Use the exact provider-qualified references returned by candidates:
 
@@ -209,6 +218,20 @@ version is only a notice: you can still add the game you set up.
 record. It does not remove handed-off files. Each port has one active managed
 installation or external registration. A separate downloaded setup may coexist
 with an external registration until a reviewed change replaces its launch target.
+
+If a public GitHub port is missing from Discover, use **Add games → Use an
+existing installation → Add a port missing from Discover**. Enter the project's
+main GitHub address and choose the executable you already set up. Review the
+start folder and confirm the registration. The equivalent CLI commands are
+`external select-project-preview PROJECT_URL EXECUTABLE --working-directory FOLDER`
+and `external select-project PROJECT_URL EXECUTABLE --working-directory FOLDER --expected-preview SHA256 --yes`.
+Pass one `--arg` per launch option to both commands when needed.
+
+Portcove sends just the project address to GitHub to verify its public
+repository ID. It keeps your launch details in this library. If the signed
+catalog later adds that exact repository identity, the existing library entry
+picks up its catalog details without moving files or changing its launch
+settings. If a catalog entry already names the project, select it in Discover.
 
 When an upstream update changes the executable or working directory, use
 `external select-relink-preview PORT_ID EXECUTABLE --working-directory DIRECTORY`
@@ -504,7 +527,7 @@ Listing format 11 adds optional inert `collection_covers`: one to four distinct,
 reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
 individual `artwork` mapping. The field grants display only. Local artwork choices
 keep precedence. Exports to formats 5 through 10 omit the collection while retaining
-setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 14. An export without an explicit format carries the current directory format.
+setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 18. An export without an explicit format carries the current directory format. Repository-bound GitHub listings require format 17. Explicit links to a separate official setup require format 18 and are omitted from earlier exports.
 Retained user-selected listings with collections use envelope version 4. Earlier
 retained envelopes remain readable; a collection in an earlier envelope is refused.
 
@@ -528,13 +551,18 @@ through format 14 omit them and keep the derived `download_block_reason`, which
 always equals the explanation of the first download hold. See
 [acquisition restrictions](CATALOG.md#acquisition-restrictions).
 
+Listing format 16 adds reviewed mod website links that the Mods view can
+show for a listing-only port. Exports through format 15 omit the links.
+Pending setups and retained launch records use their existing formats.
+The current directory supplies links and withdrawals.
+
 The catalog listing document has its own format version. Readers accept formats
-1–15 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–16 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
 format 12 adds implementation descriptions, format 13 adds IGDB backgrounds and
 screenshots, format 14 adds verified source-edition bindings and format 15 adds
-typed acquisition restrictions. `catalog listings --format-version 8` preserves advice and
+typed acquisition restrictions. Format 16 adds mod website links. `catalog listings --format-version 8` preserves advice and
 GitLab observations and omits the date. Exports to 5/6 omit only
 inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
 only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted
@@ -727,6 +755,19 @@ Unix host to preserve executable modes. The Unix ZIP and TAR.GZ path uses the
 managed profile for a declared executable, which unwraps a lone inner archive.
 The command runs before opening a library and does not execute the package or
 establish release authority.
+
+### Prepare successor evidence
+
+```powershell
+portcove --library CURRENT --json catalog prepare-successor-evidence PORT --predecessor-library PREVIOUS
+```
+
+Use two existing, independently admitted libraries. The command checks both
+admissions before contacting GitHub. Its bounded, credential-free metadata
+requests must confirm the exact current release and asset. It does not download
+game archives or write support claims. The machine command is
+`catalog.prepare-successor-evidence`. The schema export key is
+`successor_evidence_preparation`.
 
 ### Package shape inspection
 
@@ -1888,9 +1929,15 @@ copies without replacing existing files, restores metadata transactionally, and
 verifies the copied manifests against current platform executable and persistence
 rules. Active, previous, and staged identity and source references survive the
 round trip. Import does not copy input SQLite, credentials, HTTP caches, or logs.
-Metadata JSON is written and read as a stream with no whole-document size
-ceiling, so any library Portcove can create exports and imports; each profile,
-revision and retained-build reference keeps its own byte bound. The recovery
+Metadata JSON is written and read as a stream with no fixed size ceiling; each
+profile, revision and retained-build reference keeps its own byte bound. Because
+import still decodes the whole document at once, Portcove admits a document only
+up to 1/32 of the computer's physical memory and refuses a larger one before
+reading it (`unsupported`, no changes, with `document_bytes` and
+`admission_budget_bytes`). Export uses the same metadata admission limit as
+import on a computer with unchanged physical memory. A computer with less
+memory can refuse a document exported on another computer. A chunked format
+that removes this dependency on memory is a separate follow-up. The recovery
 journal that carries the reviewed plan and content inventory has no size
 ceiling either and is read as a stream, so import and move recovery work at any
 size the library reaches. Source
@@ -2687,7 +2734,10 @@ stop at the bound. The build the selected setup projects and the newest offer
 setup switch must finish first; the update then refuses before it publishes.
 Retirement keeps the recorded setup revision, its exact build identity and
 progress, and library schema 78 records it under `retired` in
-`installation reference`. Retirement only ends the offer: the installation stays
+`installation reference`. These records are local history: they are removed
+with their setup reference or with the port, and library export and import do
+not carry them (the exported setup revisions still name every build they used).
+Retirement only ends the offer: the installation stays
 on disk and can be bound again. Portcove has no command yet that removes one
 superseded installation on its own; removing the whole port is the only
 cleanup route, so superseded installations accumulate on disk. A player can also
@@ -2915,6 +2965,21 @@ to see the reviewed browser links for the current host. A game can offer these
 links before it has an installed runtime or a managed mod setup. You choose,
 install and update files outside Portcove.
 
+Use **Edit mod websites** in Mods to add a website or hide one of the
+automatic links. Portcove stores these choices for this game in the current
+library. Use **Use automatic websites** to clear your choices and show the
+latest accepted links.
+
+To set the same choices from the CLI, get the current
+`mod_portal_preferences.preferences.revision` from `profile setups --json`.
+Pass the complete set of website choices to `profile set-mod-portals`.
+Omit the website and all hide options to reset the choices.
+
+```sh
+portcove --library PATH profile set-mod-portals PORT_ID --expected-revision 0 --name "My community" --url https://mods.example.net/game
+portcove --library PATH profile set-mod-portals PORT_ID --expected-revision 1
+```
+
 - Daggerfall Unity links to Nexus. Choose the matching game version and operating
   system. Follow the mod's instructions in a separate Daggerfall Unity copy.
   Place `.dfmod` files in `StreamingAssets/Mods`. [Daggerfall Workshop setup](https://www.dfworkshop.net/projects/daggerfall-unity/modding/)
@@ -2981,7 +3046,7 @@ architecture scope. Routine CI uses deterministic provider fixtures.
 ### Installing from GameBanana and Thunderstore
 
 ```text
-portcove --library PATH --json profile provider-browse PORT_ID [--page N] [--provider PROVIDER]
+portcove --library PATH --json profile provider-browse PORT_ID [--page N] [--provider PROVIDER | --portal-source SOURCE_ID]
 portcove --library PATH --json profile provider-project PORT_ID PROJECT_ID [--provider PROVIDER]
 portcove --library PATH --json profile provider-plan PORT_ID PROFILE_ID PROJECT_ID FILE_ID [--provider PROVIDER] > plan.json
 portcove --library PATH --json profile provider-apply PORT_ID PROFILE_ID plan.json --expected-plan SHA256 [--allow-mod-code] --yes
@@ -3024,6 +3089,12 @@ browse URL. `provider-project` shows one mod's files or versions
 with the IDs `provider-plan` takes, refusing a mod from another game. Provider text is
 sanitized presentation data: names, popularity and version labels never establish
 compatibility, and a `stale` result is earlier data from an outage.
+
+Use `--portal-source SOURCE_ID` for an exact GameBanana game or Thunderstore
+community shown in the port's mod websites. Desktop offers the same browse action
+in Mods, including for listings without a setup. It opens projects in the provider's
+website after checking their game or community. The descriptive source does not
+grant package or installation permissions.
 
 `provider-plan` needs a reviewed binding and a current provider observation; cached
 data from an outage never produces a plan. Missing, null, or malformed eligibility

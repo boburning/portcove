@@ -8,7 +8,7 @@ import {
   readdirSync,
   renameSync,
 } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 
@@ -216,6 +216,14 @@ void test("needed decoder snapshots the captured validator once and retains each
   assert.notEqual(requiredFixture(fixture.factories[0]).cli, fixture.cli);
   assert.equal(fixture.processes.filter(({ inspection }) => inspection).length, 3);
   assert.equal(fixture.processes.filter(({ inspection }) => !inspection).length, 2);
+  const libraries = fixture.processes
+    .filter(({ inspection }) => !inspection)
+    .map(({ library }) => String(library));
+  assert.equal(new Set(libraries).size, 2);
+  for (const library of libraries) {
+    assert.equal(dirname(library), tmpdir());
+    assert.equal(existsSync(library), false);
+  }
   const scratch = join(fixture.output, "scratch");
   const roots = readdirSync(scratch);
   assert.equal(roots.length, 1);
@@ -309,6 +317,8 @@ void test("explicit IGDB hero preparation retains unknown acquisition when its s
   assert.deepEqual(
     exactCoverage.map((item) => [item.role, item.provider, item.state]),
     [
+      ["key_art", "igdb", "unknown"],
+      ["logo", "igdb", "unknown"],
       ["header", "igdb", "unknown"],
       ["screenshot", "igdb", "unknown"],
     ],
@@ -325,4 +335,195 @@ void test("explicit IGDB hero preparation retains unknown acquisition when its s
   );
   assert.equal(record(evidence.provider_metrics).authentication_requests, 0);
   assert.equal(record(evidence.provider_metrics).image_requests, 0);
+});
+
+void test("hero preparation retains reviewed directory media for a managed listing", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-managed-media-dispatch-"));
+  const output = join(scratch, "proposal");
+  const result = run(
+    "--prepare-artwork",
+    join(catalogRoot, "catalog.json"),
+    "--output-dir",
+    output,
+    "--credentials-file",
+    join(scratch, "absent-private-credentials.json"),
+    "--artwork-ids",
+    "tomba-recompiled",
+    "--hero-media",
+    "igdb",
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const evidence = fixtureJson(readFileSync(join(output, "artwork-evidence.json"), "utf8"));
+  const details = record(evidence.game_media);
+  const original = (entry: Record<string, unknown>) =>
+    record(entry.subject).source_edition_id === "tomba-playstation";
+  const coverage = records(details.coverage).filter(original);
+  const header = coverage.find((item) => item.role === "header");
+  assert.equal(header?.state, "admitted");
+  assert.deepEqual(header?.provider_game_ids, [4097]);
+  const observed = records(details.records).filter(original);
+  assert.equal(observed.find((item) => item.role === "header")?.reason, "existing-scene-retained");
+  const logo = observed.find((item) => item.role === "logo");
+  assert.equal(logo?.reason, "identity-provider-unavailable");
+  assert.equal(record(evidence.provider_metrics).authentication_requests, 0);
+  assert.match(String(details.accepted_media_context_sha256), /^[a-f0-9]{64}$/u);
+});
+
+void test("full artwork preparation checks typed scenes through the listing validator", () => {
+  const id = "tomba-recompiled";
+  const authored = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", `${id}.json`))),
+    id,
+  );
+  const asset = requiredFixture(
+    records(authored.listing.media).find((item) => item.role === "header"),
+  );
+  const logo = {
+    ...asset,
+    id: "fixture-original-logo",
+    role: "logo",
+    width: 300,
+    height: 200,
+    url: "https://images.igdb.com/igdb/image/upload/t_logo_med_2x/testlogo.png",
+    igdb: {
+      game_id: 4097,
+      game_slug: record(asset.igdb).game_slug,
+      image_id: "testlogo",
+      record_id: 10,
+      kind: "logo",
+    },
+  };
+  const fixture = proposalDecoderFixture(0, false, "--prepare-proposal", undefined, {
+    portId: id,
+    assets: [asset, logo],
+  });
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  const strict = fixtureCatalog(
+    fixtureJson(readFileSync(join(fixture.output, "catalog-proposal.json"))),
+  );
+  const strictPort = requiredFixture(strict.ports.find((port) => port.id === id));
+  assert.deepEqual(record(strictPort.presentation).media, [logo]);
+  const bytes = readFileSync(join(fixture.output, "listing-media-proposal.json"));
+  const directory = record(fixtureJson(bytes));
+  assert.equal(records(directory.listings)[0]?.id, id);
+  assert.deepEqual(records(directory.listings)[0]?.media, [logo, asset]);
+  const evidence = record(fixtureJson(readFileSync(join(fixture.output, "artwork-evidence.json"))));
+  const check = record(record(evidence.game_media).listing_check);
+  assert.equal(check.input_sha256, createHash("sha256").update(bytes).digest("hex"));
+  assert.equal(fixture.processes.filter((item) => record(item).listings === true).length, 1);
+  const withdrawn = proposalDecoderFixture(0, false, "--prepare-proposal", undefined, {
+    portId: id,
+    assets: [],
+    accepted: [asset],
+    gone: [`720p/${String(record(asset.igdb).image_id)}`],
+  });
+  assert.equal(withdrawn.result.status, 0, withdrawn.result.stderr);
+  const removal = record(
+    fixtureJson(readFileSync(join(withdrawn.output, "listing-media-proposal.json"))),
+  );
+  const changed = records(removal.listings).find((item) => item.id === id);
+  assert.ok(changed);
+  assert.equal(Object.hasOwn(changed, "media"), false);
+
+  const overridden = proposalDecoderFixture(
+    0,
+    false,
+    "--prepare-proposal",
+    (input) => {
+      const port = requiredFixture(input.ports.find((port) => port.id === id));
+      port.presentation = { ...record(port.presentation), media: [logo] };
+    },
+    { portId: id, assets: [], accepted: [asset] },
+  );
+  assert.equal(overridden.result.status, 0, overridden.result.stderr);
+  assert.equal(existsSync(join(overridden.output, "listing-media-proposal.json")), false);
+});
+
+void test("a selected listing-only identity receives descriptive media without a strict port", () => {
+  const id = "listing-scene-fixture";
+  const accepted = checkedAuthoredPort({
+    format_version: 1,
+    listing: {
+      id,
+      name: "Listing scene fixture",
+      summary: "An accepted project with no operational definition.",
+      project_url: "https://github.com/example/scene-fixture",
+    },
+  });
+  const donor = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", "tomba-recompiled.json"))),
+    "tomba-recompiled",
+  );
+  const original = requiredFixture(
+    records(donor.listing.media).find((item) => item.role === "header"),
+  );
+  const proposed = {
+    ...original,
+    id: "fixture-background",
+    subject: { kind: "port", port_id: id },
+  };
+  const fixture = proposalDecoderFixture(0, false, "--prepare-proposal", undefined, {
+    portId: id,
+    listingsOnly: [accepted],
+    assets: [proposed],
+  });
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  const directory = record(
+    fixtureJson(readFileSync(join(fixture.output, "listing-media-proposal.json"))),
+  );
+  const rows = records(directory.listings);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]?.project_url, accepted.listing.project_url);
+  assert.deepEqual(rows[0]?.media, [proposed]);
+  const operational = fixtureCatalog(
+    fixtureJson(readFileSync(join(fixture.output, "catalog-proposal.json"))),
+  );
+  const input = fixtureCatalog(
+    fixtureJson(readFileSync(join(fixture.catalogs, "catalog-fixture-input.json"))),
+  );
+  assert.deepEqual(operational, input);
+  assert.ok(!operational.ports.some((port) => port.id === id));
+  assert.equal(fixture.processes.filter((item) => record(item).listings === true).length, 1);
+
+  const oldLogo = {
+    ...proposed,
+    id: "old-logo",
+    role: "logo",
+    width: 300,
+    height: 200,
+    url: "https://images.igdb.com/igdb/image/upload/t_logo_med_2x/oldlogo.png",
+    igdb: { game_id: 4097, game_slug: "tomba", image_id: "oldlogo", record_id: 10, kind: "logo" },
+  };
+  const replacement = {
+    ...oldLogo,
+    id: "new-logo",
+    url: "https://images.igdb.com/igdb/image/upload/t_logo_med_2x/newlogo.png",
+    igdb: { ...oldLogo.igdb, image_id: "newlogo", record_id: 11 },
+  };
+  const peer = "listing-scene-peer";
+  const other = checkedAuthoredPort({
+    ...accepted,
+    listing: {
+      ...accepted.listing,
+      id: peer,
+      project_url: "https://github.com/example/scene-peer",
+      media: [{ ...oldLogo, subject: { kind: "port", port_id: peer } }],
+    },
+  });
+  for (const assets of [[], [replacement]]) {
+    const gone = proposalDecoderFixture(0, false, "--prepare-proposal", undefined, {
+      portId: id,
+      listingsOnly: [accepted, other],
+      accepted: [oldLogo],
+      assets,
+      gone: ["logo_med_2x/oldlogo"],
+    });
+    assert.equal(gone.result.status, 0, gone.result.stderr);
+    const patch = record(
+      fixtureJson(readFileSync(join(gone.output, "listing-media-proposal.json"))),
+    );
+    const changed = new Map(records(patch.listings).map((row) => [row.id, row]));
+    assert.deepEqual(requiredFixture(changed.get(id)).media, assets.length ? assets : undefined);
+    assert.equal(Object.hasOwn(requiredFixture(changed.get(peer)), "media"), false);
+  }
 });

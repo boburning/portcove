@@ -1815,6 +1815,32 @@ fn generic_projection_source_mutations_fail_after_valid_entry_inspection() {
 }
 
 #[test]
+fn successor_support_draft_is_refused_for_current_and_retained_projections() {
+    let mut document = generic_projection();
+    document["catalog"]["source_catalog"]["qualification"] = json!([{"successor_support": null}]);
+    let contract = serde_json::to_vec(&document).unwrap();
+    let value = entry(&document, &contract, 0);
+    let bytes = serde_json::to_vec(&value).unwrap();
+    let inventory = index(&[(&value, &bytes)], &contract);
+    for result in [
+        inventory.inspect_catalog_projection("official", "projection-fixture", &bytes, &contract),
+        inventory.inspect_retained_catalog_projection(
+            "official",
+            "projection-fixture",
+            &bytes,
+            &contract,
+        ),
+    ] {
+        let error = result.unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("successor support requires independently verified evidence")
+        );
+    }
+}
+
+#[test]
 fn multi_track_psx_disc_sets_require_their_reader_capability() {
     let document = projection();
     let position = document["catalog"]["ports"]

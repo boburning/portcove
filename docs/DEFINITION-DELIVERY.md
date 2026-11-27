@@ -1336,6 +1336,13 @@ The generation-bound private command accepts only its known port ID and operatio
 channel. Core resolves a retained definition's exact official namespace/stable ID,
 or the exact known listing/embedded port ID; it refuses unknown IDs and does not
 strip namespace prefixes, infer identities from titles or map related editions.
+An accepted format-18 listing can explicitly name a separate official setup
+ID. The command also requires that reviewed target ID and refuses a changed or
+missing link before authority setup or network work. Before admitting a
+positive candidate, Core checks that the authenticated target declares the same
+original-game identity. Its own policy, adapter, original-file requirements and
+operation checks still decide availability. The external listing, registrations
+and managed stable ID stay separate.
 It delegates to the existing definition-refresh pipeline using the compiled source
 and authority. Like the catalog refresh, it installs only this release's compiled
 anchor when the library has none; checking cannot rotate trust, install a game or
@@ -2494,6 +2501,9 @@ Readers check compatibility per definition:
   upgrades.
 - A reader with the feature refuses a definition whose source has an unknown
   kind, authority or field. A new kind or authority needs a new feature name.
+- A source with an empty `platforms` list must be an external website and
+  also name `mods.platform-independent-portals-v1` in the definition's
+  required features. Older clients keep their current definition for that port.
 - Definitions without `mod_sources` keep their existing schema and remain
   readable by older clients.
 

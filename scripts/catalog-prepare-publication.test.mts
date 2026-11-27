@@ -24,7 +24,19 @@ const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex")
 const target = (bytes: Buffer) => `sha256/${hash(bytes)}.json`;
 const json = (value: unknown) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 
-function heldProjection(named = false) {
+const platformIndependentSource = {
+  id: "community",
+  authority: "link_out",
+  platforms: [],
+  name: "Community mods",
+  instructions: "Follow the author's setup.",
+  source: { kind: "external_portal", site: "community_site", url: "https://mods.example.org/" },
+};
+
+type NamedFixture = boolean | "mod-source";
+type PsxTool = { platform: string; sha256: string };
+
+function heldProjection(named: NamedFixture = false, tool?: PsxTool) {
   const authored = readFileSync(
     new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
   );
@@ -33,15 +45,23 @@ function heldProjection(named = false) {
         ports: [
           {
             id: heldId,
-            reviewed_launch_contract_v1: { package_format: { "windows-x86-64": "tar.xz" } },
+            ...(tool ? { adapter: "psx-recomp-managed", platforms: [tool.platform] } : {}),
+            ...(named === "mod-source"
+              ? { mod_sources: [platformIndependentSource] }
+              : {
+                  reviewed_launch_contract_v1: {
+                    package_format: { "windows-x86-64": "tar.xz" },
+                  },
+                }),
           },
         ],
       })
     : authored;
   const template = json({
-    contract_schema: 3,
+    contract_schema: tool ? 4 : 3,
     representation: "catalog_projection",
     catalog: { schema_version: 2, source_catalog: {}, ports: [] },
+    ...(tool ? { tool_artifacts: [tool] } : {}),
   });
   return {
     catalog,
@@ -50,17 +70,27 @@ function heldProjection(named = false) {
   };
 }
 
-async function fixture(named = false) {
+async function fixture(named: NamedFixture = false, tool?: PsxTool) {
   const prior = await readCatalogPublicationBundle(bundle, performance.now() + 5000);
   const retained = [...prior.keys()].filter((name) => name.startsWith("sha256/"));
   assert.equal(retained.length, 2);
-  const { catalog, template, projection } = heldProjection(named);
+  const { catalog, template, projection } = heldProjection(named, tool);
   const projectionTarget = target(projection);
   // This held fixture exercises assembly only. It supplies no reviewed Shipwright
   // authority. Actual Core inspection still owns every schema and scope check.
   const held = json({
     definition_schema: named ? 4 : 3,
-    ...(named ? { required_features: ["runtime.reviewed-package-and-launch-v1"] } : {}),
+    ...(named === "mod-source"
+      ? {
+          required_features: [
+            "mods.platform-independent-portals-v1",
+            "mods.sources-v1",
+            ...(tool ? ["tools.psx-toolchain-v1"] : []),
+          ],
+        }
+      : named
+        ? { required_features: ["runtime.reviewed-package-and-launch-v1"] }
+        : {}),
     namespace: "official",
     stable_id: heldId,
     revision: 1,
@@ -138,6 +168,18 @@ void test("a locally reconstructed Chameleon projection preserves the exact reta
   });
 });
 
+void test("successor support evidence stays outside protected preparation until its reader and producer qualify", async () => {
+  const f = await fixture();
+  const candidate = JSON.parse(f.projection.toString("utf8")) as {
+    catalog: { source_catalog: { qualification: unknown[] } };
+  };
+  candidate.catalog.source_catalog.qualification = [{ successor_support: {} }];
+  assert.throws(
+    () => assembleReviewedPublication(f.prior, f.next, heldId, json(candidate)),
+    /successor support publication requires the released reader and reviewed evidence producer/u,
+  );
+});
+
 void test("a generated route assembles deterministically and retains Chameleon content", async () => {
   const f = await fixture();
   const once = assembleReviewedPublication(f.prior, f.next, heldId, f.projection);
@@ -206,6 +248,29 @@ void test("an authored loader reaches preparation with one schema 3 entry and le
       ),
     /definition and generated projection schemas differ/u,
   );
+});
+
+void test("a mod-source entry binds schema 4 to a schema 3 leaf with both reader names", async () => {
+  const f = await fixture("mod-source");
+  const prepared = assembleReviewedPublication(f.prior, f.next, heldId, f.projection);
+  assert.deepEqual(prepared.files.get(f.projectionTarget), f.projection);
+  const entry = JSON.parse(f.next.get(f.heldTarget)!.toString()) as Record<string, unknown>;
+  for (const [features, error] of [
+    [[], /mod sources require schema 4 and the named reader/u],
+    [["mods.sources-v1"], /platform-independent mod portals require the named reader/u],
+  ] as const) {
+    entry.required_features = features;
+    assert.throws(
+      () =>
+        assembleReviewedPublication(
+          f.prior,
+          new Map([...f.next, [f.heldTarget, json(entry)]]),
+          heldId,
+          f.projection,
+        ),
+      error,
+    );
+  }
 });
 
 void test("index additions refuse stale policy or launch inputs and revoked Chameleon scope", async () => {
@@ -509,4 +574,13 @@ void test("schema-4 PS1 tool generation accepts only the compiled exact pack for
     () => assembleReviewedPublication(f.prior, f.next, heldId, projection),
     /requires the named schema-4 reader/u,
   );
+
+  const withSource = await fixture("mod-source", tool);
+  const prepared = assembleReviewedPublication(
+    withSource.prior,
+    withSource.next,
+    heldId,
+    withSource.projection,
+  );
+  assert.deepEqual(prepared.files.get(withSource.projectionTarget), withSource.projection);
 });

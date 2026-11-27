@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import { realpath, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { By, Key, until } from "selenium-webdriver";
 import type { WebDriver } from "selenium-webdriver";
 import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
@@ -22,6 +23,7 @@ import { gameProjectLabel, gameTitle } from "../src/port-identity.ts";
 import { INTERFACE_SIZES } from "../src/interface-size-controller.ts";
 import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { decodeDiscoverPortIds } from "./desktop-review-presentation.mts";
+import type { FileIdentity } from "../../../scripts/development-evidence.mts";
 /** Minimal read-only catalog fields consumed by this oracle, not a full IPC DTO. */
 export interface GameFirstObservedDefinition {
   id: string;
@@ -87,10 +89,45 @@ export async function readGameFirstRelationships() {
   );
   const expected = value as unknown as GameFirstRelationships;
   assert.equal(expected.audited_port_ids.length, 1649);
-  assert.equal(Object.keys(expected.families).length, 256);
-  assert.equal(Object.keys(expected.project_entries).length, 39);
+  assert.equal(Object.keys(expected.families).length, 257);
+  assert.equal(Object.keys(expected.project_entries).length, 38);
   assert.equal(Object.keys(expected.intentionally_separate).length, 17);
   return { expected, sha256: createHash("sha256").update(bytes).digest("hex") };
+}
+
+/** Read the generated documents from the same source checkout as the packaged candidate. */
+export async function readGameFirstSourcePopulation(inputs?: readonly FileIdentity[]) {
+  const base = new URL("../../../crates/portcove-core/catalog/", import.meta.url);
+  async function read(file: string, key: string) {
+    const inputPath = fileURLToPath(new URL(file, base));
+    const bytes = await readFile(inputPath);
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    if (inputs) {
+      const captured = inputs.find((input) => input.path === inputPath);
+      assert.equal(captured?.sha256, sha256, `Source population input changed: ${file}`);
+    }
+    const value: unknown = JSON.parse(bytes.toString());
+    assert.ok(isRecord(value) && Array.isArray(value[key]), `Missing ${key} in ${file}`);
+    const rows: unknown[] = value[key];
+    const games = new Map<string, string | null>();
+    for (const row of rows) {
+      assert.ok(isRecord(row) && typeof row.id === "string" && !games.has(row.id));
+      const owner = key === "ports" ? row.presentation : row;
+      const identity = isRecord(owner) ? owner.original_game : undefined;
+      if (identity == null) {
+        games.set(row.id, null);
+      } else {
+        assert.ok(isRecord(identity) && typeof identity.id === "string", `${row.id}: invalid game`);
+        games.set(row.id, identity.id);
+      }
+    }
+    return { games, sha256 };
+  }
+  const [definitions, listings] = await Promise.all([
+    read("catalog.json", "ports"),
+    read("listings.json", "listings"),
+  ]);
+  return { definitions, listings };
 }
 
 /** Observe shipping definition/listing precedence without granting any operational capability. */
@@ -98,6 +135,7 @@ export function inspectGameFirstRelationships(
   workspace: GameFirstCatalogObservation,
   expected: GameFirstRelationships,
   catalogProvenance?: { origin: string },
+  source?: Awaited<ReturnType<typeof readGameFirstSourcePopulation>>,
 ) {
   assert.ok(
     workspace.catalog && workspace.listing_catalog,
@@ -150,8 +188,8 @@ export function inspectGameFirstRelationships(
   }
   const groups = [...byGroup.values()];
   const sorted = (ids: readonly string[]) => [...ids].sort((a, b) => a.localeCompare(b));
-  const selectedEntries = Object.entries(expected.selected_definition_entries).filter(([id]) =>
-    byId.has(id),
+  const selectedEntries = Object.entries(expected.selected_definition_entries).filter(
+    ([id]) => byId.has(id) && !source?.definitions.games.has(id) && !source?.listings.games.has(id),
   );
   const families = { ...expected.families };
   for (const [id, reviewed] of selectedEntries) {
@@ -176,15 +214,45 @@ export function inspectGameFirstRelationships(
     families[reviewed.game_id] = reviewed.family_port_ids;
   }
   const auditedIds = [...expected.audited_port_ids, ...selectedEntries.map(([id]) => id)];
+  const audited = new Set(auditedIds);
+  const selectedIds = selectedEntries.map(([id]) => id);
+  if (source) {
+    assert.deepEqual(
+      sorted([...definitions.keys()]),
+      sorted([...new Set([...source.definitions.games.keys(), ...selectedIds])]),
+      "Complete source revision definition population",
+    );
+    assert.deepEqual(
+      sorted([...listings.keys()]),
+      sorted([...source.listings.games.keys()]),
+      "Complete source revision listing population",
+    );
+    const definitionGames = new Map(source.definitions.games);
+    for (const [id, reviewed] of selectedEntries) definitionGames.set(id, reviewed.game_id);
+    for (const [id, row] of definitions) {
+      assert.equal(
+        row.presentation?.original_game?.id ?? null,
+        definitionGames.get(id),
+        `${id}: source definition game`,
+      );
+    }
+    for (const [id, row] of listings) {
+      assert.equal(
+        row.original_game?.id ?? null,
+        source.listings.games.get(id),
+        `${id}: source listing game`,
+      );
+    }
+  }
   assert.deepEqual(
-    sorted([...byId.keys()]),
+    sorted([...byId.keys()].filter((id) => !source || audited.has(id))),
     sorted(auditedIds),
     "Complete reviewed loaded catalog universe",
   );
-  const provenance = auditedIds.map((id) => {
+  const provenance = (source ? sorted([...byId.keys()]) : auditedIds).map((id) => {
     const entry = required(byId.get(id));
-    const definition = workspace.catalog!.ports.find((port) => port.id === id);
-    const listing = workspace.listing_catalog!.listings.find((port) => port.id === id);
+    const definition = definitions.get(id);
+    const listing = listings.get(id);
     assert.ok(definition || listing, `Audited ${id} must be loaded, not synthesized`);
     assert.equal(entry.definition, definition);
     assert.equal(entry.listing, listing);
@@ -219,12 +287,14 @@ export function inspectGameFirstRelationships(
           : "project-fallback",
     };
   });
-  for (const [id, ports] of Object.entries(families))
-    assert.deepEqual(
-      sorted(required(byGroup.get(`game:${id}`)).ports.map((port) => port.id)),
-      sorted(ports),
-      `Complete reviewed family ${id}`,
+  const auditedFamily = (id: string) =>
+    sorted(
+      required(byGroup.get(`game:${id}`))
+        .ports.map((port) => port.id)
+        .filter((port) => audited.has(port)),
     );
+  for (const [id, ports] of Object.entries(families))
+    assert.deepEqual(auditedFamily(id), sorted(ports), `Complete reviewed family ${id}`);
   for (const [id, game] of Object.entries(expected.intentionally_separate)) {
     // A reviewed adaptation stays separate from the other original, while its
     // own faithful implementations may still form a reviewed complete family.
@@ -235,11 +305,7 @@ export function inspectGameFirstRelationships(
     );
     const members = expected.families[game] ?? [id];
     assert.ok(members.includes(id), `Separated ${id} must belong to its reviewed family`);
-    assert.deepEqual(
-      sorted(required(byGroup.get(`game:${game}`)).ports.map((port) => port.id)),
-      sorted(members),
-      `Reviewed separation ${id}`,
-    );
+    assert.deepEqual(auditedFamily(game), sorted(members), `Reviewed separation ${id}`);
   }
   for (const id of Object.keys(expected.project_entries))
     assert.deepEqual(
@@ -247,13 +313,20 @@ export function inspectGameFirstRelationships(
       [id],
       `Unresolved/composite project fallback ${id}`,
     );
-  return { entries, groups, provenance, reviewed_families: Object.keys(families).length };
+  return {
+    entries,
+    groups,
+    provenance,
+    audited_records: audited.size,
+    reviewed_families: Object.keys(families).length,
+  };
 }
 
 /** The dispatcher owns normal application startup, isolated output and positive-exit restart. */
 export interface GameFirstContext extends ScenarioContext {
   invoke: ScenarioInvoke;
   restartApplication: (name: string) => Promise<WebDriver>;
+  sourcePopulationInputs?: readonly FileIdentity[] | undefined;
 }
 
 const scenarioId = "native-game-first-choice-and-restart";
@@ -327,6 +400,17 @@ export async function readGameFirstCatalogObservation(
   );
   bracket.coherent = true;
   return { ...observation, ...after, catalog_digest };
+}
+
+export function assertEmbeddedGameFirstCatalog(
+  observation: Awaited<ReturnType<typeof readGameFirstCatalogObservation>>,
+) {
+  assert.equal(
+    observation.catalog_status.provenance.origin,
+    "embedded",
+    "Expected embedded definitions",
+  );
+  assert.equal(observation.listing_delivery_status.selected, false, "Expected embedded listings");
 }
 
 /** Repeat only explicitly stale reads or independently confirmed transitions; never replay an action. */
@@ -609,6 +693,7 @@ export async function gameFirstScenarios({
   output,
   artifacts,
   restartApplication,
+  sourcePopulationInputs,
 }: GameFirstContext) {
   await scenario(scenarioId, async () => {
     const originalWindow = await browser.manage().window().getRect();
@@ -623,13 +708,34 @@ export async function gameFirstScenarios({
     const captures: unknown[] = [];
     const readbacks: unknown[] = [];
     const read = () => readGameFirstObservation(invoke, readbacks);
-    const relationships = await readGameFirstRelationships();
+    const retainInitialFailure = async (error: unknown): Promise<never> => {
+      const report = path.join(output, "game-first-choice-result.json");
+      try {
+        await writeFile(
+          report,
+          `${JSON.stringify({ scenario: scenarioId, outcome: "failed", captures, readbacks, failure: errorMessage(error) }, null, 2)}\n`,
+          { flag: "wx" },
+        );
+        artifacts.push(report);
+      } catch (retentionError) {
+        console.error(
+          `Could not retain initial game-first readback: ${errorMessage(retentionError)}`,
+        );
+      }
+      throw error;
+    };
+    const [relationships, source] = await Promise.all([
+      readGameFirstRelationships(),
+      readGameFirstSourcePopulation(sourcePopulationInputs),
+    ]).catch(retainInitialFailure);
     const readCatalog = async (phase: string) => {
       const observation = await readGameFirstCatalogObservation(invoke, readbacks);
       const retained: Record<string, unknown> = {
         phase,
         expected_baseline_sha256: relationships.sha256,
         audited_revision: relationships.expected.audited_revision,
+        source_definitions_sha256: source.definitions.sha256,
+        source_listings_sha256: source.listings.sha256,
         generation: observation.bootstrap.generation,
         library_root: observation.bootstrap.library_root,
         catalog_digest: observation.catalog_digest,
@@ -637,21 +743,30 @@ export async function gameFirstScenarios({
         listing_delivery_status: observation.listing_delivery_status,
       };
       readbacks.push(retained);
+      assertEmbeddedGameFirstCatalog(observation);
       const production = inspectGameFirstRelationships(
         observation.workspace,
         relationships.expected,
         observation.catalog_status.provenance,
+        source,
       );
       Object.assign(retained, {
         families: production.reviewed_families,
-        audited_records: production.provenance.length,
+        audited_records: production.audited_records,
+        loaded_records: production.provenance.length,
         provenance: production.provenance,
       });
       return { ...observation, production };
     };
-    const before = await readCatalog("production-catalog-relationships");
+    const before = await readCatalog("production-catalog-relationships").catch(
+      retainInitialFailure,
+    );
     const production = before.production;
-    const family = required(relationships.expected.families[gameId]);
+    const members = (id: string) =>
+      required(production.groups.find((group) => group.id === `game:${id}`)).ports.map(
+        (port) => port.id,
+      );
+    const family = members(gameId);
     readbacks.push({
       phase: "before",
       generation: before.bootstrap.generation,
@@ -841,10 +956,10 @@ export async function gameFirstScenarios({
             "true",
           );
           for (const id of gameFirstPresentationFamilies) {
-            const expected = required(relationships.expected.families[id]);
             const familyGroup = required(
               production.groups.find((group) => group.id === `game:${id}`),
             );
+            const expected = familyGroup.ports.map((port) => port.id);
             const representative = [...familyGroup.ports].sort(
               (a, b) =>
                 Number(Boolean(b.presentation?.original_game_title?.trim())) -
@@ -943,9 +1058,7 @@ export async function gameFirstScenarios({
               decodeDiscoverPortIds(await card.getAttribute("data-discover-port-ids")).sort(
                 (a, b) => String(a).localeCompare(String(b)),
               ),
-              [...required(relationships.expected.families["kula-world"])].sort((a, b) =>
-                String(a).localeCompare(String(b)),
-              ),
+              members("kula-world").sort((a, b) => a.localeCompare(b)),
             );
             await click('[data-detail-origin^="command-trigger:"]');
             const commandSearch = await browser.wait(
@@ -982,8 +1095,10 @@ export async function gameFirstScenarios({
               By.css(`.discover-game[data-detail-return-group="game:${separateGame}"]`),
             );
             assert.deepEqual(
-              decodeDiscoverPortIds(await card.getAttribute("data-discover-port-ids")),
-              [id],
+              decodeDiscoverPortIds(await card.getAttribute("data-discover-port-ids")).sort(
+                (a, b) => String(a).localeCompare(String(b)),
+              ),
+              members(separateGame).sort((a, b) => a.localeCompare(b)),
             );
             readbacks.push({
               phase: "reviewed-separation-presentation",

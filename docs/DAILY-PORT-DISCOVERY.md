@@ -69,6 +69,10 @@ canonical owners before calling a candidate new. One exact, known-game owner is
 retained, including closed/deferred owners; ambiguous scope, conflicting IDs and
 orphaned catalog identities remain held. Distinct IDs within a proposal alone do
 not prove new implementations. Separate games sharing one repository remain separate.
+An accepted catalog record is an identity owner even when it has no issue.
+Intake preserves its catalog ID and checks its accepted repository lineage before
+creating an issue. A matching path with a conflicting repository ID holds for
+identity reconciliation.
 Primary-verified repository/game identity refines the generic title hint through
 creation and recovery. Equal display titles alone do not merge distinct known
 implementations; conflicting durable keys and unknown identities still hold.
@@ -836,16 +840,19 @@ Four Switch-focused families append after them: `switch recomp`,
 the `nintendo-switch` + `static-recompilation` topic intersection. Only these
 four use repository-search `updated` descending ordering within fixed windows,
 not newest-created order or an immutable snapshot. The narrowed Switch topic
-query prioritizes that console within the existing broad static topic; these
-are not four disjoint sources. All twenty-eight families rotate through the
-same resource budget, with persisted continuations. Stop after a full rotation
+query prioritizes that console within the existing broad static topic. The
+desktop `source-port` topic and the N64Recomp and libultraship framework searches
+follow those four families in the same rotation. All searches share one
+resource budget and keep their own continuations. Stop after a full rotation
 without a successful page, so current, capped or deferred families cannot cause
 an idle loop. Successful pages reset this idle bound and remain subject to
 request, provider, byte and runtime admission.
 The four broad families match names/descriptions. Existing ecosystem families
 also inspect framework references in README files: PS2Recomp, XboxRecomp,
 ReXGlue/XenonRecomp, PS3Recomp, bbport, PSPRecomp/PSP-Web-Recomp,
-gcn-recomp/DolRecomp/GCRecomp/NWiiRecomp, PSXRecomp and XboxXBERecomp,
+gcn-recomp/DolRecomp/GCRecomp/NWiiRecomp, PSXRecomp, XboxXBERecomp,
+[N64Recomp](https://github.com/N64Recomp/N64Recomp) and
+[libultraship](https://github.com/HarbourMasters/libultraship),
 plus the static-recompilation topic, rexglue organization and sp00nznet owner.
 Ecosystem searches include forks for lineage review. A framework reference in
 compiler/cache/SDK documentation remains only a lead, not a native port.
@@ -1076,6 +1083,42 @@ collection and fails the job at the last committed page, so a store error is
 never recorded as a source outcome. `result.json` lists every pass with its
 outcome, `committed.state_bytes` and transfer.
 
+Before bulk community-list work, each admitted collector pass gives retained
+release probes an early turn. It stops starting probes when they consume a
+quarter of the pass's initial request, byte or time budget. Each request remains
+subject to the existing admission and persistence paths, and one response can
+cross the early byte or time threshold. The collector then continues normal
+collection and later release checks for newly found leads. Never-checked and
+longest-unchecked leads go first. Probes use GitHub's immutable repository ID.
+An inaccessible or malformed response records a retry clock and preserves the
+last successful package observation. A lead keeps its dated observations across
+a refresh and can be probed again in a later run. Provider-wide quota,
+authentication and transport failures still use the existing boundaries.
+
+The natural maintenance run can prepare listing additions from retained
+positive release watches. The collector keeps the observed release ID, response
+digest and exact repository path with the lead. The next run can reconsider
+that candidate after interrupted preparation or an unavailable release probe.
+A complete sampled response replaces the previous observation. A renamed
+repository needs a new observation at its verified path before preparation.
+The maintenance store keeps the preview's starting point and upper
+repository ID. Each admitted run starts after the preceding run's first
+candidate, so a full preparation window still gives the next candidate
+a turn. Newly observed higher IDs join the next sweep.
+The run exports the committed discovery generation,
+revision, release ID and digest of the observed release response for each
+selected repository. The preview runs only for a handoff whose digest matches
+the current collection result. The batch preparer checks the local catalog and
+revalidates public repository identity through the read-only GitHub credential.
+It records unresolved candidates and
+provider and deadline deferrals alongside successful proposals. When scope
+verification finds an eligible addition, the preparer acquires the official
+Core reader and validates the listing projection. The scheduler retains the
+handoff, evidence, completion report, proposed records and any validated
+append-only patch in the discovery artifact. The aggregate preview files stay
+on the runner. A release hint is a reason to assess a candidate. Canonical
+admission and signed publication use their separate decision paths.
+
 A lead whose recent releases have no uploaded desktop asset gets a
 `no-native-package` watch (`waiting`). When a later run sees uploaded desktop
 assets for the same provider ID, the watch becomes `due` in a new episode. This
@@ -1096,10 +1139,133 @@ reads the latest run's export rather than rebuilding coverage from first-page
 searches. Whether the hosted task can read the run summary or artifact in its
 environment remains to be verified on the first scheduled run.
 
+The status export also derives `lead_reconciliation` directly from stored lead,
+upstream observation and intake checkpoint rows. Cohorts count scope/repository
+records by description signal and prior immutable repository-ID evidence. Verified
+intake and prepared checkpoints are separate flags; several candidates for one
+repository do not multiply the lead count. The bounded research and retained
+overlap examples are investigation inputs only. An unmatched repository is not
+necessarily new, and a matched repository may contain another game or edition.
+Use current canonical owner and primary game evidence through the existing intake
+contract before changing any disposition. This report does not write lead status,
+create issues, grant support, enable dispatch or introduce a new scheduler.
+
 `import-local --state-dir work/daily-discovery` imports a local checkout's
 `leads.json` once into an empty scope at its recorded strength. It does not
 trust the local source checkpoint as coverage, so those sources are collected
 again. A repeated import leaves the stored state unchanged.
+
+### Scheduled catalog proposals
+
+The rotating preparation cohort includes retained desktop-release hints and
+projects with either a retained port declaration or a curated source association
+whose sampled releases showed no desktop asset. Scope nominations still go
+through fresh repository and first-party evidence validation. They can prepare
+a project listing while package availability is unknown. Later release evidence
+uses the same stable identity. The replay receipt keeps the same writer and
+released-reader checks. It records a digest for the full preview handoff and
+replays exactly the candidates included in the validated patch. Candidates that
+did not fit the preview deadline stay eligible for later scheduled rounds.
+
+The Catalog admission workflow follows a completed scheduled Maintenance
+inventory run on `main`. It skips runs without a replay receipt and waits
+while a proposal by the appointed App is in review. The receipt verifier checks
+the exact producer and its artifact, then the workflow rebuilds the patch with
+the released Core reader. The prepared catalog and the normal generated listing
+directory must match. Only new repository-ID listing files and the generated
+listing directory can enter the proposal, along with the registration counts
+for those additions. GitHub runs the normal required
+checks through the existing draft, review and merge process. A separate read-only
+job ties the open App proposal to the scheduled producer, replays it from the
+trusted producer checkout, and compares the entire resulting Git tree and single
+parent with the exact proposal head. It runs the verification commands at the
+admission workflow revision so an older retained producer can still be replayed.
+It retains `catalog-admission-review` as a receipt for that head. After that
+job succeeds, the App can mark the verified draft ready once its branch is
+covered by the reviewed admission ruleset. GitHub's ready operation names the
+pull request without an expected head. The ruleset prevents updating,
+deleting, or replacing that head while the operation runs. The job checks the
+exact App proposal and head before and after changing draft status. An
+already-ready or closed proposal needs no update. A ready event may request a
+full rerun. Require the exact full CI attempt separately before guarded merge.
+Manual retargeting invalidates the automatic proposal check. The branch rule
+does not lock pull request metadata.
+
+The owner reviews the dedicated active repository ruleset for
+`refs/heads/automation/catalog-admission-*` with no exclusions or bypass
+actors. Restrict updates and deletion, with upstream fetch-and-merge disabled.
+GitHub can omit the update parameters for the default restrictive setting.
+Creation stays available for a new batch. Pin the reviewed ruleset ID and its
+exact public `updated_at` string in `PORTCOVE_CATALOG_ADMISSION_RULESET_ID` and
+`PORTCOVE_CATALOG_ADMISSION_RULESET_REVIEWED_AT`. GitHub may omit the bypass
+list for the App and workflow read tokens, so the owner checks it before
+pinning the revision. Leave these variables unset until the rule is approved
+and checked. A verified draft remains in review when the rule is absent.
+
+Repository-bound GitHub listings raise the generated directory to format 17.
+The workflow needs a released reader that validates that format to open a
+proposal. Before signing that directory, the publisher also requires a reviewed
+format-17 reader floor. Earlier clients can retain their existing signed catalog
+through the regular compatibility and update path.
+
+Keep the dedicated private App installed only on this repository, with Contents
+and Pull requests write access and no branch-rule bypass. Store its private key
+as `CATALOG_ADMISSION_APP_PRIVATE_KEY` in the `catalog-admission` environment,
+which allows only `main`. The repository variables
+`CATALOG_ADMISSION_APP_ID` and `CATALOG_ADMISSION_APP_SLUG` identify that App.
+Set `PORTCOVE_CATALOG_ADMISSION_ENABLED` to `true` after confirming the
+installation. The App token is requested after replay, generation and the
+staged-path check succeed.
+
+For guarded delivery, verify the retained replay receipt with
+`node scripts/discovery-admission-review-receipt.mts --review RUN/ATTEMPT --producer RUN/ATTEMPT --pull NUMBER --source SHA --head SHA --tree SHA`.
+Use the admission workflow attempt for `--review` and the original maintenance
+attempt for `--producer`. The command checks the completed workflow and review
+steps on `main`, the GitHub artifact digest, and the exact pull request, source,
+head and tree in the receipt. Use the proposal's own tree for `--tree` and
+check the composition with current `main` separately before merge. The replay
+check needs read access only.
+
+Catalog admission delivery follows successful CI on the exact App proposal.
+The workflow revision supplies the proposal writer even when the scheduled
+producer predates the review locator. The producer still supplies the replay.
+The delivery job verifies the independent receipt and runs catalog generation in
+the composition with current `main`. Only the reviewed listing additions and
+their two generated catalog files can change. The guarded merge checks the
+full CI attempt, target, tree, and closure intent. It records the resulting
+revision after reading it back from GitHub. Keep App proposals targeted at
+`main` while delivery runs. GitHub enforces the head at merge time. Portcove
+checks the base before the merge request and during readback. Enable
+`PORTCOVE_CATALOG_ADMISSION_AUTO_MERGE` only with owner approval for this
+protected merge path. When the flag is unset, the job retains its read-only
+proof. An older proposal without a review locator, a stale composition, or a
+missing receipt requires review in the existing admission pull request.
+If GitHub cancels a queued delivery or the result of a write is uncertain,
+rerun the exact delivery attempt to read back the proposal. The job reports a
+closed proposal separately from a merge it can locate on current `main`.
+
+Automatic scope uses a first-party declaration bound to the verified repository
+ID and the exact default-branch commit. The maintained `.recomp.json` and
+`.recomp-board.json` rules take precedence. A root `recomplauncher.json` can
+also identify a single-game project when it names the same repository, declares
+one required game input and lists bounded package-relative program candidates. Portcove
+records which source established scope and leaves game and edition matching to
+the existing authoring contracts. The scheduled observer can later use
+`mods.thunderstore` and `mods.gamebanana` from the same bound manifest after
+its game input IDs agree with the accepted game contract. The listing can be
+prepared before that match. Launch arguments, data paths, loader claims and
+setup actions stay out of the listing.
+
+Without one of those manifests, a current GitHub `source-port` topic and a
+single first-party [desktop game entry](https://specifications.freedesktop.org/desktop-entry/latest-single/)
+can establish one desktop implementation at the repository level. Preparation
+checks a complete default-branch tree and the exact entry bytes. It holds
+ambiguous trees, examples, hidden entries and entries that name a different
+program. This rule leaves original-game identity unresolved. After admission,
+the ordinary upstream package checks and restrictions govern acquisition.
+Search hints only nominate candidates for these fresh checks.
+
+The ordinary reviewed route remains available for projects with other evidence.
 
 ### Local runner on the shared store
 

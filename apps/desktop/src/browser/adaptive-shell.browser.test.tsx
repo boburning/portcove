@@ -267,14 +267,55 @@ for (const theme of ["dark", "light"]) {
     await expect.element(page.getByRole("heading", { name: "Activity", level: 1 })).toBeVisible();
     await page.getByRole("tab", { name: "Game updates", exact: true }).click();
     await expect.poll(() => document.querySelectorAll(".update-row").length).toBeGreaterThan(0);
+    const sections = page.getByRole("tablist", { name: "Activity sections" });
+    const strip = sections.element();
+    const tabs = sections.getByRole("tab").elements();
+    expect(tabs).toHaveLength(3);
+    await page.viewport(320, 800);
+    expect(strip.scrollWidth).toBeLessThanOrEqual(strip.clientWidth + 1);
     for (const width of [320, 240]) {
       await page.viewport(width, 800);
+      const rowTop = tabs[0]!.getBoundingClientRect().top;
+      for (const tab of tabs) {
+        const bounds = tab.getBoundingClientRect();
+        expect(bounds.top).toBeCloseTo(rowTop);
+        expect(bounds.height).toBeGreaterThanOrEqual(44);
+      }
       const overflowing = [...document.querySelectorAll<HTMLElement>("main *")]
         .filter((element) => element.getBoundingClientRect().right > innerWidth + 1)
         .map((element) => `${element.tagName}.${element.className}: ${element.textContent}`);
       expect(document.documentElement.scrollWidth, overflowing.join("\n")).toBeLessThanOrEqual(
         document.documentElement.clientWidth + 1,
       );
+    }
+    document.documentElement.style.fontSize = "200%";
+    const updates = sections.getByRole("tab", { name: "Game updates", exact: true });
+    const history = sections.getByRole("tab", { name: "History", exact: true });
+    updates.element().focus();
+    await userEvent.keyboard("{ArrowRight}{Enter}");
+    await expect.element(history).toHaveFocus();
+    await expect.element(history).toHaveAttribute("aria-selected", "true");
+    const historyButton = history.element();
+    const historyIsVisible = () => {
+      const viewport = strip.getBoundingClientRect();
+      const selected = historyButton.getBoundingClientRect();
+      return selected.left >= viewport.left - 1 && selected.right <= viewport.right + 1;
+    };
+    await expect.poll(historyIsVisible).toBe(true);
+    historyButton.blur();
+    await page.viewport(960, 800);
+    strip.scrollLeft = 0;
+    await page.viewport(240, 800);
+    await expect.element(history).toHaveAttribute("aria-selected", "true");
+    await expect.poll(historyIsVisible).toBe(true);
+    const button = historyButton.getBoundingClientRect();
+    const label = historyButton.querySelector(".activity-tab-label")!;
+    const title = document.createRange();
+    title.selectNodeContents(label);
+    const badge = historyButton.querySelector(".activity-tab-count")!.getBoundingClientRect();
+    for (const content of [title.getBoundingClientRect(), badge]) {
+      expect(content.left).toBeGreaterThanOrEqual(button.left - 1);
+      expect(content.right).toBeLessThanOrEqual(button.right + 1);
     }
   });
   for (const mode of ["spacing overrides", "200% authored text"]) {

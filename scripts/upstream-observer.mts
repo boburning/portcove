@@ -173,6 +173,8 @@ export interface ObserveOptions {
   admitRequest?: () => void;
   observeResponse?: (response: Response) => void;
   consumeResponseBytes?: (bytes: number | null) => void;
+  /** Report the operation's measured provider usage even when it cannot checkpoint. */
+  onAttemptUsage?: (consumed: ProviderObservation["consumed"]) => void;
   fetch?: ObserverFetch;
   now?: () => number;
   /** Absolute caller boundary may only shorten this operation. */
@@ -2402,5 +2404,7 @@ export async function observeUpstream(
       error.continuation = structuredClone(continuation);
     }
     throw error;
+  } finally {
+    options.onAttemptUsage?.({ ...consumed });
   }
 }

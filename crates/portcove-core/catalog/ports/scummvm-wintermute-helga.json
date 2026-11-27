@@ -12,7 +12,12 @@
         {
           "id": "helga-deep-in-trouble",
           "title": "English or Czech release",
-          "evidence_urls": ["https://www.scummvm.org/games/#games-wintermute:helga"]
+          "evidence_urls": [
+            "https://www.scummvm.org/games/#games-wintermute:helga",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/wintermute/detection_tables.h#L1548-L1556",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/wintermute/detection_tables.h#L217-L230"
+          ],
+          "system": "pc"
         }
       ]
     },

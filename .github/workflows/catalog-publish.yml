@@ -37,6 +37,20 @@ on:
         description: Owner activation only - create the first signed catalog history checkpoint
         type: boolean
         default: false
+      activate_cover_checkpoint:
+        description: Owner activation only - admit the first cover checkpoint with authenticated compact listings and released reader support
+        type: boolean
+        default: false
+
+      cover_replacement_packet:
+        description: Exact independently reviewed cover replacement packet JSON
+        type: string
+      cover_replacement_sha256:
+        description: SHA-256 of the exact review packet bytes
+        type: string
+      cover_replacement_preimages:
+        description: JSON mapping of all reviewed port IDs to their signed current cover digests
+        type: string
 
 permissions:
   contents: read
@@ -54,7 +68,10 @@ jobs:
   prepare:
     if: >-
       github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')) &&
+      ((!inputs.cover_replacement_packet && !inputs.cover_replacement_sha256 && !inputs.cover_replacement_preimages) ||
+      (github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' &&
+      github.triggering_actor == github.repository_owner))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -168,8 +185,8 @@ jobs:
       - name: Require a compatible CI-green source
         if: steps.decide.outputs.publish == 'true'
         run: |
-          if [ ! -f scripts/catalog-pages-overlay.mts ]; then
-            echo "::error::Wait for a CI-green main commit that supports the catalog Pages overlay"
+          if [ ! -f scripts/catalog-pages-overlay.mts ] || [ ! -f scripts/catalog-definition-reader-gate.mts ] || [ ! -f scripts/listing-cover-reader-proof.mts ]; then
+            echo "::error::Wait for a CI-green main commit that supports guarded catalog publication"
             exit 1
           fi
           # History support is required only once history is requested or published.
@@ -190,11 +207,39 @@ jobs:
       # listing targets are renewed exactly. A listing-only failure renews the
       # prior listing targets too and is reported as `listing_publication_stopped`;
       # the publish job fails the run on it after readback.
+      - name: Restore the scheduled media publication retry clock
+        id: media-clock
+        if: steps.decide.outputs.publish == 'true'
+        timeout-minutes: 1
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            work/catalog-media-provider/owner.json
+            work/catalog-media-provider/artwork-provider-admission.json
+          key: catalog-media-provider-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: catalog-media-provider-main-v1-
       - name: Project completed shared observations into the compact listing target
         id: observe
         if: steps.decide.outputs.publish == 'true'
+        env:
+          ACTIVATE_COVER_CHECKPOINT: ${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_cover_checkpoint == true }}
+          PORTCOVE_COVER_REVIEW_PACKET: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_packet || '' }}
+          PORTCOVE_COVER_REVIEW_SHA256: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_sha256 || '' }}
+          PORTCOVE_COVER_REVIEW_PREIMAGES: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_preimages || '' }}
+          PORTCOVE_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          PORTCOVE_SCHEDULED_MEDIA_PROVIDER_CHECKPOINT: ${{ github.workspace }}/work/catalog-media-provider
+          PORTCOVE_SCHEDULED_MEDIA_CACHE_FAILED: ${{ steps.media-clock.outcome != 'success' }}
         run: |
           set -euo pipefail
+          if [ -n "$PORTCOVE_COVER_REVIEW_PACKET$PORTCOVE_COVER_REVIEW_SHA256$PORTCOVE_COVER_REVIEW_PREIMAGES" ] &&
+            [ ! -f scripts/catalog-cover-approval.mts ]; then
+            echo "::error::Wait for a CI-green main commit that supports approved cover replacement"
+            exit 1
+          fi
+          cover_options=()
+          if [ -d site/catalog-history ]; then cover_options+=(--prior-history "$PWD/site/catalog-history"); fi
+          if [ "$ACTIVATE_COVER_CHECKPOINT" = true ]; then cover_options+=(--activate-cover-checkpoint); fi
           node scripts/listing-observation-delivery.mts \
             --bundle release/catalog-publication/bundle \
             --canonical crates/portcove-core/catalog/listings.json \
@@ -203,11 +248,22 @@ jobs:
             --cli target/release/portcove --tools target/release/portcove-release-tools \
             --root crates/portcove-core/catalog/official-definition-root.json \
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
+            "${cover_options[@]}" \
             --withdrawals crates/portcove-core/catalog/listing-withdrawals.json \
             --official-released-reader
           activation=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const report = JSON.parse(readFileSync(process.argv[1], "utf8")); if (report.released_reader_activation) process.stdout.write(JSON.stringify(report.released_reader_activation))' "$RUNNER_TEMP/observation-bundle/report.json")
           echo "reader_activation=$activation" >> "$GITHUB_OUTPUT"
           echo "BUNDLE=$RUNNER_TEMP/observation-bundle/bundle" >> "$GITHUB_ENV"
+      - name: Retain the scheduled media publication retry clock
+        if: ${{ !cancelled() && hashFiles('work/catalog-media-provider/artwork-provider-admission.json') != '' }}
+        timeout-minutes: 1
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            work/catalog-media-provider/owner.json
+            work/catalog-media-provider/artwork-provider-admission.json
+          key: catalog-media-provider-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Inspect the bundle and plan the next versions
         id: prepare
         if: steps.decide.outputs.publish == 'true'
@@ -229,11 +285,13 @@ jobs:
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
             --bundle "$BUNDLE" \
             --inspection-stdout "$RUNNER_TEMP/inspection.stdout" \
+            --cover-approval-report "$RUNNER_TEMP/observation-bundle/report.json" \
             --retain-bodies "$CATALOG_RETAIN_BODIES" \
             --prior "$PRIOR" "${history_request[@]}" > "$RUNNER_TEMP/prepare.outputs"
           cat "$RUNNER_TEMP/prepare.outputs" >> "$GITHUB_OUTPUT"
           target/release/portcove-release-tools check-definition-publication-context \
             "$RUNNER_TEMP/catalog-work/context.json"
+          node scripts/catalog-definition-reader-gate.mts prepare "$RUNNER_TEMP/catalog-work" site
           history_mode=$(sed -n 's/^history_mode=//p' "$RUNNER_TEMP/prepare.outputs")
           if [ -n "$history_mode" ]; then
             prior_commit=$(git -C site rev-parse HEAD)
@@ -407,6 +465,8 @@ jobs:
               "$RUNNER_TEMP/catalog-tools/portcove-release-tools" verify-definition-history \
                 "$RUNNER_TEMP/catalog-work/site-history.json" > "$RUNNER_TEMP/catalog-work/site-history-report.json"
             fi
+            node scripts/catalog-definition-reader-gate.mts recheck "$RUNNER_TEMP/catalog-work" site
+            node scripts/listing-cover-reader-proof.mts "$RUNNER_TEMP/catalog-work" site
             git -C site commit --quiet -m "Publish the official catalog from $COMMIT"
             # Bound the actual complete Pages tree, including the application and
             # browse output. Keep margin below GitHub Pages' published 1 GB limit.
@@ -437,6 +497,11 @@ jobs:
           fi
           url="https://boburning.github.io/portcove/catalog/metadata/timestamp.json"
           deadline=$((SECONDS + 900))
+          require_approval_receipt=$(node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const report = JSON.parse(readFileSync(process.argv[1], "utf8"));
+            process.stdout.write(report.cover_approvals ? "true" : "false");
+          ' "$RUNNER_TEMP/catalog-work/assembly-report.json")
           fetch_digest() {
             local remaining=$((deadline - SECONDS))
             if [ "$remaining" -le 0 ]; then echo unavailable; return; fi
@@ -467,16 +532,20 @@ jobs:
                 --output "$RUNNER_TEMP/catalog-publication-live-readback.json" \
                 --browse-index-sha256 "$browse_actual" --browse-inputs-sha256 "$inputs_actual"; then
                 echo "receipt=true" >> "$GITHUB_OUTPUT"
-              else
-                echo "::warning::Catalog publication succeeded, but the exact immutable readback receipt was unavailable."
+                exit 0
               fi
-              exit 0
+              echo "::warning::Catalog publication succeeded, but the exact immutable readback receipt was unavailable."
+              if [ "$require_approval_receipt" != true ]; then exit 0; fi
             fi
             remaining=$((deadline - SECONDS))
             if [ "$remaining" -le 0 ]; then break; fi
             if [ "$remaining" -gt 30 ]; then remaining=30; fi
             sleep "$remaining"
           done
+          if [ "$require_approval_receipt" = true ]; then
+            echo "::error::Pages did not serve the exact signed cover approval receipt within 15 minutes."
+            exit 1
+          fi
           echo "::warning::Pages did not serve the complete new timestamp and browse output within 15 minutes; check the Pages build."
       - name: Retain the successful public catalog readback
         if: steps.readback.outputs.receipt == 'true'

@@ -10600,6 +10600,35 @@
         ],
         "type": "string"
       },
+      "ListingModPortal": {
+        "additionalProperties": false,
+        "description": "A reviewed link to a mod community for this exact listing.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "site": {
+            "$ref": "#/$defs/ModPortalSite"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "site",
+          "name",
+          "url",
+          "instructions"
+        ],
+        "type": "object"
+      },
       "ListingObservationStatus": {
         "enum": [
           "complete",
@@ -10857,6 +10886,24 @@
           "instruction"
         ],
         "type": "object"
+      },
+      "ModPortalSite": {
+        "description": "Community mod sites that a link-out portal may point to. The host for each\nsite is fixed in Core; a definition cannot choose another host.",
+        "oneOf": [
+          {
+            "enum": [
+              "nexus_mods",
+              "mod_io",
+              "mod_db"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "community_site",
+            "description": "A site run for one game's community. Any public HTTPS host.",
+            "type": "string"
+          }
+        ]
       },
       "OriginalEditionSourceBinding": {
         "additionalProperties": false,
@@ -11311,8 +11358,22 @@
             },
             "type": "array"
           },
+          "mod_portals": {
+            "description": "Reviewed community links for this listing. Requires listing format 16.",
+            "items": {
+              "$ref": "#/$defs/ListingModPortal"
+            },
+            "type": "array"
+          },
           "name": {
             "type": "string"
+          },
+          "official_setup_id": {
+            "description": "Exact official definition to check from this listing. It confers no\nacquisition or runtime ownership and requires listing format 18.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "original_game": {
             "anyOf": [
@@ -27055,6 +27116,35 @@
         ],
         "type": "string"
       },
+      "ListingModPortal": {
+        "additionalProperties": false,
+        "description": "A reviewed link to a mod community for this exact listing.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "site": {
+            "$ref": "#/$defs/ModPortalSite"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "site",
+          "name",
+          "url",
+          "instructions"
+        ],
+        "type": "object"
+      },
       "ListingObservationStatus": {
         "enum": [
           "complete",
@@ -29441,8 +29531,22 @@
             },
             "type": "array"
           },
+          "mod_portals": {
+            "description": "Reviewed community links for this listing. Requires listing format 16.",
+            "items": {
+              "$ref": "#/$defs/ListingModPortal"
+            },
+            "type": "array"
+          },
           "name": {
             "type": "string"
+          },
+          "official_setup_id": {
+            "description": "Exact official definition to check from this listing. It confers no\nacquisition or runtime ownership and requires listing format 18.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "original_game": {
             "anyOf": [

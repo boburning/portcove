@@ -1185,6 +1185,284 @@ async fn curated_transition_fixture() -> (
     )
 }
 
+#[tokio::test]
+async fn signed_curated_acceptance_cannot_supply_missing_successor_source_observations() {
+    let (_fixture, _key, _root, _directory, library, catalog, pin, _other) =
+        curated_transition_fixture().await;
+    let error = crate::successor_support::authenticated_subject(
+        &library,
+        &catalog,
+        ID,
+        pin.platform,
+        crate::ReleaseChannel::Stable,
+        policy::CuratedArtifactOperation::Acquisition,
+    )
+    .unwrap_err();
+    assert!(
+        error.message.contains("signed source catalog")
+            || error.message.contains("exact source applicability"),
+        "{error}"
+    );
+}
+
+#[tokio::test]
+async fn successor_preparation_uses_authenticated_libraries_and_live_provider() {
+    use crate::{Platform, ReleaseProvider, SourceEvidenceKind, SourceEvidenceOutcome};
+    let platform = Platform::current().unwrap();
+    let mut authored =
+        managed_preparation_catalog(&[0x80, 0x37, 0x12, 0x40, 0, 0, 0, 0]).authoritative_document();
+    let mut pin = crate::curated_acquisition::fixture_record();
+    let port = &mut authored.ports[0];
+    pin.repository = port.release.repository.clone();
+    pin.upstream_url = format!("https://github.com/{}", pin.repository);
+    pin.platform = platform;
+    pin.filename = format!("game-{}.zip", platform.asset_tokens()[0]);
+    pin.record_version = 2;
+    pin.preserved_locations = vec![format!(
+        "https://github.com/Owner/portcove-preserved/releases/download/previous/{}.asset",
+        pin.sha256
+    )];
+    let set_pin = |document: &mut crate::CatalogDocument,
+                   pin: &mut crate::CuratedAcquisitionRecord| {
+        pin.acquisition_url = format!(
+            "{}/releases/download/{}/{}",
+            pin.upstream_url, pin.tag, pin.filename
+        );
+        document.ports[0]
+            .release
+            .curated
+            .insert(platform, pin.clone());
+        document.source_catalog.as_mut().unwrap().contracts[0]
+            .applicability
+            .push(crate::SourceContractApplicability {
+                upstream_ref: pin.tag.clone(),
+                artifact_sha256: Some(pin.sha256.clone()),
+            });
+    };
+    set_pin(&mut authored, &mut pin);
+    let source = authored.source_catalog.as_mut().unwrap();
+    let reviewed_evidence = |id: &str, role, claim: &str| crate::CatalogEvidence {
+        id: id.into(),
+        role,
+        authority: "Synthetic successor fixture".into(),
+        authority_ref: "a".repeat(40),
+        reviewed_at: "2026-09-05".into(),
+        claim: claim.into(),
+        immutable_url: format!(
+            "https://github.com/fixture/tuf-metadata/blob/{}/{id}.json",
+            "a".repeat(40)
+        ),
+        live_url: None,
+    };
+    let source_review = reviewed_evidence(
+        "fixture-source-review",
+        crate::CatalogEvidenceRole::UpstreamSupport,
+        "Binds the isolated exact source fixture to its reviewed archive",
+    );
+    let contract = &mut source.contracts[0];
+    contract.evidence_gap = None;
+    contract.evidence_ids = vec![source_review.id.clone()];
+    contract.immutable_review_url = source_review.immutable_url.clone();
+    contract.live_review_url = None;
+    source.evidence.push(source_review);
+    let identity = source
+        .current_source_identities(&source.contracts[0])
+        .unwrap()
+        .remove(0);
+    let observation = |kind| crate::SourceEvidence {
+        scope: crate::SourceEvidenceScope {
+            port_id: ID.into(),
+            platform,
+            artifact_sha256: Some(pin.sha256.clone()),
+            upstream_ref: Some(pin.tag.clone()),
+            contract_id: Some(source.contracts[0].id.clone()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: identity.clone(),
+            },
+            check_version: Some("fixture-lifecycle-v1".into()),
+        },
+        kind,
+        outcome: SourceEvidenceOutcome::Passed,
+        observed_at: now_unix() - 100,
+        portcove_version: None,
+        portcove_commit: None,
+        method: "isolated fixture".into(),
+        evidence_ids: vec!["fixture-qualification".into()],
+    };
+    source.qualification = vec![
+        observation(SourceEvidenceKind::HandsOn),
+        observation(SourceEvidenceKind::AutomatedLifecycle),
+    ];
+    source.evidence.push(reviewed_evidence(
+        "fixture-qualification",
+        crate::CatalogEvidenceRole::PortcoveQualification,
+        "Attests the isolated lifecycle and hands-on observations for the predecessor",
+    ));
+    let old_authored = Catalog::from_json(&serde_json::to_string(&authored).unwrap()).unwrap();
+    let (fixture, key, root, _previous_dir, previous_library, previous, _) =
+        managed_fixture_for_policy(old_authored.clone(), true).await;
+    let (_current_dir, current_library) = library();
+    policy::install_authority_for_test(&current_library, &root).unwrap();
+    let previous_candidate = acquire(&fixture, &root).await.unwrap();
+    let previous_admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    current_library
+        .apply_definition_publisher_policy(&previous_admission, Some(&previous_candidate))
+        .unwrap();
+
+    pin.tag = "unseen-v2".into();
+    pin.release_id += 1;
+    pin.asset_id += 1;
+    pin.sha256 = "d".repeat(64);
+    pin.preserved_locations = vec![format!(
+        "https://github.com/Owner/portcove-preserved/releases/download/current/{}.asset",
+        pin.sha256
+    )];
+    set_pin(&mut authored, &mut pin);
+    let current_authored = Catalog::from_json(&serde_json::to_string(&authored).unwrap()).unwrap();
+    let indexed = crate::test_fixture::indexed_catalog_bundle_at_revision(
+        &current_authored,
+        ID,
+        previous
+            .definition_selection(ID)
+            .unwrap()
+            .definition_revision
+            + 1,
+    );
+    let mut targets = vec![(INDEX_TARGET.to_owned(), indexed.index)];
+    targets.extend(indexed.contents);
+    let mut current_policy = managed_policy_for(&targets, true);
+    current_policy["policy_schema"] = 4.into();
+    current_policy["policy_revision"] = 2.into();
+    current_policy["decision"]["curated_acquisition_checks"] = 1.into();
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&current_policy).unwrap(),
+    ));
+    fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 2)),
+        )
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    current_library
+        .apply_definition_publisher_policy(&admission, Some(&candidate))
+        .unwrap();
+    let eligible = current_library
+        .assess_definition_candidate(&candidate, "official", ID)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    current_library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
+    let current = crate::definition_candidate::selection::load_selected_definition_catalog(
+        &current_library.connection().unwrap(),
+        &current_authored,
+        now_unix(),
+    )
+    .unwrap()
+    .unwrap()
+    .0;
+
+    let server = AcquisitionHttp::new();
+    let provider = crate::GithubReleaseProvider::with_api_root(server.origin.clone()).unwrap();
+    let old_service = crate::PortcoveService::with_provider_read_only(
+        previous_library.clone(),
+        std::sync::Arc::new(provider),
+    )
+    .unwrap();
+    let error = old_service
+        .prepare_successor_support_evidence(&old_service, ID)
+        .await
+        .unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("provenance or operational coordinates"),
+        "{error}"
+    );
+    assert!(server.requests.lock().unwrap().is_empty());
+
+    let (prepared, mut scope) = crate::successor_support::preflight(
+        (&previous_library, &previous),
+        (&current_library, &current),
+        ID,
+        platform,
+        ReleaseChannel::Stable,
+    )
+    .unwrap();
+    scope.fixture_origin = Some(server.origin.clone());
+    let provider = crate::GithubReleaseProvider::with_api_root(server.origin.clone()).unwrap();
+    let port = current.port(ID).unwrap();
+    let mut release = server.release(false);
+    release[0]["id"] = pin.release_id.into();
+    release[0]["tag_name"] = pin.tag.clone().into();
+    let asset = &mut release[0]["assets"][0];
+    asset["id"] = pin.asset_id.into();
+    asset["size"] = pin.size.into();
+    asset["name"] = pin.filename.clone().into();
+    asset["digest"] = format!("sha256:{}", pin.sha256).into();
+    let path = reqwest::Url::parse(&pin.acquisition_url)
+        .unwrap()
+        .path()
+        .to_owned();
+    asset["browser_download_url"] = format!("{}{path}", server.origin).into();
+    server.json(serde_json::json!({"id":scope.repository_id, "archived":false}));
+    server.json(release);
+    server.json(serde_json::json!({"ref":format!("refs/tags/{}", pin.tag), "object":{"type":"commit","sha":pin.commit_sha1}}));
+    let live = provider
+        .resolve_scoped(port, ReleaseChannel::Stable, platform, Some(&scope))
+        .await
+        .unwrap();
+    assert!(live.live_scoped_github_selection);
+    let receipt =
+        crate::successor_support::bind_live_selection(prepared.clone(), &scope, port, &live)
+            .unwrap();
+    assert_eq!(receipt.anchor_observations.len(), 2);
+    assert_eq!(receipt.successor.tag, pin.tag);
+    assert!(receipt.selected_at > 0);
+
+    for (outcome, check_version) in [
+        (SourceEvidenceOutcome::Failed, "fixture-lifecycle-v1"),
+        (SourceEvidenceOutcome::Unknown, "fixture-lifecycle-v1"),
+        (SourceEvidenceOutcome::Passed, "fixture-lifecycle-v2"),
+    ] {
+        let mut changed = old_authored.authoritative_document();
+        let evidence = &mut changed.source_catalog.as_mut().unwrap().qualification;
+        let mut newer = evidence[1].clone();
+        newer.observed_at += 1;
+        newer.outcome = outcome;
+        newer.scope.check_version = Some(check_version.into());
+        evidence.push(newer);
+        let changed = Catalog::from_json(&serde_json::to_string(&changed).unwrap()).unwrap();
+        assert!(
+            crate::successor_support::reviewed_anchor_observations(
+                &changed,
+                &current_authored,
+                &receipt.predecessor,
+                &receipt.successor,
+            )
+            .is_err()
+        );
+    }
+
+    server.status(404, "Not Found");
+    let preserved = provider
+        .resolve_scoped(port, ReleaseChannel::Stable, platform, Some(&scope))
+        .await
+        .unwrap();
+    assert!(preserved.fallback_reason.is_none());
+    assert!(!preserved.live_scoped_github_selection);
+    assert!(
+        crate::successor_support::bind_live_selection(prepared, &scope, port, &preserved).is_err()
+    );
+}
+
 async fn publish_curated_transition(
     fixture: &RepositoryFixture,
     key: &Key,

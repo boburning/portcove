@@ -43,6 +43,7 @@ jobs:
     outputs:
       audit_continuations: ${{ steps.execute.outputs.audit_continuations }}
       receipt_revision: ${{ steps.execute.outputs.receipt_revision }}
+      receipt_outcome: ${{ steps.execute.outputs.receipt_outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,9 +70,14 @@ jobs:
           HOSTED_INTAKE_MODE: scheduled-receipts
       - name: Retain bounded receipt diagnostics
         if: always()
+        env:
+          RECEIPT_OUTCOME: ${{ steps.execute.outputs.receipt_outcome }}
         run: |
           file=work/hosted-discovery-intake/scheduled-receipts.json
           if [[ -f "$file" && "$(wc -c < "$file")" -le 262144 ]]; then cat "$file"; fi
+          if [[ "$RECEIPT_OUTCOME" == deferred ]]; then
+            echo 'Intake receipt reconciliation deferred. The next scheduled run will retry resource admission.' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   collect:
     needs: reconcile-intake-receipts
@@ -92,6 +98,9 @@ jobs:
       PORTCOVE_MAINTENANCE_PURPOSE: ${{ inputs.purpose || 'schedule' }}
       PORTCOVE_MAINTENANCE_RESOURCE_EVIDENCE: ${{ github.workspace }}/work/maintenance-report/resource.jsonl
     steps:
+      - name: Reserve time for maintenance job output delivery
+        if: github.event_name == 'schedule'
+        run: echo "PORTCOVE_GAME_MEDIA_LATEST_START=$((EPOCHSECONDS + 69 * 60))" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Upstream snapshots are mapped at their producer's commit, which must be local.
@@ -145,6 +154,7 @@ jobs:
           shared-key: upstream-observer-cli
           cache-on-failure: true
       - name: Build the Core CLI that assesses changed ports
+        id: core-cli
         if: github.event_name == 'schedule' || inputs.purpose == 'collect-changed'
         timeout-minutes: 40
         env:
@@ -155,7 +165,7 @@ jobs:
           started=$EPOCHSECONDS
           cargo build --locked -p portcove-cli
           printf 'build-cli\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
-      - name: Verify a bounded window of accepted cover references
+      - name: Verify a bounded window of accepted cover and media references
         if: github.event_name == 'schedule'
         timeout-minutes: 4
         continue-on-error: true
@@ -168,7 +178,8 @@ jobs:
             GITHUB_REF="$GITHUB_REF" GITHUB_WORKFLOW_SHA="$GITHUB_WORKFLOW_SHA" \
             GITHUB_RUN_ID="$GITHUB_RUN_ID" GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
             node scripts/maintenance-artwork-health.mts target/debug/portcove \
-            work/maintenance-report/cover-artwork-health.json
+            work/maintenance-report/cover-artwork-health.json \
+            work/maintenance-report/media-artwork-health.json
       - name: Read current allowance and exercise bounded status admission
         if: inputs.purpose == 'status'
         env:
@@ -208,7 +219,8 @@ jobs:
               --release-health --release-content --publication --delivery --upstream --hosted-intake
               --intake-receipt-revision "${INTAKE_RECEIPT_REVISION:-unavailable}"
               --progress scripts/upstream-progress/sources-v1.json
-              --artwork-health work/maintenance-report/cover-artwork-health.json)
+              --artwork-health work/maintenance-report/cover-artwork-health.json
+              --media-artwork-health work/maintenance-report/media-artwork-health.json)
           else
             unset PORTCOVE_ROADMAP_GH_TOKEN
           fi
@@ -363,6 +375,7 @@ jobs:
           REPORT_OUTCOME: ${{ steps.report.outcome }}
           BACKUP_OUTCOME: ${{ steps.backup.outputs.artifact && 'captured' || steps.backup.outputs.reused == 'true' && 'reused' || steps.backup.outcome == 'success' && 'deferred' || steps.backup.outcome }}
           COLLECT_COMPLETED: ${{ steps.collect.outputs.completed }}
+          INTAKE_RECEIPT_OUTCOME: ${{ needs.reconcile-intake-receipts.outputs.receipt_outcome }}
           PUBLIC_SUMMARY_OUTCOME: ${{ steps.public-summary.outcome }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
@@ -388,6 +401,26 @@ jobs:
           manifest = load(work / "maintenance-backup/store/manifest.json") or {}
           server = load(evidence_dir / "server.json") or {}
           collected = load(evidence_dir / "collect.json") or {}
+          collect_outcome = os.environ["COLLECT_OUTCOME"]
+          collection = None
+          if collect_outcome == "success":
+              if os.environ["COLLECT_COMPLETED"] != "true":
+                  collect_outcome = "deferred"
+              else:
+                  collection = {"ledger_completion": "unknown"}
+                  if isinstance(collected, dict):
+                      failed_sources = collected.get("failed_sources")
+                      core_gaps = collected.get("core_gaps")
+                      if collected.get("outcome") == "coalesced":
+                          collection = {"ledger_completion": "coalesced"}
+                      elif (isinstance(failed_sources, list) and all(isinstance(name, str) for name in failed_sources)
+                            and len(failed_sources) == len(set(failed_sources))
+                            and type(core_gaps) is int and core_gaps >= 0):
+                          collection = {
+                              "ledger_completion": "incomplete" if failed_sources or core_gaps else "complete",
+                              "failed_source_count": len(failed_sources),
+                              "core_gaps": core_gaps,
+                          }
           times = {}
           if (evidence_dir / "step-times.tsv").is_file():
               for line in (evidence_dir / "step-times.tsv").read_text().splitlines():
@@ -403,10 +436,10 @@ jobs:
               "run": {"id": int(os.environ["RUN_ID"]), "attempt": int(os.environ["RUN_ATTEMPT"]),
                       "event": os.environ["EVENT_NAME"],
                       "head_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()},
-              "outcomes": {"collect": ("deferred" if os.environ["COLLECT_OUTCOME"] == "success"
-                                             and os.environ["COLLECT_COMPLETED"] != "true" else os.environ["COLLECT_OUTCOME"]), "report": os.environ["REPORT_OUTCOME"],
+              "outcomes": {"collect": collect_outcome, "report": os.environ["REPORT_OUTCOME"],
                            "backup": os.environ["BACKUP_OUTCOME"],
                            "public_summary": os.environ["PUBLIC_SUMMARY_OUTCOME"]},
+              "collection": collection,
               "purpose": os.environ["PORTCOVE_MAINTENANCE_PURPOSE"],
               "previous_verified_recovery": load(work / "maintenance-report/previous-recovery.json"),
               "provider_resource_evidence": "resource.jsonl" if (work / "maintenance-report/resource.jsonl").exists() else None,
@@ -415,8 +448,9 @@ jobs:
                                     if inventory else None,
               "report_scope": inventory.get("scope"),
               "intake_receipts": (
-                  {"status": "delegated", "job": "reconcile-intake-receipts"}
-                  if os.environ["GITHUB_EVENT_NAME"] == "schedule" and os.environ["COLLECT_COMPLETED"] == "true"
+                  {"status": os.environ["INTAKE_RECEIPT_OUTCOME"] or "unavailable",
+                   "job": "reconcile-intake-receipts"}
+                  if os.environ["GITHUB_EVENT_NAME"] == "schedule"
                   else None
               ),
               "subjects": len(inventory.get("subjects", [])),
@@ -432,9 +466,15 @@ jobs:
           }
           (work / "maintenance-report").mkdir(parents=True, exist_ok=True)
           (work / "maintenance-report/evidence.json").write_text(json.dumps(evidence, indent=2) + "\n")
+          collection_status = collect_outcome
+          if collection is not None:
+              collection_status += f" (ledger completion: {collection['ledger_completion']}"
+              if "failed_source_count" in collection:
+                  collection_status += f", {collection['failed_source_count']} failed sources, {collection['core_gaps']} Core gaps"
+              collection_status += ")"
           lines = ["## Maintenance inventory run evidence", "",
                    f"Run {evidence['run']['id']} attempt {evidence['run']['attempt']} ({evidence['run']['event']}) at `{evidence['run']['head_sha']}`.",
-                   f"Collection: {evidence['outcomes']['collect']}. Report generated {evidence['report_generated_at']}; "
+                   f"Collection: {collection_status}. Report generated {evidence['report_generated_at']}; "
                    f"{evidence['pending_changes']} pending changes.",
                    f"Database size: {evidence['database_size_bytes']} bytes; server {evidence['server_version_num']}; "
                    f"backup dump {(evidence['backup_dump'] or {}).get('bytes')} bytes.", "",
@@ -485,8 +525,122 @@ jobs:
           retention-days: 30
 
       - name: Check that collection kept the reconciled intake fence
-        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.collect.outputs.completed == 'true' && needs.reconcile-intake-receipts.result == 'success' }}
+        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.collect.outputs.completed == 'true' && needs.reconcile-intake-receipts.result == 'success' && needs.reconcile-intake-receipts.outputs.receipt_outcome == 'verified' }}
         run: jq -e '.hosted_intake.receipt_fence == "verified"' work/maintenance-evidence/collect.json > /dev/null
+      - name: Admit the game media pass within the remaining job time
+        id: game-media-window
+        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.core-cli.outcome == 'success' }}
+        timeout-minutes: 1
+        run: |
+          if (( EPOCHSECONDS < PORTCOVE_GAME_MEDIA_LATEST_START )); then
+            echo 'admitted=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Game media preparation deferred without attempts. The next schedule retries with its existing checkpoint.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Restore the missing game media checkpoint
+        id: game-media-cache
+        if: ${{ !cancelled() && steps.game-media-window.outputs.admitted == 'true' }}
+        timeout-minutes: 2
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: work/maintenance-game-media-state
+          key: maintenance-game-media-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: maintenance-game-media-main-v1-
+      - name: Restore the game media provider retry clock
+        id: game-media-provider
+        if: ${{ !cancelled() && steps.game-media-cache.outcome == 'success' }}
+        timeout-minutes: 2
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            work/maintenance-game-media-provider/owner.json
+            work/maintenance-game-media-provider/artwork-provider-admission.json
+          key: maintenance-game-media-provider-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: maintenance-game-media-provider-main-v1-
+      - name: Prepare a bounded round of due game media
+        id: game-media
+        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.game-media-provider.outcome == 'success' }}
+        timeout-minutes: 10
+        continue-on-error: true
+        env:
+          IGDB_CREDENTIALS: ${{ secrets.PORTCOVE_IGDB_CREDENTIALS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          base="$GITHUB_WORKSPACE/work"
+          evidence="$base/maintenance-game-media"
+          state="$base/maintenance-game-media-state"
+          mkdir "$evidence"
+          if [[ -z "$IGDB_CREDENTIALS" ]]; then
+            printf '%s\n' '{"format_version":1,"state":"deferred","reason":"provider-credentials-unavailable","attempted":0,"retry":"next-schedule"}' > "$evidence/status.json"
+            exit 0
+          fi
+          scratch=$(mktemp -d)
+          trap 'rm -rf -- "$scratch"' EXIT
+          printf '%s' "$IGDB_CREDENTIALS" > "$scratch/credentials.json"
+          unset IGDB_CREDENTIALS
+          [[ ! -L "$state" ]]
+          if [[ -d "$state" ]]; then
+            mkdir "$scratch/checkpoint"
+            cp -a -- "$state/." "$scratch/checkpoint/"
+          fi
+          env -i PATH="$PATH" HOME="$scratch" TMPDIR="$scratch" \
+            node scripts/generate-catalog.mts --prepare-proposal crates/portcove-core/catalog/catalog.json \
+              --hero-media igdb --credentials-file "$scratch/credentials.json" \
+              --media-checkpoint "$scratch/checkpoint" --media-due-limit 48 --media-image-budget-mib 32 \
+              --media-provider-checkpoint "$base/maintenance-game-media-provider" \
+              --validator-cli "$GITHUB_WORKSPACE/target/debug/portcove" \
+              --output-dir "$evidence/proposal" > "$scratch/result.json"
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import { snapshotGameMediaCheckpoint } from "./scripts/artwork-preparation-progress.mts";
+            const [source, destination, result] = process.argv.slice(1);
+            const { media_due: queue } = JSON.parse(readFileSync(result, "utf8"));
+            if (!queue || !Number.isSafeInteger(queue.selected) || queue.selected > 48)
+              throw new Error("Missing bounded game media outcome");
+            const checkpoint = snapshotGameMediaCheckpoint(source, destination);
+            process.stdout.write(JSON.stringify({ format_version: 1, ...queue, checkpoint }) + "\n");
+          ' "$scratch/checkpoint" "$scratch/next" "$scratch/result.json" > "$evidence/status.json"
+          if [[ -d "$state" ]]; then mv -- "$state" "$scratch/previous"; fi
+          mv -- "$scratch/next" "$state"
+          echo 'checkpoint=true' >> "$GITHUB_OUTPUT"
+      - name: Retain the provider retry clock even if proposal preparation fails
+        if: ${{ !cancelled() && steps.game-media-provider.outcome == 'success' && hashFiles('work/maintenance-game-media-provider/artwork-provider-admission.json') != '' }}
+        timeout-minutes: 1
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            work/maintenance-game-media-provider/owner.json
+            work/maintenance-game-media-provider/artwork-provider-admission.json
+          key: maintenance-game-media-provider-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Retain the scheduled game media proposal and receipt
+        id: game-media-report
+        if: ${{ !cancelled() && steps.game-media.outcome == 'success' }}
+        timeout-minutes: 2
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: maintenance-game-media-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/maintenance-game-media/status.json
+            work/maintenance-game-media/proposal/artwork-evidence.json
+            work/maintenance-game-media/proposal/listing-media-proposal.json
+            work/maintenance-game-media/proposal/game-media-additions.json
+            work/maintenance-game-media/proposal/catalog-proposal.json
+            work/maintenance-game-media/proposal/proposal-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain the due game media checkpoint for the next schedule
+        if: ${{ !cancelled() && steps.game-media.outputs.checkpoint == 'true' && steps.game-media-report.outcome == 'success' }}
+        timeout-minutes: 1
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: work/maintenance-game-media-state
+          key: maintenance-game-media-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
 
   discover:
     needs: collect
@@ -497,6 +651,7 @@ jobs:
       (github.event_name == 'schedule' || inputs.purpose == 'discover')
     permissions:
       contents: read
+      actions: read
     runs-on: ubuntu-latest
     # GitHub-hosted jobs stop at 360 minutes. Collection itself is bounded by
     # provider quota, runner disk and admitted database transfer, not counts.
@@ -508,6 +663,8 @@ jobs:
       PORTCOVE_MAINTENANCE_PURPOSE: ${{ inputs.purpose || 'schedule' }}
       PORTCOVE_MAINTENANCE_RESOURCE_EVIDENCE: ${{ github.workspace }}/work/discovery-worker/resource.jsonl
     steps:
+      - name: Record the discovery job clock
+        run: echo "PORTCOVE_DISCOVERY_JOB_STARTED_EPOCH=$EPOCHSECONDS" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -523,6 +680,40 @@ jobs:
         run: |
           command -v psql || sudo apt-get install -y --no-install-recommends postgresql-client
           mkdir -p work/discovery-worker
+      - name: Prepare optional discovery seed from the existing verified recovery
+        continue-on-error: true
+        timeout-minutes: 12
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # No production database credentials are supplied to this step.
+          # Select the same independently verified recovery artifacts used by collect.
+          rc=0
+          seed_root="$RUNNER_TEMP/discovery-seed"
+          node scripts/maintenance-recovery-artifact.mts "$seed_root" || rc=$?
+          if [[ "$rc" != 0 ]]; then
+            echo 'No verified discovery seed; the collector will use its normal cold read.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          client="/usr/lib/postgresql/18/bin"
+          if [[ ! -x "$client/initdb" ]]; then
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+            sudo apt-get install -y --no-install-recommends postgresql-18
+          fi
+          socket="$seed_root/socket"
+          mkdir -p "$socket"
+          "$client/initdb" --auth=trust --encoding=UTF8 --no-locale -D "$seed_root/data" > /dev/null
+          "$client/pg_ctl" -D "$seed_root/data" -l "$seed_root/postgres.log" -w \
+            -o "-c listen_addresses='' -k $socket" start
+          "$client/createdb" -h "$socket" discovery_seed
+          export PORTCOVE_POSTGRES_BIN="$client"
+          export PORTCOVE_DISCOVERY_SEED_URL="postgresql://$USER@localhost/discovery_seed?host=$socket"
+          node scripts/maintenance-store.mts restore --database-env PORTCOVE_DISCOVERY_SEED_URL \
+            --input "$seed_root/backup" > "$seed_root/restore.json"
+          {
+            echo "PORTCOVE_POSTGRES_BIN=$client"
+            echo "PORTCOVE_DISCOVERY_SEED_URL=$PORTCOVE_DISCOVERY_SEED_URL"
+          } >> "$GITHUB_ENV"
       - name: Collect discovery sources without a terminal or model
         id: discover
         # The worker stops collecting before this deadline to commit its final state.
@@ -534,12 +725,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           rc=0
-          export PORTCOVE_DISCOVERY_DEADLINE_EPOCH=$((EPOCHSECONDS + 330 * 60))
+          # The optional recovery seed shares the job clock. Keep time for the
+          # final database commit, status export, preparation and artifact upload.
+          export PORTCOVE_DISCOVERY_DEADLINE_EPOCH=$((PORTCOVE_DISCOVERY_JOB_STARTED_EPOCH + 330 * 60))
           node scripts/discovery-worker.mts collect --output work/discovery-worker || rc=$?
           if [[ "$rc" == 75 ]]; then
             echo 'Discovery collection deferred; the retained continuation resumes on the next run.' >> "$GITHUB_STEP_SUMMARY"
           elif [[ "$rc" != 0 ]]; then
             exit "$rc"
+          else
+            node -e '
+              const { createHash } = require("node:crypto");
+              const { readFileSync } = require("node:fs");
+              const root = "work/discovery-worker";
+              const result = JSON.parse(readFileSync(root + "/result.json", "utf8"));
+              if (!["complete", "partial"].includes(result.outcome) || !result.listing_preview_sha256)
+                process.exit(0);
+              const handoff = readFileSync(root + "/listing-preview-handoff.json");
+              if (createHash("sha256").update(handoff).digest("hex") !== result.listing_preview_sha256)
+                throw new Error("Current listing preview handoff differs from the collection result");
+              console.log("listing_preview=" + (JSON.parse(handoff).candidates.length > 0));
+            ' >> "$GITHUB_OUTPUT"
           fi
       - name: Export read-only discovery status
         if: ${{ !cancelled() }}
@@ -554,6 +760,35 @@ jobs:
             cat work/discovery-worker/status.md >> "$GITHUB_STEP_SUMMARY"
           fi
           [[ "$rc" == 0 || "$rc" == 75 ]]
+      - name: Prepare listing admission from scheduled discovery evidence
+        id: listing_preview
+        if: >-
+          !cancelled() && github.event_name == 'schedule' &&
+          steps.discover.outcome == 'success' &&
+          steps.discover.outputs.listing_preview == 'true'
+        # Allow the last bounded provider request, reader verification and Core inspection to finish.
+        timeout-minutes: 11
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/prepare-port.mts \
+            --discovery-listings work/discovery-worker/listing-preview-handoff.json \
+            --discovery-automatic-scope true \
+            --discovery-released-validator true \
+            --discovery-write-replay-receipt true \
+            --discovery-deadline-epoch-ms "$(((EPOCHSECONDS + 240) * 1000))" \
+            --output-dir work/discovery-worker/listing-preview
+      - name: Retain scheduled listing admission replay receipt
+        if: >-
+          !cancelled() && github.event_name == 'schedule' &&
+          steps.listing_preview.outcome == 'success' &&
+          hashFiles('work/discovery-worker/listing-preview/listing-admission-replay.json') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: listing-admission-replay-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/discovery-worker/listing-preview/listing-admission-replay.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Retain discovery result and status
         if: ${{ !cancelled() && hashFiles('work/discovery-worker/*.json') != '' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -564,6 +799,12 @@ jobs:
             work/discovery-worker/status.json
             work/discovery-worker/status.md
             work/discovery-worker/resource.jsonl
+            work/discovery-worker/listing-preview-evidence.json
+            work/discovery-worker/listing-preview-handoff.json
+            work/discovery-worker/listing-preview/completion-*.json
+            work/discovery-worker/listing-preview/github-*.json
+            work/discovery-worker/listing-preview/discovery-upstream-*.json
+            work/discovery-worker/listing-preview/discovery-listing-admission-*.patch
           if-no-files-found: warn
           retention-days: 30
 
@@ -647,15 +888,25 @@ jobs:
               verified: $restore[0].verified, source_server_version_num: $manifest[0].server_version_num,
               target_server_version_num: $server[0].server_version_num,
               dump_sha256: $dump, manifest_dump_sha256: $manifest[0].dump.sha256,
+              source_schema_version: $manifest[0].schema_version,
+              target_schema_version: $restore[0].target_schema_version,
+              migrated: $restore[0].migrated,
               sequences_verified: $restore[0].sequences_verified,
-              tables_match_manifest: ($restore[0].tables == $manifest[0].tables)}' \
+              tables_match_manifest: ($restore[0].manifest_tables_verified == true and
+                $restore[0].schema_version == $manifest[0].schema_version),
+              post_restore_tables_match_manifest: (if ($restore[0].migrated | length) == 0
+                then ($restore[0].tables == $manifest[0].tables) else null end)}' \
             > work/maintenance-restore/evidence/evidence.json
-          jq -e '.verified and .tables_match_manifest and .dump_sha256 == .manifest_dump_sha256' \
-            work/maintenance-restore/evidence/evidence.json > /dev/null
+          jq -e '.verified and .tables_match_manifest and
+            (if (.migrated | length) == 0 then .post_restore_tables_match_manifest == true
+              else .post_restore_tables_match_manifest == null end) and
+            (.source_schema_version < 6 or .sequences_verified == true) and
+            .target_schema_version == (.source_schema_version + (.migrated | length)) and
+            .dump_sha256 == .manifest_dump_sha256' work/maintenance-restore/evidence/evidence.json > /dev/null
           {
             echo '## Maintenance backup restore proof'
             echo
-            echo "Restored onto an independent PostgreSQL $MAJOR server in ${seconds}s; every table count and digest matches the manifest."
+            echo "Restored onto an independent PostgreSQL $MAJOR server in ${seconds}s. The backup's original schema matched its manifest before any upgrade."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Retain restore evidence
         if: ${{ !cancelled() && hashFiles('work/maintenance-restore/evidence/*') != '' }}

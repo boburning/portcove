@@ -26,6 +26,9 @@ const _: () = assert!(
 /// Upper bound on a listing's funding links; GitHub's `FUNDING.yml` allows four custom ones.
 const MAX_FUNDING_URLS: usize = 12;
 pub(crate) const VERIFIED_EDITION_LISTING_FORMAT: u32 = 14;
+pub(crate) const MOD_PORTAL_LISTING_FORMAT: u32 = 16;
+pub(crate) const REPOSITORY_BOUND_LISTING_FORMAT: u32 = 17;
+pub(crate) const OFFICIAL_SETUP_LISTING_FORMAT: u32 = 18;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -58,6 +61,8 @@ impl From<&PortDefinition> for PortListing {
             issue_number: None,
             listed_at: None,
             funding_urls: None,
+            mod_portals: Vec::new(),
+            official_setup_id: None,
             platforms: port.platforms.clone(),
             availability: ListingAvailability::Unknown,
             download_block_reason: None,
@@ -183,13 +188,23 @@ pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=RESTRICTION_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=OFFICIAL_SETUP_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 15",
+                "listing export supports formats 5 through 18",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < OFFICIAL_SETUP_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                listing.official_setup_id = None;
+            }
+        }
+        if format_version < MOD_PORTAL_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                listing.mod_portals.clear();
+            }
+        }
         if format_version < RESTRICTION_LISTING_FORMAT {
             for listing in &mut document.listings {
                 // The validated legacy string remains the older readers' hold.
@@ -248,6 +263,27 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self
+            .listings
+            .iter()
+            .any(|listing| listing.official_setup_id.is_some())
+        {
+            self.format_version = self.format_version.max(OFFICIAL_SETUP_LISTING_FORMAT);
+        }
+        if self
+            .listings
+            .iter()
+            .any(|listing| listing.admitted_github_repository_id().is_some())
+        {
+            self.format_version = self.format_version.max(REPOSITORY_BOUND_LISTING_FORMAT);
+        }
+        if self
+            .listings
+            .iter()
+            .any(|listing| !listing.mod_portals.is_empty())
+        {
+            self.format_version = self.format_version.max(MOD_PORTAL_LISTING_FORMAT);
+        }
         if self
             .listings
             .iter()
@@ -390,11 +426,41 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=RESTRICTION_LISTING_FORMAT) {
+        if !matches!(self.format_version, 1..=OFFICIAL_SETUP_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        if self.format_version < OFFICIAL_SETUP_LISTING_FORMAT
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.official_setup_id.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "reviewed official setup links require listing format 18",
+            ));
+        }
+        if self.format_version < REPOSITORY_BOUND_LISTING_FORMAT
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.admitted_github_repository_id().is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "repository-bound GitHub listings require listing format 17",
+            ));
+        }
+        if self.format_version < MOD_PORTAL_LISTING_FORMAT
+            && self
+                .listings
+                .iter()
+                .any(|listing| !listing.mod_portals.is_empty())
+        {
+            return Err(PortcoveError::unsupported(
+                "reviewed mod portals require listing format 16",
+            ));
         }
         if self.format_version < RESTRICTION_LISTING_FORMAT
             && self
@@ -724,6 +790,22 @@ impl crate::OriginalGameIdentity {
 }
 
 impl PortListing {
+    /// The discovery admission contract reserves `github-<repository ID>`
+    /// for canonical automatic listings.
+    pub(crate) fn admitted_github_repository_id(&self) -> Option<u64> {
+        portcove_listing_carrier::admitted_github_repository_id(&self.id)
+    }
+
+    pub(crate) fn retains_github_repository_id(&self, expected: u64) -> bool {
+        self.upstream_observation.as_ref().is_some_and(|observed| {
+            observed.provider == "github"
+                && observed.repository_id == Some(expected)
+                && observed.observed_at.is_some()
+                && crate::release::catalog_download_repository(&self.project_url)
+                    .is_ok_and(|name| name.eq_ignore_ascii_case(&observed.repository))
+        })
+    }
+
     fn validate_observation_metadata(&self) -> Result<()> {
         let invalid = || {
             PortcoveError::usage("invalid descriptive listing observation or maintenance metadata")
@@ -777,7 +859,12 @@ impl PortListing {
             } else {
                 !observation.repository.eq_ignore_ascii_case(repository)
             }
-            || observation.repository_id.is_some_and(|id| !identity(id))
+            || observation.repository_id.is_some_and(|observed| {
+                !identity(observed)
+                    || self
+                        .admitted_github_repository_id()
+                        .is_some_and(|expected| observed != expected)
+            })
             || !(1..=4).contains(&observation.release_limit)
             || observation.releases.len() > observation.release_limit
         {
@@ -882,6 +969,20 @@ impl PortListing {
     }
     pub fn validate(&self) -> Result<()> {
         self.validate_observation_metadata()?;
+        crate::mod_source::validate_listing_portals(&self.mod_portals)?;
+        if let Some(target) = &self.official_setup_id
+            && (target == &self.id
+                || target.is_empty()
+                || target.len() > 255
+                || !target
+                    .bytes()
+                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+                || self.original_game.is_none())
+        {
+            return Err(PortcoveError::usage(
+                "an official setup link requires a distinct stable ID and an exact original game",
+            ));
+        }
         if let Some(date) = &self.listed_at
             && !valid_listed_at(date)
         {
@@ -912,6 +1013,16 @@ impl PortListing {
                 "{} has invalid listing identity or description",
                 self.id
             )));
+        }
+        if self.admitted_github_repository_id().is_some() {
+            let project = crate::release::catalog_download_repository(&self.project_url)?;
+            if let Some(url) = &self.release_url
+                && !crate::release::catalog_download_repository(url)?.eq_ignore_ascii_case(&project)
+            {
+                return Err(PortcoveError::usage(
+                    "repository-bound listing project and release URLs differ",
+                ));
+            }
         }
         for value in [&self.original_game_title, &self.variant_label]
             .into_iter()
@@ -1251,17 +1362,29 @@ impl Catalog {
                 let recommended_download_channel = listing.recommended_download_channel;
                 let release_url = listing.release_url.clone();
                 let setup_url = listing.setup_url.clone().or(projected.setup_url.clone());
-                let implementation = projected.implementation.clone().or_else(|| {
-                    (listing.project_url == projected.project_url
-                        && same_original_description(
-                            listing.original_game.as_ref(),
-                            projected.original_game.as_ref(),
-                        ))
-                    .then(|| listing.implementation.clone())
-                    .flatten()
-                });
+                let same_scope = listing.project_url == projected.project_url
+                    && same_original_description(
+                        listing.original_game.as_ref(),
+                        projected.original_game.as_ref(),
+                    );
+                let implementation = projected
+                    .implementation
+                    .clone()
+                    .or_else(|| same_scope.then(|| listing.implementation.clone()).flatten());
+                let mod_portals = if same_scope {
+                    std::mem::take(&mut listing.mod_portals)
+                } else {
+                    Vec::new()
+                };
+                let official_setup_id = if same_scope {
+                    listing.official_setup_id.take()
+                } else {
+                    None
+                };
                 *listing = PortListing {
                     implementation,
+                    mod_portals,
+                    official_setup_id,
                     compatibility: listing.compatibility.clone(),
                     upstream_observation: listing.upstream_observation.clone(),
                     availability_override_reason: listing.availability_override_reason.clone(),
@@ -1286,6 +1409,24 @@ impl Catalog {
             }
         }
         self.with_projected_listing_document(document)
+    }
+
+    pub(crate) fn require_personal_project_unlisted(&self, proposed: &PortListing) -> Result<()> {
+        let repository_id = proposed.admitted_github_repository_id().ok_or_else(|| {
+            PortcoveError::verification("personal registration requires a stable repository ID")
+        })?;
+        let repository = crate::release::catalog_download_repository(&proposed.project_url)?;
+        if self.listings().iter().any(|row| {
+            row.id == proposed.id
+                || crate::release::catalog_download_repository(&row.project_url)
+                    .is_ok_and(|name| name.eq_ignore_ascii_case(&repository))
+                || row.retains_github_repository_id(repository_id)
+        }) {
+            return Err(PortcoveError::conflict(
+                "Portcove already lists this project. Select its catalog entry to use your files.",
+            ));
+        }
+        Ok(())
     }
 
     /// Durable launch intent retains only the descriptive project and an explicit
@@ -1339,6 +1480,35 @@ mod tests {
         })
     }
 
+    #[test]
+    fn repository_bound_listings_cannot_be_read_or_exported_in_older_formats() {
+        let mut admitted = listing();
+        admitted["id"] = json!("github-890");
+        admitted["project_url"] = json!("https://github.com/example/unknown-port");
+        admitted["release_url"] = json!("https://github.com/example/unknown-port/releases");
+        let mut directory = json!({
+            "format_version": MOD_PORTAL_LISTING_FORMAT,
+            "listings": [listing(), admitted],
+        });
+        assert!(CatalogListingDocument::from_json(&directory.to_string()).is_err());
+        directory["format_version"] = json!(REPOSITORY_BOUND_LISTING_FORMAT);
+        let accepted = CatalogListingDocument::from_json(&directory.to_string()).unwrap();
+        assert_eq!(
+            accepted.listings[1].admitted_github_repository_id(),
+            Some(890)
+        );
+        assert!(
+            accepted
+                .export_format(REPOSITORY_BOUND_LISTING_FORMAT)
+                .is_ok()
+        );
+        assert!(accepted.export_format(MOD_PORTAL_LISTING_FORMAT).is_err());
+
+        directory["listings"][1]["release_url"] =
+            json!("https://github.com/elsewhere/unknown-port/releases");
+        assert!(CatalogListingDocument::from_json(&directory.to_string()).is_err());
+    }
+
     /// The release-tools signer binds an added legacy row to
     /// `portcove_listing_carrier::legacy_row_projection` of the compact row;
     /// preparation binds it to this export. Both must agree on every row.
@@ -1376,7 +1546,6 @@ mod tests {
     fn signer_legacy_row_projection_equals_core_format_eleven_export() {
         let committed =
             CatalogListingDocument::from_json(include_str!("../../catalog/listings.json")).unwrap();
-        assert_eq!(committed.format_version, RESTRICTION_LISTING_FORMAT);
         assert_signer_projection_matches_export(&committed);
 
         // Fixture rows for every format-12+ fact the export removes, and the
@@ -1870,13 +2039,53 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":16,"listings":[listing()]}),
+            json!({"format_version":OFFICIAL_SETUP_LISTING_FORMAT + 1,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
         ] {
             assert!(CatalogListingDocument::from_json(&document.to_string()).is_err());
         }
+    }
+
+    #[test]
+    fn official_setup_link_requires_format_and_keeps_external_listing_identity() {
+        let catalog = Catalog::embedded().unwrap();
+        let mut listing = catalog
+            .listing("chameleon-twist-recompiled")
+            .unwrap()
+            .clone();
+        let before = listing.clone();
+        let target = "chameleon-twist-jp-recompiled";
+        listing.official_setup_id = Some(target.into());
+        let document = CatalogListingDocument {
+            format_version: OFFICIAL_SETUP_LISTING_FORMAT,
+            listings: vec![listing],
+        };
+        document.validate().unwrap();
+        let legacy = document.export_format(17).unwrap();
+        assert_eq!(legacy.listings, vec![before]);
+        assert_eq!(
+            portcove_listing_carrier::legacy_row_projection(
+                &serde_json::to_value(&document.listings[0]).unwrap()
+            ),
+            serde_json::to_value(&document.export_format(11).unwrap().listings[0]).unwrap()
+        );
+        let mut invalid = document.clone();
+        invalid.format_version = 17;
+        assert!(invalid.validate().is_err());
+        invalid.format_version = OFFICIAL_SETUP_LISTING_FORMAT;
+        for target in [
+            Some("official/chameleon-twist-jp-recompiled"),
+            Some("chameleon-twist-recompiled"),
+            Some(""),
+        ] {
+            invalid.listings[0].official_setup_id = target.map(str::to_owned);
+            assert!(invalid.validate().is_err());
+        }
+        invalid.listings[0].official_setup_id = Some(target.into());
+        invalid.listings[0].original_game = None;
+        assert!(invalid.validate().is_err());
     }
 
     #[test]
@@ -2236,8 +2445,11 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        // Embedded listings include typed acquisition restrictions.
-        assert_eq!(projected.listing_document().format_version, 15);
+        let embedded = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
+        assert_eq!(
+            projected.listing_document().format_version,
+            embedded.format_version
+        );
     }
 
     #[test]
@@ -2288,6 +2500,20 @@ mod observation_metadata_tests {
             &json!({"format_version":format,"listings":[value]}).to_string(),
         )
     }
+
+    #[test]
+    fn repository_bound_listing_observations_reject_reused_github_paths() {
+        let mut value = listing();
+        value["id"] = json!("github-7");
+        assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
+
+        value["upstream_observation"]["repository_id"] = json!(8);
+        assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_err());
+
+        value["id"] = json!("observed-project");
+        assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
+    }
+
     #[test]
     fn descriptive_observation_has_an_explicit_format_fence_and_retains_no_managed_authority() {
         let value = listing();
@@ -2425,12 +2651,14 @@ mod observation_metadata_tests {
         let retained = Catalog::for_user_selected_listing(document.listings[0].clone()).unwrap();
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
+        assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
+        let unsupported_format = OFFICIAL_SETUP_LISTING_FORMAT + 1;
         let mut future = document;
-        future.format_version = 16;
+        future.format_version = unsupported_format;
         future.promote_projected_format();
-        assert_eq!(future.format_version, 16);
+        assert_eq!(future.format_version, unsupported_format);
         assert!(future.validate().is_err());
-        assert!(parse(&value, 16).is_err());
+        assert!(parse(&value, unsupported_format).is_err());
     }
 
     #[test]
@@ -2457,8 +2685,6 @@ mod observation_metadata_tests {
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
         let current = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
-        // Typed acquisition restrictions lift the embedded directory to 15.
-        assert_eq!(current.format_version, 15);
         // Start with format 6 to isolate setup references from later fields.
         let mut document = current.export_format(6).unwrap();
         let legacy = document.export_format(5).unwrap();

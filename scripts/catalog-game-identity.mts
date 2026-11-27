@@ -18,6 +18,7 @@ import {
   checkedAuthoredPort,
   parseCatalogSource,
   projectAuthoredPort,
+  projectEmbeddedOriginalGame,
   readCatalogSource,
   type AuthoredListing,
   type AuthoredPort,
@@ -53,6 +54,96 @@ function generatedRecords(root: string, file: string, key: string) {
   return { sha256: sha256(content), records };
 }
 
+/** Review signals only: absence in authored fields is not effective unavailability,
+ * and shared repositories or artwork never authorize a merge or reassignment. */
+export function catalogSemanticReview(records: readonly AuthoredPort[]) {
+  const byGame = new Map<string, AuthoredListing[]>();
+  const byRepositoryGame = new Map<string, AuthoredListing[]>();
+  const byArtwork = new Map<string, AuthoredListing[]>();
+  const append = (map: Map<string, AuthoredListing[]>, key: string, listing: AuthoredListing) => {
+    const members = map.get(key) ?? [];
+    members.push(listing);
+    map.set(key, members);
+  };
+  const sorted = (values: Iterable<string>) => [...new Set(values)].sort();
+  const portIds = (members: AuthoredListing[]) => sorted(members.map(({ id }) => id));
+  const artworkId = (listing: AuthoredListing) =>
+    isRecord(listing.artwork) && typeof listing.artwork.game_id === "number"
+      ? String(listing.artwork.game_id)
+      : null;
+  const listings = records.map(({ listing }) => listing);
+  for (const listing of listings) {
+    const game = listing.original_game?.id;
+    if (!game) continue;
+    append(byGame, game, listing);
+    const repository = listing.project_url
+      .match(/^https:\/\/github\.com\/([a-z0-9_.-]+\/[a-z0-9_.-]+)\/?$/iu)?.[1]
+      ?.replace(/\.git$/iu, "")
+      .toLowerCase();
+    if (repository) append(byRepositoryGame, JSON.stringify([game, repository]), listing);
+    const art = artworkId(listing);
+    if (art !== null) append(byArtwork, art, listing);
+  }
+  const gameTitles = [...byGame].flatMap(([game_id, members]) => {
+    const titles = sorted(
+      members.flatMap(({ original_game_title }) =>
+        original_game_title ? [original_game_title] : [],
+      ),
+    );
+    return titles.length > 1 ? [{ game_id, titles, port_ids: portIds(members) }] : [];
+  });
+  const gameArtwork = [...byGame].flatMap(([game_id, members]) => {
+    const artwork_ids = sorted(
+      members.flatMap((listing) => {
+        const art = artworkId(listing);
+        return art === null ? [] : [art];
+      }),
+    );
+    return artwork_ids.length > 1 ? [{ game_id, artwork_ids, port_ids: portIds(members) }] : [];
+  });
+  const sharedArtwork = [...byArtwork].flatMap(([artwork_id, members]) => {
+    const game_ids = sorted(members.map(({ original_game }) => original_game!.id));
+    return game_ids.length > 1 ? [{ artwork_id, game_ids, port_ids: portIds(members) }] : [];
+  });
+  const repositoryGame = [...byRepositoryGame].flatMap(([key, members]) => {
+    const [game_id, repository] = JSON.parse(key) as [string, string];
+    return members.length > 1 ? [{ game_id, repository, port_ids: portIds(members) }] : [];
+  });
+  return {
+    scope:
+      "Authored-field review signals only; resolve editions, delivery routes and effective facts before any correction.",
+    missing_authored_metadata: {
+      original_game: portIds(listings.filter((listing) => !listing.original_game)),
+      source_editions: portIds(
+        listings.filter(
+          (listing) => listing.original_game && !listing.original_game.source_editions.length,
+        ),
+      ),
+      edition_system: portIds(
+        listings.filter((listing) =>
+          listing.original_game?.source_editions.some((edition) => !edition.system),
+        ),
+      ),
+      platforms: portIds(listings.filter((listing) => !listing.platforms?.length)),
+      availability: portIds(listings.filter((listing) => listing.availability === undefined)),
+      artwork: portIds(
+        listings.filter((listing) => listing.artwork == null && listing.collection_covers == null),
+      ),
+    },
+    same_game_different_titles: gameTitles.sort((a, b) => a.game_id.localeCompare(b.game_id, "en")),
+    same_game_repository: repositoryGame.sort(
+      (a, b) =>
+        a.game_id.localeCompare(b.game_id, "en") || a.repository.localeCompare(b.repository, "en"),
+    ),
+    same_game_different_artwork: gameArtwork.sort((a, b) =>
+      a.game_id.localeCompare(b.game_id, "en"),
+    ),
+    shared_artwork_different_games: sharedArtwork.sort((a, b) =>
+      a.artwork_id.localeCompare(b.artwork_id, "en"),
+    ),
+  };
+}
+
 /** Every port appears once. Candidate labels/targets flag research, never establish identity. */
 export function catalogGameIdentityReport(catalogRoot: string) {
   const { records, catalog, directory } = readCatalogSource(catalogRoot);
@@ -79,6 +170,11 @@ export function catalogGameIdentityReport(catalogRoot: string) {
   const ports = records
     .map((record) => {
       const { listing, integration } = record;
+      const operational = projected.has(listing.id);
+      const embeddedOriginalGame =
+        operational && listing.original_game
+          ? projectEmbeddedOriginalGame(listing.original_game)
+          : undefined;
       const contracts = catalog.source_catalog.contracts.filter(
         (contract) => contract.port_id === listing.id,
       );
@@ -116,7 +212,7 @@ export function catalogGameIdentityReport(catalogRoot: string) {
         displayed_title: listing.original_game_title ?? listing.name,
         project_url: listing.project_url,
         summary: listing.summary,
-        operational: projected.has(listing.id),
+        operational,
         original_game: listing.original_game ?? null,
         target_key: entry.target_key,
         lineage_gap: entry.identity_gap,
@@ -135,18 +231,17 @@ export function catalogGameIdentityReport(catalogRoot: string) {
         },
         projection: {
           authored_definition:
-            !projected.has(listing.id) ||
-            sameIdentity(projected.get(listing.id), listing.original_game, true),
+            !operational || sameIdentity(projected.get(listing.id), embeddedOriginalGame, true),
           authored_listing: sameIdentity(
             projectedListings.get(listing.id),
             listing.original_game,
             false,
           ),
-          embedded_definition: !projected.has(listing.id)
+          embedded_definition: !operational
             ? "not-applicable"
             : !embedded
               ? "unavailable"
-              : sameIdentity(embedded.records.get(listing.id), listing.original_game, true),
+              : sameIdentity(embedded.records.get(listing.id), embeddedOriginalGame, true),
           generated_listing: !listings
             ? "unavailable"
             : sameIdentity(listings.records.get(listing.id), listing.original_game, false),
@@ -227,6 +322,7 @@ export function catalogGameIdentityReport(catalogRoot: string) {
         Object.values(projection).some((value) => value === false || value === "unavailable"),
       ).length,
     },
+    semantic_review: catalogSemanticReview(records),
     lineage_families: targets,
     title_candidates: [...titleFamilies]
       .filter(([, members]) => members.length > 1)
@@ -240,7 +336,7 @@ export interface ReviewedGameAssignment {
   /** SHA-256 of the complete authored input file bytes, including unrelated fields. */
   expected_sha256: string;
   original_game?: NonNullable<AuthoredListing["original_game"]>;
-  original_game_review?: AuthoredPort["original_game_review"];
+  original_game_review?: AuthoredPort["original_game_review"] | null;
   original_game_title?: string;
 }
 
@@ -304,7 +400,8 @@ export function applyReviewedGameAssignments(
     const next = structuredClone(existing);
     if (assignment.original_game !== undefined)
       next.listing.original_game = assignment.original_game;
-    if (assignment.original_game_review !== undefined)
+    if (assignment.original_game_review === null) delete next.original_game_review;
+    else if (assignment.original_game_review !== undefined)
       next.original_game_review = assignment.original_game_review;
     if (assignment.original_game_title !== undefined)
       next.listing.original_game_title = assignment.original_game_title;

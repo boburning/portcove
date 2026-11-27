@@ -28,6 +28,11 @@ import {
   projectListingDelivery,
   publishedAbove,
 } from "./listing-observation-delivery.mts";
+import {
+  advanceArtworkCheckpoint,
+  artworkCheckpointTarget,
+  coverDeclarationScope,
+} from "./listing-artwork-checkpoint.mts";
 import { writeStubCli } from "./fixtures/listing-prepare-fixture.mts";
 import { acquireCatalogReleasedReader } from "./catalog-released-reader.mts";
 import { fixtureReleasedReaderSources } from "./fixtures/released-reader-fixture.mts";
@@ -168,6 +173,258 @@ void test("the rehearsal drives every activation step through preparation", asyn
     legacy_target_unchanged: true,
   });
   assert.match(report.preconditions.without_prior, /requires the prior signed repository/u);
+});
+
+void test("first cover checkpoint without an accepted withdrawal renews the exact compact publication", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const compact = encodeCompactListing(
+    wire({
+      ...document(legacyTarget),
+      revision: 2,
+      directory: canonical,
+    }),
+  );
+  const prior = writePriorRepository(path.join(fixture.root, "prior"), {
+    [listingDeliveryTarget]: legacyTarget,
+    [compactListingDeliveryTarget]: compact,
+    "policy/official/catalog.history-checkpoint.json": wire({}),
+  });
+  const output = path.join(fixture.root, "out");
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: fixture.canonical,
+    catalog: fixture.catalog,
+    prior,
+    priorHistory: path.join(fixture.root, "history"),
+    output,
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    observe: false,
+    officialReleasedReader: true,
+    activateCoverCheckpoint: true,
+    acquireReleasedReader: () =>
+      assert.fail("no release should be acquired without a cover transition"),
+  });
+  assert.equal(report.listing_publication_stopped?.code, "cover_evidence_unavailable");
+  assert.equal(report.released_cover_proof, undefined);
+  assertExactPriorRenewal(output, report, legacyTarget, compact);
+});
+
+void test("an unavailable shared-cover source preserves the authenticated publication", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const artwork = {
+    game_id: 100,
+    cover_id: 1,
+    game_slug: "original",
+    match_kind: "underlying-game",
+    image_id: "cosample",
+    image_sha256: "a".repeat(64),
+  } as const;
+  const recipient = row("shared-cover-recipient", {
+    original_game: {
+      format_version: 1,
+      id: "original",
+      evidence_urls: ["https://example.org/original"],
+      source_editions: [
+        {
+          id: "exact-edition",
+          system: "pc",
+          title: "Original",
+          evidence_urls: ["https://example.org/edition"],
+        },
+      ],
+    },
+  });
+  const retiredArtwork = { ...artwork, image_id: "coother", image_sha256: "c".repeat(64) };
+  const retired = row("unrelated-withdrawn-cover", { artwork: retiredArtwork });
+  const directory = { ...canonical, listings: [...canonical.listings, recipient, retired] };
+  const decisions = advanceArtworkCheckpoint(null, [
+    {
+      id: retired.id,
+      artwork: retiredArtwork,
+      scope: coverDeclarationScope(retired, retiredArtwork),
+      report: "sha256:" + "b".repeat(64),
+      status: "propose_fallback",
+      observed_at: "2026-11-26T12:00:00.000Z",
+    },
+  ]);
+  const original = projectListingDelivery(directory, [], legacyTarget, {
+    coverCheckpoint: decisions,
+  });
+  const decoded = document(original.bytes);
+  const historicalRecipient = decoded.directory.listings.find(({ id }) => id === recipient.id);
+  assert.ok(historicalRecipient);
+  historicalRecipient.artwork = artwork;
+  const projected = {
+    listing_delivery_schema: 1,
+    ...decoded,
+  };
+  const accepted = wire(projected);
+  const compact = encodeCompactListing(accepted);
+  const checkpoint = decisions.finish(accepted);
+  assert.ok(checkpoint);
+  const prior = writePriorRepository(path.join(fixture.root, "prior"), {
+    [listingDeliveryTarget]: legacyTarget,
+    [compactListingDeliveryTarget]: compact,
+    [artworkCheckpointTarget]: checkpoint,
+    "policy/official/catalog.history-checkpoint.json": wire({}),
+  });
+  const output = path.join(fixture.root, "out");
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: fixture.write("current-listings.json", directory),
+    catalog: fixture.catalog,
+    prior,
+    priorHistory: path.join(fixture.root, "history"),
+    output,
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    observe: false,
+    officialReleasedReader: true,
+    acquireReleasedReader: () =>
+      assert.fail("the existing exact cover publication can renew without a new reader"),
+    sharedCoverSource: path.join(fixture.root, "missing-authoring-input"),
+  });
+  assert.ok(report.diagnostics.some((line) => line.startsWith("shared cover enrichment deferred")));
+  assert.equal(report.listing_publication_stopped, undefined);
+  assert.deepEqual(readFileSync(path.join(output, "bundle", listingDeliveryTarget)), legacyTarget);
+  assert.deepEqual(
+    readFileSync(path.join(output, "bundle", compactListingDeliveryTarget)),
+    compact,
+  );
+  assert.deepEqual(readFileSync(path.join(output, "bundle", artworkCheckpointTarget)), checkpoint);
+});
+
+void test("a released reader without cover support leaves the exact prior withdrawal published", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const artwork = {
+    game_id: 100,
+    cover_id: 1,
+    game_slug: "original",
+    match_kind: "underlying-game",
+    image_id: "cosample",
+    image_sha256: "a".repeat(64),
+  } as const;
+  const game = row("artwork-fixture", { original_game_title: "Original", artwork });
+  const directory = { ...canonical, listings: [...canonical.listings, game] };
+  const receipt = "sha256:" + "b".repeat(64);
+  const decisions = advanceArtworkCheckpoint(null, [
+    {
+      id: game.id,
+      artwork,
+      scope: coverDeclarationScope(game, artwork),
+      report: receipt,
+      status: "propose_fallback",
+      observed_at: "2026-11-26T12:00:00.000Z",
+    },
+  ]);
+  const oldDirectory = wire({
+    ...document(legacyTarget),
+    revision: 2,
+    directory: { ...directory, listings: [...canonical.listings, decisions.apply(game)] },
+  });
+  const compact = encodeCompactListing(oldDirectory);
+  const checkpoint = decisions.finish(oldDirectory);
+  assert.ok(checkpoint);
+  const prior = writePriorRepository(path.join(fixture.root, "prior"), {
+    [listingDeliveryTarget]: legacyTarget,
+    [compactListingDeliveryTarget]: compact,
+    [artworkCheckpointTarget]: checkpoint,
+    "policy/official/catalog.history-checkpoint.json": wire({}),
+  });
+  const output = path.join(fixture.root, "out");
+  let acquisitions = 0;
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: fixture.write("artwork.json", directory),
+    catalog: fixture.catalog,
+    prior,
+    priorHistory: path.join(fixture.root, "history"),
+    output,
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    readObservation: () =>
+      Promise.reject(new Error("No release observations in this cover fixture")),
+    readArtworkHealth: () =>
+      Promise.resolve({
+        cover: () => ({
+          producerDirectory: directory,
+          facts: new Map([
+            [
+              `port:${game.id}@${artwork.image_id}`,
+              {
+                id: game.id,
+                artwork,
+                status: "unchanged",
+                observed_at: "2026-11-26T13:00:00.000Z",
+              },
+            ],
+          ]),
+          artifact: receipt,
+          producer: { workflow: "fixture", run: "1", attempt: "1", revision: "a".repeat(40) },
+          revision: "fixture",
+          rows: 1,
+          expected: 1,
+          complete: true,
+          gaps: [],
+          counts: { unchanged: 1, mismatch: 0, gone: 0, unavailable: 0, deferred: 0 },
+        }),
+        media: () => ({
+          facts: new Map(),
+          artifact: receipt,
+          producer: { workflow: "fixture", run: "1", attempt: "1", revision: "a".repeat(40) },
+          revision: "fixture-media",
+          expected: 3,
+          complete: false,
+          gaps: [],
+          counts: { unchanged: 1, mismatch: 0, gone: 1, unavailable: 1, deferred: 0 },
+          image_requests: 3,
+          image_bytes: 123,
+          retry_at: null,
+        }),
+      }),
+    officialReleasedReader: true,
+    acquireReleasedReader: (root) => {
+      acquisitions++;
+      return acquireCatalogReleasedReader(
+        root,
+        fixtureReleasedReaderSources({
+          binary: Buffer.from(
+            readFileSync(fixture.cli, "utf8").replace(
+              "ok: true, command, data",
+              "ok: true, error: null, command, data",
+            ),
+          ),
+          version: "0.1.0",
+        }).sources,
+      );
+    },
+  });
+  assert.equal(acquisitions, 1);
+  assert.equal(report.listing_publication_stopped?.code, "cover_reader_unavailable");
+  assert.match(
+    String(report.listing_publication_stopped?.figures.reason),
+    /does not prove the required operational features/u,
+  );
+  assert.equal(report.released_cover_proof, undefined);
+  assert.deepEqual(report.observed_media_health, {
+    revision: "fixture-media",
+    artifact: receipt,
+    eligible_variants: 3,
+    coverage: "partial",
+    role_outcomes: { unchanged: 1, mismatch: 0, gone: 1, unavailable: 1, deferred: 0 },
+    image_requests: 3,
+    image_bytes: 123,
+    retry_at: null,
+  });
+  assertExactPriorRenewal(output, report, legacyTarget, compact);
+  assert.deepEqual(readFileSync(path.join(output, "bundle", artworkCheckpointTarget)), checkpoint);
 });
 
 void test("a projection stop renews the exact prior carriers instead of excluding candidates", async (t) => {
@@ -535,11 +792,14 @@ void test("automatic reader selection activates, advances or renews exact carrie
       },
     }),
   );
-  const compactPrior = writePriorRepository(path.join(fixture.root, "compact-prior"), {
+  const compact14Prior = writePriorRepository(path.join(fixture.root, "compact-prior"), {
     [listingDeliveryTarget]: legacy,
     [compactListingDeliveryTarget]: compact14,
   });
-  const current = compactPrior15(fixture.root);
+  const { prior: current, decoded: currentDecoded } = compactPrior(
+    path.join(fixture.root, "current"),
+    canonical.listings,
+  );
   let acquisitions = 0;
   const prepare = (
     name: string,
@@ -628,12 +888,83 @@ void test("automatic reader selection activates, advances or renews exact carrie
       name,
     );
   }
+  const portalListing = {
+    ...canonical.listings[0]!,
+    mod_portals: [
+      {
+        id: "community",
+        site: "community_site",
+        name: "Game mods",
+        url: "https://mods.example.com/",
+        instructions: "Read the community requirements.",
+      },
+    ],
+  };
+  const previewReader = (version: string, capable = true) => ({
+    version,
+    binary: Buffer.from(
+      stub
+        .toString("utf8")
+        .replace('product_version: "0.1.0"', `product_version: "${version}"`)
+        .replace(
+          "[11, 12, 13, 14, 15]",
+          capable ? "[11, 12, 13, 14, 15, 16, 17]" : "[11, 12, 13, 14, 15]",
+        ),
+    ),
+  });
+  for (const format of [16, 17]) {
+    const nextDirectory = fixture.write(`portal-directory-${format}.json`, {
+      format_version: format,
+      listings: [portalListing, ...canonical.listings.slice(1)],
+    });
+    const older = await prepare(
+      `older-reader-${format}`,
+      current,
+      previewReader("0.1.0-preview.19"),
+      {
+        canonical: nextDirectory,
+      },
+    );
+    assert.equal(older.listing_format, 15);
+    assert.equal(older.changed, false);
+    assert.match(
+      String(older.released_reader_unavailable),
+      /requires released reader 0\.1\.0-preview\.20/u,
+    );
+    assert.deepEqual(
+      read(`older-reader-${format}`, compactListingDeliveryTarget),
+      encodeCompactListing(currentDecoded),
+    );
+    const capableReader = await prepare(
+      `qualified-reader-${format}`,
+      current,
+      previewReader("0.1.0-preview.20"),
+      {
+        canonical: nextDirectory,
+      },
+    );
+    assert.equal(capableReader.listing_format, format);
+    assert.equal(capableReader.minimum_live_listing_reader, "0.1.0-preview.20");
+    assert.equal(capableReader.released_reader_unavailable, undefined);
+    assert.deepEqual(read(`qualified-reader-${format}`, listingDeliveryTarget), legacy);
+  }
+  const incapable = await prepare(
+    "incomplete-preview-20",
+    current,
+    previewReader("0.1.0-preview.20", false),
+    {
+      canonical: path.join(fixture.root, "portal-directory-17.json"),
+    },
+  );
+  assert.equal(incapable.listing_format, 15);
+  assert.match(String(incapable.released_reader_unavailable), /listing format 17/u);
+
   // A compact format increase with a verified reader advances the format.
-  const advanced = await prepare("advance", compactPrior, { binary: stub, version: "0.1.0" });
+  const advanced = await prepare("advance", compact14Prior, { binary: stub, version: "0.1.0" });
   assert.equal(advanced.listing_format, 15);
   assert.deepEqual(read("advance", listingDeliveryTarget), legacy);
   // Without one, both exact authenticated carriers are renewed unchanged.
-  const renewed = await prepare("renew", compactPrior, {
+  const renewed = await prepare("renew", compact14Prior, {
     binary: stub,
     version: "0.1.0",
     withdrawn: ["0.1.0"],
@@ -653,7 +984,7 @@ void test("automatic reader selection activates, advances or renews exact carrie
   assert.deepEqual(read("renew", listingDeliveryTarget), legacy);
   assert.deepEqual(read("renew", compactListingDeliveryTarget), compact14);
   // An anonymous API refusal (rate limit or outage) renews them the same way.
-  const limited = await prepare("renew-rate-limited", compactPrior, {
+  const limited = await prepare("renew-rate-limited", compact14Prior, {
     binary: stub,
     version: "0.1.0",
     rateLimited: true,

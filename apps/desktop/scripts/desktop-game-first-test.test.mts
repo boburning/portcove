@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { test } from "vite-plus/test";
 import {
   captureGameFirstTarget,
   readGameFirstRelationships,
+  readGameFirstSourcePopulation,
   inspectGameFirstRelationships,
   gameFirstPresentationFamilies,
   observeGameFirstCaptureReadiness,
@@ -14,6 +16,7 @@ import {
 import { failureReport, portStatus, installedLaunchStatus } from "../src/test-fixtures.ts";
 import { transportValue } from "./transport-values.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
+import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import type {
   GameFirstObservedDefinition,
   GameFirstObservedListing,
@@ -949,7 +952,7 @@ function authoredDefinition(value: unknown): GameFirstObservedDefinition {
       : {}),
   };
 }
-async function productionWorkspace() {
+async function productionWorkspace(fullCatalog = false) {
   const catalog: unknown = JSON.parse(
     await readFile(
       new URL("../../../crates/portcove-core/catalog/catalog.json", import.meta.url),
@@ -966,11 +969,79 @@ async function productionWorkspace() {
   assert.ok(isRecord(listings) && Array.isArray(listings.listings));
   const ports: unknown[] = catalog.ports;
   const directory: unknown[] = listings.listings;
+  // This native-verifier fixture exercises its exact reviewed audit cohort.
+  // Current-catalog browser projection has a separate full-universe assertion.
+  const { expected } = await readGameFirstRelationships();
+  const audited = new Set(expected.audited_port_ids);
   return {
-    catalog: { ports: ports.map(authoredDefinition) },
-    listing_catalog: { listings: directory.map(authoredListing) },
+    catalog: {
+      ports: ports.map(authoredDefinition).filter(({ id }) => fullCatalog || audited.has(id)),
+    },
+    listing_catalog: {
+      listings: directory.map(authoredListing).filter(({ id }) => fullCatalog || audited.has(id)),
+    },
   };
 }
+
+test("native package qualification binds newly admitted identities to the complete source population", async () => {
+  const { expected } = await readGameFirstRelationships();
+  const actual = await productionWorkspace(true);
+  const inputs = await Promise.all(
+    ["catalog.json", "listings.json"].map((file) =>
+      fileIdentity(
+        fileURLToPath(new URL(`../../../crates/portcove-core/catalog/${file}`, import.meta.url)),
+      ),
+    ),
+  );
+  const source = await readGameFirstSourcePopulation(inputs);
+  await assert.rejects(
+    readGameFirstSourcePopulation([{ ...inputs[0]!, sha256: "0".repeat(64) }, inputs[1]!]),
+    /Source population input changed: catalog.json/u,
+  );
+  assert.match(source.definitions.sha256, /^[a-f0-9]{64}$/u);
+  assert.match(source.listings.sha256, /^[a-f0-9]{64}$/u);
+  const observed = inspectGameFirstRelationships(actual, expected, { origin: "embedded" }, source);
+  const loadedIds = new Set([...source.definitions.games.keys(), ...source.listings.games.keys()]);
+  assert.equal(observed.provenance.length, loadedIds.size);
+  assert.equal(observed.audited_records, expected.audited_port_ids.length);
+  assert.ok(observed.provenance.length > observed.audited_records);
+
+  const audited = new Set(expected.audited_port_ids);
+  const extra = actual.listing_catalog.listings.find((row) => !audited.has(row.id))!;
+  const wrong = structuredClone(actual);
+  wrong.listing_catalog.listings.find((row) => row.id === extra.id)!.original_game = {
+    id: "unrelated-original-game",
+  };
+  assert.throws(
+    () => inspectGameFirstRelationships(wrong, expected, { origin: "embedded" }, source),
+    /source listing game/u,
+  );
+  const dualId = "2ship2harkinian";
+  const masked = structuredClone(actual);
+  const maskedDefinition = masked.catalog.ports.find((row) => row.id === dualId)!;
+  const maskedListing = masked.listing_catalog.listings.find((row) => row.id === dualId)!;
+  assert.equal(maskedDefinition.presentation?.original_game?.id, maskedListing.original_game?.id);
+  maskedDefinition.presentation!.original_game = null;
+  assert.throws(
+    () => inspectGameFirstRelationships(masked, expected, { origin: "embedded" }, source),
+    /2ship2harkinian: source definition game/u,
+  );
+  maskedDefinition.presentation!.original_game = actual.catalog.ports.find(
+    (row) => row.id === dualId,
+  )!.presentation!.original_game!;
+  maskedListing.original_game = { id: "masked-by-definition" };
+  assert.throws(
+    () => inspectGameFirstRelationships(masked, expected, { origin: "embedded" }, source),
+    /2ship2harkinian: source listing game/u,
+  );
+  actual.listing_catalog.listings = actual.listing_catalog.listings.filter(
+    (row) => row.id !== extra.id,
+  );
+  assert.throws(
+    () => inspectGameFirstRelationships(actual, expected, { origin: "embedded" }, source),
+    /Complete source revision listing population/u,
+  );
+});
 
 test("native relationship observation checks every independent reviewed family against real production documents", async () => {
   const { expected, sha256 } = await readGameFirstRelationships();
@@ -1081,7 +1152,7 @@ test("every staged official definition retains reviewed game identity through st
     origin: "definition_selected",
   });
   assert.equal(observed.provenance.length, 1650);
-  assert.equal(observed.reviewed_families, 257);
+  assert.equal(observed.reviewed_families, 258);
   assert.deepEqual(
     observed.groups
       .find((group) => group.id === "game:chameleon-twist")

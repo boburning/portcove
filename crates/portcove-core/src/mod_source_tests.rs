@@ -224,8 +224,30 @@ fn data_github(
 }
 
 #[test]
+fn the_reviewed_ring_racers_listing_portal_remains_link_out_only() {
+    let catalog = Catalog::embedded().unwrap();
+    assert!(catalog.port("ring-racers").is_err());
+    for platform in PLATFORMS {
+        assert_eq!(
+            data_portals(&catalog, "ring-racers", platform),
+            [(
+                "kart-krew-addons".to_owned(),
+                "https://ms.kartkrew.org/".to_owned(),
+                false
+            )],
+            "{platform:?}"
+        );
+    }
+}
+
+#[test]
 fn data_declarations_resolve_exactly_like_the_retired_compiled_tables() {
     let catalog = Catalog::embedded().unwrap();
+    let legacy = catalog
+        .listing_document()
+        .export_format(crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT)
+        .unwrap();
+    let catalog = catalog.with_listing_document(legacy).unwrap();
     let ids: BTreeSet<&str> = catalog
         .ports()
         .iter()
@@ -468,6 +490,15 @@ fn a_fixture_only_port_gains_and_loses_each_source_kind_by_data_alone() {
     assert_eq!(offered[0].url, "https://mods.example.org/fixture/");
     assert!(!offered[0].browse_available && offered[0].browser.is_none());
 
+    assert!(crate::external_mod_portal::portals(&catalog, FIXTURE_ID, None).is_empty());
+    let mut website = catalog.port(FIXTURE_ID).unwrap().mod_sources[0].clone();
+    website.platforms.clear();
+    let catalog = fixture_catalog(quake, vec![website]);
+    assert_eq!(
+        crate::external_mod_portal::portals(&catalog, FIXTURE_ID, None),
+        offered
+    );
+
     // Quaddicted and Mod DB feeds: browse on the adapter's platforms.
     let browsers = fixture_catalog(
         quake,
@@ -630,9 +661,15 @@ fn declarations_are_bounded_unique_and_ordered() {
     let mut unsorted = a.clone();
     unsorted.platforms = vec![Platform::LinuxX86_64, Platform::WindowsX86_64];
     assert!(validated("quake-ironwail", vec![unsorted]).is_err());
-    let mut empty = a.clone();
-    empty.platforms.clear();
-    assert!(validated("quake-ironwail", vec![empty]).is_err());
+    let mut unscoped_feed = source(
+        "fixture-moddb",
+        ModSourceAuthority::Browse,
+        ModSourceKind::ModDbFeed {
+            url: "https://www.moddb.com/mods/fixture-mod/downloads".into(),
+        },
+    );
+    unscoped_feed.platforms.clear();
+    assert!(validated("quake-ironwail", vec![unscoped_feed]).is_err());
     for id in [
         "",
         "Upper",

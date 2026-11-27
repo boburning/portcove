@@ -2979,7 +2979,7 @@ fn a_saved_folder_scan_returns_its_published_snapshot_even_when_replaced() {
     let temporary = tempfile::tempdir().unwrap();
     let payload = b"synthetic supported source";
     let mut service =
-        PortcoveService::new(crate::Library::open(&temporary.path().join("library")).unwrap())
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
             .unwrap();
     service.replace_catalog_for_test(catalog(payload));
     let root = temporary.path().join("selected");
