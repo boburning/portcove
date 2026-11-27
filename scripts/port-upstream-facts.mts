@@ -95,6 +95,10 @@ function legacyLauncherGameInput(game: unknown) {
       !["iso", "folder", "iso_or_folder"].some((kind) => kind === game.kind))
   )
     return undefined;
+  const formats = [
+    ...(game.kind !== "folder" ? [{ type: "file" }] : []),
+    ...(game.kind === "folder" || game.kind === "iso_or_folder" ? [{ type: "folder" }] : []),
+  ];
   const check = isRecord(game.check) ? game.check : {};
   if (game.kind !== "folder" && typeof check.iso9660 === "string") {
     const serial = /^(S[CL][A-Z]{2})_([0-9]{3})\.([0-9]{2})$/u.exec(check.iso9660);
@@ -108,15 +112,11 @@ function legacyLauncherGameInput(game: unknown) {
           !check.ids.every((value: unknown) => value === id))
       )
         return undefined;
-      return {
-        id: "game",
-        label: game.label,
-        formats: [{ type: "file" }],
-        check: { ids: [id] },
-      };
+      if (game.kind !== "iso_or_folder" || check.ids !== undefined)
+        return { id: "game", label: game.label, formats, check: { ids: [id] } };
     }
   }
-  return { id: "game", label: game.label, formats: [{ type: "file" }], check };
+  return { id: "game", label: game.label, formats, check };
 }
 
 function launcherScopeEvidence(value: unknown, repository: string, purpose: LauncherScopePurpose) {
@@ -190,6 +190,10 @@ function launcherScopeEvidence(value: unknown, repository: string, purpose: Laun
     )
       ? [...new Set<string>(ids)]
       : undefined;
+  const legacyFolderScopeUnproven =
+    legacy &&
+    !gameInputIds &&
+    input.formats.some((format) => isRecord(format) && format.type === "folder");
   return {
     format: 1,
     repository,
@@ -200,6 +204,7 @@ function launcherScopeEvidence(value: unknown, repository: string, purpose: Laun
     ...(gameInputIds ? { game_input_ids: gameInputIds } : {}),
     ...(legacy && value.mods === undefined ? { legacy_mod_declaration_absent: true as const } : {}),
     ...(legacyModsUnresolved ? { legacy_mod_declaration_unresolved: true as const } : {}),
+    ...(legacyFolderScopeUnproven ? { legacy_folder_scope_unproven: true as const } : {}),
   };
 }
 
@@ -546,6 +551,8 @@ export async function observeLauncherModPortals(
         commit: scope.commit,
         tree: scope.tree,
       };
+    if (scope.manifest.legacy_folder_scope_unproven)
+      return { state: "held", reason: "legacy-folder-scope-unproven" };
     if (scope.manifest.legacy_mod_declaration_unresolved)
       return {
         state: "unavailable",

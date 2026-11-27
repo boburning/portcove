@@ -1792,7 +1792,10 @@ cannot grant installation, package, update, or profile authority.
 For descriptive observation, a version-1 launcher document may use the older
 single `game` field. For a disc input an exact PlayStation ISO9660 serial such
 as `SCUS_944.26` is normalized to the catalog product-code spelling before
-matching. If product IDs are also declared they must agree. A document that
+matching. If a launch route accepts folders, it requires explicit product IDs
+before its links can apply to the game. A disc serial alone cannot establish
+that folder scope. Where both apply, the product IDs must agree with the disc
+serial. A document that
 declares both legacy and named game inputs is held. Omission of the legacy
 mod section records absence. If a present section supplies no supported
 providers or has a malformed field for a supported provider, the attempt

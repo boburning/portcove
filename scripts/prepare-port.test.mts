@@ -4482,14 +4482,21 @@ void test("first-party mod refresh binds descriptive facts to the accepted publi
   });
   assert.equal((await observeLauncherModPortals(repository, read)).state, "held");
 
-  setManifest(withLegacyGame({ ...legacy.game, kind: "folder" }));
-  const folder = await observeLauncherModPortals(repository, read);
-  assert(folder.state === "observed");
-  assert.equal(folder.game_input_ids, undefined);
-  assert.deepEqual(
-    verifyLauncherModGameScope(folder, { system: "playstation", codes: new Set(["SCUS-94426"]) }),
-    { state: "unavailable", reason: "game-input-scope-unproven" },
-  );
+  for (const kind of ["folder", "iso_or_folder"]) {
+    setManifest(withLegacyGame({ ...legacy.game, kind }));
+    const unscoped = await observeLauncherModPortals(repository, read);
+    assert.deepEqual(unscoped, { state: "held", reason: "legacy-folder-scope-unproven" });
+    assert.equal(
+      recordLauncherModAttempt(bound, known, unscoped, at + 60_000, 60_000).last_complete,
+      undefined,
+    );
+
+    setManifest(withLegacyGame({ ...legacy.game, kind, check }));
+    const scoped = await observeLauncherModPortals(repository, read);
+    assert(scoped.state === "observed");
+    assert.deepEqual(scoped.game_input_ids, ["SCUS-94426"]);
+    assert.equal(verifyLauncherModGameScope(scoped, gameScope).state, "observed");
+  }
 
   const outage = await observeLauncherModPortals(repository, async (endpoint) =>
     endpoint === root
