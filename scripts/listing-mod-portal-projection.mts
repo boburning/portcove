@@ -240,14 +240,22 @@ export function firstPartyListingModDefaults(
   }
   const state = isRecord(checkpoint) && isRecord(checkpoint.sources) ? checkpoint : undefined;
   const ids: Record<string, { repository_id: number | null }> = {};
+  const observedOwners = new Map<number, Set<string>>();
   for (const source of sources) {
     const prior = isRecord(state?.sources) ? state.sources[source.key] : undefined;
     if (
       isRecord(prior) &&
       Number.isSafeInteger(prior.repository_id) &&
       Number(prior.repository_id) > 0
-    )
-      ids[source.key] = { repository_id: Number(prior.repository_id) };
+    ) {
+      const repositoryId = Number(prior.repository_id);
+      ids[source.key] = { repository_id: repositoryId };
+      if ((source.provider ?? "github") === "github") {
+        const owners = observedOwners.get(repositoryId) ?? new Set<string>();
+        for (const port of source.ports) owners.add(port.id);
+        observedOwners.set(repositoryId, owners);
+      }
+    }
   }
   const scopes = launcherModScopes(sources);
   const scopeByPort = new Map(scopes.map((scope) => [scope.port_id, scope]));
@@ -266,6 +274,9 @@ export function firstPartyListingModDefaults(
     if (!scope) return [];
     const subject = subjects.get(listing.id);
     if (!subject && ids[scope.source_key]) return [];
+    const admittedId = admittedGithubRepositoryId(listing.id);
+    const owners = admittedId === undefined ? undefined : observedOwners.get(admittedId);
+    if (owners && (owners.size !== 1 || !owners.has(listing.id))) return [];
     const entry = progress?.[listing.id];
     const authored = listingPortals(withoutLauncherAdmissionSeeds(listing));
     const blocked = new Set(bindings.get(listing.id));
@@ -276,25 +287,33 @@ export function firstPartyListingModDefaults(
     }
     const provider = (portal: { name: string }) =>
       portal.name === "Thunderstore" ? "thunderstore" : "gamebanana";
-    if (entry && (!subject || entry.binding !== subject.binding)) return [];
-    if (entry && (entry.outcome !== "unavailable" || entry.last_complete)) {
-      const result = entry.last_complete?.result;
+    if (entry && !subject) {
+      // A renamed source may lack a current checkpoint. Keep only authenticated
+      // prior websites under the same admitted ID, and honor explicit absence.
       if (
-        !subject ||
-        result?.state !== "observed" ||
-        result.repository_id !== subject.repository_id
+        admittedId === undefined ||
+        !previous ||
+        entry.outcome === "held" ||
+        entry.last_complete?.result.state === "absent"
       )
         return [];
-      return result.mod_portals
-        .filter((portal) => !blocked.has(provider(portal)))
-        .slice(0, 8 - authored.length)
-        .map((portal) => ({
-          ...portal,
-          site: "community_site",
-          id: launcherModPortalId(portal, result.repository_id),
-        }));
     }
-    const admittedId = admittedGithubRepositoryId(listing.id);
+    if (entry && subject) {
+      if (entry.binding !== subject.binding) return [];
+      const result = entry.last_complete?.result;
+      if (entry.outcome !== "unavailable" || result) {
+        if (result?.state !== "observed" || result.repository_id !== subject.repository_id)
+          return [];
+        return result.mod_portals
+          .filter((portal) => !blocked.has(provider(portal)))
+          .slice(0, 8 - authored.length)
+          .map((portal) => ({
+            ...portal,
+            site: "community_site",
+            id: launcherModPortalId(portal, result.repository_id),
+          }));
+      }
+    }
     const expectedId = subject?.repository_id ?? admittedId;
     // Admission can supply an exact seed for the first publication. The
     // authenticated prior governs later fallback, including an absent link.
@@ -306,7 +325,7 @@ export function firstPartyListingModDefaults(
     }
     if (
       previous?.id !== listing.id ||
-      previous.project_url !== listing.project_url ||
+      (previous.project_url !== listing.project_url && admittedId === undefined) ||
       observationHash(previous.original_game ?? null) !==
         observationHash(listing.original_game ?? null)
     )
