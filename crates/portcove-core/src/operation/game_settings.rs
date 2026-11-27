@@ -87,12 +87,14 @@ pub(crate) struct SettingsAbsenceWitness {
     pub parent_identity: String,
 }
 
+#[cfg(any(windows, test))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SettingsActivationPointer {
     PreviousActive,
     TargetActive,
 }
 
+#[cfg(any(windows, test))]
 pub(crate) fn activation_pointer(
     operation: &LifecycleOperation,
     status: &crate::PortStatus,
@@ -342,7 +344,7 @@ pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation
 }
 
 fn validate_legs(
-    phase: super::LifecyclePhase,
+    phase: LifecyclePhase,
     canonical: &FileCustody,
     runtime: Option<&FileCustody>,
     allow_pristine_runtime: bool,
@@ -354,7 +356,7 @@ fn validate_legs(
                 .replacement_identity
                 .as_ref()
                 .is_some_and(|value| !identity(value))
-            || (custody.replacement_identity.is_none() && phase != super::LifecyclePhase::Preparing)
+            || (custody.replacement_identity.is_none() && phase != LifecyclePhase::Preparing)
             || custody.replacement_identity.as_deref() == Some(custody.original_identity.as_str())
             || !digest(&custody.previous_sha256)
             || !digest(&custody.proposed_sha256)

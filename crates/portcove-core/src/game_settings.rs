@@ -55,6 +55,7 @@ impl ShippedDefault {
 
 /// The persistence owner must provide a deletion receipt. Filesystem absence
 /// alone leaves the live state unobserved.
+#[cfg(any(windows, test))]
 #[derive(Clone, Copy)]
 pub(crate) enum PlayerSettings<'a> {
     Present(&'a [u8]),
@@ -62,6 +63,7 @@ pub(crate) enum PlayerSettings<'a> {
     Unobserved,
 }
 
+#[cfg(any(windows, test))]
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum SettingsUpdate {
     KeepPlayer,
@@ -73,6 +75,7 @@ pub(crate) enum SettingsUpdate {
 
 /// Plan the raw-file transition before any publication. The lifecycle owner
 /// must recheck the same player preimage and retain both versions on conflict.
+#[cfg(any(windows, test))]
 pub(crate) fn reconcile_shipped_default(
     file: &GameSettingsFile,
     old: Option<(&GameSettingsFile, &ShippedDefault)>,
@@ -112,6 +115,7 @@ pub(crate) fn reconcile_shipped_default(
     })
 }
 
+#[cfg(any(windows, test))]
 pub(crate) struct SettingsFileUpdate {
     pub path: String,
     pub player_preimage: SettingsPreimage,
@@ -121,6 +125,7 @@ pub(crate) struct SettingsFileUpdate {
 }
 
 /// An expected absent file has different authority from an unobserved file.
+#[cfg(any(windows, test))]
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum SettingsPreimage {
     Present { sha256: String },
@@ -151,6 +156,7 @@ pub(crate) fn observe_player_settings_copy(
     }
 }
 
+#[cfg(any(windows, test))]
 impl SettingsFileUpdate {
     /// Recheck the planned player bytes immediately before a transaction takes
     /// custody. The old active mirror must still agree with canonical data.
@@ -195,9 +201,11 @@ impl SettingsFileUpdate {
 pub(crate) struct RetainedSettingsDefaults {
     pub contract: GameSettingsContract,
     pub shipped: BTreeMap<String, ShippedDefault>,
+    #[cfg(windows)]
     pub capture_gaps: BTreeMap<String, ShippedDefaultGap>,
 }
 
+#[cfg(any(windows, test))]
 impl RetainedSettingsDefaults {
     /// Compare incoming declared settings with the prior retained package.
     /// The caller supplies the persistence owner's coherent file observations.
@@ -258,6 +266,7 @@ pub(crate) enum ShippedDefaultGap {
     Malformed,
 }
 
+#[cfg(windows)]
 impl ShippedDefaultGap {
     pub(crate) fn hold_reason(self) -> Option<&'static str> {
         match self {

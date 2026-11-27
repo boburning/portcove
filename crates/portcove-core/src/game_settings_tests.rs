@@ -438,6 +438,7 @@ fn retained_settings_plan_binds_the_player_preimage_and_file_identity() {
         RetainedSettingsDefaults {
             contract,
             shipped,
+            #[cfg(windows)]
             capture_gaps: BTreeMap::new(),
         }
     };
