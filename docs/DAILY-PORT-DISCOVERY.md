@@ -1180,9 +1180,11 @@ job ties the open App proposal to the scheduled producer, replays it from the
 trusted producer checkout, and compares the entire resulting Git tree and single
 parent with the exact proposal head. It runs the verification commands at the
 admission workflow revision so an older retained producer can still be replayed.
-It retains `catalog-admission-review` as a
-receipt for that head. This receipt supplies replay evidence for review and
-delivery. Required PR checks and the guarded merge still apply.
+It retains `catalog-admission-review` as a receipt for that head. After that
+job succeeds, the App marks the verified draft ready so the regular required
+checks can finish. The job checks the exact App proposal and head again before
+and after changing draft status. An already-ready or closed proposal needs no
+update. Required PR checks and the guarded merge still apply.
 
 Repository-bound GitHub listings raise the generated directory to format 17.
 The workflow needs a released reader that validates that format to open a

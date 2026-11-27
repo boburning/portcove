@@ -435,22 +435,36 @@ void test("independent review binds the open App proposal to the exact replay he
     base: { ref: "main", repo: { full_name: repo } },
     user: { login: `${app}[bot]` },
   };
-  const review = (record: unknown) =>
-    catalogAdmissionGitHub("review", env, async (input, init) => {
+  const readProposal = (record: unknown, mode = "review") =>
+    catalogAdmissionGitHub(mode, { ...env, PROPOSAL: row.html_url }, async (input, init) => {
       const url = new URL(input instanceof Request ? input.url : input);
       assert.equal(init?.method, "GET");
       assert.equal(url.pathname, `/repos/${repo}/pulls`);
       assert.equal(url.searchParams.get("head"), "boburning:automation/catalog-admission-12-1");
       return Response.json([record]);
     });
-  assert.equal(await review(row), row.html_url);
-  assert.equal(await review({ ...row, state: "closed" }), "");
+  assert.equal(await readProposal(row), row.html_url);
+  assert.equal(await readProposal({ ...row, state: "closed" }), "");
+  assert.equal(await readProposal({ ...row, draft: true }, "qualification"), "draft");
+  assert.equal(await readProposal({ ...row, draft: false }, "qualification"), "ready");
+  assert.equal(
+    await readProposal({ ...row, state: "closed", draft: true }, "qualification"),
+    "closed",
+  );
   for (const altered of [
     { ...row, state: "unknown" },
     { ...row, user: { login: "other[bot]" } },
     { ...row, head: { ...row.head, sha: "d".repeat(40) } },
   ])
-    await assert.rejects(review(altered), /proposal readback differs/u);
+    await assert.rejects(readProposal(altered), /proposal readback differs/u);
+  await assert.rejects(readProposal(row, "qualification"), /qualification proposal differs/u);
+  await assert.rejects(
+    readProposal(
+      { ...row, number: 23, html_url: `https://github.com/${repo}/pull/23`, draft: true },
+      "qualification",
+    ),
+    /qualification proposal differs/u,
+  );
 });
 
 void test("a proposal must contain the whole replayed tree and exact single producer parent", () => {
@@ -495,6 +509,20 @@ void test("admission reviews carry current verifier code into an older producer 
     steps.find(({ name }) => name === "Retain the independent replay receipt")?.if,
     "steps.replay.outputs.matched == 'true'",
   );
+  const qualify = workflow.jobs.qualify;
+  assert.ok(isRecord(qualify) && Array.isArray(qualify.steps));
+  assert.deepEqual(qualify.needs, ["propose", "review"]);
+  assert.equal(
+    qualify.if,
+    "needs.review.result == 'success' && needs.review.outputs.matched == 'true'",
+  );
+  const readiness = (qualify.steps as unknown[]).filter(isRecord);
+  const ready = readiness.find(
+    ({ name }) => name === "Start the required checks for the verified proposal",
+  );
+  assert.ok(isRecord(ready) && typeof ready.run === "string");
+  assert.match(ready.run, /qualification\)[\s\S]*gh pr ready "\$PROPOSAL"[\s\S]*qualification\)/u);
+  assert.doesNotMatch(ready.run, /merge|--admin/u);
 });
 
 void test("proposal gate follows a numeric repository page without changing its scope", async () => {

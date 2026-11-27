@@ -44,6 +44,7 @@ export async function catalogAdmissionGitHub(
     APP_SLUG: minted,
     GH_TOKEN: token,
     COMMIT: commit,
+    PROPOSAL: expectedProposal,
     GITHUB_REPOSITORY: actualRepository,
   } = environment;
   if (
@@ -55,7 +56,7 @@ export async function catalogAdmissionGitHub(
     !/^[a-z0-9][a-z0-9-]*$/u.test(app) ||
     !token ||
     actualRepository !== repository ||
-    !["gate", "prior", "deliver", "review"].includes(mode ?? "") ||
+    !["gate", "prior", "deliver", "review", "qualification"].includes(mode ?? "") ||
     (mode !== "gate" && (!commit || !/^[a-f0-9]{40}$/u.test(commit))) ||
     ((mode === "prior" || mode === "deliver") && app !== minted)
   )
@@ -147,7 +148,9 @@ export async function catalogAdmissionGitHub(
     if (
       rows.length !== 1 ||
       !isRecord(row) ||
-      (mode === "review" && row.state !== "open" && row.state !== "closed") ||
+      ((mode === "review" || mode === "qualification") &&
+        row.state !== "open" &&
+        row.state !== "closed") ||
       !isRecord(row.head) ||
       row.head.sha !== commit ||
       row.head.ref !== branch ||
@@ -166,6 +169,14 @@ export async function catalogAdmissionGitHub(
       throw new Error("Exact catalog admission proposal readback differs.");
     return mode === "review" && row.state === "closed" ? "" : row.html_url;
   };
+  if (mode === "qualification") {
+    const rows = await lookup();
+    const proposal = verify(rows);
+    const row = rows[0];
+    if (proposal !== expectedProposal || !isRecord(row) || typeof row.draft !== "boolean")
+      throw new Error("Catalog admission qualification proposal differs.");
+    return row.state === "closed" ? "closed" : row.draft ? "draft" : "ready";
+  }
   if (mode === "review") return verify(await lookup());
   if (mode === "prior") {
     const rows = await lookup();

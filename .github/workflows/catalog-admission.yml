@@ -146,6 +146,8 @@ jobs:
     if: needs.propose.outputs.proposal != ''
     runs-on: ubuntu-latest
     timeout-minutes: 18
+    outputs:
+      matched: ${{ steps.replay.outputs.matched }}
     env:
       CONTROLLER_SOURCE: ${{ github.workflow_sha }}
       DISCOVERY_RUN: ${{ github.event.workflow_run.id }}
@@ -240,3 +242,68 @@ jobs:
           path: ${{ runner.temp }}/catalog-admission-review.json
           retention-days: 30
           if-no-files-found: error
+
+  qualify:
+    needs: [propose, review]
+    if: needs.review.result == 'success' && needs.review.outputs.matched == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: catalog-admission
+    env:
+      CONTROLLER_SOURCE: ${{ github.workflow_sha }}
+      DISCOVERY_RUN: ${{ github.event.workflow_run.id }}
+      DISCOVERY_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+      EXPECTED_APP: ${{ vars.CATALOG_ADMISSION_APP_SLUG }}
+      COMMIT: ${{ needs.propose.outputs.commit }}
+      PROPOSAL: ${{ needs.propose.outputs.proposal }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.1
+        with:
+          node-version-file: .node-version
+      - name: Identify the exact draft needing required CI
+        id: assess
+        timeout-minutes: 4
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$CONTROLLER_SOURCE" ]]
+          pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+          state=$(node scripts/discovery-admission-github.mts qualification)
+          if [[ "$state" == draft ]]; then
+            echo 'draft=true' >> "$GITHUB_OUTPUT"
+          else
+            echo "Verified proposal $PROPOSAL is already $state." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Mint the App token for draft qualification
+        if: steps.assess.outputs.draft == 'true'
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.CATALOG_ADMISSION_APP_ID }}
+          private-key: ${{ secrets.CATALOG_ADMISSION_APP_PRIVATE_KEY }}
+          permission-pull-requests: write
+      - name: Start the required checks for the verified proposal
+        if: steps.assess.outputs.draft == 'true'
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs['app-slug'] }}
+        run: |
+          set -euo pipefail
+          [[ "$APP_SLUG" == "$EXPECTED_APP" && -n "$APP_SLUG" ]]
+          state=$(node scripts/discovery-admission-github.mts qualification)
+          if [[ "$state" == draft ]]; then
+            # Read back the exact head even if the mutation's reply is lost.
+            gh pr ready "$PROPOSAL" || true
+            state=$(node scripts/discovery-admission-github.mts qualification)
+          fi
+          [[ "$state" == ready || "$state" == closed ]]
+          echo "Verified proposal $PROPOSAL is $state." >> "$GITHUB_STEP_SUMMARY"
