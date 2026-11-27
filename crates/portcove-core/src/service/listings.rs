@@ -231,7 +231,7 @@ impl PortcoveService {
         catalog: &Catalog,
         connection: &rusqlite::Connection,
         port_id: &str,
-        budget: &mut usize,
+        budget: &mut u64,
     ) -> Result<bool> {
         let Some(repository_id) = catalog.listing(port_id)?.observed_github_repository_id() else {
             return Ok(false);
