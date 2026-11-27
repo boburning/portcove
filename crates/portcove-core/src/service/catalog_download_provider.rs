@@ -191,7 +191,7 @@ impl CatalogDownloadProvider {
         release: &CatalogDownloadReleaseId,
         asset: &CatalogDownloadAssetId,
         github_repository_id: Option<u64>,
-    ) -> Result<String> {
+    ) -> Result<(String, Option<String>)> {
         asset.validate_for(release)?;
         match self {
             Self::Github(provider) => {
@@ -207,7 +207,7 @@ impl CatalogDownloadProvider {
             Self::Gitlab(provider) => provider
                 .catalog_download_candidate(repository, release, asset)
                 .await
-                .map(|candidate| candidate.release_url),
+                .map(|candidate| (candidate.release_url, None)),
         }
     }
 

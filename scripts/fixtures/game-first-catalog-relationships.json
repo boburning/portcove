@@ -1,6 +1,6 @@
 {
   "audited_revision": "538c2f2966a1639e6e680d7f3fa4beccd5fde202",
-  "scope": "Independent reviewed real-catalog relationship baseline for #8076. This fixture tests expectations; authored records remain authoritative. New records require audited-ID reconciliation; changed family membership needs reviewed expectation updates.",
+  "scope": "Independent reviewed real-catalog relationship baseline for #8076, with the JoJo relationship updated by #9200. The audited population remains pinned. This fixture tests expectations; authored records remain authoritative. New records require audited-ID reconciliation; changed family membership needs reviewed expectation updates.",
   "selected_definition_entries": {
     "chameleon-twist-jp-recompiled": {
       "game_id": "chameleon-twist",
@@ -2035,6 +2035,10 @@
       "jsrf-pal-recomp-yacineolivier-maker-jet-set-radio-future-pal",
       "jumatt-jetsetradiofuture-unleashed"
     ],
+    "jojo-s-bizarre-adventure-heritage-for-the-future": [
+      "jojo-hftf-native-menuutux-jojo-s-bizarre-adventure-heritage-for-the-future",
+      "jojo-s-bizarre-adventure-hd-ver-recompiled-edition-unrealwins-jojo-s-bizarre-adventure-hd-ver"
+    ],
     "kameo-elements-of-power": [
       "azkali-kameorecomp-azkali-kameo-elements-of-power",
       "elgus-kameorecomp-elguslml-kameo-elements-of-power",
@@ -2595,7 +2599,6 @@
     "f-e-a-r-360-recompiled-juansolo457-f-e-a-r-files-xbox-360": "multi-game",
     "final-doom-crispy-doom-family": "multi-game",
     "gsrecomp": "multi-game",
-    "jojo-s-bizarre-adventure-hd-ver-recompiled-edition-unrealwins-jojo-s-bizarre-adventure-hd-ver": "unresolved",
     "kirby-letsgo-oracles-decomp": "multi-game",
     "lostartefacts-trx": "multi-game",
     "luanti": "framework",
