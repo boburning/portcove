@@ -728,8 +728,7 @@ async function writeFixtureCatalog({
   if (acquisitionWaitPath) {
     refreshPortDefinition.launch_arguments = [
       "--game",
-      "--owned-wait",
-      acquisitionWaitPath,
+      "--wait-for-acquisition-release",
       "--owned-wait-seconds",
       "180",
     ];
@@ -889,7 +888,7 @@ export async function createInstallFixture({
   )
     throw new Error("Acquisition requires its own executable-upgrade fixture selection");
   const acquisitionWaitPath = acquisitionJourney
-    ? path.join(output, "acquisition-game-release.signal")
+    ? path.join(output, "library", "acquisition-game-release.signal")
     : undefined;
   if (sourceJourney && completionJourney)
     throw new Error("Discovery and completion fixtures require separate isolated selections");
