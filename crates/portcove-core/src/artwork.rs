@@ -638,8 +638,8 @@ impl PortcoveService {
             .as_ref()
     }
 
-    /// Direct catalog mappings take precedence. Only reviewed underlying-game
-    /// mappings from listings with the same single declared edition can be shared.
+    /// Current directories assign cover defaults to each listing. Earlier
+    /// directories rely on the reader's exact-edition fallback.
     fn automatic_cover<'a>(
         &'a self,
         port: &'a crate::PortListing,
@@ -647,7 +647,9 @@ impl PortcoveService {
         if let Some(cover) = &port.artwork {
             return Some(cover);
         }
-        if port.collection_covers.is_some() {
+        if port.collection_covers.is_some()
+            || self.catalog().has_empty_signed_cover_assignment(&port.id)
+        {
             return None;
         }
         let game = port.original_game.as_ref()?;

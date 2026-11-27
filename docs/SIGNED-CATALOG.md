@@ -406,6 +406,15 @@ When an older compact reader rejects a successor, it can select its last
 accepted directory while the stored provenance remains current. After that
 provenance expires it uses its bundled directory until the application updates.
 
+Format 18 makes each listing's assigned cover authoritative. The publisher
+must resolve shared cover defaults and applicable exclusions before selecting
+this format. A capable reader uses fallback when no cover was assigned and
+continues to honor player choices. Older formats keep the exact-edition
+reader fallback. Preview 21 is the earliest eligible release for format 18.
+The publisher still requires an official binary that advertises format 18
+and validates the actual candidate. Live publication remains on the existing
+format until the cover cutover is verified.
+
 With a qualified format-16 reader, the publisher can add a browser link to a
 listed Thunderstore community. The registry must explicitly refer to the same
 numeric GameBanana ID already reviewed for that exact port. An unavailable

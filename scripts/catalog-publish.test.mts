@@ -2519,6 +2519,28 @@ void test("signed projection recomputes shared covers without changing the relea
     { ...row(initial.bytes), artwork: undefined },
   );
   assert.equal(project(admitted.bytes).changed, false);
+  const assignedFormat = { ...canonical, format_version: 18 };
+  const assign = (records = authored) =>
+    projectListingDelivery(assignedFormat, [], initial.bytes, {
+      sharedCoverDefaults: projectExactSharedCovers({
+        live: indexSharedCoverRows(rows(initial.bytes)),
+        authored: records,
+        excludedPortIds: new Set(),
+        gone: new Set(),
+        checked: new Map(),
+        deriveDefaultsForPublishedRecipients: true,
+      }),
+    });
+  const assigned = assign();
+  const assignedDirectory = fixtureRecord(
+    fixtureRecord(JSON.parse(assigned.bytes.toString())).directory,
+  );
+  assert.equal(assignedDirectory.format_version, 18);
+  assert.deepEqual(row(assigned.bytes).artwork, artwork);
+  const optedOut = checkedAuthoredPort({ ...authored[0], igdb_no_shared_cover: true });
+  const excluded = assign([optedOut, authored[1]!]);
+  assert.equal(row(excluded.bytes).artwork, undefined);
+  assert.deepEqual(rows(excluded.bytes).find(({ id }) => id === donor.id)?.artwork, artwork);
   const held = new Set([artwork.image_id]);
   assert.equal(row(project(initial.bytes, new Set(), authored, held).bytes).artwork, undefined);
   assert.equal(project(admitted.bytes, new Set(), authored, held).changed, false);

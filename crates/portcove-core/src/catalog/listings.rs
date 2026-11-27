@@ -28,6 +28,7 @@ const MAX_FUNDING_URLS: usize = 12;
 pub(crate) const VERIFIED_EDITION_LISTING_FORMAT: u32 = 14;
 pub(crate) const MOD_PORTAL_LISTING_FORMAT: u32 = 16;
 pub(crate) const REPOSITORY_BOUND_LISTING_FORMAT: u32 = 17;
+pub(crate) const ASSIGNED_COVER_LISTING_FORMAT: u32 = 18;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -186,9 +187,9 @@ pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=REPOSITORY_BOUND_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=ASSIGNED_COVER_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 17",
+                "listing export supports formats 5 through 18",
             ));
         }
         let mut document = self.clone();
@@ -412,7 +413,7 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=REPOSITORY_BOUND_LISTING_FORMAT) {
+        if !matches!(self.format_version, 1..=ASSIGNED_COVER_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
@@ -1109,6 +1110,26 @@ impl PortListing {
 }
 
 impl Catalog {
+    pub(crate) fn with_signed_cover_assignments(mut self, signed: &CatalogListingDocument) -> Self {
+        self.cover_assignments = Arc::new(
+            signed
+                .listings
+                .iter()
+                .filter(|listing| {
+                    signed.format_version >= ASSIGNED_COVER_LISTING_FORMAT
+                        && listing.artwork.is_none()
+                        && listing.collection_covers.is_none()
+                })
+                .map(|listing| listing.id.clone())
+                .collect(),
+        );
+        self
+    }
+
+    pub(crate) fn has_empty_signed_cover_assignment(&self, port_id: &str) -> bool {
+        self.cover_assignments.contains(port_id)
+    }
+
     pub fn listing_document(&self) -> &CatalogListingDocument {
         &self.listings
     }
@@ -1996,7 +2017,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":REPOSITORY_BOUND_LISTING_FORMAT + 1,"listings":[listing()]}),
+            json!({"format_version":ASSIGNED_COVER_LISTING_FORMAT + 1,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -2569,7 +2590,7 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
-        let unsupported_format = REPOSITORY_BOUND_LISTING_FORMAT + 1;
+        let unsupported_format = ASSIGNED_COVER_LISTING_FORMAT + 1;
         let mut future = document;
         future.format_version = unsupported_format;
         future.promote_projected_format();
