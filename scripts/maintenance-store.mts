@@ -993,7 +993,9 @@ async function runStoreCommand(
     });
     const admit = (reservationBytes?: number) =>
       policy.withMaintenanceAdmission(environment, operation, recover, {
-        ...(reservationBytes === undefined ? {} : { reservationBytes }),
+        ...(reservationBytes === undefined
+          ? { fitSeededRecovery: operation !== "recovery-full" && recover.hasVerifiedSeed }
+          : { reservationBytes }),
         estimate: ({ transfer }) =>
           2_000_000 +
           Math.ceil(

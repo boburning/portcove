@@ -1648,7 +1648,10 @@ retained prefix of each large append-only table under one exported snapshot.
 When a prefix matches, only newer rows cross the network. A mismatch requires
 that table's full payload to fit the admission. The schedule requests a larger
 catch-up envelope when a verified recovery point is more than 30 hours old,
-regardless of age beyond that threshold. If the same-snapshot preflight finds
+regardless of age beyond that threshold. If an initial attempt has verified the
+seed locally but the live allowance cannot fit the requested envelope, admission
+can use the remaining bytes after outstanding charges and reserves. The remaining
+allowance must be at least 8 MB for preflight and protocol overhead. If the same-snapshot preflight finds
 that the export requires more capacity, recovery requests one newly admitted
 attempt sized to the measured estimate. Recovery without a verified seed
 starts with the full envelope. Incomplete GitHub inventory never implies that
