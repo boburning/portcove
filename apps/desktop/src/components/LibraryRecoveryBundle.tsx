@@ -391,16 +391,18 @@ function RecoveryBundleDialog({
         reviewSize="wide"
         showCloseButton={false}
         aria-describedby={descriptionId}
-        className="[@media(height>24rem)]:grid-rows-[minmax(0,1fr)_auto] [@media(height>24rem)]:overflow-hidden"
+        className="[@media(height>24rem)]:grid-rows-[auto_minmax(0,1fr)_auto] [@media(height>24rem)]:overflow-hidden"
       >
+        <DialogTitle className="[@media(height>24rem)]:border-b [@media(height>24rem)]:border-pc-border [@media(height>24rem)]:pb-3">
+          {titles[operation]}
+        </DialogTitle>
         <div
           role="region"
           aria-label="Recovery details"
           // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard input scrolls this named review pane.
           tabIndex={0}
-          className="focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-pc-ring focus-visible:outline-solid forced-colors:focus-visible:outline-[Highlight] [@media(height>24rem)]:-mx-2 [@media(height>24rem)]:-mt-2 [@media(height>24rem)]:min-h-0 [@media(height>24rem)]:scroll-py-2 [@media(height>24rem)]:overflow-y-auto [@media(height>24rem)]:overscroll-contain [@media(height>24rem)]:p-2"
+          className="focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-pc-ring focus-visible:outline-solid forced-colors:focus-visible:outline-[Highlight] [@media(height>24rem)]:-mx-2 [@media(height>24rem)]:min-h-0 [@media(height>24rem)]:scroll-py-2 [@media(height>24rem)]:overflow-y-auto [@media(height>24rem)]:overscroll-contain [@media(height>24rem)]:p-2"
         >
-          <DialogTitle>{titles[operation]}</DialogTitle>
           <DialogDescription id={descriptionId}>
             {descriptions[operation]} {!verified && bundleAuthority}
           </DialogDescription>
