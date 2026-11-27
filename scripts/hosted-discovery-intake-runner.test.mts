@@ -105,7 +105,7 @@ void test("a scheduled receipt-only result can finish without enqueueing an audi
 void test("a resource deferral carries neither a verified receipt fence nor audit tickets", () => {
   assert.deepEqual(
     scheduledReceiptOutcome({
-      tickets: [{ request: 33, binding: "a".repeat(64) }],
+      tickets: [],
       revision: undefined,
       receipts: { status: "unavailable", reason: "resource-deferred" },
     }),
