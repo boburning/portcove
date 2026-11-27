@@ -2897,6 +2897,52 @@ fn matching_edition_inherits_a_reviewed_cover_across_display_and_handoff() {
 }
 
 #[test]
+fn assigned_cover_export_materializes_only_legacy_fallbacks() {
+    use crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT;
+
+    let mut donor = retention_mapping("sharedcover", &coloured_jpeg([55, 90, 125]));
+    donor.match_kind = crate::IgdbArtworkMatch::UnderlyingGame;
+    let catalog = edition_cover_catalog(&[
+        ("donor", "original-game", &["console"], Some(&donor)),
+        ("older", "original-game", &["console"], None),
+        ("excluded", "original-game", &["console"], None),
+    ]);
+    let signed = crate::CatalogListingDocument {
+        format_version: ASSIGNED_COVER_LISTING_FORMAT,
+        listings: vec![catalog.listing("excluded").unwrap().clone()],
+    };
+    let catalog = catalog.with_signed_cover_assignments(&signed);
+    let older = catalog.listing("older").unwrap();
+    assert_eq!(catalog.automatic_cover(older), Some(&donor));
+    assert!(
+        catalog
+            .automatic_cover(catalog.listing("excluded").unwrap())
+            .is_none()
+    );
+    let exported = catalog
+        .export_listings(Some(ASSIGNED_COVER_LISTING_FORMAT))
+        .unwrap();
+    assert_eq!(
+        exported
+            .listings
+            .iter()
+            .find(|row| row.id == "older")
+            .unwrap()
+            .artwork,
+        Some(donor)
+    );
+    assert!(
+        exported
+            .listings
+            .iter()
+            .find(|row| row.id == "excluded")
+            .unwrap()
+            .artwork
+            .is_none()
+    );
+}
+
+#[test]
 fn automatic_cover_rejects_conflicting_mappings_and_port_specific_donors() {
     use crate::IgdbArtworkMatch;
     let temporary = tempfile::tempdir().unwrap();

@@ -410,7 +410,9 @@ Format 18 makes each listing's assigned cover authoritative. The publisher
 must resolve shared cover defaults and applicable exclusions before selecting
 this format. A capable reader uses fallback when no cover was assigned and
 continues to honor player choices. Older formats keep the exact-edition
-reader fallback. Preview 21 is the earliest eligible release for format 18.
+reader fallback. If a signed directory omits a bundled entry, Core keeps its
+legacy behavior and materializes any automatic cover when exporting format 18.
+Preview 21 is the earliest eligible release for format 18.
 The publisher still requires an official binary that advertises format 18
 and validates the actual candidate. Live publication remains on the existing
 format until the cover cutover is verified.

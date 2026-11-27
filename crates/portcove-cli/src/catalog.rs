@@ -417,14 +417,7 @@ pub(crate) async fn execute(
         CatalogCommand::Listings { format_version } => render_read_success(
             mode,
             name,
-            if let Some(version) = format_version {
-                service
-                    .catalog()
-                    .listing_document()
-                    .export_format(version)?
-            } else {
-                service.catalog().listing_document().clone()
-            },
+            service.catalog().export_listings(format_version)?,
             |document| {
                 document
                     .listings

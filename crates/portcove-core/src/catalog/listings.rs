@@ -3,7 +3,7 @@
 use super::*;
 use crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT;
 use crate::catalog_media::IGDB_SCENE_LISTING_FORMAT;
-use crate::{CatalogListingDocument, ListingAvailability, Platform, PortListing};
+use crate::{CatalogListingDocument, IgdbArtwork, ListingAvailability, Platform, PortListing};
 use std::{collections::BTreeMap, sync::LazyLock};
 
 // A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
@@ -1126,8 +1126,61 @@ impl Catalog {
         self
     }
 
-    pub(crate) fn has_empty_signed_cover_assignment(&self, port_id: &str) -> bool {
-        self.cover_assignments.contains(port_id)
+    /// Signed current-format rows supply their own cover decisions. Legacy
+    /// rows can still use a unique exact-edition cover.
+    pub(crate) fn automatic_cover<'a>(&'a self, port: &'a PortListing) -> Option<&'a IgdbArtwork> {
+        if let Some(cover) = &port.artwork {
+            return Some(cover);
+        }
+        if port.collection_covers.is_some() || self.cover_assignments.contains(&port.id) {
+            return None;
+        }
+        let game = port.original_game.as_ref()?;
+        let [edition] = game.source_editions.as_slice() else {
+            return None;
+        };
+        let mut shared = None;
+        for candidate in self.listings() {
+            let Some((donor, cover)) = candidate
+                .original_game
+                .as_ref()
+                .zip(candidate.artwork.as_ref())
+            else {
+                continue;
+            };
+            let [donor_edition] = donor.source_editions.as_slice() else {
+                continue;
+            };
+            if donor.id != game.id
+                || donor_edition.id != edition.id
+                || donor_edition.system != edition.system
+                || cover.match_kind != crate::IgdbArtworkMatch::UnderlyingGame
+            {
+                continue;
+            }
+            if shared.is_some_and(|previous| previous != cover) {
+                return None;
+            }
+            shared = Some(cover);
+        }
+        shared
+    }
+
+    /// Export automatic defaults without revealing or applying local choices.
+    /// Format 18 exports materialize legacy rows' effective cover assignments.
+    pub fn export_listings(&self, format_version: Option<u32>) -> Result<CatalogListingDocument> {
+        let mut exported = match format_version {
+            Some(format) => self.listing_document().export_format(format)?,
+            None => self.listing_document().clone(),
+        };
+        if exported.format_version >= ASSIGNED_COVER_LISTING_FORMAT {
+            for (entry, current) in exported.listings.iter_mut().zip(self.listings()) {
+                if entry.artwork.is_none() {
+                    entry.artwork = self.automatic_cover(current).cloned();
+                }
+            }
+        }
+        Ok(exported)
     }
 
     pub fn listing_document(&self) -> &CatalogListingDocument {
