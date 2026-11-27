@@ -15,6 +15,22 @@ function rejectedReason(result: PromiseRejectedResult): unknown {
 
 const providerClockStart = Date.UTC(2026, 9, 3, 8);
 
+void test("the hosted image transfer budget survives provider batch rotation", async () => {
+  const { createIgdbInspector, ArtworkBatchExhausted } = await import("./inspect-igdb-artwork.mts");
+  const inspector = createIgdbInspector(
+    null,
+    () => ({ width: 264, height: 374, format: "jpeg", validator: "portcove-core" }),
+    async () =>
+      new Response("abc", { headers: { "content-type": "image/jpeg", "content-length": "3" } }),
+    { maximumOperationImageBytes: 3 },
+  );
+  assert.equal((await inspector.inspectImage("first")).bytes, 3);
+  inspector.beginBatch();
+  await assert.rejects(inspector.inspectImage("second"), ArtworkBatchExhausted);
+  assert.equal(inspector.providerMetrics.image_requests, 1);
+  assert.equal(inspector.providerMetrics.image_bytes, 3);
+});
+
 async function flushProviderTimers(context: TestContext) {
   await new Promise((resolve) => setImmediate(resolve));
   context.mock.timers.tick(0);

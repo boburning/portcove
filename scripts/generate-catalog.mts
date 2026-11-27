@@ -483,6 +483,7 @@ function validateArtworkProposalArguments(fullProposal: boolean) {
     "--hero-media",
     "--media-checkpoint",
     "--media-due-limit",
+    "--media-image-budget-mib",
   ]);
   const seen = new Set();
   const args = process.argv.slice(2);
@@ -666,13 +667,16 @@ async function prepareArtworkProposal(fullProposal = false) {
   validateArtworkProposalArguments(fullProposal);
   const checkpoint = option("--media-checkpoint");
   const limit = option("--media-due-limit");
-  if (checkpoint === null && limit === null) return prepareArtworkProposalRun(fullProposal);
+  const imageBudget = option("--media-image-budget-mib");
+  if (checkpoint === null && limit === null && imageBudget === null)
+    return prepareArtworkProposalRun(fullProposal);
   if (
     !fullProposal ||
     !checkpoint ||
     !limit ||
     !/^[1-9]\d{0,2}$/u.test(limit) ||
     Number(limit) > 400 ||
+    (imageBudget !== null && (!/^[1-9]\d{0,2}$/u.test(imageBudget) || Number(imageBudget) > 512)) ||
     option("--hero-media") !== "igdb" ||
     option("--artwork-ids") !== null ||
     option("--refresh-artwork") !== null
@@ -684,7 +688,12 @@ async function prepareArtworkProposal(fullProposal = false) {
   const progress = await import("./artwork-preparation-progress.mts");
   progress.openArtworkCheckpoint(root);
   try {
-    return await prepareArtworkProposalRun(fullProposal, { root, limit: Number(limit), progress });
+    return await prepareArtworkProposalRun(fullProposal, {
+      root,
+      limit: Number(limit),
+      progress,
+      ...(imageBudget !== null ? { imageBytes: Number(imageBudget) * 1024 * 1024 } : {}),
+    });
   } finally {
     rmdirSync(join(root, "active.lock"));
   }
@@ -695,6 +704,7 @@ async function prepareArtworkProposalRun(
   mediaDue?: {
     root: string;
     limit: number;
+    imageBytes?: number;
     progress: typeof import("./artwork-preparation-progress.mts");
   },
 ) {
@@ -835,6 +845,9 @@ async function prepareArtworkProposalRun(
     undefined,
     mediaDue && {
       onBackoff: (status) => mediaDue.progress.retainArtworkProviderBackoff(mediaDue.root, status),
+      ...(mediaDue.imageBytes === undefined
+        ? {}
+        : { maximumOperationImageBytes: mediaDue.imageBytes }),
     },
   );
   if (mediaDue) mediaDue.progress.restoreArtworkProviderBackoff(mediaDue.root, inspector);
@@ -990,11 +1003,8 @@ async function prepareArtworkProposalRun(
   });
   if (listingProposal && listingCheck)
     writeFileSync(join(outputRoot, "listing-media-proposal.json"), listingProposal, { flag: "wx" });
-  writeFileSync(
-    join(outputRoot, "artwork-evidence.json"),
-    `${JSON.stringify(evidence, null, 2)}\n`,
-    { flag: "wx" },
-  );
+  const artworkEvidence = `${JSON.stringify(evidence, null, 2)}\n`;
+  writeFileSync(join(outputRoot, "artwork-evidence.json"), artworkEvidence, { flag: "wx" });
   if (fullProposal) {
     if (!proposalChecks) throw new Error("Proposal checks are unavailable.");
     writeFileSync(
@@ -1029,7 +1039,7 @@ async function prepareArtworkProposalRun(
           const attempt = mediaPlan.finish(
             gameMedia.records,
             provider.retry_at,
-            join(outputRoot, "artwork-evidence.json"),
+            `sha256:${createHash("sha256").update(artworkEvidence).digest("hex")}`,
           );
           return {
             due: mediaPlan.due,

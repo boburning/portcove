@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, readdirSync, mkdtempSync, writeFileSync, rmdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -1207,6 +1207,33 @@ void test("game media due rounds resume, serve older work and retain role outcom
   assert.equal(afterOutage.last_attempt, successful.last_attempt);
   writeFileSync(file, JSON.stringify({ ...afterOutage, next_due: new Date(later).toISOString() }));
   assert.throws(() => plan(one, later), /does not match its retained receipt/u);
+});
+
+void test("a hosted media snapshot resumes the active round without copying historical receipts", async (context) => {
+  const { openArtworkCheckpoint, planDueGameMedia, snapshotGameMediaCheckpoint } =
+    await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-hosted-game-media-"));
+  context.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const source = join(scratch, "source");
+  const destination = join(scratch, "destination");
+  openArtworkCheckpoint(source);
+  const items = ["first", "second"].map((id) => ({ id, input_sha256: "a".repeat(64) }));
+  const now = Date.parse("2026-11-28T00:00:00Z");
+  const plan = planDueGameMedia(source, items, 1, now);
+  assert.deepEqual(plan.selected, ["first"]);
+  plan.finish([], null, "fixture", now);
+  writeFileSync(join(source, `artwork-attempt-${"c".repeat(64)}.json`), "{}");
+  rmdirSync(join(source, "active.lock"));
+  const snapshot = snapshotGameMediaCheckpoint(source, destination);
+  assert.equal(snapshot.files, readdirSync(destination).length);
+  assert.ok(snapshot.bytes > 0);
+  assert.ok(!readdirSync(destination).includes(`artwork-attempt-${"c".repeat(64)}.json`));
+  assert.deepEqual(planDueGameMedia(destination, items, 1, now).selected, ["second"]);
+  writeFileSync(join(source, "game-media-progress-first.json"), "{}");
+  assert.throws(
+    () => snapshotGameMediaCheckpoint(source, join(scratch, "tampered")),
+    /differs from its receipt/u,
+  );
 });
 
 void test("bounded due maintenance rotates attempted retained covers without admitting unreviewed rows", async () => {

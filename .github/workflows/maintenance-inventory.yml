@@ -176,6 +176,83 @@ jobs:
             node scripts/maintenance-artwork-health.mts target/debug/portcove \
             work/maintenance-report/cover-artwork-health.json \
             work/maintenance-report/media-artwork-health.json
+      - name: Restore the missing game media checkpoint
+        id: game-media-cache
+        if: github.event_name == 'schedule'
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: work/maintenance-game-media-state
+          key: maintenance-game-media-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: maintenance-game-media-main-v1-
+      - name: Prepare a bounded round of due game media
+        id: game-media
+        if: github.event_name == 'schedule' && steps.game-media-cache.outcome == 'success'
+        timeout-minutes: 10
+        continue-on-error: true
+        env:
+          IGDB_CREDENTIALS: ${{ secrets.PORTCOVE_IGDB_CREDENTIALS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          base="$GITHUB_WORKSPACE/work"
+          evidence="$base/maintenance-game-media"
+          state="$base/maintenance-game-media-state"
+          mkdir "$evidence"
+          if [[ -z "$IGDB_CREDENTIALS" ]]; then
+            printf '%s\n' '{"format_version":1,"state":"deferred","reason":"provider-credentials-unavailable","attempted":0,"retry":"next-schedule"}' > "$evidence/status.json"
+            exit 0
+          fi
+          scratch=$(mktemp -d)
+          trap 'rm -rf -- "$scratch"' EXIT
+          printf '%s' "$IGDB_CREDENTIALS" > "$scratch/credentials.json"
+          unset IGDB_CREDENTIALS
+          [[ ! -L "$state" ]]
+          if [[ -d "$state" ]]; then
+            mkdir "$scratch/checkpoint"
+            cp -a -- "$state/." "$scratch/checkpoint/"
+          fi
+          env -i PATH="$PATH" HOME="$scratch" TMPDIR="$scratch" \
+            node scripts/generate-catalog.mts --prepare-proposal crates/portcove-core/catalog/catalog.json \
+              --hero-media igdb --credentials-file "$scratch/credentials.json" \
+              --media-checkpoint "$scratch/checkpoint" --media-due-limit 48 --media-image-budget-mib 32 \
+              --validator-cli "$GITHUB_WORKSPACE/target/debug/portcove" \
+              --output-dir "$evidence/proposal" > "$scratch/result.json"
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import { snapshotGameMediaCheckpoint } from "./scripts/artwork-preparation-progress.mts";
+            const [source, destination, result] = process.argv.slice(1);
+            const { media_due: queue } = JSON.parse(readFileSync(result, "utf8"));
+            if (!queue || !Number.isSafeInteger(queue.selected) || queue.selected > 48)
+              throw new Error("Missing bounded game media outcome");
+            const checkpoint = snapshotGameMediaCheckpoint(source, destination);
+            process.stdout.write(JSON.stringify({ format_version: 1, ...queue, checkpoint }) + "\n");
+          ' "$scratch/checkpoint" "$scratch/next" "$scratch/result.json" > "$evidence/status.json"
+          if [[ -d "$state" ]]; then mv -- "$state" "$scratch/previous"; fi
+          mv -- "$scratch/next" "$state"
+          echo 'checkpoint=true' >> "$GITHUB_OUTPUT"
+      - name: Retain the scheduled game media proposal and receipt
+        id: game-media-report
+        if: ${{ !cancelled() && steps.game-media.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: maintenance-game-media-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/maintenance-game-media/status.json
+            work/maintenance-game-media/proposal/artwork-evidence.json
+            work/maintenance-game-media/proposal/listing-media-proposal.json
+            work/maintenance-game-media/proposal/catalog-proposal.json
+            work/maintenance-game-media/proposal/proposal-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain the due game media checkpoint for the next schedule
+        if: ${{ !cancelled() && steps.game-media.outputs.checkpoint == 'true' && steps.game-media-report.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: work/maintenance-game-media-state
+          key: maintenance-game-media-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Read current allowance and exercise bounded status admission
         if: inputs.purpose == 'status'
         env:

@@ -325,6 +325,25 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const { collect, "restore-proof": restoreProof } = workflow.jobs;
+  const media = collect!.steps.find((step) => step.run?.includes("--media-image-budget-mib"))!;
+  assert.match(media.if!, /github.event_name == 'schedule'/u);
+  assert.deepEqual(media.env, { IGDB_CREDENTIALS: "${{ secrets.PORTCOVE_IGDB_CREDENTIALS }}" });
+  assert.match(media.run!, /--media-due-limit 48 --media-image-budget-mib 32/u);
+  assert.match(media.run!, /provider-credentials-unavailable/u);
+  assert.match(media.run!, /env -i [^\n]*\n\s*node scripts\/generate-catalog\.mts/u);
+  const mediaArtifact = collect!.steps.find((step) =>
+    String(step.with?.name).startsWith("maintenance-game-media-"),
+  )!;
+  assert.match(mediaArtifact.if!, /steps\.game-media\.outcome == 'success'/u);
+  assert.doesNotMatch(
+    String(mediaArtifact.with?.path),
+    /credentials|maintenance-game-media-state/u,
+  );
+  const mediaSave = collect!.steps.find(
+    (step) => step.name === "Retain the due game media checkpoint for the next schedule",
+  )!;
+  assert.ok(collect!.steps.indexOf(mediaSave) > collect!.steps.indexOf(mediaArtifact));
+  assert.match(mediaSave.if!, /steps\.game-media-report\.outcome == 'success'/u);
   assert.deepEqual(Object.keys(workflow.jobs), [
     "reconcile-intake-receipts",
     "collect",
@@ -544,7 +563,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   );
   assert.match(workerExecute.env!.HOSTED_INTAKE_MODE!, /inputs.mode/u);
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
-  assert.equal(uploads.length, 3);
+  assert.equal(uploads.length, 4);
   for (const upload of uploads) assert.equal(upload.with!["retention-days"], 30);
 });
 
