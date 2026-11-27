@@ -66,9 +66,13 @@ export function ArtworkProvider({
     [catalog, listings],
   );
   const catalogArtworkKey = useMemo(() => JSON.stringify(catalogArtwork), [catalogArtwork]);
+  const libraryChoices = useMemo(
+    () => ({ generation, revisions: new Map<string, number>() }),
+    [generation],
+  );
   const cache = useMemo(
-    () => new ArtworkCache(generation, catalogArtworkKey),
-    [generation, catalogArtworkKey],
+    () => new ArtworkCache(libraryChoices.generation, catalogArtworkKey, libraryChoices.revisions),
+    [libraryChoices, catalogArtworkKey],
   );
   useEffect(() => () => cache.clearRetryTimers(), [cache]);
   const collections = useMemo(() => {

@@ -707,7 +707,7 @@ function ArtworkSlotControl({
         }
         return;
       }
-      if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
+      if (currentIdentity.current.cache !== cache) void refreshCurrent(result.choice.revision);
       if (!stillInView()) return;
       focusOwner = currentIdentity.current.cache ?? cache;
       // The visibility toggle stays enabled after every outcome and keeps the player's place.
@@ -815,7 +815,7 @@ function ArtworkSlotControl({
         }
         return;
       }
-      if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
+      if (currentIdentity.current.cache !== cache) void refreshCurrent(result.choice.revision);
       if (!stillInView()) return;
       focusDraftTrigger(review, false, currentIdentity.current.cache, initiator);
       setDraft(undefined);

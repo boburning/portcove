@@ -829,11 +829,12 @@ describe("local artwork controls", () => {
     expect(reset).not.toHaveBeenCalled();
   });
 
-  it("waits for a pre-commit replacement-cache read and then reads the committed choice", async () => {
+  it("confirms Apply while holding replacement-cache controls for the committed read", async () => {
     const showArtwork = controlledArtworkVisibility();
     let state = artworkState("sample", "cover");
     let reads = 0;
     let deferReplacement = false;
+    let readCommittedChoice = false;
     let finishRead!: (value: ArtworkState) => void;
     vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) => {
       if (slot !== "cover") return artworkState(port, slot);
@@ -842,12 +843,24 @@ describe("local artwork controls", () => {
         deferReplacement = false;
         return new Promise((resolve) => (finishRead = resolve));
       }
+      readCommittedChoice = state.choice.revision === 1;
       return state;
     });
     let finishChange!: (value: ArtworkState) => void;
     const change = vi
       .spyOn(desktopApi, "importArtwork")
       .mockReturnValue(new Promise((resolve) => (finishChange = resolve)));
+    let finishThumbnail!: () => void;
+    vi.mocked(desktopApi.artworkThumbnail).mockImplementation(async (port, slot, revision) => {
+      const thumbnail = {
+        asset_sha256: "a".repeat(64),
+        choice_revision: revision,
+        png_base64: thumbnailPng,
+      };
+      if (readCommittedChoice && port === "sample" && slot === "cover" && revision === 1)
+        await new Promise<void>((resolve) => (finishThumbnail = resolve));
+      return thumbnail;
+    });
     vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
     await render("sample", 7, "old-cover");
     await act(async () => showArtwork());
@@ -863,9 +876,14 @@ describe("local artwork controls", () => {
     state = artworkState("sample", "cover", 1, true);
     await act(async () => finishChange(state));
     expect(button("cover", "Choose local image").disabled).toBe(true);
-    expect(container.textContent).not.toContain("Local image selected.");
+    await expect.element(page.getByText("Local image selected.", { exact: true })).toBeVisible();
+    expect(finishThumbnail).toBeUndefined();
     await act(async () => finishRead(preCommit));
     expect(reads).toBe(readsBefore + 2);
+    await expect.poll(() => typeof finishThumbnail).toBe("function");
+    expect(button("cover", "Choose local image").disabled).toBe(false);
+    expect(button("cover", "Use automatic").disabled).toBe(false);
+    await act(async () => finishThumbnail());
     await expect
       .poll(() => container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource)
       .toBe("local_import");
