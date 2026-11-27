@@ -101,7 +101,6 @@ export function readArtworkCheckpoint(bytes: Buffer, listing: Buffer): Checkpoin
       (typeof raw.prior_checkpoint_sha256 !== "string" ||
         !digest.test(raw.prior_checkpoint_sha256))) ||
     !Array.isArray(raw.entries) ||
-    raw.entries.length === 0 ||
     raw.entries.length > maxRows
   )
     throw new Error("Cover checkpoint is unbound to the authenticated listing");
@@ -293,8 +292,10 @@ export function advanceArtworkCheckpoint(
         );
       }
     },
-    finish(listing: Buffer) {
-      if (!sorted.length) return null;
+    finish(listing: Buffer, initialize = false) {
+      // An explicitly activated repository can have no withdrawal history.
+      // Once active, keep binding that history even if it is still empty.
+      if (!sorted.length && !held && !initialize) return null;
       if (
         prior &&
         held?.listing_sha256 === sha(listing) &&

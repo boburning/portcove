@@ -369,8 +369,11 @@ policy, checks that the current cover matches the latest signed reference, and
 validates the exact successor. Cover replacement review verifies the same
 retained references. If segmented history is active, the signer also requires
 its authenticated store and predecessor.
-The first cover checkpoint still requires the separate owner activation,
-authenticated compact listings, a verified withdrawal, and released-reader proof.
+The first cover checkpoint requires separate owner activation, authenticated
+compact listings, and released-reader proof of the exact staged target. It can
+start with empty withdrawal history. Any recorded withdrawal still requires
+its own accepted evidence. A later publication binds the prior checkpoint and
+preserves every accepted decision.
 
 1. **Unbounded chain.** Each publication adds one inventory segment and one
    parent checkpoint. Verification walks both chains under one shared bound of
