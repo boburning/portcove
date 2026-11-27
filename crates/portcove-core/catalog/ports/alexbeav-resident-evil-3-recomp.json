@@ -57,7 +57,17 @@
         "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "resident-evil-3-nemesis-playstation-europe",
+          "title": "Resident Evil 3: Nemesis (PlayStation, Europe SLES-02529)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp/blob/dc88cf8bebe2e62c4b1c22ec75e060481cdc3e55/game.toml#L3-L19",
+            "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp/blob/dc88cf8bebe2e62c4b1c22ec75e060481cdc3e55/README.md#L5-L23"
+          ]
+        }
+      ]
     },
     "original_game_title": "Resident Evil 3: Nemesis"
   }

@@ -11,7 +11,17 @@
       "format_version": 1,
       "id": "samurai-shodown",
       "evidence_urls": ["https://github.com/omegakatana92/Samurai-Shodown-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "samurai-shodown-neo-geo-mvs-samsho",
+          "title": "Samurai Shodown (Neo Geo MVS, set samsho)",
+          "system": "neo-geo-mvs",
+          "evidence_urls": [
+            "https://github.com/omegakatana92/Samurai-Shodown-Recomp/blob/c745e97211a81eefdfb436a1cabd8570d3eae90d/README.md",
+            "https://github.com/mamedev/mame/blob/ca48656c92325c821b85984952e96241d60c7aef/src/mame/neogeo/neogeo.cpp#L4753-L4771"
+          ]
+        }
+      ]
     },
     "original_game_title": "Samurai Shodown"
   }

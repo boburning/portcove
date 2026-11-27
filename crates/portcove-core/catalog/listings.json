@@ -10668,7 +10668,17 @@
           "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp#readme",
           "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "devil-dice-playstation-europe",
+            "title": "Devil Dice (PlayStation, Europe SCES-01312)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/blob/9968f8dd9c30c3350ddb3455945679f949003d19/game.toml#L4-L11",
+              "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/blob/9968f8dd9c30c3350ddb3455945679f949003d19/README.md#L15-L25"
+            ]
+          }
+        ]
       },
       "original_game_title": "Devil Dice"
     },
@@ -14619,7 +14629,17 @@
           "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp#readme",
           "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pro-pinball-timeshock-playstation-usa",
+            "title": "Pro Pinball: Timeshock! (PlayStation, USA SLUS-00639)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp/blob/1809737eacd2687d400cf54c5708dc63b52165a1/game.toml#L3-L17",
+              "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp/blob/1809737eacd2687d400cf54c5708dc63b52165a1/README.md#L1-L8"
+            ]
+          }
+        ]
       },
       "original_game_title": "Pro Pinball: Timeshock!"
     },
@@ -14938,7 +14958,17 @@
           "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp#readme",
           "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "resident-evil-3-nemesis-playstation-europe",
+            "title": "Resident Evil 3: Nemesis (PlayStation, Europe SLES-02529)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp/blob/dc88cf8bebe2e62c4b1c22ec75e060481cdc3e55/game.toml#L3-L19",
+              "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp/blob/dc88cf8bebe2e62c4b1c22ec75e060481cdc3e55/README.md#L5-L23"
+            ]
+          }
+        ]
       },
       "original_game_title": "Resident Evil 3: Nemesis"
     },
@@ -29098,11 +29128,12 @@
         ],
         "source_editions": [
           {
-            "id": "teenage-mutant-ninja-turtles-nintendo-switch",
-            "title": "Teenage Mutant Ninja Turtles (Nintendo Switch)",
-            "system": "nintendo-switch",
+            "id": "teenage-mutant-ninja-turtles-konami-arcade-world-4p-vx",
+            "title": "Teenage Mutant Ninja Turtles (Konami arcade, World 4 Players, version X)",
+            "system": "konami-arcade",
             "evidence_urls": [
-              "https://github.com/cheviman/tmnt-port"
+              "https://github.com/cheviman/tmnt-port/blob/aba58859fbc82f214bf3e82c928cd20d12902bc4/README.md#L1-L11",
+              "https://github.com/cheviman/tmnt-port/blob/aba58859fbc82f214bf3e82c928cd20d12902bc4/tools/tmnt_rom.py#L1-L24"
             ]
           }
         ]
@@ -45857,7 +45888,16 @@
           "https://github.com/elprogramadorloco-arch/jim2-recomp",
           "https://github.com/elprogramadorloco-arch/jim2-recomp/blob/a7a68daab33c4ff3b6fba1250b9babf04f25e61f/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "earthworm-jim-2-playstation-europe",
+            "title": "Earthworm Jim 2 (PlayStation, Europe SLES-00343)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/elprogramadorloco-arch/jim2-recomp/blob/a7a68daab33c4ff3b6fba1250b9babf04f25e61f/README.md#L27-L32"
+            ]
+          }
+        ]
       },
       "original_game_title": "Earthworm Jim 2"
     },
@@ -76405,7 +76445,16 @@
           "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md",
           "https://github.com/n64hub/super-mario-64-recomp/blob/a3240c9beed89341b29957cea0cea076fe04b6dc/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-64-n64-usa",
+            "title": "Super Mario 64 (Nintendo 64, USA)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/n64hub/super-mario-64-recomp/blob/52c6e0f06fbebb63980e12fb712d518c283f9b02/README.md#L118-L123"
+            ]
+          }
+        ]
       }
     },
     {
@@ -80949,7 +80998,17 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Breakers-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "breakers-neo-geo-breakers",
+            "title": "Breakers (Neo Geo, set breakers)",
+            "system": "neo-geo",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Breakers-Recomp/blob/7e8ab9cbaa19582601230bd2201de729275c72fe/README.md",
+              "https://github.com/mamedev/mame/blob/ca48656c92325c821b85984952e96241d60c7aef/src/mame/neogeo/neogeo.cpp#L7755-L7772"
+            ]
+          }
+        ]
       },
       "original_game_title": "Breakers",
       "platforms": [],
@@ -80970,11 +81029,12 @@
         ],
         "source_editions": [
           {
-            "id": "darius-gaiden-extra-arcade-ver-2-7j-nintendo-switch",
-            "title": "Darius Gaiden — Extra arcade Ver 2.7J (Nintendo Switch)",
-            "system": "nintendo-switch",
+            "id": "darius-gaiden-taito-f3-extra-dariusgx-2-7j",
+            "title": "Darius Gaiden (Taito F3, Extra Edition Ver 2.7J)",
+            "system": "taito-f3",
             "evidence_urls": [
-              "https://github.com/omegakatana92/Darius-Gaiden-Recomp"
+              "https://github.com/omegakatana92/Darius-Gaiden-Recomp/blob/c20c87a564b38955e3877a99dbf56474cbd3db63/README.md#L9-L16",
+              "https://github.com/omegakatana92/Darius-Gaiden-Recomp/blob/c20c87a564b38955e3877a99dbf56474cbd3db63/README.md#L27-L38"
             ]
           }
         ]
@@ -80998,11 +81058,12 @@
         ],
         "source_editions": [
           {
-            "id": "darius-gaiden-original-arcade-ver-2-5o-nintendo-switch",
-            "title": "Darius Gaiden — Original arcade Ver 2.5O (Nintendo Switch)",
-            "system": "nintendo-switch",
+            "id": "darius-gaiden-taito-f3-original-dariusg-2-5o",
+            "title": "Darius Gaiden (Taito F3, Original Ver 2.5O)",
+            "system": "taito-f3",
             "evidence_urls": [
-              "https://github.com/omegakatana92/Darius-Gaiden-Recomp"
+              "https://github.com/omegakatana92/Darius-Gaiden-Recomp/blob/c20c87a564b38955e3877a99dbf56474cbd3db63/README.md#L9-L16",
+              "https://github.com/omegakatana92/Darius-Gaiden-Recomp/blob/c20c87a564b38955e3877a99dbf56474cbd3db63/README.md#L27-L38"
             ]
           }
         ]
@@ -81024,7 +81085,16 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Dodonpachi-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dodonpachi-world-arcade-ddonpach",
+            "title": "DoDonPachi (Arcade, World set ddonpach)",
+            "system": "arcade",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Dodonpachi-Recomp/blob/19952a9098e4271013ffdd63d6cf0698decbd42e/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "DoDonPachi",
       "platforms": [],
@@ -81043,7 +81113,17 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Fatal-Fury-3-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "fatal-fury-3-neo-geo-fatfury3",
+            "title": "Fatal Fury 3: Road to the Final Victory (Neo Geo, set fatfury3)",
+            "system": "neo-geo",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Fatal-Fury-3-Recomp/blob/4109f4af33a99214f5842ffc4efa8e36f22582b1/README.md",
+              "https://github.com/mamedev/mame/blob/ca48656c92325c821b85984952e96241d60c7aef/src/mame/neogeo/neogeo.cpp#L5719-L5744"
+            ]
+          }
+        ]
       },
       "original_game_title": "Fatal Fury 3: Road to the Final Victory",
       "platforms": [],
@@ -81136,7 +81216,16 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Metal-Slug-5-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "metal-slug-5-neo-geo-mvs-mslug5",
+            "title": "Metal Slug 5 (Neo Geo MVS, set mslug5)",
+            "system": "neo-geo-mvs",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Metal-Slug-5-Recomp/blob/0b9cbe73a77e6afa300bc3e5e88b12ca19998ed6/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Metal Slug 5",
       "platforms": [],
@@ -81155,7 +81244,17 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/-Power-Instinct-Matrimelee-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "power-instinct-matrimelee-neo-geo-matrim",
+            "title": "Power Instinct Matrimelee (Neo Geo, set matrim)",
+            "system": "neo-geo",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/-Power-Instinct-Matrimelee-Recomp/blob/440687345d7da79c399d856508ccdc738e76c55c/README.md",
+              "https://github.com/mamedev/mame/blob/ca48656c92325c821b85984952e96241d60c7aef/src/mame/neogeo/neogeo.cpp#L9735-L9756"
+            ]
+          }
+        ]
       },
       "original_game_title": "Power Instinct Matrimelee",
       "platforms": [],
@@ -81174,7 +81273,16 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Real-Bout-Fatal-Fury-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "real-bout-fatal-fury-neo-geo-rbff1",
+            "title": "Real Bout Fatal Fury (Neo Geo, set rbff1)",
+            "system": "neo-geo",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Real-Bout-Fatal-Fury-Recomp/blob/1aedfffa7cb5c7c586864157d94bb344dc377e47/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Real Bout Fatal Fury",
       "platforms": [],
@@ -81193,7 +81301,17 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Samurai-Shodown-II-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "samurai-shodown-ii-neo-geo-samsho2",
+            "title": "Samurai Shodown II (Neo Geo, set samsho2)",
+            "system": "neo-geo",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Samurai-Shodown-II-Recomp/blob/875c66da40747ffe2bc0af072dae0114a92600ae/README.md",
+              "https://github.com/mamedev/mame/blob/ca48656c92325c821b85984952e96241d60c7aef/src/mame/neogeo/neogeo.cpp#L5484-L5506"
+            ]
+          }
+        ]
       },
       "original_game_title": "Samurai Shodown II",
       "platforms": [],
@@ -81212,7 +81330,17 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Samurai-Shodown-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "samurai-shodown-neo-geo-mvs-samsho",
+            "title": "Samurai Shodown (Neo Geo MVS, set samsho)",
+            "system": "neo-geo-mvs",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Samurai-Shodown-Recomp/blob/c745e97211a81eefdfb436a1cabd8570d3eae90d/README.md",
+              "https://github.com/mamedev/mame/blob/ca48656c92325c821b85984952e96241d60c7aef/src/mame/neogeo/neogeo.cpp#L4753-L4771"
+            ]
+          }
+        ]
       },
       "original_game_title": "Samurai Shodown",
       "platforms": [],
@@ -81305,7 +81433,16 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Waku-Waku-7-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "waku-waku-7-neo-geo-wakuwak7",
+            "title": "Waku Waku 7 (Neo Geo, set wakuwak7)",
+            "system": "neo-geo",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Waku-Waku-7-Recomp/blob/6cbc5ce5be9595840814706b77fc3cd728f62cc1/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Waku Waku 7",
       "platforms": [],
@@ -110341,7 +110478,17 @@
         "evidence_urls": [
           "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-64-n64-usa",
+            "title": "Super Mario 64 (Nintendo 64, USA)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/src/pc/rom_checker.cpp#L25-L37",
+              "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/sm64.us.sha1#L1"
+            ]
+          }
+        ]
       },
       "release_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1",
       "manual_setup": {
@@ -127109,7 +127256,25 @@
         "evidence_urls": [
           "https://github.com/VirtuaQuest/Arms-Rearmed"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "arms-nintendo-switch-5-4-0",
+            "title": "ARMS (Nintendo Switch base game + update 5.4.0)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/VirtuaQuest/Arms-Rearmed/blob/324cb0c839337490152bf599f75d3df921a0adf1/README.md#L16-L26",
+              "https://github.com/VirtuaQuest/Arms-Rearmed/blob/1f57e98f01e4abebe340ba74da981b8aebde134a/README.md#L16-L27"
+            ]
+          },
+          {
+            "id": "arms-nintendo-switch-5-5-1",
+            "title": "ARMS (Nintendo Switch base game + update 5.5.1)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/VirtuaQuest/Arms-Rearmed/blob/1f57e98f01e4abebe340ba74da981b8aebde134a/README.md#L16-L27"
+            ]
+          }
+        ]
       },
       "original_game_title": "ARMS",
       "platforms": [],
