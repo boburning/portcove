@@ -11,7 +11,16 @@
       "format_version": 1,
       "id": "dodonpachi",
       "evidence_urls": ["https://github.com/omegakatana92/Dodonpachi-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dodonpachi-world-arcade-ddonpach",
+          "title": "DoDonPachi (Arcade, World set ddonpach)",
+          "system": "arcade",
+          "evidence_urls": [
+            "https://github.com/omegakatana92/Dodonpachi-Recomp/blob/19952a9098e4271013ffdd63d6cf0698decbd42e/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "DoDonPachi"
   }
