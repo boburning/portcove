@@ -224,10 +224,17 @@ function boundedEvidenceBody(body: unknown, path: string, sha: string) {
   return bytes;
 }
 
+type ScopeRead = (
+  endpoint: string,
+  hours?: number,
+  reuseCached?: boolean,
+) => Promise<Pick<FactResult, "status" | "body" | "reason" | "retry_after">>;
+
 async function observeDiscoveryScope(
   project: unknown,
   repositoryId: number,
-  read: (endpoint: string, hours?: number, reuseCached?: boolean) => Promise<FactResult>,
+  read: ScopeRead,
+  purpose: "admission" | "launcher-mods" = "admission",
 ) {
   const outcome = (
     state: "held" | "unavailable" | "restricted",
@@ -243,11 +250,12 @@ async function observeDiscoveryScope(
   });
   if (
     !isRecord(project) ||
-    project.fork !== false ||
-    project.mirror_url !== null ||
-    project.parent != null ||
-    project.source != null ||
-    typeof project.full_name !== "string"
+    typeof project.full_name !== "string" ||
+    (purpose === "admission" &&
+      (project.fork !== false ||
+        project.mirror_url !== null ||
+        project.parent != null ||
+        project.source != null))
   )
     return outcome("held", "independent-upstream-scope-unresolved");
   const location = `repositories/${repositoryId}`;
@@ -291,9 +299,15 @@ async function observeDiscoveryScope(
     rootEntries.some(({ path }) => typeof path === "string" && /^\.recomp-[2-9]\.json$/u.test(path))
   )
     return outcome("held", "multiple-manifest-subjects");
-  const manifestPath = [".recomp.json", ".recomp-board.json", "recomplauncher.json"].find((name) =>
-    rootEntries.some(({ path }) => path === name),
+  const manifestPaths = [".recomp.json", ".recomp-board.json", "recomplauncher.json"].filter(
+    (name) => rootEntries.some(({ path }) => path === name),
   );
+  const [manifestPath] = manifestPaths;
+  if (purpose === "launcher-mods") {
+    if (manifestPaths.length > 1) return outcome("held", "multiple-manifest-subjects");
+    if (manifestPath !== "recomplauncher.json")
+      return { ...outcome("held", "launcher-manifest-absent"), commit, tree: treeId };
+  }
   let evidencePath: string;
   let entry: unknown;
   if (manifestPath === undefined) {
@@ -413,6 +427,87 @@ async function observeDiscoveryScope(
     manifest_sha256: createHash("sha256").update(bytes).digest("hex"),
     manifest,
   };
+}
+
+export const launcherModObservationPolicy = "github-launcher-mod-links/1";
+
+export type LauncherModObservation =
+  | { state: "unavailable"; reason: string; retry_after?: string }
+  | { state: "held"; reason: string }
+  | { state: "absent"; repository_id: number; commit: string; tree: string }
+  | {
+      state: "observed";
+      repository_id: number;
+      commit: string;
+      tree: string;
+      blob: string;
+      manifest_sha256: string;
+      mod_portals: NonNullable<AuthoredListing["mod_portals"]>;
+    };
+
+/** Read descriptive links from the exact public repository already accepted for one port.
+ * The caller owns eligibility and supplies a budgeted provider transport. */
+export async function observeLauncherModPortals(
+  repository: { slug: string; id: number },
+  read: ScopeRead,
+): Promise<LauncherModObservation> {
+  if (!Number.isSafeInteger(repository.id) || repository.id <= 0)
+    throw new Error("First-party mod observation requires a positive bound GitHub repository ID.");
+  const project = await read(`repositories/${repository.id}`, 0, false);
+  if (project.status === "unavailable")
+    return {
+      state: "unavailable",
+      reason: project.reason ?? "repository-unobserved",
+      ...(project.retry_after ? { retry_after: project.retry_after } : {}),
+    };
+  if (
+    !isRecord(project.body) ||
+    project.body.id !== repository.id ||
+    project.body.private !== false ||
+    typeof project.body.full_name !== "string" ||
+    project.body.full_name.toLowerCase() !== repository.slug.toLowerCase()
+  )
+    return { state: "held", reason: "repository-binding-unresolved" };
+  const scope = await observeDiscoveryScope(project.body, repository.id, read, "launcher-mods");
+  if (
+    "manifest" in scope &&
+    scope.manifest &&
+    "names_scummvm" in scope.manifest &&
+    typeof scope.manifest_blob === "string" &&
+    typeof scope.manifest_sha256 === "string"
+  )
+    return {
+      state: "observed",
+      repository_id: repository.id,
+      commit: scope.commit,
+      tree: scope.tree,
+      blob: scope.manifest_blob,
+      manifest_sha256: scope.manifest_sha256,
+      mod_portals: scope.manifest.mod_portals ?? [],
+    };
+  if ("reason" in scope && typeof scope.reason === "string") {
+    if (scope.state === "unavailable")
+      return {
+        state: "unavailable",
+        reason: scope.reason,
+        ...(scope.retry_after ? { retry_after: scope.retry_after } : {}),
+      };
+    if (
+      scope.reason === "launcher-manifest-absent" &&
+      "commit" in scope &&
+      "tree" in scope &&
+      typeof scope.commit === "string" &&
+      typeof scope.tree === "string"
+    )
+      return {
+        state: "absent",
+        repository_id: repository.id,
+        commit: scope.commit,
+        tree: scope.tree,
+      };
+    return { state: "held", reason: scope.reason };
+  }
+  return { state: "held", reason: "unsupported-project-manifest" };
 }
 
 export class BoundRepositoryUnavailable extends Error {
