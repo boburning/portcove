@@ -937,13 +937,9 @@ void test("new scenes stay edition-bound and preserve other reviewed scopes", as
   });
 });
 
-void test("an observed Gone image sweeps earlier and unselected references and cannot be reselected in the batch", async () => {
-  const {
-    createIgdbInspector,
-    prepareCatalogArtwork,
-    prepareCatalogGameMedia,
-    reconcileCatalogArtworkWithdrawals,
-  } = await import("./inspect-igdb-artwork.mts");
+void test("an observed Gone logo sweeps every reference to its variant and preserves other variants", async () => {
+  const { createIgdbInspector, prepareCatalogArtwork, prepareCatalogGameMedia } =
+    await import("./inspect-igdb-artwork.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-game-media-gone-"));
   const privateFile = join(scratch, "private-fixture.json");
   writeFileSync(
@@ -1000,7 +996,12 @@ void test("an observed Gone image sweeps earlier and unselected references and c
           match_kind: "port",
         },
         media: [
-          { id: "retained-header", role: "header", subject: { kind: "port", port_id: id } },
+          {
+            id: "retained-header",
+            role: "header",
+            subject: { kind: "port", port_id: id },
+            igdb: { image_id: "sharedlogo" },
+          },
           ...(["three", "unselected"].includes(id)
             ? [
                 {
@@ -1025,29 +1026,24 @@ void test("an observed Gone image sweeps earlier and unselected references and c
   const result = await prepareCatalogGameMedia(covers.catalog, {
     inspector,
     selectedPortIds: ["one", "two", "three"],
-    knownGoneImageIds: covers.gone_image_ids,
   });
-  reconcileCatalogArtworkWithdrawals(covers, result.gone_image_ids);
   assert.deepEqual(inventoryCalls, ["/v4/artworks", "/v4/logos", "/v4/screenshots"]);
   assert.equal(imageCalls, 2);
-  assert.deepEqual(result.gone_image_ids, ["sharedlogo"]);
-  assert.deepEqual(covers.gone_image_ids, ["sharedlogo"]);
-  assert.deepEqual(covers.workset.invalidated_port_ids, ["one", "three", "two", "unselected"]);
-  assert.equal(covers.metrics.reused, 0);
-  assert.equal(covers.metrics.fallback, 4);
-  assert.equal(covers.metrics.ports, 4);
-  assert.ok(
-    covers.records.every(
-      (record) =>
-        record.mapping === null && record.checks === null && record.reason === "generated-fallback",
-    ),
-  );
+  assert.deepEqual(result.gone_media_targets, ["logo_med_2x/sharedlogo"]);
+  assert.deepEqual(covers.gone_image_ids, []);
   for (const port of result.catalog.ports) {
-    assert.equal(port.presentation?.artwork, undefined);
+    const artwork = port.presentation?.artwork;
+    assert.ok(isRecord(artwork));
+    assert.equal(artwork.image_id, "sharedlogo");
     const media = port.presentation?.media;
     assert.ok(Array.isArray(media));
     assert.deepEqual(media, [
-      { id: "retained-header", role: "header", subject: { kind: "port", port_id: port.id } },
+      {
+        id: "retained-header",
+        role: "header",
+        subject: { kind: "port", port_id: port.id },
+        igdb: { image_id: "sharedlogo" },
+      },
     ]);
   }
   assert.equal(
@@ -1057,7 +1053,7 @@ void test("an observed Gone image sweeps earlier and unselected references and c
 });
 
 for (const unavailableMedia of [false, true]) {
-  void test(`cover Gone excludes every media fallback before ${unavailableMedia ? "unavailable" : "repeated"} alternate-role lookup`, async () => {
+  void test(`cover Gone preserves other variants through ${unavailableMedia ? "unavailable" : "successful"} media lookup`, async () => {
     const { createIgdbInspector, prepareCatalogArtwork, prepareCatalogGameMedia } =
       await import("./inspect-igdb-artwork.mts");
     const scratch = mkdtempSync(join(tmpdir(), "portcove-cover-media-gone-"));
@@ -1067,7 +1063,7 @@ for (const unavailableMedia of [false, true]) {
       mediaCalls = 0;
     const provider = createIgdbInspector(
       credentials,
-      () => ({ format: "jpeg", width: 280, height: 420, validator: "portcove-core" }),
+      () => ({ format: "png", width: 400, height: 200, validator: "portcove-core" }),
       async (url) => {
         if (url.includes("oauth2")) return new Response('{"access_token":"fixture"}');
         if (url.endsWith("/games"))
@@ -1084,7 +1080,9 @@ for (const unavailableMedia of [false, true]) {
           );
         assert.ok(url.includes("images.igdb.com"), `Unexpected provider request: ${url}`);
         imageCalls++;
-        return new Response(null, { status: 410 });
+        return url.endsWith(".jpg")
+          ? new Response(null, { status: 410 })
+          : new Response("media", { headers: { "content-type": "image/png" } });
       },
     );
     const catalog = {
@@ -1121,16 +1119,15 @@ for (const unavailableMedia of [false, true]) {
     });
     assert.deepEqual(covers.gone_image_ids, ["withdrawncover"]);
     assert.equal(imageCalls, 1);
-    // Cover-only preparation must already exclude every role and unselected ref.
+    // The same provider image ID can still serve a different CDN variant.
     for (const port of covers.catalog.ports) {
       assert.equal(port.presentation?.artwork, undefined);
       const retained = port.presentation?.media;
       assert.ok(Array.isArray(retained));
-      assert.equal(retained.length, 1);
+      assert.equal(retained.length, 2);
     }
     const result = await prepareCatalogGameMedia(covers.catalog, {
       selectedPortIds: ["refreshed"],
-      knownGoneImageIds: covers.gone_image_ids,
       inspector: {
         ...provider,
         inspectGameMedia: async () => {
@@ -1142,18 +1139,15 @@ for (const unavailableMedia of [false, true]) {
         },
       },
     });
-    assert.equal(mediaCalls, 3);
-    assert.equal(
-      imageCalls,
-      1,
-      "Neither a repeated candidate nor unavailable metadata may retry an exact Gone image",
-    );
-    assert.deepEqual(result.gone_image_ids, ["withdrawncover"]);
+    assert.equal(mediaCalls, 2);
+    assert.equal(imageCalls, unavailableMedia ? 1 : 3);
+    assert.deepEqual(result.gone_media_targets, []);
     for (const port of result.catalog.ports) {
       assert.equal(port.presentation?.artwork, undefined);
-      assert.deepEqual(port.presentation?.media, [
-        { id: "retained-header", role: "header", subject: { kind: "port", port_id: port.id } },
-      ]);
+      const media = port.presentation?.media;
+      assert.ok(Array.isArray(media));
+      assert.ok(media.some((asset) => isRecord(asset) && asset.id === "gone-logo"));
+      if (!unavailableMedia && port.id === "refreshed") assert.equal(media.length, 4);
     }
     assert.equal(covers.metrics.fallback, 3);
     assert.ok(covers.records.every((record) => record.mapping === null && record.checks === null));
@@ -1162,7 +1156,7 @@ for (const unavailableMedia of [false, true]) {
         result.records.every(
           (record) =>
             record.reason === "media-provider-unavailable-or-incomplete" ||
-            (record.role === "header" && record.reason === "existing-scene-retained"),
+            record.reason === "existing-scene-retained",
         ),
       );
   });
@@ -1213,7 +1207,7 @@ void test("an exact 410 for an unselected scene stays attached to its provider g
   );
   const catalog = { ports: [{ id: "sample", name: "Sample", project_url: project }] };
   const proposal = await prepareCatalogGameMedia(catalog, { inspector });
-  assert.deepEqual(proposal.gone_image_ids, ["keyartgone", "scenegone"]);
+  assert.deepEqual(proposal.gone_media_targets, ["720p/keyartgone", "720p/scenegone"]);
   assert.deepEqual(fetched, ["keyartgone.png", "scenegone.png"]);
   const screenshot = sceneCoverage(catalog, proposal).find(({ role }) => role === "screenshot");
   assert.deepEqual(screenshot?.provider_game_ids, [7]);
@@ -1317,7 +1311,7 @@ void test("explicit media refresh shares exact checks and only confirmed Gone wi
       const result = await prepareCatalogGameMedia(catalog, { inspector, refreshPortIds: ids });
       assert.equal(reads, 1);
       if (status === 410) {
-        assert.deepEqual(result.gone_image_ids, ["sharedlogo"]);
+        assert.deepEqual(result.gone_media_targets, ["logo_med_2x/sharedlogo"]);
         assert.ok(
           result.catalog.ports.every(
             ({ presentation }) =>
@@ -1335,7 +1329,7 @@ void test("explicit media refresh shares exact checks and only confirmed Gone wi
         });
       } else {
         assert.deepEqual(result.catalog, catalog);
-        assert.deepEqual(result.gone_image_ids, []);
+        assert.deepEqual(result.gone_media_targets, []);
         assert.equal(
           result.records.filter(
             ({ reason }) =>

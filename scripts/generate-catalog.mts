@@ -31,7 +31,6 @@ import { fileURLToPath } from "node:url";
 import {
   prepareCatalogArtwork,
   prepareCatalogGameMedia,
-  reconcileCatalogArtworkWithdrawals,
   createIgdbInspector,
   createCoreImageValidator,
   readArtworkJson,
@@ -588,23 +587,16 @@ async function prepareArtworkProposal(fullProposal = false) {
   );
   const gameMedia =
     heroMedia === "igdb"
-      ? await prepareGameMediaInOperations(
-          covers.catalog,
-          selectedPortIds,
-          covers.gone_image_ids,
-          (ids, catalog, gone) =>
-            prepareCatalogGameMedia(catalog, {
-              inspector,
-              identities,
-              knownGoneImageIds: gone,
-              refreshPortIds: ids
-                ? refreshPortIds.filter((id) => ids.includes(id))
-                : refreshPortIds,
-              ...(ids ? { selectedPortIds: ids } : {}),
-            }),
+      ? await prepareGameMediaInOperations(covers.catalog, selectedPortIds, (ids, catalog, gone) =>
+          prepareCatalogGameMedia(catalog, {
+            inspector,
+            identities,
+            knownGoneMediaTargets: gone,
+            refreshPortIds: ids ? refreshPortIds.filter((id) => ids.includes(id)) : refreshPortIds,
+            ...(ids ? { selectedPortIds: ids } : {}),
+          }),
         )
       : undefined;
-  if (gameMedia) reconcileCatalogArtworkWithdrawals(covers, gameMedia.gone_image_ids);
   const result = { ...covers, catalog: gameMedia?.catalog ?? covers.catalog };
   finishPhase("artwork_preparation");
   validateCurrentCatalog(result.catalog);
@@ -653,7 +645,7 @@ async function prepareArtworkProposal(fullProposal = false) {
       ? {
           game_media: {
             records: gameMedia.records,
-            gone_image_ids: gameMedia.gone_image_ids,
+            gone_media_targets: gameMedia.gone_media_targets,
             coverage: sceneCoverage(acceptedArtwork, gameMedia, selectedPortIds),
           },
         }

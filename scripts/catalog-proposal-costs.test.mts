@@ -192,6 +192,7 @@ function fixture(
     `
     import {readFileSync} from 'node:fs';
     export const catalogGameMediaRoles = ["key_art", "logo", "header", "screenshot"];
+    export function gameMediaImageTarget(role, imageId) { return (role === "logo" ? "logo_med_2x/" : "720p/") + imageId; }
     export function readArtworkInput(path) {
       const bytes=readFileSync(path); return {bytes,document:JSON.parse(bytes)};
     }

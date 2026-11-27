@@ -194,10 +194,15 @@ const maximumImageBytes = 16 * 1024 * 1024;
 const maximumBatchBytes = 512 * 1024 * 1024;
 // Only this module's fixed image request can establish a Gone observation.
 // Provider metadata, generic errors and caller-supplied status properties cannot.
+type IgdbImageVariant = "cover_big" | "logo_med_2x" | "720p";
 const goneImageObservations = new WeakMap<object, string>();
 
-export function isConfirmedIgdbImageGone(error: unknown, imageId: string) {
-  return isRecord(error) && goneImageObservations.get(error) === imageId;
+export function isConfirmedIgdbImageGone(
+  error: unknown,
+  imageId: string,
+  variant: IgdbImageVariant = "cover_big",
+) {
+  return isRecord(error) && goneImageObservations.get(error) === `${variant}/${imageId}`;
 }
 
 function goneImageException(kind: IgdbArtworkMatch, imageId: string): ArtworkException {
@@ -753,6 +758,7 @@ function applyGoneImageFallbacks(
   const byId = new Map(records.map((record) => [record.port_id, record]));
   const invalidated: string[] = [];
   for (const port of catalog.ports) {
+    if (withdrawCompanionCover(port, context.goneImages)) invalidated.push(port.id);
     if (withdrawCollectionCovers(port, context.goneImages)) {
       invalidated.push(port.id);
       const record = byId.get(port.id);
@@ -1111,7 +1117,6 @@ export async function prepareCatalogArtwork(
   // A later refreshed record can observe Gone for an earlier reused mapping.
   // Apply that exact-image fact to every output reference without extra requests.
   const invalidatedPortIds = applyGoneImageFallbacks(result, records, context);
-  const withdrawnCompanions = removeWithdrawnCatalogMedia(result, [], context.goneImages);
   assertPreparedArtwork(result);
   return {
     catalog: result,
@@ -1121,7 +1126,7 @@ export async function prepareCatalogArtwork(
     workset: {
       catalog_ports: catalog.ports.length,
       selected_port_ids: [...workset],
-      invalidated_port_ids: [...new Set([...invalidatedPortIds, ...withdrawnCompanions])],
+      invalidated_port_ids: [...new Set(invalidatedPortIds)],
     },
   };
 }
@@ -1135,7 +1140,7 @@ function validateKnownGoneImages(imageIds: readonly string[] | undefined) {
     throw new Error("Invalid bounded exact-image Gone observations.");
 }
 
-/** Reconcile later role observations into the existing cover proposal and its
+/** Reconcile later cover observations into the existing cover proposal and its
  * evidence. No provider requests or authority are introduced by reconciliation. */
 export function reconcileCatalogArtworkWithdrawals(
   prepared: Awaited<ReturnType<typeof prepareCatalogArtwork>>,
@@ -1147,7 +1152,6 @@ export function reconcileCatalogArtworkWithdrawals(
     goneImages,
     metrics: prepared.metrics,
   });
-  invalidated.push(...removeWithdrawnCatalogMedia(prepared.catalog, [], goneImages));
   prepared.gone_image_ids = [...goneImages].sort();
   prepared.workset.invalidated_port_ids = [
     ...new Set([...prepared.workset.invalidated_port_ids, ...invalidated]),
@@ -1420,7 +1424,7 @@ export function createIgdbInspector(
   }
   async function inspectRemoteImage(
     imageId: string,
-    variant: "cover_big" | "logo_med_2x" | "720p",
+    variant: IgdbImageVariant,
     remainingBytes: number,
   ): Promise<Record<string, unknown> & { sha256: string; bytes: number }> {
     if (!matchesString(imagePattern, imageId)) throw new Error("Invalid image identity.");
@@ -1443,7 +1447,7 @@ export function createIgdbInspector(
         imageRetryAt = metadataRetryAt(response.headers.get("retry-after"), Date.now(), 8.64e15);
       if (response.status === 410) {
         const error = new Error("IGDB image is gone.");
-        goneImageObservations.set(error, imageId);
+        goneImageObservations.set(error, `${variant}/${imageId}`);
         throw error;
       }
       if (
@@ -1581,6 +1585,9 @@ export const gameMediaRoles = {
   },
 } as const;
 type GameMediaRole = keyof typeof gameMediaRoles;
+export function gameMediaImageTarget(role: GameMediaRole, imageId: string) {
+  return `${gameMediaRoles[role].variant}/${imageId}`;
+}
 export function gameMediaDimensionsFit(role: GameMediaRole, width: number, height: number) {
   return width <= (role === "logo" ? 568 : 1280) && height <= (role === "logo" ? 320 : 720);
 }
@@ -1763,19 +1770,29 @@ function heroAssetProposal(
 
 function observeWithdrawnHeroImage(
   error: unknown,
+  role: GameMediaRole,
+  imageId: string,
   media: unknown[],
   context: HeroPreparationContext,
 ) {
-  const gone =
-    typeof error === "object" && error !== null ? goneImageObservations.get(error) : undefined;
-  if (!gone) return;
-  context.goneImages.add(gone);
+  if (!isConfirmedIgdbImageGone(error, imageId, gameMediaRoles[role].variant)) return;
+  const target = gameMediaImageTarget(role, imageId);
+  context.goneImages.add(target);
   for (let index = media.length - 1; index >= 0; index--) {
-    const asset = media[index];
-    if (isRecord(asset) && isRecord(asset.igdb) && asset.igdb.image_id === gone)
-      media.splice(index, 1);
+    if (catalogMediaImageTarget(media[index]) === target) media.splice(index, 1);
   }
-  return gone;
+  return imageId;
+}
+
+function catalogMediaImageTarget(asset: unknown) {
+  if (
+    isRecord(asset) &&
+    typeof asset.role === "string" &&
+    Object.hasOwn(gameMediaRoles, asset.role) &&
+    isRecord(asset.igdb) &&
+    typeof asset.igdb.image_id === "string"
+  )
+    return gameMediaImageTarget(asset.role as GameMediaRole, asset.igdb.image_id);
 }
 async function inspectHeroRole(
   game: ObservedGame,
@@ -1796,7 +1813,9 @@ async function inspectHeroRole(
   const observed = await inventory;
   const eligible = heroImageCandidates(observed, game, role);
   const withdrawn = new Set(
-    eligible.map(({ image_id }) => image_id).filter((id) => context.goneImages.has(id)),
+    eligible
+      .map(({ image_id }) => image_id)
+      .filter((id) => context.goneImages.has(gameMediaImageTarget(role, id))),
   );
   const candidates = eligible.filter(({ image_id }) => !withdrawn.has(image_id));
   let reason = "no-suitable-role-observed";
@@ -1805,7 +1824,7 @@ async function inspectHeroRole(
   // Finite candidate chain; one bad file does not erase another media role.
   for (const candidate of candidates.slice(0, 4)) {
     context.signal?.throwIfAborted();
-    if (context.goneImages.has(candidate.image_id)) continue;
+    if (context.goneImages.has(gameMediaImageTarget(role, candidate.image_id))) continue;
     try {
       const image = await context.inspector.inspectMediaImage(candidate.image_id, role);
       if (role === "header" && image.width * 2 < image.height * 3) continue;
@@ -1818,7 +1837,7 @@ async function inspectHeroRole(
       return { asset, reason: "role-selected", withdrawn };
     } catch (error) {
       context.signal?.throwIfAborted();
-      const gone = observeWithdrawnHeroImage(error, media, context);
+      const gone = observeWithdrawnHeroImage(error, role, candidate.image_id, media, context);
       if (gone === candidate.image_id) withdrawn.add(gone);
       if (error instanceof ArtworkBatchExhausted) {
         reason = "batch-provider-budget-exhausted";
@@ -1884,8 +1903,8 @@ async function refreshRetainedHeroMedia(
     else continue;
     const role = asset.role as GameMediaRole;
     const imageId = asset.igdb.image_id;
-    if (context.goneImages.has(imageId)) continue;
-    const key = JSON.stringify([role, imageId]);
+    const key = gameMediaImageTarget(role, imageId);
+    if (context.goneImages.has(key)) continue;
     let pending = context.retainedImages.get(key);
     if (!pending) {
       pending = Promise.resolve().then(() => context.inspector.inspectMediaImage(imageId, role));
@@ -1898,7 +1917,7 @@ async function refreshRetainedHeroMedia(
         image.sha256 === asset.sha256 ? "retained-image-verified" : "retained-image-bytes-changed";
     } catch (error) {
       context.signal?.throwIfAborted();
-      const withdrawn = observeWithdrawnHeroImage(error, media, context);
+      const withdrawn = observeWithdrawnHeroImage(error, role, imageId, media, context);
       reason =
         withdrawn === imageId
           ? "retained-image-withdrawn"
@@ -1930,7 +1949,11 @@ async function prepareHeroIdentity(
       (asset): asset is Record<string, unknown> =>
         isRecord(asset) &&
         asset.role === role &&
-        !(isRecord(asset.igdb) && context.goneImages.has(String(asset.igdb.image_id))),
+        !(
+          isRecord(asset.igdb) &&
+          typeof asset.igdb.image_id === "string" &&
+          context.goneImages.has(gameMediaImageTarget(role, asset.igdb.image_id))
+        ),
     );
     const retained = existing.find((asset) => sameMediaSubject(asset.subject, identity.subject));
     if (retained || existing.length >= gameMediaRoleLimits[role]) {
@@ -2014,31 +2037,21 @@ function removeWithdrawnCatalogMedia(
 ) {
   // A withdrawal invalidates every candidate reference, including unselected ports
   // and records completed earlier in this batch.
-  const companions = [];
   for (const port of catalog.ports) {
-    if (withdrawCollectionCovers(port, gone)) companions.push(port.id);
-    if (withdrawCompanionCover(port, gone)) companions.push(port.id);
-    const artwork = port.presentation?.artwork;
-    if (validArtworkMapping(artwork) && gone.has(artwork.image_id) && port.presentation)
-      delete port.presentation.artwork;
     const media = port.presentation?.media;
     if (Array.isArray(media))
       port.presentation = {
         ...port.presentation,
-        media: media.filter(
-          (asset) =>
-            !isRecord(asset) || !isRecord(asset.igdb) || !gone.has(String(asset.igdb.image_id)),
-        ),
+        media: media.filter((asset) => !gone.has(catalogMediaImageTarget(asset) ?? "")),
       };
   }
   for (const record of records)
     if (
       record.reason !== "retained-image-withdrawn" &&
       record.image_id &&
-      gone.has(record.image_id)
+      gone.has(gameMediaImageTarget(record.role, record.image_id))
     )
       record.reason = "selected-image-gone-later-in-batch";
-  return companions;
 }
 
 /** Propose descriptive game media through the existing identity/provider
@@ -2049,7 +2062,7 @@ export async function prepareCatalogGameMedia(
     identities?: unknown;
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
-    knownGoneImageIds?: readonly string[];
+    knownGoneMediaTargets?: readonly string[];
     inspector: Pick<
       ReturnType<typeof createIgdbInspector>,
       "inspectGame" | "inspectGameMedia" | "inspectMediaImage"
@@ -2057,7 +2070,19 @@ export async function prepareCatalogGameMedia(
     signal?: AbortSignal;
   },
 ) {
-  validateKnownGoneImages(options.knownGoneImageIds);
+  const knownGone = options.knownGoneMediaTargets ?? [];
+  if (
+    Buffer.byteLength(JSON.stringify(knownGone)) > 8 * 1024 * 1024 ||
+    knownGone.some((target) => {
+      const [variant, id, extra] = target.split("/");
+      return (
+        extra !== undefined ||
+        (variant !== "720p" && variant !== "logo_med_2x") ||
+        !matchesString(imagePattern, id)
+      );
+    })
+  )
+    throw new Error("Invalid bounded media variant Gone observations.");
   const selected = options.selectedPortIds ?? catalog.ports.map((port) => port.id);
   if (
     selected.length > 400 ||
@@ -2076,7 +2101,7 @@ export async function prepareCatalogGameMedia(
     games: new Map(),
     inventories: new Map(),
     retainedImages: new Map(),
-    goneImages: new Set(options.knownGoneImageIds ?? []),
+    goneImages: new Set(knownGone),
   };
   for (const port of result.ports) {
     if (!selected.includes(port.id)) continue;
@@ -2089,7 +2114,7 @@ export async function prepareCatalogGameMedia(
     if (media.length || Array.isArray(current)) port.presentation = { ...port.presentation, media };
   }
   removeWithdrawnCatalogMedia(result, records, context.goneImages);
-  return { catalog: result, records, gone_image_ids: [...context.goneImages].sort() };
+  return { catalog: result, records, gone_media_targets: [...context.goneImages].sort() };
 }
 
 function sameMediaSubject(value: unknown, subject: CatalogMediaSubject) {

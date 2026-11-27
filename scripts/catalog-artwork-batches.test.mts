@@ -1738,7 +1738,6 @@ void test("a Gone image found by a later media operation relabels an earlier ope
   const result = await prepareGameMediaInOperations(
     { ports },
     undefined,
-    [],
     async (ids, catalog, gone) => {
       calls++;
       const first = ids![0]!;
@@ -1760,12 +1759,13 @@ void test("a Gone image found by a later media operation relabels an earlier ope
                 reason: "image-gone",
               },
         ],
-        gone_image_ids: calls === 1 ? [...gone] : [...new Set([...gone, "shared"])].sort(),
+        gone_media_targets:
+          calls === 1 ? [...gone] : [...new Set([...gone, "logo_med_2x/shared"])].sort(),
       };
     },
   );
   assert.equal(calls, 2);
-  assert.deepEqual(result.gone_image_ids, ["shared"]);
+  assert.deepEqual(result.gone_media_targets, ["logo_med_2x/shared"]);
   assert.equal(result.records.length, 2);
   assert.equal(
     result.records.find((record) => record.port_id === "port-0")?.reason,

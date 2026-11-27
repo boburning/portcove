@@ -7576,10 +7576,11 @@ each accepted logo, key-art image, background, and screenshot for the same
 subject. A fully covered subject skips provider lookup. Each role retains its
 catalog limits. With `--hero-media igdb --refresh-artwork`, the selected ports
 also recheck the exact accepted IGDB assets. Shared references use one request
-per image and role in an operation. Changed bytes and provider failures keep
-the accepted mapping for review. Exact HTTP 410 observations sweep
-all candidate references and prevent batch reselection; failed or incomplete
-requests do not establish absence or withdrawal.
+per exact CDN variant and image in an operation. Changed bytes and provider
+failures keep the accepted mapping for review. An HTTP 410 withdraws references
+to the exact CDN variant and prevents its reselection in the batch. For example,
+a withdrawn logo does not withdraw a cover with the same provider image ID.
+Failed or incomplete requests leave withdrawal unresolved.
 
 The artwork evidence includes logo, key-art, background, and screenshot
 coverage by port, original release, and IGDB game identity. It records accepted

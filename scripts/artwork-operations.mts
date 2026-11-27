@@ -1,6 +1,7 @@
 import {
   assertPreparedArtwork,
   catalogGameMediaRoles,
+  gameMediaImageTarget,
   reconcileCatalogArtworkWithdrawals,
 } from "./inspect-igdb-artwork.mts";
 import { hashPattern, imagePattern, matchesString, positiveId } from "./catalog-cover-mapping.mts";
@@ -102,7 +103,6 @@ type GameMediaPreparation = Awaited<ReturnType<typeof prepareCatalogGameMedia>>;
 export async function prepareGameMediaInOperations(
   catalog: ArtworkCatalog,
   selectedPortIds: readonly string[] | undefined,
-  knownGoneImageIds: string[],
   operation: (
     ids: readonly string[] | undefined,
     catalog: ArtworkCatalog,
@@ -110,25 +110,24 @@ export async function prepareGameMediaInOperations(
   ) => Promise<GameMediaPreparation>,
 ): Promise<GameMediaPreparation> {
   const ids = selectedPortIds ?? catalog.ports.map((port) => port.id);
-  if (ids.length <= ARTWORK_OPERATION_PORTS)
-    return operation(selectedPortIds, catalog, knownGoneImageIds);
-  let media: GameMediaPreparation = { catalog, records: [], gone_image_ids: knownGoneImageIds };
+  if (ids.length <= ARTWORK_OPERATION_PORTS) return operation(selectedPortIds, catalog, []);
+  let media: GameMediaPreparation = { catalog, records: [], gone_media_targets: [] };
   for (let start = 0; start < ids.length; start += ARTWORK_OPERATION_PORTS) {
     const next = await operation(
       ids.slice(start, start + ARTWORK_OPERATION_PORTS),
       media.catalog,
-      media.gone_image_ids,
+      media.gone_media_targets,
     );
     media = { ...next, records: [...media.records, ...next.records] };
   }
   // As within one operation, a selected image a later operation found Gone is
   // relabelled on every earlier record; the catalog already dropped it.
-  const gone = new Set(media.gone_image_ids);
+  const gone = new Set(media.gone_media_targets);
   for (const record of media.records)
     if (
       record.reason !== "retained-image-withdrawn" &&
       record.image_id &&
-      gone.has(record.image_id)
+      gone.has(gameMediaImageTarget(record.role, record.image_id))
     )
       record.reason = "selected-image-gone-later-in-batch";
   return media;
@@ -173,7 +172,7 @@ export function sceneCoverage(
     ...accepted.ports,
     ...preparation.catalog.ports.filter(({ id }) => !acceptedPorts.has(id)),
   ];
-  const gone = new Set(preparation.gone_image_ids);
+  const gone = new Set(preparation.gone_media_targets);
   type Observation = GameMediaPreparation["records"][number];
   const byPort = new Map<string, Observation[]>();
   const providerGames = new Map<string, Set<number>>();
@@ -223,7 +222,7 @@ export function sceneCoverage(
   const proposedMedia = inventory(preparation.catalog);
   for (const entries of [...acceptedMedia.values(), ...proposedMedia.values()]) {
     for (const entry of entries) {
-      if (!entry.imageId || !gone.has(entry.imageId))
+      if (!entry.imageId || !gone.has(gameMediaImageTarget(entry.role, entry.imageId)))
         recordGame(entry.subject, entry.role, entry.gameId);
     }
   }
@@ -258,6 +257,7 @@ export function sceneCoverage(
       for (const observation of observations) add(observation.subject);
       return [...subjects.values()].flatMap((subject) =>
         catalogGameMediaRoles.map((role) => {
+          const withdrawnImage = (id: string) => gone.has(gameMediaImageTarget(role, id));
           const key = scopeKey(subject, role);
           const currentImages = (acceptedMedia.get(port.id) ?? []).filter(
             (asset) => asset.scope === key,
@@ -265,10 +265,12 @@ export function sceneCoverage(
           const proposedImages = (proposedMedia.get(port.id) ?? []).filter(
             (asset) => asset.scope === key,
           );
-          const admitted = currentImages.filter(({ imageId }) => !imageId || !gone.has(imageId));
+          const admitted = currentImages.filter(
+            ({ imageId }) => !imageId || !withdrawnImage(imageId),
+          );
           const proposed = proposedImages.filter(
             ({ imageId, catalogId, sha256 }) =>
-              (!imageId || !gone.has(imageId)) &&
+              (!imageId || !withdrawnImage(imageId)) &&
               !admitted.some(
                 (asset) =>
                   asset.sha256 === sha256 &&
@@ -283,13 +285,13 @@ export function sceneCoverage(
           const withdrawn = [
             ...new Set([
               ...currentImages.flatMap(({ imageId }) =>
-                imageId && gone.has(imageId) ? [imageId] : [],
+                imageId && withdrawnImage(imageId) ? [imageId] : [],
               ),
               ...observed.flatMap(({ image_id }) =>
-                image_id && gone.has(image_id) ? [image_id] : [],
+                image_id && withdrawnImage(image_id) ? [image_id] : [],
               ),
               ...observed.flatMap(({ withdrawn_image_ids }) =>
-                (withdrawn_image_ids ?? []).filter((id) => gone.has(id)),
+                (withdrawn_image_ids ?? []).filter(withdrawnImage),
               ),
             ]),
           ];
