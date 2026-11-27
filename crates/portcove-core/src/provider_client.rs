@@ -31,14 +31,7 @@ impl ProviderClient {
             None => default_binding(port),
         };
         match binding {
-            Some(ModProviderBinding::Gamebanana { game_id }) => Ok(Self::GameBanana {
-                client: GameBananaClient::for_library(library)?,
-                game: game_id,
-            }),
-            Some(ModProviderBinding::Thunderstore { community }) => Ok(Self::Thunderstore {
-                client: ThunderstoreClient::for_library(library)?,
-                community,
-            }),
+            Some(binding) => Self::for_scope(library, binding),
             None if provider.is_none()
                 && crate::provider_binding::configured_bindings(port)
                     .is_some_and(|bindings| bindings.len() > 1) =>
@@ -48,6 +41,19 @@ impl ProviderClient {
                 ))
             }
             None => Err(unbound()),
+        }
+    }
+
+    pub(crate) fn for_scope(library: &Library, binding: ModProviderBinding) -> Result<Self> {
+        match binding {
+            ModProviderBinding::Gamebanana { game_id } => Ok(Self::GameBanana {
+                client: GameBananaClient::for_library(library)?,
+                game: game_id,
+            }),
+            ModProviderBinding::Thunderstore { community } => Ok(Self::Thunderstore {
+                client: ThunderstoreClient::for_library(library)?,
+                community,
+            }),
         }
     }
 

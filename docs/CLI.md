@@ -3023,7 +3023,7 @@ architecture scope. Routine CI uses deterministic provider fixtures.
 ### Installing from GameBanana and Thunderstore
 
 ```text
-portcove --library PATH --json profile provider-browse PORT_ID [--page N] [--provider PROVIDER]
+portcove --library PATH --json profile provider-browse PORT_ID [--page N] [--provider PROVIDER | --portal-source SOURCE_ID]
 portcove --library PATH --json profile provider-project PORT_ID PROJECT_ID [--provider PROVIDER]
 portcove --library PATH --json profile provider-plan PORT_ID PROFILE_ID PROJECT_ID FILE_ID [--provider PROVIDER] > plan.json
 portcove --library PATH --json profile provider-apply PORT_ID PROFILE_ID plan.json --expected-plan SHA256 [--allow-mod-code] --yes
@@ -3066,6 +3066,12 @@ browse URL. `provider-project` shows one mod's files or versions
 with the IDs `provider-plan` takes, refusing a mod from another game. Provider text is
 sanitized presentation data: names, popularity and version labels never establish
 compatibility, and a `stale` result is earlier data from an outage.
+
+Use `--portal-source SOURCE_ID` for an exact GameBanana game or Thunderstore
+community shown in the port's mod websites. Desktop offers the same browse action
+in Mods, including for listings without a setup. It opens projects in the provider's
+website after checking their game or community. The descriptive source does not
+grant package or installation permissions.
 
 `provider-plan` needs a reviewed binding and a current provider observation; cached
 data from an outage never produces a plan. Missing, null, or malformed eligibility

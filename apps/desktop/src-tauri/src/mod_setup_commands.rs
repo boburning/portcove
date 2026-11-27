@@ -598,6 +598,12 @@ pub(crate) async fn review_mod_package_code(
     .await
 }
 
+#[derive(serde::Deserialize)]
+pub(crate) struct ProviderPortalSelection {
+    source: String,
+    url: String,
+}
+
 /// Opens the canonical URL of a project admitted for this game's provider.
 #[tauri::command]
 pub(crate) async fn open_provider_mod_project(
@@ -606,15 +612,53 @@ pub(crate) async fn open_provider_mod_project(
     port_id: String,
     project_id: String,
     provider: Option<String>,
+    portal: Option<ProviderPortalSelection>,
 ) -> DesktopResult<()> {
+    let selection = state.inner().clone();
+    crate::blocking_async_service_at_generation(
+        selection.clone(),
+        generation,
+        move |service| async move {
+            let url = match portal {
+                Some(portal) => {
+                    service
+                        .external_provider_project_url(
+                            &port_id,
+                            &portal.source,
+                            &portal.url,
+                            &project_id,
+                        )
+                        .await?
+                }
+                None => {
+                    service
+                        .provider_project_url(&port_id, &project_id, provider.as_deref())
+                        .await?
+                }
+            };
+            crate::require_library_generation(crate::state_generation(&selection), generation)?;
+            crate::open_host_target(std::ffi::OsStr::new(&url))
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn browse_external_provider_mods(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    source: String,
+    url: String,
+    page: u32,
+) -> DesktopResult<portcove_core::ProviderBrowsePage> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
-            let url = service
-                .provider_project_url(&port_id, &project_id, provider.as_deref())
-                .await?;
-            crate::open_host_target(std::ffi::OsStr::new(&url))
+            Ok(service
+                .browse_external_provider_mods(&port_id, &source, Some(&url), page)
+                .await?)
         },
     )
     .await

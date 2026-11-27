@@ -3211,6 +3211,7 @@ pub fn run() -> std::process::ExitCode {
             mod_setup_commands::get_moddb_file_notices,
             mod_setup_commands::open_upstream_mod_notice,
             mod_setup_commands::get_mod_provider_catalog,
+            mod_setup_commands::browse_external_provider_mods,
             mod_setup_commands::open_provider_mod_project,
             mod_setup_commands::get_provider_project,
             mod_setup_commands::plan_provider_install,
