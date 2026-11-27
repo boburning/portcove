@@ -233,15 +233,27 @@ impl PortcoveService {
         let Some(canonical) = catalog.canonical_for_private_github_listing(retained) else {
             return Ok(None);
         };
-        let occupied: bool = connection.query_row(
+        let busy: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM launch_sessions WHERE port_id=?1 AND outcome IS NULL)
+                OR EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1)",
+            [&canonical.id],
+            |row| row.get(0),
+        )?;
+        Ok(
+            (!busy && !Self::canonical_target_occupied(connection, &canonical.id)?)
+                .then_some(canonical),
+        )
+    }
+
+    fn canonical_target_occupied(connection: &rusqlite::Connection, port_id: &str) -> Result<bool> {
+        Ok(connection.query_row(
             "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)
                 OR EXISTS(SELECT 1 FROM installs WHERE port_id=?1)
                 OR EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)
                 OR EXISTS(SELECT 1 FROM library_memberships WHERE port_id=?1)",
-            [&canonical.id],
+            [port_id],
             |row| row.get(0),
-        )?;
-        Ok((!occupied).then_some(canonical))
+        )?)
     }
 
     fn has_personal_registration_for_canonical(
@@ -250,25 +262,14 @@ impl PortcoveService {
         port_id: &str,
         budget: &mut u64,
     ) -> Result<bool> {
-        let Some(repository_id) = catalog.listing(port_id)?.observed_github_repository_id() else {
-            return Ok(false);
-        };
-        let personal_id = format!("github-{repository_id}");
-        if personal_id == port_id {
+        catalog.listing(port_id)?;
+        if Self::canonical_target_occupied(connection, port_id)? {
             return Ok(false);
         }
-        let Some((record, retained)) =
-            Library::external_runtime_with_port_bounded_from(connection, &personal_id, budget)?
-        else {
-            return Ok(false);
-        };
-        Ok(record.user_selected.is_some()
-            && Self::unoccupied_personal_listing_match(
-                catalog,
-                connection,
-                retained.listing(&personal_id)?,
-            )?
-            .is_some_and(|canonical| canonical.id == port_id))
+        Ok(
+            Library::personal_runtime_for_canonical_from(connection, catalog, port_id, budget)?
+                .is_some(),
+        )
     }
 
     pub(super) fn listing_statuses_from(
@@ -457,13 +458,7 @@ impl PortcoveService {
                 if let Some(resolve) = resolver.take() {
                     // No catalog resolution is needed for a library with no
                     // possible personal GitHub registration.
-                    let has_personal: bool = connection.query_row(
-                        "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations
-                            WHERE port_id GLOB 'github-[0-9]*')",
-                        [],
-                        |row| row.get(0),
-                    )?;
-                    if has_personal {
+                    if Library::has_personal_registration_candidates_from(connection)? {
                         current = Some(resolve(connection)?);
                     }
                 }

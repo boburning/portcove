@@ -3082,6 +3082,74 @@ impl Library {
         Ok(Some((record, catalog)))
     }
 
+    pub(crate) fn has_personal_registration_candidates_from(
+        connection: &Connection,
+    ) -> Result<bool> {
+        Ok(connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations
+                WHERE port_id GLOB 'github-[0-9]*')",
+            [],
+            |row| row.get(0),
+        )?)
+    }
+
+    pub(crate) fn personal_runtime_for_canonical_from(
+        connection: &Connection,
+        catalog: &Catalog,
+        port_id: &str,
+        budget: &mut u64,
+    ) -> Result<Option<String>> {
+        let Some(repository_id) = catalog
+            .listing(port_id)
+            .ok()
+            .and_then(crate::PortListing::observed_github_repository_id)
+        else {
+            return Ok(None);
+        };
+        let personal_id = format!("github-{repository_id}");
+        if personal_id == port_id {
+            return Ok(None);
+        }
+        let Some((record, retained)) =
+            Self::external_runtime_with_port_bounded_from(connection, &personal_id, budget)?
+        else {
+            return Ok(None);
+        };
+        let same_port = record.user_selected.is_some()
+            && catalog
+                .canonical_for_private_github_listing(retained.listing(&personal_id)?)
+                .is_some_and(|canonical| canonical.id == port_id);
+        Ok(same_port.then_some(personal_id))
+    }
+
+    pub(crate) fn require_no_associated_personal_runtime(
+        connection: &Connection,
+        catalog: &Catalog,
+        port_id: &str,
+    ) -> Result<()> {
+        let mut budget = MAX_RETAINED_REGISTRATION_BYTES;
+        if let Some(personal_id) =
+            Self::personal_runtime_for_canonical_from(connection, catalog, port_id, &mut budget)?
+        {
+            return Err(PortcoveError::conflict(
+                "This port already has a personal registration. Use it or remove the registration before selecting another installation.",
+            )
+            .detail("existing_port_id", personal_id));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn require_no_associated_personal_runtime_from_current(
+        connection: &Connection,
+        port_id: &str,
+    ) -> Result<()> {
+        if Self::has_personal_registration_candidates_from(connection)? {
+            let (catalog, _) = crate::catalog_store::load_catalog_from(connection, Self::now())?;
+            Self::require_no_associated_personal_runtime(connection, &catalog, port_id)?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn register_external_runtime(
         &self,
         record: &ExternalRuntimeRecord,
@@ -3125,6 +3193,11 @@ impl Library {
             let (catalog, _) = crate::catalog_store::load_catalog_from(&transaction, Self::now())?;
             catalog.require_personal_project_unlisted(retained_listing)?;
             Self::require_no_legacy_personal_project_registration(&transaction, retained_listing)?;
+        } else {
+            Self::require_no_associated_personal_runtime_from_current(
+                &transaction,
+                &record.port_id,
+            )?;
         }
         let existing: bool = transaction.query_row(
             "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)

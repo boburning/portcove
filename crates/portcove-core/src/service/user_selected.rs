@@ -182,6 +182,8 @@ impl PortcoveService {
     }
 
     fn require_user_selected_registration_available(&self, port_id: &str) -> Result<()> {
+        let connection = self.library.connection()?;
+        Library::require_no_associated_personal_runtime(&connection, &self.catalog, port_id)?;
         let state = self.library.status(port_id, ReleaseChannel::Stable)?;
         if state.external_runtime.is_some()
             || self
@@ -1029,6 +1031,51 @@ mod tests {
             serde_json::to_value(registered).unwrap()
         );
 
+        let duplicate = service
+            .preview_user_selected_runtime(CANONICAL, &executable, &working, &[])
+            .unwrap_err();
+        assert_eq!(duplicate.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            duplicate
+                .details
+                .get("existing_port_id")
+                .map(String::as_str),
+            Some(LOCAL)
+        );
+
+        let now = Library::now();
+        service
+            .library
+            .create_launch_session(&crate::LaunchSessionRecord {
+                id: "pending-canonical-launch".into(),
+                port_id: CANONICAL.into(),
+                install_id: "retired-runtime".into(),
+                install_root: working.clone(),
+                owner_kind: crate::LaunchOwnerKind::External,
+                supervisor_pid: std::process::id(),
+                supervisor_identity: None,
+                child_pid: None,
+                child_identity: None,
+                phase: crate::LaunchSessionPhase::Preparing,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+        service
+            .library
+            .finish_launch_session(
+                "pending-canonical-launch",
+                crate::LaunchSessionOutcome::Cancelled,
+                None,
+                None,
+            )
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
         let request = [crate::LibraryMembershipRequest {
             port_id: CANONICAL.into(),
             origin: crate::LibraryMembershipOrigin::Manual,
