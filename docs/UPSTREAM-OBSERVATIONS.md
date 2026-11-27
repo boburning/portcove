@@ -1769,7 +1769,8 @@ becomes available.
 A listing can reuse reviewed product codes when its canonical game, single
 source edition and system all match. Every reviewed mapping for that edition
 must agree on the code set. A listing with its own source profile or
-representation declaration uses its own contract. The adopted codes help
+representation declaration uses its own contract. Supported codes include
+PlayStation product codes, GameCube disc IDs and Xbox 360 title IDs. The codes
 verify only the listing’s own repository declaration. When shared codes
 change, the observer reassesses the declaration. With a readable checkpoint,
 publication withholds a link until the new evidence qualifies. If the checkpoint
