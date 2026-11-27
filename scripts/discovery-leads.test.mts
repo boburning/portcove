@@ -127,11 +127,12 @@ void test("Switch searches preserve old pagination and carry their supported ord
     "SwitchRecomp",
     "topic:nintendo-switch topic:static-recompilation",
   ];
-  for (let index = 24; index < leadSearchFamilyCount; index++) {
+  for (const [offset, terms] of expected.entries()) {
+    const index = 24 + offset;
     state.next_family = index;
     const plan = nextLeadPage(state, now);
     assert.match(plan.query, /pushed:.*fork:true$/u);
-    assert.ok(plan.query.startsWith(expected[index - 24]!));
+    assert.ok(plan.query.startsWith(terms));
     assert.equal(plan.sort, "updated");
     assert.match(plan.slice.terms!, /\[updated desc\] \[fork:true\]$/u);
     // Same provider ID from multiple families remains one neutral research lead.
@@ -146,15 +147,41 @@ void test("Switch searches preserve old pagination and carry their supported ord
   assert.deepEqual(state.slices["new-recompiled"], retained);
   assert.equal(Object.values(state.records).filter((r) => r.id === 900).length, 1);
   assert.equal(state.records["900"]?.status, "pending");
-  assert.equal(parseLeadState(JSON.parse(JSON.stringify(state))).next_family, 0);
-  assert.equal(leadFamilyIds.length, 28);
+  assert.equal(parseLeadState(JSON.parse(JSON.stringify(state))).next_family, 28);
+});
+void test("desktop topic and N64 framework searches append without changing existing search cursors", () => {
+  const start = 28;
+  let state = parseLeadState({ ...parseLeadState(undefined), next_family: start });
+  const sources = [
+    ["source-port-topic", "topic:source-port"],
+    ["n64recomp", "N64Recomp in:name,description,readme"],
+    ["libultraship", "libultraship in:name,description,readme"],
+  ];
+  const project = { ...item(901, "projects/holdout"), fork: true };
+  for (const [family, terms] of sources) {
+    const plan = nextLeadPage(state, now);
+    assert.equal(plan.family, family);
+    assert.ok(plan.query.startsWith(`${terms} pushed:`));
+    assert.match(plan.query, / fork:true$/u);
+    assert.equal(plan.sort, undefined);
+    state = acceptLeadPage(state, plan, page([project]), now, `evidence-${family}`);
+  }
+  const roundTrip = parseLeadState(JSON.parse(JSON.stringify(state)));
+  assert.equal(roundTrip.next_family, (start + sources.length) % leadSearchFamilyCount);
+  assert.equal(roundTrip.records["901"]?.status, "pending");
+  assert.deepEqual(
+    new Set(roundTrip.records["901"]?.search_families),
+    new Set(sources.map(([family]) => family)),
+  );
 });
 void test("resource-admitted six-page batches rotate all families and preserve exact windows and HTTP ordering", async (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "discovery-switch-rotation-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   let state = parseLeadState(undefined);
   const requests: { family: string; page: number }[] = [];
-  for (let run = 0; run < 5; run++) {
+  const pagesPerRun = 6;
+  const runCount = Math.ceil((leadSearchFamilyCount + 2) / pagesPerRun);
+  for (let run = 0; run < runCount; run++) {
     const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
     const budget = new DiscoveryBudget("ordinary");
     await budget.reserveDelivery(178, 1024); // Six pages fit before the investigation reserve.
@@ -202,27 +229,33 @@ void test("resource-admitted six-page batches rotate all families and preserve e
       },
     });
     await session.discover();
-    assert.equal(session.searches, 6);
+    assert.equal(session.searches, pagesPerRun);
     const evidence = JSON.parse(readFileSync(path.join(root, "lead-search-1.json"), "utf8")) as {
       sort: string;
       query: string;
     };
-    assert.equal(evidence.sort, run === 4 ? "updated" : "best-match");
+    const first = requests[run * pagesPerRun]!;
+    assert.equal(
+      evidence.sort,
+      first.family.startsWith("changed-switch-") ? "updated" : "best-match",
+    );
     state = parseLeadState(JSON.parse(JSON.stringify(session.leads)));
     assert.deepEqual(
       session.leadSummary().pending_families,
       leadFamilyIds.filter(
-        (id) => !requests.slice(run * 6, (run + 1) * 6).some((r) => r.family === id),
+        (id) =>
+          !requests.slice(run * pagesPerRun, (run + 1) * pagesPerRun).some((r) => r.family === id),
       ),
     );
   }
+  const nextRound = leadFamilyIds.slice(0, runCount * pagesPerRun - leadSearchFamilyCount);
   assert.deepEqual(
     requests.map((r) => r.family),
-    [...leadFamilyIds, ...leadFamilyIds.slice(0, 2)],
+    [...leadFamilyIds, ...nextRound],
   );
   assert.deepEqual(
-    requests.slice(28).map((r) => r.page),
-    [2, 2],
+    requests.slice(leadSearchFamilyCount).map((r) => r.page),
+    nextRound.map(() => 2),
   );
   assert.equal(state.slices["new-recompiled"]?.until, now);
 });
@@ -240,8 +273,12 @@ void test("current, capped and typed-drift skips cannot hide a due Switch topic 
     now,
     "prior",
   );
-  for (let index = 1; index < leadSearchFamilyCount - 1; index++)
-    leads = acceptLeadPage(leads, nextLeadPage(leads, now), page([]), now, "current");
+  for (let index = 1; index < leadSearchFamilyCount; index++) {
+    leads.next_family = index;
+    const plan = nextLeadPage(leads, now);
+    if (plan.family !== "changed-switch-topics")
+      leads = acceptLeadPage(leads, plan, page([]), now, "current");
+  }
   const capped = leads.slices[leadFamilyIds[2]!]!;
   delete capped.completed_at;
   capped.capped = true;

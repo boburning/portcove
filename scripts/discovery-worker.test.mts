@@ -723,6 +723,10 @@ void test("scheduled listing preview resumes retained release evidence and binds
     ...leads,
     records: {
       "5": leads.records["5"]!,
+      "6": lead(6, {
+        search_families: ["libultraship", "n64recomp"],
+        release_hint: withoutAssets,
+      }),
       "7": lead(7, { status: "researched", manifest, release_hint: withoutAssets }),
       "8": lead(8, { external_lists: ["quiver"], release_hint: withoutAssets }),
       "9": lead(9, { release_hint: withoutAssets }),
