@@ -1282,10 +1282,17 @@ void test("explicit media refresh shares exact checks and only confirmed Gone wi
         name: "Sample",
         project_url: "https://example.org/sample",
         presentation: {
+          original_game: {
+            id: "original",
+            source_editions: [{ id: "current" }, { id: "older" }],
+          },
           media: ["key_art", "logo", "header", "screenshot"].map((role) => ({
             id: "maintained-" + role,
             role,
-            subject: { kind: "port", port_id: id },
+            subject:
+              role === "logo"
+                ? { kind: "original", game_id: "original", source_edition_id: "older" }
+                : { kind: "port", port_id: id },
             sha256: "a".repeat(64),
             ...(role === "logo" ? { igdb: { image_id: "sharedlogo", game_id: 7 } } : {}),
           })),
@@ -1317,10 +1324,15 @@ void test("explicit media refresh shares exact checks and only confirmed Gone wi
               Array.isArray(presentation?.media) && presentation.media.length === 3,
           ),
         );
-        assert.equal(
-          result.records.find(({ reason }) => reason === "retained-image-withdrawn")?.image_id,
-          "sharedlogo",
+        const withdrawal = result.records.find(
+          ({ reason }) => reason === "retained-image-withdrawn",
         );
+        assert.equal(withdrawal?.image_id, "sharedlogo");
+        assert.deepEqual(withdrawal?.subject, {
+          kind: "original",
+          game_id: "original",
+          source_edition_id: "older",
+        });
       } else {
         assert.deepEqual(result.catalog, catalog);
         assert.deepEqual(result.gone_image_ids, []);

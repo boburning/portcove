@@ -608,6 +608,13 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
               role: "logo",
               subject: direct,
               sha256: "c".repeat(64),
+              igdb: { game_id: 11, image_id: "approvedlogo" },
+            },
+            {
+              id: "manualheader",
+              role: "header",
+              subject: { ...subject, source_edition_id: "two" },
+              sha256: "d".repeat(64),
             },
           ],
         },
@@ -620,7 +627,18 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
       ports: [
         {
           id: "main-port",
-          presentation: { original_game: { id: "game", source_editions: [{ id: "three" }] } },
+          presentation: {
+            original_game: { id: "game", source_editions: [{ id: "two" }, { id: "three" }] },
+            media: [
+              {
+                id: "igdb-header-original-22",
+                role: "header",
+                subject: { ...subject, source_edition_id: "two" },
+                sha256: "d".repeat(64),
+                igdb: { game_id: 22, image_id: "manualheader" },
+              },
+            ],
+          },
         },
         {
           id: "candidate",
@@ -675,7 +693,17 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
   assert.deepEqual(portRoles.screenshot?.withdrawn_image_ids, ["goneshot"]);
   assert.equal(portRoles.logo?.state, "admitted");
   assert.deepEqual(portRoles.logo?.admitted_catalog_asset_ids, ["maintained-logo"]);
-  assert.deepEqual(portRoles.logo?.admitted_image_ids, []);
+  assert.deepEqual(portRoles.logo?.admitted_image_ids, ["approvedlogo"]);
+  const manualHeader = main.find(
+    (row) =>
+      row.role === "header" &&
+      row.subject.kind === "original" &&
+      row.subject.source_edition_id === "two",
+  );
+  assert.equal(manualHeader?.state, "admitted");
+  assert.deepEqual(manualHeader?.admitted_catalog_asset_ids, ["manualheader"]);
+  assert.deepEqual(manualHeader?.admitted_image_ids, []);
+  assert.deepEqual(manualHeader?.proposed_image_ids, ["manualheader"]);
   const conflicting = main.find(
     (row) =>
       row.role === "header" &&

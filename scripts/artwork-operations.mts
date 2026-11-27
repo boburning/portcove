@@ -271,8 +271,10 @@ export function sceneCoverage(
               (!imageId || !gone.has(imageId)) &&
               !admitted.some(
                 (asset) =>
-                  (asset.imageId ?? asset.catalogId) === (imageId ?? catalogId) &&
-                  asset.sha256 === sha256,
+                  asset.sha256 === sha256 &&
+                  (imageId
+                    ? asset.imageId === imageId
+                    : asset.imageId === null && asset.catalogId === catalogId),
               ),
           );
           const observed = observations.filter(
