@@ -385,19 +385,20 @@ them.
 
 Portcove is pre-beta. Under the owner policy of November 23, 2026 (#1422), the
 compact carrier `policy/official/catalog.listings.compact.json`
-(`gzip-base64-json-v1`, listing format 15) is the only listing target that
-changes. **Preview 14 (`0.1.0-preview.14`) is the minimum supported preview
-for live listing updates**: it is the first release whose reader selects the
-compact carrier, and later previews read it too. The publisher states it as
-`minimumLiveListingReader` in `scripts/listing-observation-delivery.mts` and
-in each preparation report. It is raised when a later reader generation
-replaces the compact carrier.
+(`gzip-base64-json-v1`) is the only listing target that changes.
+Preview 14 (`0.1.0-preview.14`) introduced the compact carrier and remains the
+minimum for format 15. **Preview 20 (`0.1.0-preview.20`) is the minimum for
+formats 16 and 17.** The publisher reports the active format's minimum in each
+preparation report. It is raised when a later reader generation replaces the
+compact carrier.
 
-Format 16 adds descriptive mod website links. Authoring and local rehearsal
-can validate it before cutover. The live publisher holds format 15 until
-`liveListingReaderFloors` records the first supported released preview for
-format 16 and the official reader probe verifies the candidate format. Older
-compact readers keep their last accepted directory if they reject a successor.
+Format 16 adds descriptive mod website links. Format 17 binds GitHub listing
+identity and acquisition observations to a stable numeric repository ID. The
+live publisher checks the protected release against `liveListingReaderFloors`
+and runs the official binary to verify the candidate format before activation.
+When an older compact reader rejects a successor, it can select its last
+accepted directory while the stored provenance remains current. After that
+provenance expires it uses its bundled directory until the application updates.
 
 With a qualified format-16 reader, the publisher can add a browser link to a
 listed Thunderstore community. The registry must explicitly refer to the same
@@ -512,7 +513,8 @@ remote-tracking ref:
   Sigstore trusted root, read anonymously with `gh attestation trusted-root`.
 - The single regular archive member is unpacked privately. Its capability
   report, run in a private directory with no credentials, must name the
-  `gzip-base64-json-v1` carrier, listing format 15 and the release version.
+  `gzip-base64-json-v1` carrier, the candidate listing format and the release
+  version. The protected release must meet that format's reader floor.
 
 If the Preview pointer changes between preparation and publication, that
 recheck fails the push and nothing from the run is published. Freshness then

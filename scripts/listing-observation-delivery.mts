@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual, parseArgs } from "node:util";
 import { isRecord } from "./runtime-values.mts";
+import { compareVersions } from "./app-release.mts";
 import {
   admittedGithubRepositoryId,
   parseCatalogSource,
@@ -950,7 +951,12 @@ async function probeReleasedReader(
 export const minimumLiveListingReader = "0.1.0-preview.14";
 // Adding a successor changes the minimum for live updates on the one compact
 // target. Identify the first released reader for the new format before enabling it.
-const liveListingReaderFloors = new Map([[15, minimumLiveListingReader]]);
+const repositoryBoundListingReader = "0.1.0-preview.20";
+const liveListingReaderFloors = new Map([
+  [15, minimumLiveListingReader],
+  [16, repositoryBoundListingReader],
+  [17, repositoryBoundListingReader],
+]);
 
 type ListingPriorInputs = {
   tools: string;
@@ -1297,9 +1303,12 @@ export async function prepareObservationBundle(options: {
   if (!renewal && activationNeeded) {
     try {
       if (automatic) {
-        if (!liveListingReaderFloors.has(format))
+        const floor = liveListingReaderFloors.get(format);
+        if (!floor)
           throw new Error(`Listing format ${format} has no declared released reader floor`);
         officialReader = await acquireReader(workspace);
+        if (compareVersions(officialReader.version, floor) < 0)
+          throw new Error(`Listing format ${format} requires released reader ${floor} or later`);
         releasedReader = await probeReleasedReader(officialReader, format, workspace, environment);
         if (releasedReader.version !== officialReader.version)
           throw new Error("Released CLI capabilities version differs from its official release");
