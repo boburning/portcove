@@ -1845,10 +1845,47 @@
             "system": "playstation",
             "evidence_urls": [
               "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+            ],
+            "verified_sources": [
+              {
+                "game_id": "tomba-psx",
+                "variant_id": "legacy-accepted",
+                "representation_id": "normalized-track-set"
+              }
             ]
           }
         ]
       },
+      "media": [
+        {
+          "id": "igdb-header-original-257106",
+          "role": "header",
+          "subject": {
+            "kind": "original",
+            "game_id": "tomba",
+            "source_edition_id": "tomba-playstation"
+          },
+          "caption": "Game background",
+          "url": "https://images.igdb.com/igdb/image/upload/t_720p/ar5idu.png",
+          "sha256": "3a252820abb58b74b3c6489bfae12e781a5e86fe6dfd4a1de67cde7ac038f752",
+          "width": 1280,
+          "height": 413,
+          "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+          "source_url": "https://www.igdb.com/games/tomba",
+          "license": "LicenseRef-IGDB-Terms",
+          "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+          "igdb": {
+            "game_id": 4097,
+            "record_id": 257106,
+            "kind": "artwork",
+            "image_id": "ar5idu",
+            "game_slug": "tomba",
+            "alpha_channel": false,
+            "image_type": 2,
+            "image_type_name": "Key art without logo"
+          }
+        }
+      ],
       "platforms": [
         "windows-x86-64"
       ],
