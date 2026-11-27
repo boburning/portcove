@@ -503,9 +503,10 @@ acceptance. The URL must be canonical HTTPS on a public DNS host. Provider
 site families use the fixed host for that provider.
 
 The link appears in the Mods view for a listing even if no game is installed
-or its platform is unknown. These links grant browser navigation only.
-Operational definitions retain authority over provider browsing and installation
-actions. An operational source ID takes precedence over a matching listing link.
+or its platform is unknown. Recognized GameBanana and Thunderstore community
+URLs also enable read-only browsing in Portcove. Operational bindings govern
+package acquisition and installation. An operational source ID takes
+precedence over a matching listing link.
 
 The generator also derives GameBanana and Thunderstore websites from exact,
 explicitly reviewed provider coordinates on the same implementation. An
