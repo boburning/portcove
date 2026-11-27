@@ -1043,7 +1043,8 @@ export async function installScenarios({
         "get_launch_failure",
         "get_runtime_prerequisites",
         "get_port_capabilities",
-        // The reopened game details can read the CLI handoff context.
+        // The reopened game details can read release eligibility and the CLI handoff context.
+        "can_review_exact_release",
         "get_cli_command_context",
         "get_automatic_snapshots",
         "get_mod_setups",
