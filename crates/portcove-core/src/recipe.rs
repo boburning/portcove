@@ -204,7 +204,7 @@ impl<'de> Deserialize<'de> for RecipeStaging {
         #[serde(untagged)]
         enum Entry {
             Reference(RecipeAcquisitionRef),
-            Earlier(RecipeAcquisitionPlan),
+            Earlier(Box<RecipeAcquisitionPlan>),
         }
         #[derive(Deserialize)]
         struct Wire {
@@ -975,7 +975,7 @@ impl PortcoveService {
                 .plan(&plan_sha256)
                 .cloned()
                 .ok_or_else(|| PortcoveError::state("a reused provider review disappeared"))?,
-            AcquiredStep::Staged(plan) => plan,
+            AcquiredStep::Staged(plan) => *plan,
         };
         Ok(RecipeAcquisitionPlan {
             recipe_identity_sha256: recipe.identity_sha256.clone(),
@@ -1096,7 +1096,7 @@ impl PortcoveService {
             discard(&provider_plan);
             return Err(error);
         }
-        Ok(AcquiredStep::Staged(provider_plan))
+        Ok(AcquiredStep::Staged(Box::new(provider_plan)))
     }
 
     /// Releases the private staging for a cancelled recipe review.
@@ -1401,7 +1401,7 @@ impl PortcoveService {
                     plan_sha256,
                 });
             }
-            AcquiredStep::Staged(provider_plan) => staging.insert(native_id, provider_plan)?,
+            AcquiredStep::Staged(provider_plan) => staging.insert(native_id, *provider_plan)?,
         }
         self.plan_recipe_import_with_staging(&plan.recipe, &staging)
     }
@@ -1444,7 +1444,7 @@ impl PortcoveService {
                 }
                 Ok(AcquiredStep::Staged(provider_plan)) => {
                     downloads += 1;
-                    staging.insert(native_id, provider_plan)?;
+                    staging.insert(native_id, *provider_plan)?;
                     acquired.push(native_id.clone());
                 }
                 Err(error) => {
@@ -2127,7 +2127,7 @@ enum Depth {
 /// newly staged plan.
 enum AcquiredStep {
     Reused { plan_sha256: String },
-    Staged(crate::ProviderInstallPlan),
+    Staged(Box<crate::ProviderInstallPlan>),
 }
 
 /// Refreshes a staging directory's age so age-based pruning keeps a review
