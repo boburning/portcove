@@ -8347,7 +8347,34 @@
           }
         ]
       },
-      "original_game_title": "Advance Wars"
+      "original_game_title": "Advance Wars",
+      "media": [
+        {
+          "id": "igdb-screenshot-original-20227",
+          "role": "screenshot",
+          "subject": {
+            "kind": "original",
+            "game_id": "advance-wars",
+            "source_edition_id": "advance-wars-game-boy-advance"
+          },
+          "caption": "Original game screenshot",
+          "url": "https://images.igdb.com/igdb/image/upload/t_720p/xhhyrgwo9z1ebf0qy9gs.png",
+          "sha256": "75da5a0d87cf9d6aedec6244bb747e935bffffaa5499a6cdd609f6b4a54d850a",
+          "width": 1086,
+          "height": 720,
+          "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+          "source_url": "https://www.igdb.com/games/advance-wars",
+          "license": "LicenseRef-IGDB-Terms",
+          "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+          "igdb": {
+            "game_id": 1691,
+            "record_id": 20227,
+            "kind": "screenshot",
+            "image_id": "xhhyrgwo9z1ebf0qy9gs",
+            "game_slug": "advance-wars"
+          }
+        }
+      ]
     },
     {
       "id": "aegis-wing-xbla-pc-recomp-caiuscodes-aegis-wing",
@@ -19216,7 +19243,34 @@
             ]
           }
         ]
-      }
+      },
+      "media": [
+        {
+          "id": "igdb-screenshot-original-51872",
+          "role": "screenshot",
+          "subject": {
+            "kind": "original",
+            "game_id": "arcanum-of-steamworks-and-magick-obscura",
+            "source_edition_id": "arcanum-of-steamworks-and-magick-obscura-pc"
+          },
+          "caption": "Original game screenshot",
+          "url": "https://images.igdb.com/igdb/image/upload/t_720p/xxm75p7feap3th2ump7m.png",
+          "sha256": "adbfa2cb62dadace5b61bf071c328e80a9f9c4ad6e74805be411ce322a15210b",
+          "width": 960,
+          "height": 720,
+          "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+          "source_url": "https://www.igdb.com/games/arcanum-of-steamworks-and-magick-obscura",
+          "license": "LicenseRef-IGDB-Terms",
+          "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+          "igdb": {
+            "game_id": 255,
+            "record_id": 51872,
+            "kind": "screenshot",
+            "image_id": "xxm75p7feap3th2ump7m",
+            "game_slug": "arcanum-of-steamworks-and-magick-obscura"
+          }
+        }
+      ]
     },
     {
       "id": "arch61s-baroque-decomp-ps2",

@@ -59,6 +59,44 @@
           ]
         }
       ]
+    },
+    "media": [
+      {
+        "id": "igdb-screenshot-original-51872",
+        "role": "screenshot",
+        "subject": {
+          "kind": "original",
+          "game_id": "arcanum-of-steamworks-and-magick-obscura",
+          "source_edition_id": "arcanum-of-steamworks-and-magick-obscura-pc"
+        },
+        "caption": "Original game screenshot",
+        "url": "https://images.igdb.com/igdb/image/upload/t_720p/xxm75p7feap3th2ump7m.png",
+        "sha256": "adbfa2cb62dadace5b61bf071c328e80a9f9c4ad6e74805be411ce322a15210b",
+        "width": 960,
+        "height": 720,
+        "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+        "source_url": "https://www.igdb.com/games/arcanum-of-steamworks-and-magick-obscura",
+        "license": "LicenseRef-IGDB-Terms",
+        "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+        "igdb": {
+          "game_id": 255,
+          "record_id": 51872,
+          "kind": "screenshot",
+          "image_id": "xxm75p7feap3th2ump7m",
+          "game_slug": "arcanum-of-steamworks-and-magick-obscura"
+        }
+      }
+    ]
+  },
+  "igdb_original_media_v1": [
+    {
+      "original_game_id": "arcanum-of-steamworks-and-magick-obscura",
+      "source_edition_id": "arcanum-of-steamworks-and-magick-obscura-pc",
+      "system": "pc",
+      "evidence_url": "https://www.gog.com/en/game/arcanum_of_steamworks_and_magick_obscura",
+      "decision": "match",
+      "game_id": 255,
+      "slug": "arcanum-of-steamworks-and-magick-obscura"
     }
-  }
+  ]
 }
