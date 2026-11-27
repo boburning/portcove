@@ -1338,12 +1338,22 @@ export function createIgdbInspector(
   credentialsFile: string | null | undefined,
   validateImage: ImageValidator,
   fetchImpl: ArtworkFetch = fetch,
-  control: { signal?: AbortSignal } = {},
+  control: {
+    signal?: AbortSignal;
+    onBackoff?: (status: {
+      metadata_retry_at: string | null;
+      image_retry_at: string | null;
+    }) => void;
+  } = {},
 ) {
   let tokenPromise: Promise<{ clientId: string; token: string }> | undefined;
   let lastGameRequest = 0;
   let gameRetryAt = 0;
   let imageRetryAt = 0;
+  const backoff = () => ({
+    metadata_retry_at: gameRetryAt > Date.now() ? new Date(gameRetryAt).toISOString() : null,
+    image_retry_at: imageRetryAt > Date.now() ? new Date(imageRetryAt).toISOString() : null,
+  });
   const metrics = {
     authentication_requests: 0,
     game_requests: 0,
@@ -1448,11 +1458,13 @@ export function createIgdbInspector(
       body,
     });
     try {
-      if (response.status === 429 || response.status === 503)
+      if (response.status === 429 || response.status === 503) {
         gameRetryAt = Math.max(
           gameRetryAt,
           metadataRetryAt(response.headers.get("retry-after"), Date.now(), 8.64e15),
         );
+        control.onBackoff?.(backoff());
+      }
       if (!response.ok)
         throw new Error(
           endpoint === "games"
@@ -1496,8 +1508,10 @@ export function createIgdbInspector(
       if (
         (response.status === 429 || response.status === 503) &&
         response.headers.get("retry-after") !== null
-      )
+      ) {
         imageRetryAt = metadataRetryAt(response.headers.get("retry-after"), Date.now(), 8.64e15);
+        control.onBackoff?.(backoff());
+      }
       if (response.status === 410) {
         const error = new Error("IGDB image is gone.");
         goneImageObservations.set(error, `${variant}/${imageId}`);
@@ -1535,8 +1549,7 @@ export function createIgdbInspector(
     },
     batchStatus: () => ({
       deadline,
-      metadata_retry_at: gameRetryAt > Date.now() ? new Date(gameRetryAt).toISOString() : null,
-      image_retry_at: imageRetryAt > Date.now() ? new Date(imageRetryAt).toISOString() : null,
+      ...backoff(),
       retry_at:
         Math.max(gameRetryAt, imageRetryAt) > Date.now()
           ? new Date(Math.max(gameRetryAt, imageRetryAt)).toISOString()
@@ -1702,7 +1715,7 @@ function originalMediaScopes(port: ArtworkPort) {
   });
 }
 
-function acceptedHeroMediaMatches(
+export function acceptedHeroMediaMatches(
   catalog: ArtworkCatalog | undefined,
   excluded: ReadonlySet<string>,
 ) {

@@ -1124,6 +1124,91 @@ void test("an explicit refresh reuses a recent result and samples an older one a
   }
 });
 
+void test("game media due rounds resume, serve older work and retain role outcomes across deferral", async (context) => {
+  const { planDueGameMedia } = await import("./artwork-preparation-progress.mts");
+  const root = mkdtempSync(join(tmpdir(), "portcove-game-media-due-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const at = Date.parse("2026-11-28T00:00:00Z");
+  const binding = "a".repeat(64);
+  const initial = ["bravo", "charlie", "delta"].map((id) => ({ id, input_sha256: binding }));
+  const plan = (items = initial, now = at) => planDueGameMedia(root, items, 1, now);
+  const observation = (port_id: string, reason: string, role: "header" | "logo" = "header") => ({
+    port_id,
+    reason,
+    role,
+    subject: { kind: "port" as const, port_id },
+  });
+  assert.deepEqual(plan().selected, ["bravo"]);
+  const resumed = plan();
+  assert.deepEqual(resumed.selected, ["bravo"]);
+  assert.deepEqual(
+    resumed.finish(
+      [observation("bravo", "role-selected"), observation("bravo", "provider-role-empty", "logo")],
+      null,
+      "first-receipt",
+      at,
+    ),
+    { attempted: 1, deferred: 0 },
+  );
+  const withNew = [{ id: "alpha", input_sha256: binding }, ...initial];
+  const second = plan(withNew);
+  assert.deepEqual(second.selected, ["charlie"]);
+  const retry = new Date(at + 60_000).toISOString();
+  assert.deepEqual(
+    second.finish(
+      [observation("charlie", "batch-provider-budget-exhausted")],
+      retry,
+      "deferral-receipt",
+      at,
+    ),
+    { attempted: 0, deferred: 1 },
+  );
+  const held = record(fixtureJson(readFileSync(join(root, "game-media-progress-charlie.json"))));
+  assert.equal(held.last_attempt, null);
+  assert.equal(held.next_due, retry);
+  const third = plan(withNew);
+  assert.deepEqual(third.selected, ["delta"]);
+  third.finish([observation("delta", "provider-role-empty")], null, "third-receipt", at);
+  assert.deepEqual(plan(withNew).selected, ["alpha"]);
+  const changed = [
+    { id: "bravo", input_sha256: "b".repeat(64) },
+    ...withNew.filter(({ id }) => id !== "bravo"),
+  ];
+  plan(withNew).finish([observation("alpha", "provider-role-empty")], null, "new-receipt", at);
+  assert.deepEqual(plan(changed).selected, ["bravo"]);
+  assert.deepEqual(
+    plan(
+      initial.filter(({ id }) => id === "charlie"),
+      at + 60_000,
+    ).selected,
+    ["charlie"],
+  );
+  const successful = record(
+    fixtureJson(readFileSync(join(root, "game-media-progress-bravo.json"))),
+  );
+  assert.deepEqual(Object.values(record(successful.successful)), [new Date(at).toISOString()]);
+  assert.deepEqual(
+    (successful.roles as Array<{ reason: string }>).map(({ reason }) => reason),
+    ["role-selected", "provider-role-empty"],
+  );
+  const later = at + 28 * 24 * 60 * 60 * 1000;
+  const one = initial.filter(({ id }) => id === "bravo");
+  const unavailable = plan(one, later);
+  assert.deepEqual(unavailable.selected, ["bravo"]);
+  unavailable.finish(
+    [observation("bravo", "identity-provider-unavailable")],
+    null,
+    "outage",
+    later,
+  );
+  const file = join(root, "game-media-progress-bravo.json");
+  const afterOutage = record(fixtureJson(readFileSync(file)));
+  assert.deepEqual(afterOutage.successful, successful.successful);
+  assert.equal(afterOutage.last_attempt, successful.last_attempt);
+  writeFileSync(file, JSON.stringify({ ...afterOutage, next_due: new Date(later).toISOString() }));
+  assert.throws(() => plan(one, later), /does not match its retained receipt/u);
+});
+
 void test("bounded due maintenance rotates attempted retained covers without admitting unreviewed rows", async () => {
   const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-retained-limit-"));

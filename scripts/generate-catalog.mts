@@ -25,7 +25,7 @@ import {
 } from "./catalog-authoring.mts";
 import type { CurrentCatalog, NamedRecord } from "./catalog-authoring.mts";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, rmdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -481,6 +481,8 @@ function validateArtworkProposalArguments(fullProposal: boolean) {
     "--credentials-file",
     "--artwork-ids",
     "--hero-media",
+    "--media-checkpoint",
+    "--media-due-limit",
   ]);
   const seen = new Set();
   const args = process.argv.slice(2);
@@ -662,18 +664,52 @@ function splitListingSceneProposal(
 
 async function prepareArtworkProposal(fullProposal = false) {
   validateArtworkProposalArguments(fullProposal);
+  const checkpoint = option("--media-checkpoint");
+  const limit = option("--media-due-limit");
+  if (checkpoint === null && limit === null) return prepareArtworkProposalRun(fullProposal);
+  if (
+    !fullProposal ||
+    !checkpoint ||
+    !limit ||
+    !/^[1-9]\d{0,2}$/u.test(limit) ||
+    Number(limit) > 400 ||
+    option("--hero-media") !== "igdb" ||
+    option("--artwork-ids") !== null ||
+    option("--refresh-artwork") !== null
+  )
+    throw new Error(
+      "Game media maintenance requires --prepare-proposal, --hero-media igdb, --media-checkpoint and --media-due-limit 1 through 400",
+    );
+  const root = resolve(checkpoint);
+  const progress = await import("./artwork-preparation-progress.mts");
+  progress.openArtworkCheckpoint(root);
+  try {
+    return await prepareArtworkProposalRun(fullProposal, { root, limit: Number(limit), progress });
+  } finally {
+    rmdirSync(join(root, "active.lock"));
+  }
+}
+
+async function prepareArtworkProposalRun(
+  fullProposal: boolean,
+  mediaDue?: {
+    root: string;
+    limit: number;
+    progress: typeof import("./artwork-preparation-progress.mts");
+  },
+) {
   const captured = readArtworkInput(
     option(fullProposal ? "--prepare-proposal" : "--prepare-artwork", true),
     fullProposal ? 16 * 1024 * 1024 : 8 * 1024 * 1024,
   );
   const input = captured.document;
   validateCurrentCatalog(input);
+  if (mediaDue && !isDeepStrictEqual(input, current))
+    throw new Error("Game media maintenance requires the current generated operational catalog");
   if (input.ports.some((port) => Object.hasOwn(port, "igdb_regional_cover")))
     throw new Error("IGDB regional cover selections belong in authored port records.");
   const identitiesFile = option("--identities");
   const identities = identitiesFile ? readArtworkJson(identitiesFile, 1024 * 1024) : {};
-  const refreshPortIds = option("--refresh-artwork")?.split(",") ?? [];
-  const selectedPortIds = option("--artwork-ids")?.split(",");
   const outputRoot = resolve(option("--output-dir", true));
   const cli = option("--validator-cli", fullProposal);
   // Refuse existing output rather than replacing an earlier proposal, recovery
@@ -713,8 +749,7 @@ async function prepareArtworkProposal(fullProposal = false) {
       : [],
   );
   const acceptedMedia = {
-    // Typed media can be present on a managed port's descriptive listing even
-    // when the strict operational catalog deliberately omits it.
+    // A descriptive listing can carry typed media independently of the strict catalog.
     ports: heroMedia
       ? authored.directory.listings.map(({ id, name, project_url, original_game, media }) => ({
           id,
@@ -724,6 +759,50 @@ async function prepareArtworkProposal(fullProposal = false) {
         }))
       : [],
   };
+  let mediaPlan:
+    | ReturnType<(typeof import("./artwork-preparation-progress.mts"))["planDueGameMedia"]>
+    | undefined;
+  if (mediaDue) {
+    const validator = beforeChecks?.input.validator_artifact_sha256;
+    if (!validator) throw new Error("Game media maintenance requires a captured Core validator");
+    const { acceptedHeroMediaMatches } = await import("./inspect-igdb-artwork.mts");
+    const inherited = acceptedHeroMediaMatches(acceptedMedia, excludedMedia);
+    mediaPlan = mediaDue.progress.planDueGameMedia(
+      mediaDue.root,
+      authored.directory.listings
+        .filter(({ id }) => !excludedMedia.has(id))
+        .map((listing) => {
+          const original = listing.original_game;
+          const bindings = original?.source_editions.map((edition) => {
+            const scope = originalEditionMediaKey(original.id, edition);
+            return scope
+              ? {
+                  reviewed: authored.reviewedOriginalMedia.get(scope),
+                  accepted: inherited.get(scope),
+                }
+              : undefined;
+          });
+          const supplied = isRecord(identities) ? identities[listing.id] : undefined;
+          return {
+            id: listing.id,
+            input_sha256: digest({
+              version: "game-media-due/1",
+              validator,
+              id: listing.id,
+              name: listing.name,
+              project_url: listing.project_url,
+              original,
+              media: listing.media,
+              bindings,
+              supplied,
+            }),
+          };
+        }),
+      mediaDue.limit,
+    );
+  }
+  const selectedPortIds = mediaPlan?.selected ?? option("--artwork-ids")?.split(",");
+  const refreshPortIds = mediaPlan?.selected ?? option("--refresh-artwork")?.split(",") ?? [];
   // A listing-only subject is selected explicitly in a bounded proposal. It
   // uses its accepted descriptive identity and can never enter the strict file.
   const strictIds = new Set(input.ports.map(({ id }) => id));
@@ -750,11 +829,19 @@ async function prepareArtworkProposal(fullProposal = false) {
     throw new Error(
       "Game media worksets require selected catalog identities and matching refresh ids.",
     );
-  const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
+  const inspector = createIgdbInspector(
+    option("--credentials-file"),
+    validateImage,
+    undefined,
+    mediaDue && {
+      onBackoff: (status) => mediaDue.progress.retainArtworkProviderBackoff(mediaDue.root, status),
+    },
+  );
+  if (mediaDue) mediaDue.progress.restoreArtworkProviderBackoff(mediaDue.root, inspector);
   const covers = await prepareCoverArtworkInOperations(
     input,
-    selectedPortIds?.filter((id) => !directoryOnly.has(id)),
-    refreshPortIds.filter((id) => !directoryOnly.has(id)),
+    mediaPlan ? [] : selectedPortIds?.filter((id) => !directoryOnly.has(id)),
+    mediaPlan ? [] : refreshPortIds.filter((id) => !directoryOnly.has(id)),
     (ids, refresh, gone) =>
       prepareCatalogArtwork(input, {
         ...inspector,
@@ -934,7 +1021,35 @@ async function prepareArtworkProposal(fullProposal = false) {
       { flag: "wx" },
     );
   }
-  process.stdout.write(`${JSON.stringify({ output_dir: outputRoot, metrics: result.metrics })}\n`);
+  const queue =
+    mediaDue && mediaPlan && gameMedia
+      ? (() => {
+          const provider = inspector.batchStatus();
+          mediaDue.progress.retainArtworkProviderBackoff(mediaDue.root, provider);
+          const attempt = mediaPlan.finish(
+            gameMedia.records,
+            provider.retry_at,
+            join(outputRoot, "artwork-evidence.json"),
+          );
+          return {
+            due: mediaPlan.due,
+            selected: mediaPlan.selected.length,
+            ...attempt,
+            state: attempt.deferred
+              ? attempt.attempted
+                ? "partial"
+                : "deferred"
+              : attempt.attempted
+                ? "attempted"
+                : mediaPlan.selected.length
+                  ? "unchanged"
+                  : "idle",
+          };
+        })()
+      : undefined;
+  process.stdout.write(
+    `${JSON.stringify({ output_dir: outputRoot, metrics: result.metrics, ...(queue ? { media_due: queue } : {}) })}\n`,
+  );
 }
 
 const arguments_ = process.argv.slice(2);

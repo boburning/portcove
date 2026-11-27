@@ -35,6 +35,7 @@ async function capturedMetadataBackoff(
   writeFileSync(privateFile, JSON.stringify({ client_id: "fixture", client_secret: "fixture" }));
   context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: providerClockStart });
   const calls: number[] = [];
+  const retryNotices: { metadata_retry_at: string | null; image_retry_at: string | null }[] = [];
   const inspector = createIgdbInspector(
     privateFile,
     () => assert.fail("metadata must not decode"),
@@ -51,6 +52,7 @@ async function capturedMetadataBackoff(
         headers: calls.length === 1 && retryAfter !== null ? { "Retry-After": retryAfter } : {},
       });
     },
+    { onBackoff: (notice) => retryNotices.push(notice) },
   );
   const request = (id: number) =>
     inspector.inspectGame({
@@ -62,7 +64,7 @@ async function capturedMetadataBackoff(
   const first = request(101).catch((error: unknown) => error);
   await flushProviderTimers(context);
   await first;
-  return { inspector, calls, request };
+  return { inspector, calls, request, retryNotices };
 }
 
 for (const [status, retryAfter] of [
@@ -75,6 +77,12 @@ for (const [status, retryAfter] of [
 ] as const) {
   void test(`metadata${status} honors Retry-After ${retryAfter}`, async (context) => {
     const fixture = await capturedMetadataBackoff(context, { status, retryAfter });
+    assert.deepEqual(fixture.retryNotices, [
+      {
+        metadata_retry_at: new Date(providerClockStart + 2000).toISOString(),
+        image_retry_at: null,
+      },
+    ]);
     const next = fixture.request(102);
     await flushProviderTimers(context);
     context.mock.timers.tick(300);
