@@ -47,7 +47,7 @@ export interface PortFactsOptions {
   fetcher?: typeof fetch;
 }
 
-export const discoveryScopePolicy = "github-primary-game-scope/4";
+export const discoveryScopePolicy = "github-primary-game-scope/5";
 
 const namesScummVm = (values: readonly unknown[]) =>
   values.some(

@@ -238,6 +238,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/catalog-staged-check.mts",
       "scripts/development-evidence.mts",
       "scripts/fallow-summary.mts",
+      "scripts/first-party-mod-portal.mts",
       "scripts/github-client.mts",
       "scripts/github-operation.mts",
       "scripts/implementation-metadata.mts",

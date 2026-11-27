@@ -1,3 +1,7 @@
+import {
+  isBoundLauncherModPortal,
+  observedLauncherModPortalPrefix,
+} from "./first-party-mod-portal.mts";
 import { checkImplementationMetadata } from "./implementation-metadata.mts";
 import type { ImplementationMetadata } from "./implementation-metadata.mts";
 import {
@@ -256,9 +260,9 @@ function publicUrl(value: unknown, field: string) {
 }
 
 export const observedModPortalPrefix = "obs-ts-";
-export const observedLauncherModPortalPrefix = "obs-gh-";
 
-function checkListingModPortals(value: unknown) {
+function checkListingModPortals(value: unknown, listingId: string) {
+  const repositoryId = admittedGithubRepositoryId(listingId);
   const hosts = new Map<string, string | null>([
     ["community_site", null],
     ["mod_db", "www.moddb.com"],
@@ -275,7 +279,8 @@ function checkListingModPortals(value: unknown) {
       !boundedText(portal.id, 64) ||
       !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(portal.id) ||
       portal.id.startsWith(observedModPortalPrefix) ||
-      portal.id.startsWith(observedLauncherModPortalPrefix) ||
+      (portal.id.startsWith(observedLauncherModPortalPrefix) &&
+        (repositoryId === undefined || !isBoundLauncherModPortal(portal, repositoryId))) ||
       ids.has(portal.id) ||
       typeof portal.site !== "string" ||
       !hosts.has(portal.site) ||
@@ -832,7 +837,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     throw new Error("Listing issue_number must be a positive integer.");
   if (listing.listed_at !== undefined && !isCalendarDate(listing.listed_at))
     throw new Error("Listing listed_at must be a real calendar date written YYYY-MM-DD.");
-  if (listing.mod_portals !== undefined) checkListingModPortals(listing.mod_portals);
+  if (listing.mod_portals !== undefined) checkListingModPortals(listing.mod_portals, listing.id);
   if (listing.funding_urls !== undefined) {
     const urls: unknown = listing.funding_urls;
     // Core treats an empty list as absent; authored files omit the field instead.

@@ -1,15 +1,15 @@
 import {
-  admittedGithubRepositoryId,
-  observedModPortalPrefix,
+  isBoundLauncherModPortal,
+  launcherModPortalId,
   observedLauncherModPortalPrefix,
-} from "./catalog-authoring.mts";
+} from "./first-party-mod-portal.mts";
+import { admittedGithubRepositoryId, observedModPortalPrefix } from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { catalogObservationSources } from "./catalog-upstream-observer.mts";
 import {
   launcherModScopes,
   launcherModSubjects,
-  validLauncherModPortal,
   validateFirstPartyModProgress,
   type FirstPartyModProgress,
 } from "./upstream-launcher-mod-progress.mts";
@@ -53,15 +53,29 @@ function isGenerated(portal: unknown): boolean {
   );
 }
 
-/** Generated browser links are independent of the release observation declaration. */
-export function withoutGeneratedModPortals(listing: Record<string, unknown>) {
+function withoutModPortals(listing: Record<string, unknown>, remove: (portal: unknown) => boolean) {
   const portals = listingPortals(listing);
-  const authored = portals.filter((portal) => !isGenerated(portal));
+  const authored = portals.filter((portal) => !remove(portal));
   if (portals.length === authored.length) return listing;
   const result = { ...listing };
   if (authored.length) result.mod_portals = authored;
   else delete result.mod_portals;
   return result;
+}
+
+/** Generated browser links are independent of the release observation declaration. */
+export function withoutGeneratedModPortals(listing: Record<string, unknown>) {
+  return withoutModPortals(listing, isGenerated);
+}
+
+export function withoutLauncherAdmissionSeeds(listing: Record<string, unknown>) {
+  return withoutModPortals(
+    listing,
+    (portal) =>
+      isRecord(portal) &&
+      typeof portal.id === "string" &&
+      portal.id.startsWith(observedLauncherModPortalPrefix),
+  );
 }
 
 /**
@@ -136,7 +150,7 @@ export function listingModPortalDefaults(
       boundThunderstore.has(listing.id)
     )
       return undefined;
-    const authored = listingPortals(listing);
+    const authored = listingPortals(withoutLauncherAdmissionSeeds(listing));
     const gameIds = new Set(reviewedGameIds.get(listing.id));
     for (const portal of authored) {
       if (!isRecord(portal) || isGenerated(portal) || portal.site !== "community_site") continue;
@@ -253,14 +267,14 @@ export function firstPartyListingModDefaults(
     const subject = subjects.get(listing.id);
     if (!subject && ids[scope.source_key]) return [];
     const entry = progress?.[listing.id];
-    const authored = listingPortals(listing);
+    const authored = listingPortals(withoutLauncherAdmissionSeeds(listing));
     const blocked = new Set(bindings.get(listing.id));
     for (const portal of authored) {
       if (!isRecord(portal) || typeof portal.url !== "string") continue;
       const host = URL.parse(portal.url)?.hostname;
       if (host === "thunderstore.io" || host === "gamebanana.com") blocked.add(host.split(".")[0]!);
     }
-    const provider = (portal: Portal) =>
+    const provider = (portal: { name: string }) =>
       portal.name === "Thunderstore" ? "thunderstore" : "gamebanana";
     if (entry && (!subject || entry.binding !== subject.binding)) return [];
     if (entry && (entry.outcome !== "unavailable" || entry.last_complete)) {
@@ -272,20 +286,24 @@ export function firstPartyListingModDefaults(
       )
         return [];
       return result.mod_portals
-        .filter((portal) => !blocked.has(provider(portal as Portal)))
+        .filter((portal) => !blocked.has(provider(portal)))
         .slice(0, 8 - authored.length)
         .map((portal) => ({
           ...portal,
           site: "community_site",
-          id:
-            observedLauncherModPortalPrefix +
-            provider(portal as Portal) +
-            "-" +
-            result.repository_id,
+          id: launcherModPortalId(portal, result.repository_id),
         }));
     }
-    // A missing observation handoff preserves authenticated URLs for the
-    // unchanged listing. A present checkpoint can prove scope loss.
+    const admittedId = admittedGithubRepositoryId(listing.id);
+    const expectedId = subject?.repository_id ?? admittedId;
+    // Admission can supply an exact seed for the first publication. The
+    // authenticated prior governs later fallback, including an absent link.
+    if (!previous && admittedId !== undefined) {
+      return listingPortals(listing)
+        .filter((portal) => isBoundLauncherModPortal(portal, admittedId))
+        .filter((portal) => !blocked.has(provider(portal)))
+        .slice(0, 8 - authored.length);
+    }
     if (
       previous?.id !== listing.id ||
       previous.project_url !== listing.project_url ||
@@ -293,22 +311,13 @@ export function firstPartyListingModDefaults(
         observationHash(listing.original_game ?? null)
     )
       return [];
-    const expectedId = subject?.repository_id ?? admittedGithubRepositoryId(listing.id);
     const retained: Portal[] = [];
     for (const portal of listingPortals(previous)) {
-      if (!isRecord(portal) || typeof portal.id !== "string") continue;
-      const match = /^obs-gh-(thunderstore|gamebanana)-([1-9]\d*)$/u.exec(portal.id);
-      if (
-        !match ||
-        blocked.has(match[1]!) ||
-        !Number.isSafeInteger(Number(match[2])) ||
-        (expectedId !== undefined && expectedId !== Number(match[2]))
-      )
-        continue;
-      if (validLauncherModPortal({ ...portal, id: "upstream-" + match[1] })) {
-        blocked.add(match[1]!);
-        retained.push(portal as Portal);
-      }
+      if (!isBoundLauncherModPortal(portal, expectedId)) continue;
+      const providerId = provider(portal);
+      if (blocked.has(providerId)) continue;
+      blocked.add(providerId);
+      retained.push(portal);
     }
     return retained.slice(0, 8 - authored.length);
   };
