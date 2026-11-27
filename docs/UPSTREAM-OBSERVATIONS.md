@@ -578,7 +578,14 @@ use a separate, uniquely owned handoff directory for each invocation, exported a
 per-port Core policies for #246's existing supplied-observation → bounded-candidate
 path. Source files carry their own coverage and consumer IDs. The legacy
 configured report carries its unmonitored inventory, and the catalog summary
-reports coverage across configured sources. Historical fallback policies retain their own facts/definition identities
+reports coverage across configured sources. When it fits the existing summary
+byte limit, the catalog summary also records the Core executable digest and
+listing freshness window. Each diagnostic source entry records the active
+binding contract, the source scope digest, the normalized definition-set digest
+for managed and mixed scopes, and the current and retained binding digests.
+Compare these inputs across runs to explain a reopened scope. If the diagnostics
+would make the summary exceed its limit, the report omits them and preserves
+regular source coverage. Historical fallback policies retain their own facts/definition identities
 and are explicitly held as unknown current state. No automatic acceptance,
 publication, signing or player update eligibility follows from this handoff.
 

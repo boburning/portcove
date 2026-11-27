@@ -54,6 +54,15 @@ import { observeLauncherModPortals } from "./port-upstream-facts.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
 
+export function omitOversizedBindingInputs<T extends { scope_binding_inputs: unknown }>(
+  summary: T,
+  maximumBytes: number,
+): T | Omit<T, "scope_binding_inputs"> {
+  if (Buffer.byteLength(JSON.stringify(summary)) <= maximumBytes) return summary;
+  const { scope_binding_inputs: _diagnostics, ...base } = summary;
+  return base;
+}
+
 function launcherModMetadataUrl(url: URL) {
   if (url.origin !== "https://api.github.com") return false;
   const endpoint = url.pathname + url.search;
@@ -709,12 +718,15 @@ export async function runCatalogUpstreams(
       operationDeadline,
       now,
     );
-    let summary: unknown = {
-      ...result.report,
-      artifact_bytes: artifactBytes,
-      artifact_byte_limit: artifactByteLimit,
-      cleanup_deferred_configurations: cleanupDeferred,
-    };
+    let summary: unknown = omitOversizedBindingInputs(
+      {
+        ...result.report,
+        artifact_bytes: artifactBytes,
+        artifact_byte_limit: artifactByteLimit,
+        cleanup_deferred_configurations: cleanupDeferred,
+      },
+      summaryByteLimit,
+    );
     if (Buffer.byteLength(JSON.stringify(summary)) > summaryByteLimit)
       summary = {
         format: 1,
@@ -916,12 +928,15 @@ export async function runCatalogOpportunity(
       typeof batchSummary.artifact_byte_limit === "number"
         ? batchSummary.artifact_byte_limit
         : null;
-    let summary: unknown = {
-      ...result.report,
-      bounded_batches: result.batches,
-      artifact_bytes: handoff.bytes,
-      artifact_byte_limit: artifactByteLimit,
-    };
+    let summary: unknown = omitOversizedBindingInputs(
+      {
+        ...result.report,
+        bounded_batches: result.batches,
+        artifact_bytes: handoff.bytes,
+        artifact_byte_limit: artifactByteLimit,
+      },
+      config.budget.response_bytes,
+    );
     if (Buffer.byteLength(JSON.stringify(summary)) > config.budget.response_bytes)
       summary = {
         format: 1,

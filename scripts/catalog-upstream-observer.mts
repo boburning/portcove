@@ -109,16 +109,23 @@ export function catalogObservationScopeBinding(
   source: ObservableSource,
   policy: CatalogObservationScopePolicy,
 ) {
+  return observationHash(catalogObservationScopeInputs(source, policy));
+}
+
+function catalogObservationScopeInputs(
+  source: ObservableSource,
+  policy: CatalogObservationScopePolicy,
+) {
   const provider = source.provider ?? "github";
   if (listingOnly(source)) {
-    return observationHash({
+    return {
       contract: "normalized-current-catalog-listing-policy-v1",
       source: source.key,
       provider,
       ...(provider === "gitlab" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
       scope: source.scope_sha256,
       stale_after_hours: policy.staleAfterHours,
-    });
+    };
   }
   const definitions = source.ports.map(
     (port) =>
@@ -132,13 +139,13 @@ export function catalogObservationScopeBinding(
     definitions.some(([, hash]) => !/^[a-f0-9]{64}$/u.test(hash))
   )
     throw new Error("Exact Core policy and normalized observation definitions are required");
-  return observationHash({
+  return {
     contract: "normalized-current-catalog-core-policy-v1",
     ...(provider !== "github" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
     policy: policy.policyIdentity,
     scope: source.scope_sha256,
     definitions,
-  });
+  };
 }
 
 function retainedListingClocks(source: ObservableSource, progress: SourceProgress) {
@@ -788,12 +795,13 @@ export async function advanceCatalogObservations(
   };
   if (!Number.isFinite(deadline) || deadline <= now())
     throw new ObservationFailure("budget", "Collector deadline unavailable");
+  const scopePolicy = {
+    policyIdentity,
+    definitionHash: options.definitionHash,
+    staleAfterHours: template.stale_after_hours,
+  };
   const scopeBinding = (source: ObservableSource) =>
-    catalogObservationScopeBinding(source, {
-      policyIdentity,
-      definitionHash: options.definitionHash,
-      staleAfterHours: template.stale_after_hours,
-    });
+    catalogObservationScopeBinding(source, scopePolicy);
   let requests = 0;
   let responseBytes = 0;
   let operationBytes = 0;
@@ -2217,6 +2225,27 @@ export async function advanceCatalogObservations(
       authority: "catalog-upstream-observation-only",
       generated_at: new Date(now()).toISOString(),
       total_sources: sources.length,
+      scope_binding_inputs: {
+        core_executable_sha256: policyIdentity,
+        listing_stale_after_hours: scopePolicy.staleAfterHours,
+        sources: Object.fromEntries(
+          sources.map((source) => {
+            const input = catalogObservationScopeInputs(source, scopePolicy);
+            return [
+              source.key,
+              {
+                contract: input.contract,
+                provider_proof: input.provider_proof ?? null,
+                source_sha256: input.scope,
+                definitions_sha256:
+                  "definitions" in input ? observationHash(input.definitions) : null,
+                current_sha256: observationHash(input),
+                retained_sha256: state.sources[source.key]?.completed_scope_sha256 ?? null,
+              },
+            ];
+          }),
+        ),
+      },
       ...(launcherModSummary ? { launcher_mod_sources: launcherModSummary } : {}),
       ...(state.mod_provider_registry
         ? {
