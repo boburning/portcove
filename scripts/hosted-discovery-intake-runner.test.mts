@@ -106,7 +106,7 @@ void test("a resource deferral carries neither a verified receipt fence nor audi
   assert.deepEqual(
     scheduledReceiptOutcome({
       tickets: [{ request: 33, binding: "a".repeat(64) }],
-      revision: "hosted-intake:prior",
+      revision: undefined,
       receipts: { status: "unavailable", reason: "resource-deferred" },
     }),
     {
