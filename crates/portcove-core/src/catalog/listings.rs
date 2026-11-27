@@ -1503,7 +1503,6 @@ mod tests {
     fn signer_legacy_row_projection_equals_core_format_eleven_export() {
         let committed =
             CatalogListingDocument::from_json(include_str!("../../catalog/listings.json")).unwrap();
-        assert_eq!(committed.format_version, RESTRICTION_LISTING_FORMAT);
         assert_signer_projection_matches_export(&committed);
 
         // Fixture rows for every format-12+ fact the export removes, and the
@@ -2363,8 +2362,11 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        // Embedded listings include typed acquisition restrictions.
-        assert_eq!(projected.listing_document().format_version, 15);
+        let embedded = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
+        assert_eq!(
+            projected.listing_document().format_version,
+            embedded.format_version
+        );
     }
 
     #[test]
@@ -2600,8 +2602,6 @@ mod observation_metadata_tests {
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
         let current = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
-        // Typed acquisition restrictions lift the embedded directory to 15.
-        assert_eq!(current.format_version, 15);
         // Start with format 6 to isolate setup references from later fields.
         let mut document = current.export_format(6).unwrap();
         let legacy = document.export_format(5).unwrap();

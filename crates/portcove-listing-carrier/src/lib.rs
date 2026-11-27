@@ -106,7 +106,12 @@ pub fn legacy_row_projection(row: &serde_json::Value) -> serde_json::Value {
     let Some(fields) = row.as_object_mut() else {
         return row;
     };
-    for field in ["restrictions", "implementation", "upstream_observation"] {
+    for field in [
+        "restrictions",
+        "implementation",
+        "upstream_observation",
+        "mod_portals",
+    ] {
         fields.remove(field);
     }
     if let Some(media) = fields

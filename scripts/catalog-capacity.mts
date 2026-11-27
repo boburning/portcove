@@ -246,7 +246,7 @@ export function listingDeliveryBounds(
 export function legacyRowProjection(row: unknown): unknown {
   if (!isRecord(row)) return row;
   const projected: Record<string, unknown> = structuredClone(row);
-  for (const field of ["restrictions", "implementation", "upstream_observation"])
+  for (const field of ["restrictions", "implementation", "upstream_observation", "mod_portals"])
     delete projected[field];
   if (Array.isArray(projected.media)) {
     const media = projected.media.filter(

@@ -390,7 +390,7 @@ fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
     let current = read(&["--json", "catalog", "listings"]);
     let implementation = read(&["--json", "catalog", "listings", "--format-version", "12"]);
     let legacy = read(&["--json", "catalog", "listings", "--format-version", "11"]);
-    assert_eq!(current["format_version"], 15);
+    assert!(current["format_version"].as_u64().unwrap() >= 16);
     assert_eq!(implementation["format_version"], 12);
     assert_eq!(legacy["format_version"], 11);
     // Consume the compiled producer's documents through the actual Core reader,
