@@ -311,7 +311,8 @@ void test("a completed schedule without successful collection supplies no public
     {
       now: Date.parse("2026-11-26T15:00:00Z"),
       transport: {
-        read: async () => {
+        read: async (endpoint) => {
+          if (!endpoint.includes("/workflows/")) return { total_count: 0, artifacts: [] };
           return {
             workflow_runs: [
               {
@@ -469,7 +470,7 @@ void test("the appointed report archive admits exact cover and media receipts in
   };
   let catalogReads = 0;
   let downloads = 0;
-  const read = (archive: Buffer) =>
+  const read = (archive: Buffer, conclusion = "success") =>
     readHostedArtworkHealth(
       (actualRevision, file) => {
         assert.equal(actualRevision, revision);
@@ -482,7 +483,7 @@ void test("the appointed report archive admits exact cover and media receipts in
         transport: {
           read: async (endpoint) =>
             endpoint.includes("/workflows/")
-              ? { workflow_runs: [run] }
+              ? { workflow_runs: [{ ...run, conclusion }] }
               : {
                   total_count: 1,
                   artifacts: [
@@ -524,6 +525,24 @@ void test("the appointed report archive admits exact cover and media receipts in
   assert.deepEqual([...hosted.media()!.facts.keys()], ["artwork:logo_med_2x/cosample"]);
   assert.equal(downloads, 1);
   assert.equal(catalogReads, 1);
+  const independent = await read(createAuditZip(siblings), "failure");
+  assert.equal(independent?.cover()?.counts.gone, 1);
+  assert.equal(independent?.media()?.counts.gone, 1);
+  assert.equal(await read(createAuditZip(siblings), "cancelled"), null);
+  assert.equal(downloads, 2);
+  const deferredCollection = siblings.map(
+    ([name, bytes]) =>
+      [
+        name,
+        name === "evidence.json"
+          ? JSON.stringify({ ...evidence, outcomes: { collect: "deferred", report: "success" } })
+          : bytes,
+      ] as const,
+  );
+  await assert.rejects(
+    read(createAuditZip(deferredCollection), "failure"),
+    /Unbound scheduled artwork evidence/u,
+  );
   await assert.rejects(
     read(createAuditZip([...siblings, ["digest/extra.html", "unexpected"]])),
     /path/u,

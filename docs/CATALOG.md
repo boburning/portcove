@@ -2209,6 +2209,11 @@ can make the same verified image eligible again. The publisher keeps release
 observations independently of a generated cover. Players can still choose or
 hide artwork in their own libraries.
 
+Scheduled artwork evidence remains usable if a separate maintenance job fails.
+The publisher requires a completed run and the exact report from successful
+collection, including admission of the observation and its digest. A canceled
+run or deferred collection supplies no artwork evidence.
+
 To prepare a replacement for an existing original-game cover, use
 `node scripts/catalog-cover-replacement-review.mts --help` for the command inputs.
 Use a clean checkout at the exact commit under review. Supply the retained signed
