@@ -373,7 +373,24 @@
           "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md",
           "https://github.com/n64hub/super-mario-64-recomp/blob/a3240c9beed89341b29957cea0cea076fe04b6dc/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-64-n64-usa",
+            "title": "Super Mario 64 (Nintendo 64, USA)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/HarbourMasters/Ghostship/blob/deb091c29caff57dd986398087b058f16b11911e/README.md"
+            ]
+          },
+          {
+            "id": "super-mario-64-n64-japan",
+            "title": "Super Mario 64 (Nintendo 64, Japan)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/HarbourMasters/Ghostship/blob/deb091c29caff57dd986398087b058f16b11911e/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -1084,7 +1101,16 @@
           "https://github.com/ThatGuyMcd/DKR-R/blob/53a78c3e32714957df3e4bad43c1ef7fc82f96dc/README.md",
           "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "diddy-kong-racing-n64-usa",
+            "title": "Diddy Kong Racing (Nintendo 64, USA)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/ThatGuyMcd/DKR-R/blob/53a78c3e32714957df3e4bad43c1ef7fc82f96dc/README.md"
+            ]
+          }
+        ]
       },
       "availability": "unknown"
     },
@@ -2462,7 +2488,17 @@
         "evidence_urls": [
           "https://github.com/bryanthaboi/gen1recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-red-game-boy",
+            "title": "Pokémon Red (Game Boy)",
+            "system": "game-boy",
+            "evidence_urls": [
+              "https://github.com/bryanthaboi/gen1recomp/blob/53ad85ca5480cb6d52a578e01c24854ae21ae242/README.md#L90-L98",
+              "https://github.com/bryanthaboi/gen1recomp/blob/53ad85ca5480cb6d52a578e01c24854ae21ae242/docs/guides/launch-options.md#L9-L10"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -2492,7 +2528,16 @@
         "evidence_urls": [
           "https://github.com/UNDERdecoded/Gen2Recomped"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-gold-game-boy-color",
+            "title": "Pokémon Gold (Game Boy Color)",
+            "system": "game-boy-color",
+            "evidence_urls": [
+              "https://github.com/UNDERdecoded/Gen2Recomped/blob/42aa3b81312252b472cf9bf5ead4894b931cec2f/README.md#L62-L78"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -2521,7 +2566,16 @@
         "evidence_urls": [
           "https://github.com/UNDERdecoded/Gen2Recomped"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-silver-game-boy-color",
+            "title": "Pokémon Silver (Game Boy Color)",
+            "system": "game-boy-color",
+            "evidence_urls": [
+              "https://github.com/UNDERdecoded/Gen2Recomped/blob/42aa3b81312252b472cf9bf5ead4894b931cec2f/README.md#L62-L78"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -2550,7 +2604,16 @@
         "evidence_urls": [
           "https://github.com/UNDERdecoded/Gen2Recomped"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-crystal-game-boy-color",
+            "title": "Pokémon Crystal (Game Boy Color)",
+            "system": "game-boy-color",
+            "evidence_urls": [
+              "https://github.com/UNDERdecoded/Gen2Recomped/blob/42aa3b81312252b472cf9bf5ead4894b931cec2f/README.md#L62-L78"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -3211,7 +3274,17 @@
         "evidence_urls": [
           "https://github.com/Legend-of-Dragoon-Modding/Severed-Chains"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-dragoon-playstation-north-america",
+            "title": "The Legend of Dragoon (PlayStation, North America)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://legendofdragoon.org/projects/severed-chains/",
+              "https://legendofdragoon.org/guides/setup-severed-chains/"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -3275,7 +3348,16 @@
         "evidence_urls": [
           "https://openpete.com/"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "spyro-the-dragon-playstation-north-america",
+            "title": "Spyro the Dragon (PlayStation, North America)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/tyscorp/openpete/blob/fc8af26ebab4c2d0b73b24feeaf50ac43ef92ac8/docs/src/user/games/spyro-1.md#L1-L21"
+            ]
+          }
+        ]
       },
       "availability": "unknown"
     },
@@ -6482,7 +6564,17 @@
           "https://github.com/sm64pc/sm64ex/blob/d7ca2c04364a6dd0dac58b47151e04e26887e6f0/README.md",
           "https://github.com/sm64-port/sm64-port/blob/2b17d081c9798b31b91dc71f37994b0da28cffc9/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-64-n64-usa",
+            "title": "Super Mario 64 (Nintendo 64, USA)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/Render96/Render96ex/blob/48da5c491c8abfb2f5192b59278c1c269411e533/Makefile",
+              "https://github.com/Render96/Render96ex/blob/48da5c491c8abfb2f5192b59278c1c269411e533/sm64.us.sha1"
+            ]
+          }
+        ]
       },
       "manual_setup": {
         "steps": [
@@ -28871,9 +28963,19 @@
         "evidence_urls": [
           "https://github.com/cheviman/outrunners-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "outrunners-sega-system-multi-32-orunners",
+            "title": "OutRunners (Sega System Multi 32, World)",
+            "system": "sega-system-multi-32",
+            "evidence_urls": [
+              "https://github.com/cheviman/outrunners-port/blob/3124c0ea124e8600d180a241b8b04615eebbcdd1/README.md#L5-L16",
+              "https://github.com/cheviman/outrunners-decomp/blob/18623db57f18830d1aba6faaa36ffaf91757a87f/README.md#L3-L27"
+            ]
+          }
+        ]
       },
-      "original_game_title": "OutRunners Arcade",
+      "original_game_title": "OutRunners",
       "platforms": [],
       "availability": "unknown"
     },
@@ -28891,7 +28993,17 @@
         "evidence_urls": [
           "https://github.com/cheviman/outrunners-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "outrunners-sega-system-multi-32-orunners",
+            "title": "OutRunners (Sega System Multi 32, World)",
+            "system": "sega-system-multi-32",
+            "evidence_urls": [
+              "https://github.com/cheviman/outrunners-port/blob/3124c0ea124e8600d180a241b8b04615eebbcdd1/README.md#L5-L16",
+              "https://github.com/cheviman/outrunners-decomp/blob/18623db57f18830d1aba6faaa36ffaf91757a87f/README.md#L3-L27"
+            ]
+          }
+        ]
       },
       "original_game_title": "OutRunners",
       "platforms": [],

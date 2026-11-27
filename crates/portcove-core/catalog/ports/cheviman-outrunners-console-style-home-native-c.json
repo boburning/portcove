@@ -12,7 +12,17 @@
       "format_version": 1,
       "id": "outrunners",
       "evidence_urls": ["https://github.com/cheviman/outrunners-port"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "outrunners-sega-system-multi-32-orunners",
+          "title": "OutRunners (Sega System Multi 32, World)",
+          "system": "sega-system-multi-32",
+          "evidence_urls": [
+            "https://github.com/cheviman/outrunners-port/blob/3124c0ea124e8600d180a241b8b04615eebbcdd1/README.md#L5-L16",
+            "https://github.com/cheviman/outrunners-decomp/blob/18623db57f18830d1aba6faaa36ffaf91757a87f/README.md#L3-L27"
+          ]
+        }
+      ]
     },
     "original_game_title": "OutRunners"
   }
