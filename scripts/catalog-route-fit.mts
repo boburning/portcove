@@ -48,11 +48,9 @@ export { heldAt };
  *    candidate-route operation on every platform with known packages.
  * 4. `data-only`: desktop packages are known for a supported platform and
  *    independently observed player facts exist for at least one of them.
- * 5. `missing-capability`: packages on a host no release provider adapter reads,
- *    or packages that carry no supported desktop platform.
+ * 5. `missing-capability`: the release provider has no supported adapter.
  * 6. `needs-bytes-worker`: desktop packages are known but no player facts exist.
- * 7. `unobserved`: package availability is unknown and no complete observation
- *    exists. This is UNKNOWN, not absence.
+ * 7. `unobserved`: package availability or its desktop platform is unknown.
  *
  * `needs-admission` is reserved for data that declares a Portcove-owned
  * install/execution route without an admitted reviewed artifact. A listing-only
@@ -331,17 +329,17 @@ function classifyListing(
       disposition: "upstream-condition",
       reason: "A complete observation found no release package in the observed releases.",
     };
-  if (complete)
-    return {
-      packagePlatforms,
-      disposition: "missing-capability",
-      reason: `A complete observation found ${complete.assets} release package(s), none with a supported desktop platform hint.`,
-    };
   if (!provider)
     return {
       packagePlatforms,
       disposition: "missing-capability",
       reason: `No release provider adapter reads ${host}, so packages cannot be observed.`,
+    };
+  if (complete)
+    return {
+      packagePlatforms,
+      disposition: "unobserved",
+      reason: `A complete observation found ${complete.assets} release asset(s). Their desktop platform is unobserved.`,
     };
   const attempt =
     observed && observed.state !== "none" ? ` The latest observation is ${observed.state}.` : "";

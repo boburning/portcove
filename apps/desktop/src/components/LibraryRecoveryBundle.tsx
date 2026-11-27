@@ -20,8 +20,9 @@ import type {
   LibraryRecoveryRestorePlan,
   OperationEvent,
 } from "../types";
-import { errorText, failurePresentation, formatBytes } from "../view-model";
+import { failurePresentation, formatBytes } from "../view-model";
 import { ActionReviewFailure } from "./ActionReviewFailure";
+import { useRecoveryTransfer } from "./recovery-transfer";
 import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
@@ -223,7 +224,7 @@ function RecoveryBundleDialog({
   const firstField = useRef<HTMLInputElement>(null);
   const restoreDestinationField = useRef<HTMLInputElement>(null);
   const inFlight = useRef(false);
-  const attempted = useRef(false);
+  const copy = useRecoveryTransfer({ generation, libraryRoot });
   const [destination, setDestination] = useState("");
   const [path, setPath] = useState("");
   const [creation, setCreation] = useState<LibraryRecoveryBundlePlan>();
@@ -234,11 +235,6 @@ function RecoveryBundleDialog({
   const [restored, setRestored] = useState<string>();
   const [transferred, setTransferred] = useState(false);
   const [pending, setPending] = useState("");
-  const copyInvocation = useRef<symbol>(undefined);
-  const [copyEvent, setCopyEvent] = useState<OperationEvent>();
-  const [cancelRequested, setCancelRequested] = useState(false);
-  const [cancelFailure, setCancelFailure] = useState<unknown>();
-  const cancelling = useRef(false);
   const [failure, setFailure] = useState<{
     error: unknown;
     action: RecoveryFailureAction;
@@ -270,10 +266,7 @@ function RecoveryBundleDialog({
   ) => {
     if (inFlight.current) return;
     inFlight.current = true;
-    cancelling.current = false;
-    setCancelRequested(false);
-    setCancelFailure(undefined);
-    setCopyEvent(undefined);
+    copy.resetProgress();
     setPending(status);
     setFailure(undefined);
     try {
@@ -311,43 +304,22 @@ function RecoveryBundleDialog({
     setFailure(undefined);
   };
 
-  async function transfer<T>(
+  function transfer<T>(
     action: (currentGeneration: number, onProgress: (event: OperationEvent) => void) => Promise<T>,
     kind: RecoveryStep["operation"],
   ): Promise<T> {
-    const current = attempted.current ? await desktopApi.bootstrapStatus() : undefined;
-    if (current && !current.ready)
-      throw new Error(
-        current.error ? errorText(current.error) : "Open your library and try again.",
-      );
-    if (current && current.library_root !== libraryRoot)
-      throw new Error("Open the library used for this recovery operation and try again.");
-    attempted.current = true;
-    setTransferred(true);
-    setCreation(undefined);
-    setRestore(undefined);
-    const invocation = Symbol();
-    copyInvocation.current = invocation;
-    try {
-      const result = await action(current?.generation ?? generation, (event) => {
-        if (copyInvocation.current !== invocation) return;
-        setCopyEvent((previous) =>
-          previous &&
-          previous.operation_id === event.operation_id &&
-          previous.sequence >= event.sequence
-            ? previous
-            : event,
-        );
-      });
-      setRecovery(undefined);
-      return result;
-    } catch (failure) {
-      const target = recoveryStep(failure, kind);
-      if (target) setRecovery(target);
-      throw failure;
-    } finally {
-      copyInvocation.current = undefined;
-    }
+    return copy.transfer(action, {
+      onStart: () => {
+        setTransferred(true);
+        setCreation(undefined);
+        setRestore(undefined);
+      },
+      onComplete: () => setRecovery(undefined),
+      onInterrupted: (failure) => {
+        const target = recoveryStep(failure, kind);
+        if (target) setRecovery(target);
+      },
+    });
   }
 
   function acceptRestoredDestination(
@@ -396,37 +368,12 @@ function RecoveryBundleDialog({
 
   function dismiss() {
     if (inFlight.current) {
-      if (copyEvent) hide();
+      if (copy.event) hide();
       return;
     }
-    if (attempted.current) reloadWorkspace();
+    if (copy.attempted.current) reloadWorkspace();
     else close();
   }
-
-  const copying =
-    copyEvent?.type === "progress" && copyEvent.phase === "Copying recovery data"
-      ? copyEvent
-      : undefined;
-  const verifying = copyEvent?.type === "progress" && !copying;
-  const cancelCopy = async () => {
-    const invocation = copyInvocation.current;
-    if (!copying || !invocation || cancelling.current) return;
-    const isCurrent = () => copyInvocation.current === invocation;
-    cancelling.current = true;
-    setCancelRequested(true);
-    setCancelFailure(undefined);
-    try {
-      const receipt = await desktopApi.cancelOperation(copying.operation_id);
-      if (!receipt.requested && isCurrent()) setCancelRequested(false);
-    } catch (failure) {
-      if (isCurrent()) {
-        setCancelFailure(failure);
-        setCancelRequested(false);
-      }
-    } finally {
-      if (isCurrent()) cancelling.current = false;
-    }
-  };
 
   const disabled = Boolean(pending) || transferred;
   const choosingBundle = operation === "inspect";
@@ -549,33 +496,7 @@ function RecoveryBundleDialog({
               </p>
             </section>
           )}
-          {pending && (
-            <div className="grid gap-2">
-              <p role="status">
-                {cancelRequested
-                  ? "Stopping the copy… Files copied so far stay in place so you can resume later."
-                  : copying
-                    ? "Copying recovery data…"
-                    : verifying
-                      ? "Verifying recovery data. Keep Portcove open until verification finishes."
-                      : pending}
-              </p>
-              {copying && copying.total && copying.total > 0 ? (
-                <div className="grid gap-1">
-                  <progress
-                    aria-label="Recovery data copied"
-                    className="w-full"
-                    value={copying.completed}
-                    max={copying.total}
-                  />
-                  <span>
-                    {formatBytes(copying.completed)} of {formatBytes(copying.total)}
-                  </span>
-                </div>
-              ) : null}
-              <ActionReviewFailure error={cancelFailure} />
-            </div>
-          )}
+          {pending && <RecoveryCopyProgress pending={pending} copy={copy} />}
           {!destinationOccupied && (
             <ActionReviewFailure
               error={error}
@@ -714,17 +635,17 @@ function RecoveryBundleDialog({
           <Button
             data-focusable
             variant="outline"
-            disabled={Boolean(pending) && !copyEvent}
+            disabled={Boolean(pending) && !copy.event}
             onClick={dismiss}
           >
-            {pending && copyEvent ? "Hide details" : "Close"}
+            {pending && copy.event ? "Hide details" : "Close"}
           </Button>
-          {pending && copying && (
+          {pending && copy.copying && (
             <Button
               data-focusable
               variant="outline"
-              disabled={cancelRequested}
-              onClick={() => void cancelCopy()}
+              disabled={copy.cancelRequested}
+              onClick={() => void copy.cancelCopy()}
             >
               Cancel copy
             </Button>
@@ -880,6 +801,44 @@ function RecoveryBundleDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function RecoveryCopyProgress({
+  pending,
+  copy: { cancelRequested, copying, verifying, cancelFailure },
+}: {
+  pending: string;
+  copy: Pick<
+    ReturnType<typeof useRecoveryTransfer>,
+    "cancelRequested" | "copying" | "verifying" | "cancelFailure"
+  >;
+}) {
+  const status = cancelRequested
+    ? "Stopping the copy… Files copied so far stay in place so you can resume later."
+    : copying
+      ? "Copying recovery data…"
+      : verifying
+        ? "Verifying recovery data. Keep Portcove open until verification finishes."
+        : pending;
+  return (
+    <div className="grid gap-2">
+      <p role="status">{status}</p>
+      {copying && copying.total && copying.total > 0 ? (
+        <div className="grid gap-1">
+          <progress
+            aria-label="Recovery data copied"
+            className="w-full"
+            value={copying.completed}
+            max={copying.total}
+          />
+          <span>
+            {formatBytes(copying.completed)} of {formatBytes(copying.total)}
+          </span>
+        </div>
+      ) : null}
+      <ActionReviewFailure error={cancelFailure} />
+    </div>
   );
 }
 

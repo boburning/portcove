@@ -3897,9 +3897,11 @@ user-selected registration route. `data-only` needs known desktop packages and
 player facts for one of those platforms: an accepted package player
 observation, a reviewed package shape or prepared-player `route_facts_v1`.
 `needs-bytes-worker` has known desktop packages without player facts.
-`unobserved` has unknown availability and no complete observation; it is
-unknown, not absent. `missing-capability` names a host no release provider
-adapter reads or packages without a supported desktop platform.
+`unobserved` means package availability or its desktop platform is unknown.
+A complete release inventory can still leave the desktop platform unknown.
+`missing-capability` names a host no release provider adapter reads.
+These findings describe automatic registration fit. The player can still use
+the separately assessed upstream download route when available.
 `upstream-condition` covers source-only or unavailable upstreams, a complete
 observation without release packages, or restrictions that hold every
 registration operation on every package platform. `needs-admission` is reserved
