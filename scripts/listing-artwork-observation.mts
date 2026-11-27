@@ -154,7 +154,9 @@ export async function readHostedArtworkHealth(
     typeof run.updated_at !== "string"
   )
     throw new Error("Unbound scheduled artwork run");
-  if (run.conclusion !== "success") return null;
+  // Discovery and restore run alongside collection. Their failure does not
+  // invalidate independently admitted observations in the exact report.
+  if (run.conclusion !== "success" && run.conclusion !== "failure") return null;
   const started = Date.parse(run.run_started_at);
   const completed = Date.parse(run.updated_at);
   if (
