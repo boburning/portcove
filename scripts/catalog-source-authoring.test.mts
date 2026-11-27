@@ -98,6 +98,55 @@ void test("reviewed mod websites promote the directory without an operational de
   }
 });
 
+void test("exact reviewed provider coordinates generate only descriptive listing links", () => {
+  const original = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", "shipwright.json"))),
+    "shipwright",
+  );
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const record = (id: string, changes: Partial<AuthoredPort> = {}) => ({
+    ...original,
+    listing: { ...original.listing, id },
+    ...changes,
+  });
+  const site = "community_site" as const;
+  const authored = {
+    id: "explicit",
+    site,
+    name: "Reviewed community",
+    url: "https://www.gamebanana.com/games/52",
+    instructions: "Open the community.",
+  };
+  const records = [
+    record("new-review-fixture"),
+    record("excluded-fixture", { no_observed_mod_portals: true }),
+    record("explicit-fixture", {
+      listing: { ...original.listing, id: "explicit-fixture", mod_portals: [authored] },
+    }),
+  ];
+  const portals = new Map(
+    records.map((record) => {
+      const result = assembleCatalogRecords(shared, [record]);
+      assert.deepEqual(result.catalog.ports, [projectAuthoredPort(record)]);
+      const listing = requiredFixture(result.directory.listings[0]);
+      if (listing.mod_portals) assert.equal(result.directory.format_version, 16);
+      return [listing.id, listing.mod_portals];
+    }),
+  );
+  assert.deepEqual(portals.get("new-review-fixture"), [
+    {
+      id: "reviewed-gamebanana",
+      site,
+      name: "GameBanana",
+      url: "https://gamebanana.com/games/16121",
+      instructions: "Open the community to browse its mods.",
+    },
+  ]);
+  assert.equal(portals.get("excluded-fixture"), undefined);
+  assert.deepEqual(portals.get("explicit-fixture"), [authored]);
+  assert.equal(original.listing.mod_portals, undefined);
+});
+
 void test("automatic GitHub identities require repository-bound listing format 17", () => {
   const listing = {
     id: "github-123",

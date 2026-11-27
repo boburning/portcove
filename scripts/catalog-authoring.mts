@@ -255,6 +255,58 @@ function publicUrl(value: unknown, field: string) {
 
 export const observedModPortalPrefix = "obs-ts-";
 
+function projectReviewedProviderWebsites(record: AuthoredPort): AuthoredListing {
+  const { integration, listing } = record;
+  const bindings: unknown = integration?.mod_provider_bindings;
+  if (
+    !Array.isArray(bindings) ||
+    integration?.legacy_mod_provider_held === true ||
+    record.no_observed_mod_portals ||
+    usesScummvmEngine(record)
+  )
+    return listing;
+
+  const authored = listing.mod_portals ?? [];
+  const portals = [...authored];
+  const reviewed = (bindings as unknown[]).filter(isRecord);
+  for (const provider of ["gamebanana", "thunderstore"] as const) {
+    const matches = reviewed.filter((binding) => binding.provider === provider);
+    const binding = matches[0];
+    if (matches.length !== 1 || !binding || Object.keys(binding).length !== 2) continue;
+    const id = `reviewed-${provider}`;
+    const host = provider === "gamebanana" ? "gamebanana.com" : "thunderstore.io";
+    if (
+      portals.length >= 8 ||
+      authored.some(
+        (portal) =>
+          portal.id === id || new URL(portal.url).hostname.replace(/^www\./u, "") === host,
+      )
+    )
+      continue;
+    let url: string;
+    if (provider === "gamebanana") {
+      const game = binding.game_id;
+      if (typeof game !== "number" || !Number.isSafeInteger(game) || game < 1) continue;
+      url = `https://${host}/games/${game}`;
+    } else {
+      const community = binding.community;
+      if (!boundedText(community, 80) || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(community))
+        continue;
+      url = `https://${host}/c/${community}/`;
+    }
+    portals.push({
+      id,
+      site: "community_site",
+      name: provider === "gamebanana" ? "GameBanana" : "Thunderstore",
+      url,
+      instructions: "Open the community to browse its mods.",
+    });
+  }
+  if (portals.length === authored.length) return listing;
+  checkListingModPortals(portals, listing.id);
+  return { ...listing, mod_portals: portals };
+}
+
 function checkListingModPortals(value: unknown, listingId: string) {
   const repositoryId = admittedGithubRepositoryId(listingId);
   const hosts = new Map<string, string | null>([
@@ -1139,7 +1191,7 @@ export function assembleCatalogRecords(
     .map((record) => {
       const hints = listingDownloadAssetHints(record);
       return {
-        ...projectListingRestrictions(structuredClone(record.listing)),
+        ...projectListingRestrictions(structuredClone(projectReviewedProviderWebsites(record))),
         ...(hints === undefined ? {} : { download_asset_hints: hints }),
         platforms: [
           ...(Array.isArray(record.integration?.platforms)
