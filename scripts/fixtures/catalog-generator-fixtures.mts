@@ -234,8 +234,8 @@ export function proposalDecoderFixture(
       const { portId, assets, gone } = JSON.parse(process.env.FIXTURE_MEDIA_SCENE);
       const port = catalog.ports.find(({ id }) => id === portId);
       if (!port) throw new Error('Fixture scene has no port.');
-      if (assets.length) port.presentation = { ...port.presentation, media: [...(port.presentation?.media ?? []), ...assets] };
-      return { catalog, records: [], gone_media_targets: gone ?? [] };
+      const updated = { ...port, presentation: { ...port.presentation, media: [...(port.presentation?.media ?? []), ...assets] } };
+      return { catalog: assets.length ? { ...catalog, ports: catalog.ports.map((entry) => entry === port ? updated : entry) } : catalog, records: [], gone_media_targets: gone ?? [] };
     }
     // The generator may split a large catalog into several operations; the
     // fixture's images belong to the whole run, not to each operation.
@@ -277,6 +277,7 @@ export function proposalDecoderFixture(
         return { status: 2, signal: null, stdout: '{}', stderr: 'Typed scenes require a listing directory' };
       const data=listings?JSON.parse(bytes):inspection?{format_version:1,input_sha256:sha256,input_bytes:bytes.length,ports:[],scope:repository_authoring?'repository-summary-policy':'runtime-admission'}
         :{selection:{sha256,byte_size:bytes.length,width:1,height:1,format:'jpeg'}};
+      if (listings) for (const listing of data.listings) if (listing.media?.length === 0) delete listing.media;
       return {status:0,signal:null,stdout:JSON.stringify({data}),stderr:''};
     };
     syncBuiltinESMExports();

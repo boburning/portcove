@@ -414,5 +414,19 @@ void test("full artwork preparation checks typed scenes through the listing vali
     fixtureJson(readFileSync(join(withdrawn.output, "listing-media-proposal.json"))),
   );
   const changed = records(removal.listings).find((item) => item.id === id);
-  assert.deepEqual(changed?.media, []);
+  assert.ok(changed);
+  assert.equal(Object.hasOwn(changed, "media"), false);
+
+  const overridden = proposalDecoderFixture(
+    0,
+    false,
+    "--prepare-proposal",
+    (input) => {
+      const port = requiredFixture(input.ports.find((port) => port.id === id));
+      port.presentation = { ...record(port.presentation), media: [logo] };
+    },
+    { portId: id, assets: [], accepted: [asset] },
+  );
+  assert.equal(overridden.result.status, 0, overridden.result.stderr);
+  assert.equal(existsSync(join(overridden.output, "listing-media-proposal.json")), false);
 });

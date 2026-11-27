@@ -545,11 +545,18 @@ function originalSceneScope(game: unknown, subject: Record<string, unknown>) {
 
 function splitListingSceneProposal(
   catalog: CurrentCatalog,
+  beforePreparation: CurrentCatalog,
   goneTargets: readonly string[],
   excluded: ReadonlySet<string>,
 ) {
   const accepted = new Map(authored.directory.listings.map((listing) => [listing.id, listing]));
-  const staged = new Map<string, { legacy: unknown[]; scenes: Record<string, unknown>[] }>();
+  const baseline = new Map(
+    beforePreparation.ports.map(({ id, presentation }) => [id, presentation]),
+  );
+  const staged = new Map<
+    string,
+    { legacy: unknown[]; scenes: Record<string, unknown>[]; game: unknown }
+  >();
   const pending: { port_id: string; asset: Record<string, unknown> }[] = [];
   const gone = new Set(goneTargets);
   const ports = catalog.ports.map((port) => {
@@ -561,10 +568,19 @@ function splitListingSceneProposal(
     const legacy = media.filter((asset) => !typedIgdbScene(asset));
     const listing = accepted.get(port.id);
     const acceptedMedia: unknown[] = Array.isArray(listing?.media) ? listing.media : [];
+    const acceptedLegacy = acceptedMedia.filter((asset) => !typedIgdbScene(asset));
     const matchingProject = listing?.project_url === port.project_url;
+    const prior = baseline.get(port.id);
+    const priorMedia = isRecord(prior) ? prior.media : undefined;
+    const canAlign =
+      matchingProject &&
+      (priorMedia === undefined ||
+        (Array.isArray(priorMedia) &&
+          priorMedia.length > 0 &&
+          isDeepStrictEqual(priorMedia, acceptedLegacy)));
     const prepared = scenes.filter((asset) => {
       const subject = isRecord(asset.subject) ? asset.subject : null;
-      if (listing && matchingProject && subject) {
+      if (listing && canAlign && subject) {
         if (subject.kind === "port" && subject.port_id === port.id) return true;
         const scope = originalSceneScope(listing.original_game, subject);
         if (
@@ -578,16 +594,14 @@ function splitListingSceneProposal(
       return false;
     });
     if (
-      matchingProject &&
+      canAlign &&
       (prepared.length ||
         (legacy.length &&
           acceptedMedia.some(typedIgdbScene) &&
-          !isDeepStrictEqual(
-            legacy,
-            acceptedMedia.filter((asset) => !typedIgdbScene(asset)),
-          )))
+          !isDeepStrictEqual(legacy, priorMedia) &&
+          !isDeepStrictEqual(legacy, acceptedLegacy)))
     )
-      staged.set(port.id, { legacy, scenes: prepared });
+      staged.set(port.id, { legacy, scenes: prepared, game: presentation.original_game });
     if (!scenes.length) return port;
     const strictPresentation = { ...presentation };
     if (legacy.length) strictPresentation.media = legacy;
@@ -604,6 +618,10 @@ function splitListingSceneProposal(
         const role = catalogGameMediaRoles.find((role) => role === asset.role);
         if (role && gone.has(gameMediaImageTarget(role, asset.igdb.image_id))) return false;
       }
+      if (stage && isRecord(asset.subject) && asset.subject.kind === "original") {
+        const scope = originalSceneScope(listing.original_game, asset.subject);
+        if (!scope || scope !== originalSceneScope(stage.game, asset.subject)) return false;
+      }
       return !stage?.scenes.some(
         (next) =>
           next.id === asset.id ||
@@ -616,7 +634,11 @@ function splitListingSceneProposal(
     const legacy = stage?.legacy.length
       ? stage.legacy
       : media.filter((asset) => !typedIgdbScene(asset));
-    return [{ ...listing, media: [...legacy, ...retained, ...(stage?.scenes ?? [])] }];
+    const updated = { ...listing };
+    const nextMedia = [...legacy, ...retained, ...(stage?.scenes ?? [])];
+    if (nextMedia.length) updated.media = nextMedia;
+    else delete updated.media;
+    return [updated];
   });
   return {
     catalog: { ...catalog, ports },
@@ -727,7 +749,12 @@ async function prepareArtworkProposal(fullProposal = false) {
   validateCurrentCatalog(result.catalog);
   const sceneProposal =
     fullProposal && gameMedia
-      ? splitListingSceneProposal(result.catalog, gameMedia.gone_media_targets, excludedMedia)
+      ? splitListingSceneProposal(
+          result.catalog,
+          input,
+          gameMedia.gone_media_targets,
+          excludedMedia,
+        )
       : null;
   const proposedCatalog = sceneProposal?.catalog ?? result.catalog;
   const proposalBytes = Buffer.from(`${JSON.stringify(proposedCatalog, null, 2)}\n`);
