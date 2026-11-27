@@ -21,7 +21,7 @@ import {
   coverDeclarationScope,
   readArtworkCheckpoint,
 } from "./listing-artwork-checkpoint.mts";
-import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
+import { applicableCoverHealth, readHostedArtworkHealth } from "./listing-artwork-observation.mts";
 import {
   indexSharedCoverRows,
   projectExactSharedCovers,
@@ -1096,7 +1096,7 @@ export async function prepareObservationBundle(options: {
   activateCoverCheckpoint?: boolean;
   coverApproval?: ReturnType<typeof protectedCoverApproval>;
   priorHistory?: string;
-  readCoverHealth?: typeof readHostedCoverHealth;
+  readArtworkHealth?: typeof readHostedArtworkHealth;
   sharedCoverSource?: string;
   /** Select and verify the reader from the protected Preview pointer
    * (`Catalog publish`). */
@@ -1444,11 +1444,22 @@ export async function prepareObservationBundle(options: {
   }
   let coverCheckpoint: ReturnType<typeof advanceArtworkCheckpoint> | undefined;
   let sharedCoverDefaults: ReturnType<typeof projectExactSharedCovers> | undefined;
+  let mediaHealth: ReturnType<
+    NonNullable<Awaited<ReturnType<typeof readHostedArtworkHealth>>>["media"]
+  > = null;
   if (coverEnabled && !renewal) {
     let observations: ReturnType<typeof applicableCoverHealth> = [];
     if (options.observe !== false) {
       try {
-        const evidence = await (options.readCoverHealth ?? readHostedCoverHealth)();
+        const hosted = await (options.readArtworkHealth ?? readHostedArtworkHealth)();
+        try {
+          mediaHealth = hosted?.media() ?? null;
+        } catch (error) {
+          diagnostics.push(
+            `media observer unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "read failed"}`,
+          );
+        }
+        const evidence = hosted?.cover();
         if (evidence) observations = applicableCoverHealth(canonical, evidence);
       } catch (error) {
         diagnostics.push(
@@ -1850,6 +1861,20 @@ export async function prepareObservationBundle(options: {
       unchanged: true,
     },
     excluded_candidates: excludedCandidates,
+    ...(mediaHealth
+      ? {
+          observed_media_health: {
+            revision: mediaHealth.revision,
+            artifact: mediaHealth.artifact,
+            eligible_variants: mediaHealth.expected,
+            coverage: mediaHealth.complete ? "complete" : "partial",
+            role_outcomes: mediaHealth.counts,
+            image_requests: mediaHealth.image_requests,
+            image_bytes: mediaHealth.image_bytes,
+            retry_at: mediaHealth.retry_at,
+          },
+        }
+      : {}),
     projection_scope: stopped
       ? "Listing publication stopped; exact prior signed listing targets renewed."
       : renewal

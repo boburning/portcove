@@ -351,28 +351,43 @@ void test("a released reader without cover support leaves the exact prior withdr
     offlineTargets: fixture.offlineTargets,
     readObservation: () =>
       Promise.reject(new Error("No release observations in this cover fixture")),
-    readCoverHealth: () =>
+    readArtworkHealth: () =>
       Promise.resolve({
-        producerDirectory: directory,
-        facts: new Map([
-          [
-            `port:${game.id}@${artwork.image_id}`,
-            {
-              id: game.id,
-              artwork,
-              status: "unchanged",
-              observed_at: "2026-11-26T13:00:00.000Z",
-            },
-          ],
-        ]),
-        artifact: receipt,
-        producer: { workflow: "fixture", run: "1", attempt: "1", revision: "a".repeat(40) },
-        revision: "fixture",
-        rows: 1,
-        expected: 1,
-        complete: true,
-        gaps: [],
-        counts: { unchanged: 1, mismatch: 0, gone: 0, unavailable: 0, deferred: 0 },
+        cover: () => ({
+          producerDirectory: directory,
+          facts: new Map([
+            [
+              `port:${game.id}@${artwork.image_id}`,
+              {
+                id: game.id,
+                artwork,
+                status: "unchanged",
+                observed_at: "2026-11-26T13:00:00.000Z",
+              },
+            ],
+          ]),
+          artifact: receipt,
+          producer: { workflow: "fixture", run: "1", attempt: "1", revision: "a".repeat(40) },
+          revision: "fixture",
+          rows: 1,
+          expected: 1,
+          complete: true,
+          gaps: [],
+          counts: { unchanged: 1, mismatch: 0, gone: 0, unavailable: 0, deferred: 0 },
+        }),
+        media: () => ({
+          facts: new Map(),
+          artifact: receipt,
+          producer: { workflow: "fixture", run: "1", attempt: "1", revision: "a".repeat(40) },
+          revision: "fixture-media",
+          expected: 3,
+          complete: false,
+          gaps: [],
+          counts: { unchanged: 1, mismatch: 0, gone: 1, unavailable: 1, deferred: 0 },
+          image_requests: 3,
+          image_bytes: 123,
+          retry_at: null,
+        }),
       }),
     officialReleasedReader: true,
     acquireReleasedReader: (root) => {
@@ -398,6 +413,16 @@ void test("a released reader without cover support leaves the exact prior withdr
     /does not prove the required operational features/u,
   );
   assert.equal(report.released_cover_proof, undefined);
+  assert.deepEqual(report.observed_media_health, {
+    revision: "fixture-media",
+    artifact: receipt,
+    eligible_variants: 3,
+    coverage: "partial",
+    role_outcomes: { unchanged: 1, mismatch: 0, gone: 1, unavailable: 1, deferred: 0 },
+    image_requests: 3,
+    image_bytes: 123,
+    retry_at: null,
+  });
   assertExactPriorRenewal(output, report, legacyTarget, compact);
   assert.deepEqual(readFileSync(path.join(output, "bundle", artworkCheckpointTarget)), checkpoint);
 });
