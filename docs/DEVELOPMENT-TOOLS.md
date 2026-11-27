@@ -1777,6 +1777,30 @@ still require exact trusted authority/controller revisions; changed authority
 cannot qualify itself. See [fixed hosted validation](#fixed-reviewed-hosted-validation)
 only when that transport is needed.
 
+### Choose where to run validation
+
+Start with `just local-check --plan` from the current worktree. It prints the
+selected checks and execution routes without running them. Use a focused
+`just test-node`, `just test-ui` or `just test-rust` command when it answers the
+current question. Guarded heavy local stages wait for capacity. While they wait,
+other worktrees can keep editing or run lightweight checks. Use
+`just resource-status --json` to inspect the queue.
+
+For a cold build, a full suite or a platform check, prefer the existing PR CI
+on the intended pushed commit. Use the Qualification workflow when the
+[review and merge procedure](CONTRIBUTION-CONVENTIONS.md#review-and-merge)
+calls for it. Keep the commit and run link with the result. Uncommitted changes
+can use local feedback. If hosted CI is unavailable, keep using focused local
+checks and leave required hosted checks pending.
+
+Use `just desktop-verify` when the acceptance requires this machine, its
+hardware or its desktop session. A cloud result establishes what ran there.
+Local capacity, scratch placement and desktop exclusivity follow
+[shared local resources](#shared-local-resources). Configure drive placement
+in the [machine scratch profile](DEVELOPMENT-STORAGE.md#machine-scratch-profiles)
+when needed. These repository commands work independently of agent hooks.
+Avoid direct heavy commands that bypass admission.
+
 ### Warm single-session workflow
 
 Pick up the owning specification once, implement with useful focused feedback,
