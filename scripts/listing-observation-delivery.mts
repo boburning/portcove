@@ -1018,6 +1018,7 @@ async function verifyListingObservationPrior(
   repository: string,
   workspace: string,
   history?: string,
+  verifyCoverHistory = false,
 ) {
   const prior = path.join(workspace, "verified-prior");
   copyPriorRepository(repository, prior);
@@ -1035,6 +1036,7 @@ async function verifyListingObservationPrior(
       offline_targets_sha256: hash(top),
       repository: prior,
       ...(history === undefined ? {} : { history_store: path.resolve(history) }),
+      ...(verifyCoverHistory ? { verify_cover_history: true } : {}),
     }),
     { flag: "wx" },
   );
@@ -1096,7 +1098,7 @@ export async function readAuthenticatedCoverPreimages(
   inputs: ListingPriorInputs & {
     repository: string;
     workspace: string;
-    history: string;
+    history?: string;
   },
   canonical: unknown,
   selected: readonly string[],
@@ -1106,6 +1108,7 @@ export async function readAuthenticatedCoverPreimages(
     inputs.repository,
     inputs.workspace,
     inputs.history,
+    true,
   );
   if (
     !isRecord(report) ||
@@ -1195,6 +1198,10 @@ export async function prepareObservationBundle(options: {
   const priorCompact = Object.hasOwn(priorTargets, compactListingDeliveryTarget);
   const priorCoverDigest = priorTargets[artworkCheckpointTarget];
   const coverEnabled = priorCoverDigest !== undefined || options.activateCoverCheckpoint === true;
+  const segmentedHistory = Object.hasOwn(
+    priorTargets,
+    "policy/official/catalog.history-checkpoint.json",
+  );
   if (
     options.coverApproval &&
     (!automatic || !priorCompact || !priorCoverDigest || options.activateCoverCheckpoint)
@@ -1204,13 +1211,10 @@ export async function prepareObservationBundle(options: {
     );
   if (
     coverEnabled &&
-    (!automatic ||
-      !priorCompact ||
-      !options.priorHistory ||
-      !Object.hasOwn(priorTargets, "policy/official/catalog.history-checkpoint.json"))
+    (!automatic || !priorCompact || segmentedHistory !== Boolean(options.priorHistory))
   )
     throw new Error(
-      "Cover checkpoints require official reader selection and active authenticated compact history",
+      "Cover checkpoints require official reader selection, an active signed compact listing, and its matching history storage",
     );
   mkdirSync(options.output, { recursive: true });
   const workspace = path.join(options.output, "observation-work");
@@ -1267,6 +1271,7 @@ export async function prepareObservationBundle(options: {
       priorRepository,
       workspace,
       coverEnabled ? options.priorHistory : undefined,
+      coverEnabled,
     );
     if (isRecord(report)) {
       priorApprovals = readApprovedCoverJournal(report.cover_approvals);

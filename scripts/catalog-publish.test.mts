@@ -845,20 +845,40 @@ void test("a CI-triggered run also renews a timestamp that expires within the wi
 
 function preparePublication(
   t: test.TestContext,
-  options: { event: string; bootstrap?: boolean; history?: boolean; pointer?: boolean },
+  options: {
+    event: string;
+    bootstrap?: boolean;
+    history?: boolean;
+    pointer?: boolean;
+    cover?: "valid" | "wrong-proof" | "absent-prior";
+  },
 ) {
   const dir = temp(t);
   const prior = path.join(dir, "site", "catalog");
-  site(
-    prior,
-    options.pointer
+  site(prior, {
+    ...(options.pointer
       ? { "policy/official/catalog.history-checkpoint.json": "c".repeat(64) }
-      : { "policy/official/catalog.listings.json": "a".repeat(64) },
-  );
+      : { "policy/official/catalog.listings.json": "a".repeat(64) }),
+    ...(options.cover && options.cover !== "absent-prior"
+      ? { "policy/official/catalog.cover-checkpoint.json": "d".repeat(64) }
+      : {}),
+  });
   if (options.history) put(dir, "site/catalog-history/sha256/x.json", "{}");
   put(dir, "root.json", "root");
   put(dir, "offline-targets.json", "offline");
   put(dir, "bundle/policy/official/catalog.listings.json", "listing");
+  if (options.cover) {
+    put(dir, "bundle/policy/official/catalog.listings.compact.json", "compact");
+    put(dir, "bundle/policy/official/catalog.cover-checkpoint.json", "checkpoint");
+    put(dir, "cover-report.json", {
+      target_sha256: overlaySha256("compact"),
+      released_cover_proof: {
+        listing_wire_sha256: overlaySha256("compact"),
+        checkpoint_sha256: overlaySha256(options.cover === "wrong-proof" ? "wrong" : "checkpoint"),
+      },
+      cover_approvals: { format_version: 1, approvals: [], consumed_packets: [] },
+    });
+  }
   put(
     dir,
     "inspection.stdout",
@@ -888,6 +908,7 @@ function preparePublication(
       "--prior",
       prior,
       ...(options.bootstrap ? ["--bootstrap-history"] : []),
+      ...(options.cover ? ["--cover-approval-report", path.join(dir, "cover-report.json")] : []),
     ],
     {
       encoding: "utf8",
@@ -949,6 +970,17 @@ void test("push and scheduled runs plan the pre-history publication for a pointe
   }
 });
 
+void test("full history accepts a cover approval only with its prior checkpoint and exact released proof", (t) => {
+  const full = preparePublication(t, { event: "workflow_dispatch", cover: "valid" });
+  assert.equal(full.plan.history, undefined);
+  assert.match(String(full.plan.cover_approvals_sha256), /^[a-f0-9]{64}$/u);
+  for (const cover of ["wrong-proof", "absent-prior"] as const)
+    assert.throws(
+      () => preparePublication(t, { event: "workflow_dispatch", cover }),
+      /Cover approval differs from the exact released-reader publication bundle/u,
+    );
+});
+
 void test("only an explicit manual owner request bootstraps catalog history", (t) => {
   const manual = preparePublication(t, { event: "workflow_dispatch", bootstrap: true });
   assert.equal(manual.plan.history, "bootstrap");
@@ -982,7 +1014,7 @@ void test("the history bootstrap flag is reachable only from the manual dispatch
       },
       activate_cover_checkpoint: {
         description:
-          "Owner activation only - admit the first cover checkpoint after signed history and released reader support",
+          "Owner activation only - admit the first cover checkpoint with authenticated compact listings and released reader support",
         type: "boolean",
         default: false,
       },

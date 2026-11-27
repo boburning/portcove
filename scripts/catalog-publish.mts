@@ -600,7 +600,8 @@ async function main(argv: string[]) {
       if (!isRecord(observation)) throw new Error("Cover approval observation report is malformed");
       if (observation.cover_approvals !== undefined) {
         if (
-          mode !== "segmented" ||
+          !site ||
+          !digest(publishedTargets(site)[artworkCheckpointTarget]) ||
           !isRecord(observation.released_cover_proof) ||
           !digest(observation.target_sha256) ||
           observation.released_cover_proof.listing_wire_sha256 !== observation.target_sha256 ||
