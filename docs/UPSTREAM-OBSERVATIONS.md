@@ -1751,11 +1751,15 @@ browser navigation only.
 ### First-party launcher websites
 
 The existing hosted opportunity gives due first-party mod observations up to
-one twentieth of its GitHub request allowance. A subject needs one accepted
-implementation, an observed numeric repository ID and a matching public project
-root. The observer checks reviewed game scopes and unresolved scopes in separate
-lanes within the same request allowance. When both lanes have due work, reviewed
-scopes get most slots and unresolved scopes get a reserved share. A single slot
+one tenth of its GitHub request allowance, both across the opportunity and
+within each operation. First-party reads count against the same request, byte
+and time limits as release observations. Other observations can use unspent
+allowance. A standalone operation uses its existing one-twentieth share.
+A subject needs one accepted implementation, an observed numeric repository ID
+and a matching public project root. The observer checks reviewed and unresolved
+game scopes in separate lanes within the same request allowance. When both lanes
+have due work, reviewed scopes get most slots and unresolved scopes get a reserved
+share. A single slot
 goes to the lane serviced least recently. Each lane orders due work by the
 last attempt or, on the first pass, by the listing date. Legacy listings
 without a date enter the existing backfill.

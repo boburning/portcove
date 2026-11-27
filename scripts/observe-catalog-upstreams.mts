@@ -202,6 +202,12 @@ export function hostedRequestCeiling(event: string | undefined) {
   return event === "push" ? pushRequestLimit : hostedRequestLimit;
 }
 
+/** First-party metadata shares the existing hosted GitHub allowance. The
+ * per-operation share keeps release watches moving even in a large backfill. */
+export function hostedLauncherModRequestLimit(total: number) {
+  return Math.floor(total / 10);
+}
+
 export async function runCatalogUpstreams(
   args: string[],
   runtime: {
@@ -853,7 +859,7 @@ export async function runCatalogOpportunity(
     let prioritizeConfigured = true;
     const maxRequests =
       runtime.requestCeiling ?? hostedRequestCeiling(process.env.GITHUB_EVENT_NAME);
-    let launcherRequestsRemaining = Math.floor(maxRequests / 20);
+    let launcherRequestsRemaining = hostedLauncherModRequestLimit(maxRequests);
     const result = await continueCatalogBatches(
       async (excluded, requestLimit) => {
         await assertInputs();
@@ -863,7 +869,7 @@ export async function runCatalogOpportunity(
           ...(prioritizeConfigured && modProviderRegistryFetch ? { modProviderRegistryFetch } : {}),
           launcherModRequestLimit: Math.min(
             launcherRequestsRemaining,
-            Math.floor(config.budget.requests / 20),
+            hostedLauncherModRequestLimit(config.budget.requests),
           ),
           observer: {
             ...runtime.observer,

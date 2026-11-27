@@ -2298,12 +2298,20 @@ void test("pure observer hashes load in a clean dependency-free checkout without
 
 void test("push runs observe only to fill schedule gaps and use a reduced request ceiling (#4779)", async () => {
   const { admitObservation, pushCooldownMs } = await import("./observer-push-admission.mts");
-  const { hostedRequestCeiling, hostedRequestLimit, pushRequestLimit } =
-    await import("./observe-catalog-upstreams.mts");
+  const {
+    hostedLauncherModRequestLimit,
+    hostedRequestCeiling,
+    hostedRequestLimit,
+    pushRequestLimit,
+  } = await import("./observe-catalog-upstreams.mts");
   assert.equal(hostedRequestCeiling("schedule"), hostedRequestLimit);
   assert.equal(hostedRequestCeiling("workflow_dispatch"), hostedRequestLimit);
   assert.equal(hostedRequestCeiling("push"), pushRequestLimit);
   assert.ok(pushRequestLimit * 2 <= hostedRequestLimit);
+  assert.equal(hostedLauncherModRequestLimit(hostedRequestCeiling("schedule")), 180);
+  assert.equal(hostedLauncherModRequestLimit(hostedRequestCeiling("push")), 90);
+  assert.equal(hostedLauncherModRequestLimit(256), 25);
+  assert.equal(hostedLauncherModRequestLimit(9), 0);
 
   const now = Date.parse("2026-11-10T03:00:00Z");
   const run = (id: number, event: string, minutesAgo: number, extra: object = {}) => ({
