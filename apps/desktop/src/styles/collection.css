@@ -1547,12 +1547,13 @@
     }
   }
 
-  /* The status keeps a readable minimum. Play joins it on one row when both
-     fit; a wider action group, such as a release-withdrawal badge with Play,
-     wraps onto its own row instead of compressing the status. */
+  /* Keep complete status words beside an action when both fit. Wider action
+     groups wrap below the status, which can use the full width of the footer. */
   .collection-cover .library-entry-footer .collection-state {
-    flex: 1 1 var(--cover-status-min, 6rem);
+    flex: 1 1 min-content;
     min-inline-size: min(100%, var(--cover-status-min, 6rem));
+    max-inline-size: 100%;
+    overflow-wrap: break-word;
   }
 
   .collection-cover .library-card-play {

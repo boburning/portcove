@@ -255,6 +255,7 @@ it.for([
       };
     });
     document.documentElement.dataset.theme = theme;
+    const heldReadings: Array<{ text: string | null; installationFragments: number }> = [];
     for (const [width, height] of [
       [960, 640],
       [1280, 800],
@@ -321,6 +322,19 @@ it.for([
       const workspace = document.querySelector<HTMLElement>('[data-focus-region="workspace"]')!;
       workspace.scrollTo({ top: 0, behavior: "instant" });
       await document.fonts.ready;
+      if (view === "library" && width === 1600) {
+        const readiness = document.querySelector(
+          '.collection-entry:has([data-detail-game-id="portrait-2"]) .readiness',
+        )!;
+        const label = readiness.lastChild!;
+        const word = document.createRange();
+        word.setStart(label, 0);
+        word.setEnd(label, "Installation".length);
+        heldReadings.push({
+          text: label.textContent,
+          installationFragments: word.getClientRects().length,
+        });
+      }
       // The Library case already hovered its fourth card above. Exercise the
       // Discover hover too before the shared helper measures the neutral grid.
       if (view === "catalog") {
@@ -368,6 +382,9 @@ it.for([
       );
       await screen.unmount();
     }
+    expect(heldReadings).toEqual(
+      view === "library" ? [{ text: "Installation needs repair", installationFragments: 1 }] : [],
+    );
   },
 );
 
