@@ -775,7 +775,7 @@ async fn signed_assigned_covers_honor_a_missing_default_without_losing_local_cho
     });
     donor["artwork"] = artwork.clone();
     initial["directory"] = json!({
-        "format_version": crate::catalog::listings::REPOSITORY_BOUND_LISTING_FORMAT,
+        "format_version": crate::catalog::listings::OFFICIAL_SETUP_LISTING_FORMAT,
         "listings": [donor, recipient, excluded]
     });
     let root = publish_compact(&fixture, &key, 1, &initial).await;

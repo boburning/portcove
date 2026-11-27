@@ -1393,6 +1393,10 @@ pub struct PortListing {
         deserialize_with = "present_listing_mod_portals"
     )]
     pub mod_portals: Vec<crate::ListingModPortal>,
+    /// Exact official definition to check from this listing. It confers no
+    /// acquisition or runtime ownership and requires listing format 18.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub official_setup_id: Option<String>,
     /// Empty means unknown; it is not an execution compatibility declaration.
     #[serde(default)]
     pub platforms: Vec<Platform>,

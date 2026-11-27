@@ -527,7 +527,12 @@ Listing format 11 adds optional inert `collection_covers`: one to four distinct,
 reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
 individual `artwork` mapping. The field grants display only. Local artwork choices
 keep precedence. Exports to formats 5 through 10 omit the collection while retaining
-setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 18. An export without an explicit format carries the current directory format. Directories with repository-bound GitHub listings require format 17 or later. In format 18, Core uses the cover assigned to the exact listing as its automatic default. A missing assignment uses the normal fallback. Local artwork choices still take precedence.
+setup, restrictions and identity. \`capabilities.listing_formats\` advertises 5 through 19.
+An export without an explicit format carries the current directory format.
+Repository-bound GitHub listings require format 17 or later. Explicit links to a
+separate official setup require format 18 or later and are omitted from earlier
+exports. Format 19 assigns each listing's automatic cover. A signed row without
+a cover uses the normal fallback. Player artwork choices still take precedence.
 Retained user-selected listings with collections use envelope version 4. Earlier
 retained envelopes remain readable; a collection in an earlier envelope is refused.
 

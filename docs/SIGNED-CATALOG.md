@@ -399,21 +399,25 @@ preparation report. It is raised when a later reader generation replaces the
 compact carrier.
 
 Format 16 adds descriptive mod website links. Format 17 binds GitHub listing
-identity and acquisition observations to a stable numeric repository ID. The
-live publisher checks the protected release against `liveListingReaderFloors`
+identity and acquisition observations to a stable numeric repository ID.
+Format 18 allows an explicit link from a listing to a separate official
+definition for the same original game. The link initiates the existing
+availability check. The official definition and policy retain authority for
+each operation. Live format 18 awaits a supported released reader.
+The live publisher checks the protected release against `liveListingReaderFloors`
 and runs the official binary to verify the candidate format before activation.
 When an older compact reader rejects a successor, it can select its last
 accepted directory while the stored provenance remains current. After that
 provenance expires it uses its bundled directory until the application updates.
 
-Format 18 makes each listing's assigned cover authoritative. The publisher
+Format 19 makes each listing's assigned cover authoritative. The publisher
 must resolve shared cover defaults and applicable exclusions before selecting
 this format. A capable reader uses fallback when no cover was assigned and
 continues to honor player choices. Older formats keep the exact-edition
 reader fallback. If a signed directory omits a bundled entry, Core keeps its
-legacy behavior and materializes any automatic cover when exporting format 18.
-Preview 21 is the earliest eligible release for format 18.
-The publisher still requires an official binary that advertises format 18
+legacy behavior and materializes any automatic cover when exporting format 19.
+Preview 21 is the earliest eligible release for format 19.
+The publisher still requires an official binary that advertises format 19
 and validates the actual candidate. Live publication remains on the existing
 format until the cover cutover is verified.
 

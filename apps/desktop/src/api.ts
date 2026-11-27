@@ -985,6 +985,7 @@ export const desktopApi = {
     portId: string,
     generation: number,
     onEvent: (event: OperationEvent) => void,
+    expectedSetupId?: string,
   ) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = onEvent;
@@ -992,6 +993,7 @@ export const desktopApi = {
       portId,
       generation,
       onEvent: channel,
+      ...(expectedSetupId ? { expectedSetupId } : {}),
     });
   },
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),

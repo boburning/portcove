@@ -622,6 +622,11 @@ mod tests {
                 .export_format(crate::catalog::listings::REPOSITORY_BOUND_LISTING_FORMAT)
                 .is_ok()
         );
+        assert!(
+            dated
+                .export_format(crate::catalog::listings::OFFICIAL_SETUP_LISTING_FORMAT)
+                .is_ok()
+        );
         let latest = crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT;
         assert!(dated.export_format(latest).is_ok());
         assert!(dated.export_format(latest + 1).is_err());

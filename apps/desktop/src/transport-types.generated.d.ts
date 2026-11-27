@@ -3996,6 +3996,11 @@ export interface PortListing {
    */
   mod_portals?: ListingModPortal[];
   name: string;
+  /**
+   * Exact official definition to check from this listing. It confers no
+   * acquisition or runtime ownership and requires listing format 18.
+   */
+  official_setup_id?: string | null;
   original_game?: OriginalGameIdentity | null;
   original_game_title?: string | null;
   /**
