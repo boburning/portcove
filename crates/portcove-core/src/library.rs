@@ -3020,26 +3020,37 @@ impl Library {
         port_id: &str,
         budget: &mut u64,
     ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
+        let connection = self.connection().inspect_err(|_| {
+            *budget = budget.saturating_sub((*budget).min(MAX_RETAINED_REGISTRATION_BYTES));
+        })?;
+        Self::external_runtime_with_port_bounded_from(&connection, port_id, budget)
+    }
+
+    fn external_runtime_with_port_bounded_from(
+        connection: &Connection,
+        port_id: &str,
+        budget: &mut u64,
+    ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
         let ceiling = (*budget).min(MAX_RETAINED_REGISTRATION_BYTES);
         if ceiling == 0 {
             return Err(PortcoveError::unsupported(
                 "browsing metadata budget reached",
             ));
         }
-        let row = self.connection().and_then(|connection| Ok(connection.query_row(
+        let row = connection.query_row(
             "SELECT CASE WHEN length(CAST(record_json AS BLOB)) + length(CAST(retained_catalog_json AS BLOB)) <= ?2 THEN record_json END,
                     CASE WHEN length(CAST(record_json AS BLOB)) + length(CAST(retained_catalog_json AS BLOB)) <= ?2 THEN retained_catalog_json END
              FROM external_runtime_registrations WHERE port_id=?1",
             rusqlite::params![port_id, ceiling as i64],
             |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, Option<String>>(1)?)),
-        ).optional()?));
+        ).optional();
         let row = match row {
             Ok(row) => row,
             Err(error) => {
                 // A prior column may already have been copied before a later
                 // column's storage-type conversion or query fails.
                 *budget = budget.saturating_sub(ceiling);
-                return Err(error);
+                return Err(error.into());
             }
         };
         let (record, catalog) = match row {
@@ -3106,6 +3117,7 @@ impl Library {
         if personal {
             let (catalog, _) = crate::catalog_store::load_catalog_from(&transaction, Self::now())?;
             catalog.require_personal_project_unlisted(retained_listing)?;
+            Self::require_no_legacy_personal_project_registration(&transaction, retained_listing)?;
         }
         let existing: bool = transaction.query_row(
             "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)
@@ -3162,6 +3174,34 @@ impl Library {
         }
         transaction.commit()?;
         Ok(record)
+    }
+
+    pub(crate) fn require_no_legacy_personal_project_registration(
+        connection: &Connection,
+        proposed: &crate::PortListing,
+    ) -> Result<()> {
+        let repository_id = proposed.admitted_github_repository_id().ok_or_else(|| {
+            PortcoveError::verification("personal registration requires a stable repository ID")
+        })?;
+        let mut budget = MAX_RETAINED_REGISTRATION_BYTES;
+        for id in Self::external_runtime_port_ids_from(connection)? {
+            if id == proposed.id
+                || portcove_listing_carrier::admitted_github_repository_id(&id).is_some()
+            {
+                continue;
+            }
+            if let Some((_, retained)) =
+                Self::external_runtime_with_port_bounded_from(connection, &id, &mut budget)?
+                && retained
+                    .listing(&id)?
+                    .retains_github_repository_id(repository_id)
+            {
+                return Err(PortcoveError::conflict(
+                    "This project already has a registration in this library. Keep or review that existing entry.",
+                ));
+            }
+        }
+        Ok(())
     }
 
     /// Replace location and freshly acknowledged preferences only. Preserve the

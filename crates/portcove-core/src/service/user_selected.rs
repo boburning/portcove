@@ -74,6 +74,10 @@ impl PortcoveService {
             "project_url": format!("https://github.com/{full_name}"),
         }))?;
         current.require_personal_project_unlisted(&listing)?;
+        Library::require_no_legacy_personal_project_registration(
+            &self.library.connection()?,
+            &listing,
+        )?;
         let private_catalog = Catalog::for_user_selected_listing(listing)?;
         let mut service = Self::from_catalog(
             self.library.clone(),
@@ -816,6 +820,84 @@ mod tests {
         assert_eq!(
             fs::read(working.join("player-save.dat")).unwrap(),
             b"player save"
+        );
+    }
+
+    #[test]
+    fn a_withdrawn_legacy_registration_blocks_only_its_verified_repository() {
+        const REPO: u64 = 982741655;
+        const LEGACY: &str = "historical-port-fixture";
+        let (_temporary, mut service, executable, working) = fixture(LEGACY);
+        let stale = service
+            .personal_runtime_context(REPO, "FixtureOwner/RenamedPort")
+            .unwrap();
+        let mut old = stale.catalog().listings()[0].clone();
+        old.id = LEGACY.into();
+        old.project_url = "https://github.com/FixtureOwner/OldPort".into();
+        old.upstream_observation = Some(crate::ListingUpstreamObservation {
+            provider: "github".into(),
+            repository: "FixtureOwner/OldPort".into(),
+            repository_id: Some(REPO),
+            status: crate::ListingObservationStatus::Complete,
+            attempted_at: "2026-09-15T06:00:00Z".into(),
+            observed_at: Some("2026-09-15T06:00:00Z".into()),
+            fresh_until: Some("2026-09-15T18:00:00Z".into()),
+            facts_sha256: Some("a".repeat(64)),
+            release_limit: 4,
+            releases: Vec::new(),
+        });
+        service.catalog = Catalog::for_user_selected_listing(old).unwrap();
+        let prior = register(&service, LEGACY, &executable, &working);
+
+        assert!(
+            service
+                .library
+                .load_catalog()
+                .unwrap()
+                .0
+                .listing(LEGACY)
+                .is_err()
+        );
+        let refused = service
+            .personal_runtime_context(REPO, "FixtureOwner/RenamedPort")
+            .err()
+            .unwrap();
+        assert!(refused.message.contains("already has a registration"));
+        assert!(
+            service
+                .personal_runtime_context(REPO + 1, "FixtureOwner/OldPort")
+                .is_ok(),
+            "a reused address alone is not the retained repository's identity"
+        );
+        let port_id = format!("github-{REPO}");
+        let review = stale
+            .preview_user_selected_runtime(&port_id, &executable, &working, &[])
+            .unwrap();
+        let allow = stale
+            .authorize_user_selected_runtime(
+                &port_id,
+                &executable,
+                &working,
+                &[],
+                &review.preview_sha256,
+            )
+            .unwrap();
+        let refused = stale
+            .register_user_selected_runtime(&port_id, &executable, &working, &[], &allow.token)
+            .unwrap_err();
+        assert!(refused.message.contains("already has a registration"));
+        let (retained, _) = service
+            .library
+            .external_runtime_with_port(LEGACY)
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained.id, prior.id);
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(&port_id)
+                .unwrap()
+                .is_none()
         );
     }
 
