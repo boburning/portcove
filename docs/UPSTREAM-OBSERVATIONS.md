@@ -1382,6 +1382,10 @@ attempt status. A first failure has no successful observation or invented digest
 Collection never accepts, signs or publishes these candidates. Actual protected
 provisioning and unchanged-client production acceptance remain #534/#246 work.
 
+Listing scope binds each listing's normalized declaration and the release
+projection's implementation and platform inventory. Changes to declaration
+normalization reopen only scopes whose normalized declarations change.
+
 A source whose consumers are all descriptive listings also keeps each of its
 four newest published releases' own text, for generated registration's
 release-text rule only: its observer configuration says so

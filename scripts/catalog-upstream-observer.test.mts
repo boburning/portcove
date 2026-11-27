@@ -4231,6 +4231,24 @@ void test("Core rebuilds retain pure listing completion and invalidate exact man
     managed.map(({ key }) => key).toSorted(),
   );
   assert.deepEqual(rebuilt.checkpoint.sources[pure.key], pureProgress);
+
+  const officialSetupOnly = {
+    ...catalog,
+    listings: catalog.listings.map((listing) =>
+      listing.id === "pure-description"
+        ? { ...listing, official_setup_id: "reviewed-setup" }
+        : listing,
+    ),
+  };
+  const withSetup = await advanceCatalogObservations(officialSetupOnly, rebuilt.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    requestLimit: 0,
+  });
+  assert.deepEqual(withSetup.report.attempted_source_keys, []);
+  assert.equal(withSetup.report.requests, 0);
+  assert.deepEqual(withSetup.checkpoint.sources[pure.key], pureProgress);
+
   for (const source of managed) {
     assert.equal(
       rebuilt.checkpoint.sources[source.key]!.completed_scope_sha256,

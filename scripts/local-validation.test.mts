@@ -3231,6 +3231,7 @@ void test("upstream families retain shared owners and narrow planner and retaine
     "scripts/upstream-health-plan.test.mts",
     "scripts/upstream-health-planning.test.mts",
   ];
+  const listingNormalizer = "scripts/listing-observation-declaration.mts";
   const retainedArtifact = "scripts/fixtures/upstream-health-retained-artifacts.json";
   const sibling = "scripts/fixtures/upstream-health-retained-artifacts-sibling.json";
   const retainedConsumers = [
@@ -3246,6 +3247,7 @@ void test("upstream families retain shared owners and narrow planner and retaine
     "scripts/check-catalog-repositories.mts",
     "scripts/upstream-health-inputs.mts",
     "scripts/upstream-health-plan.mts",
+    listingNormalizer,
     "scripts/fixtures/upstream-observation-fixtures.mts",
     "scripts/fixtures/upstream-health-accounting-cases.json",
     "scripts/fixtures/upstream-health-pins.json",
@@ -3288,7 +3290,13 @@ void test("upstream families retain shared owners and narrow planner and retaine
             ? retainedConsumers
             : file === sibling
               ? []
-              : broad;
+              : file === listingNormalizer
+                ? [
+                    ...broad,
+                    "scripts/catalog-upstream-observer.test.mts",
+                    "scripts/catalog-source-authoring.test.mts",
+                  ]
+                : broad;
       const label = JSON.stringify(input);
       for (const required of expected) {
         assert.ok(local.nodeTests.has(required), "local " + required + ": " + label);
