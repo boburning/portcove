@@ -50,6 +50,8 @@ export const ecosystemSearchFamilies = [
     sort: "updated",
   },
   { id: sourcePortTopicFamily, terms: "topic:source-port", clock: "pushed" },
+  { id: "n64recomp", terms: "N64Recomp in:name,description,readme", clock: "pushed" },
+  { id: "libultraship", terms: "libultraship in:name,description,readme", clock: "pushed" },
 ] as const;
 
 const words = (value: unknown): string[] => {

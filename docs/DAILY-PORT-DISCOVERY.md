@@ -840,16 +840,19 @@ Four Switch-focused families append after them: `switch recomp`,
 the `nintendo-switch` + `static-recompilation` topic intersection. Only these
 four use repository-search `updated` descending ordering within fixed windows,
 not newest-created order or an immutable snapshot. The narrowed Switch topic
-query prioritizes that console within the existing broad static topic; these
-are not four disjoint sources. All twenty-eight families rotate through the
-same resource budget, with persisted continuations. Stop after a full rotation
+query prioritizes that console within the existing broad static topic. The
+desktop `source-port` topic and the N64Recomp and libultraship framework searches
+follow those four families in the same rotation. All searches share one
+resource budget and keep their own continuations. Stop after a full rotation
 without a successful page, so current, capped or deferred families cannot cause
 an idle loop. Successful pages reset this idle bound and remain subject to
 request, provider, byte and runtime admission.
 The four broad families match names/descriptions. Existing ecosystem families
 also inspect framework references in README files: PS2Recomp, XboxRecomp,
 ReXGlue/XenonRecomp, PS3Recomp, bbport, PSPRecomp/PSP-Web-Recomp,
-gcn-recomp/DolRecomp/GCRecomp/NWiiRecomp, PSXRecomp and XboxXBERecomp,
+gcn-recomp/DolRecomp/GCRecomp/NWiiRecomp, PSXRecomp, XboxXBERecomp,
+[N64Recomp](https://github.com/N64Recomp/N64Recomp) and
+[libultraship](https://github.com/HarbourMasters/libultraship),
 plus the static-recompilation topic, rexglue organization and sp00nznet owner.
 Ecosystem searches include forks for lineage review. A framework reference in
 compiler/cache/SDK documentation remains only a lead, not a native port.
