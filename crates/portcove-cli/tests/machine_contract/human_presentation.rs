@@ -419,6 +419,7 @@ fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
     }));
     let mut removed_scenes = 0;
     let mut removed_restrictions = 0;
+    let mut removed_verified_sources = 0;
     for (original, exported) in current_listings.iter().zip(implementation_listings) {
         let mut expected = original.clone();
         let row = expected.as_object_mut().unwrap();
@@ -432,6 +433,24 @@ fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
                 "listing {} keeps its legacy download string",
                 original["id"]
             );
+        }
+        // Format 14 introduced verified source bindings. Older formats keep
+        // the edition descriptions and their evidence, with no bindings.
+        if let Some(editions) = row
+            .get_mut("original_game")
+            .and_then(|game| game.get_mut("source_editions"))
+            .and_then(Value::as_array_mut)
+        {
+            for edition in editions {
+                if edition
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("verified_sources")
+                    .is_some()
+                {
+                    removed_verified_sources += 1;
+                }
+            }
         }
         if let Some(media) = row.get_mut("media").and_then(Value::as_array_mut) {
             let count = media.len();
@@ -453,6 +472,10 @@ fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
     assert!(
         removed_restrictions > 0,
         "the bundled catalog has typed acquisition restrictions"
+    );
+    assert!(
+        removed_verified_sources > 0,
+        "the bundled catalog has verified source-edition bindings"
     );
     for (original, exported) in implementation_listings.iter().zip(legacy_listings) {
         assert!(exported.get("implementation").is_none());
