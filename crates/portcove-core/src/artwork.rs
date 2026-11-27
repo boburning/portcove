@@ -1427,7 +1427,10 @@ impl PortcoveService {
             self.library(),
             Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
         );
-        let transaction = connection.transaction()?;
+        // Reserve the write before reading a revision. Another library writer
+        // can otherwise invalidate the read snapshot before the first write.
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         crate::artwork_store::check_capacity(&transaction, &proposed)?;
         let existed = crate::artwork_store::asset_exists(&transaction, &proposed.sha256)?;
@@ -1466,7 +1469,8 @@ impl PortcoveService {
                 bytes,
             )?;
         }
-        let transaction = connection.transaction()?;
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let current =
             crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         if restoring {
@@ -1548,7 +1552,8 @@ impl PortcoveService {
         let slot = ArtworkSlot::Detail;
         let _guard = self.library().try_lock_artwork()?;
         let mut connection = self.library().connection()?;
-        let transaction = connection.transaction()?;
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let current =
             crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         let Some(asset_sha256) = current.asset_sha256.as_deref() else {
@@ -1614,7 +1619,8 @@ impl PortcoveService {
         let port = self.artwork_port(port_id)?;
         let _guard = self.library().try_lock_artwork()?;
         let mut connection = self.library().connection()?;
-        let transaction = connection.transaction()?;
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let current =
             crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         let id = current.asset_sha256.as_deref();
