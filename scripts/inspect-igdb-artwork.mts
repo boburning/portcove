@@ -2465,7 +2465,14 @@ export function createCoreImageValidator(
         );
         return process;
       } finally {
-        rmSync(library, { recursive: true, force: true, maxRetries: 2 });
+        try {
+          rmSync(library, { recursive: true, force: true, maxRetries: 2 });
+        } catch (error) {
+          process.emitWarning(
+            `Temporary Core image validation library cleanup failed (${errorCode(error) ?? "unknown error"}).`,
+            { code: "PORTCOVE_IMAGE_LIBRARY_CLEANUP" },
+          );
+        }
       }
     })();
     if (child.error || child.status !== 0)
