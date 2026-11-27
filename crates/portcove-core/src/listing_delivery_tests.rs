@@ -591,12 +591,13 @@ async fn signed_mod_source_enrichment_preserves_the_installed_provider_scope() {
     const URL: &str = "https://thunderstore.io/c/alternate-zelda-resources/";
     let (_temp, library, installed) = crate::thunderstore::installed_timer_fixture().await;
     assert_eq!(installed.packages.len(), 1);
-    assert_eq!(
-        installed.packages[0].provider.as_ref().unwrap().binding,
-        Some(crate::ModProviderBinding::Thunderstore {
-            community: "zelda-64-recompiled".into(),
-        })
-    );
+    let reference = installed.packages[0].provider.as_ref().unwrap();
+    // This fixture uses the historical package encoding. Core resolves its
+    // implicit scope to the original community.
+    assert!(reference.binding.is_none());
+    let expected_scope = crate::ModProviderBinding::Thunderstore {
+        community: "zelda-64-recompiled".into(),
+    };
     let user = library.user_dir(PORT);
     let package = user.join("mods").join(&installed.packages[0].native_id);
     let package_bytes = fs::read(&package).unwrap();
@@ -605,7 +606,17 @@ async fn signed_mod_source_enrichment_preserves_the_installed_provider_scope() {
     let history = before
         .profile_revisions(PORT, &installed.profile_id)
         .unwrap();
-    let definition = serde_json::to_value(before.catalog().port(PORT).unwrap()).unwrap();
+    let before_port = before.catalog().port(PORT).unwrap();
+    assert_eq!(history.last(), Some(&installed));
+    assert_eq!(
+        crate::provider_binding::reviewed_binding(before_port, &reference.provider),
+        Some(expected_scope.clone())
+    );
+    assert!(crate::provider_binding::reference_matches(
+        before_port,
+        reference
+    ));
+    let definition = serde_json::to_value(before_port).unwrap();
     assert!(
         before
             .mod_setups(PORT)
@@ -652,10 +663,15 @@ async fn signed_mod_source_enrichment_preserves_the_installed_provider_scope() {
             .unwrap(),
         history
     );
+    let after_port = after.catalog().port(PORT).unwrap();
+    assert_eq!(serde_json::to_value(after_port).unwrap(), definition);
     assert_eq!(
-        serde_json::to_value(after.catalog().port(PORT).unwrap()).unwrap(),
-        definition
+        crate::provider_binding::reviewed_binding(after_port, &reference.provider),
+        Some(expected_scope)
     );
+    assert!(crate::provider_binding::reference_matches(
+        after_port, reference
+    ));
     assert_eq!(fs::read(package).unwrap(), package_bytes);
     assert_eq!(fs::read(user.join("mods.json")).unwrap(), native_list);
 }
