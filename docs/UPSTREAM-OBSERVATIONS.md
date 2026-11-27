@@ -1735,3 +1735,28 @@ the direct links available. A maintained exclusion or explicit Thunderstore
 source takes precedence. A temporary registry outage preserves the previously
 published link while its reviewed identity still matches. This projection adds
 browser navigation only.
+
+### First-party launcher websites
+
+The existing hosted opportunity gives due first-party mod observations up to
+one twentieth of its GitHub request allowance. The oldest attempted subjects
+get the first turns. A subject needs one accepted implementation, an observed
+numeric repository ID, and a matching public project root. The observer reads
+the current default commit, its complete root tree, and the exact
+`recomplauncher.json` blob. It checks the repository and a single declared game
+before recording bounded GameBanana and Thunderstore coordinates. Each attempt
+uses at most four GitHub reads, with a 256 KiB response limit per read.
+
+The checkpoint records the policy and subject binding, last attempt, result,
+last complete observation, and next due time. A temporary outage keeps the
+original date on usable evidence. A verified manifest absence or conflicting
+scope suppresses previous generated links. Releases and package inspection have
+their own progress. The observer reports due, attempted, complete and deferred
+subjects separately from release completion.
+
+The protected publisher validates those observations against the current
+catalog before adding website links to a supported signed listing format.
+Maintained sources and provider bindings take precedence for their provider.
+Maintained exclusions suppress generated links. These links can open a community
+website or allow supported browsing through the existing Core resolver. They
+cannot grant installation, package, update, or profile authority.

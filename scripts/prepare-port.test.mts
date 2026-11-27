@@ -4323,7 +4323,7 @@ void test("first-party mod refresh binds descriptive facts to the accepted publi
     content: Buffer.alloc(bytes.length).toString("base64"),
   });
   assert.deepEqual(await observeLauncherModPortals(repository, read), {
-    state: "held",
+    state: "unavailable",
     reason: "project-scope-evidence-bytes-unverified",
   });
 

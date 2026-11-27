@@ -505,6 +505,14 @@ export async function observeLauncherModPortals(
         commit: scope.commit,
         tree: scope.tree,
       };
+    if (
+      [
+        "default-commit-unresolved",
+        "default-tree-incomplete",
+        "project-scope-evidence-bytes-unverified",
+      ].includes(scope.reason)
+    )
+      return { state: "unavailable", reason: scope.reason };
     return { state: "held", reason: scope.reason };
   }
   return { state: "held", reason: "unsupported-project-manifest" };

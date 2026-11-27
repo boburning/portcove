@@ -50,8 +50,17 @@ import {
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import { isUpstreamBuildMetadataUrl } from "./upstream-github-build-output.mts";
 import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
+import { observeLauncherModPortals } from "./port-upstream-facts.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
+
+function launcherModMetadataUrl(url: URL) {
+  if (url.origin !== "https://api.github.com") return false;
+  const endpoint = url.pathname + url.search;
+  return /^\/repositories\/[1-9][0-9]*(?:\/commits\?per_page=1|\/git\/trees\/[a-f0-9]{40}|\/contents\/recomplauncher\.json\?ref=[a-f0-9]{40})?$/u.test(
+    endpoint,
+  );
+}
 
 /** One eligible command selects credentials lazily, once, for fresh repository identity reads. */
 function repositoryMetadataReader(
@@ -78,6 +87,7 @@ function repositoryMetadataReader(
           method === "GET" &&
           (/^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname) ||
             isUpstreamBuildMetadataUrl(url) ||
+            launcherModMetadataUrl(url) ||
             /^\/repos\/[^/]+\/[^/]+\/git\/(?:ref\/tags\/[^/]+|tags\/[a-f0-9]{40})$/u.test(
               url.pathname,
             ) ||
@@ -193,6 +203,8 @@ export async function runCatalogUpstreams(
     projectProvider?: typeof projectProviderObservation;
     providerFetch?: typeof fetch;
     modProviderRegistryFetch?: typeof fetch;
+    observeFirstPartyModLinks?: boolean;
+    launcherModRequestLimit?: number;
     inspectCatalog?: typeof inspectCatalogDefinitions;
     repositoryMetadata?: (repository: string) => Promise<GitHubMetadataResponse>;
     log?: (value: string) => void;
@@ -255,6 +267,12 @@ export async function runCatalogUpstreams(
     runtime.observer?.signal,
   );
   const repositoryMetadata = runtime.repositoryMetadata ?? githubMetadata;
+  const launcherModMetadata = repositoryMetadataReader(
+    Math.min(256 * 1024, config.budget.response_bytes),
+    githubScope,
+    observationToken,
+    runtime.observer?.signal,
+  );
   let stepLogCredential: ReturnType<typeof localDeveloperCredential> | undefined;
   let health: unknown = null;
   try {
@@ -336,6 +354,9 @@ export async function runCatalogUpstreams(
         ? { scheduledPrioritySources: runtime.scheduledPrioritySources }
         : {}),
       ...runtime.observer,
+      ...(runtime.launcherModRequestLimit === undefined
+        ? {}
+        : { launcherModRequestLimit: runtime.launcherModRequestLimit }),
       ...(runtime.modProviderRegistryFetch
         ? { modProviderRegistryFetch: runtime.modProviderRegistryFetch }
         : {}),
@@ -458,6 +479,34 @@ export async function runCatalogUpstreams(
           throw error;
         }
       },
+      ...(runtime.observeFirstPartyModLinks
+        ? {
+            observeLauncherMods: (repository, account) =>
+              observeLauncherModPortals(repository, async (endpoint) => {
+                account.admitRequest();
+                try {
+                  const response = await launcherModMetadata(repository.slug, endpoint);
+                  account.observeResponse(
+                    new Response(null, { headers: Object.fromEntries(response.headers) }),
+                  );
+                  account.consumeResponseBytes(response.bodyBytes ?? null);
+                  return response.status === 200 && response.bodyBytes !== undefined
+                    ? { status: "observed", body: response.body }
+                    : { status: "unavailable", reason: "provider-response-unavailable" };
+                } catch (error) {
+                  if (!(error instanceof GitHubApiError)) throw error;
+                  account.consumeResponseBytes(error.responseBytes);
+                  if (error.code === "rate_limited") throw observerGitHubRateLimit(error, now());
+                  if (error.code === "cancelled")
+                    throw new ObservationFailure(
+                      "cancelled",
+                      "First-party mod metadata read cancelled",
+                    );
+                  return { status: "unavailable", reason: "provider-transport" };
+                }
+              }),
+          }
+        : {}),
       readOriginalRecognition: async (repository, endpoint, account) => {
         account.admitRequest();
         try {
@@ -695,6 +744,7 @@ export async function runCatalogUpstreams(
       handoff_exhausted: handoffExhausted,
       made_progress:
         acceptedProgress ||
+        (result.report.launcher_mod_sources?.attempted ?? 0) > 0 ||
         catalogPositionAdvanced(beforePosition, catalogProgressPosition(result.checkpoint)),
     };
   });
@@ -789,6 +839,9 @@ export async function runCatalogOpportunity(
   try {
     const { modProviderRegistryFetch, ...batchRuntime } = runtime;
     let prioritizeConfigured = true;
+    const maxRequests =
+      runtime.requestCeiling ?? hostedRequestCeiling(process.env.GITHUB_EVENT_NAME);
+    let launcherRequestsRemaining = Math.floor(maxRequests / 20);
     const result = await continueCatalogBatches(
       async (excluded, requestLimit) => {
         await assertInputs();
@@ -796,6 +849,10 @@ export async function runCatalogOpportunity(
           ...batchRuntime,
           // One registry request per hosted opportunity, including partial responses.
           ...(prioritizeConfigured && modProviderRegistryFetch ? { modProviderRegistryFetch } : {}),
+          launcherModRequestLimit: Math.min(
+            launcherRequestsRemaining,
+            Math.floor(config.budget.requests / 20),
+          ),
           observer: {
             ...runtime.observer,
             githubScope,
@@ -816,7 +873,7 @@ export async function runCatalogOpportunity(
       },
       {
         deadline: runtime.deadline,
-        maxRequests: runtime.requestCeiling ?? hostedRequestCeiling(process.env.GITHUB_EVENT_NAME),
+        maxRequests,
         now,
         ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
         onBatch: (batch) => {
@@ -833,10 +890,12 @@ export async function runCatalogOpportunity(
               );
             (runtime.log ?? console.log)(evidence);
           }
+          launcherRequestsRemaining -= batch.report.launcher_mod_sources?.requests ?? 0;
           (runtime.log ?? console.log)(
             JSON.stringify({
               format: 1,
               kind: "catalog-observation-batch",
+              launcher_mod_sources: batch.report.launcher_mod_sources,
               requests: batch.report.requests,
               response_bytes: batch.report.response_bytes_charged,
               completed: batch.report.completed_source_keys.length,
@@ -927,6 +986,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
             deadline: Date.parse(deadline),
             scheduledPrioritySources,
             modProviderRegistryFetch: fetch,
+            observeFirstPartyModLinks: true,
           });
     if (process.env.GITHUB_OUTPUT && deadline === undefined) {
       if (/[\r\n]/u.test(result.handoff_directory)) throw new Error("Invalid artifact output path");

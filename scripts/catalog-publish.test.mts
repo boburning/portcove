@@ -2756,3 +2756,101 @@ function decodedListingDelivery(bytes: Buffer) {
     directory: { format_version: number; listings: ({ id: string } & Record<string, unknown>)[] };
   };
 }
+
+void test("signed listing projection accepts only bound first-party websites and handles correction and withdrawal", async () => {
+  const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { firstPartyListingModDefaults } = await import("./listing-mod-portal-projection.mts");
+  const { launcherModSubjects, recordLauncherModAttempt } =
+    await import("./upstream-launcher-mod-progress.mts");
+  const { catalogObservationSources } = await import("./catalog-upstream-observer.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const port = { ...fixtureListing, mod_portals: undefined };
+  const now = Date.parse("2026-11-26T12:00:00Z");
+  const catalog = { ports: [] };
+  const canonical = { format_version: 17, listings: [port] };
+  const [source] = catalogObservationSources({ ...catalog, listings: canonical.listings }).sources;
+  const ids = { [source!.key]: { repository_id: 567 } };
+  const [subject] = launcherModSubjects([source!], ids);
+  const binding = requiredFixture(subject).binding;
+  const row = recordLauncherModAttempt(
+    binding,
+    undefined,
+    {
+      state: "observed",
+      repository_id: 567,
+      commit: "a".repeat(40),
+      tree: "b".repeat(40),
+      blob: "c".repeat(40),
+      manifest_sha256: "d".repeat(64),
+      mod_portals: [
+        {
+          id: "upstream-thunderstore",
+          name: "Thunderstore",
+          site: "community_site",
+          instructions: "The upstream project lists this community. Follow its setup instructions.",
+          url: "https://thunderstore.io/c/fixture-community/",
+        },
+      ],
+    },
+    now,
+    3600000,
+  );
+  const checkpoint = (value: typeof row) => ({
+    sources: ids,
+    launcher_mod_sources: { [port.id]: value },
+  });
+  const project = (state: unknown, previous: Buffer | null, excluded = new Set<string>()) =>
+    projectListingDelivery(canonical, [], previous, {
+      now,
+      firstPartyModDefaults: firstPartyListingModDefaults(catalog, [port], state, excluded, now),
+    });
+  const read = (bytes: Buffer) =>
+    fixtureRecords(
+      fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings,
+    )[0];
+  const current = project(checkpoint(row), null);
+  assert.equal(current.generated_mod_portals, 1);
+  assert.deepEqual(read(current.bytes)?.mod_portals, [
+    {
+      id: "obs-gh-thunderstore-567",
+      name: "Thunderstore",
+      site: "community_site",
+      instructions: "The upstream project lists this community. Follow its setup instructions.",
+      url: "https://thunderstore.io/c/fixture-community/",
+    },
+  ]);
+  const outage = recordLauncherModAttempt(
+    binding,
+    row,
+    {
+      state: "unavailable",
+      reason: "provider-outage",
+    },
+    now,
+    3600000,
+  );
+  assert.deepEqual(project(checkpoint(outage), current.bytes).bytes, current.bytes);
+  assert.deepEqual(project(undefined, current.bytes).bytes, current.bytes);
+  assert.equal(
+    read(project(checkpoint(row), current.bytes, new Set([port.id])).bytes)?.mod_portals,
+    undefined,
+  );
+  assert.equal(
+    read(project(checkpoint({ ...row, binding: "e".repeat(64) }), current.bytes).bytes)
+      ?.mod_portals,
+    undefined,
+  );
+  const absent = recordLauncherModAttempt(
+    binding,
+    row,
+    {
+      state: "absent",
+      repository_id: 567,
+      commit: "f".repeat(40),
+      tree: "b".repeat(40),
+    },
+    now,
+    3600000,
+  );
+  assert.equal(read(project(checkpoint(absent), current.bytes).bytes)?.mod_portals, undefined);
+});
