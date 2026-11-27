@@ -1145,6 +1145,16 @@ export function desktopHarnessDeadlineMs(
     installSteamArtwork.every((id) => selection.selected_scenarios.includes(id))
   )
     return 1_800_000;
+  // Windows source ba53fbae reached all four imports and the Logo focus capture
+  // at 567 s. Nine remaining role reviews each read back the edited role and
+  // its peers. Give this standalone harness 20 minutes without changing any
+  // individual picker, operation, readback, or cleanup wait.
+  if (
+    selection.setup_scenarios.length === 0 &&
+    selection.selected_scenarios.length === 1 &&
+    selection.selected_scenarios[0] === "native-local-artwork-picker-and-recovery"
+  )
+    return 1_200_000;
   // On Windows, 26a0748b reached the repaired workspace and began its final
   // restart before the 180 s watchdog stopped the driver. Allow time to check
   // the saved preferences after restart and join the owned processes.
