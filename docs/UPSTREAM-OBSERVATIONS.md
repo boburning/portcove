@@ -772,9 +772,10 @@ Only observing jobs share the per-ref concurrency slot, with one active and at
 most one pending. Hourly schedules and manual runs always observe. A merge to
 main starts an admission job that lets its run observe only to fill a schedule
 gap: when no schedule or push run of the observer observed, or is observing,
-within the last fifty-five minutes. Admission reads one ten-run page per trigger and the jobs of recent runs; a
-full page still inside the cooldown is incomplete coverage, and that or any
-read failure declines. A declined push run
+within the last fifty-five minutes. Admission asks GitHub for the cooldown
+window for each trigger and checks that each returned page matches its reported
+total. It reads at most thirty recent job inventories. Incomplete history,
+inconsistent records and read failures decline. A declined push run
 finishes without observing, so it neither consumes the slot nor displaces a
 pending scheduled observation. Actual usage is lower with a warm build cache.
 There are no agent/model calls.

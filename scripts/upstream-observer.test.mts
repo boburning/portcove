@@ -2315,20 +2315,43 @@ void test("push runs observe only to fill schedule gaps and use a reduced reques
     created_at: new Date(now - minutesAgo * 60000).toISOString(),
     ...extra,
   });
-  const fixture = (runsByEvent: Record<string, object[]>, observed: Record<number, string>) => {
+  const fixture = (
+    runsByEvent: Record<string, ReturnType<typeof run>[]>,
+    observed: Record<number, string>,
+    overrides: { pushTotal?: number; jobTotal?: number; jobs?: object[] } = {},
+  ) => {
     const routes: string[] = [];
     return {
       routes,
       read: async (route: string) => {
         routes.push(route);
-        const event = new URLSearchParams(route.split("?")[1]).get("event");
-        if (event) return { workflow_runs: runsByEvent[event] ?? [] };
+        const params = new URLSearchParams(route.split("?")[1]);
+        const event = params.get("event");
+        if (event) {
+          const created = params.get("created");
+          assert.equal(created, ">=2026-11-10T02:05:00Z");
+          const cutoff = Date.parse(created.slice(2));
+          const matching = (runsByEvent[event] ?? []).filter(
+            (item) => Date.parse(item.created_at) >= cutoff,
+          );
+          return {
+            total_count: (event === "push" ? overrides.pushTotal : undefined) ?? matching.length,
+            workflow_runs: matching.slice(0, Number(params.get("per_page"))),
+          };
+        }
         const id = Number(route.match(/runs\/(\d+)\/jobs/u)?.[1]);
+        const jobs = overrides.jobs ?? [
+          { name: "admit", conclusion: "success" },
+          {
+            name: "observe",
+            run_id: id,
+            status: "completed",
+            conclusion: observed[id] ?? "skipped",
+          },
+        ];
         return {
-          jobs: [
-            { name: "admit", conclusion: "success" },
-            { name: "observe", conclusion: observed[id] ?? "skipped" },
-          ],
+          total_count: overrides.jobTotal ?? jobs.length,
+          jobs,
         };
       },
     };
@@ -2380,18 +2403,53 @@ void test("push runs observe only to fill schedule gaps and use a reduced reques
   const active = fixture({ schedule: [run(15, "schedule", 3, { status: "in_progress" })] }, {});
   assert.equal((await admit("push", active)).observe, false);
   assert.ok(active.routes.every((route) => !route.includes("/jobs")));
-  // A full page still inside the cooldown is incomplete coverage and declines,
-  // even when every listed run skipped observing.
-  const crowded = Array.from({ length: 10 }, (_, i) => run(30 + i, "push", 2 + i * 4));
+  // Busy main branches can still be completely read. Inspect the older
+  // in-window run even after the original ten-row window would have ended.
+  const crowded = Array.from({ length: 16 }, (_, i) => run(30 + i, "push", 2 + i * 3));
   const full = fixture({ push: crowded }, {});
-  assert.deepEqual(await admit("push", full), {
+  assert.deepEqual(await admit("push", full), { observe: true, reason: "no-recent-observation" });
+  assert.equal(full.routes.filter((route) => route.includes("/jobs")).length, 16);
+  assert.deepEqual(await admit("push", fixture({ push: crowded }, { 45: "success" })), {
     observe: false,
-    reason: "push runs exceed one page within the cooldown",
+    reason: "run 45 observed recently",
   });
-  assert.ok(full.routes.every((route) => !route.includes("/jobs")));
-  // A full page reaching past the cooldown is complete for it.
-  const spread = Array.from({ length: 10 }, (_, i) => run(50 + i, "push", 2 + i * 7));
-  assert.equal((await admit("push", fixture({ push: spread }, {}))).observe, true);
+  const capped = Array.from({ length: 31 }, (_, i) => run(100 + i, "push", 1 + i));
+  await assert.rejects(
+    admit("push", fixture({ push: capped }, {})),
+    /cooldown history is incomplete/u,
+  );
+  await assert.rejects(
+    admit("push", fixture({ push: crowded }, {}, { pushTotal: 17 })),
+    /cooldown history is incomplete/u,
+  );
+  await assert.rejects(
+    admit("push", fixture({ push: [run(22, "push", 19)] }, {}, { jobTotal: 3 })),
+  );
+  const job = { name: "observe", run_id: 22, status: "completed", conclusion: "skipped" };
+  for (const jobs of [[], [job, job], [{ ...job, run_id: 99 }], [{ ...job, conclusion: null }]]) {
+    await assert.rejects(
+      admit("push", fixture({ push: [run(22, "push", 19)] }, {}, { jobs })),
+      /observer job is not conclusively accounted for/u,
+    );
+  }
+  await assert.rejects(
+    admit("push", fixture({ push: [run(23, "push", 1), run(23, "push", 1)] }, {})),
+  );
+  await assert.rejects(
+    admit("push", fixture({ push: [run(24, "push", 1)], schedule: [run(24, "schedule", 1)] }, {})),
+  );
+  const combined = fixture(
+    {
+      push: crowded,
+      schedule: crowded.map((_, i) => run(200 + i, "schedule", 2 + i * 3)),
+    },
+    {},
+  );
+  assert.deepEqual(await admit("push", combined), {
+    observe: false,
+    reason: "combined cooldown history exceeds the job read limit",
+  });
+  assert.equal(combined.routes.length, 2);
   // Inconsistent records refuse rather than admit.
   await assert.rejects(admit("push", fixture({ push: [run(16, "schedule", 1)] }, {})));
   await assert.rejects(
