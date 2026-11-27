@@ -405,26 +405,40 @@ export function acquireMaintenanceReservation(
   const status = queryJson(
     environment,
     `DO $$ BEGIN PERFORM pg_advisory_xact_lock(41290007); END $$;
-    WITH balance AS (
-      SELECT coalesce(sum(
-        CASE WHEN (outcome = 'completed' OR (outcome = 'deferred' AND operation LIKE 'recovery%')) AND estimate_bytes IS NOT NULL
-          -- The cumulative project counter already includes a completed
-          -- operation's transfer once the sample was taken well after it
-          -- finished, whichever client caused it. Only recent completions are
-          -- still charged on top of the counter.
-          THEN CASE WHEN finished_at <= ${sampled}::timestamptz - ${meterSettleInterval}
-            THEN 0 ELSE greatest(estimate_bytes, least(reserved_bytes, 500000)) END
-          ELSE reserved_bytes END), 0) AS unresolved,
-        -- Every charge in the period, settled or not, for attribution evidence.
-        coalesce(sum(
-          CASE WHEN (outcome = 'completed' OR (outcome = 'deferred' AND operation LIKE 'recovery%')) AND estimate_bytes IS NOT NULL
-            THEN greatest(estimate_bytes, least(reserved_bytes, 500000))
-            ELSE reserved_bytes END), 0) AS charged,
-        max(reported_bytes) FILTER (WHERE period_start = ${period}::timestamptz) AS high_water,
-        min(reported_bytes) FILTER (WHERE period_start = ${period}::timestamptz) AS initial
+    WITH charges AS (
+      SELECT CASE WHEN operation IN (${Object.keys(costs).map(sqlLiteral).join(", ")})
+        THEN operation ELSE 'other' END AS operation,
+        outcome, finished_at, reserved_bytes, estimate_bytes, reported_bytes,
+        period_start,
+        (outcome = 'completed' OR (outcome = 'deferred' AND operation LIKE 'recovery%'))
+          AND estimate_bytes IS NOT NULL AS has_estimate
       FROM ${table}
       WHERE period_start = ${period}::timestamptz OR
         (period_start < ${period}::timestamptz AND started_at + interval '2 hours' >= ${period}::timestamptz)
+    ), amounts AS (
+      SELECT *, CASE WHEN has_estimate
+        THEN greatest(estimate_bytes, least(reserved_bytes, 500000))
+        ELSE reserved_bytes END AS charged,
+        -- Mature estimates are already covered by the cumulative provider counter.
+        has_estimate AND finished_at <= ${sampled}::timestamptz - ${meterSettleInterval} AS settled
+      FROM charges
+    ), grouped AS (
+      SELECT operation, outcome, has_estimate,
+        coalesce(sum(charged) FILTER (WHERE settled IS NOT TRUE), 0) AS unresolved,
+        count(*) FILTER (WHERE settled IS NOT TRUE AND charged > 0) AS attempts,
+        sum(charged) AS charged,
+        max(reported_bytes) FILTER (WHERE period_start = ${period}::timestamptz) AS high_water,
+        min(reported_bytes) FILTER (WHERE period_start = ${period}::timestamptz) AS initial
+      FROM amounts
+      GROUP BY operation, outcome, has_estimate
+    ), balance AS (
+      SELECT coalesce(sum(unresolved), 0) AS unresolved,
+        coalesce(sum(charged), 0) AS charged, max(high_water) AS high_water, min(initial) AS initial,
+        coalesce(json_agg(json_build_object('operation', operation, 'outcome', outcome,
+          'basis', CASE WHEN has_estimate THEN 'estimate' ELSE 'reservation' END,
+          'attempts', attempts, 'bytes', unresolved)
+          ORDER BY operation, outcome, has_estimate) FILTER (WHERE attempts > 0), '[]'::json) AS breakdown
+      FROM grouped
     ), state AS (
       SELECT EXISTS (SELECT FROM ${table} WHERE request_key = ${sqlLiteral(request)}
         AND (outcome = 'completed' OR (outcome = 'running' AND started_at > clock_timestamp() - interval '2 hours')))
@@ -465,6 +479,7 @@ export function acquireMaintenanceReservation(
       'started_at', (SELECT started_at FROM observed WHERE outcome = 'running'),
       'requested_bytes', requested_bytes,
       'prior_meter_high_water_bytes', high_water, 'unreconciled_bytes', unresolved,
+      'unreconciled_by_operation', breakdown,
       'provider_growth_since_accounting_bytes', CASE WHEN NOT ${useCutover} THEN ${meter.transferBytes} - initial END,
       'unattributed_growth_lower_bound_bytes', CASE WHEN NOT ${useCutover} AND initial IS NOT NULL
         THEN greatest(0, ${meter.transferBytes} - initial - charged) END,
@@ -483,6 +498,13 @@ export function acquireMaintenanceReservation(
     equivalent_completed: boolean;
     prior_meter_high_water_bytes: number | null;
     unreconciled_bytes: number;
+    unreconciled_by_operation: {
+      operation: MaintenanceOperation | "other";
+      outcome: string;
+      basis: "estimate" | "reservation";
+      attempts: number;
+      bytes: number;
+    }[];
     requested_bytes: number;
     provider_growth_since_accounting_bytes: number | null;
     reason: string;

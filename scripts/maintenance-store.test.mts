@@ -1145,6 +1145,16 @@ void test(
       });
     const first = take("first").attempt_id;
     assert.ok(first);
+    const checkBreakdown = (
+      admission: ReturnType<typeof take>,
+      expected: ReturnType<typeof take>["unreconciled_by_operation"],
+    ) => {
+      assert.deepEqual(admission.unreconciled_by_operation, expected);
+      assert.equal(
+        admission.unreconciled_bytes,
+        expected.reduce((total, group) => total + group.bytes, 0),
+      );
+    };
     const finish = (ago: string) =>
       runSql(
         owner,
@@ -1154,16 +1164,22 @@ void test(
           WHERE attempt_id = '${first}';`,
       );
     finish("1 hour");
+    const recent = take("recent");
     assert.equal(
-      take("recent").attempt_id,
+      recent.attempt_id,
       null,
       "a recent completion may not be in the counter yet, so it is still charged",
     );
+    checkBreakdown(recent, [
+      { operation: "collect", outcome: "completed", basis: "estimate", attempts: 1, bytes: 3e9 },
+    ]);
     finish("3 hours");
+    const settled = take("settled");
     assert.ok(
-      take("settled").attempt_id,
+      settled.attempt_id,
       "a completion the counter already includes is not charged a second time",
     );
+    checkBreakdown(settled, []);
     runSql(
       owner,
       `UPDATE portcove_maintenance_meta.resource_admissions
@@ -1171,7 +1187,12 @@ void test(
             reserved_bytes = 3000000000, estimate_bytes = NULL
         WHERE attempt_id = '${first}';`,
     );
-    assert.equal(take("uncertain").attempt_id, null, "an uncertain outcome stays fully charged");
+    const uncertain = take("uncertain");
+    assert.equal(uncertain.attempt_id, null, "an uncertain outcome stays fully charged");
+    checkBreakdown(uncertain, [
+      { operation: "collect", outcome: "failed", basis: "reservation", attempts: 1, bytes: 3e9 },
+      { operation: "collect", outcome: "running", basis: "reservation", attempts: 1, bytes: 18e6 },
+    ]);
     // A known pre-export deferral charges only measured metadata. Unknown
     // deferrals and failed exports keep their full reservation.
     runSql(
@@ -1183,13 +1204,33 @@ void test(
     );
     const measured = take("measured-preflight");
     assert.ok(measured.attempt_id);
-    assert.ok(measured.unreconciled_bytes < 3_000_000_000);
+    checkBreakdown(measured, [
+      { operation: "collect", outcome: "running", basis: "reservation", attempts: 1, bytes: 18e6 },
+      { operation: "recovery", outcome: "deferred", basis: "estimate", attempts: 1, bytes: 2e6 },
+    ]);
     runSql(
       owner,
       `UPDATE portcove_maintenance_meta.resource_admissions
         SET estimate_bytes = NULL WHERE attempt_id = '${first}';`,
     );
-    assert.equal(take("unmeasured-preflight").attempt_id, null);
+    const unmeasured = take("unmeasured-preflight");
+    assert.equal(unmeasured.attempt_id, null);
+    checkBreakdown(unmeasured, [
+      { operation: "collect", outcome: "running", basis: "reservation", attempts: 2, bytes: 36e6 },
+      { operation: "recovery", outcome: "deferred", basis: "reservation", attempts: 1, bytes: 3e9 },
+    ]);
+    // Stored operation text can predate the current policy or come from a role
+    // that can insert its own ledger row. Never copy that text into evidence.
+    runSql(
+      owner,
+      `UPDATE portcove_maintenance_meta.resource_admissions
+        SET operation = 'recovery-private-label', estimate_bytes = 2000000
+        WHERE attempt_id = '${first}';`,
+    );
+    checkBreakdown(take("unrecognized-label"), [
+      { operation: "collect", outcome: "running", basis: "reservation", attempts: 2, bytes: 36e6 },
+      { operation: "other", outcome: "deferred", basis: "estimate", attempts: 1, bytes: 2e6 },
+    ]);
 
     // The fixed cutover sample predates the completion, so it never settles.
     const cutover = {

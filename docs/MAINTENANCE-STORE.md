@@ -1731,6 +1731,12 @@ from the command outcome. It counts failed sources and Core gaps even when the
 command returned successfully. Individual source coverage remains in the inventory.
 A coalesced request records reuse, and a missing or invalid result records unknown
 ledger completion.
+Admission evidence groups outstanding charges by operation, recorded outcome and
+charge basis. Unrecognized operation labels share one `other` group. The group
+totals sum to `unreconciled_bytes`. An estimate still
+within the provider settlement window and a full reservation for an unknown
+outcome both reduce allowance. These groups report ledger charges. The provider
+meter reports actual aggregate transfer separately.
 Publication and player routes keep their existing static signed catalog inputs.
 No paid fallback is used.
 
