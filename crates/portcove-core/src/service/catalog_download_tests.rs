@@ -1161,6 +1161,7 @@ async fn newly_restricted_listing_invalidates_an_earlier_download_review_without
 
 struct GithubFixture {
     provider: GithubReleaseProvider,
+    repository_identity: Arc<Mutex<Option<Value>>>,
     assets: Arc<Mutex<Vec<Value>>>,
     releases: Arc<Mutex<Vec<Value>>>,
     release_assets: Arc<Mutex<HashMap<u64, Vec<Value>>>>,
@@ -1189,7 +1190,8 @@ impl GithubFixture {
         digest: Option<String>,
         sidecar: Option<String>,
     ) -> Self {
-        let release_path = format!("/{api_repository}/releases");
+        let repository_path = format!("/{api_repository}");
+        let release_path = format!("{repository_path}/releases");
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         listener.set_nonblocking(true).unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
@@ -1202,6 +1204,7 @@ impl GithubFixture {
             );
         }
         let assets = Arc::new(Mutex::new(inventory));
+        let repository_identity = Arc::new(Mutex::new(None::<Value>));
         let releases = Arc::new(Mutex::new(vec![
             json!({"id":7,"tag_name":"v1.0","draft":false,"prerelease":false,"published_at":null,"assets":[]}),
         ]));
@@ -1212,6 +1215,7 @@ impl GithubFixture {
         let (thread_assets, thread_stopped, thread_requests) =
             (assets.clone(), stopped.clone(), requests.clone());
         let (thread_releases, thread_release_assets) = (releases.clone(), release_assets.clone());
+        let thread_identity = repository_identity.clone();
         let worker = thread::spawn(move || {
             while !thread_stopped.load(Ordering::SeqCst) {
                 let mut stream = match listener.accept() {
@@ -1264,7 +1268,9 @@ impl GithubFixture {
                 };
                 // Deliberately omit embedded assets: the dedicated, paginated
                 // endpoint is the complete checksum authority, including sidecars.
-                let body = if path.contains("/assets?") {
+                let body = if path == repository_path {
+                    serde_json::to_vec(&*thread_identity.lock().unwrap()).unwrap()
+                } else if path.contains("/assets?") {
                     let release_id: u64 = url.path().rsplit('/').nth(1).unwrap().parse().unwrap();
                     let inventory = thread_release_assets
                         .lock()
@@ -1318,6 +1324,7 @@ impl GithubFixture {
         });
         Self {
             provider: GithubReleaseProvider::with_api_root(origin).unwrap(),
+            repository_identity,
             assets,
             releases,
             release_assets,
@@ -3552,7 +3559,7 @@ fn shared_browse_observation(listing: &mut PortListing, status: &str, age_hours:
 
 #[tokio::test]
 async fn admitted_github_listing_browses_and_acquires_only_from_its_numeric_repository() {
-    for with_sidecar in [false, true] {
+    for (with_sidecar, renamed) in [(false, false), (true, false), (false, true), (true, true)] {
         let (_temporary, mut service, mut request) = fixture();
         let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
         listing.id = "github-123".into();
@@ -3589,6 +3596,29 @@ async fn admitted_github_listing_browses_and_acquires_only_from_its_numeric_repo
             None,
             with_sidecar.then(|| format!("{expected}  game.zip\n")),
         );
+        if renamed {
+            for asset in github.assets.lock().unwrap().iter_mut() {
+                let name = asset["name"].as_str().unwrap();
+                asset["browser_download_url"] = json!(format!(
+                    "https://github.com/new-owner/renamed-game/releases/download/v1.0/{name}"
+                ));
+            }
+            *github.repository_identity.lock().unwrap() =
+                Some(json!({"id":42,"full_name":"new-owner/renamed-game"}));
+            assert!(
+                service
+                    .catalog_download_options_with_provider(
+                        &request.port_id,
+                        None,
+                        None,
+                        Some(&github.provider),
+                    )
+                    .await
+                    .is_err()
+            );
+            *github.repository_identity.lock().unwrap() =
+                Some(json!({"id":123,"full_name":"new-owner/renamed-game"}));
+        }
         let options = service
             .catalog_download_options_with_provider(
                 &request.port_id,
@@ -3601,6 +3631,81 @@ async fn admitted_github_listing_browses_and_acquires_only_from_its_numeric_repo
         assert!(options.allowed);
         assert_eq!(options.candidates.len(), 1 + usize::from(with_sidecar));
         assert!(options.candidates[0].sha256.is_none());
+        if renamed {
+            assert_eq!(
+                options.candidates[0].release_url,
+                "https://github.com/new-owner/renamed-game/releases/tag/v1.0"
+            );
+            let provider = CatalogDownloadProvider::Github(github.provider.clone());
+            let notes = service
+                .catalog_download_release_notes_inner(
+                    &request.port_id,
+                    &request.release_id,
+                    &request.asset_id,
+                    &options.candidates[0].release_url,
+                    Some(&provider),
+                )
+                .await
+                .unwrap();
+            assert_eq!(notes, options.candidates[0].release_url);
+
+            let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
+            shared_browse_observation(&mut listing, "complete", 0);
+            let observation = listing.upstream_observation.as_mut().unwrap();
+            observation.repository_id = Some(123);
+            observation.repository = "Owner/Game".into();
+            observation.releases[0].release_url =
+                "https://github.com/Owner/Game/releases/tag/v1.0".into();
+            observation.releases[0].assets[0].url =
+                "https://github.com/Owner/Game/releases/download/v1.0/game.zip".into();
+            service.catalog = service
+                .catalog
+                .with_listing_document(crate::CatalogListingDocument {
+                    format_version,
+                    listings: vec![listing],
+                })
+                .unwrap();
+            let before = github.requests.load(Ordering::SeqCst);
+            let observed = service
+                .catalog_download_options_with_provider(
+                    &request.port_id,
+                    None,
+                    None,
+                    Some(&github.provider),
+                )
+                .await
+                .unwrap();
+            assert_eq!(github.requests.load(Ordering::SeqCst), before);
+            assert_eq!(
+                observed.candidates[0].release_url,
+                "https://github.com/Owner/Game/releases/tag/v1.0"
+            );
+            assert_eq!(
+                service
+                    .catalog_download_release_notes_inner(
+                        &request.port_id,
+                        &request.release_id,
+                        &request.asset_id,
+                        &observed.candidates[0].release_url,
+                        Some(&provider),
+                    )
+                    .await
+                    .unwrap(),
+                notes
+            );
+            assert!(
+                service
+                    .catalog_download_release_notes_inner(
+                        &request.port_id,
+                        &request.release_id,
+                        &request.asset_id,
+                        "https://github.com/Owner/Game/releases/tag/V1.0",
+                        Some(&provider),
+                    )
+                    .await
+                    .is_err()
+            );
+        }
 
         let preview = service
             .catalog_download_preview_with_provider(&request, &github.provider)
