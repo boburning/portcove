@@ -11,7 +11,17 @@
       "format_version": 1,
       "id": "final-fantasy-viii",
       "evidence_urls": ["https://github.com/aitorcachero/final-fantasy-8-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "final-fantasy-viii-playstation-spain",
+          "title": "Final Fantasy VIII (PlayStation, Spain)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/aitorcachero/final-fantasy-8-recomp/blob/6ad35382b00dc81df8c91f72d451a6d68eda7cb0/game.toml#L5-L19",
+            "https://github.com/aitorcachero/final-fantasy-8-recomp/blob/6ad35382b00dc81df8c91f72d451a6d68eda7cb0/catalog_identity.json#L3-L21"
+          ]
+        }
+      ]
     },
     "original_game_title": "Final Fantasy VIII"
   }
