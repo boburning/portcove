@@ -309,6 +309,8 @@ void test("explicit IGDB hero preparation retains unknown acquisition when its s
   assert.deepEqual(
     exactCoverage.map((item) => [item.role, item.provider, item.state]),
     [
+      ["key_art", "igdb", "unknown"],
+      ["logo", "igdb", "unknown"],
       ["header", "igdb", "unknown"],
       ["screenshot", "igdb", "unknown"],
     ],

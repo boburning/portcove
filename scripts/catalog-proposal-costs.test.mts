@@ -191,6 +191,7 @@ function fixture(
     join(scripts, "inspect-igdb-artwork.mts"),
     `
     import {readFileSync} from 'node:fs';
+    export const catalogGameMediaRoles = ["key_art", "logo", "header", "screenshot"];
     export function readArtworkInput(path) {
       const bytes=readFileSync(path); return {bytes,document:JSON.parse(bytes)};
     }
