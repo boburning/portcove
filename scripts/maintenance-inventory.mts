@@ -24,7 +24,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { channels } from "../apps/desktop/src/catalog-values.generated.ts";
 import { isRecord } from "./runtime-values.mts";
-import { readScheduledArtworkHealth } from "./maintenance-artwork-health.mts";
+import {
+  readScheduledArtworkHealth,
+  readScheduledMediaArtworkHealth,
+} from "./maintenance-artwork-health.mts";
 import { inspectCatalogDefinitions } from "./observe-configured-upstream.mts";
 import {
   MaintenanceStoreError,
@@ -1455,6 +1458,15 @@ export const staleCollectionPattern = /stale maintenance collection for /u;
 /** Another run finished after the changes-only baseline was read. */
 export const baselineChangedPattern = /maintenance baseline changed for /u;
 
+type ArtworkHealthCollection = {
+  revision: string;
+  failed?: boolean;
+  complete: boolean;
+  expected: number | null;
+  facts: ReadonlyMap<string, unknown>;
+  gaps: SourceGap[];
+};
+
 /**
  * One transaction: the catalog and Core runs, their observations, assessments and
  * transitions. In `all` mode a source stores only changed subjects plus absences
@@ -1479,6 +1491,7 @@ export function collectionSql(input: {
     issues?: ReadonlyMap<string, string>;
     releaseHealth?: ReadonlyMap<string, string>;
     artworkHealth?: ReadonlyMap<string, string>;
+    mediaArtworkHealth?: ReadonlyMap<string, string>;
     releaseContent?: ReadonlyMap<string, string>;
     upstream?: ReadonlyMap<string, string>;
     hostedIntake?: ReadonlyMap<string, string>;
@@ -1531,14 +1544,8 @@ export function collectionSql(input: {
     /** Deferred ports; each carries the findings this report already has for it. */
     gaps: SourceGap[];
   };
-  artworkHealth?: {
-    revision: string;
-    failed?: boolean;
-    complete: boolean;
-    expected: number | null;
-    facts: ReadonlyMap<string, unknown>;
-    gaps: SourceGap[];
-  };
+  artworkHealth?: ArtworkHealthCollection;
+  mediaArtworkHealth?: ArtworkHealthCollection;
   upstream?: UpstreamObservation;
   progress?: ProgressCollection;
   hostedIntake?: HostedIntakeObservation;
@@ -1596,6 +1603,7 @@ export function collectionSql(input: {
            ...(input.issues ? ["issues-project"] : []),
            ...(input.releaseHealth ? ["release-health"] : []),
            ...(input.artworkHealth ? ["cover-artwork-health"] : []),
+           ...(input.mediaArtworkHealth ? ["media-artwork-health"] : []),
            ...(input.releaseContent ? ["release-content"] : []),
            ...(input.upstream ? ["upstream-observations"] : []),
            ...(input.hostedIntake ? ["hosted-intake"] : []),
@@ -1989,34 +1997,44 @@ export function collectionSql(input: {
       input.targets.failure ? null : input.targets.expected,
     ]);
   }
-  const artworkHealthRun = `cover-artwork-health:${token}`;
-  if (input.artworkHealth) {
+  const artworkSources = {
+    "cover-artwork-health": "artworkHealth",
+    "media-artwork-health": "mediaArtworkHealth",
+  } as const;
+  const artworkRuns = Object.entries(artworkSources).map(([source, key]) => ({
+    source,
+    key,
+    run: `${source}:${token}`,
+  }));
+  for (const { source, key, run } of artworkRuns) {
+    const observation = input[key];
+    if (!observation) continue;
     if (input.mode !== "all")
-      throw new MaintenanceStoreError("Cover artwork health collection requires --all");
+      throw new MaintenanceStoreError(`${source} collection requires --all`);
     lines.push(
       `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
-        (${literal(artworkHealthRun)}, 'cover-artwork-health', ${literal(input.runner)}, ${literal(input.artworkHealth.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
+        (${literal(run)}, ${literal(source)}, ${literal(input.runner)}, ${literal(observation.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     const artworkFacts = new Map<string, Fact>();
-    for (const [key, payload] of input.artworkHealth.facts)
-      artworkFacts.set(key, {
+    for (const [subject, payload] of observation.facts)
+      artworkFacts.set(subject, {
         digest: sha256(canonicalJson(payload)),
-        scope: { source: "cover-artwork-health", authority: "none" },
-        revision: input.artworkHealth.revision,
+        scope: { source, authority: "none" },
+        revision: observation.revision,
         payload,
       });
     runs.push([
-      artworkHealthRun,
-      input.artworkHealth.revision,
-      input.artworkHealth.failed ? "failed" : input.artworkHealth.complete ? "complete" : "partial",
-      input.artworkHealth.gaps,
+      run,
+      observation.revision,
+      observation.failed ? "failed" : observation.complete ? "complete" : "partial",
+      observation.gaps,
       artworkFacts,
-      input.latest?.artworkHealth,
-      input.artworkHealth.expected,
+      input.latest?.[key],
+      observation.expected,
     ]);
   }
   const sourceOf = new Map([
-    [artworkHealthRun, "cover-artwork-health"],
+    ...artworkRuns.map(({ run, source }) => [run, source] as const),
     [targetsRun, "core-target-routes"],
     [publicationRun, "definition-publication"],
     [deliveryRun, "definition-delivery"],
@@ -2228,6 +2246,7 @@ export async function collect(options: {
   /** With `all`, also collect the latest scheduled release-health report. */
   releaseHealth?: (() => Promise<ReleaseHealthInput>) | undefined;
   artworkHealth?: string | undefined;
+  mediaArtworkHealth?: string | undefined;
   /** With `all`, also collect the latest scheduled release-content scan report. */
   releaseContent?: (() => Promise<ReleaseContentInput>) | undefined;
   /** With `all`, also collect the newest retained upstream observer checkpoint. */
@@ -2453,6 +2472,18 @@ export async function collect(options: {
         readScheduledArtworkHealth(options.artworkHealth!, revision, cliSha256),
       )
     : undefined;
+  if (options.mediaArtworkHealth && !options.all)
+    throw new MaintenanceStoreError("Media artwork health collection requires --all");
+  const mediaRead = options.mediaArtworkHealth
+    ? await sourceOutcome(() =>
+        readScheduledMediaArtworkHealth(
+          options.mediaArtworkHealth!,
+          revision,
+          cliSha256,
+          reviewedListingsBytes ?? committedBytes(revision, listingsPath),
+        ),
+      )
+    : undefined;
   const contentRead = options.releaseContent
     ? await sourceOutcome(async () => {
         const report = await options.releaseContent!();
@@ -2554,6 +2585,20 @@ export async function collect(options: {
                 },
           }
         : {}),
+      ...(mediaRead
+        ? {
+            mediaArtworkHealth: mediaRead.ok
+              ? mediaRead.value
+              : {
+                  revision: "media-artwork-health:unavailable",
+                  failed: true,
+                  complete: false,
+                  expected: null,
+                  facts: new Map(),
+                  gaps: [failedSource("source:media-artwork-health", mediaRead.message)],
+                },
+          }
+        : {}),
       ...(contentRead
         ? {
             releaseContent: contentRead.ok
@@ -2623,6 +2668,7 @@ export async function collect(options: {
               ...(issueRead ? { issues: members("issues-project") } : {}),
               ...(healthRead ? { releaseHealth: members("release-health") } : {}),
               ...(artworkRead ? { artworkHealth: members("cover-artwork-health") } : {}),
+              ...(mediaRead ? { mediaArtworkHealth: members("media-artwork-health") } : {}),
               ...(contentRead ? { releaseContent: members("release-content") } : {}),
               ...(upstream ? { upstream: members("upstream-observations") } : {}),
               ...(hostedIntake ? { hostedIntake: members("hosted-intake") } : {}),
@@ -2640,6 +2686,7 @@ export async function collect(options: {
     ...(issueRead ? ["issues-project"] : []),
     ...(healthRead ? ["release-health"] : []),
     ...(artworkRead ? ["cover-artwork-health"] : []),
+    ...(mediaRead ? ["media-artwork-health"] : []),
     ...(contentRead ? ["release-content"] : []),
     ...(upstream ? ["upstream-observations"] : []),
     ...(hostedIntake ? ["hosted-intake"] : []),
@@ -2721,6 +2768,7 @@ export async function collect(options: {
       ...(issueRead && !issueRead.ok ? ["issues-project"] : []),
       ...(healthRead && !healthRead.ok ? ["release-health"] : []),
       ...(artworkRead && !artworkRead.ok ? ["cover-artwork-health"] : []),
+      ...(mediaRead && !mediaRead.ok ? ["media-artwork-health"] : []),
       ...(contentRead && !contentRead.ok ? ["release-content"] : []),
       ...(upstream?.failed ? ["upstream-observations"] : []),
       ...(hostedIntake?.failed ? ["hosted-intake"] : []),
@@ -2744,6 +2792,18 @@ export async function collect(options: {
           counts: artworkRead.value.counts,
         }
       : artworkRead
+        ? { coverage: "failed" }
+        : null,
+    media_artwork_health: mediaRead?.ok
+      ? {
+          coverage: mediaRead.value.complete ? "complete" : "partial",
+          expected: mediaRead.value.expected,
+          counts: mediaRead.value.counts,
+          image_requests: mediaRead.value.image_requests,
+          image_bytes: mediaRead.value.image_bytes,
+          retry_at: mediaRead.value.retry_at,
+        }
+      : mediaRead
         ? { coverage: "failed" }
         : null,
     release_content: contentRead
@@ -4730,6 +4790,9 @@ export async function main(argv = process.argv.slice(2)) {
   const artworkHealth = option(args, "--artwork-health");
   if (artworkHealth !== undefined && command !== "collect")
     throw new MaintenanceStoreError("--artwork-health applies only to collect");
+  const mediaArtworkHealth = option(args, "--media-artwork-health");
+  if (mediaArtworkHealth !== undefined && command !== "collect")
+    throw new MaintenanceStoreError("--media-artwork-health applies only to collect");
   const historySubject = option(args, "--subject");
   const historyBefore = option(args, "--before");
   if ((historySubject || historyBefore) && command !== "history")
@@ -4794,6 +4857,7 @@ export async function main(argv = process.argv.slice(2)) {
       releaseContent ||
       upstreamSource ||
       artworkHealth ||
+      mediaArtworkHealth ||
       hostedSource ||
       progressManifest)
   )
@@ -4876,6 +4940,7 @@ export async function main(argv = process.argv.slice(2)) {
         issues: issues ? () => readIssueInventory(issueCredential) : undefined,
         releaseHealth: releaseHealth ? readReleaseHealth : undefined,
         artworkHealth,
+        mediaArtworkHealth,
         releaseContent: releaseContent ? readReleaseContent : undefined,
         upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
         progress: progressManifest

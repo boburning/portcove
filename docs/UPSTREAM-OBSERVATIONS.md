@@ -1790,5 +1790,10 @@ retain their existing receipt and use the rest of the allowance. Provider
 backoff carries across the two phases.
 The receipt distinguishes unchanged bytes, mismatches, an exact Gone response,
 unavailable results and deferred targets. A shared image is reported
-independently for its catalog roles. The receipt supplies evidence for the
-current references. It does not find new images or publish catalog changes.
+independently for its catalog roles. The maintenance collector recomputes the
+selected variants and roles against the exact committed listing directory and
+records admitted results under `media-artwork-health`, one fact per fetched
+variant. Partial windows and provider failures retain earlier observations.
+Freshness belongs to the collection, so repeating unchanged bytes does not
+rewrite the image fact. The receipt supplies evidence for the current
+references. It does not find new images or publish catalog changes.
