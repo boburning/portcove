@@ -1109,7 +1109,7 @@ void test("an observed Gone logo sweeps every reference to its variant and prese
     },
   );
   const catalog = {
-    ports: ["one", "two", "three", "unselected"].map((id) => ({
+    ports: ["one", "two", "three", "unselected", "excluded"].map((id) => ({
       id,
       name: "Sample",
       project_url: "https://example.org/sample",
@@ -1129,7 +1129,7 @@ void test("an observed Gone logo sweeps every reference to its variant and prese
             subject: { kind: "port", port_id: id },
             igdb: { image_id: "sharedlogo" },
           },
-          ...(["three", "unselected"].includes(id)
+          ...(["three", "unselected", "excluded"].includes(id)
             ? [
                 {
                   id: "withdrawn-logo",
@@ -1152,13 +1152,18 @@ void test("an observed Gone logo sweeps every reference to its variant and prese
   assert.equal(imageCalls, 0);
   const result = await prepareCatalogGameMedia(covers.catalog, {
     inspector,
-    selectedPortIds: ["one", "two", "three"],
+    selectedPortIds: ["one", "two", "three", "excluded"],
+    excludedPortIds: new Set(["excluded"]),
   });
   assert.deepEqual(inventoryCalls, ["/v4/artworks", "/v4/logos", "/v4/screenshots"]);
   assert.equal(imageCalls, 2);
   assert.deepEqual(result.gone_media_targets, ["logo_med_2x/sharedlogo"]);
   assert.deepEqual(covers.gone_image_ids, []);
-  for (const port of result.catalog.ports) {
+  assert.deepEqual(
+    result.catalog.ports.find(({ id }) => id === "excluded"),
+    catalog.ports.find(({ id }) => id === "excluded"),
+  );
+  for (const port of result.catalog.ports.filter(({ id }) => id !== "excluded")) {
     const artwork = port.presentation?.artwork;
     assert.ok(isRecord(artwork));
     assert.equal(artwork.image_id, "sharedlogo");

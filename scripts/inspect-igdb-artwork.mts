@@ -2128,10 +2128,12 @@ function removeWithdrawnCatalogMedia(
   catalog: ArtworkCatalog,
   records: HeroMediaRecord[],
   gone: Set<string>,
+  excluded: ReadonlySet<string>,
 ) {
   // A withdrawal invalidates every candidate reference, including unselected ports
   // and records completed earlier in this batch.
   for (const port of catalog.ports) {
+    if (excluded.has(port.id)) continue;
     const media = port.presentation?.media;
     if (Array.isArray(media))
       port.presentation = {
@@ -2211,7 +2213,7 @@ export async function prepareCatalogGameMedia(
       await prepareHeroIdentity(port.id, identity, media, records, context);
     if (media.length || Array.isArray(current)) port.presentation = { ...port.presentation, media };
   }
-  removeWithdrawnCatalogMedia(result, records, context.goneImages);
+  removeWithdrawnCatalogMedia(result, records, context.goneImages, excluded);
   return { catalog: result, records, gone_media_targets: [...context.goneImages].sort() };
 }
 
