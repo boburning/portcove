@@ -233,7 +233,6 @@ fn continue_move(
         &journal.plan.source_root,
         &journal.plan.destination_root,
         &journal.plan.content,
-        include_mod_portal_preferences,
     )?;
     crate::transfer_copy::copy_database(source, &journal.plan)?;
     let target = Library::initialize(destination.clone(), lease)?;
@@ -241,6 +240,7 @@ fn continue_move(
         &target,
         &journal.plan.metadata,
         &journal.plan.content,
+        include_mod_portal_preferences,
     )?;
     // Reject out-of-band edits to the retained source as well as destination corruption.
     crate::library_transfer::verify_source_plan(

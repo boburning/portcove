@@ -11,6 +11,9 @@ use crate::{
 pub(crate) const LOCAL_PAGE_SOURCE: &str = "player:mod-website";
 const MAX_HIDDEN_SOURCES: usize = 16;
 const MAX_STORED_BYTES: usize = 4096;
+// Leave one exact JavaScript integer above the persisted revision ceiling.
+// Export and local edits use the same ceiling.
+const MAX_PREFERENCE_REVISION: u64 = (1u64 << 53) - 2;
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -88,6 +91,11 @@ fn read_choices(connection: &Connection, port_id: &str) -> Result<ModPortalPrefe
     let Some((revision, json)) = row else {
         return Ok(ModPortalPreferences::default());
     };
+    if revision > MAX_PREFERENCE_REVISION {
+        return Err(PortcoveError::verification(
+            "Stored mod source choice revision exceeds its limit",
+        ));
+    }
     Ok(ModPortalPreferences {
         revision,
         choices: decode_choices(&json)?,
@@ -142,7 +150,7 @@ pub(crate) fn validate_export(entries: &[LibraryModPortalPreference]) -> Result<
                 .port_id
                 .bytes()
                 .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
-            || !(1..=i64::MAX as u64).contains(&entry.preferences.revision)
+            || !(1..=MAX_PREFERENCE_REVISION).contains(&entry.preferences.revision)
             || communities.len() > MAX_HIDDEN_SOURCES
             || serde_json::to_vec(choices)?.len() > MAX_STORED_BYTES
             || serde_json::to_vec(communities)?.len() > MAX_STORED_BYTES
@@ -491,10 +499,22 @@ pub(crate) fn retain_generated_thunderstore_choices(
 }
 
 fn next_revision(current: u64) -> Result<i64> {
-    i64::try_from(current)
-        .ok()
-        .and_then(|revision| revision.checked_add(1))
+    current
+        .checked_add(1)
+        .filter(|revision| *revision <= MAX_PREFERENCE_REVISION)
+        .map(|revision| revision as i64)
         .ok_or_else(|| PortcoveError::state("Mod source choice revision is exhausted"))
+}
+
+#[cfg(test)]
+#[test]
+fn last_stored_revision_remains_portable_and_does_not_wrap() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = crate::Library::open(temporary.path()).unwrap();
+    let mut entry = record_portability_fixture(&library);
+    entry.preferences.revision = next_revision(MAX_PREFERENCE_REVISION - 1).unwrap() as u64;
+    validate_export(&[entry]).unwrap();
+    assert!(next_revision(MAX_PREFERENCE_REVISION).is_err());
 }
 
 impl PortcoveService {

@@ -693,6 +693,11 @@ fn retained_references_by_install(
             "mod source choices require library metadata schema 17",
         ));
     }
+    if metadata.schema_version == 17 && metadata.mod_portal_preferences.is_empty() {
+        return Err(PortcoveError::verification(
+            "library metadata schema 17 requires mod source choices",
+        ));
+    }
     crate::mod_portal_preferences::validate_export(&metadata.mod_portal_preferences)?;
     crate::profile::validate_export(
         &metadata.profiles,

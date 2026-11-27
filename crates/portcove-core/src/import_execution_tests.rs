@@ -1476,7 +1476,25 @@ fn mod_portal_choices_round_trip_through_export_and_interrupted_import() {
     invalid_revision.mod_portal_preferences[0]
         .preferences
         .revision = 0;
-    for invalid in [older, duplicate, invalid_scope, invalid_revision] {
+    let mut exhausted_revision = metadata.clone();
+    exhausted_revision.mod_portal_preferences[0]
+        .preferences
+        .revision = (1u64 << 53) - 1;
+    let mut imprecise_revision = metadata.clone();
+    imprecise_revision.mod_portal_preferences[0]
+        .preferences
+        .revision = i64::MAX as u64;
+    let mut empty_fence = metadata.clone();
+    empty_fence.mod_portal_preferences.clear();
+    for invalid in [
+        older,
+        duplicate,
+        invalid_scope,
+        invalid_revision,
+        exhausted_revision,
+        imprecise_revision,
+        empty_fence,
+    ] {
         fs::write(&export, serde_json::to_vec_pretty(&invalid).unwrap()).unwrap();
         assert!(PortcoveService::plan_library_import(&export, &source, &destination).is_err());
         assert!(!destination.exists());
