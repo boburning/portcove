@@ -1,5 +1,6 @@
 import {
   assertPreparedArtwork,
+  catalogGameMediaRoles,
   reconcileCatalogArtworkWithdrawals,
 } from "./inspect-igdb-artwork.mts";
 import { hashPattern, imagePattern, matchesString, positiveId } from "./catalog-cover-mapping.mts";
@@ -124,13 +125,16 @@ export async function prepareGameMediaInOperations(
   // relabelled on every earlier record; the catalog already dropped it.
   const gone = new Set(media.gone_image_ids);
   for (const record of media.records)
-    if (record.image_id && gone.has(record.image_id))
+    if (
+      record.reason !== "retained-image-withdrawn" &&
+      record.image_id &&
+      gone.has(record.image_id)
+    )
       record.reason = "selected-image-gone-later-in-batch";
   return media;
 }
 
-const sceneRoles = ["header", "screenshot"] as const;
-type SceneRole = (typeof sceneRoles)[number];
+type SceneRole = (typeof catalogGameMediaRoles)[number];
 
 function scopeKey(subject: CatalogMediaSubject, role: SceneRole) {
   return JSON.stringify(
@@ -153,7 +157,7 @@ function sceneSubject(portId: string, value: unknown): CatalogMediaSubject | und
 }
 
 function sceneRole(value: unknown): value is SceneRole {
-  return value === "header" || value === "screenshot";
+  return catalogGameMediaRoles.some((role) => role === value);
 }
 
 /** Inventory reviewed catalog rows and bounded provider observations independently of publication. */
@@ -194,21 +198,22 @@ export function sceneCoverage(
         const media: unknown = port.presentation?.media;
         if (Array.isArray(media))
           for (const asset of media) {
-            if (!isRecord(asset) || !sceneRole(asset.role) || !isRecord(asset.igdb)) continue;
+            if (!isRecord(asset) || !sceneRole(asset.role)) continue;
             const subject = sceneSubject(port.id, asset.subject);
-            if (
-              !subject ||
-              !matchesString(imagePattern, asset.igdb.image_id) ||
-              !matchesString(hashPattern, asset.sha256)
-            )
-              continue;
+            if (!subject || !matchesString(hashPattern, asset.sha256)) continue;
+            const igdb = isRecord(asset.igdb) ? asset.igdb : undefined;
+            const imageId =
+              igdb && matchesString(imagePattern, igdb.image_id) ? igdb.image_id : null;
+            const catalogId = typeof asset.id === "string" ? asset.id : null;
+            if (!imageId && (asset.igdb != null || !catalogId)) continue;
             assets.push({
               subject,
               role: asset.role,
               scope: scopeKey(subject, asset.role),
-              imageId: asset.igdb.image_id,
+              imageId,
+              catalogId,
               sha256: asset.sha256,
-              gameId: asset.igdb.game_id,
+              gameId: igdb?.game_id,
             });
           }
         return [port.id, assets] as const;
@@ -218,7 +223,8 @@ export function sceneCoverage(
   const proposedMedia = inventory(preparation.catalog);
   for (const entries of [...acceptedMedia.values(), ...proposedMedia.values()]) {
     for (const entry of entries) {
-      if (!gone.has(entry.imageId)) recordGame(entry.subject, entry.role, entry.gameId);
+      if (!entry.imageId || !gone.has(entry.imageId))
+        recordGame(entry.subject, entry.role, entry.gameId);
     }
   }
   return ports
@@ -251,7 +257,7 @@ export function sceneCoverage(
         add(asset.subject);
       for (const observation of observations) add(observation.subject);
       return [...subjects.values()].flatMap((subject) =>
-        sceneRoles.map((role) => {
+        catalogGameMediaRoles.map((role) => {
           const key = scopeKey(subject, role);
           const currentImages = (acceptedMedia.get(port.id) ?? []).filter(
             (asset) => asset.scope === key,
@@ -259,20 +265,24 @@ export function sceneCoverage(
           const proposedImages = (proposedMedia.get(port.id) ?? []).filter(
             (asset) => asset.scope === key,
           );
-          const admitted = currentImages.filter(({ imageId }) => !gone.has(imageId));
+          const admitted = currentImages.filter(({ imageId }) => !imageId || !gone.has(imageId));
           const proposed = proposedImages.filter(
-            ({ imageId, sha256 }) =>
-              !gone.has(imageId) &&
-              !admitted.some((asset) => asset.imageId === imageId && asset.sha256 === sha256),
+            ({ imageId, catalogId, sha256 }) =>
+              (!imageId || !gone.has(imageId)) &&
+              !admitted.some(
+                (asset) =>
+                  (asset.imageId ?? asset.catalogId) === (imageId ?? catalogId) &&
+                  asset.sha256 === sha256,
+              ),
           );
           const observed = observations.filter(
             (item) => item.role === role && scopeKey(item.subject, role) === key,
           );
           const withdrawn = [
             ...new Set([
-              ...currentImages
-                .filter(({ imageId }) => gone.has(imageId))
-                .map(({ imageId }) => imageId),
+              ...currentImages.flatMap(({ imageId }) =>
+                imageId && gone.has(imageId) ? [imageId] : [],
+              ),
               ...observed.flatMap(({ image_id }) =>
                 image_id && gone.has(image_id) ? [image_id] : [],
               ),
@@ -308,8 +318,18 @@ export function sceneCoverage(
             provider: "igdb",
             provider_game_ids: [...knownGames].sort((a, b) => a - b),
             state,
-            admitted_image_ids: [...new Set(admitted.map(({ imageId }) => imageId))].sort(),
-            proposed_image_ids: [...new Set(proposed.map(({ imageId }) => imageId))].sort(),
+            admitted_image_ids: [
+              ...new Set(admitted.flatMap(({ imageId }) => (imageId ? [imageId] : []))),
+            ].sort(),
+            proposed_image_ids: [
+              ...new Set(proposed.flatMap(({ imageId }) => (imageId ? [imageId] : []))),
+            ].sort(),
+            admitted_catalog_asset_ids: [
+              ...new Set(admitted.flatMap(({ catalogId }) => (catalogId ? [catalogId] : []))),
+            ].sort(),
+            proposed_catalog_asset_ids: [
+              ...new Set(proposed.flatMap(({ catalogId }) => (catalogId ? [catalogId] : []))),
+            ].sort(),
             withdrawn_image_ids: withdrawn.sort(),
             reasons,
           };

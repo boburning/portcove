@@ -7572,13 +7572,19 @@ Image records are bound to the verified game ID before download.
 Fit variants are PNG `logo_med_2x` and `720p`, with Core content validation, finite
 candidate chains and independent role failures. Preparation may fill a missing
 background and propose one screenshot when a subject has none. It preserves
-reviewed scenes and respects catalog role limits. Exact HTTP 410 observations sweep
+each accepted logo, key-art image, background, and screenshot for the same
+subject. A fully covered subject skips provider lookup. Each role retains its
+catalog limits. With `--hero-media igdb --refresh-artwork`, the selected ports
+also recheck the exact accepted IGDB assets. Shared references use one request
+per image and role in an operation. Changed bytes and provider failures keep
+the accepted mapping for review. Exact HTTP 410 observations sweep
 all candidate references and prevent batch reselection; failed or incomplete
 requests do not establish absence or withdrawal.
 
-The artwork evidence includes background and screenshot coverage by port,
-original release and IGDB game identity. It records existing catalog images,
-fresh proposals and exact observed withdrawals separately. An empty provider
+The artwork evidence includes logo, key-art, background, and screenshot
+coverage by port, original release, and IGDB game identity. It records accepted
+catalog asset IDs independently of IGDB image IDs, as well as fresh proposals
+and exact observed withdrawals. An empty provider
 inventory is missing evidence for that role in that provider. A failed,
 incomplete or unrun query remains unknown. Conflicting provider identities
 stay visible for review. The default report also retains listing-only entries

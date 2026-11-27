@@ -1582,6 +1582,13 @@ const gameMediaRoles = {
   },
 } as const;
 type GameMediaRole = keyof typeof gameMediaRoles;
+export const catalogGameMediaRoles = Object.freeze(Object.keys(gameMediaRoles) as GameMediaRole[]);
+const gameMediaRoleLimits: Readonly<Record<GameMediaRole, number>> = {
+  header: 2,
+  key_art: 2,
+  logo: 2,
+  screenshot: 8,
+};
 type HeroIdentity = {
   declaration: unknown;
   subject: CatalogMediaSubject;
@@ -1602,6 +1609,7 @@ type HeroPreparationContext = {
   signal: AbortSignal | undefined;
   games: Map<string, Promise<unknown>>;
   inventories: Map<string, Promise<unknown>>;
+  retainedImages: Map<string, ReturnType<HeroPreparationContext["inspector"]["inspectMediaImage"]>>;
   goneImages: Set<string>;
 };
 
@@ -1829,36 +1837,91 @@ function upsertHeroMedia(media: unknown[], asset: CatalogMediaAsset) {
   if (index >= 0) media[index] = asset;
   else media.push(asset);
 }
+async function refreshRetainedHeroRole(
+  assets: readonly Record<string, unknown>[],
+  media: unknown[],
+  role: GameMediaRole,
+  context: HeroPreparationContext,
+) {
+  const outcomes = [];
+  for (const asset of assets) {
+    if (
+      !isRecord(asset.igdb) ||
+      !matchesString(imagePattern, asset.igdb.image_id) ||
+      !matchesString(hashPattern, asset.sha256)
+    )
+      continue;
+    const imageId = asset.igdb.image_id;
+    if (context.goneImages.has(imageId)) continue;
+    const key = JSON.stringify([role, imageId]);
+    let pending = context.retainedImages.get(key);
+    if (!pending) {
+      pending = Promise.resolve().then(() => context.inspector.inspectMediaImage(imageId, role));
+      context.retainedImages.set(key, pending);
+    }
+    let reason: string;
+    try {
+      const image = await pending;
+      reason =
+        image.sha256 === asset.sha256 ? "retained-image-verified" : "retained-image-bytes-changed";
+    } catch (error) {
+      context.signal?.throwIfAborted();
+      const withdrawn = observeWithdrawnHeroImage(error, media, context);
+      reason =
+        withdrawn === imageId
+          ? "retained-image-withdrawn"
+          : error instanceof ArtworkBatchExhausted
+            ? "batch-provider-budget-exhausted"
+            : "media-provider-unavailable-or-incomplete";
+    }
+    outcomes.push({ reason, image_id: imageId, provider_game_id: asset.igdb.game_id });
+  }
+  return outcomes;
+}
+
 async function prepareHeroIdentity(
   portId: string,
   identity: HeroIdentity,
   media: unknown[],
   records: HeroMediaRecord[],
   context: HeroPreparationContext,
+  refresh: boolean,
 ) {
-  const identified = await inspectHeroIdentity(identity, context);
-  for (const role of Object.keys(gameMediaRoles) as GameMediaRole[]) {
-    if (role === "header" || role === "screenshot") {
-      const existing = media.filter(
-        (asset) =>
-          isRecord(asset) &&
-          asset.role === role &&
-          !(isRecord(asset.igdb) && context.goneImages.has(String(asset.igdb.image_id))),
-      );
-      const retained = existing.some(
-        (asset) => isRecord(asset) && sameMediaSubject(asset.subject, identity.subject),
-      );
-      if (retained || existing.length >= (role === "header" ? 2 : 8)) {
+  let identified: Awaited<ReturnType<typeof inspectHeroIdentity>> | undefined;
+  for (const role of catalogGameMediaRoles) {
+    const active = (asset: unknown): asset is Record<string, unknown> =>
+      isRecord(asset) &&
+      asset.role === role &&
+      !(isRecord(asset.igdb) && context.goneImages.has(String(asset.igdb.image_id)));
+    let existing = media.filter(active);
+    if (refresh) {
+      const targets = existing.filter((asset) => sameMediaSubject(asset.subject, identity.subject));
+      for (const outcome of await refreshRetainedHeroRole(targets, media, role, context))
         records.push({
           port_id: portId,
           role,
           subject: identity.subject,
-          reason: retained ? "existing-scene-retained" : "scene-role-capacity",
-          ...(identified.game ? { provider_game_id: identified.game.id } : {}),
+          reason: outcome.reason,
+          image_id: outcome.image_id,
+          ...(positiveId(outcome.provider_game_id)
+            ? { provider_game_id: outcome.provider_game_id }
+            : {}),
         });
-        continue;
-      }
+      existing = media.filter(active);
     }
+    const retained = existing.find((asset) => sameMediaSubject(asset.subject, identity.subject));
+    if (retained || existing.length >= gameMediaRoleLimits[role]) {
+      const providerGameId = isRecord(retained?.igdb) ? retained.igdb.game_id : undefined;
+      records.push({
+        port_id: portId,
+        role,
+        subject: identity.subject,
+        reason: retained ? "existing-scene-retained" : "scene-role-capacity",
+        ...(positiveId(providerGameId) ? { provider_game_id: providerGameId } : {}),
+      });
+      continue;
+    }
+    identified ??= await inspectHeroIdentity(identity, context);
     if (!identified.game) {
       records.push({ port_id: portId, role, subject: identity.subject, reason: identified.reason });
       continue;
@@ -1946,7 +2009,11 @@ function removeWithdrawnCatalogMedia(
       };
   }
   for (const record of records)
-    if (record.image_id && gone.has(record.image_id))
+    if (
+      record.reason !== "retained-image-withdrawn" &&
+      record.image_id &&
+      gone.has(record.image_id)
+    )
       record.reason = "selected-image-gone-later-in-batch";
   return companions;
 }
@@ -1958,6 +2025,7 @@ export async function prepareCatalogGameMedia(
   options: {
     identities?: unknown;
     selectedPortIds?: readonly string[];
+    refreshPortIds?: readonly string[];
     knownGoneImageIds?: readonly string[];
     inspector: Pick<
       ReturnType<typeof createIgdbInspector>,
@@ -1974,6 +2042,9 @@ export async function prepareCatalogGameMedia(
     selected.some((id) => !catalog.ports.some((port) => port.id === id))
   )
     throw new Error("Game media worksets require at most 400 unique catalog port ids.");
+  const refresh = new Set(options.refreshPortIds ?? []);
+  if ([...refresh].some((id) => !selected.includes(id)))
+    throw new Error("Game media refresh names a port outside this workset.");
   const result = structuredClone(catalog);
   const records: HeroMediaRecord[] = [];
   const context: HeroPreparationContext = {
@@ -1981,6 +2052,7 @@ export async function prepareCatalogGameMedia(
     signal: options.signal,
     games: new Map(),
     inventories: new Map(),
+    retainedImages: new Map(),
     goneImages: new Set(options.knownGoneImageIds ?? []),
   };
   for (const port of result.ports) {
@@ -1989,7 +2061,7 @@ export async function prepareCatalogGameMedia(
     const current = port.presentation?.media;
     const media: unknown[] = Array.isArray(current) ? structuredClone(current as unknown[]) : [];
     for (const identity of declaredHeroMediaIdentities(port, options.identities))
-      await prepareHeroIdentity(port.id, identity, media, records, context);
+      await prepareHeroIdentity(port.id, identity, media, records, context, refresh.has(port.id));
     if (media.length || Array.isArray(current)) port.presentation = { ...port.presentation, media };
   }
   removeWithdrawnCatalogMedia(result, records, context.goneImages);

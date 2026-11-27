@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { isRecord } from "./runtime-values.mts";
-import { readFileSync, mkdtempSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -811,7 +811,13 @@ void test("an incomplete inventory preserves artwork, shares the failed read and
   recovered = true;
   inventories.length = 0;
   const retried = await prepareCatalogGameMedia(partial.catalog, options);
-  assert.deepEqual(inventories, ["key_art", "logo", "screenshot"]);
+  assert.deepEqual(inventories, ["key_art", "screenshot"]);
+  for (const [index, port] of retried.catalog.ports.entries()) {
+    const past = requiredFixture(partial.catalog.ports[index]).presentation?.media;
+    const current = port.presentation?.media;
+    assert.ok(Array.isArray(past) && Array.isArray(current));
+    assert.deepEqual(current[1], past[1]);
+  }
   assert.deepEqual(
     retried.records
       .filter(({ role, reason }) => role === "screenshot" && reason === "role-selected")
@@ -995,12 +1001,16 @@ void test("an observed Gone image sweeps earlier and unselected references and c
         },
         media: [
           { id: "retained-header", role: "header", subject: { kind: "port", port_id: id } },
-          {
-            id: "withdrawn-logo",
-            role: "logo",
-            subject: { kind: "port", port_id: id },
-            igdb: { image_id: "sharedlogo" },
-          },
+          ...(["three", "unselected"].includes(id)
+            ? [
+                {
+                  id: "withdrawn-logo",
+                  role: "logo",
+                  subject: { kind: "port", port_id: id },
+                  igdb: { image_id: "sharedlogo" },
+                },
+              ]
+            : []),
         ],
       },
     })),
@@ -1213,4 +1223,120 @@ void test("an exact 410 for an unselected scene stays attached to its provider g
   const header = sceneCoverage(catalog, proposal).find(({ role }) => role === "header");
   assert.equal(header?.state, "withdrawn");
   assert.deepEqual(header?.withdrawn_image_ids, ["keyartgone"]);
+});
+
+void test("a fully covered subject keeps every maintained media role without contacting IGDB", async () => {
+  const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
+  const id = "covered-port";
+  const media = ["key_art", "logo", "header", "screenshot"].map((role) => ({
+    id: role + "-fixture",
+    role,
+    subject: { kind: "port", port_id: id },
+  }));
+  const catalog = {
+    ports: [
+      {
+        id,
+        name: "Covered",
+        project_url: "https://example.org/covered",
+        presentation: { media },
+      },
+    ],
+  };
+  const unexpected = () => {
+    throw new Error("Retained roles do not need more provider requests");
+  };
+  const result = await prepareCatalogGameMedia(catalog, {
+    inspector: {
+      inspectGame: unexpected,
+      inspectGameMedia: unexpected,
+      inspectMediaImage: unexpected,
+    },
+  });
+  assert.deepEqual(result.catalog, catalog);
+  assert.deepEqual(
+    result.records.map(({ reason }) => reason),
+    [
+      "existing-scene-retained",
+      "existing-scene-retained",
+      "existing-scene-retained",
+      "existing-scene-retained",
+    ],
+  );
+});
+
+void test("explicit media refresh shares exact checks and only confirmed Gone withdraws maintained assets", async () => {
+  const { createIgdbInspector, prepareCatalogGameMedia } =
+    await import("./inspect-igdb-artwork.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-retained-game-media-"));
+  try {
+    const privateFile = join(scratch, "private-fixture.json");
+    writeFileSync(
+      privateFile,
+      JSON.stringify({ client_id: "fixture-id", client_secret: "fixture-secret" }),
+    );
+    const ids = ["one", "two"];
+    const catalog = {
+      ports: ids.map((id) => ({
+        id,
+        name: "Sample",
+        project_url: "https://example.org/sample",
+        presentation: {
+          media: ["key_art", "logo", "header", "screenshot"].map((role) => ({
+            id: "maintained-" + role,
+            role,
+            subject: { kind: "port", port_id: id },
+            sha256: "a".repeat(64),
+            ...(role === "logo" ? { igdb: { image_id: "sharedlogo", game_id: 7 } } : {}),
+          })),
+        },
+      })),
+    };
+    for (const status of [200, 503, 410]) {
+      let reads = 0;
+      const inspector = createIgdbInspector(
+        privateFile,
+        () => ({ format: "png", width: 400, height: 200, validator: "portcove-core" }),
+        async (url) => {
+          if (url.includes("oauth2")) return new Response('{"access_token":"fixture-token"}');
+          if (url.endsWith("/games")) return new Response("[]");
+          assert.match(url, /logo_med_2x\/sharedlogo\.png$/u);
+          reads++;
+          return status === 200
+            ? new Response("changed-image", { headers: { "content-type": "image/png" } })
+            : new Response(null, { status });
+        },
+      );
+      const result = await prepareCatalogGameMedia(catalog, { inspector, refreshPortIds: ids });
+      assert.equal(reads, 1);
+      if (status === 410) {
+        assert.deepEqual(result.gone_image_ids, ["sharedlogo"]);
+        assert.ok(
+          result.catalog.ports.every(
+            ({ presentation }) =>
+              Array.isArray(presentation?.media) && presentation.media.length === 3,
+          ),
+        );
+        assert.equal(
+          result.records.find(({ reason }) => reason === "retained-image-withdrawn")?.image_id,
+          "sharedlogo",
+        );
+      } else {
+        assert.deepEqual(result.catalog, catalog);
+        assert.deepEqual(result.gone_image_ids, []);
+        assert.equal(
+          result.records.filter(
+            ({ reason }) =>
+              reason ===
+              (status === 200
+                ? "retained-image-bytes-changed"
+                : "media-provider-unavailable-or-incomplete"),
+          ).length,
+          2,
+        );
+      }
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });

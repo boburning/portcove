@@ -603,6 +603,12 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
               sha256: "b".repeat(64),
               igdb: { game_id: 11, image_id: "goneshot" },
             },
+            {
+              id: "maintained-logo",
+              role: "logo",
+              subject: direct,
+              sha256: "c".repeat(64),
+            },
           ],
         },
       },
@@ -659,14 +665,26 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
   };
   const rows = sceneCoverage(accepted, preparation);
   const main = rows.filter((row) => row.port_id === "main-port");
-  assert.equal(main.length, 8);
-  assert.deepEqual(
-    main.map((row) => row.state),
-    ["missing", "withdrawn", "conflicting", "unknown", "unknown", "unknown", "unknown", "unknown"],
+  assert.equal(main.length, 16);
+  const portRoles = Object.fromEntries(
+    main.filter(({ subject }) => subject.kind === "port").map((row) => [row.role, row]),
   );
-  assert.deepEqual(main[1]?.withdrawn_image_ids, ["goneshot"]);
-  assert.deepEqual(main[2]?.admitted_image_ids, ["catalogheader"]);
-  assert.deepEqual(main[2]?.provider_game_ids, [20, 21]);
+  assert.equal(portRoles.header?.state, "missing");
+  assert.equal(portRoles.key_art?.state, "unknown");
+  assert.equal(portRoles.screenshot?.state, "withdrawn");
+  assert.deepEqual(portRoles.screenshot?.withdrawn_image_ids, ["goneshot"]);
+  assert.equal(portRoles.logo?.state, "admitted");
+  assert.deepEqual(portRoles.logo?.admitted_catalog_asset_ids, ["maintained-logo"]);
+  assert.deepEqual(portRoles.logo?.admitted_image_ids, []);
+  const conflicting = main.find(
+    (row) =>
+      row.role === "header" &&
+      row.subject.kind === "original" &&
+      row.subject.source_edition_id === "one",
+  );
+  assert.equal(conflicting?.state, "conflicting");
+  assert.deepEqual(conflicting?.admitted_image_ids, ["catalogheader"]);
+  assert.deepEqual(conflicting?.provider_game_ids, [20, 21]);
   const candidate = rows.find((row) => row.port_id === "candidate" && row.role === "screenshot");
   assert.equal(candidate?.state, "proposed");
   assert.deepEqual(candidate?.proposed_image_ids, ["proposedshot"]);
@@ -681,5 +699,15 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
     sceneCoverage(accepted, preparation, ["retained-listing"]),
     rows.filter((row) => row.port_id === "retained-listing"),
   );
-  assert.equal(sceneCoverage(accepted, { ...preparation, records: [] })[2]?.state, "admitted");
+  const unobserved = sceneCoverage(accepted, { ...preparation, records: [] });
+  assert.equal(
+    unobserved.find(
+      (row) =>
+        row.port_id === "main-port" &&
+        row.role === "header" &&
+        row.subject.kind === "original" &&
+        row.subject.source_edition_id === "one",
+    )?.state,
+    "admitted",
+  );
 });

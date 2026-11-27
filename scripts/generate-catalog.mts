@@ -597,6 +597,9 @@ async function prepareArtworkProposal(fullProposal = false) {
               inspector,
               identities,
               knownGoneImageIds: gone,
+              refreshPortIds: ids
+                ? refreshPortIds.filter((id) => ids.includes(id))
+                : refreshPortIds,
               ...(ids ? { selectedPortIds: ids } : {}),
             }),
         )
