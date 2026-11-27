@@ -92,6 +92,7 @@ jobs:
     outputs:
       postgres_major: ${{ steps.postgres.outputs.major }}
       backup_artifact: ${{ steps.backup.outputs.artifact }}
+      collection_resource_deferred: ${{ steps.collect.outputs.resource_deferred }}
     env:
       PORTCOVE_STEP_TIMES: ${{ github.workspace }}/work/maintenance-evidence/step-times.tsv
       PORTCOVE_MAINTENANCE_RUNNER: github-actions-ubuntu-latest
@@ -228,6 +229,7 @@ jobs:
             --targets --reassess changed "${sources[@]}" \
             > work/maintenance-evidence/collect.json || rc=$?
           if [[ "$rc" == 75 ]]; then
+            echo resource_deferred=true >> "$GITHUB_OUTPUT"
             echo 'Collection deferred. The next scheduled run retries collection at the current source revision.' >> "$GITHUB_STEP_SUMMARY"
           elif [[ "$rc" != 0 ]]; then
             exit "$rc"
@@ -681,6 +683,7 @@ jobs:
           command -v psql || sudo apt-get install -y --no-install-recommends postgresql-client
           mkdir -p work/discovery-worker
       - name: Prepare optional discovery seed from the existing verified recovery
+        if: needs.collect.outputs.collection_resource_deferred != 'true'
         continue-on-error: true
         timeout-minutes: 12
         env:
@@ -714,6 +717,9 @@ jobs:
             echo "PORTCOVE_POSTGRES_BIN=$client"
             echo "PORTCOVE_DISCOVERY_SEED_URL=$PORTCOVE_DISCOVERY_SEED_URL"
           } >> "$GITHUB_ENV"
+      - name: Record skipped discovery seed after resource deferral
+        if: needs.collect.outputs.collection_resource_deferred == 'true'
+        run: echo 'Earlier resource deferral skipped optional recovery seed preparation. Discovery still checks its own allowance.' >> "$GITHUB_STEP_SUMMARY"
       - name: Collect discovery sources without a terminal or model
         id: discover
         # The worker stops collecting before this deadline to commit its final state.
