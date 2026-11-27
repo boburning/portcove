@@ -1221,7 +1221,11 @@ void test(
   { skip: server.skip ?? false, timeout: 240_000 },
   async (context) => {
     const fixture = postgresFixture(context, server.directory!);
-    const source = fixture.start("admitted-source").owner;
+    const evidence = path.join(fixture.root, "resource.jsonl");
+    const source = {
+      ...fixture.start("admitted-source").owner,
+      PORTCOVE_MAINTENANCE_RESOURCE_EVIDENCE: evidence,
+    };
     // Distinct socket paths keep scratch SQL outside the measured source envelope.
     const scratch = postgresFixture(context, server.directory!);
     const prefixDatabase = scratch.start("prefix").owner;
@@ -1314,10 +1318,12 @@ void test(
     assert.ok(rows[1]!.estimate! > 0);
 
     let calls = 0;
+    let received = 0;
     await assert.rejects(
       retryBackupAdmission((bytes) =>
         runAdmittedMaintenance(source, reserve("uncertain", bytes), () => {
           calls++;
+          received = Buffer.byteLength(runSql(source, "SELECT repeat('x', 4096);"));
           throw new Error("uncertain export");
         }),
       ),
@@ -1327,6 +1333,25 @@ void test(
     assert.deepEqual(
       ledger("uncertain").map(({ outcome, estimate }) => ({ outcome, estimate })),
       [{ outcome: "failed", estimate: null }],
+    );
+
+    assert.ok(received >= 4096);
+    const receipts = readFileSync(evidence, "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const uncertainty = receipts.find(({ request }) => request === "uncertain");
+    assert.equal(uncertainty?.captured_command_stdout_bytes, received);
+    assert.equal(uncertainty?.operation_reservation_bytes, ledger("uncertain")[0]!.reserved);
+    assert.equal(uncertainty?.settlement_basis, "full-reservation");
+    assert.equal(uncertainty?.estimate_bytes, null);
+    const recoveryReceipts = receipts.filter(({ request }) => request === "real-recovery");
+    assert.deepEqual(
+      recoveryReceipts.map(({ settlement_basis, estimate_bytes }) => [
+        settlement_basis,
+        estimate_bytes,
+      ]),
+      rows.map(({ estimate }) => ["estimate-eligible", estimate]),
     );
 
     // Leave enough for an ordinary reservation, but not for its measured larger retry.

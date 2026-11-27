@@ -660,6 +660,10 @@ export async function runAdmittedMaintenance<T>(
       outcome,
       attempt_id: admission.attempt_id,
       estimate_bytes: estimate ?? null,
+      operation_reservation_bytes: admission.operation_reservation_bytes,
+      captured_command_stdout_bytes: measurement.payloadBytes,
+      settlement_basis:
+        estimate === undefined || outcome === "failed" ? "full-reservation" : "estimate-eligible",
       method:
         estimate === undefined
           ? "reservation; command bytes unknown"
