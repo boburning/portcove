@@ -10,7 +10,11 @@ import {
   catalogSemanticReview,
   type ReviewedGameAssignment,
 } from "./catalog-game-identity.mts";
-import { readCatalogSource, type AuthoredPort } from "./catalog-authoring.mts";
+import {
+  readCatalogSource,
+  type AuthoredListing,
+  type AuthoredPort,
+} from "./catalog-authoring.mts";
 
 const game = (id = "original-game") => ({
   format_version: 1 as const,
@@ -39,7 +43,10 @@ const record = (id: string, target: string, known = false): AuthoredPort => ({
 const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
 const hash = (value: Buffer) => createHash("sha256").update(value).digest("hex");
 
-function fixture(t: { after: (callback: () => void) => void }) {
+function fixture(
+  t: { after: (callback: () => void) => void },
+  originalGame: AuthoredListing["original_game"] = game(),
+) {
   const root = mkdtempSync(join(tmpdir(), "portcove-game-identity-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, "ports"));
@@ -51,6 +58,7 @@ function fixture(t: { after: (callback: () => void) => void }) {
     }),
   );
   const managed = record("alpha", "shared-target", true);
+  managed.listing.original_game = originalGame;
   managed.integration = {
     adapter: "native-portable",
     source_profile: "specific-originals",
@@ -107,6 +115,47 @@ void test("audit counts actual ports, exposes partial targets and same-title can
     1,
     "an older operational definition must not mask a corrected listing unnoticed",
   );
+});
+
+void test("directory source bindings survive projection checks across the legacy definition", (t) => {
+  const originalGame = {
+    ...game(),
+    source_editions: [
+      {
+        id: "retail",
+        title: "Original retail",
+        evidence_urls: ["https://example.org/retail"],
+        verified_sources: [
+          {
+            game_id: "source-game",
+            variant_id: "original-retail",
+            representation_id: "original-file",
+          },
+        ],
+      },
+    ],
+  };
+  const { root } = fixture(t, originalGame);
+  const report = catalogGameIdentityReport(root);
+  assert.equal(report.coverage.projection_identity_gaps, 0);
+  assert.deepEqual(report.ports[0]?.original_game, originalGame);
+
+  const fresh = readCatalogSource(root);
+  const staleEdition = fresh.directory.listings[0]!.original_game!.source_editions[0]!;
+  delete staleEdition.verified_sources;
+  writeFileSync(join(root, "listings.json"), json(fresh.directory));
+  assert.deepEqual(catalogGameIdentityReport(root).ports[0]?.projection, {
+    authored_definition: true,
+    authored_listing: true,
+    embedded_definition: true,
+    generated_listing: false,
+  });
+
+  const legacy = fresh.catalog.ports[0]!;
+  assert.ok(legacy.presentation);
+  legacy.presentation.original_game = originalGame;
+  writeFileSync(join(root, "catalog.json"), json(fresh.catalog));
+  assert.equal(catalogGameIdentityReport(root).ports[0]?.projection.embedded_definition, false);
 });
 
 void test("reviewed batch refuses all stale or invalid work before source mutation", (t) => {
