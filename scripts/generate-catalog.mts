@@ -574,6 +574,18 @@ async function prepareArtworkProposal(fullProposal = false) {
   const excludedMedia = new Set(
     heroMedia ? authored.records.filter(usesScummvmEngine).map(({ listing }) => listing.id) : [],
   );
+  const acceptedMedia = {
+    // Typed media can be present on a managed port's descriptive listing even
+    // when the strict operational catalog deliberately omits it.
+    ports: heroMedia
+      ? authored.directory.listings.map(({ id, name, project_url, original_game, media }) => ({
+          id,
+          name,
+          project_url,
+          presentation: { original_game, media },
+        }))
+      : [],
+  };
   const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
   const covers = await prepareCoverArtworkInOperations(
     input,
@@ -591,16 +603,22 @@ async function prepareArtworkProposal(fullProposal = false) {
   );
   const gameMedia =
     heroMedia === "igdb"
-      ? await prepareGameMediaInOperations(covers.catalog, selectedPortIds, (ids, catalog, gone) =>
-          prepareCatalogGameMedia(catalog, {
-            inspector,
-            identities,
-            acceptedCatalog: acceptedArtwork,
-            excludedPortIds: excludedMedia,
-            knownGoneMediaTargets: gone,
-            refreshPortIds: ids ? refreshPortIds.filter((id) => ids.includes(id)) : refreshPortIds,
-            ...(ids ? { selectedPortIds: ids } : {}),
-          }),
+      ? await prepareGameMediaInOperations(
+          covers.catalog,
+          selectedPortIds,
+          (ids, catalog, gone, cleared) =>
+            prepareCatalogGameMedia(catalog, {
+              inspector,
+              identities,
+              acceptedCatalog: acceptedMedia,
+              excludedPortIds: excludedMedia,
+              explicitClearPortIds: cleared,
+              knownGoneMediaTargets: gone,
+              refreshPortIds: ids
+                ? refreshPortIds.filter((id) => ids.includes(id))
+                : refreshPortIds,
+              ...(ids ? { selectedPortIds: ids } : {}),
+            }),
         )
       : undefined;
   const result = { ...covers, catalog: gameMedia?.catalog ?? covers.catalog };
@@ -652,7 +670,7 @@ async function prepareArtworkProposal(fullProposal = false) {
           game_media: {
             records: gameMedia.records,
             gone_media_targets: gameMedia.gone_media_targets,
-            coverage: sceneCoverage(acceptedArtwork, gameMedia, selectedPortIds),
+            coverage: sceneCoverage(acceptedMedia, gameMedia, selectedPortIds),
           },
         }
       : {}),

@@ -1,6 +1,7 @@
 import { readIgdbCredentials, resolveIgdbCredentialsFile } from "./maintainer-config.mts";
 import type { ReadableStreamReadResult } from "node:stream/web";
 import { isRecord, errorCode } from "./runtime-values.mts";
+import { originalEditionMediaKey } from "./shared-original-media.mts";
 import {
   hashPattern,
   imagePattern,
@@ -1634,11 +1635,12 @@ function originalMediaScopes(port: ArtworkPort) {
     return [];
   const gameId = original.id;
   return (original.source_editions as unknown[]).flatMap((edition) => {
-    if (!isRecord(edition) || typeof edition.id !== "string" || typeof edition.system !== "string")
-      return [];
+    if (!isRecord(edition) || typeof edition.id !== "string") return [];
+    const key = originalEditionMediaKey(gameId, edition);
+    if (!key) return [];
     return [
       {
-        key: JSON.stringify([gameId, edition.id, edition.system]),
+        key,
         subject: { kind: "original" as const, game_id: gameId, source_edition_id: edition.id },
       },
     ];
@@ -1680,10 +1682,28 @@ function acceptedHeroMediaMatches(
   return matches;
 }
 
+function retainedDirectoryMedia(port: ArtworkPort, accepted: ArtworkPort | undefined) {
+  const media = accepted?.presentation?.media;
+  if (!accepted || !Array.isArray(media)) return [];
+  const offered = new Set(originalMediaScopes(port).map(({ key }) => key));
+  const applicable = originalMediaScopes(accepted).filter(({ key }) => offered.has(key));
+  return (media as unknown[]).filter((asset) => {
+    if (!isRecord(asset) || !isRecord(asset.subject)) return false;
+    if (asset.subject.kind === "port")
+      return (
+        typeof port.project_url === "string" &&
+        port.project_url === accepted.project_url &&
+        asset.subject.port_id === port.id
+      );
+    return applicable.some(({ subject }) => sameMediaSubject(asset.subject, subject));
+  });
+}
+
 function declaredHeroMediaIdentities(
   port: ArtworkPort,
   input: unknown,
   accepted: ReturnType<typeof acceptedHeroMediaMatches>,
+  cleared: boolean,
 ): HeroIdentity[] {
   const value = isRecord(input) ? input[port.id] : undefined;
   const supplied: Record<string, unknown> = isRecord(value) ? value : {};
@@ -1725,11 +1745,7 @@ function declaredHeroMediaIdentities(
           : undefined,
     });
   }
-  const authoredMedia = port.presentation?.media;
-  if (
-    (!isRecord(underlying) || underlying.source_edition_id === undefined) &&
-    (!Array.isArray(authoredMedia) || authoredMedia.length > 0)
-  ) {
+  if (!cleared && (!isRecord(underlying) || underlying.source_edition_id === undefined)) {
     // Only accepted typed media establishes this alternate admission path. An
     // edition offered by the catalog does not imply a player's selected edition.
     for (const { key, subject } of originalMediaScopes(port)) {
@@ -1821,8 +1837,14 @@ function heroAssetProposal(
   const { caption, variant, kind } = gameMediaRoles[role];
   const foregroundNeutral =
     role === "logo" || role === "key_art" ? identity.foregroundNeutral : undefined;
+  const providerId = `igdb-${role.replaceAll("_", "-")}-${identity.subject.kind}-${candidate.id}`;
+  // The provider can serve one image for multiple accepted original editions.
+  // Catalog IDs distinguish their separate applicability on a single listing.
+  const id = identity.acceptedExact
+    ? `${providerId}-${createHash("sha256").update(JSON.stringify(identity.subject)).digest("hex")}`
+    : providerId;
   return {
-    id: `igdb-${role.replaceAll("_", "-")}-${identity.subject.kind}-${candidate.id}`,
+    id,
     role,
     subject: identity.subject,
     ...(foregroundNeutral === undefined ? {} : { edition_neutral: foregroundNeutral }),
@@ -1885,6 +1907,7 @@ async function inspectHeroRole(
   role: GameMediaRole,
   identity: HeroIdentity,
   media: unknown[],
+  directoryMedia: unknown[],
   context: HeroPreparationContext,
 ) {
   const inventoryRole = role === "header" ? "key_art" : role;
@@ -1924,8 +1947,9 @@ async function inspectHeroRole(
       if (role === "header" && image.width * 2 < image.height * 3) continue;
       const asset = heroAssetProposal(candidate, game, role, identity, image);
       if (
-        (role === "header" || role === "screenshot") &&
-        media.some((existing) => isRecord(existing) && existing.id === asset.id)
+        [...media, ...directoryMedia].some(
+          (existing) => isRecord(existing) && existing.id === asset.id,
+        )
       )
         continue;
       return { asset, reason: "role-selected", withdrawn };
@@ -1955,6 +1979,7 @@ function upsertHeroMedia(media: unknown[], asset: CatalogMediaAsset) {
 async function refreshRetainedHeroMedia(
   port: ArtworkPort,
   media: unknown[],
+  directoryMedia: unknown[],
   records: HeroMediaRecord[],
   context: HeroPreparationContext,
 ) {
@@ -1966,7 +1991,7 @@ async function refreshRetainedHeroMedia(
         )
       : [],
   );
-  for (const asset of [...media]) {
+  for (const asset of [...media, ...directoryMedia]) {
     if (
       !isRecord(asset) ||
       !isRecord(asset.subject) ||
@@ -2034,12 +2059,13 @@ async function prepareHeroIdentity(
   portId: string,
   identity: HeroIdentity,
   media: unknown[],
+  directoryMedia: unknown[],
   records: HeroMediaRecord[],
   context: HeroPreparationContext,
 ) {
   let identified: Awaited<ReturnType<typeof inspectHeroIdentity>> | undefined;
   for (const role of catalogGameMediaRoles) {
-    const existing = media.filter(
+    const existing = [...media, ...directoryMedia].filter(
       (asset): asset is Record<string, unknown> =>
         isRecord(asset) &&
         asset.role === role &&
@@ -2067,7 +2093,14 @@ async function prepareHeroIdentity(
       continue;
     }
     try {
-      const selected = await inspectHeroRole(identified.game, role, identity, media, context);
+      const selected = await inspectHeroRole(
+        identified.game,
+        role,
+        identity,
+        media,
+        directoryMedia,
+        context,
+      );
       if (selected.asset) upsertHeroMedia(media, selected.asset);
       records.push({
         port_id: portId,
@@ -2158,6 +2191,7 @@ export async function prepareCatalogGameMedia(
     identities?: unknown;
     acceptedCatalog?: ArtworkCatalog;
     excludedPortIds?: ReadonlySet<string>;
+    explicitClearPortIds?: ReadonlySet<string>;
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     knownGoneMediaTargets?: readonly string[];
@@ -2194,6 +2228,7 @@ export async function prepareCatalogGameMedia(
   const result = structuredClone(catalog);
   const excluded = options.excludedPortIds ?? new Set<string>();
   const accepted = acceptedHeroMediaMatches(options.acceptedCatalog, excluded);
+  const acceptedPorts = new Map(options.acceptedCatalog?.ports.map((port) => [port.id, port]));
   const records: HeroMediaRecord[] = [];
   const context: HeroPreparationContext = {
     inspector: options.inspector,
@@ -2207,10 +2242,16 @@ export async function prepareCatalogGameMedia(
     if (!selected.includes(port.id) || excluded.has(port.id)) continue;
     options.signal?.throwIfAborted();
     const current = port.presentation?.media;
+    const cleared =
+      options.explicitClearPortIds?.has(port.id) ?? (Array.isArray(current) && !current.length);
     const media: unknown[] = Array.isArray(current) ? structuredClone(current as unknown[]) : [];
-    if (refresh.has(port.id)) await refreshRetainedHeroMedia(port, media, records, context);
-    for (const identity of declaredHeroMediaIdentities(port, options.identities, accepted))
-      await prepareHeroIdentity(port.id, identity, media, records, context);
+    const directoryMedia = Array.isArray(current)
+      ? []
+      : retainedDirectoryMedia(port, acceptedPorts.get(port.id));
+    if (refresh.has(port.id))
+      await refreshRetainedHeroMedia(port, media, directoryMedia, records, context);
+    for (const identity of declaredHeroMediaIdentities(port, options.identities, accepted, cleared))
+      await prepareHeroIdentity(port.id, identity, media, directoryMedia, records, context);
     if (media.length || Array.isArray(current)) port.presentation = { ...port.presentation, media };
   }
   removeWithdrawnCatalogMedia(result, records, context.goneImages, excluded);

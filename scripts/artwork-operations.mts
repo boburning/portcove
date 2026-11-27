@@ -6,6 +6,7 @@ import {
 } from "./inspect-igdb-artwork.mts";
 import { hashPattern, imagePattern, matchesString, positiveId } from "./catalog-cover-mapping.mts";
 import { isRecord } from "./runtime-values.mts";
+import { originalEditionMediaKey } from "./shared-original-media.mts";
 import type { CatalogMediaSubject } from "../apps/desktop/src/transport-types.generated.d.ts";
 import type {
   ArtworkCatalog,
@@ -107,16 +108,24 @@ export async function prepareGameMediaInOperations(
     ids: readonly string[] | undefined,
     catalog: ArtworkCatalog,
     gone: string[],
+    cleared: ReadonlySet<string>,
   ) => Promise<GameMediaPreparation>,
 ): Promise<GameMediaPreparation> {
   const ids = selectedPortIds ?? catalog.ports.map((port) => port.id);
-  if (ids.length <= ARTWORK_OPERATION_PORTS) return operation(selectedPortIds, catalog, []);
+  const cleared = new Set(
+    catalog.ports.flatMap(({ id, presentation }) =>
+      Array.isArray(presentation?.media) && !presentation.media.length ? [id] : [],
+    ),
+  );
+  if (ids.length <= ARTWORK_OPERATION_PORTS)
+    return operation(selectedPortIds, catalog, [], cleared);
   let media: GameMediaPreparation = { catalog, records: [], gone_media_targets: [] };
   for (let start = 0; start < ids.length; start += ARTWORK_OPERATION_PORTS) {
     const next = await operation(
       ids.slice(start, start + ARTWORK_OPERATION_PORTS),
       media.catalog,
       media.gone_media_targets,
+      cleared,
     );
     media = { ...next, records: [...media.records, ...next.records] };
   }
@@ -159,6 +168,24 @@ function sceneRole(value: unknown): value is SceneRole {
   return catalogGameMediaRoles.some((role) => role === value);
 }
 
+function providerScope(
+  port: ArtworkPort | undefined,
+  subject: CatalogMediaSubject,
+  role: SceneRole,
+) {
+  const local = scopeKey(subject, role);
+  if (subject.kind === "port") return local;
+  const original = port?.presentation?.original_game;
+  const edition =
+    isRecord(original) && original.id === subject.game_id && Array.isArray(original.source_editions)
+      ? (original.source_editions as unknown[]).find(
+          (item) => isRecord(item) && item.id === subject.source_edition_id,
+        )
+      : undefined;
+  const key = originalEditionMediaKey(subject.game_id, edition);
+  return JSON.stringify([key ? "edition" : "local", key ?? port?.id, local]);
+}
+
 /** Inventory reviewed catalog rows and bounded provider observations independently of publication. */
 export function sceneCoverage(
   accepted: ArtworkCatalog,
@@ -176,9 +203,8 @@ export function sceneCoverage(
   type Observation = GameMediaPreparation["records"][number];
   const byPort = new Map<string, Observation[]>();
   const providerGames = new Map<string, Set<number>>();
-  const recordGame = (subject: CatalogMediaSubject, role: SceneRole, gameId: unknown) => {
+  const recordGame = (key: string, gameId: unknown) => {
     if (!positiveId(gameId)) return;
-    const key = scopeKey(subject, role);
     const ids = providerGames.get(key) ?? new Set<number>();
     ids.add(gameId);
     providerGames.set(key, ids);
@@ -188,7 +214,10 @@ export function sceneCoverage(
     const observations = byPort.get(observation.port_id) ?? [];
     observations.push(observation);
     byPort.set(observation.port_id, observations);
-    recordGame(observation.subject, observation.role, observation.provider_game_id);
+    recordGame(
+      providerScope(proposedPorts.get(observation.port_id), observation.subject, observation.role),
+      observation.provider_game_id,
+    );
   }
   const inventory = (catalog: ArtworkCatalog) =>
     new Map(
@@ -209,6 +238,7 @@ export function sceneCoverage(
               subject,
               role: asset.role,
               scope: scopeKey(subject, asset.role),
+              providerScope: providerScope(port, subject, asset.role),
               imageId,
               catalogId,
               sha256: asset.sha256,
@@ -223,7 +253,7 @@ export function sceneCoverage(
   for (const entries of [...acceptedMedia.values(), ...proposedMedia.values()]) {
     for (const entry of entries) {
       if (!entry.imageId || !gone.has(gameMediaImageTarget(entry.role, entry.imageId)))
-        recordGame(entry.subject, entry.role, entry.gameId);
+        recordGame(entry.providerScope, entry.gameId);
     }
   }
   return ports
@@ -295,7 +325,9 @@ export function sceneCoverage(
               ),
             ]),
           ];
-          const knownGames = providerGames.get(key) ?? new Set<number>();
+          const knownGames =
+            providerGames.get(providerScope(proposedPorts.get(port.id) ?? port, subject, role)) ??
+            new Set<number>();
           const reasons = [...new Set(observed.map(({ reason }) => reason))].sort();
           if (!reasons.length)
             reasons.push(

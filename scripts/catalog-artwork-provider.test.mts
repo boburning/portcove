@@ -712,6 +712,30 @@ void test("reviewed media discovers missing roles by exact game, edition and sys
     assert.equal(asset.edition_neutral, undefined);
   }
   assert.deepEqual(result.catalog.ports.slice(2), [otherEdition, otherSystem, excluded]);
+  const secondEdition = { id: "game-2003", system: "playstation-2" };
+  const multiEdition = port("both-releases");
+  multiEdition.presentation.original_game.source_editions.push(secondEdition);
+  const secondDonor = port("second-edition-donor", secondEdition.id, secondEdition.system, [
+    {
+      ...artwork(7, "reviewed-game"),
+      subject: { ...subject, source_edition_id: secondEdition.id },
+    },
+  ]);
+  const multi = await prepareCatalogGameMedia(
+    { ports: [multiEdition] },
+    {
+      acceptedCatalog: { ports: [donor, secondDonor] },
+      inspector,
+    },
+  );
+  const assets = multi.catalog.ports[0]?.presentation?.media;
+  assert.ok(Array.isArray(assets));
+  assert.equal(assets.length, 2);
+  assert.deepEqual(
+    assets.map(({ subject: scope }) => scope.source_edition_id),
+    ["game-2002", "game-2003"],
+  );
+  assert.equal(new Set(assets.map(({ id }) => id)).size, 2);
   const conflict = port("conflicting-donor", undefined, undefined, [artwork(8, "another-game")]);
   seedReads.length = 0;
   const held = await prepareCatalogGameMedia(
@@ -750,6 +774,49 @@ void test("reviewed media discovers missing roles by exact game, edition and sys
   assert.deepEqual(seedReads, [7]);
   assert.ok(
     corrected.records.some((record) => record.role === "logo" && record.reason === "role-selected"),
+  );
+  const windowsDonor = port("windows-donor", undefined, "windows", [artwork(8, "windows-game")]);
+  const systemScoped = await prepareCatalogGameMedia(
+    { ports: [recipient, otherSystem] },
+    {
+      acceptedCatalog: { ports: [donor, windowsDonor] },
+      inspector: {
+        ...inspector,
+        async inspectGame(identity) {
+          if (isRecord(identity) && identity.game_id === 8)
+            return [{ id: 8, slug: "windows-game", name: "Windows port" }];
+          return inspector.inspectGame(identity);
+        },
+        async inspectGameMedia(id, role) {
+          return role === "logo" ? [{ id: 10, game: id, image_id: `logo${id}` }] : [];
+        },
+      },
+    },
+  );
+  const scopedRoles = sceneCoverage(
+    { ports: [donor, windowsDonor, recipient, otherSystem] },
+    systemScoped,
+    [recipient.id, otherSystem.id],
+  );
+  assert.deepEqual(
+    scopedRoles
+      .filter((row) => row.subject.kind === "original" && row.role === "logo")
+      .map((row) => [row.port_id, row.state, row.provider_game_ids]),
+    [
+      [recipient.id, "proposed", [7]],
+      [otherSystem.id, "proposed", [8]],
+    ],
+  );
+  const afterWithdrawal = await prepareCatalogGameMedia(
+    { ports: [excluded] },
+    {
+      acceptedCatalog: { ports: [donor] },
+      explicitClearPortIds: new Set(),
+      inspector,
+    },
+  );
+  assert.ok(
+    afterWithdrawal.records.some((row) => row.role === "logo" && row.reason === "role-selected"),
   );
 });
 

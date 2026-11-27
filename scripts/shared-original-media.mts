@@ -7,6 +7,11 @@ type Role = keyof typeof limits;
 type Asset = Record<string, unknown> & { id: string; role: Role };
 type Claim = { asset: Asset; digest: string };
 
+export function originalEditionMediaKey(gameId: string, edition: unknown) {
+  if (isRecord(edition) && typeof edition.id === "string" && typeof edition.system === "string")
+    return JSON.stringify([gameId, edition.id, edition.system]);
+}
+
 function sharedAsset(value: unknown, game: AuthoredListing["original_game"]) {
   if (
     !game ||
@@ -20,13 +25,11 @@ function sharedAsset(value: unknown, game: AuthoredListing["original_game"]) {
     value.subject.game_id !== game.id
   )
     return undefined;
-  const edition = value.subject.source_edition_id;
-  if (typeof edition !== "string" || !game.source_editions.some(({ id }) => id === edition))
-    return undefined;
-  return { asset: value as Asset, game: game.id, edition };
+  const editionId = value.subject.source_edition_id;
+  const edition = game.source_editions.find(({ id }) => id === editionId);
+  const key = originalEditionMediaKey(game.id, edition);
+  return key ? { asset: value as Asset, key } : undefined;
 }
-
-const scopeKey = (game: string, edition: string) => JSON.stringify([game, edition]);
 
 function recordClaim(claims: Map<string, Claim | null>, key: string, claim: Claim | null) {
   const previous = claims.get(key);
@@ -48,7 +51,7 @@ export function sharedOriginalMedia<
     for (const candidate of listing.media as unknown[]) {
       const item = sharedAsset(candidate, listing.original_game);
       if (!item) continue;
-      const key = scopeKey(item.game, item.edition);
+      const { key } = item;
       const scope = scopes.get(key) ?? {
         roles: new Map<string, Claim | null>(),
         ids: new Map<string, Claim | null>(),
@@ -72,7 +75,8 @@ export function sharedOriginalMedia<
     const claims = new Map<string, Claim | null>();
     const candidates: Claim[] = [];
     for (const edition of game.source_editions) {
-      const scope = scopes.get(scopeKey(game.id, edition.id));
+      const key = originalEditionMediaKey(game.id, edition);
+      const scope = key && scopes.get(key);
       if (!scope) continue;
       for (const [id, claim] of scope.ids) {
         recordClaim(claims, id, claim);
