@@ -343,6 +343,36 @@ describe("disposable artwork display cache", () => {
     expect(cache.read("sample", "cover").image).toMatch(/^data:image\/png;base64,/);
   });
 
+  it("withholds old choices while reconciling a committed revision and accepts a later read", async () => {
+    let finish!: (value: ArtworkState) => void;
+    const older = artworkState("sample", "cover", 1, true);
+    const later = artworkState("sample", "cover", 3, true);
+    const read = vi
+      .spyOn(desktopApi, "artwork")
+      .mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
+      .mockResolvedValueOnce(older)
+      .mockResolvedValueOnce(later);
+    const thumbnails = vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "a".repeat(64),
+      choice_revision: 3,
+      png_base64: "iVBORw==",
+    });
+    const cache = new ArtworkCache(7);
+    const initial = cache.load("sample", "cover");
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+    const reconciliation = cache.refreshAfterChange("sample", "cover", () => true, 2);
+    finish(older);
+    await Promise.all([initial, reconciliation]);
+    expect(cache.read("sample", "cover").state).toBeUndefined();
+    expect(cache.read("sample", "cover").error).toContain("Refresh artwork");
+    expect(thumbnails).not.toHaveBeenCalled();
+
+    await cache.load("sample", "cover", true);
+    expect(cache.read("sample", "cover").state).toBe(later);
+    expect(cache.read("sample", "cover").image).toMatch(/^data:image\/png;base64,/);
+    expect(read).toHaveBeenCalledTimes(3);
+  });
+
   it("does not reconcile a cache that loses its current view while an earlier read is pending", async () => {
     let finish!: (value: ArtworkState) => void;
     let interested = true;
@@ -795,6 +825,30 @@ describe("disposable artwork display cache", () => {
     });
     await refresh;
     expect(cache.read("sample", "cover").image).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it("returns the committed choice before an independent local thumbnail finishes", async () => {
+    let finish!: (value: DesktopArtworkThumbnail) => void;
+    const selected = artworkState("sample", "cover", 1, true);
+    const change = vi.spyOn(desktopApi, "importArtwork").mockResolvedValue(selected);
+    const thumbnails = vi.spyOn(desktopApi, "artworkThumbnail").mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const cache = new ArtworkCache(7);
+    await expect(cache.change("sample", "cover", 0, "owned.png", () => true)).resolves.toBe(
+      selected,
+    );
+    expect(cache.read("sample", "cover")).toMatchObject({ state: selected, loading: true });
+    expect(cache.read("sample", "cover").image).toBeUndefined();
+    expect(change).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(thumbnails).toHaveBeenCalledTimes(1));
+
+    finish({ asset_sha256: "a".repeat(64), choice_revision: 1, png_base64: "iVBORw==" });
+    await vi.waitFor(() =>
+      expect(cache.read("sample", "cover").image).toMatch(/^data:image\/png;base64,/),
+    );
   });
 
   it("keeps a successful selection when thumbnail loading fails and refreshes missing originals", async () => {
