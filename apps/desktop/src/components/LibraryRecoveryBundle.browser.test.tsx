@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
+import { controlledAct } from "../../test/controlled-react-act";
 import { desktopApi } from "../api";
 import { BootstrapRecovery } from "../App";
 import type { LibraryRecoveryBundle, LibraryRecoveryBundlePlan, OperationEvent } from "../types";
@@ -72,9 +73,14 @@ const longReview = {
 it.each([1280, 320])(
   "keeps recovery actions in view beside scrollable details at %ipx",
   async (width) => {
+    const create = vi.spyOn(desktopApi, "createLibraryRecoveryBundle");
     await page.viewport(width, 500);
     const { dialog } = await openCreationReview(undefined, longReview);
     const review = dialog.getByRole("region", { name: "Creation review" });
+    const heading = review.getByRole("heading", { name: "Review what Portcove will copy" });
+    await expect.element(heading).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    expect(create).not.toHaveBeenCalled();
     await expect.element(review.getByText(longReview.source_root)).toBeVisible();
     const action = dialog.getByRole("button", { name: "Copy and verify" }).element();
     const close = dialog.getByRole("button", { name: "Close", exact: true }).element();
@@ -83,6 +89,9 @@ it.each([1280, 320])(
     expect(details.scrollHeight).toBeGreaterThan(details.clientHeight);
     expect(details.scrollWidth).toBeLessThanOrEqual(details.clientWidth);
     const detailsBottom = details.getBoundingClientRect().bottom;
+    const headingBounds = heading.element().getBoundingClientRect();
+    expect(headingBounds.top).toBeGreaterThanOrEqual(details.getBoundingClientRect().top);
+    expect(headingBounds.bottom).toBeLessThanOrEqual(detailsBottom);
     const panelBottom = dialog.element().getBoundingClientRect().bottom;
     expect(close.getBoundingClientRect().top).toBeGreaterThanOrEqual(detailsBottom);
     expect(action.getBoundingClientRect().top).toBeGreaterThanOrEqual(detailsBottom);
@@ -100,6 +109,33 @@ it.each([1280, 320])(
     expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(500);
   },
 );
+
+it("keeps the player's new focus when a pending recovery review completes", async () => {
+  let finish!: (result: LibraryRecoveryBundlePlan) => void;
+  const pending = new Promise<LibraryRecoveryBundlePlan>((resolve) => {
+    finish = resolve;
+  });
+  vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockReturnValue(pending);
+  await render(
+    <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />,
+  );
+  await page.getByRole("button", { name: "Create recovery bundle", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Create recovery bundle" });
+  await dialog.getByRole("textbox", { name: "New bundle folder" }).fill(destination);
+  await dialog.getByRole("button", { name: "Review bundle creation" }).click();
+  await expect.element(dialog.getByText("Checking library coverage…")).toBeVisible();
+  const details = dialog.getByRole("region", { name: "Recovery details" });
+  (details.element() as HTMLElement).focus();
+  await expect.element(details).toHaveFocus();
+  await controlledAct(async () => {
+    finish(plan);
+    await pending;
+  });
+  await expect
+    .element(dialog.getByRole("heading", { name: "Review what Portcove will copy" }))
+    .toBeVisible();
+  await expect.element(details).toHaveFocus();
+});
 
 it("keeps recovery actions reachable through whole-dialog scrolling in a short window", async () => {
   await page.viewport(320, 300);
@@ -360,6 +396,7 @@ it.for([
 });
 
 it("explains an occupied restore destination and keeps the verified bundle for a fresh review", async () => {
+  await page.viewport(320, 500);
   const occupied = "D:/occupied";
   const message = "import requires a new or empty library; existing data was retained";
   const summary =
@@ -419,6 +456,16 @@ it("explains an occupied restore destination and keeps the verified bundle for a
   await expect.element(alert).not.toBeInTheDocument();
   await check.click();
   await expect.element(dialog.getByRole("region", { name: "Restore review" })).toBeVisible();
+  const heading = dialog.getByRole("heading", { name: "Review the restore destination" });
+  await expect.element(heading).toHaveFocus();
+  const details = dialog.getByRole("region", { name: "Recovery details" }).element();
+  const headingBounds = heading.element().getBoundingClientRect();
+  expect(headingBounds.top).toBeGreaterThanOrEqual(details.getBoundingClientRect().top);
+  expect(headingBounds.bottom).toBeLessThanOrEqual(details.getBoundingClientRect().bottom);
+  await page.screenshot({
+    path: "../../../../outputs/recovery-review/restore-320x500.png",
+    element: dialog,
+  });
   expect(review.mock.calls).toEqual([
     [destination, occupied, 7],
     [destination, restoreDestination, 7],
