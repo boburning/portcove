@@ -390,7 +390,7 @@ export async function readHostedScheduledGameMedia(
     throw new Error("Scheduled media proposal has no canonical producer directory");
   return {
     proposal,
-    producerListings: producer.listings as Record<string, unknown>[],
+    producerListings: producer.listings,
     artifact: artifact.digest,
   };
 }

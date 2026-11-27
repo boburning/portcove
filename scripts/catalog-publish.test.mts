@@ -2011,6 +2011,47 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
   assert.equal(gone.providerMetrics.image_requests, 1);
   assert.equal(observation.withdrawn.size, 1);
   assert.deepEqual(observation.proposal?.additions, []);
+  const art = {
+    ...asset,
+    id: "auto-igdb-existing",
+    role: "key_art" as const,
+    caption: "Game key art",
+    url: "https://images.igdb.com/igdb/image/upload/t_720p/sample.png",
+    igdb: { ...asset.igdb, kind: "artwork" as const },
+  };
+  const header = {
+    ...art,
+    id: "igdb-header-original-90",
+    role: "header" as const,
+    caption: "Game background",
+  };
+  const incorrect = { ...header, width: 350 };
+  let requests = 0;
+  const validated = await observeScheduledGameMedia(
+    [{ ...donor, media: [art] }],
+    {
+      ...emitted,
+      additions: [
+        { id: donor.id, asset: header },
+        { id: donor.id, asset: incorrect },
+      ],
+    },
+    async () => {
+      requests++;
+      return {
+        width: 400,
+        height: 200,
+        bytes: 4,
+        sha256: asset.sha256,
+        format: "png",
+        validator: "portcove-core",
+      };
+    },
+    Date.now(),
+    [header],
+  );
+  assert.equal(requests, 1);
+  assert.deepEqual(validated.proposal?.additions, [{ id: donor.id, asset: header }]);
   assert.deepEqual(
     scheduledGameMediaDefaults(
       canonical.listings,

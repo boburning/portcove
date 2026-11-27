@@ -14,7 +14,6 @@ import {
   gameMediaRoles,
   isConfirmedIgdbImageGone,
   type createIgdbInspector,
-  type ArtworkCatalog,
   type prepareCatalogGameMedia,
 } from "./inspect-igdb-artwork.mts";
 import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
@@ -190,6 +189,10 @@ function assetKey(asset: CatalogMediaAsset) {
   return JSON.stringify([gameMediaRoles[asset.role].variant, image.image_id, asset.sha256]);
 }
 
+function approvalKey(asset: CatalogMediaAsset) {
+  return JSON.stringify([asset.role, asset.subject, assetKey(asset)]);
+}
+
 export function hasScheduledMedia(rows: readonly Listing[]) {
   return rows.some((row) =>
     media(row).some((asset) => typedAsset(asset) && asset.id.startsWith(automaticPrefix)),
@@ -203,6 +206,7 @@ export async function observeScheduledGameMedia(
   incoming: Proposal | undefined,
   inspect: ReturnType<typeof createIgdbInspector>["inspectMediaImage"],
   now: number,
+  eligible?: readonly CatalogMediaAsset[],
 ) {
   const retained = new Map<string, CatalogMediaAsset>();
   for (const row of previous)
@@ -214,7 +218,8 @@ export async function observeScheduledGameMedia(
   const offset =
     (Math.floor(now / 86_400_000) % Math.max(1, Math.ceil(keys.length / windowSize))) * windowSize;
   const withdrawn = new Set<string>();
-  const reads = new Map<string, Promise<string | null>>();
+  type Observation = Awaited<ReturnType<typeof inspect>> | "gone" | null;
+  const reads = new Map<string, Promise<Observation>>();
   function observe(asset: CatalogMediaAsset) {
     const { image_id } = asset.igdb!;
     const { variant } = gameMediaRoles[asset.role];
@@ -222,7 +227,7 @@ export async function observeScheduledGameMedia(
     const held = reads.get(target);
     if (held) return held;
     const request = inspect(image_id, asset.role).then(
-      (bytes) => bytes.sha256,
+      (bytes) => bytes,
       (error: unknown) =>
         isConfirmedIgdbImageGone(error, image_id, variant) ? ("gone" as const) : null,
     );
@@ -232,12 +237,22 @@ export async function observeScheduledGameMedia(
   for (const key of keys.slice(offset, offset + windowSize)) {
     const asset = retained.get(key)!;
     const observation = await observe(asset);
-    if (observation !== null && observation !== asset.sha256) withdrawn.add(key);
+    if (observation === "gone" || (observation !== null && observation.sha256 !== asset.sha256))
+      withdrawn.add(key);
   }
   const additions: Candidate[] = [];
+  const allowed = eligible && new Set(eligible.map(approvalKey));
   for (const candidate of incoming?.additions ?? []) {
-    const key = assetKey(candidate.asset);
-    if (!retained.has(key) && (await observe(candidate.asset)) === candidate.asset.sha256)
+    const { asset } = candidate;
+    if (allowed && !allowed.has(approvalKey(asset))) continue;
+    const observation = await observe(asset);
+    if (
+      observation &&
+      observation !== "gone" &&
+      observation.sha256 === asset.sha256 &&
+      observation.width === asset.width &&
+      observation.height === asset.height
+    )
       additions.push(candidate);
   }
   return { withdrawn, proposal: incoming && { ...incoming, additions } };
@@ -262,7 +277,7 @@ export function scheduledGameMediaDefaults(
         project_url: String(row.project_url),
         presentation: { original_game: row.original_game, media: row.media },
       })),
-    } as ArtworkCatalog,
+    },
     excluded,
   );
   const choices = new Map<
@@ -322,7 +337,8 @@ export function scheduledGameMediaDefaults(
           ? undefined
           : (decision ?? accepted.get(key));
     if (!mapping || mapping.game_id !== image.game_id || mapping.slug !== image.game_slug) return;
-    const roles = choices.get(key) ?? new Map();
+    const roles =
+      choices.get(key) ?? new Map<string, { asset: CatalogMediaAsset; retained: boolean } | null>();
     const stored = roles.get(asset.role);
     const fingerprint = [
       key,

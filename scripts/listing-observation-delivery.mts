@@ -4,7 +4,15 @@
  * and never changes again. No executable authority. */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual, parseArgs } from "node:util";
@@ -33,6 +41,11 @@ import {
   scheduledGameMediaDefaults,
 } from "./listing-scheduled-game-media.mts";
 import { createCoreImageValidator, createIgdbInspector } from "./inspect-igdb-artwork.mts";
+import {
+  openArtworkCheckpoint,
+  restoreArtworkProviderBackoff,
+  retainArtworkProviderBackoff,
+} from "./artwork-preparation-progress.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
 import {
   indexSharedCoverRows,
@@ -1134,6 +1147,8 @@ export async function prepareObservationBundle(options: {
   priorHistory?: string;
   readArtworkHealth?: typeof readHostedArtworkHealth;
   readScheduledGameMedia?: typeof readHostedScheduledGameMedia;
+  mediaProviderCheckpoint?: string;
+  deferMediaObserver?: boolean;
   sharedCoverSource?: string;
   /** Select and verify the reader from the protected Preview pointer
    * (`Catalog publish`). */
@@ -1606,9 +1621,7 @@ export async function prepareObservationBundle(options: {
       );
       if (!isRecord(current) || !Array.isArray(current.ports) || !current.ports.every(isRecord))
         throw new Error("Scheduled game media requires the maintained operational catalog");
-      const strict = new Map(
-        (current.ports as Record<string, unknown>[]).map((row) => [row.id, row]),
-      );
+      const strict = new Map(current.ports.map((row) => [row.id, row]));
       mediaDefaults = scheduledGameMediaDefaults(
         canonical.listings,
         prior,
@@ -1617,11 +1630,28 @@ export async function prepareObservationBundle(options: {
         undefined,
         { strict },
       );
-      if (options.observe !== false) {
+      if (options.observe !== false && !options.deferMediaObserver) {
         const receipt = await (options.readScheduledGameMedia ?? readHostedScheduledGameMedia)();
         if (hasScheduledMedia(prior) || receipt?.proposal.additions.length) {
+          const eligible = receipt
+            ? scheduledGameMediaDefaults(
+                canonical.listings,
+                prior,
+                source.reviewedOriginalMedia,
+                excluded,
+                receipt,
+                { strict },
+              )
+            : undefined;
+          const nextAssets =
+            eligible &&
+            canonical.listings.flatMap((row) => {
+              const retained = new Set(mediaDefaults!(row).map(({ id }) => id));
+              return eligible(row).filter(({ id }) => !retained.has(id));
+            });
           const deadline = performance.now() + 60_000;
           const validateImage = createCoreImageValidator(options.cli, workspace);
+          const checkpoint = options.mediaProviderCheckpoint;
           const inspector = createIgdbInspector(
             null,
             (bytes) => validateImage(bytes, deadline),
@@ -1629,14 +1659,26 @@ export async function prepareObservationBundle(options: {
             {
               signal: AbortSignal.timeout(60_000),
               maximumOperationImageBytes: 32 * 1024 * 1024,
+              ...(checkpoint
+                ? { onBackoff: (status) => retainArtworkProviderBackoff(checkpoint, status) }
+                : {}),
             },
           );
-          const observation = await observeScheduledGameMedia(
-            prior,
-            receipt?.proposal,
-            (id, role) => inspector.inspectMediaImage(id, role),
-            now,
-          );
+          if (checkpoint) openArtworkCheckpoint(checkpoint);
+          const observation = await (async () => {
+            try {
+              if (checkpoint) restoreArtworkProviderBackoff(checkpoint, inspector);
+              return await observeScheduledGameMedia(
+                prior,
+                receipt?.proposal,
+                (id, role) => inspector.inspectMediaImage(id, role),
+                now,
+                nextAssets,
+              );
+            } finally {
+              if (checkpoint) rmdirSync(path.join(checkpoint, "active.lock"));
+            }
+          })();
           mediaDefaults = scheduledGameMediaDefaults(
             canonical.listings,
             prior,
@@ -2083,6 +2125,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         root: path.resolve(values.root!),
         offlineTargets: path.resolve(values["offline-targets"]!),
         observe: !values.offline,
+        deferMediaObserver: process.env.PORTCOVE_SCHEDULED_MEDIA_CACHE_FAILED === "true",
+        ...(process.env.PORTCOVE_SCHEDULED_MEDIA_PROVIDER_CHECKPOINT
+          ? {
+              mediaProviderCheckpoint: path.resolve(
+                process.env.PORTCOVE_SCHEDULED_MEDIA_PROVIDER_CHECKPOINT,
+              ),
+            }
+          : {}),
         officialReleasedReader: values["official-released-reader"],
         activateCoverCheckpoint: values["activate-cover-checkpoint"],
         ...(coverApproval ? { coverApproval } : {}),
