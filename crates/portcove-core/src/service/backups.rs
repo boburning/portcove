@@ -32,7 +32,7 @@ use crate::{
 mod guarded_archive;
 mod unknown_files;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
 pub(super) use unknown_files::MAX_UNKNOWN_FILE_BYTES;
 pub(super) use unknown_files::{
     UnknownFileScope, UnknownRuntimeFile, deduplicate as deduplicate_unknown_files,
