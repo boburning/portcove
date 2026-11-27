@@ -26,6 +26,33 @@ function restoreIsAllowed(assessment: BackupInventory["restore_assessment"] | un
   );
 }
 
+type BackupReviewSelection = {
+  backup: BackupRecord;
+  action: "restore" | "delete";
+  opener: HTMLButtonElement;
+  index: number;
+};
+
+function reviewReturnAction(
+  history: HTMLDivElement | null,
+  { backup, action, opener, index }: BackupReviewSelection,
+): HTMLButtonElement | undefined {
+  if (!history?.isConnected) return undefined;
+  if (
+    opener.isConnected &&
+    !opener.disabled &&
+    (action === "delete" ||
+      opener.closest<HTMLElement>("[data-backup-sha256]")?.dataset.backupSha256 === backup.sha256)
+  )
+    return opener;
+
+  if (action !== "delete") return undefined;
+  const actions = history.querySelectorAll<HTMLButtonElement>(
+    'button[data-backup-action="delete"]:not(:disabled)',
+  );
+  return actions[Math.min(index, actions.length - 1)];
+}
+
 export function BackupHistory({
   gameName,
   embedded = false,
@@ -62,12 +89,7 @@ export function BackupHistory({
   const history = useRef<HTMLDivElement>(null);
   const retryPending = useRef(false);
   const heading = useRef<HTMLSpanElement>(null);
-  const [selection, setSelection] = useState<{
-    backup: BackupRecord;
-    action: "restore" | "delete";
-    opener: HTMLButtonElement;
-    index: number;
-  }>();
+  const [selection, setSelection] = useState<BackupReviewSelection>();
   const visible = expanded ? backups : backups.slice(0, 3);
   const showEmpty =
     backups.length === 0 &&
@@ -287,24 +309,8 @@ export function BackupHistory({
           // The primitive calls this during unmount, before React finishes removing rows.
           // Resolve from the committed DOM in the same microtask stage as return focus.
           queueMicrotask(() => {
-            const opener =
-              history.current?.isConnected &&
-              selection.opener.isConnected &&
-              !selection.opener.disabled &&
-              (selection.action === "delete" ||
-                selection.opener.closest<HTMLElement>("[data-backup-sha256]")?.dataset
-                  .backupSha256 === selection.backup.sha256)
-                ? selection.opener
-                : undefined;
-            const actions =
-              selection.action === "delete" && history.current?.isConnected
-                ? history.current.querySelectorAll<HTMLButtonElement>(
-                    `button[data-backup-action="${selection.action}"]:not(:disabled)`,
-                  )
-                : undefined;
             const target =
-              opener ??
-              actions?.[Math.min(selection.index, actions.length - 1)] ??
+              reviewReturnAction(history.current, selection) ??
               (heading.current?.isConnected ? heading.current : undefined) ??
               focusFallback?.();
             if (target?.isConnected)
