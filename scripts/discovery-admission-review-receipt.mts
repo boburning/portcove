@@ -52,12 +52,38 @@ async function reviewReader(routes: readonly string[]) {
       : downloadGitHubArtifactArchive(route, { credential, deadline, maxBytes: receiptLimit });
 }
 
-/** Evidence for a future guarded delivery step, never permission to merge. */
+async function newestRetainedReview(run: string, read?: (route: string) => Promise<unknown>) {
+  locator(`${run}/1`);
+  const route = `repos/${repository}/actions/runs/${run}/artifacts?per_page=100`;
+  const list = await (read ?? (await reviewReader([route])))(route);
+  if (
+    !isRecord(list) ||
+    !Array.isArray(list.artifacts) ||
+    list.total_count !== list.artifacts.length
+  )
+    throw new Error("Admission review artifact enumeration is incomplete.");
+  const prefix = `catalog-admission-review-${run}-`;
+  let newest = 0;
+  for (const artifact of list.artifacts as unknown[]) {
+    if (
+      !isRecord(artifact) ||
+      artifact.expired !== false ||
+      typeof artifact.name !== "string" ||
+      !artifact.name.startsWith(prefix)
+    )
+      continue;
+    const { attempt } = locator(`${run}/${artifact.name.slice(prefix.length)}`);
+    newest = Math.max(newest, attempt);
+  }
+  if (!newest) throw new Error("No retained admission review receipt was found for the run.");
+  return `${run}/${newest}`;
+}
+
+/** Bind a retained review to its exact proposal before guarded delivery. */
 export async function verifyCatalogAdmissionReview(
   request: ReviewRequest,
   read?: (route: string) => Promise<unknown>,
 ) {
-  const { run, attempt } = locator(request.review);
   const producer = locator(request.producer);
   if (
     !Number.isSafeInteger(request.pull) ||
@@ -65,6 +91,10 @@ export async function verifyCatalogAdmissionReview(
     ![request.source, request.head, request.tree].every((value) => gitSha.test(value))
   )
     throw new Error("Expected the exact admission proposal and Git identities.");
+  const reviewLocator = request.review.includes("/")
+    ? request.review
+    : await newestRetainedReview(request.review, read);
+  const { run, attempt } = locator(reviewLocator);
 
   const route = `repos/${repository}/actions/runs/${run}`;
   const attemptRoute = `${route}/attempts/${attempt}`;
@@ -183,7 +213,7 @@ export async function verifyCatalogAdmissionReview(
     throw new Error("Admission review receipt differs from the exact proposal or producer.");
   return {
     ...body,
-    review: request.review,
+    review: reviewLocator,
     controller: review.head_sha,
     artifact: artifact.id,
     digest: artifact.digest,
@@ -204,7 +234,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const { review, producer, pull, source, head, tree } = values;
   if (!review || !producer || !pull || !/^[1-9]\d*$/u.test(pull) || !source || !head || !tree)
     throw new Error(
-      "Use --review RUN/ATTEMPT --producer RUN/ATTEMPT --pull NUMBER --source SHA --head SHA --tree SHA.",
+      "Use --review RUN[/ATTEMPT] --producer RUN/ATTEMPT --pull NUMBER --source SHA --head SHA --tree SHA.",
     );
   console.log(
     JSON.stringify(

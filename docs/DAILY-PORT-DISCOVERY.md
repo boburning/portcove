@@ -1227,7 +1227,9 @@ check the composition with current `main` separately before merge. The replay
 check needs read access only.
 
 Catalog admission delivery follows successful CI on the exact App proposal.
-It verifies the independent replay receipt and reruns catalog generation in
+The workflow revision supplies the proposal writer even when the scheduled
+producer predates the review locator. The producer still supplies the replay.
+The delivery job verifies the independent receipt and runs catalog generation in
 the composition with current `main`. Only the reviewed listing additions and
 their two generated catalog files can change. The guarded merge checks the
 full CI attempt, target, tree, and closure intent. It records the resulting
@@ -1236,6 +1238,9 @@ revision after reading it back from GitHub. Enable
 protected merge path. When the flag is unset, the job retains its read-only
 proof. An older proposal without a review locator, a stale composition, or a
 missing receipt requires review in the existing admission pull request.
+If GitHub cancels a queued delivery or the result of a write is uncertain,
+rerun the exact delivery attempt to read back the proposal. The job reports a
+closed proposal separately from a merge it can locate on current `main`.
 
 Automatic scope uses a first-party declaration bound to the verified repository
 ID and the exact default-branch commit. The maintained `.recomp.json` and

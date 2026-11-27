@@ -28,6 +28,7 @@ jobs:
       commit: ${{ steps.replay.outputs.commit }}
       proposal: ${{ steps.open.outputs.proposal }}
     env:
+      CONTROLLER_SOURCE: ${{ github.workflow_sha }}
       DISCOVERY_RUN: ${{ github.event.workflow_run.id }}
       DISCOVERY_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
       DISCOVERY_SOURCE: ${{ github.event.workflow_run.head_sha }}
@@ -95,6 +96,18 @@ jobs:
             -c user.name='Portcove catalog admission' -c user.email='catalog-admission@users.noreply.github.com' \
             commit --quiet -m "feat(catalog): admit scheduled discovery listings ($DISCOVERY_RUN/$DISCOVERY_ATTEMPT)"
           echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Prepare the trusted proposal writer
+        if: steps.replay.outputs.commit != ''
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          [[ "$CONTROLLER_SOURCE" =~ ^[a-f0-9]{40}$ ]]
+          if [[ "$CONTROLLER_SOURCE" != "$DISCOVERY_SOURCE" ]]; then
+            git fetch --no-tags --depth=1 origin "$CONTROLLER_SOURCE"
+            writer="$RUNNER_TEMP/admission-writer"
+            git -c core.hooksPath=/dev/null worktree add --quiet --detach "$writer" "$CONTROLLER_SOURCE"
+            pnpm --dir "$writer" install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+          fi
       - name: Mint the App token for proposal delivery
         if: steps.replay.outputs.commit != ''
         id: app
@@ -117,8 +130,13 @@ jobs:
           [[ "$COMMIT" =~ ^[0-9a-f]{40}$ && "$APP_SLUG" == "$EXPECTED_APP" ]]
           [[ "$(git rev-parse HEAD)" == "$COMMIT" ]]
           [[ "$(git rev-parse HEAD^)" == "$DISCOVERY_SOURCE" ]]
+          writer="$PWD"
+          if [[ "$CONTROLLER_SOURCE" != "$DISCOVERY_SOURCE" ]]; then
+            writer="$RUNNER_TEMP/admission-writer"
+            [[ "$(git -C "$writer" rev-parse HEAD)" == "$CONTROLLER_SOURCE" ]]
+          fi
           branch="automation/catalog-admission-$DISCOVERY_RUN-$DISCOVERY_ATTEMPT"
-          prior=$(node scripts/discovery-admission-github.mts prior)
+          prior=$(node "$writer/scripts/discovery-admission-github.mts" prior)
           if [[ -n "$prior" ]]; then
             echo "$prior" >> "$GITHUB_STEP_SUMMARY"
             echo "proposal=$prior" >> "$GITHUB_OUTPUT"
@@ -137,7 +155,7 @@ jobs:
           else
             [[ "$existing_ref" == "$COMMIT"$'\t'"$branch_ref" ]]
           fi
-          delivered=$(node scripts/discovery-admission-github.mts deliver)
+          delivered=$(node "$writer/scripts/discovery-admission-github.mts" deliver)
           echo "$delivered" >> "$GITHUB_STEP_SUMMARY"
           echo "proposal=$delivered" >> "$GITHUB_OUTPUT"
 
