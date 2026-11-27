@@ -303,6 +303,8 @@ void test("semantic review flags candidate relationships without assigning or me
   a.listing.project_url = "https://github.com/Test/Shared.git/";
   b.listing.project_url = "https://github.com/test/shared";
   d.listing.project_url = "https://github.com/test/shared";
+  for (const member of [a, b, d])
+    member.upstream_lineage!.origin.project_url = member.listing.project_url;
   a.listing.original_game_title = "Regional A";
   b.listing.original_game_title = "Regional B";
   d.listing.original_game_title = "Regional A";
@@ -355,4 +357,70 @@ void test("semantic review flags candidate relationships without assigning or me
   assert.deepEqual(report.missing_authored_metadata.artwork, ["other-route"]);
   assert.deepEqual(records, before);
   assert.deepEqual(catalogSemanticReview([...records].reverse()), report);
+});
+
+void test("semantic review distinguishes immutable repositories from recycled paths", () => {
+  const reviewed = (port: string, address: string, repositoryId: string) => {
+    const member = record(port, port, true);
+    member.listing.project_url = "https://github.com/test/" + address;
+    member.upstream_lineage!.origin = {
+      project_url: member.listing.project_url,
+      repository: { host: "github.com", id: repositoryId },
+    };
+    return member;
+  };
+  const original = reviewed("old-address", "shared", "1021");
+  const relocated = reviewed("new-address", "renamed", "1021");
+  const recycled = reviewed("new-repository", "shared", "2042");
+  const anotherGame = reviewed("different-game", "renamed", "1021");
+  anotherGame.listing.original_game = game("different-game");
+  const legacy = record("unreviewed-path", "unreviewed-path", true);
+  legacy.listing.project_url = original.listing.project_url;
+  delete legacy.upstream_lineage;
+  const opaqueIds = [
+    reviewed("opaque-a-old", "opaque-a-old", "\u00e9"),
+    reviewed("opaque-a-new", "opaque-a-new", "\u00e9"),
+    reviewed("opaque-b-old", "opaque-b-old", "e\u0301"),
+    reviewed("opaque-b-new", "opaque-b-new", "e\u0301"),
+  ];
+  const records = [original, relocated, recycled, anotherGame, legacy, ...opaqueIds];
+  const report = catalogSemanticReview(records);
+  assert.deepEqual(catalogSemanticReview(records.toReversed()), report);
+  assert.deepEqual(report.same_game_immutable_repository, [
+    {
+      game_id: "original-game",
+      host: "github.com",
+      repository_id: "1021",
+      port_ids: ["new-address", "old-address"],
+    },
+    {
+      game_id: "original-game",
+      host: "github.com",
+      repository_id: "e\u0301",
+      port_ids: ["opaque-b-new", "opaque-b-old"],
+    },
+    {
+      game_id: "original-game",
+      host: "github.com",
+      repository_id: "\u00e9",
+      port_ids: ["opaque-a-new", "opaque-a-old"],
+    },
+  ]);
+  assert.deepEqual(report.same_game_repository, [
+    {
+      game_id: "original-game",
+      repository: "test/shared",
+      port_ids: ["new-repository", "old-address", "unreviewed-path"],
+    },
+  ]);
+  assert.deepEqual(report.same_game_reused_github_path, [
+    {
+      game_id: "original-game",
+      repository: "test/shared",
+      reviewed_ports: [
+        { port_id: "new-repository", repository_id: "2042" },
+        { port_id: "old-address", repository_id: "1021" },
+      ],
+    },
+  ]);
 });
