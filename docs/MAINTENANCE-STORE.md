@@ -1647,9 +1647,12 @@ old after matching protected table digests and sequence values. PostgreSQL compa
 retained prefix of each large append-only table under one exported snapshot.
 When a prefix matches, only newer rows cross the network. A mismatch requires
 that table's full payload to fit the admission. The schedule requests a larger
-envelope when the retained recovery point is more than 30 hours old. Beyond 54
-hours, a live meter can admit a full recovery envelope. Incomplete GitHub
-inventory never implies that the prior backup is missing. The export compares
+catch-up envelope when a verified recovery point is more than 30 hours old,
+regardless of age beyond that threshold. If the same-snapshot preflight finds
+that the export requires more capacity, recovery requests one newly admitted
+attempt sized to the measured estimate. Recovery without a verified seed
+starts with the full envelope. Incomplete GitHub inventory never implies that
+the prior backup is missing. The export compares
 all other protected tables with the actual restored local seed under the same
 production snapshot. Identical complete tables are copied locally; changed or
 unavailable tables are exported normally. The transfer ceiling excludes only

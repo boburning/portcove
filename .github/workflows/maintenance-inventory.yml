@@ -283,9 +283,7 @@ jobs:
             args+=(--input "$baseline")
             previous=$(jq -er '.created_at' "$baseline/manifest.json")
             age=$((EPOCHSECONDS - $(date -u -d "$previous" +%s)))
-            if ((age > 54 * 3600)) && [[ -n "$PORTCOVE_NEON_METER_TOKEN" ]]; then
-              args+=(--recovery-envelope full)
-            elif ((age > 30 * 3600)); then
+            if ((age > 30 * 3600)); then
               args+=(--recovery-envelope catchup)
             fi
           fi
