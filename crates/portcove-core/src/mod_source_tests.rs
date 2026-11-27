@@ -226,6 +226,11 @@ fn data_github(
 #[test]
 fn data_declarations_resolve_exactly_like_the_retired_compiled_tables() {
     let catalog = Catalog::embedded().unwrap();
+    let legacy = catalog
+        .listing_document()
+        .export_format(crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT)
+        .unwrap();
+    let catalog = catalog.with_listing_document(legacy).unwrap();
     let ids: BTreeSet<&str> = catalog
         .ports()
         .iter()
