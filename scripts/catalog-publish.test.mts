@@ -2831,6 +2831,22 @@ void test("signed listing projection accepts only bound first-party websites and
   );
   assert.deepEqual(project(checkpoint(outage), current.bytes).bytes, current.bytes);
   assert.deepEqual(project(undefined, current.bytes).bytes, current.bytes);
+  const missingHistory = recordLauncherModAttempt(
+    binding,
+    undefined,
+    { state: "unavailable", reason: "provider-outage" },
+    now,
+    3600000,
+  );
+  assert.deepEqual(project(checkpoint(missingHistory), current.bytes).bytes, current.bytes);
+  const ambiguous = firstPartyListingModDefaults(
+    catalog,
+    [port, { ...port, id: "second-implementation" }],
+    undefined,
+    new Set(),
+    now,
+  );
+  assert.deepEqual(ambiguous(port, read(current.bytes)), []);
   assert.equal(
     read(project(checkpoint(row), current.bytes, new Set([port.id])).bytes)?.mod_portals,
     undefined,

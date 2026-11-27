@@ -7,6 +7,7 @@ import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { catalogObservationSources } from "./catalog-upstream-observer.mts";
 import {
+  launcherModScopes,
   launcherModSubjects,
   validLauncherModPortal,
   validateFirstPartyModProgress,
@@ -234,8 +235,10 @@ export function firstPartyListingModDefaults(
     )
       ids[source.key] = { repository_id: Number(prior.repository_id) };
   }
+  const scopes = launcherModScopes(sources);
+  const scopeByPort = new Map(scopes.map((scope) => [scope.port_id, scope]));
   const subjects = new Map(
-    launcherModSubjects(sources, ids).map((subject) => [subject.port_id, subject]),
+    launcherModSubjects(sources, ids, scopes).map((subject) => [subject.port_id, subject]),
   );
   const raw = state?.launcher_mod_sources;
   if (raw !== undefined) validateFirstPartyModProgress(raw, now);
@@ -245,7 +248,10 @@ export function firstPartyListingModDefaults(
     previous: Record<string, unknown> | undefined,
   ): Portal[] => {
     if (typeof listing.id !== "string" || excluded.has(listing.id)) return [];
+    const scope = scopeByPort.get(listing.id);
+    if (!scope) return [];
     const subject = subjects.get(listing.id);
+    if (!subject && ids[scope.source_key]) return [];
     const entry = progress?.[listing.id];
     const authored = listingPortals(listing);
     const blocked = new Set(bindings.get(listing.id));
@@ -256,11 +262,11 @@ export function firstPartyListingModDefaults(
     }
     const provider = (portal: Portal) =>
       portal.name === "Thunderstore" ? "thunderstore" : "gamebanana";
-    if (entry) {
+    if (entry && (!subject || entry.binding !== subject.binding)) return [];
+    if (entry && (entry.outcome !== "unavailable" || entry.last_complete)) {
       const result = entry.last_complete?.result;
       if (
         !subject ||
-        entry.binding !== subject.binding ||
         result?.state !== "observed" ||
         result.repository_id !== subject.repository_id
       )
@@ -281,13 +287,13 @@ export function firstPartyListingModDefaults(
     // A missing observation handoff preserves authenticated URLs for the
     // unchanged listing. A present checkpoint can prove scope loss.
     if (
-      (state && !subject) ||
       previous?.id !== listing.id ||
       previous.project_url !== listing.project_url ||
       observationHash(previous.original_game ?? null) !==
         observationHash(listing.original_game ?? null)
     )
       return [];
+    const expectedId = subject?.repository_id ?? admittedGithubRepositoryId(listing.id);
     const retained: Portal[] = [];
     for (const portal of listingPortals(previous)) {
       if (!isRecord(portal) || typeof portal.id !== "string") continue;
@@ -296,7 +302,7 @@ export function firstPartyListingModDefaults(
         !match ||
         blocked.has(match[1]!) ||
         !Number.isSafeInteger(Number(match[2])) ||
-        (subject && subject.repository_id !== Number(match[2]))
+        (expectedId !== undefined && expectedId !== Number(match[2]))
       )
         continue;
       if (validLauncherModPortal({ ...portal, id: "upstream-" + match[1] })) {

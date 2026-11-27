@@ -18,64 +18,71 @@ export interface FirstPartyModProgress {
   last_complete?: { observed_at: string; result: Complete };
 }
 
-export function launcherModSubjects(
-  sources: readonly ObservableSource[],
-  identities: Readonly<Record<string, { repository_id: number | null }>>,
-) {
+export function launcherModScopes(sources: readonly ObservableSource[]) {
   const bySlug = new Map<string, Set<string>>();
-  const byRepositoryId = new Map<number, Set<string>>();
-  const subjects = [];
+  const scopes = [];
   for (const source of sources) {
     if ((source.provider ?? "github") !== "github") continue;
     const slug = source.repository.toLowerCase();
     const ids = bySlug.get(slug) ?? new Set<string>();
-    const repositoryId = identities[source.key]?.repository_id;
-    const verifiedIds = repositoryId
-      ? (byRepositoryId.get(repositoryId) ?? new Set<string>())
-      : undefined;
-    for (const port of source.ports) {
-      ids.add(port.id);
-      verifiedIds?.add(port.id);
-    }
+    for (const port of source.ports) ids.add(port.id);
     bySlug.set(slug, ids);
-    if (repositoryId && verifiedIds) byRepositoryId.set(repositoryId, verifiedIds);
     const [port] = source.ports;
-    if (
-      source.ports.length !== 1 ||
-      !repositoryId ||
-      !port?.listing ||
-      typeof port.listing.project_url !== "string"
-    )
+    if (source.ports.length !== 1 || !port?.listing || typeof port.listing.project_url !== "string")
       continue;
-    let project: string | undefined;
     try {
-      project = githubRepository(port.listing.project_url);
+      if (githubRepository(port.listing.project_url)?.toLowerCase() !== slug) continue;
     } catch {
       continue;
     }
-    const declaredRepositoryId = admittedGithubRepositoryId(port.id);
-    if (
-      project?.toLowerCase() !== slug ||
-      (declaredRepositoryId !== undefined && declaredRepositoryId !== repositoryId)
-    )
-      continue;
-    subjects.push({
+    scopes.push({
       port_id: port.id,
       source_key: source.key,
       slug: source.repository,
-      repository_id: repositoryId,
-      binding: observationHash([
-        launcherModObservationPolicy,
-        port.id,
-        repositoryId,
-        port.listing.original_game ?? null,
-      ]),
+      original_game: port.listing.original_game ?? null,
     });
   }
-  return subjects.filter(
-    ({ slug, repository_id }) =>
-      bySlug.get(slug.toLowerCase())?.size === 1 && byRepositoryId.get(repository_id)?.size === 1,
-  );
+  return scopes.filter(({ slug }) => bySlug.get(slug.toLowerCase())?.size === 1);
+}
+
+export function launcherModSubjects(
+  sources: readonly ObservableSource[],
+  identities: Readonly<Record<string, { repository_id: number | null }>>,
+  scopes = launcherModScopes(sources),
+) {
+  const byRepositoryId = new Map<number, Set<string>>();
+  for (const source of sources) {
+    if ((source.provider ?? "github") !== "github") continue;
+    const id = identities[source.key]?.repository_id;
+    if (!id) continue;
+    const ports = byRepositoryId.get(id) ?? new Set<string>();
+    for (const port of source.ports) ports.add(port.id);
+    byRepositoryId.set(id, ports);
+  }
+  return scopes.flatMap(({ port_id, source_key, slug, original_game }) => {
+    const repository_id = identities[source_key]?.repository_id;
+    const declared = admittedGithubRepositoryId(port_id);
+    if (
+      !repository_id ||
+      byRepositoryId.get(repository_id)?.size !== 1 ||
+      (declared !== undefined && declared !== repository_id)
+    )
+      return [];
+    return [
+      {
+        port_id,
+        source_key,
+        slug,
+        repository_id,
+        binding: observationHash([
+          launcherModObservationPolicy,
+          port_id,
+          repository_id,
+          original_game,
+        ]),
+      },
+    ];
+  });
 }
 
 export function recordLauncherModAttempt(
