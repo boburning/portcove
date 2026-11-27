@@ -1765,5 +1765,5 @@ An exact first-party link found during automatic admission can seed the first
 signed publication. It uses the same repository-bound source ID as subsequent
 observations, so the player's local source preferences still apply. After the
 first publication, an unavailable checkpoint falls back to the authenticated
-prior listing. A confirmed withdrawal therefore survives checkpoint loss.
+prior listing. A verified rename can retain the prior website when the listing ID binds the same GitHub repository and the game identity still matches. A conflicting repository observation or confirmed withdrawal suppresses the link.
 Maintainer-selected websites use separate authored IDs and take precedence.

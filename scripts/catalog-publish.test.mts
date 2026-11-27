@@ -2906,15 +2906,19 @@ void test("admission mod defaults keep one source ID and cannot revive after wit
   };
   const port = { ...fixtureListing, id: "github-12345", mod_portals: [seed] };
   const catalog = { ports: [] };
-  const canonical = { format_version: 17, listings: [port] };
   const now = Date.parse("2026-11-26T12:00:00Z");
   const sources = catalogObservationSources({ ...catalog, listings: [port] }).sources;
   const ids = { [requiredFixture(sources[0]).key]: { repository_id: 12345 } };
   const binding = requiredFixture(launcherModSubjects(sources, ids)[0]).binding;
-  const project = (state: unknown, previous: Buffer | null, excluded = new Set<string>()) =>
-    projectListingDelivery(canonical, [], previous, {
+  const project = (
+    state: unknown,
+    previous: Buffer | null,
+    excluded = new Set<string>(),
+    listing = port,
+  ) =>
+    projectListingDelivery({ format_version: 17, listings: [listing] }, [], previous, {
       now,
-      firstPartyModDefaults: firstPartyListingModDefaults(catalog, [port], state, excluded, now),
+      firstPartyModDefaults: firstPartyListingModDefaults(catalog, [listing], state, excluded, now),
     });
   const links = (bytes: Buffer) =>
     fixtureRecords(fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings)[0]
@@ -2950,6 +2954,68 @@ void test("admission mod defaults keep one source ID and cannot revive after wit
   const second = project(state(changed), first.bytes);
   assert.deepEqual(links(second.bytes), [{ ...seed, url: "https://gamebanana.com/games/789" }]);
   assert.deepEqual(project(undefined, second.bytes).bytes, second.bytes);
+  const renamed = { ...port, project_url: "https://github.com/fixture/verified-rename" };
+  assert.deepEqual(
+    links(project(undefined, second.bytes, new Set(), renamed).bytes),
+    links(second.bytes),
+  );
+  assert.deepEqual(
+    links(project(state(changed), second.bytes, new Set(), renamed).bytes),
+    links(second.bytes),
+  );
+  const renamedSource = requiredFixture(
+    catalogObservationSources({ ...catalog, listings: [renamed] }).sources[0],
+  );
+  assert.equal(
+    links(
+      project(
+        { sources: { [renamedSource.key]: { repository_id: 12346 } } },
+        second.bytes,
+        new Set(),
+        renamed,
+      ).bytes,
+    ),
+    undefined,
+  );
+  const previous = requiredFixture(decodedListingDelivery(second.bytes).directory.listings[0]);
+  const oldSlugOwner = { ...port, id: "other-implementation-on-old-slug" };
+  assert.deepEqual(
+    firstPartyListingModDefaults(
+      catalog,
+      [renamed, oldSlugOwner],
+      state(changed),
+      new Set(),
+      now,
+    )(renamed, previous),
+    [],
+  );
+  assert.deepEqual(
+    firstPartyListingModDefaults(
+      catalog,
+      [renamed],
+      undefined,
+      new Set(),
+      now,
+    )(renamed, {
+      ...previous,
+      mod_portals: [{ ...seed, id: "obs-gh-gamebanana-12346" }],
+    }),
+    [],
+  );
+  const unbound = { ...renamed, id: "unbound-legacy-listing" };
+  assert.deepEqual(
+    firstPartyListingModDefaults(
+      catalog,
+      [unbound],
+      undefined,
+      new Set(),
+      now,
+    )(unbound, {
+      ...previous,
+      id: unbound.id,
+    }),
+    [],
+  );
   const absent = recordLauncherModAttempt(
     binding,
     changed,
@@ -2964,6 +3030,8 @@ void test("admission mod defaults keep one source ID and cannot revive after wit
   );
   const withdrawn = project(state(absent), second.bytes);
   assert.equal(links(withdrawn.bytes), undefined);
+  assert.equal(links(project(state(absent), second.bytes, new Set(), renamed).bytes), undefined);
+  assert.equal(links(project(undefined, withdrawn.bytes, new Set(), renamed).bytes), undefined);
   assert.deepEqual(project(undefined, withdrawn.bytes).bytes, withdrawn.bytes);
   assert.equal(links(project(undefined, null, new Set([port.id])).bytes), undefined);
 });
