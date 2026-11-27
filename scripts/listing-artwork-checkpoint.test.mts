@@ -31,6 +31,7 @@ import {
   applicableCoverHealth,
   readHostedArtworkHealth,
   readHostedCoverHealth,
+  readHostedScheduledGameMedia,
 } from "./listing-artwork-observation.mts";
 import { projectListingDelivery } from "./listing-observation-delivery.mts";
 
@@ -42,6 +43,85 @@ const artwork = {
   image_id: "cosample",
   image_sha256: "a".repeat(64),
 } as const;
+
+void test("scheduled game media only reads the exact bounded main-run artifact", async () => {
+  const run = {
+    id: 4601,
+    run_attempt: 2,
+    path: ".github/workflows/maintenance-inventory.yml",
+    event: "schedule",
+    head_branch: "main",
+    status: "completed",
+    conclusion: "success",
+    head_repository: { id: 1354613114, full_name: "boburning/portcove" },
+    head_sha: "a".repeat(40),
+    run_started_at: "2026-11-26T11:59:00Z",
+    updated_at: "2026-11-26T12:30:00Z",
+  };
+  const status = JSON.stringify({
+    format_version: 1,
+    state: "attempted",
+    selected: 1,
+    attempted: 1,
+  });
+  const proposal = JSON.stringify({
+    format_version: 1,
+    selected_ids: [fixtureListing.id],
+    additions: [],
+  });
+  const payload = [
+    ["status.json", status],
+    ["proposal/game-media-additions.json", proposal],
+  ] as const;
+  const read = async (
+    files: readonly (readonly [string, string])[],
+    event = "schedule",
+    digest?: string,
+  ) => {
+    const archive = createAuditZip(files);
+    return readHostedScheduledGameMedia(
+      (rev, filename) => {
+        assert.equal(rev, run.head_sha);
+        assert.equal(filename, "crates/portcove-core/catalog/listings.json");
+        return Buffer.from(JSON.stringify({ listings: [fixtureListing] }));
+      },
+      {
+        now: Date.parse("2026-11-26T13:00:00Z"),
+        transport: {
+          read: async (url) =>
+            url.includes("/workflows/")
+              ? { workflow_runs: [{ ...run, event }] }
+              : {
+                  total_count: 1,
+                  artifacts: [
+                    {
+                      id: 891,
+                      name: "maintenance-game-media-4601-2",
+                      size_in_bytes: archive.length,
+                      expired: false,
+                      digest:
+                        "sha256:" + (digest ?? createHash("sha256").update(archive).digest("hex")),
+                      workflow_run: {
+                        id: 4601,
+                        head_branch: "main",
+                        repository_id: 1354613114,
+                        head_repository_id: 1354613114,
+                        head_sha: run.head_sha,
+                      },
+                    },
+                  ],
+                },
+          download: async () => archive,
+        },
+      },
+    );
+  };
+  assert.deepEqual((await read(payload))?.producerListings, [fixtureListing]);
+  assert.equal(await read([["status.json", "{}"]]), null);
+  await assert.rejects(read(payload, "workflow_dispatch"), /Unbound scheduled artwork run/u);
+  await assert.rejects(read(payload, "schedule", "f".repeat(64)), /artifact digest differs/u);
+  await assert.rejects(read([...payload, ["payload.sh", "false"]]), /path/u);
+});
 const listing = {
   id: "fixture-port",
   project_url: "https://github.com/example/fixture-port",

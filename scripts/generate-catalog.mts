@@ -1014,6 +1014,13 @@ async function prepareArtworkProposalRun(
   });
   if (listingProposal && listingCheck)
     writeFileSync(join(outputRoot, "listing-media-proposal.json"), listingProposal, { flag: "wx" });
+  if (mediaDue && mediaPlan && gameMedia && mediaDue.limit <= 48) {
+    const { scheduledGameMediaFile, scheduledGameMediaProposal } =
+      await import("./listing-scheduled-game-media.mts");
+    const data = scheduledGameMediaProposal(gameMedia, mediaPlan.selected);
+    if (data.additions.length)
+      writeFileSync(join(outputRoot, scheduledGameMediaFile), JSON.stringify(data), { flag: "wx" });
+  }
   const artworkEvidence = `${JSON.stringify(evidence, null, 2)}\n`;
   writeFileSync(join(outputRoot, "artwork-evidence.json"), artworkEvidence, { flag: "wx" });
   if (fullProposal) {

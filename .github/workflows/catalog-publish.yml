@@ -207,6 +207,18 @@ jobs:
       # listing targets are renewed exactly. A listing-only failure renews the
       # prior listing targets too and is reported as `listing_publication_stopped`;
       # the publish job fails the run on it after readback.
+      - name: Restore the scheduled media publication retry clock
+        id: media-clock
+        if: steps.decide.outputs.publish == 'true'
+        timeout-minutes: 1
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            work/catalog-media-provider/owner.json
+            work/catalog-media-provider/artwork-provider-admission.json
+          key: catalog-media-provider-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: catalog-media-provider-main-v1-
       - name: Project completed shared observations into the compact listing target
         id: observe
         if: steps.decide.outputs.publish == 'true'
@@ -216,6 +228,8 @@ jobs:
           PORTCOVE_COVER_REVIEW_SHA256: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_sha256 || '' }}
           PORTCOVE_COVER_REVIEW_PREIMAGES: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_preimages || '' }}
           PORTCOVE_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          PORTCOVE_SCHEDULED_MEDIA_PROVIDER_CHECKPOINT: ${{ github.workspace }}/work/catalog-media-provider
+          PORTCOVE_SCHEDULED_MEDIA_CACHE_FAILED: ${{ steps.media-clock.outcome != 'success' }}
         run: |
           set -euo pipefail
           if [ -n "$PORTCOVE_COVER_REVIEW_PACKET$PORTCOVE_COVER_REVIEW_SHA256$PORTCOVE_COVER_REVIEW_PREIMAGES" ] &&
@@ -240,6 +254,16 @@ jobs:
           activation=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const report = JSON.parse(readFileSync(process.argv[1], "utf8")); if (report.released_reader_activation) process.stdout.write(JSON.stringify(report.released_reader_activation))' "$RUNNER_TEMP/observation-bundle/report.json")
           echo "reader_activation=$activation" >> "$GITHUB_OUTPUT"
           echo "BUNDLE=$RUNNER_TEMP/observation-bundle/bundle" >> "$GITHUB_ENV"
+      - name: Retain the scheduled media publication retry clock
+        if: ${{ !cancelled() && hashFiles('work/catalog-media-provider/artwork-provider-admission.json') != '' }}
+        timeout-minutes: 1
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            work/catalog-media-provider/owner.json
+            work/catalog-media-provider/artwork-provider-admission.json
+          key: catalog-media-provider-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Inspect the bundle and plan the next versions
         id: prepare
         if: steps.decide.outputs.publish == 'true'

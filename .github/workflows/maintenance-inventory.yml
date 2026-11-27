@@ -628,6 +628,7 @@ jobs:
             work/maintenance-game-media/status.json
             work/maintenance-game-media/proposal/artwork-evidence.json
             work/maintenance-game-media/proposal/listing-media-proposal.json
+            work/maintenance-game-media/proposal/game-media-additions.json
             work/maintenance-game-media/proposal/catalog-proposal.json
             work/maintenance-game-media/proposal/proposal-evidence.json
           if-no-files-found: error

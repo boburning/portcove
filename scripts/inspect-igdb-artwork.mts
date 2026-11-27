@@ -1662,7 +1662,7 @@ export function gameMediaDimensionsFit(role: GameMediaRole, width: number, heigh
   return width <= (role === "logo" ? 568 : 1280) && height <= (role === "logo" ? 320 : 720);
 }
 export const catalogGameMediaRoles = Object.freeze(Object.keys(gameMediaRoles) as GameMediaRole[]);
-const gameMediaRoleLimits: Readonly<Record<GameMediaRole, number>> = {
+export const gameMediaRoleLimits: Readonly<Record<GameMediaRole, number>> = {
   header: 2,
   key_art: 2,
   logo: 2,

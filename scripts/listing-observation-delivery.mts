@@ -4,7 +4,15 @@
  * and never changes again. No executable authority. */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual, parseArgs } from "node:util";
@@ -22,7 +30,23 @@ import {
   coverDeclarationScope,
   readArtworkCheckpoint,
 } from "./listing-artwork-checkpoint.mts";
-import { applicableCoverHealth, readHostedArtworkHealth } from "./listing-artwork-observation.mts";
+import {
+  applicableCoverHealth,
+  readHostedArtworkHealth,
+  readHostedScheduledGameMedia,
+} from "./listing-artwork-observation.mts";
+import {
+  hasScheduledMedia,
+  observeScheduledGameMedia,
+  scheduledGameMediaDefaults,
+} from "./listing-scheduled-game-media.mts";
+import { createCoreImageValidator, createIgdbInspector } from "./inspect-igdb-artwork.mts";
+import {
+  openArtworkCheckpoint,
+  restoreArtworkProviderBackoff,
+  retainArtworkProviderBackoff,
+} from "./artwork-preparation-progress.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
 import {
   indexSharedCoverRows,
   projectExactSharedCovers,
@@ -396,6 +420,7 @@ export function projectListingDelivery(
     sharedCoverDefaults?: ReturnType<typeof projectExactSharedCovers>;
     modPortalDefaults?: ReturnType<typeof listingModPortalDefaults>;
     firstPartyModDefaults?: ReturnType<typeof firstPartyListingModDefaults>;
+    gameMediaDefaults?: ReturnType<typeof scheduledGameMediaDefaults>;
   } = {},
 ) {
   const {
@@ -409,6 +434,7 @@ export function projectListingDelivery(
     sharedCoverDefaults,
     modPortalDefaults,
     firstPartyModDefaults,
+    gameMediaDefaults,
   } = options;
   const raw = directory(canonical);
   const previousDocument = previous
@@ -541,6 +567,23 @@ export function projectListingDelivery(
             result.mod_portals = modPortals;
             generatedModPortals++;
           } else deferredModPortals++;
+        }
+      }
+      if (format >= 16 && gameMediaDefaults) {
+        const additions = gameMediaDefaults(declaration);
+        if (additions.length) {
+          const media: unknown[] = Array.isArray(result.media)
+            ? [...(result.media as unknown[])]
+            : [];
+          for (const asset of additions) {
+            const expanded = [...media, asset];
+            if (
+              Buffer.byteLength(JSON.stringify({ ...result, media: expanded })) <=
+              compactListingRecordMaximum
+            )
+              media.push(asset);
+          }
+          if (media.length) result.media = media;
         }
       }
       return result;
@@ -1103,6 +1146,9 @@ export async function prepareObservationBundle(options: {
   coverApproval?: ReturnType<typeof protectedCoverApproval>;
   priorHistory?: string;
   readArtworkHealth?: typeof readHostedArtworkHealth;
+  readScheduledGameMedia?: typeof readHostedScheduledGameMedia;
+  mediaProviderCheckpoint?: string;
+  deferMediaObserver?: boolean;
   sharedCoverSource?: string;
   /** Select and verify the reader from the protected Preview pointer
    * (`Catalog publish`). */
@@ -1561,6 +1607,111 @@ export async function prepareObservationBundle(options: {
       }
     }
   }
+  let mediaDefaults: ReturnType<typeof scheduledGameMediaDefaults> | undefined;
+  let proposedMedia: ReturnType<typeof scheduledGameMediaDefaults> | undefined;
+  let mediaReceipt: string | undefined;
+  if (!renewal && (automatic || options.readScheduledGameMedia) && previousDocument) {
+    const prior = previousDocument.directory.listings;
+    try {
+      const source = readCatalogSource(path.dirname(options.canonical));
+      if (observationHash(source.directory) !== observationHash(canonical))
+        throw new Error("Scheduled media declarations differ from canonical listings");
+      const excluded = new Set(
+        source.records.filter(usesScummvmEngine).map(({ listing }) => listing.id),
+      );
+      if (!isRecord(current) || !Array.isArray(current.ports) || !current.ports.every(isRecord))
+        throw new Error("Scheduled game media requires the maintained operational catalog");
+      const strict = new Map(current.ports.map((row) => [row.id, row]));
+      mediaDefaults = scheduledGameMediaDefaults(
+        canonical.listings,
+        prior,
+        source.reviewedOriginalMedia,
+        excluded,
+        undefined,
+        { strict },
+      );
+      if (options.observe !== false && !options.deferMediaObserver) {
+        const receipt = await (options.readScheduledGameMedia ?? readHostedScheduledGameMedia)();
+        if (hasScheduledMedia(prior) || receipt?.proposal.additions.length) {
+          const eligible = receipt
+            ? scheduledGameMediaDefaults(
+                canonical.listings,
+                prior,
+                source.reviewedOriginalMedia,
+                excluded,
+                receipt,
+                { strict },
+              )
+            : undefined;
+          const nextAssets =
+            eligible &&
+            canonical.listings.flatMap((row) => {
+              const retained = new Set(mediaDefaults!(row).map(({ id }) => id));
+              return eligible(row).filter(({ id }) => !retained.has(id));
+            });
+          const deadline = performance.now() + 60_000;
+          const validateImage = createCoreImageValidator(options.cli, workspace);
+          const checkpoint = options.mediaProviderCheckpoint;
+          const inspector = createIgdbInspector(
+            null,
+            (bytes) => validateImage(bytes, deadline),
+            fetch,
+            {
+              signal: AbortSignal.timeout(60_000),
+              maximumOperationImageBytes: 32 * 1024 * 1024,
+              ...(checkpoint
+                ? { onBackoff: (status) => retainArtworkProviderBackoff(checkpoint, status) }
+                : {}),
+            },
+          );
+          if (checkpoint) openArtworkCheckpoint(checkpoint);
+          const observation = await (async () => {
+            try {
+              if (checkpoint) restoreArtworkProviderBackoff(checkpoint, inspector);
+              return await observeScheduledGameMedia(
+                prior,
+                receipt?.proposal,
+                (id, role) => inspector.inspectMediaImage(id, role),
+                now,
+                nextAssets,
+              );
+            } finally {
+              if (checkpoint) rmdirSync(path.join(checkpoint, "active.lock"));
+            }
+          })();
+          mediaDefaults = scheduledGameMediaDefaults(
+            canonical.listings,
+            prior,
+            source.reviewedOriginalMedia,
+            excluded,
+            undefined,
+            { strict, withdrawn: observation.withdrawn },
+          );
+          if (receipt && observation.proposal) {
+            proposedMedia = scheduledGameMediaDefaults(
+              canonical.listings,
+              prior,
+              source.reviewedOriginalMedia,
+              excluded,
+              { ...receipt, proposal: observation.proposal },
+              { strict, withdrawn: observation.withdrawn },
+            );
+            mediaReceipt = receipt.artifact;
+          }
+        }
+      }
+    } catch (error) {
+      if (!mediaDefaults && hasScheduledMedia(prior))
+        renewal = retainedListingRenewal(
+          compactWire ?? legacyWire,
+          canonical.listings.length,
+          compactWire ? compactListingDeliveryTarget : listingDeliveryTarget,
+        );
+      diagnostics.push(
+        `scheduled game media deferred: ${error instanceof Error ? error.message.slice(0, 300) : "read failed"}`,
+      );
+    }
+  }
   // Every compact revision exceeds the frozen legacy revision, the signer's
   // replay floor for the first compact publication.
   let withdrawals: string[] = [];
@@ -1568,6 +1719,7 @@ export async function prepareObservationBundle(options: {
     observations: readonly Record<string, unknown>[],
     portals?: ReturnType<typeof listingModPortalDefaults>,
     firstParty?: ReturnType<typeof firstPartyListingModDefaults>,
+    media = mediaDefaults,
   ) =>
     publishedAbove(
       projectListingDelivery(canonical, observations, previous, {
@@ -1580,6 +1732,7 @@ export async function prepareObservationBundle(options: {
         ...(sharedCoverDefaults ? { sharedCoverDefaults } : {}),
         ...(portals ? { modPortalDefaults: portals } : {}),
         ...(firstParty ? { firstPartyModDefaults: firstParty } : {}),
+        ...(media ? { gameMediaDefaults: media } : {}),
       }),
       legacyDocument.revision,
     );
@@ -1668,6 +1821,25 @@ export async function prepareObservationBundle(options: {
             `observer candidates failed Core validation and were excluded: ${excludedCandidates.join(", ").slice(0, 600)}`,
           );
           projected = project(isolated.admitted);
+        }
+      }
+      if (proposedMedia) {
+        const scratch = path.join(workspace, "scheduled-media-validation");
+        try {
+          const proposed = project(admitted, undefined, undefined, proposedMedia);
+          if (!proposed.bytes.equals(projected.bytes)) {
+            stage(proposed, scratch);
+            mediaDefaults = proposedMedia;
+            projected = proposed;
+          }
+        } catch (error) {
+          if (!(error instanceof CoreInspectionRefusal || error instanceof ListingPublicationStop))
+            throw error;
+          diagnostics.push(
+            `scheduled game media withheld after validation: ${error.message.slice(0, 300)}`,
+          );
+        } finally {
+          rmSync(scratch, { recursive: true, force: true });
         }
       }
     } catch (error) {
@@ -1786,6 +1958,14 @@ export async function prepareObservationBundle(options: {
     ...(options.coverApproval ? { cover_approvals: coverApprovals } : {}),
     ...(coverCheckpoint?.deferred ? { cover_scopes_deferred: coverCheckpoint.deferred } : {}),
     ...(sharedCoverDefaults ? { shared_cover_candidates: sharedCoverDefaults.proposals.size } : {}),
+    ...(mediaReceipt
+      ? {
+          scheduled_game_media: {
+            artifact: mediaReceipt,
+            applied: mediaDefaults === proposedMedia,
+          },
+        }
+      : {}),
     ...(releasedReader ? { released_reader: releasedReader } : {}),
     ...(officialReader && !stopped
       ? {
@@ -1945,6 +2125,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         root: path.resolve(values.root!),
         offlineTargets: path.resolve(values["offline-targets"]!),
         observe: !values.offline,
+        deferMediaObserver: process.env.PORTCOVE_SCHEDULED_MEDIA_CACHE_FAILED === "true",
+        ...(process.env.PORTCOVE_SCHEDULED_MEDIA_PROVIDER_CHECKPOINT
+          ? {
+              mediaProviderCheckpoint: path.resolve(
+                process.env.PORTCOVE_SCHEDULED_MEDIA_PROVIDER_CHECKPOINT,
+              ),
+            }
+          : {}),
         officialReleasedReader: values["official-released-reader"],
         activateCoverCheckpoint: values["activate-cover-checkpoint"],
         ...(coverApproval ? { coverApproval } : {}),

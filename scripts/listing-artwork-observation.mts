@@ -12,6 +12,11 @@ import {
   legacyCoverDeclarationScope,
 } from "./listing-artwork-checkpoint.mts";
 import {
+  readScheduledGameMediaProposal,
+  scheduledGameMediaFile,
+  scheduledGameMediaLimit,
+} from "./listing-scheduled-game-media.mts";
+import {
   artworkHealthInventory,
   artworkHealthProducer,
   mediaHealthInventory,
@@ -92,7 +97,7 @@ async function hostedTransport(): Promise<ArtworkHealthTransport> {
   };
 }
 
-function readReportMembers(archive: Buffer) {
+function readReportMembers(archive: Buffer, allowedPaths?: ReadonlySet<string>) {
   const { entries } = inspectBoundedZip(archive, {
     compressedBytes: archiveLimit,
     expandedBytes: 48 * 1024 * 1024,
@@ -100,12 +105,17 @@ function readReportMembers(archive: Buffer) {
     nameBytes: 128,
     // The successful producer emits this inert report alongside the receipt.
     // It participates in ZIP bounds but is never inflated or interpreted here.
-    allowedPaths: new Set([evidencePath, "report/index.html"]),
-    allowedFilePath: (name) => /^(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:jsonl?|md)$/u.test(name),
+    allowedPaths: allowedPaths ?? new Set([evidencePath, "report/index.html"]),
+    ...(allowedPaths
+      ? {}
+      : {
+          allowedFilePath: (name: string) =>
+            /^(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:jsonl?|md)$/u.test(name),
+        }),
   });
-  function read(name: string) {
+  function read(name: string, maximum = memberLimit) {
     const entry = entries.find((member) => member.name === name);
-    if (!entry || entry.bytes < 1 || entry.bytes > memberLimit)
+    if (!entry || entry.bytes < 1 || entry.bytes > maximum)
       throw new Error("Missing or oversized artwork receipt member");
     const compressed = archive.subarray(entry.data, entry.dataEnd);
     const bytes =
@@ -119,11 +129,8 @@ function readReportMembers(archive: Buffer) {
   return { read, has: (name: string) => entries.some((entry) => entry.name === name) };
 }
 
-/** Authenticate an existing scheduled report as observation evidence only. */
-export async function readHostedArtworkHealth(
-  readAncestorFile: (revision: string, file: string) => Buffer = readReviewedAncestor,
-  options: { transport?: ArtworkHealthTransport; now?: number } = {},
-) {
+type ArtworkReadOptions = { transport?: ArtworkHealthTransport; now?: number };
+async function readRecentArtworkRun(options: ArtworkReadOptions) {
   const now = options.now ?? Date.now();
   const transport = options.transport ?? (await hostedTransport());
   const response = await transport.read(
@@ -167,34 +174,51 @@ export async function readHostedArtworkHealth(
     now - completed > day
   )
     return null;
-  const { id: runId, run_attempt: runAttempt } = run;
+  const { id: runId, run_attempt: runAttempt, head_sha: head } = run;
   const artifacts = await readCompleteRunArtifactInventoryAsync((page) =>
     transport.read(`${prefix}/runs/${runId}/artifacts?per_page=100&page=${page}`),
   );
-  const matches = artifacts.artifacts.filter(
-    (row) => row.name === `maintenance-report-${runId}-${runAttempt}`,
-  );
-  if (!matches.length || (matches.length === 1 && matches[0]!.expired === true)) return null;
-  const artifact = matches[0]!;
-  if (
-    matches.length !== 1 ||
-    !positive(artifact.id) ||
-    !positive(artifact.size_in_bytes) ||
-    artifact.size_in_bytes > archiveLimit ||
-    artifact.expired !== false ||
-    !isRecord(artifact.workflow_run) ||
-    artifact.workflow_run.id !== run.id ||
-    artifact.workflow_run.repository_id !== repositoryId ||
-    artifact.workflow_run.head_repository_id !== repositoryId ||
-    artifact.workflow_run.head_branch !== "main" ||
-    artifact.workflow_run.head_sha !== run.head_sha ||
-    typeof artifact.digest !== "string" ||
-    !/^sha256:[a-f0-9]{64}$/u.test(artifact.digest)
-  )
-    throw new Error("Unbound scheduled artwork artifact");
-  const archive = await transport.download(artifact.id, artifact.size_in_bytes);
-  if (archive.length !== artifact.size_in_bytes || `sha256:${hash(archive)}` !== artifact.digest)
-    throw new Error("Scheduled artwork artifact digest differs");
+  async function download(stem: string) {
+    const matches = artifacts.artifacts.filter(
+      (row) => row.name === `${stem}-${runId}-${runAttempt}`,
+    );
+    if (!matches.length || (matches.length === 1 && matches[0]!.expired === true)) return null;
+    const artifact = matches[0]!;
+    if (
+      matches.length !== 1 ||
+      !positive(artifact.id) ||
+      !positive(artifact.size_in_bytes) ||
+      artifact.size_in_bytes > archiveLimit ||
+      artifact.expired !== false ||
+      !isRecord(artifact.workflow_run) ||
+      artifact.workflow_run.id !== runId ||
+      artifact.workflow_run.repository_id !== repositoryId ||
+      artifact.workflow_run.head_repository_id !== repositoryId ||
+      artifact.workflow_run.head_branch !== "main" ||
+      artifact.workflow_run.head_sha !== head ||
+      typeof artifact.digest !== "string" ||
+      !/^sha256:[a-f0-9]{64}$/u.test(artifact.digest)
+    )
+      throw new Error("Unbound scheduled artwork artifact");
+    const archive = await transport.download(artifact.id, artifact.size_in_bytes);
+    if (archive.length !== artifact.size_in_bytes || `sha256:${hash(archive)}` !== artifact.digest)
+      throw new Error("Scheduled artwork artifact digest differs");
+    return { archive, digest: artifact.digest };
+  }
+  return { runId, runAttempt, head, started, completed, download };
+}
+
+/** Authenticate an existing scheduled report as observation evidence only. */
+export async function readHostedArtworkHealth(
+  readAncestorFile: (revision: string, file: string) => Buffer = readReviewedAncestor,
+  options: ArtworkReadOptions = {},
+) {
+  const run = await readRecentArtworkRun(options);
+  if (!run) return null;
+  const artifact = await run.download("maintenance-report");
+  if (!artifact) return null;
+  const { archive } = artifact;
+  const { runId, runAttempt, started, completed } = run;
   const reportMembers = readReportMembers(archive);
   const recorded: unknown = JSON.parse(reportMembers.read(evidencePath).toString("utf8"));
   if (
@@ -203,10 +227,10 @@ export async function readHostedArtworkHealth(
     recorded.format_version !== 1 ||
     recorded.purpose !== "schedule" ||
     !isRecord(recorded.run) ||
-    recorded.run.id !== run.id ||
-    recorded.run.attempt !== run.run_attempt ||
+    recorded.run.id !== runId ||
+    recorded.run.attempt !== runAttempt ||
     recorded.run.event !== "schedule" ||
-    recorded.run.head_sha !== run.head_sha ||
+    recorded.run.head_sha !== run.head ||
     !isRecord(recorded.outcomes) ||
     recorded.outcomes.collect !== "success" ||
     recorded.outcomes.report !== "success" ||
@@ -221,13 +245,13 @@ export async function readHostedArtworkHealth(
       GITHUB_REPOSITORY: repository,
       GITHUB_WORKFLOW_REF: `${repository}/${workflow}@refs/heads/main`,
       GITHUB_EVENT_NAME: "schedule",
-      GITHUB_SHA: run.head_sha,
-      GITHUB_WORKFLOW_SHA: run.head_sha,
-      GITHUB_RUN_ID: String(run.id),
-      GITHUB_RUN_ATTEMPT: String(run.run_attempt),
+      GITHUB_SHA: run.head,
+      GITHUB_WORKFLOW_SHA: run.head,
+      GITHUB_RUN_ID: String(runId),
+      GITHUB_RUN_ATTEMPT: String(runAttempt),
       GITHUB_REF: "refs/heads/main",
     },
-    run.head_sha,
+    run.head,
   );
   const artifactDigest = artifact.digest;
   let catalog: { producerDirectory: unknown; listingsSha256: string } | undefined;
@@ -313,6 +337,61 @@ export async function readHostedArtworkHealth(
         producer: context.producer,
       };
     },
+  };
+}
+
+/** Consume the narrow proposal only from authenticated scheduled-main custody. */
+export async function readHostedScheduledGameMedia(
+  readAncestorFile: (revision: string, file: string) => Buffer = readReviewedAncestor,
+  options: ArtworkReadOptions = {},
+) {
+  const run = await readRecentArtworkRun(options);
+  if (!run) return null;
+  const artifact = await run.download("maintenance-game-media");
+  if (!artifact) return null;
+  const proposalFile = `proposal/${scheduledGameMediaFile}`;
+  const archive = readReportMembers(
+    artifact.archive,
+    new Set([
+      "status.json",
+      proposalFile,
+      "proposal/artwork-evidence.json",
+      "proposal/catalog-proposal.json",
+      "proposal/listing-media-proposal.json",
+      "proposal/proposal-evidence.json",
+    ]),
+  );
+  if (!archive.has(proposalFile)) return null;
+  const status: unknown = JSON.parse(archive.read("status.json").toString("utf8"));
+  if (
+    !isRecord(status) ||
+    status.format_version !== 1 ||
+    (status.state !== "attempted" && status.state !== "partial") ||
+    !positive(status.attempted) ||
+    !positive(status.selected) ||
+    status.selected > 48 ||
+    status.attempted > status.selected
+  )
+    throw new Error("Scheduled media proposal has no completed artwork assessment");
+  const proposal = readScheduledGameMediaProposal(
+    JSON.parse(archive.read(proposalFile, scheduledGameMediaLimit).toString("utf8")),
+  );
+  if (
+    proposal.selected_ids.length !== status.selected ||
+    new Set(proposal.additions.map(({ id }) => id)).size > status.attempted
+  )
+    throw new Error("Scheduled media proposal exceeds its assessed workset");
+  const producer: unknown = JSON.parse(readAncestorFile(run.head, listingsPath).toString("utf8"));
+  if (
+    !isRecord(producer) ||
+    !Array.isArray(producer.listings) ||
+    !producer.listings.every(isRecord)
+  )
+    throw new Error("Scheduled media proposal has no canonical producer directory");
+  return {
+    proposal,
+    producerListings: producer.listings,
+    artifact: artifact.digest,
   };
 }
 
