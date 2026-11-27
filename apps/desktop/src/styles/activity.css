@@ -55,6 +55,7 @@
     }
     .update-center .activity-tab-label {
       min-inline-size: 0;
+      max-inline-size: 100%;
       overflow-wrap: break-word;
     }
   }

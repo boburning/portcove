@@ -294,14 +294,19 @@ for (const theme of ["dark", "light"]) {
     await userEvent.keyboard("{ArrowRight}{Enter}");
     await expect.element(history).toHaveFocus();
     await expect.element(history).toHaveAttribute("aria-selected", "true");
-    await expect
-      .poll(() => {
-        const viewport = strip.getBoundingClientRect();
-        const focused = history.element().getBoundingClientRect();
-        return focused.left >= viewport.left - 1 && focused.right <= viewport.right + 1;
-      })
-      .toBe(true);
     const historyButton = history.element();
+    const historyIsVisible = () => {
+      const viewport = strip.getBoundingClientRect();
+      const selected = historyButton.getBoundingClientRect();
+      return selected.left >= viewport.left - 1 && selected.right <= viewport.right + 1;
+    };
+    await expect.poll(historyIsVisible).toBe(true);
+    historyButton.blur();
+    await page.viewport(960, 800);
+    strip.scrollLeft = 0;
+    await page.viewport(240, 800);
+    await expect.element(history).toHaveAttribute("aria-selected", "true");
+    await expect.poll(historyIsVisible).toBe(true);
     const button = historyButton.getBoundingClientRect();
     const label = historyButton.querySelector(".activity-tab-label")!;
     const title = document.createRange();
