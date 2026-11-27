@@ -1,4 +1,9 @@
-import { matchesString, positiveId, slugPattern } from "./catalog-cover-mapping.mts";
+import {
+  artworkEvidenceUrl,
+  matchesString,
+  positiveId,
+  slugPattern,
+} from "./catalog-cover-mapping.mts";
 import { isRecord } from "./runtime-values.mts";
 import { originalEditionMediaKey } from "./shared-original-media.mts";
 import type { AuthoredListing } from "./catalog-authoring.mts";
@@ -49,11 +54,7 @@ export function previewReviewedOriginalMedia(
 
 /** This is an authored preparation decision. The original declaration and its
  * exact edition/system must still agree if a surrounding identity is edited. */
-export function checkReviewedOriginalMedia(
-  value: unknown,
-  game: unknown,
-  checkEvidence: (value: unknown) => unknown,
-) {
+export function checkReviewedOriginalMedia(value: unknown, game: unknown) {
   if (value === undefined) return;
   if (!isRecord(game) || typeof game.id !== "string" || !Array.isArray(game.source_editions))
     throw new Error("Reviewed original media requires a declared original game and edition.");
@@ -76,7 +77,7 @@ export function checkReviewedOriginalMedia(
       throw new Error(
         "Reviewed original media must name an exact, unique game, edition and system.",
       );
-    checkEvidence(entry.evidence_url);
+    artworkEvidenceUrl(entry.evidence_url);
     const fields = Object.keys(entry).length;
     if (entry.decision === "exclude" && fields === 5) continue;
     if (

@@ -103,6 +103,16 @@ void test("reviewed original media binds one decision to exact existing and futu
   assert.deepEqual(assembled.catalog.ports, []);
   assert.throws(
     () =>
+      checkedAuthoredPort({
+        ...owner,
+        igdb_original_media_v1: [
+          { ...decision, evidence_url: `https://example.org/${"é".repeat(400)}` },
+        ],
+      }),
+    /needs attributable HTTPS evidence/u,
+  );
+  assert.throws(
+    () =>
       checkedAuthoredPort({ ...row("owner-port", "windows"), igdb_original_media_v1: [decision] }),
     /exact, unique game, edition and system/u,
   );

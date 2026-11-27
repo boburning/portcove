@@ -919,9 +919,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       }
     }
   }
-  checkReviewedOriginalMedia(value.igdb_original_media_v1, listing.original_game, (url) =>
-    publicUrl(url, "reviewed original media evidence"),
-  );
+  checkReviewedOriginalMedia(value.igdb_original_media_v1, listing.original_game);
   for (const field of ["original_game_title", "variant_label"] as const)
     if (listing[field] !== undefined && !boundedText(listing[field], 512))
       throw new Error(`Listing ${field} requires bounded nonempty text.`);

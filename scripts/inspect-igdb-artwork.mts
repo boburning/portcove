@@ -4,6 +4,7 @@ import { isRecord, errorCode } from "./runtime-values.mts";
 import { originalEditionMediaKey, typedIgdbScene } from "./shared-original-media.mts";
 import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
 import {
+  artworkEvidenceUrl,
   hashPattern,
   imagePattern,
   matchesIgdbRegionalCover,
@@ -255,24 +256,6 @@ function nameKey(value: unknown) {
   return String(value).normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-function evidenceUrl(value: unknown) {
-  let evidence;
-  try {
-    if (typeof value !== "string") throw new Error();
-    evidence = new URL(value);
-  } catch {
-    throw new Error("Artwork identity needs attributable HTTPS evidence.");
-  }
-  if (
-    evidence.protocol !== "https:" ||
-    evidence.username ||
-    evidence.password ||
-    evidence.href.length > 2048
-  )
-    throw new Error("Artwork identity needs attributable HTTPS evidence.");
-  return evidence.href;
-}
-
 function declaredIdentity(
   value: unknown,
   requestedKind?: IgdbArtworkMatch,
@@ -312,7 +295,7 @@ function declaredIdentity(
       !positiveId(localization.region_id))
   )
     throw new Error("Artwork localization requires a fixed original game and region.");
-  const projectUrl = value.project_url ? evidenceUrl(value.project_url) : null;
+  const projectUrl = value.project_url ? artworkEvidenceUrl(value.project_url) : null;
   const platforms = value.platform_ids ?? [];
   if (!Array.isArray(platforms) || platforms.length > 16 || !platforms.every(positiveId))
     throw new Error("Artwork original-game platforms are invalid.");
@@ -332,7 +315,7 @@ function declaredIdentity(
     game_id: value.game_id ?? null,
     slug: value.slug ?? null,
     names: [...value.names],
-    evidence_url: evidenceUrl(value.evidence_url),
+    evidence_url: artworkEvidenceUrl(value.evidence_url),
     project_url: projectUrl,
     platform_ids: platforms,
     edition: value.edition ?? null,
