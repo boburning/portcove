@@ -430,3 +430,50 @@ void test("full artwork preparation checks typed scenes through the listing vali
   assert.equal(overridden.result.status, 0, overridden.result.stderr);
   assert.equal(existsSync(join(overridden.output, "listing-media-proposal.json")), false);
 });
+
+void test("a selected listing-only identity receives descriptive media without a strict port", () => {
+  const id = "listing-scene-fixture";
+  const accepted = checkedAuthoredPort({
+    format_version: 1,
+    listing: {
+      id,
+      name: "Listing scene fixture",
+      summary: "An accepted project with no operational definition.",
+      project_url: "https://github.com/example/scene-fixture",
+    },
+  });
+  const donor = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", "tomba-recompiled.json"))),
+    "tomba-recompiled",
+  );
+  const original = requiredFixture(
+    records(donor.listing.media).find((item) => item.role === "header"),
+  );
+  const proposed = {
+    ...original,
+    id: "fixture-background",
+    subject: { kind: "port", port_id: id },
+  };
+  const fixture = proposalDecoderFixture(0, false, "--prepare-proposal", undefined, {
+    portId: id,
+    listingOnly: accepted,
+    assets: [proposed],
+  });
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  const directory = record(
+    fixtureJson(readFileSync(join(fixture.output, "listing-media-proposal.json"))),
+  );
+  const rows = records(directory.listings);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]?.project_url, accepted.listing.project_url);
+  assert.deepEqual(rows[0]?.media, [proposed]);
+  const operational = fixtureCatalog(
+    fixtureJson(readFileSync(join(fixture.output, "catalog-proposal.json"))),
+  );
+  const input = fixtureCatalog(
+    fixtureJson(readFileSync(join(fixture.catalogs, "catalog-fixture-input.json"))),
+  );
+  assert.deepEqual(operational, input);
+  assert.ok(!operational.ports.some((port) => port.id === id));
+  assert.equal(fixture.processes.filter((item) => record(item).listings === true).length, 1);
+});

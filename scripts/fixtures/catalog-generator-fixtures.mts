@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import type { ArtworkCatalog } from "../inspect-igdb-artwork.mts";
 import { isRecord } from "../runtime-values.mts";
 import { authoringRecordFromPort, checkedAuthoredPort } from "../catalog-authoring.mts";
+import type { AuthoredPort } from "../catalog-authoring.mts";
 import { readFixtureModuleClosure } from "./module-closure.mts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -200,6 +201,7 @@ export function proposalDecoderFixture(
   scene?: {
     portId: string;
     assets: Record<string, unknown>[];
+    listingOnly?: AuthoredPort;
     accepted?: Record<string, unknown>[];
     gone?: string[];
   },
@@ -287,6 +289,10 @@ export function proposalDecoderFixture(
   const factoryLog = join(fixture.scratch, "factory.log");
   const processLog = join(fixture.scratch, "process.log");
   syncFixtureSource(fixture.catalogs);
+  if (scene?.listingOnly) {
+    const file = join(fixture.catalogs, "ports", `${scene.portId}.json`);
+    writeFileSync(file, JSON.stringify(scene.listingOnly), { flag: "wx" });
+  }
   if (scene?.accepted) {
     const file = join(fixture.catalogs, "ports", `${scene.portId}.json`);
     const record = fixtureJson(readFileSync(file));

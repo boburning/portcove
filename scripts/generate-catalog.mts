@@ -39,7 +39,7 @@ import {
   gameMediaImageTarget,
   catalogGameMediaRoles,
 } from "./inspect-igdb-artwork.mts";
-import type { ImageValidator } from "./inspect-igdb-artwork.mts";
+import type { ArtworkCatalog, ImageValidator } from "./inspect-igdb-artwork.mts";
 import {
   prepareCoverArtworkInOperations,
   prepareGameMediaInOperations,
@@ -544,10 +544,11 @@ function originalSceneScope(game: unknown, subject: Record<string, unknown>) {
 }
 
 function splitListingSceneProposal(
-  catalog: CurrentCatalog,
+  catalog: ArtworkCatalog,
   beforePreparation: CurrentCatalog,
   goneTargets: readonly string[],
   excluded: ReadonlySet<string>,
+  directoryOnly: ReadonlySet<string>,
 ) {
   const accepted = new Map(authored.directory.listings.map((listing) => [listing.id, listing]));
   const baseline = new Map(
@@ -555,17 +556,18 @@ function splitListingSceneProposal(
   );
   const staged = new Map<
     string,
-    { legacy: unknown[]; scenes: Record<string, unknown>[]; game: unknown }
+    { legacy: unknown[]; additions: Record<string, unknown>[]; game: unknown }
   >();
   const pending: { port_id: string; asset: Record<string, unknown> }[] = [];
   const gone = new Set(goneTargets);
-  const ports = catalog.ports.map((port) => {
+  const ports = catalog.ports.flatMap((port) => {
     const presentation = port.presentation;
+    const listingOnly = directoryOnly.has(port.id);
     if (excluded.has(port.id) || !isRecord(presentation) || !Array.isArray(presentation.media))
-      return port;
+      return listingOnly ? [] : [port];
     const media: unknown[] = presentation.media;
-    const scenes = media.filter(isRecord).filter(typedIgdbScene);
-    const legacy = media.filter((asset) => !typedIgdbScene(asset));
+    const scenes = media.filter(isRecord).filter((asset) => listingOnly || typedIgdbScene(asset));
+    const legacy = listingOnly ? [] : media.filter((asset) => !typedIgdbScene(asset));
     const listing = accepted.get(port.id);
     const acceptedMedia: unknown[] = Array.isArray(listing?.media) ? listing.media : [];
     const acceptedLegacy = acceptedMedia.filter((asset) => !typedIgdbScene(asset));
@@ -574,7 +576,8 @@ function splitListingSceneProposal(
     const priorMedia = isRecord(prior) ? prior.media : undefined;
     const canAlign =
       matchingProject &&
-      (priorMedia === undefined ||
+      (listingOnly ||
+        priorMedia === undefined ||
         (Array.isArray(priorMedia) &&
           priorMedia.length > 0 &&
           isDeepStrictEqual(priorMedia, acceptedLegacy)));
@@ -601,7 +604,8 @@ function splitListingSceneProposal(
           !isDeepStrictEqual(legacy, priorMedia) &&
           !isDeepStrictEqual(legacy, acceptedLegacy)))
     )
-      staged.set(port.id, { legacy, scenes: prepared, game: presentation.original_game });
+      staged.set(port.id, { legacy, additions: prepared, game: presentation.original_game });
+    if (listingOnly) return [];
     if (!scenes.length) return port;
     const strictPresentation = { ...presentation };
     if (legacy.length) strictPresentation.media = legacy;
@@ -622,7 +626,7 @@ function splitListingSceneProposal(
         const scope = originalSceneScope(listing.original_game, asset.subject);
         if (!scope || scope !== originalSceneScope(stage.game, asset.subject)) return false;
       }
-      return !stage?.scenes.some(
+      return !stage?.additions.some(
         (next) =>
           next.id === asset.id ||
           (next.role === "header" &&
@@ -633,9 +637,13 @@ function splitListingSceneProposal(
     if (!stage && retained.length === currentScenes.length) return [];
     const legacy = stage?.legacy.length
       ? stage.legacy
-      : media.filter((asset) => !typedIgdbScene(asset));
+      : media.filter(
+          (asset) =>
+            !typedIgdbScene(asset) &&
+            (!isRecord(asset) || !stage?.additions.some((next) => next.id === asset.id)),
+        );
     const updated = { ...listing };
-    const nextMedia = [...legacy, ...retained, ...(stage?.scenes ?? [])];
+    const nextMedia = [...legacy, ...retained, ...(stage?.additions ?? [])];
     if (nextMedia.length) updated.media = nextMedia;
     else delete updated.media;
     return [updated];
@@ -709,11 +717,32 @@ async function prepareArtworkProposal(fullProposal = false) {
         }))
       : [],
   };
+  // A listing-only subject is selected explicitly in a bounded proposal. It
+  // uses its accepted descriptive identity and can never enter the strict file.
+  const strictIds = new Set(input.ports.map(({ id }) => id));
+  const integrated = new Set(current.ports.map(({ id }) => id));
+  const directoryOnlyPorts =
+    fullProposal && selectedPortIds
+      ? acceptedMedia.ports.filter(
+          ({ id }) => selectedPortIds.includes(id) && !strictIds.has(id) && !integrated.has(id),
+        )
+      : [];
+  const directoryOnly = new Set(directoryOnlyPorts.map(({ id }) => id));
+  if (
+    selectedPortIds &&
+    directoryOnly.size &&
+    (new Set(selectedPortIds).size !== selectedPortIds.length ||
+      selectedPortIds.some((id) => !strictIds.has(id) && !directoryOnly.has(id)) ||
+      refreshPortIds.some((id) => !selectedPortIds.includes(id)))
+  )
+    throw new Error(
+      "Game media worksets require selected catalog identities and matching refresh ids.",
+    );
   const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
   const covers = await prepareCoverArtworkInOperations(
     input,
-    selectedPortIds,
-    refreshPortIds,
+    selectedPortIds?.filter((id) => !directoryOnly.has(id)),
+    refreshPortIds.filter((id) => !directoryOnly.has(id)),
     (ids, refresh, gone) =>
       prepareCatalogArtwork(input, {
         ...inspector,
@@ -727,7 +756,20 @@ async function prepareArtworkProposal(fullProposal = false) {
   const gameMedia =
     heroMedia === "igdb"
       ? await prepareGameMediaInOperations(
-          covers.catalog,
+          {
+            ...covers.catalog,
+            ports: [
+              ...covers.catalog.ports,
+              ...directoryOnlyPorts.map(({ presentation: { original_game, media }, ...port }) => ({
+                ...port,
+                presentation: {
+                  original_game,
+                  // Other existing media is read from the accepted directory.
+                  ...(Array.isArray(media) && media.length === 0 ? { media: [] } : {}),
+                },
+              })),
+            ],
+          },
           selectedPortIds,
           (ids, catalog, gone, cleared) =>
             prepareCatalogGameMedia(catalog, {
@@ -746,7 +788,6 @@ async function prepareArtworkProposal(fullProposal = false) {
       : undefined;
   const result = { ...covers, catalog: gameMedia?.catalog ?? covers.catalog };
   finishPhase("artwork_preparation");
-  validateCurrentCatalog(result.catalog);
   const sceneProposal =
     fullProposal && gameMedia
       ? splitListingSceneProposal(
@@ -754,9 +795,11 @@ async function prepareArtworkProposal(fullProposal = false) {
           input,
           gameMedia.gone_media_targets,
           excludedMedia,
+          directoryOnly,
         )
       : null;
   const proposedCatalog = sceneProposal?.catalog ?? result.catalog;
+  validateCurrentCatalog(proposedCatalog);
   const proposalBytes = Buffer.from(`${JSON.stringify(proposedCatalog, null, 2)}\n`);
   const proposalChecks =
     inspectProposal && beforeChecks

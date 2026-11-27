@@ -7591,7 +7591,10 @@ identity.
 
 Full proposal preparation validates typed backgrounds and screenshots in
 `listing-media-proposal.json` through the listing inspector. The strict
-`catalog-proposal.json` keeps operational definitions separate. The artwork
+`catalog-proposal.json` keeps operational definitions separate. With
+`--hero-media igdb`, explicitly selected `--artwork-ids` can include accepted
+listing-only projects. The preparation uses their accepted descriptive context
+and writes their proposed media only to the validated listing output. The artwork
 report retains proposed scenes without an exact accepted listing binding for
 manual review.
 
@@ -7602,8 +7605,8 @@ and exact observed withdrawals. `game_media.gone_media_targets` records each
 withdrawn CDN target as `variant/image_id`. An empty provider
 inventory is missing evidence for that role in that provider. A failed,
 incomplete or unrun query remains unknown. Conflicting provider identities
-stay visible for review. The default report also retains listing-only entries
-outside the proposal input, including their already reviewed media.
+stay visible for review. The default report also accounts for listing-only
+entries outside the requested proposal, including their reviewed media.
 
 Preparation proposes remote URLs, provenance, hashes and provider terms; it grants no admission, signing, publication
 or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifies
