@@ -3005,10 +3005,23 @@ SELECT json_build_object(
       WHERE source = 'definition-delivery' AND coverage = 'complete'
       ORDER BY acquisition DESC LIMIT 1),
   'universe_inputs', json_build_object(
-    'records', (SELECT coalesce(json_agg(lc.payload -> 'authored_record' ORDER BY lc.subject_key), '[]')
-                  FROM latest_catalog lc
-                 WHERE lc.payload <> portcove_maintenance.absent_payload()
-                   AND jsonb_typeof(lc.payload -> 'authored_record') = 'object'),
+    -- buildUniverse needs identity and lineage, while assessment explanations use the full stored facts.
+    'records', (SELECT coalesce(json_agg(
+        jsonb_build_object('listing', CASE WHEN jsonb_typeof(record.value -> 'listing') = 'object' THEN (
+          SELECT coalesce(jsonb_object_agg(field.key,
+            CASE WHEN field.key = 'original_game' AND jsonb_typeof(field.value) = 'object'
+              THEN jsonb_build_object('id', field.value -> 'id') ELSE field.value END), '{}')
+          FROM jsonb_each(record.value -> 'listing') field
+          WHERE field.key IN ('id', 'name', 'issue_number', 'project_url', 'original_game_title', 'original_game')
+        ) ELSE record.value -> 'listing' END) || (
+          SELECT coalesce(jsonb_object_agg(field.key, field.value), '{}')
+          FROM jsonb_each(record.value) field
+          WHERE field.key IN ('upstream_lineage', 'original_game_review')
+        ) ORDER BY lc.subject_key), '[]')
+      FROM latest_catalog lc
+      CROSS JOIN LATERAL (VALUES (lc.payload -> 'authored_record')) record(value)
+      WHERE lc.payload <> portcove_maintenance.absent_payload()
+        AND jsonb_typeof(record.value) = 'object'),
     'issues', (SELECT coalesce(json_object_agg('issue:' || (i.payload ->> 'number'), i.payload), '{}')
                  FROM present_issue i),
     'intake', (SELECT coalesce(json_object_agg(h.subject_key, h.payload), '{}')

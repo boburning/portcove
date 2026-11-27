@@ -1364,6 +1364,9 @@ void test(
       [[59, "CLOSED", true, "Ready"]],
     );
     assert.match(renderHtml(withWork), /#59 \(canonical\) CLOSED · Ready/u);
+    const catalogEntry = withWork.universe?.find(({ key }) => key === "port:2ship2harkinian");
+    assert.equal(catalogEntry?.original_game_id, "the-legend-of-zelda-majoras-mask");
+    assert.deepEqual(catalogEntry?.relations, [{ type: "canonical-work", key: "issue:59" }]);
 
     // Full and incremental assessment agree on identical final inputs.
     await all(direct.owner, ["2ship2harkinian"]);
