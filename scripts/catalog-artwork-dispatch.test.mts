@@ -456,7 +456,7 @@ void test("a selected listing-only identity receives descriptive media without a
   };
   const fixture = proposalDecoderFixture(0, false, "--prepare-proposal", undefined, {
     portId: id,
-    listingOnly: accepted,
+    listingsOnly: [accepted],
     assets: [proposed],
   });
   assert.equal(fixture.result.status, 0, fixture.result.stderr);
@@ -476,4 +476,46 @@ void test("a selected listing-only identity receives descriptive media without a
   assert.deepEqual(operational, input);
   assert.ok(!operational.ports.some((port) => port.id === id));
   assert.equal(fixture.processes.filter((item) => record(item).listings === true).length, 1);
+
+  const oldLogo = {
+    ...proposed,
+    id: "old-logo",
+    role: "logo",
+    width: 300,
+    height: 200,
+    url: "https://images.igdb.com/igdb/image/upload/t_logo_med_2x/oldlogo.png",
+    igdb: { game_id: 4097, game_slug: "tomba", image_id: "oldlogo", record_id: 10, kind: "logo" },
+  };
+  const replacement = {
+    ...oldLogo,
+    id: "new-logo",
+    url: "https://images.igdb.com/igdb/image/upload/t_logo_med_2x/newlogo.png",
+    igdb: { ...oldLogo.igdb, image_id: "newlogo", record_id: 11 },
+  };
+  const peer = "listing-scene-peer";
+  const other = checkedAuthoredPort({
+    ...accepted,
+    listing: {
+      ...accepted.listing,
+      id: peer,
+      project_url: "https://github.com/example/scene-peer",
+      media: [{ ...oldLogo, subject: { kind: "port", port_id: peer } }],
+    },
+  });
+  for (const assets of [[], [replacement]]) {
+    const gone = proposalDecoderFixture(0, false, "--prepare-proposal", undefined, {
+      portId: id,
+      listingsOnly: [accepted, other],
+      accepted: [oldLogo],
+      assets,
+      gone: ["logo_med_2x/oldlogo"],
+    });
+    assert.equal(gone.result.status, 0, gone.result.stderr);
+    const patch = record(
+      fixtureJson(readFileSync(join(gone.output, "listing-media-proposal.json"))),
+    );
+    const changed = new Map(records(patch.listings).map((row) => [row.id, row]));
+    assert.deepEqual(requiredFixture(changed.get(id)).media, assets.length ? assets : undefined);
+    assert.equal(Object.hasOwn(requiredFixture(changed.get(peer)), "media"), false);
+  }
 });

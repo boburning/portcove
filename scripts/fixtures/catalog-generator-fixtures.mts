@@ -201,7 +201,7 @@ export function proposalDecoderFixture(
   scene?: {
     portId: string;
     assets: Record<string, unknown>[];
-    listingOnly?: AuthoredPort;
+    listingsOnly?: AuthoredPort[];
     accepted?: Record<string, unknown>[];
     gone?: string[];
   },
@@ -289,9 +289,9 @@ export function proposalDecoderFixture(
   const factoryLog = join(fixture.scratch, "factory.log");
   const processLog = join(fixture.scratch, "process.log");
   syncFixtureSource(fixture.catalogs);
-  if (scene?.listingOnly) {
-    const file = join(fixture.catalogs, "ports", `${scene.portId}.json`);
-    writeFileSync(file, JSON.stringify(scene.listingOnly), { flag: "wx" });
+  for (const record of scene?.listingsOnly ?? []) {
+    const file = join(fixture.catalogs, "ports", `${record.listing.id}.json`);
+    writeFileSync(file, JSON.stringify(record), { flag: "wx" });
   }
   if (scene?.accepted) {
     const file = join(fixture.catalogs, "ports", `${scene.portId}.json`);

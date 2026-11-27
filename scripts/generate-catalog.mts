@@ -560,6 +560,12 @@ function splitListingSceneProposal(
   >();
   const pending: { port_id: string; asset: Record<string, unknown> }[] = [];
   const gone = new Set(goneTargets);
+  const withdrawn = (asset: unknown) => {
+    if (!isRecord(asset) || !isRecord(asset.igdb) || typeof asset.igdb.image_id !== "string")
+      return false;
+    const role = catalogGameMediaRoles.find((role) => role === asset.role);
+    return role !== undefined && gone.has(gameMediaImageTarget(role, asset.igdb.image_id));
+  };
   const ports = catalog.ports.flatMap((port) => {
     const presentation = port.presentation;
     const listingOnly = directoryOnly.has(port.id);
@@ -618,10 +624,7 @@ function splitListingSceneProposal(
     const media: unknown[] = Array.isArray(listing.media) ? listing.media : [];
     const currentScenes = media.filter(isRecord).filter(typedIgdbScene);
     const retained = currentScenes.filter((asset) => {
-      if (isRecord(asset.igdb) && typeof asset.igdb.image_id === "string") {
-        const role = catalogGameMediaRoles.find((role) => role === asset.role);
-        if (role && gone.has(gameMediaImageTarget(role, asset.igdb.image_id))) return false;
-      }
+      if (withdrawn(asset)) return false;
       if (stage && isRecord(asset.subject) && asset.subject.kind === "original") {
         const scope = originalSceneScope(listing.original_game, asset.subject);
         if (!scope || scope !== originalSceneScope(stage.game, asset.subject)) return false;
@@ -634,16 +637,17 @@ function splitListingSceneProposal(
             isDeepStrictEqual(next.subject, asset.subject)),
       );
     });
-    if (!stage && retained.length === currentScenes.length) return [];
     const legacy = stage?.legacy.length
       ? stage.legacy
       : media.filter(
           (asset) =>
             !typedIgdbScene(asset) &&
+            (!directoryOnly.has(listing.id) || !withdrawn(asset)) &&
             (!isRecord(asset) || !stage?.additions.some((next) => next.id === asset.id)),
         );
-    const updated = { ...listing };
     const nextMedia = [...legacy, ...retained, ...(stage?.additions ?? [])];
+    if (!stage && nextMedia.length === media.length) return [];
+    const updated = { ...listing };
     if (nextMedia.length) updated.media = nextMedia;
     else delete updated.media;
     return [updated];
@@ -721,19 +725,24 @@ async function prepareArtworkProposal(fullProposal = false) {
   // uses its accepted descriptive identity and can never enter the strict file.
   const strictIds = new Set(input.ports.map(({ id }) => id));
   const integrated = new Set(current.ports.map(({ id }) => id));
-  const directoryOnlyPorts =
-    fullProposal && selectedPortIds
-      ? acceptedMedia.ports.filter(
-          ({ id }) => selectedPortIds.includes(id) && !strictIds.has(id) && !integrated.has(id),
-        )
-      : [];
-  const directoryOnly = new Set(directoryOnlyPorts.map(({ id }) => id));
+  const directoryOnly = new Set(
+    fullProposal
+      ? acceptedMedia.ports
+          .filter(({ id }) => !strictIds.has(id) && !integrated.has(id))
+          .map(({ id }) => id)
+      : [],
+  );
+  const selected = selectedPortIds && new Set(selectedPortIds);
+  const directoryOnlyPorts = selected
+    ? acceptedMedia.ports.filter(({ id }) => selected.has(id) && directoryOnly.has(id))
+    : [];
   if (
+    selected &&
     selectedPortIds &&
-    directoryOnly.size &&
-    (new Set(selectedPortIds).size !== selectedPortIds.length ||
+    directoryOnlyPorts.length &&
+    (selected.size !== selectedPortIds.length ||
       selectedPortIds.some((id) => !strictIds.has(id) && !directoryOnly.has(id)) ||
-      refreshPortIds.some((id) => !selectedPortIds.includes(id)))
+      refreshPortIds.some((id) => !selected.has(id)))
   )
     throw new Error(
       "Game media worksets require selected catalog identities and matching refresh ids.",
