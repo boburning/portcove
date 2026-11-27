@@ -2261,11 +2261,13 @@ input, assembles the proposal per port and reconciles exact-image Gone observati
 from every operation into all records. Ports outside an explicit workset keep their
 unchanged input until that reconciliation, so each one a Gone image withdraws gets
 its fallback record and invalidated ID. Game-media records from earlier operations
-are relabelled when a later operation finds their selected image Gone. Those
-operations share one provider budget; that path neither adapts admission nor
-checkpoints progress. The prepare-port
-driver admits operations of at most 400
-selected IDs and adjusts subsequent admission using observed elapsed time,
+are relabelled when a later operation finds their selected image Gone. A refresh
+that confirms conflicting bytes holds new proposals for that image variant
+through the end of the pass and reports the hold for review. The retained catalog
+reference keeps its existing digest. Each operation shares a byte observation
+across ordinary consumers and independently rechecks explicitly refreshed assets.
+Those operations share one provider budget. The prepare-port driver admits
+operations of at most 400 selected IDs and adjusts subsequent admission using observed elapsed time,
 requests and image bytes. Completed identities are atomically checkpointed after
 each result under the existing preparation lock. Reinvoke the same full workset
 after interruption or provider recovery: unchanged successful IDs are reused;

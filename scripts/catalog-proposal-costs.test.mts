@@ -198,6 +198,7 @@ function fixture(
     }
     export function readArtworkJson(path) {return JSON.parse(readFileSync(path));}
     export function createCoreImageValidator() {throw new Error('reuse needs no image decoder');}
+    export function withholdChangedHeroProposals() {throw new Error('cost fixtures need no media hold');}
     export function createIgdbInspector() {
       return {providerMetrics:{authentication_requests:0,game_requests:0,image_requests:0}};
     }

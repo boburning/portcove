@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
 import { readFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -1113,7 +1114,7 @@ void test("game media preparation binds each typed role to the same exact game",
     },
   );
   assert.deepEqual(relationships, ["key_art", "logo", "screenshot"]);
-  assert.deepEqual(inspected, ["with", "without", "logo", "without", "wide", "shot"]);
+  assert.deepEqual(inspected, ["with", "without", "logo", "wide", "shot"]);
   const media = requiredFixture(result.catalog.ports[0]).presentation?.media;
   assert.ok(Array.isArray(media));
   assert.deepEqual(
@@ -1411,7 +1412,8 @@ void test("an observed Gone logo sweeps every reference to its variant and prese
                   id: "withdrawn-logo",
                   role: "logo",
                   subject: { kind: "port", port_id: id },
-                  igdb: { image_id: "sharedlogo" },
+                  igdb: { image_id: "sharedlogo", game_id: 7, record_id: 9 },
+                  sha256: createHash("sha256").update("decoder-fixture").digest("hex"),
                 },
               ]
             : []),
@@ -1429,6 +1431,7 @@ void test("an observed Gone logo sweeps every reference to its variant and prese
   const result = await prepareCatalogGameMedia(covers.catalog, {
     inspector,
     selectedPortIds: ["one", "two", "three", "excluded"],
+    refreshPortIds: ["three"],
     excludedPortIds: new Set(["excluded"]),
   });
   assert.deepEqual(inventoryCalls, ["/v4/artworks", "/v4/logos", "/v4/screenshots"]);
@@ -1458,6 +1461,98 @@ void test("an observed Gone logo sweeps every reference to its variant and prese
     result.records.find((record) => record.port_id === "one" && record.role === "logo")?.reason,
     "selected-image-gone-later-in-batch",
   );
+});
+
+void test("changed retained media holds fresh proposals across artwork operations", async () => {
+  const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
+  const { ARTWORK_OPERATION_PORTS, prepareGameMediaInOperations } =
+    await import("./artwork-operations.mts");
+  const url = "https://example.org/sample";
+  const base = { name: "Sample", project_url: url };
+  const pin = {
+    id: "retained-screenshot",
+    role: "screenshot",
+    sha256: "a".repeat(64),
+    subject: { kind: "port", port_id: "retained" },
+    igdb: { game_id: 7, record_id: 9, image_id: "sharedshot" },
+  };
+  for (const [filler, pinDigest, retainedFirst] of [
+    [0, "a", false],
+    [0, "b", false],
+    [ARTWORK_OPERATION_PORTS - 1, "a", false],
+    [ARTWORK_OPERATION_PORTS - 1, "b", false],
+    [0, "a", true],
+    [ARTWORK_OPERATION_PORTS - 1, "a", true],
+  ] as const) {
+    const untouched = Array.from({ length: filler }, (_, i) => ({
+      ...base,
+      id: `unselected-${i}`,
+    }));
+    const first = { ...base, id: "first" };
+    const retained = {
+      ...base,
+      id: "retained",
+      presentation: { media: [{ ...pin, sha256: pinDigest.repeat(64) }] },
+    };
+    const catalog = {
+      ports: [
+        retainedFirst ? retained : first,
+        ...untouched,
+        retainedFirst ? first : retained,
+        { ...base, id: "last" },
+      ],
+    };
+    const excluded = new Set(untouched.map(({ id }) => id));
+    let requests = 0;
+    const result = await prepareGameMediaInOperations(
+      catalog,
+      undefined,
+      (ids, current, gone, cleared, held) =>
+        prepareCatalogGameMedia(current, {
+          ...(ids ? { selectedPortIds: ids } : {}),
+          refreshPortIds: !ids || ids.includes("retained") ? ["retained"] : [],
+          excludedPortIds: excluded,
+          explicitClearPortIds: cleared,
+          knownGoneMediaTargets: gone,
+          knownHeldMediaTargets: held,
+          inspector: {
+            inspectGame: async () => [
+              { id: 7, name: "Sample", slug: "sample", websites: [{ url }] },
+            ],
+            inspectGameMedia: async (_game, role) =>
+              role === "screenshot" ? [{ id: 9, game: 7, image_id: "sharedshot" }] : [],
+            inspectMediaImage: async () => ({
+              sha256: (++requests === 1 ? "a" : "b").repeat(64),
+              bytes: 100,
+              width: 640,
+              height: 360,
+              format: "png",
+              validator: "portcove-core",
+            }),
+          },
+        }),
+    );
+    assert.equal(requests, 2);
+    assert.deepEqual(result.catalog.ports, catalog.ports);
+    assert.deepEqual(result.gone_media_targets, []);
+    assert.deepEqual(result.held_media_targets, ["720p/sharedshot"]);
+    assert.deepEqual(
+      result.records.filter(({ role }) => role === "screenshot").map(({ reason }) => reason),
+      retainedFirst
+        ? [
+            "retained-image-verified",
+            "existing-scene-retained",
+            "image-bytes-held-for-review",
+            "image-bytes-held-for-review",
+          ]
+        : [
+            "image-bytes-held-for-review",
+            pinDigest === "a" ? "retained-image-bytes-changed" : "retained-image-verified",
+            "existing-scene-retained",
+            "image-bytes-held-for-review",
+          ],
+    );
+  }
 });
 
 for (const unavailableMedia of [false, true]) {
@@ -1548,7 +1643,7 @@ for (const unavailableMedia of [false, true]) {
       },
     });
     assert.equal(mediaCalls, 2);
-    assert.equal(imageCalls, unavailableMedia ? 1 : 3);
+    assert.equal(imageCalls, unavailableMedia ? 1 : 2);
     assert.deepEqual(result.gone_media_targets, []);
     for (const port of result.catalog.ports) {
       assert.equal(port.presentation?.artwork, undefined);

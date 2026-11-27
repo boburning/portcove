@@ -1674,8 +1674,10 @@ type HeroPreparationContext = {
   signal: AbortSignal | undefined;
   games: Map<string, Promise<unknown>>;
   inventories: Map<string, Promise<unknown>>;
-  retainedImages: Map<string, ReturnType<HeroPreparationContext["inspector"]["inspectMediaImage"]>>;
+  images: Map<string, ReturnType<HeroPreparationContext["inspector"]["inspectMediaImage"]>>;
+  imageDigests: Map<string, Set<string>>;
   goneImages: Set<string>;
+  heldImages: Set<string>;
 };
 
 function originalMediaScopes(port: ArtworkPort) {
@@ -1995,24 +1997,28 @@ async function inspectHeroRole(
       .map(({ image_id }) => image_id)
       .filter((id) => context.goneImages.has(gameMediaImageTarget(role, id))),
   );
-  const candidates = eligible.filter(({ image_id }) => !withdrawn.has(image_id));
+  const candidates = eligible.filter(
+    ({ image_id }) =>
+      !withdrawn.has(image_id) && !context.heldImages.has(gameMediaImageTarget(role, image_id)),
+  );
   let reason = "no-suitable-role-observed";
   if (candidates.length) reason = "images-unavailable-or-unsuitable";
+  else if (
+    eligible.some(({ image_id }) => context.heldImages.has(gameMediaImageTarget(role, image_id)))
+  )
+    reason = "image-bytes-held-for-review";
   else if (Array.isArray(observed) && observed.length === 0) reason = "provider-role-empty";
   // Finite candidate chain; one bad file does not erase another media role.
   for (const candidate of candidates.slice(0, 4)) {
     context.signal?.throwIfAborted();
     const target = gameMediaImageTarget(role, candidate.image_id);
-    if (context.goneImages.has(target)) continue;
+    if (context.goneImages.has(target) || context.heldImages.has(target)) continue;
     try {
-      let pending = identity.acceptedExact ? context.retainedImages.get(target) : undefined;
-      if (!pending) {
-        pending = Promise.resolve().then(() =>
-          context.inspector.inspectMediaImage(candidate.image_id, role),
-        );
-        if (identity.acceptedExact) context.retainedImages.set(target, pending);
+      const image = await observeHeroImage(candidate.image_id, role, context);
+      if (context.heldImages.has(target)) {
+        reason = "image-bytes-held-for-review";
+        continue;
       }
-      const image = await pending;
       if (role === "header" && image.width * 2 < image.height * 3) continue;
       const asset = heroAssetProposal(candidate, game, role, identity, image);
       if (
@@ -2048,6 +2054,35 @@ function upsertHeroMedia(media: unknown[], asset: CatalogMediaAsset) {
   if (index >= 0) media[index] = asset;
   else media.push(asset);
 }
+
+function observeHeroImage(
+  imageId: string,
+  role: GameMediaRole,
+  context: HeroPreparationContext,
+  revalidate = false,
+) {
+  // The provider variant identifies the bytes. Role fit and the exact
+  // provider-game and catalog subjects are checked by each caller. An
+  // explicit refresh must independently observe the retained image.
+  const target = gameMediaImageTarget(role, imageId);
+  const key = `${revalidate ? "refresh:" : ""}${target}`;
+  let pending = context.images.get(key);
+  if (!pending) {
+    pending = Promise.resolve()
+      .then(() => context.inspector.inspectMediaImage(imageId, role))
+      .then((image) => {
+        const digests = context.imageDigests.get(target) ?? new Set<string>();
+        if (digests.size && (!digests.has(image.sha256) || digests.size > 1))
+          context.heldImages.add(target);
+        digests.add(image.sha256);
+        context.imageDigests.set(target, digests);
+        return image;
+      });
+    context.images.set(key, pending);
+  }
+  return pending;
+}
+
 async function refreshRetainedHeroMedia(
   port: ArtworkPort,
   media: unknown[],
@@ -2096,14 +2131,10 @@ async function refreshRetainedHeroMedia(
     const imageId = asset.igdb.image_id;
     const key = gameMediaImageTarget(role, imageId);
     if (context.goneImages.has(key)) continue;
-    let pending = context.retainedImages.get(key);
-    if (!pending) {
-      pending = Promise.resolve().then(() => context.inspector.inspectMediaImage(imageId, role));
-      context.retainedImages.set(key, pending);
-    }
     let reason: string;
     try {
-      const image = await pending;
+      const image = await observeHeroImage(imageId, role, context, true);
+      context.images.delete(key);
       reason =
         image.sha256 === asset.sha256 ? "retained-image-verified" : "retained-image-bytes-changed";
     } catch (error) {
@@ -2255,6 +2286,53 @@ function removeWithdrawnCatalogMedia(
       record.reason = "selected-image-gone-later-in-batch";
 }
 
+export function withholdChangedHeroProposals(
+  original: ArtworkCatalog,
+  catalog: ArtworkCatalog,
+  records: HeroMediaRecord[],
+  held: ReadonlySet<string>,
+) {
+  if (!held.size) return;
+  const baseline = new Map(original.ports.map(({ id, presentation }) => [id, presentation]));
+  const byPort = new Map<
+    string,
+    { role: GameMediaRole; subject: CatalogMediaSubject; target: string }[]
+  >();
+  for (const record of records) {
+    if (record.reason !== "role-selected" || !record.image_id) continue;
+    const target = gameMediaImageTarget(record.role, record.image_id);
+    if (!held.has(target)) continue;
+    record.reason = "image-bytes-held-for-review";
+    const pending = byPort.get(record.port_id) ?? [];
+    pending.push({ role: record.role, subject: record.subject, target });
+    byPort.set(record.port_id, pending);
+  }
+  for (const port of catalog.ports) {
+    const pending = byPort.get(port.id);
+    if (!pending || !port.presentation || !Array.isArray(port.presentation.media)) continue;
+    const media = (port.presentation.media as unknown[]).filter(
+      (asset) =>
+        !pending.some(
+          (record) =>
+            isRecord(asset) &&
+            asset.role === record.role &&
+            sameMediaSubject(asset.subject, record.subject) &&
+            catalogMediaImageTarget(asset) === record.target,
+        ),
+    );
+    if (media.length || Array.isArray(baseline.get(port.id)?.media))
+      port.presentation.media = media;
+    else {
+      delete port.presentation.media;
+      if (!Object.keys(port.presentation).length) {
+        const originalPresentation = baseline.get(port.id);
+        if (originalPresentation === undefined) delete port.presentation;
+        else port.presentation = originalPresentation;
+      }
+    }
+  }
+}
+
 /** Propose descriptive game media through the existing identity/provider
  * authority. This grants no publication or image-payload export rights. */
 export async function prepareCatalogGameMedia(
@@ -2268,6 +2346,7 @@ export async function prepareCatalogGameMedia(
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     knownGoneMediaTargets?: readonly string[];
+    knownHeldMediaTargets?: readonly string[];
     inspector: Pick<
       ReturnType<typeof createIgdbInspector>,
       "inspectGame" | "inspectGameMedia" | "inspectMediaImage"
@@ -2276,9 +2355,11 @@ export async function prepareCatalogGameMedia(
   },
 ) {
   const knownGone = options.knownGoneMediaTargets ?? [];
+  const knownHeld = options.knownHeldMediaTargets ?? [];
+  const knownTargets = [...knownGone, ...knownHeld];
   if (
-    Buffer.byteLength(JSON.stringify(knownGone)) > 8 * 1024 * 1024 ||
-    knownGone.some((target) => {
+    Buffer.byteLength(JSON.stringify(knownTargets)) > 8 * 1024 * 1024 ||
+    knownTargets.some((target) => {
       const [variant, id, extra] = target.split("/");
       return (
         extra !== undefined ||
@@ -2287,7 +2368,7 @@ export async function prepareCatalogGameMedia(
       );
     })
   )
-    throw new Error("Invalid bounded media variant Gone observations.");
+    throw new Error("Invalid bounded media variant observations.");
   const selected = options.selectedPortIds ?? catalog.ports.map((port) => port.id);
   if (
     selected.length > 400 ||
@@ -2303,13 +2384,28 @@ export async function prepareCatalogGameMedia(
   const accepted = acceptedHeroMediaMatches(options.acceptedCatalog, excluded);
   const acceptedPorts = new Map(options.acceptedCatalog?.ports.map((port) => [port.id, port]));
   const records: HeroMediaRecord[] = [];
+  const imageDigests = new Map<string, Set<string>>();
+  for (const source of [catalog, options.acceptedCatalog])
+    for (const { id, presentation } of source?.ports ?? []) {
+      if (excluded.has(id)) continue;
+      if (!Array.isArray(presentation?.media)) continue;
+      for (const asset of presentation.media as unknown[]) {
+        const target = catalogMediaImageTarget(asset);
+        if (!target || !isRecord(asset) || !matchesString(hashPattern, asset.sha256)) continue;
+        const digests = imageDigests.get(target) ?? new Set<string>();
+        digests.add(asset.sha256);
+        imageDigests.set(target, digests);
+      }
+    }
   const context: HeroPreparationContext = {
     inspector: options.inspector,
     signal: options.signal,
     games: new Map(),
     inventories: new Map(),
-    retainedImages: new Map(),
+    images: new Map(),
+    imageDigests,
     goneImages: new Set(knownGone),
+    heldImages: new Set(knownHeld),
   };
   for (const port of result.ports) {
     if (!selected.includes(port.id) || excluded.has(port.id)) continue;
@@ -2332,7 +2428,13 @@ export async function prepareCatalogGameMedia(
     if (media.length || Array.isArray(current)) port.presentation = { ...port.presentation, media };
   }
   removeWithdrawnCatalogMedia(result, records, context.goneImages, excluded);
-  return { catalog: result, records, gone_media_targets: [...context.goneImages].sort() };
+  withholdChangedHeroProposals(catalog, result, records, context.heldImages);
+  return {
+    catalog: result,
+    records,
+    gone_media_targets: [...context.goneImages].sort(),
+    ...(context.heldImages.size ? { held_media_targets: [...context.heldImages].sort() } : {}),
+  };
 }
 
 function sameMediaSubject(value: unknown, subject: CatalogMediaSubject) {

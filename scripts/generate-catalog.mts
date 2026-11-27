@@ -785,7 +785,7 @@ async function prepareArtworkProposal(fullProposal = false) {
             ],
           },
           selectedPortIds,
-          (ids, catalog, gone, cleared) =>
+          (ids, catalog, gone, cleared, held) =>
             prepareCatalogGameMedia(catalog, {
               inspector,
               identities,
@@ -794,6 +794,7 @@ async function prepareArtworkProposal(fullProposal = false) {
               excludedPortIds: excludedMedia,
               explicitClearPortIds: cleared,
               knownGoneMediaTargets: gone,
+              knownHeldMediaTargets: held,
               refreshPortIds: ids
                 ? refreshPortIds.filter((id) => ids.includes(id))
                 : refreshPortIds,
@@ -886,6 +887,9 @@ async function prepareArtworkProposal(fullProposal = false) {
             ...(sceneProposal?.pending.length ? { unbound_scenes: sceneProposal.pending } : {}),
             records: gameMedia.records,
             gone_media_targets: gameMedia.gone_media_targets,
+            ...(gameMedia.held_media_targets?.length
+              ? { held_media_targets: gameMedia.held_media_targets }
+              : {}),
             coverage: sceneCoverage(acceptedMedia, gameMedia, selectedPortIds),
           },
         }
