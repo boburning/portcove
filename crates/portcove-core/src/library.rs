@@ -3075,18 +3075,38 @@ impl Library {
 
     pub(crate) fn register_external_runtime_finishing_setup(
         &self,
-        mut record: ExternalRuntimeRecord,
+        record: ExternalRuntimeRecord,
         retained_catalog: &Catalog,
         pending: Option<(&str, &str)>,
     ) -> Result<ExternalRuntimeRecord> {
-        if retained_catalog.listing(&record.port_id).is_err() {
-            return Err(PortcoveError::state(
-                "external runtime and retained port identities differ",
-            ));
-        }
+        self.register_external_runtime_from_selection(record, retained_catalog, pending, false)
+    }
+
+    pub(crate) fn register_personal_runtime(
+        &self,
+        record: ExternalRuntimeRecord,
+        retained_catalog: &Catalog,
+    ) -> Result<ExternalRuntimeRecord> {
+        self.register_external_runtime_from_selection(record, retained_catalog, None, true)
+    }
+
+    fn register_external_runtime_from_selection(
+        &self,
+        mut record: ExternalRuntimeRecord,
+        retained_catalog: &Catalog,
+        pending: Option<(&str, &str)>,
+        personal: bool,
+    ) -> Result<ExternalRuntimeRecord> {
+        let retained_listing = retained_catalog.listing(&record.port_id).map_err(|_| {
+            PortcoveError::state("external runtime and retained port identities differ")
+        })?;
         check_external_preferences_binding(&record, retained_catalog)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if personal {
+            let (catalog, _) = crate::catalog_store::load_catalog_from(&transaction, Self::now())?;
+            catalog.require_personal_project_unlisted(retained_listing)?;
+        }
         let existing: bool = transaction.query_row(
             "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)
                     OR EXISTS(SELECT 1 FROM installs WHERE port_id=?1)",

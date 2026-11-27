@@ -95,6 +95,34 @@ fn valid_download_origin(url: &reqwest::Url) -> bool {
 }
 
 impl GithubReleaseProvider {
+    pub(crate) fn for_personal_project_lookup() -> Result<Self> {
+        // The fixed anonymous client has no library cache or credentials.
+        // Share its request budget across previews and saves in this process.
+        static PROVIDER: std::sync::Mutex<Option<GithubReleaseProvider>> =
+            std::sync::Mutex::new(None);
+        let mut provider = PROVIDER
+            .lock()
+            .map_err(|_| PortcoveError::state("public GitHub lookup is unavailable"))?;
+        if let Some(client) = provider.as_ref() {
+            return Ok(client.clone());
+        }
+        let client = Self::build_with_credential(
+            None,
+            "https://api.github.com",
+            "https://github.com",
+            PROVIDER_NETWORK_BOUNDS,
+            Some(GithubCredential {
+                token: None,
+                source: GithubAuthSource::Anonymous,
+                environment_variable: None,
+                intent: 0,
+            }),
+            false,
+        )?;
+        *provider = Some(client.clone());
+        Ok(client)
+    }
+
     /// Verify an explicitly supplied public project. Only the repository
     /// address is sent to GitHub; runtime coordinates stay in the caller.
     pub(crate) async fn public_catalog_repository(
@@ -868,11 +896,12 @@ mod tests {
     #[tokio::test]
     async fn personal_project_lookup_requires_a_public_exact_repository_root() {
         let (root, requests, _server) = crate::test_http::serve_routed_http(4, |request| {
-            let body = match request.split_whitespace().nth(1).unwrap() {
-                "/repos/Owner/Public" => r#"{"id":42,"full_name":"Owner/Public","private":false}"#,
-                "/repos/Owner/Private" => r#"{"id":43,"full_name":"Owner/Private","private":true}"#,
-                "/repos/Owner/Moved" => r#"{"id":42,"full_name":"Owner/Public","private":false}"#,
-                "/repos/Owner/Unknown" => r#"{"id":44,"full_name":"Owner/Unknown"}"#,
+            let path = request.split_whitespace().nth(1).unwrap();
+            let body = match path.strip_prefix('/').unwrap() {
+                "repos/Owner/Public" => r#"{"id":42,"full_name":"Owner/Public","private":false}"#,
+                "repos/Owner/Private" => r#"{"id":43,"full_name":"Owner/Private","private":true}"#,
+                "repos/Owner/Moved" => r#"{"id":42,"full_name":"Owner/Public","private":false}"#,
+                "repos/Owner/Unknown" => r#"{"id":44,"full_name":"Owner/Unknown"}"#,
                 _ => panic!("the lookup requested something other than repository metadata"),
             };
             format!(

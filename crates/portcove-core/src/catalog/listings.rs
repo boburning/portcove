@@ -1358,6 +1358,30 @@ impl Catalog {
         self.with_projected_listing_document(document)
     }
 
+    pub(crate) fn require_personal_project_unlisted(&self, proposed: &PortListing) -> Result<()> {
+        let repository_id = proposed.admitted_github_repository_id().ok_or_else(|| {
+            PortcoveError::verification("personal registration requires a stable repository ID")
+        })?;
+        let repository = crate::release::catalog_download_repository(&proposed.project_url)?;
+        if self.listings().iter().any(|row| {
+            if row.id == proposed.id {
+                return true;
+            }
+            crate::release::catalog_download_repository(&row.project_url).is_ok_and(|name| {
+                name.eq_ignore_ascii_case(&repository)
+                    || row.upstream_observation.as_ref().is_some_and(|observed| {
+                        observed.repository_id == Some(repository_id)
+                            && name.eq_ignore_ascii_case(&observed.repository)
+                    })
+            })
+        }) {
+            return Err(PortcoveError::conflict(
+                "Portcove already lists this project. Select its catalog entry to use your files.",
+            ));
+        }
+        Ok(())
+    }
+
     /// Durable launch intent retains only the descriptive project and an explicit
     /// format fence. No managed capability, source authority or adapter is added.
     pub(crate) fn for_user_selected_listing(listing: PortListing) -> Result<Self> {

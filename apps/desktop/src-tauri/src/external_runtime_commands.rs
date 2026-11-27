@@ -148,6 +148,7 @@ pub(crate) async fn register_personal_github_runtime(
         )
         .into());
     }
+    crate::require_library_generation(crate::state_generation(state.inner()), generation)?;
     let confirmed = confirm_destructive(
         &app,
         "Add personal port",

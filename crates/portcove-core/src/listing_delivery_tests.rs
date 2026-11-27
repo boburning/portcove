@@ -201,6 +201,7 @@ async fn authenticated_listings_add_correct_withdraw_without_managed_authority()
 #[tokio::test]
 async fn registered_personal_project_joins_and_survives_signed_admission_and_withdrawal() {
     const ID: &str = "github-982741653";
+    const RACE_ID: &str = "github-982741654";
     let (_temp, library) = library();
     let source = tempfile::tempdir().unwrap();
     let executable = crate::test_fixture::build_probe(source.path());
@@ -212,6 +213,29 @@ async fn registered_personal_project_joins_and_survives_signed_admission_and_wit
         .fixture_personal_runtime_context(982741653, "FixtureOwner/BeforeRename")
         .unwrap();
     let args = ["--help".into()];
+    let connection = library.connection().unwrap();
+    connection
+        .execute(
+            "INSERT INTO catalog_downloads(port_id,pending_id,record_json,phase,preview_sha256,activity_id)
+             VALUES (?1,'fixture-pending','{}','downloaded',?2,'fixture-activity')",
+            rusqlite::params![ID, "a".repeat(64)],
+        )
+        .unwrap();
+    let pending = local
+        .preview_user_selected_runtime(ID, &executable, source.path(), &args)
+        .unwrap_err();
+    assert!(pending.message.contains("pending setup"));
+    assert_eq!(
+        connection
+            .execute(
+                "DELETE FROM catalog_downloads WHERE port_id=?1 AND pending_id='fixture-pending'",
+                [ID],
+            )
+            .unwrap(),
+        1,
+        "the rejected personal preview must preserve a pending setup"
+    );
+    drop(connection);
     let preview = local
         .preview_user_selected_runtime(ID, &executable, source.path(), &args)
         .unwrap();
@@ -242,6 +266,21 @@ async fn registered_personal_project_joins_and_survives_signed_admission_and_wit
         .unwrap();
     let retained = serde_json::to_value(registration).unwrap();
     assert!(library.load_catalog().unwrap().0.listing(ID).is_err());
+    let stale = service
+        .fixture_personal_runtime_context(982741654, "FixtureOwner/ConcurrentAdmission")
+        .unwrap();
+    let stale_preview = stale
+        .preview_user_selected_runtime(RACE_ID, &executable, source.path(), &args)
+        .unwrap();
+    let stale_authorization = stale
+        .authorize_user_selected_runtime(
+            RACE_ID,
+            &executable,
+            source.path(),
+            &args,
+            &stale_preview.preview_sha256,
+        )
+        .unwrap();
 
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());
@@ -251,9 +290,13 @@ async fn registered_personal_project_joins_and_survives_signed_admission_and_wit
             "id": ID, "name": "Official port name",
             "summary": "Fixture signed admission after an upstream rename.",
             "project_url": "https://github.com/FixtureOwner/AfterRename"
+        }, {
+            "id": RACE_ID, "name": "Concurrently admitted port",
+            "summary": "Fixture signed admission while a personal review is open.",
+            "project_url": "https://github.com/FixtureOwner/ConcurrentAdmission"
         }] }
     });
-    let root = publish(&fixture, &key, 1, &admission).await;
+    let root = publish_compact(&fixture, &key, 1, &admission).await;
     provision(&library, &root);
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let joined = PortcoveService::new(library.clone()).unwrap();
@@ -267,12 +310,28 @@ async fn registered_personal_project_joins_and_survives_signed_admission_and_wit
             .is_err()
     );
     assert!(joined.catalog().port(ID).is_err());
+    let raced = stale
+        .register_user_selected_runtime(
+            RACE_ID,
+            &executable,
+            source.path(),
+            &args,
+            &stale_authorization.token,
+        )
+        .unwrap_err();
+    assert!(raced.message.contains("already lists this project"));
+    assert!(
+        library
+            .external_runtime_with_port(RACE_ID)
+            .unwrap()
+            .is_none()
+    );
 
     let withdrawal = json!({
         "listing_delivery_schema": 1, "revision": 2, "withdrawn_ids": [ID],
-        "directory": {"format_version": 17, "listings": []}
+        "directory": {"format_version": 17, "listings": [admission["directory"]["listings"][1].clone()]}
     });
-    let root = publish(&fixture, &key, 2, &withdrawal).await;
+    let root = publish_compact(&fixture, &key, 2, &withdrawal).await;
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let withdrawn = PortcoveService::new(library.clone()).unwrap();
     assert!(withdrawn.catalog().listing(ID).is_err());
@@ -636,48 +695,48 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
 }
 
-#[tokio::test]
-async fn signed_listing_mod_portals_update_without_installation_or_operational_authority() {
+async fn publish_compact(
+    fixture: &RepositoryFixture,
+    key: &Key,
+    version: u64,
+    document: &Value,
+) -> Vec<u8> {
     use base64::{Engine as _, engine::general_purpose::STANDARD};
     use flate2::{Compression, write::GzEncoder};
     use sha2::{Digest, Sha256};
     use std::io::Write as _;
 
-    async fn publish_compact(
-        fixture: &RepositoryFixture,
-        key: &Key,
-        version: u64,
-        document: &Value,
-    ) -> Vec<u8> {
-        let bytes = serde_json::to_vec(document).unwrap();
-        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-        encoder.write_all(&bytes).unwrap();
-        let compact = json!({
-            "carrier": listing_delivery::COMPACT_CARRIER,
-            "decoded_bytes": bytes.len(),
-            "decoded_sha256": hex::encode(Sha256::digest(&bytes)),
-            "gzip_base64": STANDARD.encode(encoder.finish().unwrap()),
-        });
-        fixture
-            .publish_with_policy(
-                &[
-                    (
-                        listing_delivery::TARGET.into(),
-                        serde_json::to_vec(&feed(1)).unwrap(),
-                    ),
-                    (
-                        listing_delivery::COMPACT_TARGET.into(),
-                        serde_json::to_vec(&compact).unwrap(),
-                    ),
-                ],
-                true,
-                &DEFINITION_ROLE_PATHS,
-                later(),
-                Some((key, version)),
-            )
-            .await
-    }
+    let bytes = serde_json::to_vec(document).unwrap();
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(&bytes).unwrap();
+    let compact = json!({
+        "carrier": listing_delivery::COMPACT_CARRIER,
+        "decoded_bytes": bytes.len(),
+        "decoded_sha256": hex::encode(Sha256::digest(&bytes)),
+        "gzip_base64": STANDARD.encode(encoder.finish().unwrap()),
+    });
+    fixture
+        .publish_with_policy(
+            &[
+                (
+                    listing_delivery::TARGET.into(),
+                    serde_json::to_vec(&feed(1)).unwrap(),
+                ),
+                (
+                    listing_delivery::COMPACT_TARGET.into(),
+                    serde_json::to_vec(&compact).unwrap(),
+                ),
+            ],
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((key, version)),
+        )
+        .await
+}
 
+#[tokio::test]
+async fn signed_listing_mod_portals_update_without_installation_or_operational_authority() {
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());
     let (_temp, library) = library();

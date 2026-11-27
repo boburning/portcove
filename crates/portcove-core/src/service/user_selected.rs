@@ -58,8 +58,7 @@ impl PortcoveService {
         &self,
         project_url: &str,
     ) -> Result<(crate::release::CatalogGithubRepository, Self)> {
-        let project = CompositeReleaseProvider::for_library(&self.library)?
-            .github()
+        let project = crate::GithubReleaseProvider::for_personal_project_lookup()?
             .public_catalog_repository(project_url)
             .await?;
         let service = self.personal_runtime_context(project.id, &project.full_name)?;
@@ -68,34 +67,22 @@ impl PortcoveService {
 
     fn personal_runtime_context(&self, repository_id: u64, full_name: &str) -> Result<Self> {
         let (current, provenance) = self.library.load_catalog()?;
-        let id = format!("github-{repository_id}");
-        if current.listings().iter().any(|row| {
-            row.id == id
-                || crate::release::catalog_download_repository(&row.project_url)
-                    .is_ok_and(|name| name.eq_ignore_ascii_case(full_name))
-                || row.upstream_observation.as_ref().is_some_and(|observed| {
-                    observed.repository_id == Some(repository_id)
-                        && crate::release::catalog_download_repository(&row.project_url)
-                            .is_ok_and(|name| name.eq_ignore_ascii_case(&observed.repository))
-                })
-        }) {
-            return Err(PortcoveError::conflict(
-                "Portcove already lists this project. Select its catalog entry to use your files.",
-            ));
-        }
         let listing = serde_json::from_value(serde_json::json!({
-            "id": id,
+            "id": format!("github-{repository_id}"),
             "name": full_name,
             "summary": "Public upstream project selected for this library.",
             "project_url": format!("https://github.com/{full_name}"),
         }))?;
+        current.require_personal_project_unlisted(&listing)?;
         let private_catalog = Catalog::for_user_selected_listing(listing)?;
-        Ok(Self::from_catalog(
+        let mut service = Self::from_catalog(
             self.library.clone(),
             self.releases.clone(),
             private_catalog,
             provenance,
-        ))
+        );
+        service.personal_registration = true;
+        Ok(service)
     }
 
     #[cfg(test)]
@@ -281,7 +268,7 @@ impl PortcoveService {
         arguments: &[String],
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<ExternalRuntimePreview> {
-        let pending = self.pending_setup_registration(port_id)?;
+        let pending = self.pending_user_selection(port_id)?;
         let listing = match &pending {
             Some((record, _)) => &record.listing,
             None => self.catalog.listing(port_id)?,
@@ -330,6 +317,18 @@ impl PortcoveService {
             ))?);
         }
         Ok(preview)
+    }
+
+    fn pending_user_selection(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<(crate::PendingSetupRecord, String)>> {
+        if self.personal_registration {
+            self.require_no_pending_setup(port_id)?;
+            Ok(None)
+        } else {
+            self.pending_setup_registration(port_id)
+        }
     }
 
     pub(super) fn with_user_selected_readiness(&self, mut status: PortStatus) -> PortStatus {
@@ -465,7 +464,9 @@ impl PortcoveService {
             ));
         }
         // A saved setup resumes at this reviewed plan after an interruption.
-        self.record_pending_registration_review(port_id, &preview)?;
+        if !self.personal_registration {
+            self.record_pending_registration_review(port_id, &preview)?;
+        }
         self.library
             .issue_authorization("register_user_selected", port_id, &preview.preview_sha256)
     }
@@ -497,14 +498,16 @@ impl PortcoveService {
             )?;
             // A staged setup whose bound facts changed cannot complete here;
             // the retained package digest check can be cancelled.
-            self.require_pending_setup_continuable(port_id, &|| operation.checkpoint())?;
+            if !self.personal_registration {
+                self.require_pending_setup_continuable(port_id, &|| operation.checkpoint())?;
+            }
             self.library.consume_authorization(
                 authorization_token,
                 "register_user_selected",
                 port_id,
                 &preview.preview_sha256,
             )?;
-            let pending = self.pending_setup_registration(port_id)?;
+            let pending = self.pending_user_selection(port_id)?;
             let accepted_selected =
                 pending.is_none() && self.current_user_selected_definition(port_id)?.is_some();
             let retained = if accepted_selected {
@@ -534,6 +537,9 @@ impl PortcoveService {
                     .flatten(),
                 shared_preferences: None,
             };
+            if self.personal_registration {
+                return self.library.register_personal_runtime(record, &retained);
+            }
             self.library.register_external_runtime_finishing_setup(
                 record,
                 &retained,
