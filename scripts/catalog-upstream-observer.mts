@@ -45,7 +45,7 @@ import {
   type FirstPartyModProgress,
   launcherModSubjects,
   recordLauncherModAttempt,
-  selectLauncherModWork,
+  selectLauncherModAssessmentWork,
   validateFirstPartyModProgress,
 } from "./upstream-launcher-mod-progress.mts";
 import {
@@ -1023,9 +1023,10 @@ export async function advanceCatalogObservations(
     }
     const reviewed = due.filter(({ port_id }) => gameScopes.has(port_id));
     const unresolved = due.filter(({ port_id }) => !gameScopes.has(port_id));
-    for (const subject of selectLauncherModWork(
+    for (const subject of selectLauncherModAssessmentWork(
       reviewed,
       unresolved,
+      progress,
       launcherAttempts,
       lastReviewed,
       lastUnresolved,

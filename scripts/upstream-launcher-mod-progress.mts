@@ -130,6 +130,43 @@ export function selectLauncherModWork<T>(
   return [...established, ...probing];
 }
 
+/** Share productive batches between establishing coverage and renewing prior facts. */
+export function selectLauncherModAssessmentWork<T extends { port_id: string }>(
+  reviewed: readonly T[],
+  unresolved: readonly T[],
+  progress: Readonly<Record<string, FirstPartyModProgress>>,
+  limit: number,
+  lastReviewed: string,
+  lastUnresolved: string,
+) {
+  if (limit <= 1)
+    return selectLauncherModWork(reviewed, unresolved, limit, lastReviewed, lastUnresolved);
+  const reviewedFirst = reviewed.filter(({ port_id }) => !progress[port_id]);
+  const unresolvedFirst = unresolved.filter(({ port_id }) => !progress[port_id]);
+  const reviewedDue = reviewed.filter(({ port_id }) => progress[port_id]);
+  const unresolvedDue = unresolved.filter(({ port_id }) => progress[port_id]);
+  const firstCount = reviewedFirst.length + unresolvedFirst.length;
+  const dueCount = reviewedDue.length + unresolvedDue.length;
+  const reserveDue = Math.min(dueCount, Math.max(1, Math.floor(limit / 3)));
+  const first = selectLauncherModWork(
+    reviewedFirst,
+    unresolvedFirst,
+    Math.min(firstCount, limit - reserveDue),
+    lastReviewed,
+    lastUnresolved,
+  );
+  const due = selectLauncherModWork(
+    reviewedDue,
+    unresolvedDue,
+    limit - first.length,
+    lastReviewed,
+    lastUnresolved,
+  );
+  // A deadline can cut a batch short. Start a renewal before spending
+  // the reserved first-assessment slots.
+  return [...due.slice(0, 1), ...first, ...due.slice(1)];
+}
+
 export function recordLauncherModAttempt(
   binding: string,
   old: FirstPartyModProgress | undefined,

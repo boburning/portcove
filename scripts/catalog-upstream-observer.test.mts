@@ -5886,6 +5886,31 @@ void test("first-party due work reserves a share for missing scopes and follows 
   ]);
 });
 
+void test("first-party coverage moves past reviewed renewals and retains their reserved slots", async () => {
+  const { recordLauncherModAttempt, selectLauncherModAssessmentWork } =
+    await import("./upstream-launcher-mod-progress.mts");
+  const subjects = (...ids: string[]) => ids.map((port_id) => ({ port_id }));
+  const reviewed = subjects("due-a", "due-b", "due-c", "due-d");
+  const unresolved = subjects("new-a", "new-b", "new-c", "new-d", "new-e");
+  const prior = recordLauncherModAttempt(
+    "same-binding",
+    undefined,
+    { state: "absent", repository_id: 1, commit: "a".repeat(40), tree: "b".repeat(40) },
+    Date.parse("2026-11-27T00:00:00Z"),
+    1000,
+  );
+  const progress = Object.fromEntries(reviewed.map(({ port_id }) => [port_id, prior]));
+  const plan = (limit: number, fresh = unresolved) =>
+    selectLauncherModAssessmentWork(reviewed, fresh, progress, limit, "", "").map(
+      ({ port_id }) => port_id,
+    );
+  assert.deepEqual(plan(6), ["due-a", "new-a", "new-b", "new-c", "new-d", "due-b"]);
+  assert.deepEqual(plan(4), ["due-a", "new-a", "new-b", "new-c"]);
+  assert.deepEqual(plan(3, unresolved.slice(0, 1)), ["due-a", "new-a", "due-b"]);
+  assert.deepEqual(plan(3, []), ["due-a", "due-b", "due-c"]);
+  assert.deepEqual(plan(1), ["due-a"]);
+});
+
 void test("first-party observation retains a missing game scope and reassesses when exact evidence arrives", async () => {
   const h = harness();
   const listings = [
