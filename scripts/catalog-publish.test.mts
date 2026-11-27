@@ -1631,6 +1631,25 @@ void test("exact provider cross-links enrich the signed listing without changing
     },
   ]);
   assert.equal(listingOnlyUpdate.generated_mod_portals, 2);
+  const staleSeed = {
+    id: "obs-gh-thunderstore-7654",
+    site: "community_site",
+    url: "https://thunderstore.io/c/withdrawn/",
+    name: "Thunderstore",
+    instructions: "The upstream project lists this community. Follow its setup instructions.",
+  };
+  const admitted = {
+    ...listingOnly,
+    id: "github-7654",
+    mod_portals: [reviewedGameBanana, staleSeed],
+  };
+  const registryFallback = projectListingDelivery(
+    { format_version: 17, listings: [admitted] },
+    [],
+    null,
+    { modPortalDefaults: defaults },
+  );
+  assert.deepEqual(rows(registryFallback.bytes)[0]?.mod_portals, publishedListingOnly.mod_portals);
   assert.equal(
     defaults(
       {

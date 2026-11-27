@@ -150,7 +150,7 @@ export function listingModPortalDefaults(
       boundThunderstore.has(listing.id)
     )
       return undefined;
-    const authored = listingPortals(listing);
+    const authored = listingPortals(withoutLauncherAdmissionSeeds(listing));
     const gameIds = new Set(reviewedGameIds.get(listing.id));
     for (const portal of authored) {
       if (!isRecord(portal) || isGenerated(portal) || portal.site !== "community_site") continue;
