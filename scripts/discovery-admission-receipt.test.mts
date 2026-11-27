@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+import { parse } from "yaml";
 import {
   checkDiscoveryAdmissionPaths,
   checkDiscoveryReplayTree,
@@ -442,8 +444,9 @@ void test("independent review binds the open App proposal to the exact replay he
       return Response.json([record]);
     });
   assert.equal(await review(row), row.html_url);
+  assert.equal(await review({ ...row, state: "closed" }), "");
   for (const altered of [
-    { ...row, state: "closed" },
+    { ...row, state: "unknown" },
     { ...row, user: { login: "other[bot]" } },
     { ...row, head: { ...row.head, sha: "d".repeat(40) } },
   ])
@@ -468,6 +471,30 @@ void test("a proposal must contain the whole replayed tree and exact single prod
       () => checkDiscoveryReplayTree(head, source, tree, changed),
       /replay tree or parent/u,
     );
+});
+
+void test("admission reviews carry current verifier code into an older producer checkout", () => {
+  const workflow: unknown = parse(
+    readFileSync(new URL("../.github/workflows/catalog-admission.yml", import.meta.url), "utf8"),
+  );
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs) && isRecord(workflow.jobs.review));
+  const job = workflow.jobs.review;
+  assert.equal(job.environment, undefined);
+  assert.ok(isRecord(job.env) && Array.isArray(job.steps));
+  assert.equal(job.env.CONTROLLER_SOURCE, "${{ github.workflow_sha }}");
+  assert.equal(job.env.DISCOVERY_SOURCE, "${{ github.event.workflow_run.head_sha }}");
+  const steps = (job.steps as unknown[]).filter(isRecord);
+  const replay = steps.find(({ id }) => id === "replay");
+  assert.equal(typeof replay?.run, "string");
+  const shell = String(replay?.run);
+  assert.match(shell, /worktree add --quiet --detach "\$controller" "\$CONTROLLER_SOURCE"/u);
+  assert.match(shell, /node "\$controller\/scripts\/discovery-admission-branch\.mts" review/u);
+  assert.match(shell, /node scripts\/prepare-port\.mts --discovery-scheduled-run/u);
+  assert.doesNotMatch(shell, /git checkout|secrets\.|APP_PRIVATE_KEY/u);
+  assert.equal(
+    steps.find(({ name }) => name === "Retain the independent replay receipt")?.if,
+    "steps.replay.outputs.matched == 'true'",
+  );
 });
 
 void test("proposal gate follows a numeric repository page without changing its scope", async () => {

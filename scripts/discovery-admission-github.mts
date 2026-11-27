@@ -147,7 +147,7 @@ export async function catalogAdmissionGitHub(
     if (
       rows.length !== 1 ||
       !isRecord(row) ||
-      (mode === "review" && row.state !== "open") ||
+      (mode === "review" && row.state !== "open" && row.state !== "closed") ||
       !isRecord(row.head) ||
       row.head.sha !== commit ||
       row.head.ref !== branch ||
@@ -164,7 +164,7 @@ export async function catalogAdmissionGitHub(
       row.html_url !== `https://github.com/${repository}/pull/${String(row.number)}`
     )
       throw new Error("Exact catalog admission proposal readback differs.");
-    return row.html_url;
+    return mode === "review" && row.state === "closed" ? "" : row.html_url;
   };
   if (mode === "review") return verify(await lookup());
   if (mode === "prior") {
