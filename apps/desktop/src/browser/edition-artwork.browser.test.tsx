@@ -1,3 +1,4 @@
+import { controlledAct } from "../../test/controlled-react-act";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -7,7 +8,7 @@ import { workspace } from "../dev-scenarios/interactive/scenarios";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { artworkState, sourceInspectionIdentityFixture, sourceProfile } from "../test-fixtures";
-import type { CatalogMediaAsset, OriginalGameIdentity } from "../types";
+import type { CatalogMediaAsset, OriginalGameIdentity, SourceInspectionReport } from "../types";
 import "../styles/index.css";
 
 const edition = "tomba-playstation";
@@ -62,7 +63,7 @@ afterEach(async () => {
   localStorage.clear();
 });
 
-type Scene = "current" | "stale" | "wrong edition" | "withdrawn" | "offline" | "local override";
+type Scene = "current" | "stale" | "wrong edition" | "offline" | "local override";
 
 function sceneSnapshot(scene: Scene) {
   const snapshot = workspace("collection");
@@ -86,22 +87,19 @@ function sceneSnapshot(scene: Scene) {
   snapshot.sources = [source];
   snapshot.listing_catalog = {
     format_version: 15,
-    listings:
-      scene === "withdrawn"
-        ? []
-        : [
-            {
-              id: port.id,
-              name: port.name,
-              summary: port.summary,
-              project_url: port.project_url,
-              platforms: port.platforms,
-              availability: "unknown",
-              original_game_title: "Tomba!",
-              original_game: original,
-              media: [header],
-            },
-          ],
+    listings: [
+      {
+        id: port.id,
+        name: port.name,
+        summary: port.summary,
+        project_url: port.project_url,
+        platforms: port.platforms,
+        availability: "unknown",
+        original_game_title: "Tomba!",
+        original_game: original,
+        media: [header],
+      },
+    ],
   };
   inspection.assessment.classification = {
     state: "recognized",
@@ -124,14 +122,20 @@ function fixtureImage(color: string) {
   return canvas.toDataURL("image/png");
 }
 
-const scenes: readonly Scene[] = [
-  "current",
-  "stale",
-  "wrong edition",
-  "withdrawn",
-  "offline",
-  "local override",
-];
+function heroImage(variant: "continue" | "detail") {
+  const hero = document.querySelector(`.game-hero-${variant}`);
+  const image = hero?.querySelector<HTMLImageElement>(".game-hero-background img");
+  return [hero?.getAttribute("data-hero-identity"), image?.src, image?.naturalWidth];
+}
+
+async function expectWithdrawnHeader() {
+  await controlledAct(() => window.dispatchEvent(new Event("focus")));
+  await expect.poll(() => heroImage("detail")).toEqual(["text", undefined, undefined]);
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
+  await expect.poll(() => heroImage("continue")).toEqual(["text", undefined, undefined]);
+}
+
+const scenes: readonly Scene[] = ["current", "stale", "wrong edition", "offline", "local override"];
 
 it.each(scenes)("renders %s edition artwork safely in Continue and Overview", async (scene) => {
   await page.viewport(1366, 900);
@@ -142,8 +146,12 @@ it.each(scenes)("renders %s edition artwork safely in Continue and Overview", as
     throw new Error(message);
   });
   try {
-    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
-    const inspect = vi.spyOn(desktopApi, "inspectSource").mockResolvedValue(report);
+    const workspaceRead = vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    let finishInspection!: (result: SourceInspectionReport) => void;
+    const inspection = new Promise<SourceInspectionReport>((resolve) => {
+      finishInspection = resolve;
+    });
+    const inspect = vi.spyOn(desktopApi, "inspectSource").mockReturnValue(inspection);
     vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
       artworkState(id, slot, 0, id === port.id && slot === "detail" && scene === "local override"),
     );
@@ -170,35 +178,44 @@ it.each(scenes)("renders %s edition artwork safely in Continue and Overview", as
     );
     const details = page.getByRole("button", { name: "Game details", exact: true });
     await expect.element(details).toBeVisible();
+    await expect.poll(() => inspect.mock.calls[0]).toEqual([report.profile_id, 1]);
+    expect(thumbnail).not.toHaveBeenCalled();
+    await controlledAct(async () => {
+      finishInspection(report);
+      await inspection;
+    });
 
     const expectedImage =
       scene === "current" ? automaticImage : scene === "local override" ? localImage : undefined;
-    const expectedInspection = scene === "withdrawn" ? undefined : [report.profile_id, 1];
     const expectedThumbnail =
       scene === "current" || scene === "offline"
         ? [port.id, header.id, header.sha256, 1]
         : undefined;
-    const verifyHero = async () => {
-      await expect.poll(() => inspect.mock.calls[0]).toEqual(expectedInspection);
+    const verifyHero = async (variant: "continue" | "detail") => {
       // Give the completed source read and any thumbnail effect a chance to paint.
       await new Promise<void>((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       );
       await expect.poll(() => thumbnail.mock.calls[0]).toEqual(expectedThumbnail);
       await expect
-        .poll(() => {
-          const hero = document.querySelector(".game-hero");
-          const image = hero?.querySelector<HTMLImageElement>(".game-hero-background img");
-          return [hero?.getAttribute("data-hero-identity"), image?.src, image?.naturalWidth];
-        })
+        .poll(() => heroImage(variant))
         .toEqual(["text", expectedImage, expectedImage ? header.width : undefined]);
     };
-    await verifyHero();
+    await verifyHero("continue");
     if (scene === "current") thumbnail.mockRejectedValue(new Error("Fixture went offline"));
     await details.click();
     await expect.element(page.getByRole("tab", { name: "Overview", exact: true })).toBeVisible();
     await expect.element(page.getByRole("heading", { name: "Tomba!", exact: true })).toBeVisible();
-    await verifyHero();
+    await verifyHero("detail");
+
+    if (scene === "current") {
+      workspaceRead.mockResolvedValue({
+        ...snapshot,
+        listing_catalog: { format_version: 15, listings: [] },
+      });
+      vi.spyOn(desktopApi, "workspaceChanged").mockResolvedValue(true);
+      await expectWithdrawnHeader();
+    }
 
     const expectedReads =
       scene === "offline"
