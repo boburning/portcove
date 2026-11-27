@@ -21,6 +21,7 @@ import {
   runCatalogUpstreams,
   runCatalogOpportunity,
   hostedHandoffByteLimit,
+  omitOversizedBindingInputs,
   retireObserverConfigurations,
 } from "./observe-catalog-upstreams.mts";
 import {
@@ -4212,6 +4213,23 @@ void test("Core rebuilds retain pure listing completion and invalidate exact man
   }
   const pureProgress = first.checkpoint.sources[pure.key]!;
   assert.ok(pureProgress.completed_scope_sha256);
+  const initialInputs = first.report.scope_binding_inputs;
+  const managedSource = managed[0]!;
+  const definitionSet = managedSource.ports.map((port) => [
+    port.id,
+    port.kind === "listing" ? port.definition_sha256 : h.options.definitionHash(port.id),
+  ]);
+  assert.equal(initialInputs.core_executable_sha256, h.options.policyIdentity);
+  assert.equal(initialInputs.listing_stale_after_hours, h.options.config.stale_after_hours);
+  assert.deepEqual(initialInputs.sources[managedSource.key], {
+    contract: "normalized-current-catalog-core-policy-v1",
+    provider_proof: null,
+    source_sha256: managedSource.scope_sha256,
+    definitions_sha256: observationHash(definitionSet),
+    current_sha256: previousBinding(managedSource),
+    retained_sha256: previousBinding(managedSource),
+  });
+  assert.equal(initialInputs.sources[pure.key]?.definitions_sha256, null);
   assert.equal(
     pureProgress.last_complete_policies[0]!.authority,
     "descriptive-listing-observation-only",
@@ -4219,6 +4237,19 @@ void test("Core rebuilds retain pure listing completion and invalidate exact man
   assert.deepEqual(pureProgress.last_complete_policies[0]!.projections, []);
 
   h.advanceClock(1000);
+  const held = await advanceCatalogObservations(catalog, structuredClone(first.checkpoint), {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    excludedSources: new Set(sources.map(({ key }) => key)),
+  });
+  const heldInputs = held.report.scope_binding_inputs;
+  assert.equal(heldInputs.core_executable_sha256, "b".repeat(64));
+  assert.deepEqual(heldInputs.sources[pure.key], initialInputs.sources[pure.key]);
+  assert.deepEqual(heldInputs.sources[managedSource.key], {
+    ...initialInputs.sources[managedSource.key],
+    current_sha256: previousBinding(managedSource, "b".repeat(64)),
+  });
+
   const rebuilt = await advanceCatalogObservations(catalog, first.checkpoint, {
     ...h.options,
     policyIdentity: "b".repeat(64),
@@ -4313,6 +4344,15 @@ void test("Core rebuilds retain pure listing completion and invalidate exact man
     refreshed.checkpoint.sources[pure.key]!.freshness_observed_at,
     new Date(h.options.now!()).toISOString(),
   );
+});
+
+void test("binding diagnostics fit the summary budget without removing source coverage", () => {
+  const summary = { source_statuses: ["source"], scope_binding_inputs: { value: "入力" } };
+  const bytes = Buffer.byteLength(JSON.stringify(summary));
+  assert.deepEqual(omitOversizedBindingInputs(summary, bytes), summary);
+  assert.deepEqual(omitOversizedBindingInputs(summary, bytes - 1), {
+    source_statuses: ["source"],
+  });
 });
 
 void test("descriptive projection retains asset identity without manufacturing package or managed eligibility", async () => {
