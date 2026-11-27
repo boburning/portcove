@@ -261,6 +261,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/runtime-values.mts",
       "scripts/rustdoc-outcomes.mts",
       "scripts/settings-qualification.mts",
+      "scripts/shared-original-media.mts",
       "scripts/upstream-lineage.mts",
       "scripts/upstream-observer.mts",
       "scripts/validation-platforms.mts",

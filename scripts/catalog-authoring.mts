@@ -52,6 +52,8 @@ import type {
 } from "./catalog-acquisition-restrictions.mts";
 import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineage.mts";
 import type { UpstreamLineage } from "./upstream-lineage.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
+import { sharedOriginalMedia } from "./shared-original-media.mts";
 
 // These are checked authoring projections, not a second catalog schema. Unknown
 // metadata is retained verbatim; the captured Core inspector owns admission.
@@ -1123,7 +1125,7 @@ export function assembleCatalogRecords(
     ...(hasReferences ? { schema_version: 3 } : {}),
     ports,
   });
-  const listings = records
+  const listed = records
     .map(projectRouteFacts)
     .map(projectPackagePlayerFacts)
     .map((record) => {
@@ -1157,6 +1159,10 @@ export function assembleCatalogRecords(
           : {}),
       };
     });
+  const listings = sharedOriginalMedia(
+    listed,
+    new Set(records.filter(usesScummvmEngine).map(({ listing }) => listing.id)),
+  );
   const extendedMedia = listings.some(
     (listing) =>
       Array.isArray(listing.media) &&

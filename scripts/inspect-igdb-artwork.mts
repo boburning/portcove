@@ -1601,7 +1601,7 @@ type HeroPreparationContext = {
   inspector: Parameters<typeof prepareCatalogGameMedia>[1]["inspector"];
   signal: AbortSignal | undefined;
   games: Map<string, Promise<unknown>>;
-  artworks: Map<number, Promise<unknown>>;
+  inventories: Map<string, Promise<unknown>>;
   goneImages: Set<string>;
 };
 
@@ -1774,15 +1774,16 @@ async function inspectHeroRole(
   media: unknown[],
   context: HeroPreparationContext,
 ) {
-  const artwork = role === "key_art" || role === "header";
-  if (artwork && !context.artworks.has(game.id))
-    context.artworks.set(
-      game.id,
-      Promise.resolve().then(() => context.inspector.inspectGameMedia(game.id, "key_art")),
+  const inventoryRole = role === "header" ? "key_art" : role;
+  const inventoryKey = `${game.id}:${inventoryRole}`;
+  let inventory = context.inventories.get(inventoryKey);
+  if (!inventory) {
+    inventory = Promise.resolve().then(() =>
+      context.inspector.inspectGameMedia(game.id, inventoryRole),
     );
-  const observed = artwork
-    ? await context.artworks.get(game.id)
-    : await context.inspector.inspectGameMedia(game.id, role);
+    context.inventories.set(inventoryKey, inventory);
+  }
+  const observed = await inventory;
   const eligible = heroImageCandidates(observed, game, role);
   const withdrawn = new Set(
     eligible.map(({ image_id }) => image_id).filter((id) => context.goneImages.has(id)),
@@ -1979,7 +1980,7 @@ export async function prepareCatalogGameMedia(
     inspector: options.inspector,
     signal: options.signal,
     games: new Map(),
-    artworks: new Map(),
+    inventories: new Map(),
     goneImages: new Set(options.knownGoneImageIds ?? []),
   };
   for (const port of result.ports) {
