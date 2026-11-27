@@ -395,7 +395,10 @@ export function planDesktopExecution(
   if (historySession)
     inputs.push(receiptSource(new URL("desktop-qualification-history-test.mts", harnessUrl)));
   if (selection.selected_scenarios.includes("native-rejected-listener-registration"))
-    for (const source of ["pnpm-workspace.yaml", "patches/@tauri-apps__api@2.12.4.patch"])
+    for (const source of [
+      "pnpm-workspace.yaml",
+      "patches/tauri-apps-api-listen-callback-cleanup.patch",
+    ])
       inputs.push(receiptSource(new URL(source, rootUrl)));
   inputs.push(
     receiptSource(new URL("desktop-catalog-update-test.mts", harnessUrl)),

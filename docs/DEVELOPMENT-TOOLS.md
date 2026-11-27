@@ -9,15 +9,21 @@ required to merge.
 
 ## Dependency patches
 
-- **Tauri event registration.** The `@tauri-apps/api@2.12.4` patch releases the
-  callback allocated by a rejected `listen()` and rethrows the original error.
-  Both published entrypoints at 2.12.4 retain the refused handler.
+- **Tauri event registration.** The patch applies to `@tauri-apps/api@>=2.12.4 <3`
+  and releases the callback allocated by a rejected `listen()` and rethrows the
+  original error. The workspace pins 2.12.4. Both published entrypoints at
+  2.12.4 and 2.12.5 retain the refused handler; `event.js` and `event.cjs` are
+  identical in both, and upstream `packages/api/src/event.ts` is unchanged
+  between those tags. A changed patch context or out-of-range version fails
+  installation.
   `desktop-events.test.ts` uses the actual API with an emulated transport and
   checks successful registration and unlisten alongside a refused registration.
+  It fails against an unpatched install.
   Remove the patch when the selected upstream ESM and CommonJS entrypoints
   pass the cleanup and live-listener controls. The existing native
   rejected-registration and late-disposal scenarios exercise the WebView lifetime.
-  [Published API 2.12.4](https://www.npmjs.com/package/@tauri-apps/api/v/2.12.4)
+  [Published API 2.12.4](https://www.npmjs.com/package/@tauri-apps/api/v/2.12.4),
+  [published API 2.12.5](https://www.npmjs.com/package/@tauri-apps/api/v/2.12.5)
 - **Localization lint.** The patch applies to `i18next-cli@>=1.82.4 <2` and
   makes both primary-translation loaders try the configured string
   `extract.defaultNS` before their existing namespace fallbacks. Unset and false

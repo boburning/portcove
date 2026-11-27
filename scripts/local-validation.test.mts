@@ -1952,7 +1952,7 @@ void test("retired desktop-local pnpm authorities remain owned on deletion", () 
 void test("pnpm package patches select full UI coverage including removal", () => {
   for (const status of ["A", "M", "D"]) {
     const { selection, plan } = planFor([
-      { status, path: "patches/@tauri-apps__api@2.12.4.patch" },
+      { status, path: "patches/tauri-apps-api-listen-callback-cleanup.patch" },
     ]);
     assert.deepEqual([...selection.unknown], []);
     assert.equal(selection.uiFullTests, true);
