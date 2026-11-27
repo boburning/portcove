@@ -504,6 +504,13 @@ export async function clickVisible(
   }
 }
 
+/** Find the tab label in current and older installed clients, ignoring the count. */
+export function activitySectionTab(label: "Tasks" | "Game updates" | "History") {
+  return By.xpath(
+    `//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab"][text()[normalize-space(.)="${label}"] or .//span[contains(concat(" ", normalize-space(@class), " "), " activity-tab-label ") and normalize-space(.)="${label}"]]`,
+  );
+}
+
 /** Use the shipping narrow navigation sheet when the desktop navigation is hidden. */
 export async function selectPrimaryNavigation(
   browser: WebDriver,

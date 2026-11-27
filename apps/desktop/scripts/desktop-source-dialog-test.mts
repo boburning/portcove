@@ -296,6 +296,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
 import {
+  activitySectionTab,
   assertCompactReview,
   assertPrimaryReviewAction,
   captureAccessibilityReport,
@@ -859,11 +860,7 @@ export async function sourceDialogScenario({
       (item) => item.id === sourceRegistration.id,
     );
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
-    await click(
-      By.xpath(
-        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="History"]]',
-      ),
-    );
+    await click(activitySectionTab("History"));
     const sourceActivity = By.xpath(
       `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceRegistration.id)}]//button[@aria-label=${JSON.stringify(`Open Game files settings for ${profileLabel}`)}]`,
     );
@@ -911,11 +908,7 @@ export async function sourceDialogScenario({
     }
 
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
-    await click(
-      By.xpath(
-        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="History"]]',
-      ),
-    );
+    await click(activitySectionTab("History"));
     const discoveryActivity = By.xpath(
       `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceDiscovery.id)}]//button[@aria-label="Open Game files settings for Portcove library"]`,
     );

@@ -96,6 +96,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import {
+  activitySectionTab,
   revealDetailSection,
   reviewGameUpdateDisposition,
   clickVisible,
@@ -2432,11 +2433,7 @@ export async function installScenarios({
         15_000,
       );
       await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
-      const gameUpdates = await browser.findElement(
-        By.xpath(
-          '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="Game updates"]]',
-        ),
-      );
+      const gameUpdates = await browser.findElement(activitySectionTab("Game updates"));
       await clickVisible(browser, gameUpdates);
       await browser.wait(
         async () => (await gameUpdates.getAttribute("aria-selected")) === "true",

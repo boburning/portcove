@@ -118,6 +118,7 @@ import {
   waitHistorySessionExit,
 } from "./desktop-qualification-history-test.mts";
 import {
+  activitySectionTab,
   revealDetailSection,
   clickVisible,
   replaceKeyboardText,
@@ -4368,12 +4369,8 @@ try {
       "Application update settings did not receive focus",
     );
 
-    const activityTab = (name: "Tasks" | "History" | "Game updates") =>
-      By.xpath(
-        `//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="${name}"]]`,
-      );
     const selectActivityTab = async (name: "Tasks" | "History") => {
-      const tab = await browser.wait(until.elementLocated(activityTab(name)), 5_000);
+      const tab = await browser.wait(until.elementLocated(activitySectionTab(name)), 5_000);
       await clickVisible(browser, tab);
       await browser.wait(async () => (await tab.getAttribute("aria-selected")) === "true", 5_000);
     };
@@ -4390,7 +4387,10 @@ try {
         ),
       );
       await clickVisible(browser, returnLink);
-      const updates = await browser.wait(until.elementLocated(activityTab("Game updates")), 5_000);
+      const updates = await browser.wait(
+        until.elementLocated(activitySectionTab("Game updates")),
+        5_000,
+      );
       await browser.wait(
         async () =>
           (await updates.getAttribute("aria-selected")) === "true" &&
