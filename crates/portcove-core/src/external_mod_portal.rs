@@ -46,6 +46,34 @@ fn catalog_scope(link: &str) -> Option<ModProviderBinding> {
     binding.valid_coordinates().then_some(binding)
 }
 
+/// The two authenticated discovery paths use different provenance IDs.
+/// Keep the local browser choice tied to their exact common coordinate.
+pub(crate) fn is_generated_thunderstore_source(source: &str) -> bool {
+    let numeric_id = |raw: &str| {
+        raw.parse::<u64>()
+            .is_ok_and(|id| id != 0 && id.to_string() == raw)
+    };
+    source
+        .strip_prefix("obs-gh-thunderstore-")
+        .is_some_and(numeric_id)
+        || source
+            .strip_prefix("obs-ts-")
+            .and_then(|tail| tail.split_once('-'))
+            .is_some_and(|(id, uuid)| numeric_id(id) && uuid::Uuid::parse_str(uuid).is_ok())
+}
+
+pub(crate) fn generated_thunderstore_community(portal: &ExternalModPortal) -> Option<String> {
+    if portal.site != ExternalModSite::CommunitySite
+        || !is_generated_thunderstore_source(&portal.source)
+    {
+        return None;
+    }
+    let ModProviderBinding::Thunderstore { community } = catalog_scope(&portal.url)? else {
+        return None;
+    };
+    Some(community)
+}
+
 fn descriptive_portal(
     source: String,
     site: ExternalModSite,
@@ -177,6 +205,11 @@ pub(crate) fn portals(
                 }),
         );
     }
+    let mut communities = std::collections::HashSet::new();
+    sources.retain(|portal| {
+        generated_thunderstore_community(portal)
+            .is_none_or(|community| communities.insert(community))
+    });
     sources
 }
 

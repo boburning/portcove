@@ -2,7 +2,11 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{ListingModPortal, ModPortalSite, PortcoveError, PortcoveService, Result};
+use crate::{
+    Catalog, ExternalModPortal, ListingModPortal, ModPortalSite, PortcoveError, PortcoveService,
+    Result,
+    external_mod_portal::{generated_thunderstore_community, is_generated_thunderstore_source},
+};
 
 pub(crate) const LOCAL_PAGE_SOURCE: &str = "player:mod-website";
 const MAX_HIDDEN_SOURCES: usize = 16;
@@ -94,11 +98,240 @@ fn read_choices(connection: &Connection, port_id: &str) -> Result<ModPortalPrefe
     Ok(ModPortalPreferences { revision, choices })
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+struct HiddenCommunity {
+    source: String,
+    community: Option<String>,
+}
+
+fn has_community_table(connection: &Connection) -> Result<bool> {
+    Ok(connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master
+         WHERE type='table' AND name='mod_portal_hidden_communities')",
+        [],
+        |row| row.get(0),
+    )?)
+}
+
+fn hidden_communities(
+    connection: &Connection,
+    port_id: &str,
+    revision: u64,
+) -> Result<Vec<HiddenCommunity>> {
+    if !has_community_table(connection)? {
+        return Ok(Vec::new());
+    }
+    let stored: Option<String> = connection
+        .query_row(
+            "SELECT bindings_json FROM mod_portal_hidden_communities
+             WHERE port_id = ?1 AND preference_revision = ?2",
+            params![port_id, revision],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let Some(json) = stored else {
+        return Ok(Vec::new());
+    };
+    if json.len() > MAX_STORED_BYTES {
+        return Err(PortcoveError::verification(
+            "Stored hidden mod communities exceed their limit",
+        ));
+    }
+    let communities: Vec<HiddenCommunity> = serde_json::from_str(&json)?;
+    if communities.len() > MAX_HIDDEN_SOURCES {
+        return Err(PortcoveError::verification(
+            "Too many stored hidden mod communities",
+        ));
+    }
+    Ok(communities)
+}
+
+fn write_communities(
+    transaction: &Transaction<'_>,
+    port_id: &str,
+    revision: u64,
+    communities: &[HiddenCommunity],
+) -> Result<()> {
+    if communities.is_empty() {
+        if has_community_table(transaction)? {
+            transaction.execute(
+                "DELETE FROM mod_portal_hidden_communities WHERE port_id = ?1",
+                [port_id],
+            )?;
+        }
+        return Ok(());
+    }
+    if communities.len() > MAX_HIDDEN_SOURCES {
+        return Err(PortcoveError::verification(
+            "Too many hidden mod communities",
+        ));
+    }
+    // Optional descriptive metadata. Previous readers retain their existing
+    // raw source choices and can still open the same library.
+    transaction.execute_batch(
+        "CREATE TABLE IF NOT EXISTS mod_portal_hidden_communities (
+            port_id TEXT NOT NULL PRIMARY KEY,
+            preference_revision INTEGER NOT NULL CHECK(preference_revision > 0),
+            bindings_json TEXT NOT NULL CHECK(length(CAST(bindings_json AS BLOB)) BETWEEN 2 AND 4096)
+         ) STRICT;",
+    )?;
+    transaction.execute(
+        "INSERT INTO mod_portal_hidden_communities VALUES (?1, ?2, ?3)
+         ON CONFLICT(port_id) DO UPDATE SET preference_revision = excluded.preference_revision,
+             bindings_json = excluded.bindings_json",
+        params![port_id, revision, serde_json::to_string(communities)?],
+    )?;
+    Ok(())
+}
+
+fn bind_legacy_choices(
+    choices: &ModPortalChoices,
+    offered: &[ExternalModPortal],
+    communities: &mut Vec<HiddenCommunity>,
+) {
+    for portal in offered {
+        if choices.hidden_sources.binary_search(&portal.source).is_ok()
+            && !communities
+                .iter()
+                .any(|entry| entry.source == portal.source)
+            && let Some(community) = generated_thunderstore_community(portal)
+        {
+            communities.push(HiddenCommunity {
+                source: portal.source.clone(),
+                community: Some(community),
+            });
+        }
+    }
+}
+
+fn resolve_hidden(
+    choices: &mut ModPortalChoices,
+    offered: &[ExternalModPortal],
+    communities: &mut [HiddenCommunity],
+) {
+    choices
+        .hidden_sources
+        .retain(|id| !communities.iter().any(|entry| entry.source == *id));
+    for entry in communities {
+        let Some(community) = entry.community.as_deref() else {
+            continue;
+        };
+        if let Some(portal) = offered
+            .iter()
+            .find(|portal| generated_thunderstore_community(portal).as_deref() == Some(community))
+        {
+            entry.source.clone_from(&portal.source);
+            choices.hidden_sources.push(portal.source.clone());
+        }
+    }
+    choices.hidden_sources.sort_unstable();
+    choices.hidden_sources.dedup();
+}
+
+/// Save legacy choices from the visible predecessor and rebind their raw IDs
+/// alongside existing coordinate preferences as part of signed selection.
+pub(crate) fn retain_generated_thunderstore_choices(
+    transaction: &Transaction<'_>,
+    previous: Option<&Catalog>,
+    selected: &Catalog,
+) -> Result<()> {
+    let table = has_community_table(transaction)?;
+    let query = if table {
+        "SELECT port_id FROM mod_portal_preferences
+         WHERE instr(choices_json, 'obs-ts-') > 0 OR instr(choices_json, 'obs-gh-thunderstore-') > 0
+            OR port_id IN (SELECT port_id FROM mod_portal_hidden_communities)"
+    } else {
+        "SELECT port_id FROM mod_portal_preferences
+         WHERE instr(choices_json, 'obs-ts-') > 0 OR instr(choices_json, 'obs-gh-thunderstore-') > 0"
+    };
+    let ids = transaction
+        .prepare(query)?
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let platform = crate::Platform::current().ok();
+    for id in ids {
+        let Ok(mut preferences) = read_choices(transaction, &id) else {
+            continue;
+        };
+        let Ok(mut communities) = hidden_communities(transaction, &id, preferences.revision) else {
+            continue;
+        };
+        let original = communities.clone();
+        if let Some(previous) = previous {
+            bind_legacy_choices(
+                &preferences.choices,
+                &crate::external_mod_portal::portals(previous, &id, platform),
+                &mut communities,
+            );
+        }
+        for id in &preferences.choices.hidden_sources {
+            if is_generated_thunderstore_source(id)
+                && !communities.iter().any(|entry| entry.source == *id)
+            {
+                communities.push(HiddenCommunity {
+                    source: id.clone(),
+                    community: None,
+                });
+            }
+        }
+        if communities.is_empty() {
+            continue;
+        }
+        let original_choices = preferences.choices.clone();
+        resolve_hidden(
+            &mut preferences.choices,
+            &crate::external_mod_portal::portals(selected, &id, platform),
+            &mut communities,
+        );
+        if preferences.choices.validate().is_err() {
+            continue;
+        }
+        let rebound = preferences.choices != original_choices;
+        if rebound {
+            preferences.revision = next_revision(preferences.revision)? as u64;
+            transaction.execute(
+                "UPDATE mod_portal_preferences SET revision = ?2, choices_json = ?3 WHERE port_id = ?1",
+                params![id, preferences.revision, serde_json::to_string(&preferences.choices)?],
+            )?;
+        }
+        if rebound || communities != original {
+            write_communities(transaction, &id, preferences.revision, &communities)?;
+        }
+    }
+    Ok(())
+}
+
+fn next_revision(current: u64) -> Result<i64> {
+    i64::try_from(current)
+        .ok()
+        .and_then(|revision| revision.checked_add(1))
+        .ok_or_else(|| PortcoveError::state("Mod source choice revision is exhausted"))
+}
+
 impl PortcoveService {
     pub fn mod_portal_preferences(&self, port_id: &str) -> Result<ModPortalPreferences> {
         let connection = self.library().connection()?;
         self.require_mod_portal_subject(&connection, port_id)?;
-        read_choices(&connection, port_id)
+        self.current_mod_portal_choices(&connection, port_id)
+    }
+
+    fn current_mod_portal_choices(
+        &self,
+        connection: &Connection,
+        port_id: &str,
+    ) -> Result<ModPortalPreferences> {
+        let mut preferences = read_choices(connection, port_id)?;
+        let mut communities = hidden_communities(connection, port_id, preferences.revision)?;
+        resolve_hidden(
+            &mut preferences.choices,
+            &crate::external_mod_portal::portals(
+                self.catalog(),
+                port_id,
+                crate::Platform::current().ok(),
+            ),
+            &mut communities,
+        );
+        Ok(preferences)
     }
 
     /// Change browser-only choices on this device. The current catalog remains
@@ -114,7 +347,7 @@ impl PortcoveService {
         let mut connection = self.library().connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         self.require_mod_portal_subject(&transaction, port_id)?;
-        let current = read_choices(&transaction, port_id)?;
+        let current = self.current_mod_portal_choices(&transaction, port_id)?;
         if current.revision != expected_revision {
             return Err(PortcoveError::conflict(
                 "Mod source choices changed. Review the current choices before saving.",
@@ -133,15 +366,41 @@ impl PortcoveService {
                 "The selected mod source does not belong to this game",
             ));
         }
-        if current.choices == choices {
+        if current.choices == choices && choices != ModPortalChoices::default() {
             return Ok(crate::external_mod_portal::project_mod_portals(
                 offered, current,
             ));
         }
-        let revision = i64::try_from(expected_revision)
-            .ok()
-            .and_then(|revision| revision.checked_add(1))
-            .ok_or_else(|| PortcoveError::state("Mod source choice revision is exhausted"))?;
+        let old_communities = hidden_communities(&transaction, port_id, current.revision)?;
+        if current.choices == choices && old_communities.is_empty() {
+            return Ok(crate::external_mod_portal::project_mod_portals(
+                offered, current,
+            ));
+        }
+        let mut communities = Vec::new();
+        if choices != ModPortalChoices::default() {
+            bind_legacy_choices(&choices, &offered, &mut communities);
+            communities.extend(old_communities.into_iter().filter(|entry| {
+                if let Some(community) = entry.community.as_deref() {
+                    !offered.iter().any(|portal| {
+                        generated_thunderstore_community(portal).as_deref() == Some(community)
+                    })
+                } else {
+                    choices.hidden_sources.binary_search(&entry.source).is_err()
+                }
+            }));
+        }
+        let unbound = choices
+            .hidden_sources
+            .iter()
+            .filter(|id| !communities.iter().any(|entry| entry.source == **id))
+            .count();
+        if unbound + communities.len() > MAX_HIDDEN_SOURCES {
+            return Err(PortcoveError::verification(
+                "Too many hidden mod sources and communities",
+            ));
+        }
+        let revision = next_revision(expected_revision)?;
         let json = serde_json::to_string(&choices)?;
         transaction.execute(
             "INSERT INTO mod_portal_preferences (port_id, revision, choices_json)
@@ -150,6 +409,7 @@ impl PortcoveService {
                  choices_json = excluded.choices_json",
             params![port_id, revision, json],
         )?;
+        write_communities(&transaction, port_id, revision as u64, &communities)?;
         transaction.commit()?;
         Ok(crate::external_mod_portal::project_mod_portals(
             offered,

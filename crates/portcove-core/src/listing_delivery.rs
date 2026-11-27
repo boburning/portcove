@@ -1117,7 +1117,8 @@ impl Library {
         if let Some(floor) = &floor {
             provenance.check_advance(floor)?;
         }
-        if let Some(previous) = AuthenticatedListings::stored(&transaction)?
+        let previous = AuthenticatedListings::stored(&transaction)?;
+        if let Some(previous) = &previous
             && (previous.proof.provenance().anchor_sha256 != provenance.anchor_sha256
                 || candidate.document.revision < previous.document.revision
                 || (candidate.document.revision == previous.document.revision
@@ -1136,7 +1137,7 @@ impl Library {
             baseline_provenance,
             now,
         )?;
-        candidate.document.project(catalog)?;
+        let selected = candidate.document.project(catalog.clone())?;
         provenance.require_fresh()?;
         let proof = serde_json::to_string(&candidate.proof)?;
         let document = std::str::from_utf8(&candidate.bytes)
@@ -1145,6 +1146,26 @@ impl Library {
             // Dropping the transaction rolls it back; nothing was written.
             return Ok(candidate.status());
         }
+        let prior = match previous {
+            Some(previous) if previous.require_current(&transaction, now).is_ok() => {
+                previous.document.project(catalog).ok()
+            }
+            Some(_) => None,
+            None => Some(catalog),
+        };
+        // A corrupt or full local preference projection must not block
+        // independent catalog delivery. Preserve its original rows on error.
+        transaction.execute_batch("SAVEPOINT retain_mod_website_choices")?;
+        if crate::mod_portal_preferences::retain_generated_thunderstore_choices(
+            &transaction,
+            prior.as_ref(),
+            &selected,
+        )
+        .is_err()
+        {
+            transaction.execute_batch("ROLLBACK TO retain_mod_website_choices")?;
+        }
+        transaction.execute_batch("RELEASE retain_mod_website_choices")?;
         let insert = if matches!(candidate.proof, ListingAdmissionProof::Compact(_)) {
             // This optional, descriptive store introduces no library schema
             // dependency. An older reader can still open and renew its separately
