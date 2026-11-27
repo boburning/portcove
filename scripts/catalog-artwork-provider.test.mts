@@ -1113,7 +1113,7 @@ void test("game media preparation binds each typed role to the same exact game",
     },
   );
   assert.deepEqual(relationships, ["key_art", "logo", "screenshot"]);
-  assert.deepEqual(inspected, ["with", "without", "logo", "without", "wide", "shot"]);
+  assert.deepEqual(inspected, ["with", "without", "logo", "wide", "shot"]);
   const media = requiredFixture(result.catalog.ports[0]).presentation?.media;
   assert.ok(Array.isArray(media));
   assert.deepEqual(
@@ -1411,7 +1411,8 @@ void test("an observed Gone logo sweeps every reference to its variant and prese
                   id: "withdrawn-logo",
                   role: "logo",
                   subject: { kind: "port", port_id: id },
-                  igdb: { image_id: "sharedlogo" },
+                  igdb: { image_id: "sharedlogo", game_id: 7, record_id: 9 },
+                  sha256: "a".repeat(64),
                 },
               ]
             : []),
@@ -1429,6 +1430,7 @@ void test("an observed Gone logo sweeps every reference to its variant and prese
   const result = await prepareCatalogGameMedia(covers.catalog, {
     inspector,
     selectedPortIds: ["one", "two", "three", "excluded"],
+    refreshPortIds: ["three"],
     excludedPortIds: new Set(["excluded"]),
   });
   assert.deepEqual(inventoryCalls, ["/v4/artworks", "/v4/logos", "/v4/screenshots"]);
@@ -1548,7 +1550,7 @@ for (const unavailableMedia of [false, true]) {
       },
     });
     assert.equal(mediaCalls, 2);
-    assert.equal(imageCalls, unavailableMedia ? 1 : 3);
+    assert.equal(imageCalls, unavailableMedia ? 1 : 2);
     assert.deepEqual(result.gone_media_targets, []);
     for (const port of result.catalog.ports) {
       assert.equal(port.presentation?.artwork, undefined);

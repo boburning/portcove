@@ -1674,7 +1674,7 @@ type HeroPreparationContext = {
   signal: AbortSignal | undefined;
   games: Map<string, Promise<unknown>>;
   inventories: Map<string, Promise<unknown>>;
-  retainedImages: Map<string, ReturnType<HeroPreparationContext["inspector"]["inspectMediaImage"]>>;
+  images: Map<string, ReturnType<HeroPreparationContext["inspector"]["inspectMediaImage"]>>;
   goneImages: Set<string>;
 };
 
@@ -2005,14 +2005,7 @@ async function inspectHeroRole(
     const target = gameMediaImageTarget(role, candidate.image_id);
     if (context.goneImages.has(target)) continue;
     try {
-      let pending = identity.acceptedExact ? context.retainedImages.get(target) : undefined;
-      if (!pending) {
-        pending = Promise.resolve().then(() =>
-          context.inspector.inspectMediaImage(candidate.image_id, role),
-        );
-        if (identity.acceptedExact) context.retainedImages.set(target, pending);
-      }
-      const image = await pending;
+      const image = await observeHeroImage(candidate.image_id, role, context);
       if (role === "header" && image.width * 2 < image.height * 3) continue;
       const asset = heroAssetProposal(candidate, game, role, identity, image);
       if (
@@ -2048,6 +2041,25 @@ function upsertHeroMedia(media: unknown[], asset: CatalogMediaAsset) {
   if (index >= 0) media[index] = asset;
   else media.push(asset);
 }
+
+function observeHeroImage(
+  imageId: string,
+  role: GameMediaRole,
+  context: HeroPreparationContext,
+  revalidate = false,
+) {
+  // The provider variant identifies the bytes. Role fit and the exact
+  // provider-game and catalog subjects are checked by each caller. An
+  // explicit refresh must independently observe the retained image.
+  const target = `${revalidate ? "refresh:" : ""}${gameMediaImageTarget(role, imageId)}`;
+  let pending = context.images.get(target);
+  if (!pending) {
+    pending = Promise.resolve().then(() => context.inspector.inspectMediaImage(imageId, role));
+    context.images.set(target, pending);
+  }
+  return pending;
+}
+
 async function refreshRetainedHeroMedia(
   port: ArtworkPort,
   media: unknown[],
@@ -2096,14 +2108,9 @@ async function refreshRetainedHeroMedia(
     const imageId = asset.igdb.image_id;
     const key = gameMediaImageTarget(role, imageId);
     if (context.goneImages.has(key)) continue;
-    let pending = context.retainedImages.get(key);
-    if (!pending) {
-      pending = Promise.resolve().then(() => context.inspector.inspectMediaImage(imageId, role));
-      context.retainedImages.set(key, pending);
-    }
     let reason: string;
     try {
-      const image = await pending;
+      const image = await observeHeroImage(imageId, role, context, true);
       reason =
         image.sha256 === asset.sha256 ? "retained-image-verified" : "retained-image-bytes-changed";
     } catch (error) {
@@ -2308,7 +2315,7 @@ export async function prepareCatalogGameMedia(
     signal: options.signal,
     games: new Map(),
     inventories: new Map(),
-    retainedImages: new Map(),
+    images: new Map(),
     goneImages: new Set(knownGone),
   };
   for (const port of result.ports) {
