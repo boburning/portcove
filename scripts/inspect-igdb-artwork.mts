@@ -33,9 +33,11 @@ import {
   closeSync,
   copyFileSync,
   chmodSync,
+  rmSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { isDeepStrictEqual } from "node:util";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -2417,45 +2419,62 @@ export function createCoreImageValidator(
     const env = Object.fromEntries(
       Object.entries(process.env).filter(([name]) => name.toUpperCase() !== "PORTCOVE_LIBRARY"),
     );
-    const timeout = Math.min(30000, Math.floor(remaining()));
-    if (timeout < 1) throw new Error("Core image validation deadline reached.");
-    const child = spawnSync(
-      artifact,
-      [
-        "--library",
-        join(runRoot, "library"),
-        "--json",
-        "--non-interactive",
-        "artwork",
-        "import",
-        "shipwright",
-        file,
-      ],
-      {
-        env,
-        encoding: "utf8",
-        timeout,
-        maxBuffer: 1024 * 1024,
-        windowsHide: true,
-        ...(deadline === undefined ? {} : { killSignal: "SIGKILL" }),
-      },
-    );
-    writeFileSync(
-      join(runRoot, "validation-process.json"),
-      JSON.stringify(
-        {
-          validator_artifact_sha256: artifactSha256,
-          status: child.status,
-          signal: child.signal,
-          error_code: errorCode(child.error) ?? null,
-          stdout_tail: child.stdout?.slice(-16384) ?? "",
-          stderr_tail: child.stderr?.slice(-16384) ?? "",
-        },
-        null,
-        2,
-      ),
-      { flag: "wx" },
-    );
+    // Core needs atomic publication in its temporary library. The operator's
+    // evidence directory can be on a mounted filesystem that lacks it.
+    const child = (() => {
+      const library = mkdtempSync(join(tmpdir(), "portcove-image-library-"));
+      try {
+        const timeout = Math.min(30000, Math.floor(remaining()));
+        if (timeout < 1) throw new Error("Core image validation deadline reached.");
+        const process = spawnSync(
+          artifact,
+          [
+            "--library",
+            library,
+            "--json",
+            "--non-interactive",
+            "artwork",
+            "import",
+            "shipwright",
+            file,
+          ],
+          {
+            env,
+            encoding: "utf8",
+            timeout,
+            maxBuffer: 1024 * 1024,
+            windowsHide: true,
+            ...(deadline === undefined ? {} : { killSignal: "SIGKILL" }),
+          },
+        );
+        writeFileSync(
+          join(runRoot, "validation-process.json"),
+          JSON.stringify(
+            {
+              validator_artifact_sha256: artifactSha256,
+              status: process.status,
+              signal: process.signal,
+              error_code: errorCode(process.error) ?? null,
+              stdout_tail: process.stdout?.slice(-16384) ?? "",
+              stderr_tail: process.stderr?.slice(-16384) ?? "",
+            },
+            null,
+            2,
+          ),
+          { flag: "wx" },
+        );
+        return process;
+      } finally {
+        try {
+          rmSync(library, { recursive: true, force: true, maxRetries: 2 });
+        } catch (error) {
+          process.emitWarning(
+            `Temporary Core image validation library cleanup failed (${errorCode(error) ?? "unknown error"}).`,
+            { code: "PORTCOVE_IMAGE_LIBRARY_CLEANUP" },
+          );
+        }
+      }
+    })();
     if (child.error || child.status !== 0)
       throw new Error("Core image validation refused or unavailable.");
     if (remaining() < 1) throw new Error("Core image validation deadline reached.");

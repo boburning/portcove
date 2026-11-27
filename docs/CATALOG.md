@@ -1958,7 +1958,9 @@ reuses its receipt. A mixed result retains useful proposals and reports
 pending subset. Missing credentials or a failed match does not block other records.
 Use a new checkpoint for a fresh scheduled refresh of unchanged mappings. Core
 listing inspection runs when a validator is supplied; operational projection
-changes require it. Neither mode changes local artwork choices or publishes data.
+changes require it. Image validation uses a temporary library on the host's
+temporary filesystem. The output directory retains the checked image and
+process receipt. Neither mode changes local artwork choices or publishes data.
 
 For a strict operational catalog proposal, use
 `node scripts/generate-catalog.mts --prepare-proposal PROPOSAL.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY`.
