@@ -14,6 +14,7 @@ type Complete = Extract<LauncherModObservation, { state: "observed" | "absent" }
 export interface FirstPartyModProgress {
   binding: string;
   last_attempt_at: string;
+  last_attempt_kind?: "first" | "renewal";
   next_due_at: string;
   outcome: LauncherModObservation["state"];
   reason?: string;
@@ -130,6 +131,56 @@ export function selectLauncherModWork<T>(
   return [...established, ...probing];
 }
 
+/** Share productive batches between establishing coverage and renewing prior facts. */
+export function selectLauncherModAssessmentWork<T extends { port_id: string }>(
+  reviewed: readonly T[],
+  unresolved: readonly T[],
+  progress: Readonly<Record<string, FirstPartyModProgress>>,
+  limit: number,
+  lastReviewed: string,
+  lastUnresolved: string,
+) {
+  if (limit < 1) return [];
+  let lastFirst = "";
+  let lastRenewal = "";
+  for (const row of Object.values(progress)) {
+    if (row.last_attempt_kind === "first") {
+      if (row.last_attempt_at > lastFirst) lastFirst = row.last_attempt_at;
+    } else if (row.last_attempt_at > lastRenewal) {
+      lastRenewal = row.last_attempt_at;
+    }
+  }
+  const firstStarts = lastFirst <= lastRenewal;
+  const reviewedFirst = reviewed.filter(({ port_id }) => !progress[port_id]);
+  const unresolvedFirst = unresolved.filter(({ port_id }) => !progress[port_id]);
+  const reviewedDue = reviewed.filter(({ port_id }) => progress[port_id]);
+  const unresolvedDue = unresolved.filter(({ port_id }) => progress[port_id]);
+  const dueCount = reviewedDue.length + unresolvedDue.length;
+  const reserveDue = Math.min(
+    dueCount,
+    limit === 1 && firstStarts ? 0 : Math.max(1, Math.floor(limit / 3)),
+  );
+  const first = selectLauncherModWork(
+    reviewedFirst,
+    unresolvedFirst,
+    limit - reserveDue,
+    lastReviewed,
+    lastUnresolved,
+  );
+  const due = selectLauncherModWork(
+    reviewedDue,
+    unresolvedDue,
+    limit - first.length,
+    lastReviewed,
+    lastUnresolved,
+  );
+  // A deadline can cut a batch short. Start with the class served least
+  // recently, then give the other class a turn before using the remaining slots.
+  return firstStarts
+    ? [...first.slice(0, 1), ...due.slice(0, 1), ...first.slice(1), ...due.slice(1)]
+    : [...due.slice(0, 1), ...first, ...due.slice(1)];
+}
+
 export function recordLauncherModAttempt(
   binding: string,
   old: FirstPartyModProgress | undefined,
@@ -153,6 +204,7 @@ export function recordLauncherModAttempt(
   return {
     binding,
     last_attempt_at: attemptAt,
+    last_attempt_kind: old?.binding === binding ? "renewal" : "first",
     next_due_at: new Date(nextDue).toISOString(),
     outcome: result.state,
     ...("reason" in result ? { reason: result.reason } : {}),
@@ -176,6 +228,9 @@ export function validateFirstPartyModProgress(value: unknown, now: number): void
       !digest(row.binding, 64) ||
       !["unavailable", "held", "absent", "observed"].includes(String(row.outcome)) ||
       !(date(row.last_attempt_at) <= now) ||
+      (row.last_attempt_kind !== undefined &&
+        row.last_attempt_kind !== "first" &&
+        row.last_attempt_kind !== "renewal") ||
       !(date(row.next_due_at) >= date(row.last_attempt_at)) ||
       date(row.next_due_at) > date(row.last_attempt_at) + 7 * 86400000 ||
       (row.reason !== undefined &&

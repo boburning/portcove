@@ -5886,6 +5886,77 @@ void test("first-party due work reserves a share for missing scopes and follows 
   ]);
 });
 
+void test("first-party coverage moves past reviewed renewals and retains their reserved slots", async () => {
+  const { recordLauncherModAttempt, selectLauncherModAssessmentWork } =
+    await import("./upstream-launcher-mod-progress.mts");
+  const subjects = (...ids: string[]) => ids.map((port_id) => ({ port_id }));
+  const reviewed = subjects("due-a", "due-b", "due-c", "due-d");
+  const unresolved = subjects("new-a", "new-b", "new-c", "new-d", "new-e");
+  const prior = recordLauncherModAttempt(
+    "same-binding",
+    undefined,
+    { state: "absent", repository_id: 1, commit: "a".repeat(40), tree: "b".repeat(40) },
+    Date.parse("2026-11-27T00:00:00Z"),
+    1000,
+  );
+  const progress = Object.fromEntries(reviewed.map(({ port_id }) => [port_id, prior]));
+  const plan = (limit: number, fresh = unresolved) =>
+    selectLauncherModAssessmentWork(reviewed, fresh, progress, limit, "", "").map(
+      ({ port_id }) => port_id,
+    );
+  assert.deepEqual(plan(6), ["due-a", "new-a", "new-b", "new-c", "new-d", "due-b"]);
+  assert.deepEqual(plan(4), ["due-a", "new-a", "new-b", "new-c"]);
+  assert.deepEqual(plan(3, unresolved.slice(0, 1)), ["due-a", "new-a", "due-b"]);
+  assert.deepEqual(plan(3, []), ["due-a", "due-b", "due-c"]);
+  assert.deepEqual(plan(1), ["due-a"]);
+});
+
+void test("first-party short runs resume from persisted turns and service both classes", async () => {
+  const {
+    recordLauncherModAttempt,
+    selectLauncherModAssessmentWork,
+    validateFirstPartyModProgress,
+  } = await import("./upstream-launcher-mod-progress.mts");
+  const binding = "f".repeat(64);
+  const absent = {
+    state: "absent" as const,
+    repository_id: 1,
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+  };
+  const start = Date.parse("2026-11-27T00:00:00Z");
+  const legacy = recordLauncherModAttempt(binding, undefined, absent, start, 1000);
+  delete legacy.last_attempt_kind;
+  for (const slots of [1, 6]) {
+    const due = ["due-a", "due-b", "due-c"].map((port_id) => ({ port_id }));
+    const fresh = ["fresh-a", "fresh-b", "fresh-c"].map((port_id) => ({ port_id }));
+    let progress = Object.fromEntries(due.map(({ port_id }) => [port_id, legacy]));
+    const attempted = [];
+    for (let cycle = 1; cycle <= 4; cycle++) {
+      const current = start + cycle * 1000;
+      const selected = selectLauncherModAssessmentWork(due, fresh, progress, slots, "", "")[0];
+      assert.ok(selected);
+      const { port_id } = selected;
+      attempted.push(port_id);
+      progress[port_id] = recordLauncherModAttempt(
+        binding,
+        progress[port_id],
+        absent,
+        current,
+        1000,
+      );
+      progress = JSON.parse(JSON.stringify(progress)) as typeof progress;
+      validateFirstPartyModProgress(progress, current);
+      const queue = port_id.startsWith("due-") ? due : fresh;
+      queue.splice(
+        queue.findIndex((subject) => subject.port_id === port_id),
+        1,
+      );
+    }
+    assert.deepEqual(attempted, ["fresh-a", "due-a", "fresh-b", "due-b"]);
+  }
+});
+
 void test("first-party observation retains a missing game scope and reassesses when exact evidence arrives", async () => {
   const h = harness();
   const listings = [
