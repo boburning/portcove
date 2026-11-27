@@ -12,7 +12,11 @@
         {
           "id": "soltys-en-v1-0",
           "title": "English v1.0",
-          "evidence_urls": ["https://www.scummvm.org/games/#games-cge:soltys"]
+          "evidence_urls": [
+            "https://www.scummvm.org/games/#games-cge:soltys",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/cge/detection.cpp#L71-L76"
+          ],
+          "system": "dos"
         }
       ]
     },

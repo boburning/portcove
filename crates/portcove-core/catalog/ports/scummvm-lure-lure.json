@@ -12,7 +12,13 @@
         {
           "id": "lure-1-1",
           "title": "Freeware Version (English)",
-          "evidence_urls": ["https://www.scummvm.org/games/#games-lure:lure"]
+          "evidence_urls": [
+            "https://www.scummvm.org/games/#games-lure:lure",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/lure/detection.cpp#L49-L63",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/lure/detection.cpp#L101-L115",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/lure/detection.cpp#L247-L248"
+          ],
+          "system": "dos"
         }
       ]
     },
