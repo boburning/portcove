@@ -4387,7 +4387,10 @@ try {
         ),
       );
       await clickVisible(browser, returnLink);
-      const updates = await browser.wait(until.elementLocated(activitySectionTab("Game updates")), 5_000);
+      const updates = await browser.wait(
+        until.elementLocated(activitySectionTab("Game updates")),
+        5_000,
+      );
       await browser.wait(
         async () =>
           (await updates.getAttribute("aria-selected")) === "true" &&
