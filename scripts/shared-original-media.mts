@@ -17,6 +17,19 @@ export function originalEditionMediaKey(gameId: string, edition: unknown) {
     return JSON.stringify([gameId, edition.id, edition.system ?? null]);
 }
 
+export function permitsReviewedOriginalMedia(
+  decision: ReviewedOriginalMediaDecision | undefined,
+  providerGameId: unknown,
+  providerSlug: unknown,
+) {
+  return (
+    !decision ||
+    (decision.decision === "match" &&
+      decision.game_id === providerGameId &&
+      decision.slug === providerSlug)
+  );
+}
+
 export function typedIgdbScene(asset: unknown) {
   return (
     isRecord(asset) &&
@@ -77,12 +90,7 @@ export function sharedOriginalMedia<
       if (!item) continue;
       const { key } = item;
       const decision = reviewed?.get(key);
-      if (
-        decision?.decision === "exclude" ||
-        (decision?.decision === "match" &&
-          (decision.game_id !== item.providerGameId || decision.slug !== item.providerSlug))
-      )
-        continue;
+      if (!permitsReviewedOriginalMedia(decision, item.providerGameId, item.providerSlug)) continue;
       const scope = scopes.get(key) ?? {
         roles: new Map<string, Claim | null>(),
         ids: new Map<string, Claim | null>(),

@@ -7600,9 +7600,9 @@ edition, and system. Preparation lists those current ports under
 `game_media.reviewed_original_media`. A match supplies an identity for missing
 roles. Accepted assets remain subject to their own reviewed changes or confirmed
 withdrawal.
-Shared default generation also honors the decision. It copies images only when
-the provider ID and slug agree with a reviewed match for that scope. An exclusion
-suppresses shared copies for that scope.
+Generated media and shared covers in signed listings honor the decision. They
+copy images only when the provider ID and slug agree with a reviewed match for
+that scope. An exclusion suppresses shared copies for that scope.
 Explicitly authored assets keep their existing correction path.
 
 Full proposal preparation validates typed backgrounds and screenshots in
