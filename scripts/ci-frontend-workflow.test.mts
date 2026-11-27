@@ -92,9 +92,13 @@ void test("shared browser uploader preserves artifact contracts and portability 
         : row.step;
     const upload = resolveBrowserUpload(config, action, row.job);
     assert.ok(typeof upload.with.path === "string");
-    const modsScreenshots = "outputs/mod-workspace-fixture/**/*.png\n";
-    assert.ok(upload.with.path.includes(modsScreenshots), row.job);
-    upload.with.path = upload.with.path.replace(modsScreenshots, "");
+    for (const screenshots of [
+      "outputs/mod-workspace-fixture/**/*.png\n",
+      "outputs/recovery-review/**/*.png\n",
+    ]) {
+      assert.ok(upload.with.path.includes(screenshots), row.job);
+      upload.with.path = upload.with.path.replace(screenshots, "");
+    }
     assert.deepEqual(upload, expected);
   }
   // Equivalent YAML layout is accepted; semantic changes must fail the oracle.
