@@ -573,13 +573,13 @@ async fn reviewed_thunderstore_closure_requires_all_exact_wrapper_members() {
     omitted.provider = None;
     omitted.provider_requires.clear();
     assert!(matches!(
-        crate::profile::provider_evidence(
+        crate::profile::ProviderEvidenceIndex::read(
             &w.service.library().connection().unwrap(),
             PORT,
-            &omitted,
-            None,
+            [&omitted],
         )
-        .unwrap(),
+        .unwrap()
+        .evidence(&omitted, None),
         crate::profile::ProviderEvidence::RequirementsDiffer
     ));
     let mut masquerading_as_v1 = serde_json::to_value(&recipe).unwrap();

@@ -1640,22 +1640,6 @@ pub(crate) enum ProviderEvidence {
     RequirementsDiffer,
 }
 
-/// Matches a label and its requirements against exact package bytes from the
-/// port's retained history. Once a closure is known, a legacy empty record
-/// cannot authorize dropping that closure on import. A recipe can claim local
-/// provenance for those bytes when the library also recorded that local source.
-pub(crate) fn provider_evidence(
-    connection: &Connection,
-    port_id: &str,
-    package: &crate::RecipePackage,
-    provider: Option<&ProviderPackageRef>,
-) -> Result<ProviderEvidence> {
-    Ok(
-        ProviderEvidenceIndex::read(connection, port_id, std::iter::once(package))?
-            .evidence(package, provider),
-    )
-}
-
 /// What the port's retained history recorded for a set of exact packages,
 /// read in one pass: each revision that names one of the packages' digests is
 /// parsed once, however many of the packages it holds. Looking each package up
@@ -1717,6 +1701,9 @@ impl ProviderEvidenceIndex {
         Ok(Self { recorded })
     }
 
+    /// Matches a label and its requirements against exact package bytes from
+    /// retained history. A legacy empty record cannot authorize dropping a
+    /// known closure. A local source requires its own recorded provenance.
     pub(crate) fn evidence(
         &self,
         package: &crate::RecipePackage,
