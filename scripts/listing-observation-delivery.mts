@@ -1621,7 +1621,10 @@ export async function prepareObservationBundle(options: {
   let coverReceipt: string | undefined;
   let scheduledCovers: ReadonlyMap<string, IgdbArtwork> | undefined;
   let proposedCovers: ReadonlyMap<string, IgdbArtwork> | undefined;
-  let proposedCoverCheckpoint: typeof coverCheckpoint;
+  let scheduledCoverPublication:
+    | Awaited<ReturnType<typeof projectScheduledCovers>>["checkpointFor"]
+    | undefined;
+  let proposedCoverPublication: typeof scheduledCoverPublication;
   if (!renewal && (automatic || options.readScheduledGameMedia) && previousDocument) {
     const prior = previousDocument.directory.listings;
     try {
@@ -1748,7 +1751,7 @@ export async function prepareObservationBundle(options: {
                 scheduledCovers = covers.preserved;
                 proposedCovers = covers.proposals;
                 coverCheckpoint = covers.preservedCheckpoint;
-                proposedCoverCheckpoint = covers.checkpoint;
+                proposedCoverPublication = covers.checkpointFor;
                 coverReceipt = receipt?.proposal.covers?.length ? receipt.artifact : undefined;
               }
               return observation;
@@ -1817,7 +1820,11 @@ export async function prepareObservationBundle(options: {
     );
   // Stage the complete authenticated representation; Core's normal publication
   // inspector validates these exact bytes.
-  const stage = (projected: { bytes: Buffer; changed: boolean }, destinationRoot: string) => {
+  const stage = (
+    projected: { bytes: Buffer; changed: boolean },
+    destinationRoot: string,
+    scheduledCheckpoint = scheduledCoverPublication,
+  ) => {
     const wire = renewal
       ? compactWire
       : compactWire && !projected.changed
@@ -1831,7 +1838,12 @@ export async function prepareObservationBundle(options: {
       writeFileSync(path.join(destinationRoot, compactListingDeliveryTarget), wire, {
         flag: "wx",
       });
-    const cover = renewal ? priorCover : (coverCheckpoint?.finish(projected.bytes) ?? null);
+    const checkpoint = scheduledCheckpoint
+      ? scheduledCheckpoint(
+          delivery(parseCatalogSource(projected.bytes.toString("utf8"))).directory.listings,
+        )
+      : coverCheckpoint;
+    const cover = renewal ? priorCover : (checkpoint?.finish(projected.bytes) ?? null);
     if (cover)
       writeFileSync(path.join(destinationRoot, artworkCheckpointTarget), cover, { flag: "wx" });
     try {
@@ -1904,13 +1916,12 @@ export async function prepareObservationBundle(options: {
       }
       if (proposedCovers) {
         const scratch = path.join(workspace, "scheduled-cover-validation");
-        const prior = coverCheckpoint;
-        coverCheckpoint = proposedCoverCheckpoint;
         try {
           const proposed = project(admitted, undefined, undefined, mediaDefaults, proposedCovers);
           if (!proposed.bytes.equals(projected.bytes)) {
-            stage(proposed, scratch);
+            stage(proposed, scratch, proposedCoverPublication);
             scheduledCovers = proposedCovers;
+            scheduledCoverPublication = proposedCoverPublication;
             projected = proposed;
           }
         } catch (error) {
@@ -1920,7 +1931,6 @@ export async function prepareObservationBundle(options: {
             `scheduled covers withheld after validation: ${error.message.slice(0, 300)}`,
           );
         } finally {
-          if (scheduledCovers !== proposedCovers) coverCheckpoint = prior;
           rmSync(scratch, { recursive: true, force: true });
         }
       }

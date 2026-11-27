@@ -2243,7 +2243,7 @@ void test("scheduled missing covers reuse an exact edition and survive transient
   const listing = projectListingDelivery(canonical, [], signed.bytes, {
     scheduledCovers: withdrawn.proposals,
   }).bytes;
-  const checkpoint = withdrawn.checkpoint.finish(listing);
+  const checkpoint = withdrawn.preservedCheckpoint.finish(listing);
   assert.ok(checkpoint);
   const recovery = {
     ...options,
@@ -2258,6 +2258,19 @@ void test("scheduled missing covers reuse an exact edition and survive transient
   assert.deepEqual(restored.proposals.get(donor.id), artwork);
   assert.deepEqual(restored.proposals.get(peer.id), artwork);
   assert.deepEqual(restored.preservedCheckpoint.finish(listing), checkpoint);
+  assert.deepEqual(restored.checkpointFor([withheld]).finish(listing), checkpoint);
+  assert.notDeepEqual(restored.checkpointFor([{ ...donor, artwork }]).finish(listing), checkpoint);
+  const conflicting = await projectScheduledCovers({
+    ...recovery,
+    receiptStarted: options.now + 1,
+    source: new Map([
+      [donor.id, donor],
+      [peer.id, peer],
+    ]),
+    incoming: [...prepared.covers, { id: peer.id, artwork: { ...artwork, cover_id: 72 } }],
+  });
+  assert.equal(conflicting.proposals.size, 0);
+  assert.deepEqual(conflicting.checkpointFor([{ ...donor, artwork }]).finish(listing), checkpoint);
   const renamed = "renamed-cover-game";
   const rejectedRenameReplay = await projectScheduledCovers({
     ...recovery,

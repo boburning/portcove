@@ -205,17 +205,17 @@ export async function projectScheduledCovers({
       });
     }
   }
-  let checkpoint = advanceArtworkCheckpoint(priorCheckpoint, health);
-  const offers = new Map<string, IgdbArtwork | null>();
-  function propose(offer: Offer) {
-    const prior = offers.get(offer.key);
-    if (prior === undefined) offers.set(offer.key, offer.artwork);
-    else if (prior && coverIdentity(prior) !== coverIdentity(offer.artwork))
-      offers.set(offer.key, null);
+  const preservedCheckpoint = advanceArtworkCheckpoint(priorCheckpoint, health);
+  function collect(scoped: Map<string, IgdbArtwork | null>, { key, artwork }: Offer) {
+    const earlier = scoped.get(key);
+    if (earlier === undefined) scoped.set(key, artwork);
+    else if (earlier && coverIdentity(earlier) !== coverIdentity(artwork)) scoped.set(key, null);
   }
-  const hasWithdrawal = ({ key, artwork }: Offer) =>
-    checkpoint.withdrawalsFor(scheduledCoverScope(key, artwork).id).length > 0;
-  for (const offer of retained.values()) if (!hasWithdrawal(offer)) propose(offer);
+  const offers = new Map<string, IgdbArtwork | null>();
+  for (const offer of retained.values()) {
+    const { id } = scheduledCoverScope(offer.key, offer.artwork);
+    if (!preservedCheckpoint.withdrawalsFor(id).length) collect(offers, offer);
+  }
   function distribute(allowNew: boolean) {
     const proposals = new Map<string, IgdbArtwork>();
     for (const [id, { scope }] of eligible) {
@@ -231,39 +231,60 @@ export async function projectScheduledCovers({
     return proposals;
   }
   const preserved = distribute(false);
-  const preservedCheckpoint = checkpoint;
-  const retainedScopes = new Set(offers.keys());
-  for (const offer of fresh.values())
+  const candidates = new Map<string, IgdbArtwork | null>();
+  for (const offer of fresh.values()) collect(candidates, offer);
+  const restorations = new Map<string, CoverObservations[number]>();
+  for (const [key, artwork] of candidates)
     if (
       inspect &&
-      !retainedScopes.has(offer.key) &&
-      !changed.has(offer.artwork.image_id) &&
-      (await observe(offer.artwork)) === offer.artwork.image_sha256
+      artwork &&
+      !offers.has(key) &&
+      !changed.has(artwork.image_id) &&
+      (await observe(artwork)) === artwork.image_sha256
     ) {
-      const { artwork } = offer;
-      const scope = scheduledCoverScope(offer.key, artwork);
-      const withdrawals = checkpoint.withdrawalsFor(scope.id);
+      const scope = scheduledCoverScope(key, artwork);
+      const withdrawals = preservedCheckpoint.withdrawalsFor(scope.id);
       if (withdrawals.length) {
         const sameImage = prior.withdrawalsFor(scope.id).find((row) => row.scope === scope.scope);
         if (
           !sameImage ||
+          withdrawals.length !== 1 ||
+          Date.parse(sameImage.observed_at) >= now ||
           !receiptDigest ||
           receiptStarted === undefined ||
           receiptStarted <= Date.parse(sameImage.observed_at)
         )
           continue;
-        health.push({
+        restorations.set(key, {
           ...scope,
           artwork,
           status: "verified_accepted_bytes",
           observed_at: new Date(now).toISOString(),
           report: receiptDigest,
         });
-        checkpoint = advanceArtworkCheckpoint(priorCheckpoint, health);
-        if (hasWithdrawal(offer)) continue;
       }
       verified.add(coverIdentity(artwork));
-      propose(offer);
+      collect(offers, { key, artwork });
     }
-  return { preserved, proposals: distribute(true), preservedCheckpoint, checkpoint };
+  const proposals = distribute(true);
+  function checkpointFor(listings: readonly Listing[]) {
+    if (!restorations.size) return preservedCheckpoint;
+    const published = new Map<string, CoverObservations[number]>();
+    for (const row of listings) {
+      if (typeof row.id !== "string" || !proposals.has(row.id)) continue;
+      const key = eligible.get(row.id)?.scope.key;
+      if (!key) continue;
+      const restored = restorations.get(key);
+      if (
+        restored &&
+        validArtworkMapping(row.artwork) &&
+        coverIdentity(restored.artwork) === coverIdentity(row.artwork)
+      )
+        published.set(key, restored);
+    }
+    return published.size
+      ? advanceArtworkCheckpoint(priorCheckpoint, [...health, ...published.values()])
+      : preservedCheckpoint;
+  }
+  return { preserved, proposals, preservedCheckpoint, checkpointFor };
 }
