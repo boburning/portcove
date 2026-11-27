@@ -3,6 +3,7 @@ import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { validArtworkMapping } from "./catalog-cover-mapping.mts";
 import {
+  ArtworkBatchExhausted,
   isConfirmedIgdbImageGone,
   prepareCatalogArtwork,
   type ArtworkRecord,
@@ -70,13 +71,27 @@ export async function prepareScheduledCovers(
     ];
   });
   if (!inputs.length) return { covers: [], records: [], progress: [] };
-  // The inspector still enforces its request deadline. Treat expiry as an
-  // unavailable observation so completed covers and other artwork roles proceed.
+  // Keep the deadline inside the provider call so partial cover results and
+  // other roles survive. Distinguish this budget from provider failures.
+  async function observe<T>(read: () => Promise<T>): Promise<T> {
+    try {
+      inspector.signal?.throwIfAborted();
+      return await read();
+    } catch (error) {
+      if (
+        inspector.signal?.aborted &&
+        (error === inspector.signal.reason ||
+          (error instanceof Error && error.cause === inspector.signal.reason))
+      )
+        throw new ArtworkBatchExhausted();
+      throw error;
+    }
+  }
   const result = await prepareCatalogArtwork(
     { ports: inputs },
     {
-      inspectGame: inspector.inspectGame,
-      inspectImage: inspector.inspectImage,
+      inspectGame: (identity) => observe(() => inspector.inspectGame(identity)),
+      inspectImage: (imageId, bytes) => observe(() => inspector.inspectImage(imageId, bytes)),
       reviewedOriginalMedia: reviewed,
       reviewedOriginalOnly: true,
     },
