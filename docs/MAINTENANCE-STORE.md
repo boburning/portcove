@@ -111,10 +111,9 @@ the hint document on the server. For cold hosted reads, the discovery job can re
 verified recovery artifact. It restores the seed in a separate local PostgreSQL
 instance without production credentials and reads bounded primary-key pages
 containing actual restored hint and lead payloads with their fingerprints.
-If the same run's initial resource inspection defers, the discovery job skips
-the optional download and restore. Deferral of the larger collection operation
-alone leaves seed preparation available. The worker still checks its own
-allowance and can use the normal cold read if capacity is available.
+An earlier resource inspection can defer before another operation settles.
+Keep the seed available for discovery's own allowance check in that case, since
+the seeded read can fit while the cold read still exceeds the available bytes.
 After fenced compact acquisition, the
 production database compares those fingerprints and returns changed/new rows
 and removed keys. The current continuation always comes from production.

@@ -1986,6 +1986,21 @@ void test("discovery pass reservation does not charge the cold read twice", () =
   assert.ok(Math.floor(measured * 0.7) >= plan.compactBytes + plan.hintsBytes + plan.leadsBytes);
 });
 
+void test("settlement after a deferred inspection can admit only the seeded discovery pass", () => {
+  const inspection = 2_000_000;
+  const availableBefore = 1_000_000;
+  const releasedReservation = 18_000_000 - 9_000_000;
+  assert.ok(availableBefore < inspection);
+  const availableAfterInspection = availableBefore + releasedReservation - inspection;
+  const seed = discoverySeedReservation(
+    { compactBytes: 8_000, hintsBytes: 621, leadsBytes: 1094 },
+    5,
+  );
+  const cold = discoveryPassReservation(17_000_000, 18_000_000, 5);
+  assert.ok(seed <= availableAfterInspection);
+  assert.ok(cold > availableAfterInspection);
+});
+
 void test("a stored-lead read reserves enough metered payload for the whole state", () => {
   for (const [state, records] of [
     [0, 0],
