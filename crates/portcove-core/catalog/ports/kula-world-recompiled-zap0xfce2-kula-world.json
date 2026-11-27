@@ -12,7 +12,7 @@
   },
   "listing": {
     "id": "kula-world-recompiled-zap0xfce2-kula-world",
-    "name": "Kula World — Kula World Recompiled (zap0xfce2)",
+    "name": "Kula World — Kula World Rerolled (zap0xfce2)",
     "original_game_title": "Kula World",
     "artwork": {
       "game_id": 9678,
@@ -23,11 +23,14 @@
       "match_kind": "underlying-game"
     },
     "summary": "Upstream reports reaching all ten worlds through Level Select and the ending movie. That does not establish a complete playthrough. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
-    "project_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
+    "project_url": "https://github.com/zap0xfce2/Kula-World-Rerolled",
     "listed_at": "2026-10-25",
-    "platforms": ["linux-x86-64", "macos-aarch64"],
+    "platforms": [
+      "linux-x86-64",
+      "macos-aarch64"
+    ],
     "availability": "unknown",
-    "setup_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
+    "setup_url": "https://github.com/zap0xfce2/Kula-World-Rerolled",
     "manual_setup": {
       "steps": [
         {
@@ -36,29 +39,34 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Build locally from source using upstream instructions. Keep your own disc available while playing."
+          "instruction": "Follow the upstream release instructions or build from source. Keep your own disc available while playing."
         }
       ],
       "warnings": [
         "Upstream reports reaching all ten worlds through Level Select and the ending movie. That does not establish a complete playthrough.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/zap0xfce2/Kula-World-Recompiled"
+      "help_url": "https://github.com/zap0xfce2/Kula-World-Rerolled"
     },
     "issue_number": 3387,
     "original_game": {
       "format_version": 1,
       "id": "kula-world",
-      "evidence_urls": ["https://github.com/zap0xfce2/Kula-World-Recompiled"],
+      "evidence_urls": [
+        "https://github.com/zap0xfce2/Kula-World-Recompiled"
+      ],
       "source_editions": [
         {
           "id": "kula-world-playstation-europe-sces-01000",
           "title": "Kula World (Europe, SCES-01000)",
           "system": "playstation",
-          "evidence_urls": ["https://github.com/zap0xfce2/Kula-World-Recompiled"]
+          "evidence_urls": [
+            "https://github.com/zap0xfce2/Kula-World-Recompiled"
+          ]
         }
       ]
-    }
+    },
+    "release_url": "https://github.com/zap0xfce2/Kula-World-Rerolled/releases"
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -70,6 +78,48 @@
         "id": "1420571843"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
+          "repository": {
+            "host": "github.com",
+            "id": "1420571843"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/zap0xfce2/Kula-World-Rerolled",
+          "repository": {
+            "host": "github.com",
+            "id": "1420571843"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The immutable GitHub repository continued the same PAL SCES-01000 PSXRecomp implementation under the Kula World Rerolled name.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1420571843",
+            "note": "The recorded numeric ID resolves to the new repository name. The old GitHub URL currently resolves to the same ID."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/zap0xfce2/Kula-World-Rerolled/blob/bf047c9ec3d90358ec336be600f9ad0f05677a9b/README.md",
+            "note": "The current README and the retained original README identify the same PAL SCES-01000 game, PSXRecomp implementation and BIN/CUE input."
+          },
+          {
+            "kind": "context",
+            "reference": "https://github.com/zap0xfce2/Kula-World-Rerolled/releases/tag/v1.0.0",
+            "note": "The developer published an upstream release under the new name after the relocation."
+          }
+        ],
+        "reconsider_when": "GitHub changes the repository identity, the stated game edition changes, or upstream reports a different continuing implementation.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/3387#issuecomment-7225311604",
+          "decision_sha256": "f00d475ad182976b4dc2aead9a657edd42aaff3dbc098f1afa75be4b7a3f0674"
+        }
+      }
+    ]
   }
 }

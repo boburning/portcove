@@ -64809,7 +64809,7 @@
     },
     {
       "id": "kula-world-recompiled-zap0xfce2-kula-world",
-      "name": "Kula World — Kula World Recompiled (zap0xfce2)",
+      "name": "Kula World — Kula World Rerolled (zap0xfce2)",
       "original_game_title": "Kula World",
       "artwork": {
         "game_id": 9678,
@@ -64820,14 +64820,14 @@
         "match_kind": "underlying-game"
       },
       "summary": "Upstream reports reaching all ten worlds through Level Select and the ending movie. That does not establish a complete playthrough. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
+      "project_url": "https://github.com/zap0xfce2/Kula-World-Rerolled",
       "listed_at": "2026-10-25",
       "platforms": [
         "linux-x86-64",
         "macos-aarch64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
+      "setup_url": "https://github.com/zap0xfce2/Kula-World-Rerolled",
       "manual_setup": {
         "steps": [
           {
@@ -64836,14 +64836,14 @@
           },
           {
             "title": "Follow upstream setup",
-            "instruction": "Build locally from source using upstream instructions. Keep your own disc available while playing."
+            "instruction": "Follow the upstream release instructions or build from source. Keep your own disc available while playing."
           }
         ],
         "warnings": [
           "Upstream reports reaching all ten worlds through Level Select and the ending movie. That does not establish a complete playthrough.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/zap0xfce2/Kula-World-Recompiled"
+        "help_url": "https://github.com/zap0xfce2/Kula-World-Rerolled"
       },
       "issue_number": 3387,
       "original_game": {
@@ -64862,7 +64862,8 @@
             ]
           }
         ]
-      }
+      },
+      "release_url": "https://github.com/zap0xfce2/Kula-World-Rerolled/releases"
     },
     {
       "id": "kult-hunkstalker",
