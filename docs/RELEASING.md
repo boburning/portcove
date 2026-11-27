@@ -258,8 +258,10 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   new release facts, and changes to the permitted freshness window bypass this
   deduplication. Existing incomplete collection and failure rules still apply.
 - **Minimum supported preview for live listing updates:** Preview 14
-  (`0.1.0-preview.14`), the first release that reads the compact listing
-  carrier. Listing changes reach only that carrier. Older previews keep the
+  (`0.1.0-preview.14`) for format 15, and Preview 20 (`0.1.0-preview.20`) for
+  formats 16 and 17. Listing changes reach only the compact carrier. Previews
+  that support the carrier keep their last accepted directory when a successor
+  requires a newer reader. Previews before 14 keep the
   last legacy listing directory (revision 47), their library, installed
   games, originals, saves, settings and launch, and they still receive
   definition and policy updates. They receive no further listing changes until

@@ -792,11 +792,14 @@ void test("automatic reader selection activates, advances or renews exact carrie
       },
     }),
   );
-  const compactPrior = writePriorRepository(path.join(fixture.root, "compact-prior"), {
+  const compact14Prior = writePriorRepository(path.join(fixture.root, "compact-prior"), {
     [listingDeliveryTarget]: legacy,
     [compactListingDeliveryTarget]: compact14,
   });
-  const current = compactPrior15(fixture.root);
+  const { prior: current, decoded: currentDecoded } = compactPrior(
+    path.join(fixture.root, "current"),
+    canonical.listings,
+  );
   let acquisitions = 0;
   const prepare = (
     name: string,
@@ -897,32 +900,71 @@ void test("automatic reader selection activates, advances or renews exact carrie
       },
     ],
   };
-  const portalDirectory = path.join(fixture.root, "portal-directory.json");
-  writeFileSync(
-    portalDirectory,
-    wire({ format_version: 16, listings: [portalListing, ...canonical.listings.slice(1)] }),
-  );
-  const previousAcquisitions = acquisitions;
-  const portalDeferred = await prepare(
-    "portal-deferred",
+  const previewReader = (version: string, capable = true) => ({
+    version,
+    binary: Buffer.from(
+      stub
+        .toString("utf8")
+        .replace('product_version: "0.1.0"', `product_version: "${version}"`)
+        .replace(
+          "[11, 12, 13, 14, 15]",
+          capable ? "[11, 12, 13, 14, 15, 16, 17]" : "[11, 12, 13, 14, 15]",
+        ),
+    ),
+  });
+  for (const format of [16, 17]) {
+    const nextDirectory = fixture.write(`portal-directory-${format}.json`, {
+      format_version: format,
+      listings: [portalListing, ...canonical.listings.slice(1)],
+    });
+    const older = await prepare(
+      `older-reader-${format}`,
+      current,
+      previewReader("0.1.0-preview.19"),
+      {
+        canonical: nextDirectory,
+      },
+    );
+    assert.equal(older.listing_format, 15);
+    assert.equal(older.changed, false);
+    assert.match(
+      String(older.released_reader_unavailable),
+      /requires released reader 0\.1\.0-preview\.20/u,
+    );
+    assert.deepEqual(
+      read(`older-reader-${format}`, compactListingDeliveryTarget),
+      encodeCompactListing(currentDecoded),
+    );
+    const capableReader = await prepare(
+      `qualified-reader-${format}`,
+      current,
+      previewReader("0.1.0-preview.20"),
+      {
+        canonical: nextDirectory,
+      },
+    );
+    assert.equal(capableReader.listing_format, format);
+    assert.equal(capableReader.minimum_live_listing_reader, "0.1.0-preview.20");
+    assert.equal(capableReader.released_reader_unavailable, undefined);
+    assert.deepEqual(read(`qualified-reader-${format}`, listingDeliveryTarget), legacy);
+  }
+  const incapable = await prepare(
+    "incomplete-preview-20",
     current,
-    { binary: stub, version: "0.1.0" },
-    { canonical: portalDirectory },
+    previewReader("0.1.0-preview.20", false),
+    {
+      canonical: path.join(fixture.root, "portal-directory-17.json"),
+    },
   );
-  assert.equal(acquisitions, previousAcquisitions);
-  assert.equal(portalDeferred.listing_format, 15);
-  assert.equal(portalDeferred.changed, false);
-  assert.match(
-    String(portalDeferred.released_reader_unavailable),
-    /format 16 has no declared released reader floor/u,
-  );
+  assert.equal(incapable.listing_format, 15);
+  assert.match(String(incapable.released_reader_unavailable), /listing format 17/u);
 
   // A compact format increase with a verified reader advances the format.
-  const advanced = await prepare("advance", compactPrior, { binary: stub, version: "0.1.0" });
+  const advanced = await prepare("advance", compact14Prior, { binary: stub, version: "0.1.0" });
   assert.equal(advanced.listing_format, 15);
   assert.deepEqual(read("advance", listingDeliveryTarget), legacy);
   // Without one, both exact authenticated carriers are renewed unchanged.
-  const renewed = await prepare("renew", compactPrior, {
+  const renewed = await prepare("renew", compact14Prior, {
     binary: stub,
     version: "0.1.0",
     withdrawn: ["0.1.0"],
@@ -942,7 +984,7 @@ void test("automatic reader selection activates, advances or renews exact carrie
   assert.deepEqual(read("renew", listingDeliveryTarget), legacy);
   assert.deepEqual(read("renew", compactListingDeliveryTarget), compact14);
   // An anonymous API refusal (rate limit or outage) renews them the same way.
-  const limited = await prepare("renew-rate-limited", compactPrior, {
+  const limited = await prepare("renew-rate-limited", compact14Prior, {
     binary: stub,
     version: "0.1.0",
     rateLimited: true,
