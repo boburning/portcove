@@ -300,8 +300,9 @@ async function backupPrepared(
         throw new MaintenanceStoreError(
           "Protected table inventory differs from the recovery contract",
         );
+      const tables = JSON.parse(await query(digestQuery())) as StoreDigest;
       const through: string[] = [];
-      for (const [index] of history.entries()) {
+      for (const [index, [name]] of history.entries()) {
         const prefix = local[index];
         if (
           !isRecord(prefix) ||
@@ -311,10 +312,17 @@ async function backupPrepared(
           through.push("0");
           continue;
         }
+        // The authoritative digest uses the same ordered row text and includes
+        // the history IDs. When the whole table matches the verified local
+        // history, the same snapshot already proves this complete prefix.
+        const remote = tables[schema + "." + name];
+        if (remote && remote.rows === prefix.rows && remote.sha256 === prefix.sha256) {
+          through.push(prefix.through);
+          continue;
+        }
         const observed: unknown = JSON.parse(await query(historyPrefix(index, prefix.through)));
         through.push(JSON.stringify(observed) === JSON.stringify(prefix) ? prefix.through : "0");
       }
-      const tables = JSON.parse(await query(digestQuery())) as StoreDigest;
       const reusedTables = new Set<string>();
       for (const [table] of storeTables) {
         if (history.some(([name]) => table === `${schema}.${name}`)) continue;

@@ -1645,7 +1645,9 @@ before requesting provider admission and again when each attempt starts.
 A manual recovery request can reuse a verified backup under 20 hours
 old after matching protected table digests and sequence values. PostgreSQL compares ordered content hashes and row counts for the
 retained prefix of each large append-only table under one exported snapshot.
-When a prefix matches, only newer rows cross the network. A mismatch requires
+If the full-table digest and row count match the verified local history, that
+digest also proves the complete prefix. Only changed history needs a separate
+prefix query. When a prefix matches, only newer rows cross the network. A mismatch requires
 that table's full payload to fit the admission. The schedule requests a larger
 catch-up envelope when a verified recovery point is more than 30 hours old,
 regardless of age beyond that threshold. If an initial attempt has verified the

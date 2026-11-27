@@ -39,6 +39,7 @@ import {
   queryJson,
   planMigrations,
   portableRestoreSql,
+  readBackupManifest,
   readMigrations,
   restore,
   runSql,
@@ -1701,6 +1702,30 @@ void test(
     assert.equal(reused.manifest.dump.sha256, result.manifest.dump.sha256);
     assert.equal(reused.transfer.history_copy_bytes, 0);
     assert.deepEqual(restored.tables, storeDigest(source));
+
+    // A separate append-only history can reuse the same IDs and counts but
+    // contain different rows. Build it through the ordinary insert guards.
+    const changedSource = fixture.start("changed-source").owner;
+    migrate(changedSource);
+    runSql(changedSource, seed.replace('{"listing":"example"}', '{"listing":"different"}'));
+    const observations = "portcove_maintenance.observations";
+    const previousHistory = readBackupManifest(previous).tables[observations];
+    const changedTables = storeDigest(changedSource);
+    assert.equal(changedTables[observations]?.rows, previousHistory?.rows);
+    assert.notEqual(changedTables[observations]?.sha256, previousHistory?.sha256);
+    const changedHistoryOutput = path.join(fixture.root, "changed-history");
+    const changedHistory = await backupReusingHistory({
+      source: changedSource,
+      prefixDatabase: fixture.start("changed-prefix").owner,
+      target: fixture.start("changed-scratch").owner,
+      previous,
+      output: changedHistoryOutput,
+      reservedBytes: 5_000_000,
+    });
+    assert.equal(changedHistory.reused, false);
+    assert.ok(changedHistory.transfer.history_copy_bytes > 0);
+    const changedProof = restore(fixture.start("changed-proof").owner, changedHistoryOutput);
+    assert.deepEqual(changedProof.tables, changedTables);
     assert.equal(
       runSql(
         proof,
