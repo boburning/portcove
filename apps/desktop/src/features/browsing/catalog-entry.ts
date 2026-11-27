@@ -28,6 +28,7 @@ export type CatalogEntry = Pick<PortDefinition, "id" | "name" | "summary" | "pla
     listing?: PortListing;
     listingStatus?: PortListingStatus;
     pendingSetup?: PendingSetupRecord;
+    officialSetupId?: string;
   };
 
 /**
@@ -89,10 +90,11 @@ export function catalogEntries(
   pending: readonly PendingSetupRecord[],
 ): CatalogEntry[] {
   const definitions = new Map(catalog?.ports.map((port) => [port.id, port]));
+  const currentListings = new Map(directory?.listings.map((listing) => [listing.id, listing]));
   // A saved download retains its identity even when it leaves the current catalog.
   const listings = new Map([
     ...pending.map((setup) => [setup.port_id, setup.listing] as const),
-    ...(directory?.listings.map((listing) => [listing.id, listing] as const) ?? []),
+    ...currentListings,
   ]);
   const listingStatuses = new Map(statuses.map((status) => [status.port_id, status]));
   const pendingSetups = new Map(pending.map((setup) => [setup.port_id, setup]));
@@ -100,11 +102,13 @@ export function catalogEntries(
   return Array.from(ids, (id): CatalogEntry => {
     const definition = definitions.get(id);
     const listing = listings.get(id);
+    const officialSetupId = currentListings.get(id)?.official_setup_id;
     const shared = {
       ...(definition ? { definition } : {}),
       ...(listing ? { listing } : {}),
       ...(listingStatuses.has(id) ? { listingStatus: listingStatuses.get(id)! } : {}),
       ...(pendingSetups.has(id) ? { pendingSetup: pendingSetups.get(id)! } : {}),
+      ...(officialSetupId ? { officialSetupId } : {}),
     };
     if (definition) {
       const presentation = definition.presentation;

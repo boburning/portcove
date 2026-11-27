@@ -274,18 +274,25 @@ pub(crate) async fn refresh_official_definition(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     port_id: String,
+    expected_setup_id: Option<String>,
     on_event: tauri::ipc::Channel<OperationEvent>,
 ) -> DesktopResult<portcove_core::DefinitionRefresh> {
     blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
-            service
-                .refresh_official_definition(&port_id, |event| {
-                    let _ = on_event.send(event);
-                })
-                .await
-                .map_err(Into::into)
+            let emit = |event| {
+                let _ = on_event.send(event);
+            };
+            match expected_setup_id {
+                Some(id) => {
+                    service
+                        .refresh_linked_official_setup(&port_id, &id, emit)
+                        .await
+                }
+                None => service.refresh_official_definition(&port_id, emit).await,
+            }
+            .map_err(Into::into)
         },
     )
     .await

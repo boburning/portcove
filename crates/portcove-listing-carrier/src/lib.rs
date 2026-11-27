@@ -111,6 +111,7 @@ pub fn legacy_row_projection(row: &serde_json::Value) -> serde_json::Value {
         "implementation",
         "upstream_observation",
         "mod_portals",
+        "official_setup_id",
     ] {
         fields.remove(field);
     }

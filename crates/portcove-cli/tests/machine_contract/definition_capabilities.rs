@@ -541,7 +541,7 @@ fn listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority() {
     // Format 15 carries typed acquisition restrictions; signed delivery stays older.
     assert_eq!(
         capabilities["data"]["listing_formats"],
-        serde_json::json!([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17])
+        serde_json::json!([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18])
     );
     let commands = capabilities["data"]["commands"].as_array().unwrap();
     assert!(

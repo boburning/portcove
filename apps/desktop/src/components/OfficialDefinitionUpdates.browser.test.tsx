@@ -83,10 +83,12 @@ function Harness({
   generation,
   id,
   showControl,
+  expectedSetupId,
 }: {
   generation: number;
   id: string;
   showControl: boolean;
+  expectedSetupId?: string;
 }) {
   const operations = useOperationState({
     // App's ambient retry callback suppresses readback errors. This action must
@@ -100,6 +102,7 @@ function Harness({
     <OfficialDefinitionUpdates
       portId={id}
       portName="Fixture port"
+      expectedSetupId={expectedSetupId}
       generation={generation}
       busy={Boolean(operations.busy)}
       perform={operations.perform}
@@ -163,6 +166,31 @@ it("checks only the exact selected identity on explicit intent and reloads setup
   expect(desktopApi.importSource).not.toHaveBeenCalled();
   await click(page.getByRole("button", { name: "Catalog update settings" }));
   expect(settings).toHaveBeenCalledOnce();
+});
+
+it("checks a reviewed managed route from its separate external listing", async () => {
+  const listing = "chameleon-twist-recompiled";
+  const setup = "chameleon-twist-jp-recompiled";
+  vi.mocked(desktopApi.refreshOfficialDefinition).mockResolvedValue({
+    ...selected,
+    stable_id: setup,
+    selection: {
+      ...selected.selection,
+      selected: { ...selected.selection.selected!, stable_id: setup },
+    },
+  });
+  await root.rerender(<Harness generation={7} id={listing} showControl expectedSetupId={setup} />);
+  await click(checkButton());
+  expect(desktopApi.refreshOfficialDefinition).toHaveBeenCalledExactlyOnceWith(
+    listing,
+    7,
+    expect.any(Function),
+    setup,
+  );
+  expect(changed).toHaveBeenCalledOnce();
+  await expect.element(page.getByText(/Setup information checked/)).toBeVisible();
+  expect(desktopApi.install).not.toHaveBeenCalled();
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
 for (const [disposition, eligibility, message] of [

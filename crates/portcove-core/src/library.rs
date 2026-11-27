@@ -101,6 +101,7 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // retained-listing readers compatible without changing their launch contract.
         listing.implementation = None;
         listing.mod_portals.clear();
+        listing.official_setup_id = None;
         listing.media.retain(|asset| !asset.is_typed_igdb_scene());
         crate::catalog::listings::strip_verified_sources(&mut listing);
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
@@ -168,6 +169,7 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
                 .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
             || crate::catalog::listings::has_verified_source_editions(&retained.listing)
             || !retained.listing.mod_portals.is_empty()
+            || retained.listing.official_setup_id.is_some()
             || retained.listing.id != port_id
         {
             return Err(PortcoveError::verification(
@@ -4176,6 +4178,32 @@ mod tests {
 
         let mut invalid: serde_json::Value = serde_json::from_str(&content).unwrap();
         invalid["listing"]["mod_portals"] = links;
+        assert!(decode_external_catalog(&invalid.to_string(), id).is_err());
+    }
+
+    #[test]
+    fn retained_external_selection_omits_and_refuses_current_official_setup_link() {
+        let embedded = Catalog::embedded().unwrap();
+        let id = "chameleon-twist-recompiled";
+        let target = "chameleon-twist-jp-recompiled";
+        let listing = embedded.listing(id).unwrap().clone();
+        let plain = Catalog::for_user_selected_listing(listing.clone()).unwrap();
+        let before = encode_external_catalog(&plain, id).unwrap();
+        let mut listing = listing;
+        listing.official_setup_id = Some(target.into());
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, id).unwrap();
+        assert_eq!(content, before);
+        assert!(
+            decode_external_catalog(&content, id)
+                .unwrap()
+                .listing(id)
+                .unwrap()
+                .official_setup_id
+                .is_none()
+        );
+        let mut invalid: serde_json::Value = serde_json::from_str(&content).unwrap();
+        invalid["listing"]["official_setup_id"] = serde_json::json!(target);
         assert!(decode_external_catalog(&invalid.to_string(), id).is_err());
     }
 

@@ -11368,6 +11368,13 @@
           "name": {
             "type": "string"
           },
+          "official_setup_id": {
+            "description": "Exact official definition to check from this listing. It confers no\nacquisition or runtime ownership and requires listing format 18.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "original_game": {
             "anyOf": [
               {
@@ -29533,6 +29540,13 @@
           },
           "name": {
             "type": "string"
+          },
+          "official_setup_id": {
+            "description": "Exact official definition to check from this listing. It confers no\nacquisition or runtime ownership and requires listing format 18.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "original_game": {
             "anyOf": [

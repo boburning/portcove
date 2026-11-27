@@ -1103,6 +1103,7 @@ function useWorkspace(props: WorkspaceProps) {
       <OfficialDefinitionUpdates
         portId={model.entry.id}
         portName={model.entry.name}
+        expectedSetupId={model.entry.officialSetupId}
         generation={bootstrap.generation}
         busy={Boolean(operations.busy)}
         perform={operations.perform}
