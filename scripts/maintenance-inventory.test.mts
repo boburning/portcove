@@ -392,6 +392,19 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   const discoveryStep = discover.steps.find((step) =>
     step.run?.includes("discovery-worker.mts collect"),
   )!;
+  assert.equal(
+    collect!.outputs?.resource_inspection_deferred,
+    "${{ steps.resource-ledger.outputs.inspection_deferred }}",
+  );
+  const inspection = collect!.steps.find(
+    (step) => step.name === "Prepare the production resource ledger",
+  )!;
+  assert.match(inspection.run!, /if \[\[ "\$rc" == 75 \]\]; then\s+echo inspection_deferred=true/u);
+  const collectStep = collect!.steps.find((step) => step.run?.includes("collect --all --cli"))!;
+  assert.doesNotMatch(collectStep.run!, /inspection_deferred/u);
+  const seed = discover.steps.find((step) => step.run?.includes("maintenance-recovery-artifact"))!;
+  assert.equal(seed.if, "needs.collect.outputs.resource_inspection_deferred != 'true'");
+  assert.equal(discoveryStep.if, undefined);
   assert.equal(discoveryStep.env!.GH_TOKEN, "${{ github.token }}");
   const previewStep = discover.steps.find((step) => step.run?.includes("--discovery-listings"))!;
   assert.match(previewStep.if!, /github.event_name == 'schedule'/u);

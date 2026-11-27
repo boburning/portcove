@@ -92,6 +92,7 @@ jobs:
     outputs:
       postgres_major: ${{ steps.postgres.outputs.major }}
       backup_artifact: ${{ steps.backup.outputs.artifact }}
+      resource_inspection_deferred: ${{ steps.resource-ledger.outputs.inspection_deferred }}
     env:
       PORTCOVE_STEP_TIMES: ${{ github.workspace }}/work/maintenance-evidence/step-times.tsv
       PORTCOVE_MAINTENANCE_RUNNER: github-actions-ubuntu-latest
@@ -190,6 +191,7 @@ jobs:
           node scripts/maintenance-store.mts resource-probe --output work/maintenance-report/status.json || rc=$?
           [[ "$rc" == 0 || "$rc" == 75 ]]
       - name: Prepare the production resource ledger
+        id: resource-ledger
         if: ${{ !cancelled() && steps.postgres.outcome == 'success' &&
           (github.event_name == 'schedule' || inputs.purpose == 'recover' || inputs.purpose == 'recovery-full') }}
         timeout-minutes: 4
@@ -199,6 +201,9 @@ jobs:
         run: |
           rc=0
           node scripts/maintenance-store.mts migrate > work/maintenance-evidence/migrate.json || rc=$?
+          if [[ "$rc" == 75 ]]; then
+            echo inspection_deferred=true >> "$GITHUB_OUTPUT"
+          fi
           [[ "$rc" == 0 || "$rc" == 75 ]]
       - name: Collect changed sources and periodically reassess all Core subjects
         id: collect
@@ -681,6 +686,7 @@ jobs:
           command -v psql || sudo apt-get install -y --no-install-recommends postgresql-client
           mkdir -p work/discovery-worker
       - name: Prepare optional discovery seed from the existing verified recovery
+        if: needs.collect.outputs.resource_inspection_deferred != 'true'
         continue-on-error: true
         timeout-minutes: 12
         env:
@@ -714,6 +720,9 @@ jobs:
             echo "PORTCOVE_POSTGRES_BIN=$client"
             echo "PORTCOVE_DISCOVERY_SEED_URL=$PORTCOVE_DISCOVERY_SEED_URL"
           } >> "$GITHUB_ENV"
+      - name: Record skipped discovery seed after resource deferral
+        if: needs.collect.outputs.resource_inspection_deferred == 'true'
+        run: echo 'Earlier inspection deferral skipped optional recovery seed preparation. Discovery still checks its own allowance.' >> "$GITHUB_STEP_SUMMARY"
       - name: Collect discovery sources without a terminal or model
         id: discover
         # The worker stops collecting before this deadline to commit its final state.
