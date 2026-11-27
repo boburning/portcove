@@ -504,6 +504,13 @@ export async function clickVisible(
   }
 }
 
+/** Find the nested tab label without including the count or its description. */
+export function activitySectionTab(label: "Tasks" | "Game updates" | "History") {
+  return By.xpath(
+    `//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab"][.//span[contains(concat(" ", normalize-space(@class), " "), " activity-tab-label ") and normalize-space(.)="${label}"]]`,
+  );
+}
+
 /** Use the shipping narrow navigation sheet when the desktop navigation is hidden. */
 export async function selectPrimaryNavigation(
   browser: WebDriver,
