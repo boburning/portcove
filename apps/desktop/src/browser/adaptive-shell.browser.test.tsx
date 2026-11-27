@@ -271,6 +271,8 @@ for (const theme of ["dark", "light"]) {
     const strip = sections.element();
     const tabs = sections.getByRole("tab").elements();
     expect(tabs).toHaveLength(3);
+    await page.viewport(320, 800);
+    expect(strip.scrollWidth).toBeLessThanOrEqual(strip.clientWidth + 1);
     for (const width of [320, 240]) {
       await page.viewport(width, 800);
       const rowTop = tabs[0]!.getBoundingClientRect().top;
@@ -279,7 +281,6 @@ for (const theme of ["dark", "light"]) {
         expect(bounds.top).toBeCloseTo(rowTop);
         expect(bounds.height).toBeGreaterThanOrEqual(44);
       }
-      if (width === 320) expect(strip.scrollWidth).toBeLessThanOrEqual(strip.clientWidth + 1);
       const overflowing = [...document.querySelectorAll<HTMLElement>("main *")]
         .filter((element) => element.getBoundingClientRect().right > innerWidth + 1)
         .map((element) => `${element.tagName}.${element.className}: ${element.textContent}`);
