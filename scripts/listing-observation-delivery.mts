@@ -43,6 +43,7 @@ import {
   firstPartyListingModDefaults,
   listingModPortalDefaults,
   withoutGeneratedModPortals,
+  withoutLauncherAdmissionSeeds,
 } from "./listing-mod-portal-projection.mts";
 import { compatibleGithubListingAssetUrl, observationHash } from "./upstream-observer.mts";
 import {
@@ -482,7 +483,9 @@ export function projectListingDelivery(
     .filter((listing) => !withdrawalSet.has(String(listing.id)))
     .map((listing) => {
       const declaration = effectiveDeclarations.get(listing.id)!;
-      const result = structuredClone(coverCheckpoint?.apply(listing, declaration) ?? listing);
+      const result = structuredClone(
+        withoutLauncherAdmissionSeeds(coverCheckpoint?.apply(listing, declaration) ?? listing),
+      );
       const defaultCover = sharedCoverDefaults?.proposals.get(String(listing.id));
       if (defaultCover && !declaration.artwork && !declaration.collection_covers)
         result.artwork = defaultCover;

@@ -2870,3 +2870,81 @@ void test("signed listing projection accepts only bound first-party websites and
   );
   assert.equal(read(project(checkpoint(absent), current.bytes).bytes)?.mod_portals, undefined);
 });
+
+void test("admission mod defaults keep one source ID and cannot revive after withdrawal", async () => {
+  const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { firstPartyListingModDefaults } = await import("./listing-mod-portal-projection.mts");
+  const { launcherModSubjects, recordLauncherModAttempt } =
+    await import("./upstream-launcher-mod-progress.mts");
+  const { catalogObservationSources } = await import("./catalog-upstream-observer.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const seed = {
+    id: "obs-gh-gamebanana-12345",
+    site: "community_site",
+    name: "GameBanana",
+    instructions: "The upstream project lists this community. Follow its setup instructions.",
+    url: "https://gamebanana.com/games/456",
+  };
+  const port = { ...fixtureListing, id: "github-12345", mod_portals: [seed] };
+  const catalog = { ports: [] };
+  const canonical = { format_version: 17, listings: [port] };
+  const now = Date.parse("2026-11-26T12:00:00Z");
+  const sources = catalogObservationSources({ ...catalog, listings: [port] }).sources;
+  const ids = { [requiredFixture(sources[0]).key]: { repository_id: 12345 } };
+  const binding = requiredFixture(launcherModSubjects(sources, ids)[0]).binding;
+  const project = (state: unknown, previous: Buffer | null, excluded = new Set<string>()) =>
+    projectListingDelivery(canonical, [], previous, {
+      now,
+      firstPartyModDefaults: firstPartyListingModDefaults(catalog, [port], state, excluded, now),
+    });
+  const links = (bytes: Buffer) =>
+    fixtureRecords(fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings)[0]
+      ?.mod_portals;
+  const first = project(undefined, null);
+  assert.deepEqual(links(first.bytes), [seed]);
+  const changed = recordLauncherModAttempt(
+    binding,
+    undefined,
+    {
+      state: "observed",
+      repository_id: 12345,
+      commit: "a".repeat(40),
+      tree: "b".repeat(40),
+      blob: "c".repeat(40),
+      manifest_sha256: "d".repeat(64),
+      mod_portals: [
+        {
+          ...seed,
+          id: "upstream-gamebanana",
+          site: "community_site",
+          url: "https://gamebanana.com/games/789",
+        },
+      ],
+    },
+    now,
+    3600000,
+  );
+  const state = (value: typeof changed) => ({
+    sources: ids,
+    launcher_mod_sources: { [port.id]: value },
+  });
+  const second = project(state(changed), first.bytes);
+  assert.deepEqual(links(second.bytes), [{ ...seed, url: "https://gamebanana.com/games/789" }]);
+  assert.deepEqual(project(undefined, second.bytes).bytes, second.bytes);
+  const absent = recordLauncherModAttempt(
+    binding,
+    changed,
+    {
+      state: "absent",
+      repository_id: 12345,
+      commit: "e".repeat(40),
+      tree: "f".repeat(40),
+    },
+    now,
+    3600000,
+  );
+  const withdrawn = project(state(absent), second.bytes);
+  assert.equal(links(withdrawn.bytes), undefined);
+  assert.deepEqual(project(undefined, withdrawn.bytes).bytes, withdrawn.bytes);
+  assert.equal(links(project(undefined, null, new Set([port.id])).bytes), undefined);
+});

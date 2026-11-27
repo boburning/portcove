@@ -1,3 +1,4 @@
+import { validLauncherModPortal } from "./first-party-mod-portal.mts";
 import type { ObservableSource } from "./catalog-upstream-observer.mts";
 import {
   githubRepository,
@@ -168,33 +169,4 @@ export function validateFirstPartyModProgress(value: unknown, now: number): void
     )
       throw new Error("Invalid retained first-party mod links");
   }
-}
-
-export function validLauncherModPortal(
-  portal: unknown,
-): portal is NonNullable<
-  Extract<LauncherModObservation, { state: "observed" }>["mod_portals"]
->[number] {
-  if (
-    !isRecord(portal) ||
-    Object.keys(portal).length !== 5 ||
-    portal.site !== "community_site" ||
-    typeof portal.url !== "string" ||
-    portal.instructions !==
-      "The upstream project lists this community. Follow its setup instructions."
-  )
-    return false;
-  if (portal.id === "upstream-thunderstore")
-    return (
-      portal.name === "Thunderstore" &&
-      portal.url.length <= 155 &&
-      /^https:\/\/thunderstore\.io\/c\/[a-z0-9]+(?:[-_][a-z0-9]+)*\/$/u.test(portal.url)
-    );
-  const game = /^https:\/\/gamebanana\.com\/games\/([1-9]\d*)$/u.exec(portal.url);
-  return (
-    portal.id === "upstream-gamebanana" &&
-    portal.name === "GameBanana" &&
-    !!game &&
-    Number.isSafeInteger(Number(game[1]))
-  );
 }

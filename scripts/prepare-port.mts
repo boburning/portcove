@@ -1,3 +1,4 @@
+import { launcherModPortalId } from "./first-party-mod-portal.mts";
 import {
   originalGamePreparationFeedback,
   requireOriginalGameDecision,
@@ -1671,7 +1672,14 @@ export async function prepareDiscoveryListingAdditions(
             project_url: projectUrl,
             listed_at: automaticListedDate ?? facts.project?.observed_at?.slice(0, 10),
             release_url: `${projectUrl}/releases`,
-            ...(modPortals?.length ? { mod_portals: modPortals } : {}),
+            ...(modPortals?.length
+              ? {
+                  mod_portals: modPortals.map((portal) => ({
+                    ...portal,
+                    id: launcherModPortalId(portal, candidate.repository_id),
+                  })),
+                }
+              : {}),
             summary:
               summary && Buffer.byteLength(summary) <= 4096
                 ? summary

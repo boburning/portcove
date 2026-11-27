@@ -1760,3 +1760,10 @@ Maintained sources and provider bindings take precedence for their provider.
 Maintained exclusions suppress generated links. These links can open a community
 website or allow supported browsing through the existing Core resolver. They
 cannot grant installation, package, update, or profile authority.
+
+An exact first-party link found during automatic admission can seed the first
+signed publication. It uses the same repository-bound source ID as subsequent
+observations, so the player's local source preferences still apply. After the
+first publication, an unavailable checkpoint falls back to the authenticated
+prior listing. A confirmed withdrawal therefore survives checkpoint loss.
+Maintainer-selected websites use separate authored IDs and take precedence.

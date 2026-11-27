@@ -1315,7 +1315,7 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
         "prepared",
       ],
     );
-    assert.equal(report.automatic_scope_policy, "github-primary-game-scope/4");
+    assert.equal(report.automatic_scope_policy, "github-primary-game-scope/5");
     assert.ok(report.admission);
     assert.deepEqual(report.released_validation, {
       status: "validated",
@@ -1374,8 +1374,8 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     assert.deepEqual(
       declared.listing.mod_portals?.map(({ id, url }) => ({ id, url })),
       [
-        { id: "upstream-thunderstore", url: "https://thunderstore.io/c/fixture-mods/" },
-        { id: "upstream-gamebanana", url: "https://gamebanana.com/games/12345" },
+        { id: "obs-gh-thunderstore-80012", url: "https://thunderstore.io/c/fixture-mods/" },
+        { id: "obs-gh-gamebanana-80012", url: "https://gamebanana.com/games/12345" },
       ],
     );
     const partial = checkedAuthoredPort(
@@ -1383,7 +1383,7 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     );
     assert.deepEqual(
       partial.listing.mod_portals?.map(({ id }) => id),
-      ["upstream-gamebanana"],
+      ["obs-gh-gamebanana-80022"],
     );
     const delivered: unknown = JSON.parse(readFileSync(report.files.listings, "utf8"));
     assert.ok(isRecord(delivered) && Array.isArray(delivered.listings));
