@@ -27,7 +27,11 @@ import {
   legacyCoverDeclarationScope,
   readArtworkCheckpoint,
 } from "./listing-artwork-checkpoint.mts";
-import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
+import {
+  applicableCoverHealth,
+  readHostedArtworkHealth,
+  readHostedCoverHealth,
+} from "./listing-artwork-observation.mts";
 import { projectListingDelivery } from "./listing-observation-delivery.mts";
 
 const artwork = {
@@ -360,16 +364,26 @@ void test("a full checkpoint still accepts a newer result for an admitted scope"
   assert.ok(restored.finish(wire(prefix)));
 });
 
-void test("the appointed report archive admits an exact cover receipt and skips inert report HTML", async () => {
+void test("the appointed report archive admits exact cover and media receipts independently", async () => {
   const runId = 123;
   const attempt = 1;
   const revision = "a".repeat(40);
   const repository = "boburning/portcove";
   const workflow = ".github/workflows/maintenance-inventory.yml";
   const repositoryId = 1354613114;
-  const source = wire(listing);
+  const source = wire({
+    ...listing,
+    media: [
+      {
+        role: "logo",
+        sha256: "d".repeat(64),
+        url: "https://images.igdb.com/igdb/image/upload/t_logo_med_2x/cosample.png",
+        igdb: { game_id: 100, record_id: 99, image_id: "cosample", kind: "logo" },
+      },
+    ],
+  });
   const hash = (value: Buffer | string) => createHash("sha256").update(value).digest("hex");
-  const receipt = JSON.stringify({
+  const baseReceipt = {
     format: 1,
     authority: "none",
     listings_sha256: hash(source),
@@ -381,9 +395,27 @@ void test("the appointed report archive admits an exact cover receipt and skips 
       attempt: String(attempt),
       revision,
     },
+  };
+  const receipt = JSON.stringify({
+    ...baseReceipt,
     images: [{ image_id: artwork.image_id, status: "gone" }],
   });
-  const evidence = JSON.stringify({
+  const mediaReceipt = JSON.stringify({
+    ...baseReceipt,
+    window: { index: 0, windows: 1, eligible: 1 },
+    image_requests: 1,
+    image_bytes: 0,
+    retry_at: null,
+    images: [
+      {
+        target: "logo_med_2x/cosample",
+        image_id: "cosample",
+        status: "gone",
+        roles: [{ role: "logo", state: "gone" }],
+      },
+    ],
+  });
+  const evidence = {
     format: "portcove-maintenance-hosted-evidence",
     format_version: 1,
     purpose: "schedule",
@@ -394,6 +426,10 @@ void test("the appointed report archive admits an exact cover receipt and skips 
         bytes: Buffer.byteLength(receipt),
         sha256: hash(receipt),
       },
+      "maintenance-report/media-artwork-health.json": {
+        bytes: Buffer.byteLength(mediaReceipt),
+        sha256: hash(mediaReceipt),
+      },
     },
     sources: [
       {
@@ -401,11 +437,17 @@ void test("the appointed report archive admits an exact cover receipt and skips 
         source_revision: `scheduled-artwork-health:${runId}-${attempt}@${revision}#sha256:${hash(receipt)}`,
         coverage: "complete",
       },
+      {
+        source: "media-artwork-health",
+        source_revision: `scheduled-media-health:${runId}-${attempt}@${revision}#sha256:${hash(mediaReceipt)}`,
+        coverage: "complete",
+      },
     ],
-  });
+  };
   const siblings = [
     ["cover-artwork-health.json", receipt],
-    ["evidence.json", evidence],
+    ["media-artwork-health.json", mediaReceipt],
+    ["evidence.json", JSON.stringify(evidence)],
     ["ci-throughput.json", "{}"],
     ["report/inventory.json", "{}"],
     ["report/index.html", "<!doctype html><title>Maintenance</title>"],
@@ -425,11 +467,14 @@ void test("the appointed report archive admits an exact cover receipt and skips 
     run_started_at: "2026-11-26T11:59:00Z",
     updated_at: "2026-11-26T12:30:00Z",
   };
+  let catalogReads = 0;
+  let downloads = 0;
   const read = (archive: Buffer) =>
-    readHostedCoverHealth(
+    readHostedArtworkHealth(
       (actualRevision, file) => {
         assert.equal(actualRevision, revision);
         assert.equal(file, "crates/portcove-core/catalog/listings.json");
+        catalogReads++;
         return source;
       },
       {
@@ -458,6 +503,7 @@ void test("the appointed report archive admits an exact cover receipt and skips 
                   ],
                 },
           download: async (id, bytes) => {
+            downloads++;
             assert.equal(id, 191);
             assert.equal(bytes, archive.length);
             return archive;
@@ -465,20 +511,25 @@ void test("the appointed report archive admits an exact cover receipt and skips 
         },
       },
     );
-  const admitted = await read(createAuditZip(siblings));
+  const hosted = await read(createAuditZip(siblings));
+  assert.ok(hosted);
+  const admitted = hosted.cover();
   assert.equal(
     admitted?.facts.get(`port:${listing.id}@${artwork.image_id}`) instanceof Object,
     true,
   );
   assert.equal(admitted?.counts.gone, 1);
+  assert.equal(hosted.media()?.counts.gone, 1);
+  assert.equal(hosted.media()?.revision, evidence.sources[1]!.source_revision);
+  assert.deepEqual([...hosted.media()!.facts.keys()], ["artwork:logo_med_2x/cosample"]);
+  assert.equal(downloads, 1);
+  assert.equal(catalogReads, 1);
   await assert.rejects(
     read(createAuditZip([...siblings, ["digest/extra.html", "unexpected"]])),
     /path/u,
   );
-  const priorEvidence: unknown = JSON.parse(evidence);
-  assert.ok(priorEvidence && typeof priorEvidence === "object");
   const priorOnly = {
-    ...priorEvidence,
+    ...evidence,
     sources: [
       {
         source: "cover-artwork-health",
@@ -491,7 +542,8 @@ void test("the appointed report archive admits an exact cover receipt and skips 
     ([name, bytes]) =>
       [name, name === "evidence.json" ? JSON.stringify(priorOnly) : bytes] as const,
   );
-  assert.equal(await read(createAuditZip(withoutAdmission)), null);
+  assert.equal((await read(createAuditZip(withoutAdmission)))?.cover(), null);
+  assert.equal((await read(createAuditZip(withoutAdmission)))?.media(), null);
   const withoutReceipt = withoutAdmission
     .filter(([name]) => name !== "cover-artwork-health.json")
     .map(
@@ -501,11 +553,42 @@ void test("the appointed report archive admits an exact cover receipt and skips 
           name === "evidence.json" ? JSON.stringify({ ...priorOnly, files: {} }) : bytes,
         ] as const,
     );
-  assert.equal(await read(createAuditZip(withoutReceipt)), null);
-  await assert.rejects(
-    read(createAuditZip(siblings.filter(([name]) => name !== "cover-artwork-health.json"))),
-    /omitted referenced observation/u,
+  assert.equal((await read(createAuditZip(withoutReceipt)))?.cover(), null);
+  const missing = await read(
+    createAuditZip(siblings.filter(([name]) => name !== "cover-artwork-health.json")),
   );
+  assert.equal(missing?.media()?.counts.gone, 1);
+  assert.throws(() => missing?.cover(), /omitted referenced observation/u);
+  const substituted = await read(
+    createAuditZip(
+      siblings.map(
+        ([name, bytes]) =>
+          [
+            name,
+            name === "media-artwork-health.json" ? mediaReceipt.replace("gone", "read") : bytes,
+          ] as const,
+      ),
+    ),
+  );
+  assert.equal(substituted?.cover()?.counts.gone, 1);
+  assert.throws(() => substituted?.media(), /differs from the evidence inventory/u);
+  const claimedPartial = await read(
+    createAuditZip(
+      siblings.map(
+        ([name, bytes]) =>
+          [
+            name,
+            name === "evidence.json"
+              ? JSON.stringify({
+                  ...evidence,
+                  sources: [evidence.sources[0], { ...evidence.sources[1], coverage: "partial" }],
+                })
+              : bytes,
+          ] as const,
+      ),
+    ),
+  );
+  assert.throws(() => claimedPartial?.media(), /coverage differs/u);
 });
 
 void test("compact projection retains release activity through exact cover withdrawal, renewal and restoration", () => {

@@ -1797,3 +1797,11 @@ variant. Partial windows and provider failures retain earlier observations.
 Freshness belongs to the collection, so repeating unchanged bytes does not
 rewrite the image fact. The receipt supplies evidence for the current
 references. It does not find new images or publish catalog changes.
+
+The catalog publication preparation reads cover and media from the same
+authenticated scheduled artifact. Each receipt must match the file inventory,
+the collector's exact admission, and the committed producer directory. A
+rejected or absent media receipt leaves valid cover results available. Media
+health, receipt identity and transfer measurements are reported in
+`observed_media_health` for the publication review. This field does not grant
+media changes or determine acquisition eligibility.

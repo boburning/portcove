@@ -14,7 +14,9 @@ import {
 import {
   artworkHealthInventory,
   artworkHealthProducer,
+  mediaHealthInventory,
   projectArtworkHealth,
+  projectMediaArtworkHealth,
 } from "./maintenance-artwork-health.mts";
 import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -25,8 +27,10 @@ const workflow = ".github/workflows/maintenance-inventory.yml";
 const prefix = `/repos/${repository}/actions`;
 const runPath = `${prefix}/workflows/maintenance-inventory.yml/runs`;
 const listingsPath = "crates/portcove-core/catalog/listings.json";
-const receiptPath = "cover-artwork-health.json";
-const receiptEvidencePath = `maintenance-report/${receiptPath}`;
+const artworkSources = {
+  cover: { source: "cover-artwork-health", generation: "scheduled-artwork-health" },
+  media: { source: "media-artwork-health", generation: "scheduled-media-health" },
+} as const;
 const evidencePath = "evidence.json";
 const archiveLimit = 8 * 1024 * 1024;
 const memberLimit = 256 * 1024;
@@ -37,7 +41,7 @@ const digest = (value: unknown): value is string =>
 const positive = (value: unknown): value is number =>
   typeof value === "number" && Number.isSafeInteger(value) && value > 0;
 
-interface CoverHealthTransport {
+interface ArtworkHealthTransport {
   read: (path: string) => Promise<unknown>;
   download: (id: number, bytes: number) => Promise<Buffer>;
 }
@@ -50,7 +54,7 @@ function readReviewedAncestor(revision: string, file: string) {
   });
 }
 
-async function hostedTransport(): Promise<CoverHealthTransport> {
+async function hostedTransport(): Promise<ArtworkHealthTransport> {
   const deadline = performance.now() + 60_000;
   const credential = localDeveloperCredential({ deadline });
   let requests = 0;
@@ -66,7 +70,7 @@ async function hostedTransport(): Promise<CoverHealthTransport> {
           url.pathname,
         )),
     reserve() {
-      if (++requests > 5) throw new Error("Cover receipt request budget exceeded");
+      if (++requests > 5) throw new Error("Artwork receipt request budget exceeded");
       return { consumeBytes() {}, settle() {} };
     },
   });
@@ -96,32 +100,29 @@ function readReportMembers(archive: Buffer) {
     nameBytes: 128,
     // The successful producer emits this inert report alongside the receipt.
     // It participates in ZIP bounds but is never inflated or interpreted here.
-    allowedPaths: new Set([receiptPath, evidencePath, "report/index.html"]),
+    allowedPaths: new Set([evidencePath, "report/index.html"]),
     allowedFilePath: (name) => /^(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:jsonl?|md)$/u.test(name),
   });
   function read(name: string) {
     const entry = entries.find((member) => member.name === name);
     if (!entry || entry.bytes < 1 || entry.bytes > memberLimit)
-      throw new Error("Missing or oversized cover receipt member");
+      throw new Error("Missing or oversized artwork receipt member");
     const compressed = archive.subarray(entry.data, entry.dataEnd);
     const bytes =
       entry.method === 0
         ? compressed
         : inflateRawSync(compressed, { maxOutputLength: entry.bytes });
     if (bytes.length !== entry.bytes || crc32(bytes) !== entry.crc)
-      throw new Error("Cover receipt member failed its integrity check");
+      throw new Error("Artwork receipt member failed its integrity check");
     return bytes;
   }
-  return {
-    evidence: read(evidencePath),
-    receipt: entries.some((entry) => entry.name === receiptPath) ? read(receiptPath) : null,
-  };
+  return { read, has: (name: string) => entries.some((entry) => entry.name === name) };
 }
 
 /** Authenticate an existing scheduled report as observation evidence only. */
-export async function readHostedCoverHealth(
+export async function readHostedArtworkHealth(
   readAncestorFile: (revision: string, file: string) => Buffer = readReviewedAncestor,
-  options: { transport?: CoverHealthTransport; now?: number } = {},
+  options: { transport?: ArtworkHealthTransport; now?: number } = {},
 ) {
   const now = options.now ?? Date.now();
   const transport = options.transport ?? (await hostedTransport());
@@ -133,7 +134,7 @@ export async function readHostedCoverHealth(
     !Array.isArray(response.workflow_runs) ||
     response.workflow_runs.length > 1
   )
-    throw new Error("Invalid scheduled cover run inventory");
+    throw new Error("Invalid scheduled artwork run inventory");
   const run: unknown = response.workflow_runs[0];
   if (run === undefined) return null;
   if (
@@ -152,7 +153,7 @@ export async function readHostedCoverHealth(
     typeof run.run_started_at !== "string" ||
     typeof run.updated_at !== "string"
   )
-    throw new Error("Unbound scheduled cover run");
+    throw new Error("Unbound scheduled artwork run");
   if (run.conclusion !== "success") return null;
   const started = Date.parse(run.run_started_at);
   const completed = Date.parse(run.updated_at);
@@ -188,12 +189,12 @@ export async function readHostedCoverHealth(
     typeof artifact.digest !== "string" ||
     !/^sha256:[a-f0-9]{64}$/u.test(artifact.digest)
   )
-    throw new Error("Unbound scheduled cover artifact");
+    throw new Error("Unbound scheduled artwork artifact");
   const archive = await transport.download(artifact.id, artifact.size_in_bytes);
   if (archive.length !== artifact.size_in_bytes || `sha256:${hash(archive)}` !== artifact.digest)
-    throw new Error("Scheduled cover artifact digest differs");
-  const { evidence, receipt } = readReportMembers(archive);
-  const recorded: unknown = JSON.parse(evidence.toString("utf8"));
+    throw new Error("Scheduled artwork artifact digest differs");
+  const reportMembers = readReportMembers(archive);
+  const recorded: unknown = JSON.parse(reportMembers.read(evidencePath).toString("utf8"));
   if (
     !isRecord(recorded) ||
     recorded.format !== "portcove-maintenance-hosted-evidence" ||
@@ -210,40 +211,9 @@ export async function readHostedCoverHealth(
     !isRecord(recorded.files) ||
     !Array.isArray(recorded.sources)
   )
-    throw new Error("Unbound scheduled cover observation");
-  const generation = `scheduled-artwork-health:${runId}-${runAttempt}@${run.head_sha}#sha256:`;
-  const admissions = (recorded.sources as unknown[]).filter(
-    (row) =>
-      isRecord(row) &&
-      row.source === "cover-artwork-health" &&
-      typeof row.source_revision === "string" &&
-      row.source_revision.startsWith(generation),
-  );
-  const file = recorded.files[receiptEvidencePath];
-  if (!receipt && (file !== undefined || admissions.length))
-    throw new Error("Scheduled cover report omitted referenced observation bytes");
-  if (!receipt) return null;
-  if (!isRecord(file) || file.bytes !== receipt.length || file.sha256 !== hash(receipt))
-    throw new Error("Scheduled cover observation differs from the evidence inventory");
-  if (!admissions.length) return null;
-  const admission = admissions[0];
-  if (
-    admissions.length !== 1 ||
-    !isRecord(admission) ||
-    admission.source_revision !== generation + hash(receipt) ||
-    (admission.coverage !== "complete" && admission.coverage !== "partial")
-  )
-    throw new Error("Scheduled report did not admit the exact cover observation");
-  const report: unknown = JSON.parse(receipt.toString("utf8"));
-  if (
-    !isRecord(report) ||
-    !digest(report.cli_sha256) ||
-    typeof report.observed_at !== "string" ||
-    !Number.isFinite(Date.parse(report.observed_at)) ||
-    Date.parse(report.observed_at) < started ||
-    Date.parse(report.observed_at) > completed
-  )
-    throw new Error("Unbound scheduled cover observation");
+    throw new Error("Unbound scheduled artwork evidence");
+  const files = recorded.files;
+  const sources: readonly unknown[] = recorded.sources;
   const producer = artworkHealthProducer(
     {
       GITHUB_REPOSITORY: repository,
@@ -257,21 +227,95 @@ export async function readHostedCoverHealth(
     },
     run.head_sha,
   );
-  const listings = readAncestorFile(run.head_sha, listingsPath);
-  const producerDirectory: unknown = JSON.parse(listings.toString("utf8"));
-  const projected = projectArtworkHealth(report, {
-    inventory: artworkHealthInventory(producerDirectory),
-    listingsSha256: hash(listings),
-    cliSha256: report.cli_sha256,
-    producer,
-    now: Date.parse(report.observed_at),
-  });
+  const artifactDigest = artifact.digest;
+  let catalog: { producerDirectory: unknown; listingsSha256: string } | undefined;
+  function boundReceipt(kind: keyof typeof artworkSources) {
+    const { source, generation } = artworkSources[kind];
+    const name = `${source}.json`;
+    const file = files[`maintenance-report/${name}`];
+    const boundGeneration = `${generation}:${runId}-${runAttempt}@${producer.revision}#sha256:`;
+    const admissions = sources.filter(
+      (row) =>
+        isRecord(row) &&
+        row.source === source &&
+        typeof row.source_revision === "string" &&
+        row.source_revision.startsWith(boundGeneration),
+    );
+    if (!reportMembers.has(name)) {
+      if (file !== undefined || admissions.length)
+        throw new Error(`Scheduled ${kind} report omitted referenced observation bytes`);
+      return null;
+    }
+    const receipt = reportMembers.read(name);
+    const receiptDigest = hash(receipt);
+    if (!isRecord(file) || file.bytes !== receipt.length || file.sha256 !== receiptDigest)
+      throw new Error(`Scheduled ${kind} observation differs from the evidence inventory`);
+    if (!admissions.length) return null;
+    const admission = admissions[0];
+    if (
+      admissions.length !== 1 ||
+      !isRecord(admission) ||
+      admission.source_revision !== boundGeneration + receiptDigest ||
+      (admission.coverage !== "complete" && admission.coverage !== "partial")
+    )
+      throw new Error(`Scheduled report did not admit the exact ${kind} observation`);
+    const report: unknown = JSON.parse(receipt.toString("utf8"));
+    if (!isRecord(report) || !digest(report.cli_sha256) || typeof report.observed_at !== "string")
+      throw new Error(`Unbound scheduled ${kind} observation`);
+    const at = Date.parse(report.observed_at);
+    if (!Number.isFinite(at) || at < started || at > completed)
+      throw new Error(`Unbound scheduled ${kind} observation`);
+    if (!catalog) {
+      const listings = readAncestorFile(producer.revision, listingsPath);
+      const producerDirectory: unknown = JSON.parse(listings.toString("utf8"));
+      catalog = { producerDirectory, listingsSha256: hash(listings) };
+    }
+    return {
+      report,
+      ...catalog,
+      cliSha256: report.cli_sha256,
+      producer,
+      now: at,
+      artifact: artifactDigest,
+      receiptDigest,
+      coverage: admission.coverage,
+    };
+  }
   return {
-    ...projected,
-    artifact: artifact.digest,
-    producer,
-    producerDirectory,
+    cover() {
+      const context = boundReceipt("cover");
+      if (!context) return null;
+      return {
+        ...projectArtworkHealth(context.report, {
+          ...context,
+          inventory: artworkHealthInventory(context.producerDirectory),
+        }),
+        artifact: context.artifact,
+        producer: context.producer,
+        producerDirectory: context.producerDirectory,
+      };
+    },
+    media() {
+      const context = boundReceipt("media");
+      if (!context) return null;
+      const projected = projectMediaArtworkHealth(context.report, {
+        ...context,
+        inventory: mediaHealthInventory(context.producerDirectory),
+      });
+      if (context.coverage !== (projected.complete ? "complete" : "partial"))
+        throw new Error("Scheduled media coverage differs from the admitted observation");
+      return {
+        ...projected,
+        revision: `${projected.revision}#sha256:${context.receiptDigest}`,
+        artifact: context.artifact,
+        producer: context.producer,
+      };
+    },
   };
+}
+
+export async function readHostedCoverHealth(...args: Parameters<typeof readHostedArtworkHealth>) {
+  return (await readHostedArtworkHealth(...args))?.cover() ?? null;
 }
 
 /** Bind an observation to each current exact declaration, including collection
