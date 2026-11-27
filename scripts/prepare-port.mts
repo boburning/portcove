@@ -1634,6 +1634,9 @@ export async function prepareDiscoveryListingAdditions(
           });
           continue;
         }
+        const scope = facts.discovery_scope;
+        const manifest = scope?.state === "eligible" && "manifest" in scope ? scope.manifest : null;
+        const modPortals = manifest && "mod_portals" in manifest ? manifest.mod_portals : undefined;
         const metadata = isRecord(facts.project?.body) ? facts.project.body : {};
         const summary =
           typeof metadata.description === "string"
@@ -1668,6 +1671,7 @@ export async function prepareDiscoveryListingAdditions(
             project_url: projectUrl,
             listed_at: automaticListedDate ?? facts.project?.observed_at?.slice(0, 10),
             release_url: `${projectUrl}/releases`,
+            ...(modPortals?.length ? { mod_portals: modPortals } : {}),
             summary:
               summary && Buffer.byteLength(summary) <= 4096
                 ? summary
