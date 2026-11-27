@@ -273,7 +273,9 @@ export function proposalDecoderFixture(
       const inspection=args.includes('inspect-proposal');
       const listings=args.includes('inspect-listings');
       const repository_authoring=args.includes('--repository-authoring');
-      appendFileSync(process.env.FIXTURE_PROCESS_LOG,JSON.stringify({artifact,inspection,repository_authoring,...(listings?{listings}: {})})+'\\n');
+      const libraryIndex=args.indexOf('--library');
+      const library=libraryIndex < 0 ? undefined : args[libraryIndex+1];
+      appendFileSync(process.env.FIXTURE_PROCESS_LOG,JSON.stringify({artifact,inspection,repository_authoring,...(listings?{listings}: {}),library})+'\\n');
       if(++calls===1 && inspection)writeFileSync(process.env.FIXTURE_SELECTED_CLI,'selected file changed after capture');
       if (inspection && JSON.parse(bytes).ports.some((port) => port.presentation?.media?.some((asset) => asset.igdb && ['header','screenshot'].includes(asset.role))))
         return { status: 2, signal: null, stdout: '{}', stderr: 'Typed scenes require a listing directory' };

@@ -33,9 +33,11 @@ import {
   closeSync,
   copyFileSync,
   chmodSync,
+  rmSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { isDeepStrictEqual } from "node:util";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -2419,27 +2421,36 @@ export function createCoreImageValidator(
     );
     const timeout = Math.min(30000, Math.floor(remaining()));
     if (timeout < 1) throw new Error("Core image validation deadline reached.");
-    const child = spawnSync(
-      artifact,
-      [
-        "--library",
-        join(runRoot, "library"),
-        "--json",
-        "--non-interactive",
-        "artwork",
-        "import",
-        "shipwright",
-        file,
-      ],
-      {
-        env,
-        encoding: "utf8",
-        timeout,
-        maxBuffer: 1024 * 1024,
-        windowsHide: true,
-        ...(deadline === undefined ? {} : { killSignal: "SIGKILL" }),
-      },
-    );
+    // Core needs atomic publication in its temporary library. The operator's
+    // evidence directory can be on a mounted filesystem that lacks it.
+    const child = (() => {
+      const library = mkdtempSync(join(tmpdir(), "portcove-image-library-"));
+      try {
+        return spawnSync(
+          artifact,
+          [
+            "--library",
+            library,
+            "--json",
+            "--non-interactive",
+            "artwork",
+            "import",
+            "shipwright",
+            file,
+          ],
+          {
+            env,
+            encoding: "utf8",
+            timeout,
+            maxBuffer: 1024 * 1024,
+            windowsHide: true,
+            ...(deadline === undefined ? {} : { killSignal: "SIGKILL" }),
+          },
+        );
+      } finally {
+        rmSync(library, { recursive: true, force: true, maxRetries: 2 });
+      }
+    })();
     writeFileSync(
       join(runRoot, "validation-process.json"),
       JSON.stringify(

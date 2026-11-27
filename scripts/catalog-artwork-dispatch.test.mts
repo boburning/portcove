@@ -8,7 +8,7 @@ import {
   readdirSync,
   renameSync,
 } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 
@@ -216,6 +216,14 @@ void test("needed decoder snapshots the captured validator once and retains each
   assert.notEqual(requiredFixture(fixture.factories[0]).cli, fixture.cli);
   assert.equal(fixture.processes.filter(({ inspection }) => inspection).length, 3);
   assert.equal(fixture.processes.filter(({ inspection }) => !inspection).length, 2);
+  const libraries = fixture.processes
+    .filter(({ inspection }) => !inspection)
+    .map(({ library }) => String(library));
+  assert.equal(new Set(libraries).size, 2);
+  for (const library of libraries) {
+    assert.equal(dirname(library), tmpdir());
+    assert.equal(existsSync(library), false);
+  }
   const scratch = join(fixture.output, "scratch");
   const roots = readdirSync(scratch);
   assert.equal(roots.length, 1);
