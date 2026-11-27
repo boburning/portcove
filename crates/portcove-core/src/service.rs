@@ -6137,6 +6137,8 @@ impl PortcoveService {
                 true,
             ),
         )?;
+        let connection = self.library.connection()?;
+        Library::require_no_associated_personal_runtime(&connection, &self.catalog, port_id)?;
         self.inspect_external_runtime_preview(port, spec, requested_root, checkpoint)
     }
 

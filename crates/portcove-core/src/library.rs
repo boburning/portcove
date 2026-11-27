@@ -3193,7 +3193,7 @@ impl Library {
             let (catalog, _) = crate::catalog_store::load_catalog_from(&transaction, Self::now())?;
             catalog.require_personal_project_unlisted(retained_listing)?;
             Self::require_no_legacy_personal_project_registration(&transaction, retained_listing)?;
-        } else {
+        } else if pending.is_none() {
             Self::require_no_associated_personal_runtime_from_current(
                 &transaction,
                 &record.port_id,

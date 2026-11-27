@@ -182,8 +182,6 @@ impl PortcoveService {
     }
 
     fn require_user_selected_registration_available(&self, port_id: &str) -> Result<()> {
-        let connection = self.library.connection()?;
-        Library::require_no_associated_personal_runtime(&connection, &self.catalog, port_id)?;
         let state = self.library.status(port_id, ReleaseChannel::Stable)?;
         if state.external_runtime.is_some()
             || self
@@ -296,6 +294,10 @@ impl PortcoveService {
             checkpoint,
         )?;
         self.require_user_selected_path_ownership(&preview.executable, &preview.path)?;
+        if pending.is_none() {
+            let connection = self.library.connection()?;
+            Library::require_no_associated_personal_runtime(&connection, &self.catalog, port_id)?;
+        }
         self.require_user_selected_registration_available(port_id)?;
         if let Some(port) = selected_definition {
             preview.preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
@@ -1209,6 +1211,60 @@ mod tests {
             .unwrap();
         assert!(projected.automatic_cover(service.catalog()).is_none());
         assert!(service.artwork_port(LOCAL).unwrap().original_game.is_none());
+
+        // A canonical download saved before the association keeps its exact continuation.
+        let pending_id = Uuid::new_v4().to_string();
+        let pending = serde_json::to_string(&json!({
+            "id": pending_id,
+            "port_id": CANONICAL,
+            "listing": service.catalog().listing(CANONICAL).unwrap(),
+            "path": working.join("preexisting.zip"),
+            "state": "attention-required",
+            "artifact": {
+                "release_id": 1,
+                "asset_id": 2,
+                "release_tag": "v1",
+                "release_url": "https://github.com/FixtureOwner/AfterRename/releases/tag/v1",
+                "name": "preexisting.zip",
+                "size": 1,
+                "download_url": "https://github.com/FixtureOwner/AfterRename/releases/download/v1/preexisting.zip",
+                "can_extract": true
+            },
+            "archive_sha256": "a".repeat(64),
+            "downloaded_at": "2026-11-27T00:00:00Z",
+            "reason": null
+        }))
+        .unwrap();
+        connection
+            .execute(
+                "INSERT INTO catalog_downloads (
+                    port_id, pending_id, record_json, stage_path, phase, preview_sha256, activity_id
+                ) VALUES (?1, ?2, ?3, NULL, 'attention-required', ?4, ?5)",
+                rusqlite::params![
+                    CANONICAL,
+                    pending_id,
+                    pending,
+                    "b".repeat(64),
+                    Uuid::new_v4().to_string()
+                ],
+            )
+            .unwrap();
+        let another = working.join("prior-canonical-setup");
+        fs::create_dir(&another).unwrap();
+        let another_executable = another.join(executable.file_name().unwrap());
+        fs::copy(&executable, &another_executable).unwrap();
+        let selected = register(&service, CANONICAL, &another_executable, &another);
+        assert_eq!(selected.setup_download.unwrap().filename, "preexisting.zip");
+        assert!(service.pending_setups().unwrap().is_empty());
+        let (still_personal, _) = service
+            .library
+            .external_runtime_with_port(LOCAL)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(still_personal).unwrap(),
+            serde_json::to_value(registered).unwrap()
+        );
     }
 
     #[test]
