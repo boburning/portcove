@@ -134,9 +134,11 @@ export function verifyLauncherModGameScope(
   result: LauncherModObservation,
   scope: GameScope | undefined,
 ): LauncherModObservation {
-  if (result.state !== "observed") return result;
+  if (result.state !== "observed" && result.state !== "unavailable") return result;
   if (!scope || !result.game_input_ids?.length)
-    return { state: "unavailable", reason: "game-input-scope-unproven" };
+    return result.state === "unavailable"
+      ? result
+      : { state: "unavailable", reason: "game-input-scope-unproven" };
   return result.game_input_ids.every((raw) => {
     const code = exactProductCode(scope.system, raw);
     return code !== undefined && scope.codes.has(code);
