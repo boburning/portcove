@@ -15,6 +15,21 @@ pub enum ModProviderBinding {
 }
 
 impl ModProviderBinding {
+    pub(crate) fn valid_coordinates(&self) -> bool {
+        match self {
+            Self::Gamebanana { game_id } => (1..=(1u64 << 53) - 1).contains(game_id),
+            Self::Thunderstore { community } => {
+                !community.is_empty()
+                    && community.len() <= 80
+                    && !community.starts_with('-')
+                    && !community.ends_with('-')
+                    && community.bytes().all(|byte| {
+                        byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
+                    })
+            }
+        }
+    }
+
     pub(crate) fn provider(&self) -> &'static str {
         match self {
             Self::Gamebanana { .. } => crate::gamebanana::PROVIDER,
@@ -164,18 +179,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         && bindings
             .windows(2)
             .all(|pair| pair[0].provider() < pair[1].provider())
-        && bindings.iter().all(|binding| match binding {
-            ModProviderBinding::Gamebanana { game_id } => (1..=(1u64 << 53) - 1).contains(game_id),
-            ModProviderBinding::Thunderstore { community } => {
-                !community.is_empty()
-                    && community.len() <= 80
-                    && !community.starts_with('-')
-                    && !community.ends_with('-')
-                    && community.bytes().all(|byte| {
-                        byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
-                    })
-            }
-        });
+        && bindings.iter().all(ModProviderBinding::valid_coordinates);
     if !valid {
         return Err(PortcoveError::verification(format!(
             "{} has invalid or duplicate mod provider bindings for its reviewed loader",

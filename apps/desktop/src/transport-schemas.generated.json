@@ -37720,7 +37720,8 @@
         "description": "A read-only provider browser Core can run for a portal.",
         "enum": [
           "quaddicted",
-          "mod_db_feed"
+          "mod_db_feed",
+          "provider_catalog"
         ],
         "type": "string"
       },
@@ -38087,7 +38088,8 @@
         "description": "A read-only provider browser Core can run for a portal.",
         "enum": [
           "quaddicted",
-          "mod_db_feed"
+          "mod_db_feed",
+          "provider_catalog"
         ],
         "type": "string"
       },

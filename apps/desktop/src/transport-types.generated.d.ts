@@ -994,7 +994,7 @@ export type OutputListingStatuses = PortListingStatus[];
 /**
  * A read-only provider browser Core can run for a portal.
  */
-export type ExternalModBrowser = "quaddicted" | "mod_db_feed";
+export type ExternalModBrowser = "quaddicted" | "mod_db_feed" | "provider_catalog";
 /**
  * The site family a portal belongs to, for its link label.
  */

@@ -4,6 +4,7 @@ import { useAppTranslation } from "../localization";
 import type { ModSetupsView } from "../types";
 import { UpstreamModNotices } from "./UpstreamModNotices";
 import { ExternalLink } from "./ExternalLink";
+import { ExternalProviderCatalog } from "./ExternalProviderCatalog";
 
 type Portals = NonNullable<ModSetupsView["external_mod_portals"]>;
 type PortalView = Pick<ModSetupsView, "external_mod_portals" | "mod_portal_preferences">;
@@ -81,16 +82,27 @@ export function ExternalModPortals({
                 {label(portal)}
               </ExternalLink>
               <p>{portal.instructions}</p>
-              {portal.browse_available && portal.browser && (
-                <UpstreamModNotices
-                  key={JSON.stringify([port, generation, portal.source])}
-                  browser={portal.browser}
+              {portal.browse_available && portal.browser === "provider_catalog" && (
+                <ExternalProviderCatalog
+                  key={JSON.stringify([scope, portal.source, portal.url])}
                   source={portal.source}
+                  url={portal.url}
                   name={portal.name}
                   port={port}
                   generation={generation}
                 />
               )}
+              {portal.browse_available &&
+                (portal.browser === "quaddicted" || portal.browser === "mod_db_feed") && (
+                  <UpstreamModNotices
+                    key={JSON.stringify([port, generation, portal.source])}
+                    browser={portal.browser}
+                    source={portal.source}
+                    name={portal.name}
+                    port={port}
+                    generation={generation}
+                  />
+                )}
             </li>
           ))}
         </ul>

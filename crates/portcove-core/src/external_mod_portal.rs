@@ -1,6 +1,9 @@
-//! Upstream-owned mod websites a definition declares. These grant no download,
-//! import or install capability; the player manages files outside Portcove.
-use crate::{Catalog, ModPortalSite, ModSourceAuthority, ModSourceKind, Platform, PortDefinition};
+//! Upstream-owned mod websites and read-only catalogs. These grant no download,
+//! import or install capability.
+use crate::{
+    Catalog, ModPortalSite, ModProviderBinding, ModSourceAuthority, ModSourceKind, Platform,
+    PortDefinition,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +24,45 @@ pub enum ExternalModSite {
 pub enum ExternalModBrowser {
     Quaddicted,
     ModDbFeed,
+    ProviderCatalog,
+}
+
+/// Exact provider coordinates from an accepted or explicitly selected game page.
+/// Use the original path spelling so normalization cannot erase unrelated segments.
+fn catalog_scope(link: &str) -> Option<ModProviderBinding> {
+    let binding = if let Some(game) = link.strip_prefix("https://gamebanana.com/games/") {
+        let game = game.strip_suffix('/').unwrap_or(game);
+        let game_id: u64 = game.parse().ok()?;
+        if game_id.to_string() != game {
+            return None;
+        }
+        ModProviderBinding::Gamebanana { game_id }
+    } else {
+        let community = link.strip_prefix("https://thunderstore.io/c/")?;
+        ModProviderBinding::Thunderstore {
+            community: community.strip_suffix('/').unwrap_or(community).into(),
+        }
+    };
+    binding.valid_coordinates().then_some(binding)
+}
+
+fn descriptive_portal(
+    source: String,
+    site: ExternalModSite,
+    name: String,
+    url: String,
+    instructions: String,
+) -> ExternalModPortal {
+    let browse_available = catalog_scope(&url).is_some();
+    ExternalModPortal {
+        source,
+        site,
+        name,
+        url,
+        instructions,
+        browser: browse_available.then_some(ExternalModBrowser::ProviderCatalog),
+        browse_available,
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -124,14 +166,14 @@ pub(crate) fn portals(
                         port.mod_sources.iter().all(|source| source.id != link.id)
                     })
                 })
-                .map(|link| ExternalModPortal {
-                    source: link.id.clone(),
-                    site: site_label(link.site),
-                    name: link.name.clone(),
-                    url: link.url.clone(),
-                    instructions: link.instructions.clone(),
-                    browser: None,
-                    browse_available: false,
+                .map(|link| {
+                    descriptive_portal(
+                        link.id.clone(),
+                        site_label(link.site),
+                        link.name.clone(),
+                        link.url.clone(),
+                        link.instructions.clone(),
+                    )
                 }),
         );
     }
@@ -175,15 +217,13 @@ pub(crate) fn project_mod_portals(
             .is_err()
     });
     if let Some(page) = &preferences.choices.local_page {
-        offered.push(ExternalModPortal {
-            source: crate::mod_portal_preferences::LOCAL_PAGE_SOURCE.into(),
-            site: ExternalModSite::CommunitySite,
-            name: page.name.clone(),
-            url: page.url.clone(),
-            instructions: "Your mod website".into(),
-            browser: None,
-            browse_available: false,
-        });
+        offered.push(descriptive_portal(
+            crate::mod_portal_preferences::LOCAL_PAGE_SOURCE.into(),
+            ExternalModSite::CommunitySite,
+            page.name.clone(),
+            page.url.clone(),
+            "Your mod website".into(),
+        ));
     }
     ModPortalsView {
         external_mod_portals: offered,
@@ -195,6 +235,27 @@ pub(crate) fn project_mod_portals(
 }
 
 impl crate::PortcoveService {
+    pub(crate) fn external_provider_scope(
+        &self,
+        port_id: &str,
+        source: &str,
+        expected_url: Option<&str>,
+    ) -> crate::Result<ModProviderBinding> {
+        self.effective_external_mod_portals(port_id, Platform::current().ok())?
+            .external_mod_portals
+            .iter()
+            .find(|portal| {
+                portal.source == source
+                    && expected_url.is_none_or(|url| portal.url == url)
+                    && portal.browse_available
+                    && portal.browser == Some(ExternalModBrowser::ProviderCatalog)
+            })
+            .and_then(|portal| catalog_scope(&portal.url))
+            .ok_or_else(|| {
+                crate::PortcoveError::unsupported("This source has no supported provider catalog")
+            })
+    }
+
     pub(crate) fn effective_external_mod_portals(
         &self,
         port_id: &str,
@@ -236,7 +297,7 @@ impl crate::PortcoveService {
                 Some(ExternalModBrowser::ModDbFeed) => {
                     return self.review_moddb_notice(port_id, platform, url).await;
                 }
-                None => {}
+                Some(ExternalModBrowser::ProviderCatalog) | None => {}
             }
         }
         Err(crate::PortcoveError::verification(
@@ -248,6 +309,119 @@ impl crate::PortcoveService {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_exact_provider_game_pages_supply_descriptive_coordinates() {
+        assert_eq!(
+            catalog_scope("https://gamebanana.com/games/16121"),
+            Some(ModProviderBinding::Gamebanana { game_id: 16121 })
+        );
+        assert_eq!(
+            catalog_scope("https://thunderstore.io/c/exact-game/"),
+            Some(ModProviderBinding::Thunderstore {
+                community: "exact-game".into()
+            })
+        );
+        for address in [
+            "https://gamebanana.com.evil.example/games/16121",
+            "https://gamebanana.com:443/games/16121",
+            "https://gamebanana.com/games/+16121",
+            "https://gamebanana.com/games/016121",
+            "https://gamebanana.com/games/9007199254740992",
+            "https://gamebanana.com/games/16121?name=some-game",
+            "https://thunderstore.io/c/another/../exact-game",
+            "https://thunderstore.io/c/exact-game/p/mod",
+            "https://thunderstore.io/c/exact-game#mods",
+            "https://thunderstore.io/c/exact%2dgame/",
+            "https://thunderstore.io/c/-exact-game/",
+        ] {
+            assert_eq!(catalog_scope(address), None, "{address}");
+        }
+    }
+
+    #[test]
+    fn listing_and_player_selected_provider_pages_never_supply_install_bindings() {
+        let (_temporary, mut service, _) = crate::retained_build::tests::fixture();
+        let mut document =
+            crate::CatalogListingDocument::from_json(include_str!("../catalog/listings.json"))
+                .unwrap();
+        let listing = document
+            .listings
+            .iter_mut()
+            .find(|listing| {
+                service.catalog().port(&listing.id).is_err()
+                    && service.catalog().listing(&listing.id).is_ok()
+            })
+            .unwrap();
+        let id = listing.id.clone();
+        listing.mod_portals = vec![crate::ListingModPortal {
+            id: "catalog-mods".into(),
+            site: ModPortalSite::CommunitySite,
+            name: "GameBanana".into(),
+            url: "https://gamebanana.com/games/16121".into(),
+            instructions: "Browse this community's mods.".into(),
+        }];
+        document.format_version = document.format_version.max(16);
+        service.replace_catalog_for_test(
+            service
+                .catalog()
+                .clone()
+                .with_listing_document(document)
+                .unwrap(),
+        );
+        assert!(service.catalog().port(&id).is_err());
+        let offered = portals(service.catalog(), &id, None);
+        assert_eq!(
+            offered[0].browser,
+            Some(ExternalModBrowser::ProviderCatalog)
+        );
+        assert!(offered[0].browse_available);
+        assert_eq!(
+            service
+                .external_provider_scope(
+                    &id,
+                    "catalog-mods",
+                    Some("https://gamebanana.com/games/16121")
+                )
+                .unwrap(),
+            ModProviderBinding::Gamebanana { game_id: 16121 }
+        );
+        let choices = crate::ModPortalChoices {
+            local_page: Some(crate::LocalModPage {
+                name: "Thunderstore".into(),
+                url: "https://thunderstore.io/c/exact-game/".into(),
+            }),
+            hidden_sources: vec!["catalog-mods".into()],
+        };
+        service.set_mod_portal_preferences(&id, 0, choices).unwrap();
+        assert!(
+            service
+                .external_provider_scope(&id, "catalog-mods", None)
+                .is_err()
+        );
+        assert_eq!(
+            service
+                .external_provider_scope(
+                    &id,
+                    crate::mod_portal_preferences::LOCAL_PAGE_SOURCE,
+                    None
+                )
+                .unwrap(),
+            ModProviderBinding::Thunderstore {
+                community: "exact-game".into()
+            }
+        );
+        assert!(
+            service
+                .external_provider_scope(
+                    &id,
+                    crate::mod_portal_preferences::LOCAL_PAGE_SOURCE,
+                    Some("https://thunderstore.io/c/previous-community/")
+                )
+                .is_err()
+        );
+        assert!(service.catalog().port(&id).is_err());
+    }
 
     #[tokio::test]
     async fn a_browser_only_link_checks_port_source_and_exact_page_before_opening() {
