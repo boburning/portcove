@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
 import { readFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -1412,7 +1413,7 @@ void test("an observed Gone logo sweeps every reference to its variant and prese
                   role: "logo",
                   subject: { kind: "port", port_id: id },
                   igdb: { image_id: "sharedlogo", game_id: 7, record_id: 9 },
-                  sha256: "a".repeat(64),
+                  sha256: createHash("sha256").update("decoder-fixture").digest("hex"),
                 },
               ]
             : []),
@@ -1475,25 +1476,29 @@ void test("changed retained media holds fresh proposals across artwork operation
     subject: { kind: "port", port_id: "retained" },
     igdb: { game_id: 7, record_id: 9, image_id: "sharedshot" },
   };
-  for (const [filler, pinDigest] of [
-    [0, "a"],
-    [0, "b"],
-    [ARTWORK_OPERATION_PORTS - 1, "a"],
-    [ARTWORK_OPERATION_PORTS - 1, "b"],
+  for (const [filler, pinDigest, retainedFirst] of [
+    [0, "a", false],
+    [0, "b", false],
+    [ARTWORK_OPERATION_PORTS - 1, "a", false],
+    [ARTWORK_OPERATION_PORTS - 1, "b", false],
+    [0, "a", true],
+    [ARTWORK_OPERATION_PORTS - 1, "a", true],
   ] as const) {
     const untouched = Array.from({ length: filler }, (_, i) => ({
       ...base,
       id: `unselected-${i}`,
     }));
+    const first = { ...base, id: "first" };
+    const retained = {
+      ...base,
+      id: "retained",
+      presentation: { media: [{ ...pin, sha256: pinDigest.repeat(64) }] },
+    };
     const catalog = {
       ports: [
-        { ...base, id: "first" },
+        retainedFirst ? retained : first,
         ...untouched,
-        {
-          ...base,
-          id: "retained",
-          presentation: { media: [{ ...pin, sha256: pinDigest.repeat(64) }] },
-        },
+        retainedFirst ? first : retained,
         { ...base, id: "last" },
       ],
     };
@@ -1533,12 +1538,19 @@ void test("changed retained media holds fresh proposals across artwork operation
     assert.deepEqual(result.held_media_targets, ["720p/sharedshot"]);
     assert.deepEqual(
       result.records.filter(({ role }) => role === "screenshot").map(({ reason }) => reason),
-      [
-        "image-bytes-held-for-review",
-        pinDigest === "a" ? "retained-image-bytes-changed" : "retained-image-verified",
-        "existing-scene-retained",
-        "image-bytes-held-for-review",
-      ],
+      retainedFirst
+        ? [
+            "retained-image-verified",
+            "existing-scene-retained",
+            "image-bytes-held-for-review",
+            "image-bytes-held-for-review",
+          ]
+        : [
+            "image-bytes-held-for-review",
+            pinDigest === "a" ? "retained-image-bytes-changed" : "retained-image-verified",
+            "existing-scene-retained",
+            "image-bytes-held-for-review",
+          ],
     );
   }
 });

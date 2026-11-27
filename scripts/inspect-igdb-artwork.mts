@@ -1675,7 +1675,7 @@ type HeroPreparationContext = {
   games: Map<string, Promise<unknown>>;
   inventories: Map<string, Promise<unknown>>;
   images: Map<string, ReturnType<HeroPreparationContext["inspector"]["inspectMediaImage"]>>;
-  inputImageDigests: Map<string, Set<string>>;
+  imageDigests: Map<string, Set<string>>;
   goneImages: Set<string>;
   heldImages: Set<string>;
 };
@@ -2015,6 +2015,10 @@ async function inspectHeroRole(
     if (context.goneImages.has(target) || context.heldImages.has(target)) continue;
     try {
       const image = await observeHeroImage(candidate.image_id, role, context);
+      if (context.heldImages.has(target)) {
+        reason = "image-bytes-held-for-review";
+        continue;
+      }
       if (role === "header" && image.width * 2 < image.height * 3) continue;
       const asset = heroAssetProposal(candidate, game, role, identity, image);
       if (
@@ -2060,11 +2064,21 @@ function observeHeroImage(
   // The provider variant identifies the bytes. Role fit and the exact
   // provider-game and catalog subjects are checked by each caller. An
   // explicit refresh must independently observe the retained image.
-  const target = `${revalidate ? "refresh:" : ""}${gameMediaImageTarget(role, imageId)}`;
-  let pending = context.images.get(target);
+  const target = gameMediaImageTarget(role, imageId);
+  const key = `${revalidate ? "refresh:" : ""}${target}`;
+  let pending = context.images.get(key);
   if (!pending) {
-    pending = Promise.resolve().then(() => context.inspector.inspectMediaImage(imageId, role));
-    context.images.set(target, pending);
+    pending = Promise.resolve()
+      .then(() => context.inspector.inspectMediaImage(imageId, role))
+      .then((image) => {
+        const digests = context.imageDigests.get(target) ?? new Set<string>();
+        if (digests.size && (!digests.has(image.sha256) || digests.size > 1))
+          context.heldImages.add(target);
+        digests.add(image.sha256);
+        context.imageDigests.set(target, digests);
+        return image;
+      });
+    context.images.set(key, pending);
   }
   return pending;
 }
@@ -2119,16 +2133,8 @@ async function refreshRetainedHeroMedia(
     if (context.goneImages.has(key)) continue;
     let reason: string;
     try {
-      const fresh = context.images.get(key);
       const image = await observeHeroImage(imageId, role, context, true);
-      const earlier = await fresh?.catch(() => undefined);
       context.images.delete(key);
-      if (
-        image.sha256 !== asset.sha256 ||
-        (earlier && earlier.sha256 !== image.sha256) ||
-        [...(context.inputImageDigests.get(key) ?? [])].some((digest) => digest !== image.sha256)
-      )
-        context.heldImages.add(key);
       reason =
         image.sha256 === asset.sha256 ? "retained-image-verified" : "retained-image-bytes-changed";
     } catch (error) {
@@ -2378,16 +2384,17 @@ export async function prepareCatalogGameMedia(
   const accepted = acceptedHeroMediaMatches(options.acceptedCatalog, excluded);
   const acceptedPorts = new Map(options.acceptedCatalog?.ports.map((port) => [port.id, port]));
   const records: HeroMediaRecord[] = [];
-  const inputImageDigests = new Map<string, Set<string>>();
-  if (refresh.size)
-    for (const { presentation } of catalog.ports) {
+  const imageDigests = new Map<string, Set<string>>();
+  for (const source of [catalog, options.acceptedCatalog])
+    for (const { id, presentation } of source?.ports ?? []) {
+      if (excluded.has(id)) continue;
       if (!Array.isArray(presentation?.media)) continue;
       for (const asset of presentation.media as unknown[]) {
         const target = catalogMediaImageTarget(asset);
         if (!target || !isRecord(asset) || !matchesString(hashPattern, asset.sha256)) continue;
-        const digests = inputImageDigests.get(target) ?? new Set<string>();
+        const digests = imageDigests.get(target) ?? new Set<string>();
         digests.add(asset.sha256);
-        inputImageDigests.set(target, digests);
+        imageDigests.set(target, digests);
       }
     }
   const context: HeroPreparationContext = {
@@ -2396,7 +2403,7 @@ export async function prepareCatalogGameMedia(
     games: new Map(),
     inventories: new Map(),
     images: new Map(),
-    inputImageDigests,
+    imageDigests,
     goneImages: new Set(knownGone),
     heldImages: new Set(knownHeld),
   };
