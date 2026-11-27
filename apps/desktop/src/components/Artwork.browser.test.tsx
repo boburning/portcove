@@ -834,6 +834,7 @@ describe("local artwork controls", () => {
     let state = artworkState("sample", "cover");
     let reads = 0;
     let deferReplacement = false;
+    let readCommittedChoice = false;
     let finishRead!: (value: ArtworkState) => void;
     vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) => {
       if (slot !== "cover") return artworkState(port, slot);
@@ -842,6 +843,7 @@ describe("local artwork controls", () => {
         deferReplacement = false;
         return new Promise((resolve) => (finishRead = resolve));
       }
+      readCommittedChoice = state.choice.revision === 1;
       return state;
     });
     let finishChange!: (value: ArtworkState) => void;
@@ -855,7 +857,7 @@ describe("local artwork controls", () => {
         choice_revision: revision,
         png_base64: thumbnailPng,
       };
-      if (port === "sample" && slot === "cover" && revision === 1)
+      if (readCommittedChoice && port === "sample" && slot === "cover" && revision === 1)
         await new Promise<void>((resolve) => (finishThumbnail = resolve));
       return thumbnail;
     });
@@ -875,6 +877,7 @@ describe("local artwork controls", () => {
     await act(async () => finishChange(state));
     expect(button("cover", "Choose local image").disabled).toBe(true);
     await expect.element(page.getByText("Local image selected.", { exact: true })).toBeVisible();
+    expect(finishThumbnail).toBeUndefined();
     await act(async () => finishRead(preCommit));
     expect(reads).toBe(readsBefore + 2);
     await expect.poll(() => typeof finishThumbnail).toBe("function");
