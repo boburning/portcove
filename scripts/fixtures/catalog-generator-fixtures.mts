@@ -263,10 +263,19 @@ export function proposalDecoderFixture(
     preload,
     `
     import cp from 'node:child_process';
+    import fs from 'node:fs';
     import {syncBuiltinESMExports} from 'node:module';
     import {readFileSync,writeFileSync,appendFileSync} from 'node:fs';
     import {createHash} from 'node:crypto';
+    import {dirname,join} from 'node:path';
     let calls=0;
+    const receipts = new Map();
+    const remove = fs.rmSync;
+    fs.rmSync = (path, options) => {
+      const receipt = receipts.get(path);
+      if (receipt && !fs.existsSync(receipt)) throw new Error('Decoder receipt must precede cleanup.');
+      return remove(path, options);
+    };
     cp.spawnSync=(artifact,args)=>{
       const bytes=readFileSync(args.at(-1));
       const sha256=createHash('sha256').update(bytes).digest('hex');
@@ -275,6 +284,8 @@ export function proposalDecoderFixture(
       const repository_authoring=args.includes('--repository-authoring');
       const libraryIndex=args.indexOf('--library');
       const library=libraryIndex < 0 ? undefined : args[libraryIndex+1];
+      if (library && args.includes('artwork') && args.includes('import'))
+        receipts.set(library, join(dirname(args.at(-1)), 'validation-process.json'));
       appendFileSync(process.env.FIXTURE_PROCESS_LOG,JSON.stringify({artifact,inspection,repository_authoring,...(listings?{listings}: {}),library})+'\\n');
       if(++calls===1 && inspection)writeFileSync(process.env.FIXTURE_SELECTED_CLI,'selected file changed after capture');
       if (inspection && JSON.parse(bytes).ports.some((port) => port.presentation?.media?.some((asset) => asset.igdb && ['header','screenshot'].includes(asset.role))))

@@ -2419,14 +2419,14 @@ export function createCoreImageValidator(
     const env = Object.fromEntries(
       Object.entries(process.env).filter(([name]) => name.toUpperCase() !== "PORTCOVE_LIBRARY"),
     );
-    const timeout = Math.min(30000, Math.floor(remaining()));
-    if (timeout < 1) throw new Error("Core image validation deadline reached.");
     // Core needs atomic publication in its temporary library. The operator's
     // evidence directory can be on a mounted filesystem that lacks it.
     const child = (() => {
       const library = mkdtempSync(join(tmpdir(), "portcove-image-library-"));
       try {
-        return spawnSync(
+        const timeout = Math.min(30000, Math.floor(remaining()));
+        if (timeout < 1) throw new Error("Core image validation deadline reached.");
+        const process = spawnSync(
           artifact,
           [
             "--library",
@@ -2447,26 +2447,27 @@ export function createCoreImageValidator(
             ...(deadline === undefined ? {} : { killSignal: "SIGKILL" }),
           },
         );
+        writeFileSync(
+          join(runRoot, "validation-process.json"),
+          JSON.stringify(
+            {
+              validator_artifact_sha256: artifactSha256,
+              status: process.status,
+              signal: process.signal,
+              error_code: errorCode(process.error) ?? null,
+              stdout_tail: process.stdout?.slice(-16384) ?? "",
+              stderr_tail: process.stderr?.slice(-16384) ?? "",
+            },
+            null,
+            2,
+          ),
+          { flag: "wx" },
+        );
+        return process;
       } finally {
         rmSync(library, { recursive: true, force: true, maxRetries: 2 });
       }
     })();
-    writeFileSync(
-      join(runRoot, "validation-process.json"),
-      JSON.stringify(
-        {
-          validator_artifact_sha256: artifactSha256,
-          status: child.status,
-          signal: child.signal,
-          error_code: errorCode(child.error) ?? null,
-          stdout_tail: child.stdout?.slice(-16384) ?? "",
-          stderr_tail: child.stderr?.slice(-16384) ?? "",
-        },
-        null,
-        2,
-      ),
-      { flag: "wx" },
-    );
     if (child.error || child.status !== 0)
       throw new Error("Core image validation refused or unavailable.");
     if (remaining() < 1) throw new Error("Core image validation deadline reached.");
