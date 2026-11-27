@@ -518,6 +518,7 @@ void test("an SDK retry leaves independent allowance for exact post-creation rea
       APP_SLUG: app,
       GH_TOKEN: "fixture",
       COMMIT: commit,
+      GITHUB_RUN_ID: "141",
       GITHUB_REPOSITORY: repo,
     },
     async (input, init) => {
@@ -534,6 +535,7 @@ void test("an SDK retry leaves independent allowance for exact post-creation rea
         assert.equal(typeof init.body, "string");
         const body: unknown = JSON.parse(init.body as string);
         assert.ok(isRecord(body) && body.draft === true);
+        assert.match(String(body.body), /^<!-- portcove-admission-review:141 -->\n/u);
         return Response.json(row, { status: 201 });
       }
       lookups++;
@@ -578,6 +580,23 @@ void test("independent review binds the open App proposal to the exact replay he
   assert.equal(await readProposal({ ...row, state: "closed" }), "");
   assert.equal(await readProposal({ ...row, draft: true }, "qualification"), "draft");
   assert.equal(await readProposal({ ...row, draft: false }, "qualification"), "ready");
+  const marker = "<!-- portcove-admission-review:141 -->";
+  const ready = { ...row, draft: false, body: `${marker}\n\nEvidence.` };
+  assert.deepEqual(JSON.parse(await readProposal(ready, "delivery")), {
+    state: "ready",
+    proposal: row.html_url,
+    number: 22,
+    review_run: "141",
+  });
+  for (const body of [undefined, "Unbound", `${marker}\n${marker}`, ` ${marker}`])
+    await assert.rejects(readProposal({ ...ready, body }, "delivery"), /review run locator/u);
+  await assert.rejects(
+    readProposal({ ...ready, user: { login: "foreign[bot]" } }, "delivery"),
+    /exact catalog admission proposal readback differs/iu,
+  );
+  assert.deepEqual(JSON.parse(await readProposal({ ...row, draft: true }, "delivery")), {
+    state: "draft",
+  });
   assert.equal(
     await readProposal({ ...row, state: "closed", draft: true }, "qualification"),
     "closed",
@@ -653,6 +672,38 @@ void test("admission reviews carry current verifier code into an older producer 
   assert.match(ready.run, /qualification\)[\s\S]*gh pr ready "\$PROPOSAL"[\s\S]*qualification\)/u);
   assert.match(ready.run, /branch-fence\)[\s\S]*gh pr ready "\$PROPOSAL"[\s\S]*branch-fence\)/u);
   assert.doesNotMatch(ready.run, /gh pr merge|--admin/u);
+});
+
+void test("admission delivery binds a read-only proof before minting its merge credential", () => {
+  const workflow: unknown = parse(
+    readFileSync(
+      new URL("../.github/workflows/catalog-admission-delivery.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.ok(isRecord(workflow) && isRecord(workflow.permissions) && isRecord(workflow.jobs));
+  assert.ok(Object.values(workflow.permissions).every((access) => access === "read"));
+  const job = workflow.jobs.deliver;
+  assert.ok(isRecord(job) && Array.isArray(job.steps));
+  const steps = (job.steps as unknown[]).filter(isRecord);
+  const checkout = steps[0]?.with;
+  assert.ok(isRecord(checkout));
+  assert.equal(checkout.ref, "${{ github.workflow_sha }}");
+  assert.equal(checkout["persist-credentials"], false);
+  const proof = steps.find(({ id }) => id === "proof");
+  const app = steps.find(({ id }) => id === "app");
+  const merge = steps.find(({ name }) => name === "Merge through the guarded delivery route");
+  assert.ok(proof && app && merge && isRecord(proof.env) && isRecord(merge.env));
+  assert.equal(proof.env.GH_TOKEN, "${{ github.token }}");
+  assert.match(
+    String(proof.run),
+    /discovery-admission-review-receipt\.mts[\s\S]+merge-tree[\s\S]+--no-checkout/u,
+  );
+  assert.match(String(app.if), /steps\.proof\.outputs\.number.+AUTO_MERGE == 'true'/u);
+  assert.ok(steps.indexOf(proof) < steps.indexOf(app));
+  assert.ok(steps.indexOf(app) < steps.indexOf(merge));
+  assert.equal(merge.env.PORTCOVE_MERGE_TOKEN, "${{ steps.app.outputs.token }}");
+  assert.match(String(merge.run), /pr-delivery\.mts" merge[\s\S]+--verify-local-composition/u);
 });
 
 void test("automated readiness requires the reviewed update and deletion rules on its exact branch", async () => {

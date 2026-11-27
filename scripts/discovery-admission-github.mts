@@ -7,6 +7,14 @@ const repository = "boburning/portcove";
 const repositoryId = 1354613114;
 const api = `https://api.github.com/repos/${repository}`;
 const admissionBranchPattern = "refs/heads/automation/catalog-admission-*";
+const numericId = /^[1-9]\d{0,14}$/u;
+
+export function admissionReviewRun(body: unknown) {
+  if (typeof body !== "string") throw new Error("Admission proposal has no review run locator.");
+  const markers = [...body.matchAll(/^<!-- portcove-admission-review:([1-9]\d{0,14}) -->$/gmu)];
+  if (markers.length !== 1) throw new Error("Admission proposal must name one review run locator.");
+  return markers[0]![1]!;
+}
 
 export function checkCatalogAdmissionBranchFence(
   ruleset: unknown,
@@ -98,6 +106,7 @@ export async function catalogAdmissionGitHub(
     PROPOSAL: expectedProposal,
     ADMISSION_RULESET_ID: rulesetId,
     ADMISSION_RULESET_REVIEWED_AT: reviewedAt,
+    GITHUB_RUN_ID: reviewRun,
     GITHUB_REPOSITORY: actualRepository,
   } = environment;
   if (
@@ -109,9 +118,12 @@ export async function catalogAdmissionGitHub(
     !/^[a-z0-9][a-z0-9-]*$/u.test(app) ||
     !token ||
     actualRepository !== repository ||
-    !["gate", "prior", "deliver", "review", "qualification", "branch-fence"].includes(mode ?? "") ||
+    !["gate", "prior", "deliver", "review", "qualification", "branch-fence", "delivery"].includes(
+      mode ?? "",
+    ) ||
     (mode !== "gate" && (!commit || !/^[a-f0-9]{40}$/u.test(commit))) ||
     ((mode === "prior" || mode === "deliver") && app !== minted) ||
+    (mode === "deliver" && (!reviewRun || !numericId.test(reviewRun))) ||
     (mode === "branch-fence" &&
       (!rulesetId ||
         !/^[1-9]\d{0,14}$/u.test(rulesetId) ||
@@ -222,7 +234,7 @@ export async function catalogAdmissionGitHub(
     if (
       rows.length !== 1 ||
       !isRecord(row) ||
-      ((mode === "review" || mode === "qualification") &&
+      ((mode === "review" || mode === "qualification" || mode === "delivery") &&
         row.state !== "open" &&
         row.state !== "closed") ||
       !isRecord(row.head) ||
@@ -243,6 +255,21 @@ export async function catalogAdmissionGitHub(
       throw new Error("Exact catalog admission proposal readback differs.");
     return mode === "review" && row.state === "closed" ? "" : row.html_url;
   };
+  if (mode === "delivery") {
+    const rows = await lookup();
+    const proposal = verify(rows);
+    const row = rows[0];
+    if (!isRecord(row) || typeof row.draft !== "boolean")
+      throw new Error("Admission delivery requires a known proposal draft state.");
+    if (row.state === "closed" || row.draft)
+      return JSON.stringify({ state: row.state === "closed" ? "closed" : "draft" });
+    return JSON.stringify({
+      state: "ready",
+      proposal,
+      number: row.number,
+      review_run: admissionReviewRun(row.body),
+    });
+  }
   if (mode === "qualification") {
     const rows = await lookup();
     const proposal = verify(rows);
@@ -276,6 +303,8 @@ export async function catalogAdmissionGitHub(
         base: "main",
         title: `feat(catalog): admit scheduled discovery listings (${run}/${attempt})`,
         body: [
+          `<!-- portcove-admission-review:${reviewRun} -->`,
+          "",
           "## Linked issue",
           "",
           "Refs #1422.",

@@ -1,0 +1,195 @@
+name: Catalog admission delivery
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+  issues: read
+  pull-requests: read
+  statuses: read
+
+concurrency:
+  group: ${{ startsWith(github.event.workflow_run.head_branch, 'automation/catalog-admission-') && 'portcove-catalog-admission' || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  deliver:
+    if: >-
+      vars.PORTCOVE_CATALOG_ADMISSION_ENABLED == 'true' &&
+      github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.id == github.event.repository.id &&
+      startsWith(github.event.workflow_run.head_branch, 'automation/catalog-admission-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    environment: catalog-admission
+    env:
+      CI_RUN: ${{ github.event.workflow_run.id }}
+      CI_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+      CI_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      COMMIT: ${{ github.event.workflow_run.head_sha }}
+      CONTROLLER_SOURCE: ${{ github.workflow_sha }}
+      EXPECTED_APP: ${{ vars.CATALOG_ADMISSION_APP_SLUG }}
+      ADMISSION_RULESET_ID: ${{ vars.PORTCOVE_CATALOG_ADMISSION_RULESET_ID }}
+      ADMISSION_RULESET_REVIEWED_AT: ${{ vars.PORTCOVE_CATALOG_ADMISSION_RULESET_REVIEWED_AT }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.1
+        with:
+          node-version-file: .node-version
+      - name: Verify exact admission review and current composition
+        id: proof
+        timeout-minutes: 8
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$CONTROLLER_SOURCE" ]]
+          [[ "$CI_RUN" =~ ^[1-9][0-9]{0,14}$ && "$CI_ATTEMPT" =~ ^[1-9][0-9]{0,14}$ ]]
+          [[ "$COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$CI_BRANCH" =~ ^automation/catalog-admission-([1-9][0-9]{0,14})-([1-9][0-9]{0,14})$ ]]
+          export DISCOVERY_RUN="${BASH_REMATCH[1]}" DISCOVERY_ATTEMPT="${BASH_REMATCH[2]}"
+          pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+          proposal=$(node scripts/discovery-admission-github.mts delivery)
+          state=$(jq -er '.state' <<< "$proposal")
+          if [[ "$state" != ready ]]; then
+            echo "Catalog admission proposal state is $state." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [[ -z "$ADMISSION_RULESET_ID" || -z "$ADMISSION_RULESET_REVIEWED_AT" ]]; then
+            echo 'Ready proposal is waiting for its reviewed admission branch lock.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          [[ "$(node scripts/discovery-admission-github.mts branch-fence)" == locked ]]
+          number=$(jq -er '.number' <<< "$proposal")
+          review=$(jq -er '.review_run' <<< "$proposal")
+          [[ "$number" =~ ^[1-9][0-9]{0,14}$ && "$review" =~ ^[1-9][0-9]{0,14}$ ]]
+
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/admission/target" \
+            "+refs/pull/$number/head:refs/remotes/admission/head" \
+            "+refs/pull/$number/merge:refs/remotes/admission/merge"
+          [[ "$(git rev-parse refs/remotes/admission/head)" == "$COMMIT" ]]
+          target=$(git rev-parse refs/remotes/admission/target)
+          source=$(git show -s --format=%P "$COMMIT")
+          [[ "$source" =~ ^[a-f0-9]{40}$ ]]
+          git merge-base --is-ancestor "$source" "$target"
+          git merge-base --is-ancestor "$CONTROLLER_SOURCE" "$target"
+          proposal_tree=$(git rev-parse "$COMMIT^{tree}")
+
+          # The editable PR locator only selects candidate evidence. The reader
+          # verifies the review attempt, workflow, artifact digest, and full binding.
+          review_attempt=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$review/artifacts?per_page=100" |
+            jq -er --arg prefix "catalog-admission-review-$review-" '
+              select(.total_count == (.artifacts | length))
+              | [.artifacts[] | select(.expired == false) | .name
+                 | select(startswith($prefix)) | ltrimstr($prefix)
+                 | select(test("^[1-9][0-9]{0,14}$")) | tonumber]
+              | max // empty')
+          [[ "$review_attempt" =~ ^[1-9][0-9]{0,14}$ ]]
+          node scripts/discovery-admission-review-receipt.mts \
+            --review "$review/$review_attempt" --producer "$DISCOVERY_RUN/$DISCOVERY_ATTEMPT" \
+            --source "$source" --head "$COMMIT" --tree "$proposal_tree" --pull "$number" \
+            > "$RUNNER_TEMP/catalog-admission-review.json"
+          review_source=$(jq -er '.controller' "$RUNNER_TEMP/catalog-admission-review.json")
+          git merge-base --is-ancestor "$review_source" "$target"
+
+          tree=$(git merge-tree --write-tree --no-messages "$target" "$COMMIT")
+          [[ "$tree" =~ ^[a-f0-9]{40}$ ]]
+          node scripts/discovery-admission-branch.mts delta "$target" "$tree" \
+            > "$RUNNER_TEMP/catalog-admission-paths"
+          trusted="$RUNNER_TEMP/admission-main"
+          git -c core.hooksPath=/dev/null worktree add --quiet --detach "$trusted" "$target"
+          while IFS= read -r path; do
+            git cat-file blob "$tree:$path" > "$trusted/$path"
+            git -C "$trusted" add -- "$path"
+          done < "$RUNNER_TEMP/catalog-admission-paths"
+          [[ "$(git -C "$trusted" write-tree)" == "$tree" ]]
+          pnpm --dir "$trusted" install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+          (cd "$trusted" && GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check)
+
+          # The checked head is an inert tree for the delivery guard. All
+          # executable scripts and dependencies are from trusted main.
+          git -c core.hooksPath=/dev/null worktree add --quiet --no-checkout --detach \
+            "$RUNNER_TEMP/admission-head" "$COMMIT"
+          jq -n '{format_version:1, allowed_targets:[]}' > "$RUNNER_TEMP/closure.json"
+          jq -n --arg title "feat(catalog): admit scheduled discovery listings ($DISCOVERY_RUN/$DISCOVERY_ATTEMPT)" \
+            --arg body "Validated catalog admission replay $review/$review_attempt and required CI $CI_RUN/$CI_ATTEMPT." \
+            '{title:$title,body:$body}' > "$RUNNER_TEMP/message.json"
+          {
+            printf 'number=%s\n' "$number"
+            printf 'target=%s\n' "$target"
+            printf 'tree=%s\n' "$tree"
+            printf 'discovery_run=%s\n' "$DISCOVERY_RUN"
+            printf 'discovery_attempt=%s\n' "$DISCOVERY_ATTEMPT"
+          } >> "$GITHUB_OUTPUT"
+          echo "Verified admission replay $review/$review_attempt for PR #$number at $COMMIT." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report pending owner activation
+        if: steps.proof.outputs.number != '' && vars.PORTCOVE_CATALOG_ADMISSION_AUTO_MERGE != 'true'
+        run: echo 'Verified admission is waiting for protected merge activation.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Mint the App token for guarded delivery
+        if: steps.proof.outputs.number != '' && vars.PORTCOVE_CATALOG_ADMISSION_AUTO_MERGE == 'true'
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        timeout-minutes: 2
+        with:
+          app-id: ${{ vars.CATALOG_ADMISSION_APP_ID }}
+          private-key: ${{ secrets.CATALOG_ADMISSION_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Merge through the guarded delivery route
+        if: steps.app.outputs.token != ''
+        timeout-minutes: 7
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PORTCOVE_MERGE_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs['app-slug'] }}
+          NUMBER: ${{ steps.proof.outputs.number }}
+          TARGET: ${{ steps.proof.outputs.target }}
+          TREE: ${{ steps.proof.outputs.tree }}
+          DISCOVERY_RUN: ${{ steps.proof.outputs.discovery_run }}
+          DISCOVERY_ATTEMPT: ${{ steps.proof.outputs.discovery_attempt }}
+        run: |
+          set -euo pipefail
+          [[ -n "$EXPECTED_APP" && "$APP_SLUG" == "$EXPECTED_APP" ]]
+          [[ "$(node scripts/discovery-admission-github.mts branch-fence)" == locked ]]
+          proposal=$(node scripts/discovery-admission-github.mts delivery)
+          if [[ "$(jq -er '.state' <<< "$proposal")" == closed ]]; then
+            echo "Exact admission proposal #$NUMBER is already closed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          jq -e --argjson number "$NUMBER" '.state == "ready" and .number == $number' <<< "$proposal" > /dev/null
+          cd "$RUNNER_TEMP/admission-head"
+          node "$GITHUB_WORKSPACE/scripts/pr-delivery.mts" merge --pr "$NUMBER" --head "$COMMIT" \
+            --target "$TARGET" --tree "$TREE" --verify-local-composition \
+            --run "$CI_RUN" --attempt "$CI_ATTEMPT" \
+            --closure-intent-file "$RUNNER_TEMP/closure.json" \
+            --merge-message-file "$RUNNER_TEMP/message.json" --json |
+            tee "$RUNNER_TEMP/catalog-admission-delivery.json"
+
+      - name: Retain guarded delivery evidence
+        if: always() && steps.proof.outputs.number != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: catalog-admission-delivery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/catalog-admission-review.json
+            ${{ runner.temp }}/catalog-admission-delivery.json
+          retention-days: 30
+          if-no-files-found: error
