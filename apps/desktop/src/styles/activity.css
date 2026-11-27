@@ -5,7 +5,6 @@
   }
   .update-center .activity-tabs {
     display: flex;
-    flex-wrap: wrap;
     gap: var(--space-2);
     margin-block-end: var(--space-6);
     border-block-end: 1px solid var(--color-border);
@@ -38,6 +37,22 @@
     border-block-end-color: currentcolor;
     background: var(--color-pc-selection);
     color: var(--color-pc-selection-foreground);
+  }
+  @container activity (max-width: 22rem) {
+    .update-center .activity-tabs {
+      overflow-x: auto;
+      padding: var(--space-2);
+      scrollbar-width: thin;
+    }
+    .update-center .activity-tab {
+      flex: 1 0 min-content;
+      flex-direction: column;
+      gap: var(--space-1);
+      padding-inline: var(--space-1);
+      overflow-wrap: normal;
+      scroll-margin-inline: var(--space-2);
+      text-align: center;
+    }
   }
   .update-center [role="tabpanel"][hidden],
   .update-center [hidden] {

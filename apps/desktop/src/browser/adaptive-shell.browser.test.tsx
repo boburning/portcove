@@ -267,8 +267,17 @@ for (const theme of ["dark", "light"]) {
     await expect.element(page.getByRole("heading", { name: "Activity", level: 1 })).toBeVisible();
     await page.getByRole("tab", { name: "Game updates", exact: true }).click();
     await expect.poll(() => document.querySelectorAll(".update-row").length).toBeGreaterThan(0);
+    const sections = page.getByRole("tablist", { name: "Activity sections" });
+    const tabs = sections.getByRole("tab").elements();
+    expect(tabs).toHaveLength(3);
     for (const width of [320, 240]) {
       await page.viewport(width, 800);
+      const rowTop = tabs[0]!.getBoundingClientRect().top;
+      for (const tab of tabs) {
+        const bounds = tab.getBoundingClientRect();
+        expect(bounds.top).toBeCloseTo(rowTop);
+        expect(bounds.height).toBeGreaterThanOrEqual(44);
+      }
       const overflowing = [...document.querySelectorAll<HTMLElement>("main *")]
         .filter((element) => element.getBoundingClientRect().right > innerWidth + 1)
         .map((element) => `${element.tagName}.${element.className}: ${element.textContent}`);
@@ -276,6 +285,21 @@ for (const theme of ["dark", "light"]) {
         document.documentElement.clientWidth + 1,
       );
     }
+    document.documentElement.style.fontSize = "200%";
+    const updates = sections.getByRole("tab", { name: "Game updates", exact: true });
+    const history = sections.getByRole("tab", { name: "History", exact: true });
+    updates.element().focus();
+    await userEvent.keyboard("{ArrowRight}{Enter}");
+    await expect.element(history).toHaveFocus();
+    await expect.element(history).toHaveAttribute("aria-selected", "true");
+    const strip = sections.element();
+    await expect
+      .poll(() => {
+        const viewport = strip.getBoundingClientRect();
+        const focused = history.element().getBoundingClientRect();
+        return focused.left >= viewport.left - 1 && focused.right <= viewport.right + 1;
+      })
+      .toBe(true);
   });
   for (const mode of ["spacing overrides", "200% authored text"]) {
     it(`keeps ${theme} Settings usable at 320px with ${mode}`, async () => {
