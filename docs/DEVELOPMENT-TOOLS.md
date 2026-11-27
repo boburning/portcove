@@ -2516,10 +2516,12 @@ product groups. Run it as explicit acceptance from an interactive,
 non-elevated (medium-integrity) Windows desktop session. Hosted runners present
 a high-integrity token. Core refuses settings editing there by design, so a
 hosted run can only reproduce that refusal (run 44933173974). The owned install
-fixture declares one inert settings file. Desktop reviews two edits, saves them
-through native IPC and reads both copies back. An outside edit then makes a
-second review stale. Core refuses it before starting. Desktop shows Core's
-explanation, and both outside copies stay byte-identical. The executable is
+fixture declares two inert settings files. Desktop drafts edits to both files,
+retains them through navigation, then saves only the reviewed audio file through
+native IPC. An outside edit makes the next audio review stale. Core refuses it,
+and both outside copies stay byte-identical. Desktop saves the display file
+independently while retaining the held audio draft. The receipt records verified
+file bytes after comparing canonical and runtime copies. The executable is
 inert and no game starts.
 
 `just desktop-verify --scenario native-large-discovery-setup-review --require-clean`
