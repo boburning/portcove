@@ -21,6 +21,7 @@ import {
   serializeCurrentCatalog,
   readCatalogSource,
   catalogSourceNames,
+  typedIgdbScene,
 } from "./catalog-authoring.mts";
 import type { CurrentCatalog, NamedRecord } from "./catalog-authoring.mts";
 import { createHash } from "node:crypto";
@@ -35,6 +36,8 @@ import {
   createCoreImageValidator,
   readArtworkJson,
   readArtworkInput,
+  gameMediaImageTarget,
+  catalogGameMediaRoles,
 } from "./inspect-igdb-artwork.mts";
 import type { ImageValidator } from "./inspect-igdb-artwork.mts";
 import {
@@ -48,6 +51,8 @@ import {
 } from "./catalog-setup-release-advice.mts";
 import { isRecord } from "./runtime-values.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
+import { originalEditionMediaKey } from "./shared-original-media.mts";
+import { isDeepStrictEqual } from "node:util";
 
 interface Difference {
   path: string;
@@ -524,6 +529,79 @@ function proposalImageValidator(
         };
 }
 
+function originalSceneScope(game: unknown, subject: Record<string, unknown>) {
+  if (
+    !isRecord(game) ||
+    typeof game.id !== "string" ||
+    game.id !== subject.game_id ||
+    !Array.isArray(game.source_editions)
+  )
+    return undefined;
+  const edition = (game.source_editions as unknown[]).find(
+    (value) => isRecord(value) && value.id === subject.source_edition_id,
+  );
+  return originalEditionMediaKey(game.id, edition);
+}
+
+function splitListingSceneProposal(catalog: CurrentCatalog, goneTargets: readonly string[]) {
+  const accepted = new Map(authored.directory.listings.map((listing) => [listing.id, listing]));
+  const listings: Record<string, unknown>[] = [];
+  const pending: { port_id: string; asset: Record<string, unknown> }[] = [];
+  const gone = new Set(goneTargets);
+  const ports = catalog.ports.map((port) => {
+    const presentation = port.presentation;
+    if (!isRecord(presentation) || !Array.isArray(presentation.media)) return port;
+    const media: unknown[] = presentation.media;
+    const scenes = media.filter(isRecord).filter(typedIgdbScene);
+    if (!scenes.length) return port;
+    const listing = accepted.get(port.id);
+    const prepared = scenes.filter((asset) => {
+      const subject = isRecord(asset.subject) ? asset.subject : null;
+      if (listing && listing.project_url === port.project_url && subject) {
+        if (subject.kind === "port" && subject.port_id === port.id) return true;
+        const scope = originalSceneScope(listing.original_game, subject);
+        if (
+          subject.kind === "original" &&
+          scope &&
+          scope === originalSceneScope(presentation.original_game, subject)
+        )
+          return true;
+      }
+      pending.push({ port_id: port.id, asset });
+      return false;
+    });
+    if (listing && prepared.length) {
+      const retained = (Array.isArray(listing.media) ? listing.media : []).filter(
+        (asset: unknown) => {
+          if (!isRecord(asset)) return true;
+          if (isRecord(asset.igdb) && typeof asset.igdb.image_id === "string") {
+            const role = catalogGameMediaRoles.find((role) => role === asset.role);
+            if (role && gone.has(gameMediaImageTarget(role, asset.igdb.image_id))) return false;
+          }
+          return !prepared.some(
+            (next) =>
+              next.id === asset.id ||
+              (next.role === "header" &&
+                asset.role === "header" &&
+                isDeepStrictEqual(next.subject, asset.subject)),
+          );
+        },
+      );
+      listings.push({ ...listing, media: [...retained, ...prepared] });
+    }
+    const strictMedia = media.filter((asset) => !typedIgdbScene(asset));
+    const strictPresentation = { ...presentation };
+    if (strictMedia.length) strictPresentation.media = strictMedia;
+    else delete strictPresentation.media;
+    return { ...port, presentation: strictPresentation };
+  });
+  return {
+    catalog: { ...catalog, ports },
+    directory: { format_version: Math.max(13, authored.directory.format_version), listings },
+    pending,
+  };
+}
+
 async function prepareArtworkProposal(fullProposal = false) {
   validateArtworkProposalArguments(fullProposal);
   const captured = readArtworkInput(
@@ -624,7 +702,12 @@ async function prepareArtworkProposal(fullProposal = false) {
   const result = { ...covers, catalog: gameMedia?.catalog ?? covers.catalog };
   finishPhase("artwork_preparation");
   validateCurrentCatalog(result.catalog);
-  const proposalBytes = Buffer.from(`${JSON.stringify(result.catalog, null, 2)}\n`);
+  const sceneProposal =
+    fullProposal && gameMedia
+      ? splitListingSceneProposal(result.catalog, gameMedia.gone_media_targets)
+      : null;
+  const proposedCatalog = sceneProposal?.catalog ?? result.catalog;
+  const proposalBytes = Buffer.from(`${JSON.stringify(proposedCatalog, null, 2)}\n`);
   const proposalChecks =
     inspectProposal && beforeChecks
       ? {
@@ -632,8 +715,16 @@ async function prepareArtworkProposal(fullProposal = false) {
           output: inspectProposal.inspect("output", proposalBytes, true),
         }
       : undefined;
+  const listingProposal = sceneProposal?.directory.listings.length
+    ? Buffer.from(`${JSON.stringify(sceneProposal.directory, null, 2)}\n`)
+    : null;
+  const listingCheck = listingProposal
+    ? inspectProposal?.inspectListings("listing-media", listingProposal)
+    : null;
   finishPhase("output_preparation_and_declarations");
-  const compatibilityReview = fullProposal ? compatibilityFixtureReview(result.catalog) : undefined;
+  const compatibilityReview = fullProposal
+    ? compatibilityFixtureReview(proposedCatalog)
+    : undefined;
   finishPhase("compatibility_review");
   const preparationCosts = {
     clock: "process.hrtime.bigint",
@@ -659,8 +750,8 @@ async function prepareArtworkProposal(fullProposal = false) {
     input_sha256: digest(input),
     accepted_catalog_sha256: digest(current),
     accepted_artwork_context_sha256: digest(acceptedArtwork),
-    proposed_catalog_sha256: digest(result.catalog),
-    differences: differences(input, result.catalog),
+    proposed_catalog_sha256: digest(proposedCatalog),
+    differences: differences(input, proposedCatalog),
     records: result.records,
     metrics: result.metrics,
     gone_image_ids: result.gone_image_ids,
@@ -668,6 +759,14 @@ async function prepareArtworkProposal(fullProposal = false) {
     ...(gameMedia
       ? {
           game_media: {
+            accepted_media_context_sha256: digest(acceptedMedia),
+            ...(listingCheck
+              ? {
+                  validated_listing_proposal: "listing-media-proposal.json",
+                  listing_check: listingCheck,
+                }
+              : {}),
+            ...(sceneProposal?.pending.length ? { unbound_scenes: sceneProposal.pending } : {}),
             records: gameMedia.records,
             gone_media_targets: gameMedia.gone_media_targets,
             coverage: sceneCoverage(acceptedMedia, gameMedia, selectedPortIds),
@@ -681,6 +780,8 @@ async function prepareArtworkProposal(fullProposal = false) {
   writeFileSync(join(outputRoot, "catalog-proposal.json"), proposalBytes, {
     flag: "wx",
   });
+  if (listingProposal && listingCheck)
+    writeFileSync(join(outputRoot, "listing-media-proposal.json"), listingProposal, { flag: "wx" });
   writeFileSync(
     join(outputRoot, "artwork-evidence.json"),
     `${JSON.stringify(evidence, null, 2)}\n`,
@@ -695,10 +796,10 @@ async function prepareArtworkProposal(fullProposal = false) {
           format_version: 1,
           accepted_catalog_sha256: digest(current),
           input_catalog_sha256: digest(input),
-          proposed_catalog_sha256: digest(result.catalog),
-          differences: differences(current, result.catalog),
-          proposal_changes: proposalChanges(current, result.catalog),
-          declaration_cases: declarationCases(current, result.catalog, proposalChecks),
+          proposed_catalog_sha256: digest(proposedCatalog),
+          differences: differences(current, proposedCatalog),
+          proposal_changes: proposalChanges(current, proposedCatalog),
+          declaration_cases: declarationCases(current, proposedCatalog, proposalChecks),
           compatibility_fixture_review: compatibilityReview,
           preparation_costs: preparationCosts,
           checks: proposalChecks,

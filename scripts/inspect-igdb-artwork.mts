@@ -1,7 +1,7 @@
 import { readIgdbCredentials, resolveIgdbCredentialsFile } from "./maintainer-config.mts";
 import type { ReadableStreamReadResult } from "node:stream/web";
 import { isRecord, errorCode } from "./runtime-values.mts";
-import { originalEditionMediaKey } from "./shared-original-media.mts";
+import { originalEditionMediaKey, typedIgdbScene } from "./shared-original-media.mts";
 import {
   hashPattern,
   imagePattern,
@@ -34,6 +34,7 @@ import {
 } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { isDeepStrictEqual } from "node:util";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import timers from "node:timers/promises";
@@ -1684,11 +1685,22 @@ function acceptedHeroMediaMatches(
 
 function retainedDirectoryMedia(port: ArtworkPort, accepted: ArtworkPort | undefined) {
   const media = accepted?.presentation?.media;
-  if (!accepted || !Array.isArray(media)) return [];
+  if (!accepted || port.project_url !== accepted.project_url || !Array.isArray(media)) return [];
+  const strict = port.presentation?.media;
+  if (
+    Array.isArray(strict) &&
+    (!strict.length ||
+      !isDeepStrictEqual(
+        strict,
+        media.filter((asset: unknown) => !typedIgdbScene(asset)),
+      ))
+  )
+    return [];
   const offered = new Set(originalMediaScopes(port).map(({ key }) => key));
   const applicable = originalMediaScopes(accepted).filter(({ key }) => offered.has(key));
   return (media as unknown[]).filter((asset) => {
     if (!isRecord(asset) || !isRecord(asset.subject)) return false;
+    if (Array.isArray(strict) && !typedIgdbScene(asset)) return false;
     if (asset.subject.kind === "port")
       return (
         typeof port.project_url === "string" &&
@@ -1948,7 +1960,10 @@ async function inspectHeroRole(
       const asset = heroAssetProposal(candidate, game, role, identity, image);
       if (
         [...media, ...directoryMedia].some(
-          (existing) => isRecord(existing) && existing.id === asset.id,
+          (existing) =>
+            isRecord(existing) &&
+            existing.id === asset.id &&
+            !context.goneImages.has(catalogMediaImageTarget(existing) ?? ""),
         )
       )
         continue;
@@ -2245,9 +2260,7 @@ export async function prepareCatalogGameMedia(
     const cleared =
       options.explicitClearPortIds?.has(port.id) ?? (Array.isArray(current) && !current.length);
     const media: unknown[] = Array.isArray(current) ? structuredClone(current as unknown[]) : [];
-    const directoryMedia = Array.isArray(current)
-      ? []
-      : retainedDirectoryMedia(port, acceptedPorts.get(port.id));
+    const directoryMedia = retainedDirectoryMedia(port, acceptedPorts.get(port.id));
     if (refresh.has(port.id))
       await refreshRetainedHeroMedia(port, media, directoryMedia, records, context);
     for (const identity of declaredHeroMediaIdentities(port, options.identities, accepted, cleared))

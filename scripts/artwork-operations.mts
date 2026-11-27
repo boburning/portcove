@@ -289,11 +289,12 @@ export function sceneCoverage(
         catalogGameMediaRoles.map((role) => {
           const withdrawnImage = (id: string) => gone.has(gameMediaImageTarget(role, id));
           const key = scopeKey(subject, role);
+          const exactScope = providerScope(proposedPorts.get(port.id) ?? port, subject, role);
           const currentImages = (acceptedMedia.get(port.id) ?? []).filter(
-            (asset) => asset.scope === key,
+            (asset) => asset.scope === key && asset.providerScope === exactScope,
           );
           const proposedImages = (proposedMedia.get(port.id) ?? []).filter(
-            (asset) => asset.scope === key,
+            (asset) => asset.scope === key && asset.providerScope === exactScope,
           );
           const admitted = currentImages.filter(
             ({ imageId }) => !imageId || !withdrawnImage(imageId),

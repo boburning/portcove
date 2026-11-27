@@ -57,7 +57,8 @@ import type {
 import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineage.mts";
 import type { UpstreamLineage } from "./upstream-lineage.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
-import { sharedOriginalMedia } from "./shared-original-media.mts";
+import { sharedOriginalMedia, typedIgdbScene } from "./shared-original-media.mts";
+export { typedIgdbScene } from "./shared-original-media.mts";
 
 // These are checked authoring projections, not a second catalog schema. Unknown
 // metadata is retained verbatim; the captured Core inspector owns admission.
@@ -182,13 +183,6 @@ const listingPresentationFields = [
   "media",
 ] as const;
 
-export function typedIgdbScene(asset: unknown) {
-  return (
-    isRecord(asset) &&
-    (asset.role === "header" || asset.role === "screenshot") &&
-    asset.igdb != null
-  );
-}
 const sharedPortFields = ["id", "name", "summary", "project_url"] as const;
 const listingFields = new Set([
   "compatibility",

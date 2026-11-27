@@ -358,4 +358,34 @@ void test("hero preparation retains reviewed directory media for a managed listi
   const logo = observed.find((item) => item.role === "logo");
   assert.equal(logo?.reason, "identity-provider-unavailable");
   assert.equal(record(evidence.provider_metrics).authentication_requests, 0);
+  assert.match(String(details.accepted_media_context_sha256), /^[a-f0-9]{64}$/u);
+});
+
+void test("full artwork preparation checks typed scenes through the listing validator", () => {
+  const id = "tomba-recompiled";
+  const authored = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", `${id}.json`))),
+    id,
+  );
+  const asset = requiredFixture(
+    records(authored.listing.media).find((item) => item.role === "header"),
+  );
+  const fixture = proposalDecoderFixture(0, false, "--prepare-proposal", undefined, {
+    portId: id,
+    asset,
+  });
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  const strict = fixtureCatalog(
+    fixtureJson(readFileSync(join(fixture.output, "catalog-proposal.json"))),
+  );
+  const strictPort = requiredFixture(strict.ports.find((port) => port.id === id));
+  assert.equal(record(strictPort.presentation).media, undefined);
+  const bytes = readFileSync(join(fixture.output, "listing-media-proposal.json"));
+  const directory = record(fixtureJson(bytes));
+  assert.equal(records(directory.listings)[0]?.id, id);
+  assert.deepEqual(records(directory.listings)[0]?.media, [asset]);
+  const evidence = record(fixtureJson(readFileSync(join(fixture.output, "artwork-evidence.json"))));
+  const check = record(record(evidence.game_media).listing_check);
+  assert.equal(check.input_sha256, createHash("sha256").update(bytes).digest("hex"));
+  assert.equal(fixture.processes.filter((item) => record(item).listings === true).length, 1);
 });

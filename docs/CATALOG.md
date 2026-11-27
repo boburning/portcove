@@ -7590,6 +7590,12 @@ on newly proposed roles. Conflicting accepted associations leave those gaps
 unresolved until corrected. Project media never supplies an original-edition
 identity.
 
+Full proposal preparation validates typed backgrounds and screenshots in
+`listing-media-proposal.json` through the listing inspector. The strict
+`catalog-proposal.json` keeps operational definitions separate. The artwork
+report retains proposed scenes without an exact accepted listing binding for
+manual review.
+
 The artwork evidence includes logo, key-art, background, and screenshot
 coverage by port, original release, and IGDB game identity. It records accepted
 catalog asset IDs independently of IGDB image IDs, as well as fresh proposals

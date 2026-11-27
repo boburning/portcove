@@ -818,6 +818,38 @@ void test("reviewed media discovers missing roles by exact game, edition and sys
   assert.ok(
     afterWithdrawal.records.some((row) => row.role === "logo" && row.reason === "role-selected"),
   );
+  const legacyMedia = {
+    id: "legacy-screenshot",
+    role: "screenshot",
+    subject,
+    sha256: "c".repeat(64),
+  };
+  const typedMedia = artwork(7, "reviewed-game");
+  const retainedHeader = {
+    ...typedMedia,
+    role: "header",
+    igdb: { ...typedMedia.igdb, kind: "artwork" },
+  };
+  const mixedAccepted = port("mixed", undefined, undefined, [legacyMedia, retainedHeader]);
+  const mixedInput = port("mixed", undefined, undefined, [legacyMedia]);
+  const mixed = await prepareCatalogGameMedia(
+    { ports: [mixedInput] },
+    { acceptedCatalog: { ports: [mixedAccepted] }, inspector },
+  );
+  assert.equal(
+    mixed.records.find((row) => row.subject.kind === "original" && row.role === "header")?.reason,
+    "existing-scene-retained",
+  );
+  const correctedSystem = port("mixed", undefined, "windows");
+  const correctedMedia = await prepareCatalogGameMedia(
+    { ports: [correctedSystem] },
+    { acceptedCatalog: { ports: [mixedAccepted] }, inspector },
+  );
+  const correctedHeader = sceneCoverage({ ports: [mixedAccepted] }, correctedMedia).find(
+    (row) => row.subject.kind === "original" && row.role === "header",
+  );
+  assert.equal(correctedHeader?.state, "unknown");
+  assert.deepEqual(correctedHeader?.admitted_image_ids, []);
 });
 
 void test("game media preparation binds each typed role to the same exact game", async () => {

@@ -12,6 +12,14 @@ export function originalEditionMediaKey(gameId: string, edition: unknown) {
     return JSON.stringify([gameId, edition.id, edition.system]);
 }
 
+export function typedIgdbScene(asset: unknown) {
+  return (
+    isRecord(asset) &&
+    (asset.role === "header" || asset.role === "screenshot") &&
+    asset.igdb != null
+  );
+}
+
 function sharedAsset(value: unknown, game: AuthoredListing["original_game"]) {
   if (
     !game ||
