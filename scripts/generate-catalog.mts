@@ -52,6 +52,7 @@ import {
 import { isRecord } from "./runtime-values.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
 import { originalEditionMediaKey } from "./shared-original-media.mts";
+import { previewReviewedOriginalMedia } from "./reviewed-original-media.mts";
 import { isDeepStrictEqual } from "node:util";
 
 interface Difference {
@@ -785,6 +786,7 @@ async function prepareArtworkProposal(fullProposal = false) {
               inspector,
               identities,
               acceptedCatalog: acceptedMedia,
+              reviewedOriginalMedia: authored.reviewedOriginalMedia,
               excludedPortIds: excludedMedia,
               explicitClearPortIds: cleared,
               knownGoneMediaTargets: gone,
@@ -862,6 +864,15 @@ async function prepareArtworkProposal(fullProposal = false) {
       ? {
           game_media: {
             accepted_media_context_sha256: digest(acceptedMedia),
+            ...(authored.reviewedOriginalMedia.size
+              ? {
+                  reviewed_original_media: previewReviewedOriginalMedia(
+                    authored.reviewedOriginalMedia,
+                    authored.directory.listings,
+                    excludedMedia,
+                  ),
+                }
+              : {}),
             ...(listingCheck
               ? {
                   validated_listing_proposal: "listing-media-proposal.json",

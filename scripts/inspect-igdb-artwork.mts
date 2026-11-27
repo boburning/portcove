@@ -2,6 +2,7 @@ import { readIgdbCredentials, resolveIgdbCredentialsFile } from "./maintainer-co
 import type { ReadableStreamReadResult } from "node:stream/web";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { originalEditionMediaKey, typedIgdbScene } from "./shared-original-media.mts";
+import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
 import {
   hashPattern,
   imagePattern,
@@ -1606,6 +1607,7 @@ type HeroIdentity = {
   foregroundNeutral: boolean | undefined;
   acceptedExact?: true;
   conflictingAcceptedMatches?: true;
+  excludedByReview?: true;
 };
 type HeroImageCandidate = Record<string, unknown> & { id: number; game: number; image_id: string };
 type HeroMediaRecord = {
@@ -1715,11 +1717,11 @@ function declaredHeroMediaIdentities(
   port: ArtworkPort,
   input: unknown,
   accepted: ReturnType<typeof acceptedHeroMediaMatches>,
+  reviewed: ReadonlyMap<string, ReviewedOriginalMediaDecision> | undefined,
   cleared: boolean,
 ): HeroIdentity[] {
   const value = isRecord(input) ? input[port.id] : undefined;
   const supplied: Record<string, unknown> = isRecord(value) ? value : {};
-  const original = port.presentation?.original_game;
   const underlying = supplied.underlying_game ?? port.underlying_game;
   const identities: HeroIdentity[] = [
     {
@@ -1732,37 +1734,42 @@ function declaredHeroMediaIdentities(
       foregroundNeutral: undefined,
     },
   ];
-  // An offered edition is never a selected edition. Require an explicit binding;
-  // the renderer additionally requires actual applicability or reviewed neutrality.
-  if (
-    isRecord(original) &&
-    typeof original.id === "string" &&
-    isRecord(underlying) &&
-    typeof underlying.source_edition_id === "string" &&
-    Array.isArray(original.source_editions) &&
-    original.source_editions.some(
-      (edition) => isRecord(edition) && edition.id === underlying.source_edition_id,
-    )
-  ) {
-    identities.push({
-      declaration: underlying,
-      subject: {
-        kind: "original",
-        game_id: original.id,
-        source_edition_id: underlying.source_edition_id,
-      },
-      foregroundNeutral:
-        typeof underlying.hero_media_edition_neutral === "boolean"
-          ? underlying.hero_media_edition_neutral
-          : undefined,
-    });
-  }
-  if (!cleared && (!isRecord(underlying) || underlying.source_edition_id === undefined)) {
-    // Only accepted typed media establishes this alternate admission path. An
-    // edition offered by the catalog does not imply a player's selected edition.
-    for (const { key, subject } of originalMediaScopes(port)) {
-      const match = accepted.get(key);
-      if (match === undefined) continue;
+  // A reviewed decision takes precedence over preparation inputs and previously
+  // inferred matches. The renderer still requires applicability for an edition.
+  for (const { key, subject } of originalMediaScopes(port)) {
+    const decision = reviewed?.get(key);
+    if (decision) {
+      if (!cleared)
+        identities.push({
+          subject,
+          foregroundNeutral: undefined,
+          declaration:
+            decision.decision === "match"
+              ? {
+                  game_id: decision.game_id,
+                  slug: decision.slug,
+                  evidence_url: decision.evidence_url,
+                  names: [],
+                }
+              : null,
+          ...(decision.decision === "match" ? { acceptedExact: true } : { excludedByReview: true }),
+        });
+      continue;
+    }
+    if (isRecord(underlying) && underlying.source_edition_id !== undefined) {
+      if (underlying.source_edition_id === subject.source_edition_id)
+        identities.push({
+          declaration: underlying,
+          subject,
+          foregroundNeutral:
+            typeof underlying.hero_media_edition_neutral === "boolean"
+              ? underlying.hero_media_edition_neutral
+              : undefined,
+        });
+      continue;
+    }
+    const match = accepted.get(key);
+    if (!cleared && match !== undefined)
       identities.push({
         subject,
         foregroundNeutral: undefined,
@@ -1773,12 +1780,12 @@ function declaredHeroMediaIdentities(
         },
         ...(match ? { acceptedExact: true } : { conflictingAcceptedMatches: true }),
       });
-    }
   }
   return identities;
 }
 
 async function inspectHeroIdentity(identity: HeroIdentity, context: HeroPreparationContext) {
+  if (identity.excludedByReview) return { game: undefined, reason: "identity-excluded-by-review" };
   if (identity.conflictingAcceptedMatches) return { game: undefined, reason: "identity-ambiguous" };
   try {
     const declared = declaredIdentity(
@@ -2205,6 +2212,7 @@ export async function prepareCatalogGameMedia(
   options: {
     identities?: unknown;
     acceptedCatalog?: ArtworkCatalog;
+    reviewedOriginalMedia?: ReadonlyMap<string, ReviewedOriginalMediaDecision>;
     excludedPortIds?: ReadonlySet<string>;
     explicitClearPortIds?: ReadonlySet<string>;
     selectedPortIds?: readonly string[];
@@ -2263,7 +2271,13 @@ export async function prepareCatalogGameMedia(
     const directoryMedia = retainedDirectoryMedia(port, acceptedPorts.get(port.id));
     if (refresh.has(port.id))
       await refreshRetainedHeroMedia(port, media, directoryMedia, records, context);
-    for (const identity of declaredHeroMediaIdentities(port, options.identities, accepted, cleared))
+    for (const identity of declaredHeroMediaIdentities(
+      port,
+      options.identities,
+      accepted,
+      options.reviewedOriginalMedia,
+      cleared,
+    ))
       await prepareHeroIdentity(port.id, identity, media, directoryMedia, records, context);
     if (media.length || Array.isArray(current)) port.presentation = { ...port.presentation, media };
   }

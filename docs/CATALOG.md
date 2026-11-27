@@ -7589,6 +7589,18 @@ on newly proposed roles. Conflicting accepted associations leave those gaps
 unresolved until corrected. Project media never supplies an original-edition
 identity.
 
+To correct the provider identity for an original edition, add
+`igdb_original_media_v1` to one reviewed port record that declares that edition.
+Each decision names `original_game_id`, `source_edition_id`, `system`, and an
+`evidence_url`. Use `system: null` for an edition with no declared system.
+Use `decision: "match"` with the exact IGDB `game_id` and `slug`, or
+`decision: "exclude"` to suppress automatic matching for this scope. The same
+decision applies to every current and future catalog port with the exact game,
+edition, and system. Preparation lists those current ports under
+`game_media.reviewed_original_media`. A match supplies an identity for missing
+roles. Accepted assets remain subject to their own reviewed changes or confirmed
+withdrawal.
+
 Full proposal preparation validates typed backgrounds and screenshots in
 `listing-media-proposal.json` through the listing inspector. The strict
 `catalog-proposal.json` keeps operational definitions separate. With

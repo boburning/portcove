@@ -21,6 +21,7 @@ import {
   projectGbaArchive,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import { previewReviewedOriginalMedia } from "./reviewed-original-media.mts";
 import {
   compactReviewedFlatPackageLayout,
   projectReviewedFlatPackageLayout,
@@ -49,6 +50,68 @@ const schema2Fixture = fixtureJson(
   readFileSync(join(catalogRoot, "catalog-schema2-migration-fixture.json")),
 );
 const schema3Fixture = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
+
+void test("reviewed original media binds one decision to exact existing and future consumers", () => {
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const row = (id: string, system: string = "dos") => ({
+    format_version: 1,
+    listing: {
+      id,
+      name: id,
+      summary: "Separate port implementation of the same original edition.",
+      project_url: `https://example.org/${id}`,
+      original_game: {
+        format_version: 1,
+        id: "shared-original-fixture",
+        evidence_urls: ["https://example.org/original"],
+        source_editions: [
+          {
+            id: "first-retail",
+            system,
+            title: "First retail edition",
+            evidence_urls: ["https://example.org/edition"],
+          },
+        ],
+      },
+    },
+  });
+  const decision = {
+    original_game_id: "shared-original-fixture",
+    source_edition_id: "first-retail",
+    system: "dos",
+    evidence_url: "https://www.igdb.com/games/accepted-original",
+    decision: "match",
+    game_id: 42,
+    slug: "accepted-original",
+  };
+  const owner = { ...row("owner-port"), igdb_original_media_v1: [decision] };
+  const sibling = row("older-port");
+  const future = row("future-port");
+  const assembled = assembleCatalogRecords(shared, [owner, sibling, future]);
+  assert.deepEqual(
+    previewReviewedOriginalMedia(
+      assembled.reviewedOriginalMedia,
+      assembled.directory.listings,
+      new Set(),
+    ),
+    [{ ...decision, applicable_port_ids: ["future-port", "older-port", "owner-port"] }],
+  );
+  assert.deepEqual(
+    assembled.directory,
+    assembleCatalogRecords(shared, [row("owner-port"), sibling, future]).directory,
+  );
+  assert.deepEqual(assembled.catalog.ports, []);
+  assert.throws(
+    () =>
+      checkedAuthoredPort({ ...row("owner-port", "windows"), igdb_original_media_v1: [decision] }),
+    /exact, unique game, edition and system/u,
+  );
+  assert.throws(
+    () =>
+      assembleCatalogRecords(shared, [owner, { ...sibling, igdb_original_media_v1: [decision] }]),
+    /Multiple reviewed original media decisions/u,
+  );
+});
 
 void test("reviewed mod websites promote the directory without an operational definition", () => {
   const link = {
