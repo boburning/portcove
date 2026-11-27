@@ -51,6 +51,7 @@ import type { DiscoveryLead, LeadState } from "./discovery-leads.mts";
 import { selectExternalResolutions } from "./discovery-external-lists.mts";
 import {
   backup,
+  maintenanceTransfer,
   migrate,
   migrationTransaction,
   queryJson,
@@ -1186,7 +1187,8 @@ void test(
     const store = postgresDiscoveryStore(environment);
     const first = lease("1");
     const grant = store.acquire(first, options);
-    assert.equal(commit(store, first, grant.revision, { cursor: 1 }).revision, 1);
+    const state = { cursor: 1, padding: "x".repeat(2 * 1024 * 1024) };
+    assert.equal(commit(store, first, grant.revision, state).revision, 1);
     store.finish(first, "partial", {});
     const held = {
       revision: 1,
@@ -1194,7 +1196,17 @@ void test(
       definition: hex("d"),
       attempt: first.attempt,
     };
-    const reused = store.acquire(lease("2"), { ...options, known: held });
+    const transfer = () => ({
+      host: environment.PGHOST!,
+      payloadBytes: 0,
+      byteLimit: 65_536,
+      deadline: Date.now() + 10_000,
+    });
+    const warm = transfer();
+    const reused = maintenanceTransfer.run(warm, () =>
+      store.acquire(lease("2"), { ...options, known: held, knownOnly: true }),
+    );
+    assert.ok(warm.payloadBytes > 0 && warm.payloadBytes < 1024, String(warm.payloadBytes));
     assert.equal(reused.unchanged, true);
     assert.deepEqual(reused.state, {}, "the held state is not sent again");
     assert.equal(reused.revision, 1);
@@ -1206,10 +1218,39 @@ void test(
       // Another store that reached the same revision through other commits.
       ["attempt", { ...held, attempt: lease("9").attempt }],
     ] as const) {
-      const owner = lease({ revision: "3", generation: "4", definition: "5", attempt: "6" }[name]);
+      const index = { revision: 3, generation: 4, definition: 5, attempt: 6 }[name];
+      const refused = lease(String(index));
+      const warm = transfer();
+      assert.throws(
+        () =>
+          maintenanceTransfer.run(warm, () =>
+            store.acquire(refused, { ...options, known, knownOnly: true }),
+          ),
+        {
+          name: "Error",
+          reason: "stale-writer",
+          message: /complete read needs its own admission/u,
+        },
+        name,
+      );
+      assert.ok(warm.payloadBytes > 0 && warm.payloadBytes < 1024, String(warm.payloadBytes));
+      assert.equal(
+        queryJson(
+          environment,
+          `SELECT to_jsonb(outcome) FROM portcove_maintenance.discovery_collection_attempts
+          WHERE attempt_id = '${refused.attempt}'::uuid`,
+        ),
+        "failed",
+      );
+      const owner = lease(String(index + 10));
       const full = store.acquire(owner, { ...options, known });
       assert.equal(full.unchanged, undefined, name);
-      assert.deepEqual(full.state, { cursor: 1 }, `a different ${name} reads the stored state`);
+      assert.deepEqual(
+        full.state,
+        state,
+        `a separately admitted ${name} mismatch reads the stored state`,
+      );
+      assert.ok(full.received_bytes! > warm.byteLimit);
       store.finish(owner, "partial", {});
     }
   },
@@ -1238,7 +1279,7 @@ void test("an exhausted provider quota waits for its reset between passes and co
   const now = () => clock;
   const reset = start + 20 * 60_000;
   const sleeps: number[] = [];
-  const admitted: number[] = [];
+  const admitted: [number, boolean][] = [];
   let quotaReads = 0;
   let preview: ReturnType<typeof scheduledListingPreview> | undefined;
   const run = await runDiscoveryPasses({
@@ -1255,9 +1296,13 @@ void test("an exhausted provider quota waits for its reset between passes and co
     diskBytes: 512 * 1024 * 1024,
     finalizationMs: 60_000,
     // Each pass runs under its own admission, here without a provider meter.
-    admit: async (pass, collect) => {
-      admitted.push(pass);
-      return await collect({ bytes: 64 * 1024 * 1024, deadline: Number.POSITIVE_INFINITY });
+    admit: async (pass, collect, hasRetainedRevision) => {
+      admitted.push([pass, hasRetainedRevision]);
+      return await collect({
+        bytes: 64 * 1024 * 1024,
+        deadline: Number.POSITIVE_INFINITY,
+        knownOnly: hasRetainedRevision,
+      });
     },
     sleep: async (milliseconds) => {
       assert.equal(preview, undefined, "preview waits until the resumed collection finishes");
@@ -1294,7 +1339,14 @@ void test("an exhausted provider quota waits for its reset between passes and co
     },
   });
   assert.notEqual(run.outcome, "failed", run.passes.at(-1)?.reason ?? "");
-  assert.deepEqual(admitted, [1, 2], "each pass holds its own admission");
+  assert.deepEqual(
+    admitted,
+    [
+      [1, false],
+      [2, true],
+    ],
+    "only the resumed pass can use a retained grant",
+  );
   assert.equal(sleeps.length, 1, "one wait for the search quota reset, holding nothing");
   assert.ok(clock > reset, "collection resumed only after the reset");
   assert.equal(memory.known[0], undefined, "the first pass reads the stored state");
