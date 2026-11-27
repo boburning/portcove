@@ -1042,6 +1042,15 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
   });
 }
 
+export function projectEmbeddedOriginalGame(
+  originalGame: NonNullable<AuthoredListing["original_game"]>,
+) {
+  const original = structuredClone(originalGame);
+  // Verified source bindings belong to the versioned listing directory.
+  for (const edition of original.source_editions) delete edition.verified_sources;
+  return original;
+}
+
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
   const declared = projectReviewedFlatPackageLayout(input);
   const record = projectSettingsQualification(
@@ -1064,9 +1073,7 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
       presentation[field] = managedGuide;
       integration.presentation = presentation;
     } else if (field === "original_game" && record.listing.original_game) {
-      const original = structuredClone(record.listing.original_game);
-      for (const edition of original.source_editions) delete edition.verified_sources;
-      presentation[field] = original;
+      presentation[field] = projectEmbeddedOriginalGame(record.listing.original_game);
       integration.presentation = presentation;
     } else if (Object.hasOwn(record.listing, field)) {
       const value = record.listing[field];
