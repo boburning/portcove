@@ -2301,11 +2301,14 @@ The protected publisher reads the small game-media additions file from the
 exact scheduled main run. It verifies GitHub's artifact digest and checks the
 producer's canonical listing against the current declaration. A still-applicable
 reviewed game and edition association, existing accepted original-media mapping,
-or project-specific cover identity must confirm the provider game. The publisher
-can fill a missing role and share an exact original-edition result. It preserves
-maintained media and respects explicit clears and exclusions. The Core validates
-the complete compact listing before signing. An unavailable or refused proposal
-leaves the eligible signed defaults and independent catalog changes in place.
+or project-specific cover identity must confirm the provider game. Original
+screenshots also need an accepted reference to the exact image and edition.
+The publisher checks the current bytes for first acceptance and checks a rotating
+window of signed defaults. A confirmed withdrawn image or changed digest removes
+the affected generated default. A provider outage preserves accepted defaults.
+The publisher respects authored media, explicit clears, and excluded matches.
+Core validates the compact listing, including the supported managed-reader
+composition, before the normal signing steps run.
 
 A logical workset may exceed 400 IDs. The catalog generator's `--prepare-artwork`
 runs a larger workset as consecutive operations of at most 400 IDs over the same

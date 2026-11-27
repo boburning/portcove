@@ -27,7 +27,12 @@ import {
   readHostedArtworkHealth,
   readHostedScheduledGameMedia,
 } from "./listing-artwork-observation.mts";
-import { scheduledGameMediaDefaults } from "./listing-scheduled-game-media.mts";
+import {
+  hasScheduledMedia,
+  observeScheduledGameMedia,
+  scheduledGameMediaDefaults,
+} from "./listing-scheduled-game-media.mts";
+import { createCoreImageValidator, createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
 import {
   indexSharedCoverRows,
@@ -531,23 +536,6 @@ export function projectListingDelivery(
           observationHash(omitUnknownAssetDigests(old?.upstream_observation ?? null))
       )
         updated++;
-      if (format >= 16 && gameMediaDefaults) {
-        const additions = gameMediaDefaults(declaration);
-        if (additions.length) {
-          const media: unknown[] = Array.isArray(result.media)
-            ? [...(result.media as unknown[])]
-            : [];
-          for (const asset of additions) {
-            const expanded = [...media, asset];
-            if (
-              Buffer.byteLength(JSON.stringify({ ...result, media: expanded })) <=
-              compactListingRecordMaximum
-            )
-              media.push(asset);
-          }
-          if (media.length) result.media = media;
-        }
-      }
       const generated = format >= 16 ? (firstPartyModDefaults?.(listing, old) ?? []) : [];
       const portal = format >= 16 ? modPortalDefaults?.(listing, old) : undefined;
       if (portal && !generated.some(({ name }) => name === portal.name)) generated.push(portal);
@@ -566,6 +554,23 @@ export function projectListingDelivery(
             result.mod_portals = modPortals;
             generatedModPortals++;
           } else deferredModPortals++;
+        }
+      }
+      if (format >= 16 && gameMediaDefaults) {
+        const additions = gameMediaDefaults(declaration);
+        if (additions.length) {
+          const media: unknown[] = Array.isArray(result.media)
+            ? [...(result.media as unknown[])]
+            : [];
+          for (const asset of additions) {
+            const expanded = [...media, asset];
+            if (
+              Buffer.byteLength(JSON.stringify({ ...result, media: expanded })) <=
+              compactListingRecordMaximum
+            )
+              media.push(asset);
+          }
+          if (media.length) result.media = media;
         }
       }
       return result;
@@ -1591,6 +1596,7 @@ export async function prepareObservationBundle(options: {
   let proposedMedia: ReturnType<typeof scheduledGameMediaDefaults> | undefined;
   let mediaReceipt: string | undefined;
   if (!renewal && (automatic || options.readScheduledGameMedia) && previousDocument) {
+    const prior = previousDocument.directory.listings;
     try {
       const source = readCatalogSource(path.dirname(options.canonical));
       if (observationHash(source.directory) !== observationHash(canonical))
@@ -1598,27 +1604,67 @@ export async function prepareObservationBundle(options: {
       const excluded = new Set(
         source.records.filter(usesScummvmEngine).map(({ listing }) => listing.id),
       );
-      const prior = previousDocument.directory.listings;
+      if (!isRecord(current) || !Array.isArray(current.ports) || !current.ports.every(isRecord))
+        throw new Error("Scheduled game media requires the maintained operational catalog");
+      const strict = new Map(
+        (current.ports as Record<string, unknown>[]).map((row) => [row.id, row]),
+      );
       mediaDefaults = scheduledGameMediaDefaults(
         canonical.listings,
         prior,
         source.reviewedOriginalMedia,
         excluded,
+        undefined,
+        { strict },
       );
       if (options.observe !== false) {
         const receipt = await (options.readScheduledGameMedia ?? readHostedScheduledGameMedia)();
-        if (receipt) {
-          proposedMedia = scheduledGameMediaDefaults(
+        if (hasScheduledMedia(prior) || receipt?.proposal.additions.length) {
+          const deadline = performance.now() + 60_000;
+          const validateImage = createCoreImageValidator(options.cli, workspace);
+          const inspector = createIgdbInspector(
+            null,
+            (bytes) => validateImage(bytes, deadline),
+            fetch,
+            {
+              signal: AbortSignal.timeout(60_000),
+              maximumOperationImageBytes: 32 * 1024 * 1024,
+            },
+          );
+          const observation = await observeScheduledGameMedia(
+            prior,
+            receipt?.proposal,
+            (id, role) => inspector.inspectMediaImage(id, role),
+            now,
+          );
+          mediaDefaults = scheduledGameMediaDefaults(
             canonical.listings,
             prior,
             source.reviewedOriginalMedia,
             excluded,
-            receipt,
+            undefined,
+            { strict, withdrawn: observation.withdrawn },
           );
-          mediaReceipt = receipt.artifact;
+          if (receipt && observation.proposal) {
+            proposedMedia = scheduledGameMediaDefaults(
+              canonical.listings,
+              prior,
+              source.reviewedOriginalMedia,
+              excluded,
+              { ...receipt, proposal: observation.proposal },
+              { strict, withdrawn: observation.withdrawn },
+            );
+            mediaReceipt = receipt.artifact;
+          }
         }
       }
     } catch (error) {
+      if (!mediaDefaults && hasScheduledMedia(prior))
+        renewal = retainedListingRenewal(
+          compactWire ?? legacyWire,
+          canonical.listings.length,
+          compactWire ? compactListingDeliveryTarget : listingDeliveryTarget,
+        );
       diagnostics.push(
         `scheduled game media deferred: ${error instanceof Error ? error.message.slice(0, 300) : "read failed"}`,
       );

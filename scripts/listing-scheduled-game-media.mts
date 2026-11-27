@@ -12,6 +12,8 @@ import {
   catalogGameMediaRoles,
   gameMediaDimensionsFit,
   gameMediaRoles,
+  isConfirmedIgdbImageGone,
+  type createIgdbInspector,
   type ArtworkCatalog,
   type prepareCatalogGameMedia,
 } from "./inspect-igdb-artwork.mts";
@@ -52,7 +54,7 @@ const imageFields = new Set([
 ]);
 type Listing = Record<string, unknown>;
 type Candidate = { id: string; asset: CatalogMediaAsset };
-type Proposal = { format_version: 1; additions: Candidate[] };
+type Proposal = { format_version: 1; selected_ids: readonly string[]; additions: Candidate[] };
 type MediaPreparation = Awaited<ReturnType<typeof prepareCatalogGameMedia>>;
 
 const media = (row: Listing | undefined): unknown[] =>
@@ -129,7 +131,10 @@ function sameRole(asset: CatalogMediaAsset, other: unknown) {
 }
 
 /** Only live role selections enter the small typed proposal. */
-export function scheduledGameMediaProposal(preparation: MediaPreparation): Proposal {
+export function scheduledGameMediaProposal(
+  preparation: MediaPreparation,
+  selected_ids: readonly string[],
+): Proposal {
   const byPort = new Map(
     preparation.catalog.ports.map((port) => [port.id, port.presentation?.media]),
   );
@@ -152,13 +157,19 @@ export function scheduledGameMediaProposal(preparation: MediaPreparation): Propo
     )
       additions.push({ id: row.port_id, asset });
   }
-  return { format_version: 1, additions };
+  return { format_version: 1, selected_ids, additions };
 }
 
 export function readScheduledGameMediaProposal(value: unknown): Proposal {
   if (
     !isRecord(value) ||
     value.format_version !== 1 ||
+    !Array.isArray(value.selected_ids) ||
+    value.selected_ids.length > 48 ||
+    !value.selected_ids.every(
+      (id: unknown) => typeof id === "string" && /^[a-z0-9][a-z0-9-]{0,127}$/u.test(id),
+    ) ||
+    new Set(value.selected_ids).size !== value.selected_ids.length ||
     !Array.isArray(value.additions) ||
     value.additions.length > maxAssets ||
     !value.additions.every(
@@ -166,11 +177,70 @@ export function readScheduledGameMediaProposal(value: unknown): Proposal {
         isRecord(row) &&
         typeof row.id === "string" &&
         /^[a-z0-9][a-z0-9-]{0,127}$/u.test(row.id) &&
+        (value.selected_ids as unknown[]).includes(row.id) &&
         typedAsset(row.asset),
     )
   )
     throw new Error("Invalid scheduled media proposal");
   return value as Proposal;
+}
+
+function assetKey(asset: CatalogMediaAsset) {
+  const image = asset.igdb!;
+  return JSON.stringify([gameMediaRoles[asset.role].variant, image.image_id, asset.sha256]);
+}
+
+export function hasScheduledMedia(rows: readonly Listing[]) {
+  return rows.some((row) =>
+    media(row).some((asset) => typedAsset(asset) && asset.id.startsWith(automaticPrefix)),
+  );
+}
+
+/** Revalidate first acceptance, and rotate through already-signed image bodies.
+ * Transient failures can defer new entries but cannot invalidate old bytes. */
+export async function observeScheduledGameMedia(
+  previous: readonly Listing[],
+  incoming: Proposal | undefined,
+  inspect: ReturnType<typeof createIgdbInspector>["inspectMediaImage"],
+  now: number,
+) {
+  const retained = new Map<string, CatalogMediaAsset>();
+  for (const row of previous)
+    for (const asset of media(row))
+      if (typedAsset(asset) && asset.id.startsWith(automaticPrefix))
+        retained.set(assetKey(asset), asset);
+  const keys = [...retained.keys()].sort();
+  const windowSize = 8;
+  const offset =
+    (Math.floor(now / 86_400_000) % Math.max(1, Math.ceil(keys.length / windowSize))) * windowSize;
+  const withdrawn = new Set<string>();
+  const reads = new Map<string, Promise<string | null>>();
+  function observe(asset: CatalogMediaAsset) {
+    const { image_id } = asset.igdb!;
+    const { variant } = gameMediaRoles[asset.role];
+    const target = `${variant}/${image_id}`;
+    const held = reads.get(target);
+    if (held) return held;
+    const request = inspect(image_id, asset.role).then(
+      (bytes) => bytes.sha256,
+      (error: unknown) =>
+        isConfirmedIgdbImageGone(error, image_id, variant) ? ("gone" as const) : null,
+    );
+    reads.set(target, request);
+    return request;
+  }
+  for (const key of keys.slice(offset, offset + windowSize)) {
+    const asset = retained.get(key)!;
+    const observation = await observe(asset);
+    if (observation !== null && observation !== asset.sha256) withdrawn.add(key);
+  }
+  const additions: Candidate[] = [];
+  for (const candidate of incoming?.additions ?? []) {
+    const key = assetKey(candidate.asset);
+    if (!retained.has(key) && (await observe(candidate.asset)) === candidate.asset.sha256)
+      additions.push(candidate);
+  }
+  return { withdrawn, proposal: incoming && { ...incoming, additions } };
 }
 
 /** Reconcile additions against maintained identities and retain only signed defaults
@@ -181,6 +251,7 @@ export function scheduledGameMediaDefaults(
   reviewed: ReadonlyMap<string, ReviewedOriginalMediaDecision>,
   excluded: ReadonlySet<string>,
   incoming?: { proposal: Proposal; producerListings: readonly Listing[] },
+  options: { strict?: ReadonlyMap<unknown, Listing>; withdrawn?: ReadonlySet<string> } = {},
 ) {
   const byId = new Map(canonical.map((row) => [row.id, row]));
   const accepted = acceptedHeroMediaMatches(
@@ -198,6 +269,22 @@ export function scheduledGameMediaDefaults(
     string,
     Map<string, { asset: CatalogMediaAsset; retained: boolean } | null>
   >();
+  const verifiedOriginalScreenshots = new Set(
+    canonical
+      .filter((row) => typeof row.id === "string" && !excluded.has(row.id))
+      .flatMap((row) =>
+        media(row).flatMap((value) => {
+          if (
+            !typedAsset(value) ||
+            value.role !== "screenshot" ||
+            value.subject.kind !== "original"
+          )
+            return [];
+          const key = scope(row, value.subject);
+          return key ? [JSON.stringify([key, assetKey(value)])] : [];
+        }),
+      ),
+  );
   function offer(
     id: string,
     asset: CatalogMediaAsset,
@@ -214,6 +301,13 @@ export function scheduledGameMediaDefaults(
       return;
     const key = scope(row, asset.subject);
     if (!key || key !== scope(producer, asset.subject) || row.project_url !== producer.project_url)
+      return;
+    if (options.withdrawn?.has(assetKey(asset))) return;
+    if (
+      asset.role === "screenshot" &&
+      asset.subject.kind === "original" &&
+      !verifiedOriginalScreenshots.has(JSON.stringify([key, assetKey(asset)]))
+    )
       return;
     const image = asset.igdb!;
     const decision = reviewed.get(key);
@@ -242,6 +336,7 @@ export function scheduledGameMediaDefaults(
       ...asset,
       id: automaticPrefix + createHash("sha256").update(JSON.stringify(fingerprint)).digest("hex"),
     };
+    if (retained && asset.id !== normalized.id) return;
     // An automatic observation never widens a maintained edition scope.
     delete normalized.edition_neutral;
     if (stored === undefined) roles.set(asset.role, { asset: normalized, retained });
@@ -271,6 +366,25 @@ export function scheduledGameMediaDefaults(
     )
       return [];
     const existing = media(row);
+    const strict = options.strict?.get(row.id);
+    const strictMedia = isRecord(strict?.presentation) ? strict.presentation.media : undefined;
+    if (strict && strict.project_url !== row.project_url) return [];
+    if (
+      Array.isArray(strictMedia) &&
+      (!strictMedia.length ||
+        !isDeepStrictEqual(
+          existing.filter(
+            (value) =>
+              !(
+                isRecord(value) &&
+                value.igdb &&
+                (value.role === "header" || value.role === "screenshot")
+              ),
+          ),
+          strictMedia,
+        ))
+    )
+      return [];
     const additions: CatalogMediaAsset[] = [];
     const original = row.original_game;
     const keys = [
@@ -291,6 +405,7 @@ export function scheduledGameMediaDefaults(
         const current = [...existing, ...additions];
         if (
           scope(row, asset.subject) !== key ||
+          (Array.isArray(strictMedia) && asset.role !== "header" && asset.role !== "screenshot") ||
           current.length >= 14 ||
           current.filter((value) => isRecord(value) && value.role === asset.role).length >=
             roleLimits[asset.role] ||

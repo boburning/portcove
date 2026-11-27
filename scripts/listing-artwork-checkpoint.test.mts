@@ -64,7 +64,11 @@ void test("scheduled game media only reads the exact bounded main-run artifact",
     selected: 1,
     attempted: 1,
   });
-  const proposal = JSON.stringify({ format_version: 1, additions: [] });
+  const proposal = JSON.stringify({
+    format_version: 1,
+    selected_ids: [fixtureListing.id],
+    additions: [],
+  });
   const payload = [
     ["status.json", status],
     ["proposal/game-media-additions.json", proposal],

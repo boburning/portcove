@@ -376,6 +376,11 @@ export async function readHostedScheduledGameMedia(
   const proposal = readScheduledGameMediaProposal(
     JSON.parse(archive.read(proposalFile, scheduledGameMediaLimit).toString("utf8")),
   );
+  if (
+    proposal.selected_ids.length !== status.selected ||
+    new Set(proposal.additions.map(({ id }) => id)).size > status.attempted
+  )
+    throw new Error("Scheduled media proposal exceeds its assessed workset");
   const producer: unknown = JSON.parse(readAncestorFile(run.head, listingsPath).toString("utf8"));
   if (
     !isRecord(producer) ||

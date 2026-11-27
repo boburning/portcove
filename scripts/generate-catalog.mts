@@ -1014,10 +1014,10 @@ async function prepareArtworkProposalRun(
   });
   if (listingProposal && listingCheck)
     writeFileSync(join(outputRoot, "listing-media-proposal.json"), listingProposal, { flag: "wx" });
-  if (mediaDue && gameMedia && mediaDue.limit <= 48) {
+  if (mediaDue && mediaPlan && gameMedia && mediaDue.limit <= 48) {
     const { scheduledGameMediaFile, scheduledGameMediaProposal } =
       await import("./listing-scheduled-game-media.mts");
-    const data = scheduledGameMediaProposal(gameMedia);
+    const data = scheduledGameMediaProposal(gameMedia, mediaPlan.selected);
     if (data.additions.length)
       writeFileSync(join(outputRoot, scheduledGameMediaFile), JSON.stringify(data), { flag: "wx" });
   }

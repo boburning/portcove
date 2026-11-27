@@ -1831,8 +1831,13 @@ void test("signed projection keeps release observations through authored artwork
 void test("scheduled media projects the exact edition, retains signed defaults, and respects later exclusions", async () => {
   const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
   const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
-  const { readScheduledGameMediaProposal, scheduledGameMediaDefaults, scheduledGameMediaProposal } =
-    await import("./listing-scheduled-game-media.mts");
+  const {
+    observeScheduledGameMedia,
+    readScheduledGameMediaProposal,
+    scheduledGameMediaDefaults,
+    scheduledGameMediaProposal,
+  } = await import("./listing-scheduled-game-media.mts");
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
   const original_game = {
     format_version: 1,
     id: "sample-game",
@@ -1918,7 +1923,7 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
     ],
     gone_media_targets: [],
   };
-  const emitted = scheduledGameMediaProposal(preparation);
+  const emitted = scheduledGameMediaProposal(preparation, [donor.id]);
   assert.deepEqual(emitted.additions, [{ id: donor.id, asset }]);
   const producerListings = canonical.listings;
   const incoming = { proposal: readScheduledGameMediaProposal(emitted), producerListings };
@@ -1959,6 +1964,68 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
     gameMediaDefaults: replay,
   });
   assert.equal(unchanged.changed, false);
+  const managed = { ...peer, media: [{ role: "screenshot" }] };
+  const managedDefaults = scheduledGameMediaDefaults(
+    canonical.listings,
+    [],
+    reviewed,
+    new Set(),
+    incoming,
+    {
+      strict: new Map([
+        [
+          peer.id,
+          { id: peer.id, project_url: peer.project_url, presentation: { media: managed.media } },
+        ],
+      ]),
+    },
+  );
+  assert.deepEqual(managedDefaults(managed), []);
+  const scene = {
+    ...asset,
+    id: "igdb-screenshot-original-90",
+    role: "screenshot" as const,
+    caption: "Original game screenshot",
+    url: "https://images.igdb.com/igdb/image/upload/t_720p/sample.png",
+    igdb: { ...asset.igdb, kind: "screenshot" as const },
+  };
+  const sceneInput = {
+    ...incoming,
+    proposal: { ...emitted, additions: [{ id: donor.id, asset: scene }] },
+  };
+  assert.deepEqual(
+    scheduledGameMediaDefaults(canonical.listings, [], reviewed, new Set(), sceneInput)(peer),
+    [],
+  );
+  const gone = createIgdbInspector(
+    null,
+    () => assert.fail("withdrawn media cannot decode"),
+    async () => new Response(null, { status: 410 }),
+  );
+  const observation = await observeScheduledGameMedia(
+    projected,
+    competing.proposal,
+    (id, role) => gone.inspectMediaImage(id, role),
+    Date.now(),
+  );
+  assert.equal(gone.providerMetrics.image_requests, 1);
+  assert.equal(observation.withdrawn.size, 1);
+  assert.deepEqual(observation.proposal?.additions, []);
+  assert.deepEqual(
+    scheduledGameMediaDefaults(
+      canonical.listings,
+      projected,
+      reviewed,
+      new Set(),
+      undefined,
+      observation,
+    )(peer),
+    [],
+  );
+  assert.throws(
+    () => readScheduledGameMediaProposal({ ...emitted, selected_ids: [] }),
+    /Invalid scheduled media proposal/u,
+  );
   const denied = scheduledGameMediaDefaults(
     canonical.listings,
     projected,
