@@ -297,6 +297,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     if?: string;
     permissions?: unknown;
     secrets?: Record<string, string>;
+    outputs?: Record<string, string>;
     "timeout-minutes"?: number;
     steps: Step[];
   };
@@ -404,6 +405,10 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "read-only receipt job has no reusable permission floor",
   );
   assert.deepEqual(receiptWorker.permissions, { contents: "read", issues: "read" });
+  assert.equal(
+    receiptWorker.outputs?.receipt_outcome,
+    "${{ steps.execute.outputs.receipt_outcome }}",
+  );
   assert.equal(receiptWorker.secrets?.PORTCOVE_ROADMAP_TOKEN, undefined);
   assert.equal(resume.uses, "./.github/workflows/hosted-discovery-intake.yml");
   assert.deepEqual(resume.permissions, worker.jobs.intake.permissions);
@@ -506,6 +511,19 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "Check that collection kept the reconciled intake fence",
   );
   assert.match(collect!.steps.at(-1)?.run ?? "", /receipt_fence == "verified"/u);
+  assert.match(
+    collect!.steps.at(-1)?.if ?? "",
+    /needs\.reconcile-intake-receipts\.outputs\.receipt_outcome == 'verified'/u,
+  );
+  const evidence = collect!.steps.find((step) => step.name === "Record run evidence")!;
+  assert.equal(
+    evidence.env?.INTAKE_RECEIPT_OUTCOME,
+    "${{ needs.reconcile-intake-receipts.outputs.receipt_outcome }}",
+  );
+  assert.match(
+    evidence.run ?? "",
+    /"status": os\.environ\["INTAKE_RECEIPT_OUTCOME"\] or "unavailable"/u,
+  );
   assert.ok(
     collect!.steps.some((step) => step.name === "Retain the backup for independent restore proof"),
   );

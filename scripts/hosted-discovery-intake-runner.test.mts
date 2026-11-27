@@ -79,7 +79,11 @@ void test("a scheduled receipt-only result can finish without enqueueing an audi
       revision: "hosted-intake:bound",
       receipts: { status: "passed" },
     }),
-    { output: "audit_continuations=[]\nreceipt_revision=hosted-intake:bound\n", succeeded: true },
+    {
+      output:
+        "audit_continuations=[]\nreceipt_revision=hosted-intake:bound\nreceipt_outcome=verified\n",
+      outcome: "verified",
+    },
   );
   assert.deepEqual(
     scheduledReceiptOutcome({
@@ -87,11 +91,36 @@ void test("a scheduled receipt-only result can finish without enqueueing an audi
       revision: "bound\nforged=true",
       receipts: { status: "passed" },
     }),
-    { output: "audit_continuations=[]\nreceipt_revision=\n", succeeded: false },
+    {
+      output: "audit_continuations=[]\nreceipt_revision=\nreceipt_outcome=failed\n",
+      outcome: "failed",
+    },
   );
   await assert.rejects(
     scheduledIntakeReceipts("before-audits", { GITHUB_EVENT_NAME: "workflow_dispatch" }),
     /protected maintenance schedule/u,
+  );
+});
+
+void test("a resource deferral carries neither a verified receipt fence nor audit tickets", () => {
+  assert.deepEqual(
+    scheduledReceiptOutcome({
+      tickets: [],
+      revision: undefined,
+      receipts: { status: "unavailable", reason: "resource-deferred" },
+    }),
+    {
+      output: "audit_continuations=[]\nreceipt_revision=\nreceipt_outcome=deferred\n",
+      outcome: "deferred",
+    },
+  );
+  assert.equal(
+    scheduledReceiptOutcome({
+      tickets: [],
+      revision: undefined,
+      receipts: { status: "unavailable", reason: "admission-failed" },
+    }).outcome,
+    "failed",
   );
 });
 
@@ -117,10 +146,10 @@ void test("an unrelated incomplete receipt leaves bound tickets available and wi
     revision: "hosted-intake:bound",
     receipts: { status: "failed", pending: 1, reason: "proof-pending" },
   });
-  assert.equal(outcome.succeeded, false);
+  assert.equal(outcome.outcome, "failed");
   assert.equal(
     outcome.output,
-    `audit_continuations=${JSON.stringify([ticket])}\nreceipt_revision=\n`,
+    `audit_continuations=${JSON.stringify([ticket])}\nreceipt_revision=\nreceipt_outcome=failed\n`,
   );
 });
 
