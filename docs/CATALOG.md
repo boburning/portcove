@@ -2217,7 +2217,8 @@ run or deferred collection supplies no artwork evidence.
 To prepare a replacement for an existing original-game cover, use
 `node scripts/catalog-cover-replacement-review.mts --help` for the command inputs.
 Use a clean checkout at the exact commit under review. Supply the retained signed
-repository, its authenticated history, and the trusted Core and release tools.
+repository and the trusted Core and release tools. If its signed policy names a
+segmented history checkpoint, also supply its history store with `--prior-history`.
 Choose up to 32 exact port IDs and a new output directory outside the checkout.
 The predecessor must match the authored original-game cover or its exact
 withdrawal in the signed cover checkpoint.

@@ -266,9 +266,8 @@ pub(super) async fn inspect_prior(
     let pointer = logical.files.get(super::history_checkpoint::TARGET);
     let prior_cover = bundle::checked_cover_checkpoint(&logical.files)?;
     let next_cover = bundle::checked_cover_checkpoint(&context.targets)?;
-    if pointer.is_none() && (prior_cover.is_some() || next_cover.is_some()) {
-        return invalid("cover observations require authenticated catalog history");
-    }
+    // The retained full repository is verified below. If a signed segmented
+    // pointer exists, its store and exact predecessor are verified as well.
     if next_cover.is_some()
         && !logical
             .files
@@ -1383,6 +1382,15 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     if at(&roles, "targets.json")? != &top_bytes {
         return invalid("catalog public offline Targets differs from appointed bytes");
     }
+    let cover = bundle::checked_cover_checkpoint(&logical.files)?;
+    if cover.is_some()
+        && logical
+            .files
+            .contains_key(super::history_checkpoint::TARGET)
+        && config.history_store.is_none()
+    {
+        return invalid("catalog cover verification requires its authenticated history store");
+    }
     if let Some(store) = config.history_store.as_deref() {
         let store = io::resolve(base, store)?;
         let timestamp: Signed<TufTimestamp> =
@@ -1397,11 +1405,7 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
             timestamp.signed.version.get(),
             policy.signed.version.get(),
         )?
-        .check_cover_predecessor(
-            bundle::checked_cover_checkpoint(&logical.files)?
-                .as_ref()
-                .map(|(bytes, sha)| (*bytes, sha.as_str())),
-        )?;
+        .check_cover_predecessor(cover.as_ref().map(|(bytes, sha)| (*bytes, sha.as_str())))?;
     }
     let index_sha256 = sha(at(&logical.files, "definitions/index.json")?);
     if io::read(path, CONFIG_MAX)? != config_raw

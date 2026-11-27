@@ -237,7 +237,7 @@ async function prepareReplacementReview(input: {
   validatorCli: string;
   output: string;
   repository: string;
-  history: string;
+  history?: string;
   releaseTools: string;
 }) {
   const requireSource = () => {
@@ -258,7 +258,7 @@ async function prepareReplacementReview(input: {
   const effective = await readAuthenticatedCoverPreimages(
     {
       repository: input.repository,
-      history: input.history,
+      ...(input.history ? { history: input.history } : {}),
       workspace,
       tools: input.releaseTools,
       root: path.join(catalogRoot, "official-definition-root.json"),
@@ -361,7 +361,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   });
   if (values.help) {
     console.log(
-      "Usage: node scripts/catalog-cover-replacement-review.mts --source-commit SHA --artwork-ids ID[,ID] --validator-cli ABS --output-dir NEW_ABS --prior-repository ABS --prior-history ABS --release-tools ABS",
+      "Usage: node scripts/catalog-cover-replacement-review.mts --source-commit SHA --artwork-ids ID[,ID] --validator-cli ABS --output-dir NEW_ABS --prior-repository ABS [--prior-history ABS] --release-tools ABS (history required when segmented history is active)",
     );
   } else {
     const source = values["source-commit"];
@@ -378,9 +378,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       !validatorCli ||
       !output ||
       !repository ||
-      !history ||
       !releaseTools ||
-      ![validatorCli, output, repository, history, releaseTools].every(path.isAbsolute)
+      ![validatorCli, output, repository, releaseTools].every(path.isAbsolute) ||
+      (history !== undefined && !path.isAbsolute(history))
     )
       throw new Error(
         "Cover replacement review requires exact source and absolute input paths. Use --help.",
@@ -393,7 +393,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         validatorCli,
         output,
         repository,
-        history,
+        ...(history ? { history } : {}),
         releaseTools,
       }),
     );

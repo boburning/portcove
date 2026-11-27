@@ -363,8 +363,12 @@ history pointer cannot trigger a new bootstrap.
 The owner must resolve these before history bootstrap. Each failure below
 stops publication in the prepare job's context check, before any role key is
 used. The last good publication stays served, but publication stays stopped
-until the cause is repaired. The compact listing cutover does not depend on
-them.
+until the cause is repaired. Compact listings and the signed cover checkpoint
+can use the retained full repository. The signer authenticates its retained
+policy and checks the exact cover checkpoint successor. If segmented history
+is active, the signer also requires its authenticated store and predecessor.
+The first cover checkpoint still requires the separate owner activation,
+authenticated compact listings, a verified withdrawal, and released-reader proof.
 
 1. **Unbounded chain.** Each publication adds one inventory segment and one
    parent checkpoint. Verification walks both chains under one shared bound of

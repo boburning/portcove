@@ -982,7 +982,7 @@ void test("the history bootstrap flag is reachable only from the manual dispatch
       },
       activate_cover_checkpoint: {
         description:
-          "Owner activation only - admit the first cover checkpoint after signed history and released reader support",
+          "Owner activation only - admit the first cover checkpoint with authenticated compact listings and released reader support",
         type: "boolean",
         default: false,
       },

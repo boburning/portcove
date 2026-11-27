@@ -1096,7 +1096,7 @@ export async function readAuthenticatedCoverPreimages(
   inputs: ListingPriorInputs & {
     repository: string;
     workspace: string;
-    history: string;
+    history?: string;
   },
   canonical: unknown,
   selected: readonly string[],
@@ -1195,6 +1195,10 @@ export async function prepareObservationBundle(options: {
   const priorCompact = Object.hasOwn(priorTargets, compactListingDeliveryTarget);
   const priorCoverDigest = priorTargets[artworkCheckpointTarget];
   const coverEnabled = priorCoverDigest !== undefined || options.activateCoverCheckpoint === true;
+  const segmentedHistory = Object.hasOwn(
+    priorTargets,
+    "policy/official/catalog.history-checkpoint.json",
+  );
   if (
     options.coverApproval &&
     (!automatic || !priorCompact || !priorCoverDigest || options.activateCoverCheckpoint)
@@ -1204,13 +1208,10 @@ export async function prepareObservationBundle(options: {
     );
   if (
     coverEnabled &&
-    (!automatic ||
-      !priorCompact ||
-      !options.priorHistory ||
-      !Object.hasOwn(priorTargets, "policy/official/catalog.history-checkpoint.json"))
+    (!automatic || !priorCompact || segmentedHistory !== Boolean(options.priorHistory))
   )
     throw new Error(
-      "Cover checkpoints require official reader selection and active authenticated compact history",
+      "Cover checkpoints require official reader selection, an active signed compact listing, and its matching history storage",
     );
   mkdirSync(options.output, { recursive: true });
   const workspace = path.join(options.output, "observation-work");
