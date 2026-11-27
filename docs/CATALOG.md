@@ -6576,8 +6576,12 @@ The worker report records the provider-declared sizes of attempted archives as
 `bytes` and the archive response body bytes actually read as
 `archive_body_bytes`. The measured count includes partial downloads. A combined
 report leaves it absent if a planned shard is missing or lacks a measurement.
-It covers only the worker's archive inspection. Reproduction, metadata requests,
-HTTP and transport overhead, and recovery transfers have their own costs.
+The worker measure covers inspection. Reproduction uses the same byte meter
+and records its measurements in the shard receipts. The retained batch
+assessment reports both the measured subtotal and the number of measured
+shards out of the planned shard count. Missing receipts leave coverage
+incomplete. Metadata requests, HTTP and transport overhead, and recovery
+transfers have their own costs.
 
 ###### Catalog capacity
 
