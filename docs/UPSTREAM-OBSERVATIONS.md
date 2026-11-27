@@ -1741,10 +1741,13 @@ browser navigation only.
 The existing hosted opportunity gives due first-party mod observations up to
 one twentieth of its GitHub request allowance. The oldest attempted subjects
 get the first turns. A subject needs one accepted implementation, an observed
-numeric repository ID, and a matching public project root. The observer reads
+numeric repository ID, a matching public project root and an accepted game
+input with exact product codes. The observer reads
 the current default commit, its complete root tree, and the exact
 `recomplauncher.json` blob. It checks the repository and a single declared game
-before recording bounded GameBanana and Thunderstore coordinates. Each attempt
+before recording bounded GameBanana and Thunderstore coordinates. Every manifest
+game input ID must match the current catalog’s reviewed game contract. Prefixes,
+missing IDs and ambiguous editions cannot authorize a website. Each attempt
 uses at most four GitHub reads, with a 256 KiB response limit per read.
 
 The checkpoint records the policy and subject binding, last attempt, result,
@@ -1761,9 +1764,11 @@ Maintained exclusions suppress generated links. These links can open a community
 website or allow supported browsing through the existing Core resolver. They
 cannot grant installation, package, update, or profile authority.
 
-An exact first-party link found during automatic admission can seed the first
-signed publication. It uses the same repository-bound source ID as subsequent
-observations, so the player's local source preferences still apply. After the
-first publication, an unavailable checkpoint falls back to the authenticated
-prior listing. A verified rename can retain the prior website when the listing ID binds the same GitHub repository and the game identity still matches. A conflicting repository observation or confirmed withdrawal suppresses the link.
+Automatic admission can prepare a listing with unresolved game identity. The
+first-party website can be added after the current catalog and manifest establish
+the same game input. A website keeps its repository-bound source ID across later
+observations. When evidence is temporarily unavailable, the publisher can keep
+the authenticated prior website for the same listing and game. A verified rename
+can keep that website under the same admitted repository ID. A conflicting game
+or repository observation or confirmed withdrawal suppresses the link.
 Maintainer-selected websites use separate authored IDs and take precedence.

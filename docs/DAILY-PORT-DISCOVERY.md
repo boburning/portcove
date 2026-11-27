@@ -1198,11 +1198,11 @@ ID and the exact default-branch commit. The maintained `.recomp.json` and
 also identify a single-game project when it names the same repository, declares
 one required game input and lists bounded package-relative program candidates. Portcove
 records which source established scope and leaves game and edition matching to
-the existing authoring contracts. The same bound manifest can supply descriptive
-mod websites for its own implementation through valid `mods.thunderstore` and
-`mods.gamebanana` declarations. Each link passes the existing listing validator.
-An invalid or missing declaration leaves that link out. Launch arguments, data
-paths, loader claims and setup actions stay out of the generated listing.
+the existing authoring contracts. The scheduled observer can later use
+`mods.thunderstore` and `mods.gamebanana` from the same bound manifest after
+its game input IDs agree with the accepted game contract. The listing can be
+prepared before that match. Launch arguments, data paths, loader claims and
+setup actions stay out of the listing.
 
 Without one of those manifests, a current GitHub `source-port` topic and a
 single first-party [desktop game entry](https://specifications.freedesktop.org/desktop-entry/latest-single/)

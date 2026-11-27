@@ -1,3 +1,4 @@
+import { launcherModGameScopes, verifyLauncherModGameScope } from "./launcher-mod-game-scope.mts";
 import {
   isBoundLauncherModPortal,
   launcherModPortalId,
@@ -220,6 +221,7 @@ export function firstPartyListingModDefaults(
   excluded: ReadonlySet<string>,
   now: number,
 ) {
+  const gameScopes = launcherModGameScopes(catalog, listings);
   const sources = catalogObservationSources({ ...catalog, listings }).sources;
   const bindings = new Map<string, Set<string>>();
   for (const port of catalog.ports as unknown[]) {
@@ -271,7 +273,8 @@ export function firstPartyListingModDefaults(
   ): Portal[] => {
     if (typeof listing.id !== "string" || excluded.has(listing.id)) return [];
     const scope = scopeByPort.get(listing.id);
-    if (!scope) return [];
+    const gameScope = gameScopes.get(listing.id);
+    if (!scope || !gameScope) return [];
     const subject = subjects.get(listing.id);
     if (!subject && ids[scope.source_key]) return [];
     const admittedId = admittedGithubRepositoryId(listing.id);
@@ -290,11 +293,15 @@ export function firstPartyListingModDefaults(
     if (entry && !subject) {
       // A renamed source may lack a current checkpoint. Keep only authenticated
       // prior websites under the same admitted ID, and honor explicit absence.
+      const result = entry.last_complete?.result;
       if (
         admittedId === undefined ||
         !previous ||
         entry.outcome === "held" ||
-        entry.last_complete?.result.state === "absent"
+        result?.state === "absent" ||
+        (result?.state === "observed" &&
+          (result.repository_id !== admittedId ||
+            verifyLauncherModGameScope(result, gameScope).state === "held"))
       )
         return [];
     }
@@ -304,25 +311,20 @@ export function firstPartyListingModDefaults(
       if (entry.outcome !== "unavailable" || result) {
         if (result?.state !== "observed" || result.repository_id !== subject.repository_id)
           return [];
-        return result.mod_portals
-          .filter((portal) => !blocked.has(provider(portal)))
-          .slice(0, 8 - authored.length)
-          .map((portal) => ({
-            ...portal,
-            site: "community_site",
-            id: launcherModPortalId(portal, result.repository_id),
-          }));
+        const verified = verifyLauncherModGameScope(result, gameScope);
+        if (verified.state === "held") return [];
+        if (verified.state === "observed" && entry.reason !== "game-input-scope-unproven")
+          return verified.mod_portals
+            .filter((portal) => !blocked.has(provider(portal)))
+            .slice(0, 8 - authored.length)
+            .map((portal) => ({
+              ...portal,
+              site: "community_site",
+              id: launcherModPortalId(portal, result.repository_id),
+            }));
       }
     }
     const expectedId = subject?.repository_id ?? admittedId;
-    // Admission can supply an exact seed for the first publication. The
-    // authenticated prior governs later fallback, including an absent link.
-    if (!previous && admittedId !== undefined) {
-      return listingPortals(listing)
-        .filter((portal) => isBoundLauncherModPortal(portal, admittedId))
-        .filter((portal) => !blocked.has(provider(portal)))
-        .slice(0, 8 - authored.length);
-    }
     if (
       previous?.id !== listing.id ||
       (previous.project_url !== listing.project_url && admittedId === undefined) ||

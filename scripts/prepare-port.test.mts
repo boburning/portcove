@@ -1371,20 +1371,11 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     );
     assert.equal(declared.listing.original_game, undefined);
     assert.equal(declared.integration, undefined);
-    assert.deepEqual(
-      declared.listing.mod_portals?.map(({ id, url }) => ({ id, url })),
-      [
-        { id: "obs-gh-thunderstore-80012", url: "https://thunderstore.io/c/fixture-mods/" },
-        { id: "obs-gh-gamebanana-80012", url: "https://gamebanana.com/games/12345" },
-      ],
-    );
+    assert.equal(declared.listing.mod_portals, undefined);
     const partial = checkedAuthoredPort(
       JSON.parse(readFileSync(report.files.records[3]!.path, "utf8")),
     );
-    assert.deepEqual(
-      partial.listing.mod_portals?.map(({ id }) => id),
-      ["obs-gh-gamebanana-80022"],
-    );
+    assert.equal(partial.listing.mod_portals, undefined);
     const delivered: unknown = JSON.parse(readFileSync(report.files.listings, "utf8"));
     assert.ok(isRecord(delivered) && Array.isArray(delivered.listings));
     assert.equal(delivered.format_version, 17);
@@ -1392,7 +1383,7 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
       (row: unknown) => isRecord(row) && row.id === declared.listing.id,
     );
     assert.ok(isRecord(projected));
-    assert.deepEqual(projected.mod_portals, declared.listing.mod_portals);
+    assert.equal(projected.mod_portals, undefined);
     assert.doesNotMatch(JSON.stringify(projected), /PrivateFixtureDirectory|--original/u);
 
     refuse = false;
@@ -4271,7 +4262,14 @@ void test("first-party mod refresh binds descriptive facts to the accepted publi
       format: 1,
       repo: repository.slug,
       start: { program: ["port.exe"], args: ["private-original"] },
-      inputs: [{ id: "game", label: "Fixture Game", formats: [{ type: "file" }] }],
+      inputs: [
+        {
+          id: "game",
+          label: "Fixture Game",
+          formats: [{ type: "file" }],
+          check: { ids: ["SLUS-01212"] },
+        },
+      ],
       mods: { thunderstore: "fixture-mods", gamebanana: 456, loader: "nrm", data: "private-data" },
     }),
   );
@@ -4311,6 +4309,7 @@ void test("first-party mod refresh binds descriptive facts to the accepted publi
   assert.equal(result.repository_id, repository.id);
   assert.equal(result.commit, commit);
   assert.equal(result.blob, blob);
+  assert.deepEqual(result.game_input_ids, ["SLUS-01212"]);
   assert.deepEqual(
     result.mod_portals.map(({ url }) => url),
     ["https://thunderstore.io/c/fixture-mods/", "https://gamebanana.com/games/456"],

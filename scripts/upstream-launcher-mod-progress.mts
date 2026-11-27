@@ -161,6 +161,13 @@ export function validateFirstPartyModProgress(value: unknown, now: number): void
       last.result.state === "observed" &&
       (!digest(last.result.blob, 40) ||
         !digest(last.result.manifest_sha256, 64) ||
+        (last.result.game_input_ids !== undefined &&
+          (!Array.isArray(last.result.game_input_ids) ||
+            last.result.game_input_ids.length === 0 ||
+            last.result.game_input_ids.length > 32 ||
+            !last.result.game_input_ids.every(
+              (id: unknown) => typeof id === "string" && /^[A-Za-z0-9_-]{1,24}$/u.test(id),
+            ))) ||
         !Array.isArray(last.result.mod_portals) ||
         last.result.mod_portals.length > 2 ||
         !last.result.mod_portals.every(validLauncherModPortal) ||

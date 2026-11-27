@@ -2776,6 +2776,51 @@ function decodedListingDelivery(bytes: Buffer) {
   };
 }
 
+function launcherWebsiteGameFixture(id: string) {
+  return {
+    original_game: {
+      id: "fixture-original-game",
+      format_version: 1,
+      evidence_urls: ["https://github.com/owner/game"],
+      source_editions: [
+        {
+          id: "fixture-playstation",
+          title: "Fixture game (PlayStation)",
+          system: "playstation",
+          evidence_urls: ["https://github.com/owner/game"],
+        },
+      ],
+    },
+    catalog: {
+      ports: [
+        {
+          id,
+          source_profile: "fixture-profile",
+          channels: ["stable"],
+          release: { repository: "owner/game" },
+        },
+      ],
+      source_catalog: {
+        identities: [
+          {
+            id: "fixture-profile",
+            variants: [{ id: "fixture-usa", product_codes: ["SLUS-01212"] }],
+          },
+        ],
+        contracts: [
+          {
+            port_id: id,
+            role: "game",
+            admission_mode: "enforced",
+            profile_id: "fixture-profile",
+            supported_variant_ids: ["fixture-usa"],
+          },
+        ],
+      },
+    },
+  };
+}
+
 void test("signed listing projection accepts only bound first-party websites and handles correction and withdrawal", async () => {
   const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
   const { firstPartyListingModDefaults } = await import("./listing-mod-portal-projection.mts");
@@ -2783,9 +2828,9 @@ void test("signed listing projection accepts only bound first-party websites and
     await import("./upstream-launcher-mod-progress.mts");
   const { catalogObservationSources } = await import("./catalog-upstream-observer.mts");
   const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
-  const port = { ...fixtureListing, mod_portals: undefined };
+  const { catalog, original_game } = launcherWebsiteGameFixture(fixtureListing.id);
+  const port = { ...fixtureListing, original_game, mod_portals: undefined };
   const now = Date.parse("2026-11-26T12:00:00Z");
-  const catalog = { ports: [] };
   const canonical = { format_version: 17, listings: [port] };
   const [source] = catalogObservationSources({ ...catalog, listings: canonical.listings }).sources;
   const ids = { [source!.key]: { repository_id: 567 } };
@@ -2801,6 +2846,7 @@ void test("signed listing projection accepts only bound first-party websites and
       tree: "b".repeat(40),
       blob: "c".repeat(40),
       manifest_sha256: "d".repeat(64),
+      game_input_ids: ["SLUS-01212"],
       mod_portals: [
         {
           id: "upstream-thunderstore",
@@ -2838,6 +2884,23 @@ void test("signed listing projection accepts only bound first-party websites and
       url: "https://thunderstore.io/c/fixture-community/",
     },
   ]);
+  const proof = requiredFixture(row.last_complete).result;
+  assert.equal(proof.state, "observed");
+  for (const game_input_ids of [["SLUS-00605"], ["SLUS-01212", "SLUS-00605"], ["SLUS"]]) {
+    const switched = recordLauncherModAttempt(
+      binding,
+      row,
+      { ...proof, game_input_ids },
+      now,
+      3600000,
+    );
+    assert.equal(read(project(checkpoint(switched), null).bytes)?.mod_portals, undefined);
+    assert.equal(read(project(checkpoint(switched), current.bytes).bytes)?.mod_portals, undefined);
+  }
+  const { game_input_ids: _ids, ...legacyProof } = proof;
+  const legacy = recordLauncherModAttempt(binding, row, legacyProof, now, 3600000);
+  assert.equal(read(project(checkpoint(legacy), null).bytes)?.mod_portals, undefined);
+  assert.deepEqual(project(checkpoint(legacy), current.bytes).bytes, current.bytes);
   const outage = recordLauncherModAttempt(
     binding,
     row,
@@ -2904,12 +2967,19 @@ void test("admission mod defaults keep one source ID and cannot revive after wit
     instructions: "The upstream project lists this community. Follow its setup instructions.",
     url: "https://gamebanana.com/games/456",
   };
-  const port = { ...fixtureListing, id: "github-12345", mod_portals: [seed] };
-  const catalog = { ports: [] };
+  const { catalog, original_game } = launcherWebsiteGameFixture("github-12345");
+  const port = { ...fixtureListing, id: "github-12345", original_game, mod_portals: [seed] };
   const now = Date.parse("2026-11-26T12:00:00Z");
   const sources = catalogObservationSources({ ...catalog, listings: [port] }).sources;
   const ids = { [requiredFixture(sources[0]).key]: { repository_id: 12345 } };
   const binding = requiredFixture(launcherModSubjects(sources, ids)[0]).binding;
+  const catalogFor = (listing: typeof port) => ({
+    ...catalog,
+    ports: catalog.ports.map((definition) => ({
+      ...definition,
+      release: { repository: new URL(listing.project_url).pathname.slice(1) },
+    })),
+  });
   const project = (
     state: unknown,
     previous: Buffer | null,
@@ -2918,13 +2988,19 @@ void test("admission mod defaults keep one source ID and cannot revive after wit
   ) =>
     projectListingDelivery({ format_version: 17, listings: [listing] }, [], previous, {
       now,
-      firstPartyModDefaults: firstPartyListingModDefaults(catalog, [listing], state, excluded, now),
+      firstPartyModDefaults: firstPartyListingModDefaults(
+        catalogFor(listing),
+        [listing],
+        state,
+        excluded,
+        now,
+      ),
     });
   const links = (bytes: Buffer) =>
     fixtureRecords(fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings)[0]
       ?.mod_portals;
   const first = project(undefined, null);
-  assert.deepEqual(links(first.bytes), [seed]);
+  assert.equal(links(first.bytes), undefined);
   const changed = recordLauncherModAttempt(
     binding,
     undefined,
@@ -2935,6 +3011,7 @@ void test("admission mod defaults keep one source ID and cannot revive after wit
       tree: "b".repeat(40),
       blob: "c".repeat(40),
       manifest_sha256: "d".repeat(64),
+      game_input_ids: ["SLUS-01212"],
       mod_portals: [
         {
           ...seed,
@@ -2963,8 +3040,26 @@ void test("admission mod defaults keep one source ID and cannot revive after wit
     links(project(state(changed), second.bytes, new Set(), renamed).bytes),
     links(second.bytes),
   );
+  const changedGameCatalog = structuredClone(catalogFor(renamed));
+  changedGameCatalog.source_catalog.identities[0]!.variants[0]!.product_codes = ["SLUS-00605"];
+  const changedGame = projectListingDelivery(
+    { format_version: 17, listings: [renamed] },
+    [],
+    second.bytes,
+    {
+      now,
+      firstPartyModDefaults: firstPartyListingModDefaults(
+        changedGameCatalog,
+        [renamed],
+        state(changed),
+        new Set(),
+        now,
+      ),
+    },
+  );
+  assert.equal(links(changedGame.bytes), undefined);
   const renamedSource = requiredFixture(
-    catalogObservationSources({ ...catalog, listings: [renamed] }).sources[0],
+    catalogObservationSources({ ...catalogFor(renamed), listings: [renamed] }).sources[0],
   );
   assert.equal(
     links(
@@ -2981,7 +3076,7 @@ void test("admission mod defaults keep one source ID and cannot revive after wit
   const oldSlugOwner = { ...port, id: "other-implementation-on-old-slug" };
   assert.deepEqual(
     firstPartyListingModDefaults(
-      catalog,
+      catalogFor(renamed),
       [renamed, oldSlugOwner],
       state(changed),
       new Set(),
