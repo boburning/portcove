@@ -99417,8 +99417,11 @@
             "id": "cubert",
             "title": "SLUDGE engine game. Version Dec 15, 2005",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:cubert"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:cubert",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L346-L351",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L151-L155"
+            ],
+            "system": "pc"
           }
         ]
       },
@@ -99507,8 +99510,11 @@
             "id": "frasse-2-02",
             "title": "SLUDGE engine game. Version v2.02",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:frasse"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:frasse",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L402-L407",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L81-L86"
+            ],
+            "system": "macos"
           }
         ]
       },
@@ -99687,8 +99693,11 @@
             "id": "leptonsquest-linux",
             "title": "SLUDGE engine game. Linux version",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:leptonsquest"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:leptonsquest",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L430-L448",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L168-L170"
+            ],
+            "system": "linux"
           }
         ]
       },
@@ -99867,8 +99876,11 @@
             "id": "mandy-1-4",
             "title": "SLUDGE engine game. English, Italian, Polish, Slovak, v1.4",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:mandy"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:mandy",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L486-L491",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L117-L128"
+            ],
+            "system": "pc"
           }
         ]
       },
@@ -100047,8 +100059,11 @@
             "id": "outoforder",
             "title": "SLUDGE engine game. Linux version",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:outoforder"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:outoforder",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L500-L512",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L71-L79"
+            ],
+            "system": "linux"
           }
         ]
       },
