@@ -53,6 +53,8 @@ export interface ArtworkPort extends Record<string, unknown> {
   /** Reviewed original-title facts supplied by per-record preparation. */
   underlying_game?: unknown;
   igdb_regional_cover?: IgdbRegionalCover;
+  /** Exact game, edition and system from the maintained port record. */
+  regional_cover_edition?: string;
   presentation?: ({ artwork?: unknown } & Record<string, unknown>) | null;
 }
 export interface ArtworkCatalog extends Record<string, unknown> {
@@ -440,28 +442,47 @@ function identifiedGame(
     : { reason: eligible.length > 1 ? "identity-not-unique" : "identity-mismatch" };
 }
 
+function sameReviewedCoverEdition(port: ArtworkPort, accepted: ArtworkPort) {
+  return (
+    port.regional_cover_edition !== undefined &&
+    port.regional_cover_edition === accepted.regional_cover_edition
+  );
+}
+
+function changesRegionalIdentity(current: IgdbRegionalCover | undefined, prior: IgdbRegionalCover) {
+  return (
+    current !== undefined &&
+    (current.game_id !== prior.game_id ||
+      current.platform_id !== prior.platform_id ||
+      current.localization_id !== prior.localization_id ||
+      current.region_id !== prior.region_id)
+  );
+}
+
 function reusableMapping(
   port: ArtworkPort,
   accepted: ArtworkPort | undefined,
   declarations: unknown,
 ) {
-  if (
-    !accepted ||
-    port.name !== accepted.name ||
-    port.project_url !== accepted.project_url ||
-    port.source_profile !== accepted.source_profile ||
-    JSON.stringify(port.underlying_game ?? null) !==
-      JSON.stringify(accepted.underlying_game ?? null) ||
-    !validArtworkMapping(accepted.presentation?.artwork)
-  )
-    return null;
+  if (!accepted || !validArtworkMapping(accepted.presentation?.artwork)) return null;
+  const samePort =
+    port.name === accepted.name &&
+    port.project_url === accepted.project_url &&
+    port.source_profile === accepted.source_profile &&
+    JSON.stringify(port.underlying_game ?? null) ===
+      JSON.stringify(accepted.underlying_game ?? null);
   const mapping = accepted.presentation.artwork;
   const regional = port.igdb_regional_cover ?? accepted.igdb_regional_cover;
   if (regional)
-    return JSON.stringify(regional) === JSON.stringify(accepted.igdb_regional_cover) &&
+    return (sameReviewedCoverEdition(port, accepted) ||
+      (samePort &&
+        port.regional_cover_edition === undefined &&
+        accepted.regional_cover_edition === undefined)) &&
+      JSON.stringify(regional) === JSON.stringify(accepted.igdb_regional_cover) &&
       matchesIgdbRegionalCover(mapping, regional)
       ? structuredClone(mapping)
       : null;
+  if (!samePort) return null;
   const identity = isRecord(declarations)
     ? declarations[mapping.match_kind === "port" ? "port" : "underlying_game"]
     : undefined;
@@ -943,7 +964,17 @@ export async function prepareCatalogArtwork(
     const regional = port.igdb_regional_cover ?? priorPort?.igdb_regional_cover;
     if (regional !== undefined && !validIgdbRegionalCover(regional))
       throw new Error(`Invalid authored regional cover: ${port.id}`);
-    if (priorPort?.igdb_regional_cover && priorPort.project_url !== port.project_url)
+    if (
+      priorPort?.igdb_regional_cover &&
+      (priorPort.project_url !== port.project_url ||
+        priorPort.regional_cover_edition !== port.regional_cover_edition) &&
+      !sameReviewedCoverEdition(port, priorPort) &&
+      !(
+        port.regional_cover_edition !== undefined &&
+        priorPort.regional_cover_edition !== undefined &&
+        changesRegionalIdentity(port.igdb_regional_cover, priorPort.igdb_regional_cover)
+      )
+    )
       throw new Error(`Regional cover needs new source review: ${port.id}`);
     const reused = reusableMapping(
       port,

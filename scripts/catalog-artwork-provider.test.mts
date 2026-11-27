@@ -1849,3 +1849,127 @@ void test("explicit media refresh shares exact checks and only confirmed Gone wi
     rmSync(scratch, { recursive: true, force: true });
   }
 });
+
+void test("a regional cover follows an unchanged reviewed edition through an upstream rename", async () => {
+  const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
+  const id = "regional-relocation";
+  const accepted = {
+    id,
+    name: "Original Port",
+    project_url: "https://github.com/owner/old",
+    regional_cover_edition: "a".repeat(64),
+    igdb_regional_cover: {
+      game_id: 1,
+      slug: "original",
+      name: "Original",
+      platform_id: 7,
+      localization_id: 2,
+      region_id: 4,
+      cover_id: 9,
+      image_id: "localized",
+    },
+    presentation: {
+      artwork: {
+        game_id: 1,
+        game_slug: "original",
+        cover_id: 9,
+        image_id: "localized",
+        image_sha256: "b".repeat(64),
+        match_kind: "underlying-game",
+      },
+    },
+  };
+  const moved = { ...accepted, name: "Renamed Port", project_url: "https://github.com/owner/new" };
+  let providerReads = 0;
+  const options = {
+    acceptedCatalog: { ports: [accepted] },
+    selectedPortIds: [id],
+    inspectGame: () => {
+      providerReads++;
+      throw new Error("Prevent unexpected provider lookup");
+    },
+    inspectImage: () => {
+      providerReads++;
+      throw new Error("Prevent unexpected image lookup");
+    },
+  };
+  const reused = await prepareCatalogArtwork({ ports: [moved] }, options);
+  assert.deepEqual(reused.records[0]?.mapping, accepted.presentation.artwork);
+  assert.equal(reused.records[0]?.reason, "accepted-mapping-reused");
+  assert.equal(providerReads, 0);
+
+  for (const changedEdition of [
+    { ...moved, regional_cover_edition: "c".repeat(64) },
+    { ...accepted, regional_cover_edition: "c".repeat(64) },
+    {
+      ...moved,
+      regional_cover_edition: "c".repeat(64),
+      igdb_regional_cover: { ...accepted.igdb_regional_cover, name: "Unverified Label" },
+    },
+  ]) {
+    await assert.rejects(
+      prepareCatalogArtwork({ ports: [changedEdition] }, options),
+      /Regional cover needs new source review/u,
+    );
+  }
+  const replacement = {
+    ...accepted.igdb_regional_cover,
+    localization_id: 3,
+    region_id: 5,
+    cover_id: 10,
+    image_id: "newlocalized",
+  };
+  const corrected = {
+    ...accepted,
+    regional_cover_edition: "c".repeat(64),
+    igdb_regional_cover: replacement,
+  };
+  const refreshed = await prepareCatalogArtwork(
+    { ports: [corrected] },
+    {
+      ...options,
+      inspectGame: (identity) => {
+        assert.deepEqual(identity.localization, { id: 3, region_id: 5 });
+        return [
+          {
+            id: 1,
+            name: "Original",
+            slug: "original",
+            platforms: [7],
+            game_localizations: [
+              {
+                id: 3,
+                game: 1,
+                region: 5,
+                cover: { id: 10, image_id: "newlocalized", game_localization: 3 },
+              },
+            ],
+          },
+        ];
+      },
+      inspectImage: (id) => {
+        assert.equal(id, "newlocalized");
+        return {
+          bytes: 100,
+          width: 264,
+          height: 374,
+          sha256: "d".repeat(64),
+          format: "jpeg",
+          validator: "portcove-core",
+        };
+      },
+    },
+  );
+  assert.equal(refreshed.records[0]?.mapping?.image_sha256, "d".repeat(64));
+  assert.equal(refreshed.records[0]?.mapping?.image_id, "newlocalized");
+
+  const { regional_cover_edition: _currentEdition, ...unscoped } = moved;
+  const { regional_cover_edition: _acceptedEdition, ...oldUnscoped } = accepted;
+  await assert.rejects(
+    prepareCatalogArtwork(
+      { ports: [unscoped] },
+      { ...options, acceptedCatalog: { ports: [oldUnscoped] } },
+    ),
+    /Regional cover needs new source review/u,
+  );
+});

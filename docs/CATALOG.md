@@ -2120,7 +2120,9 @@ For a known regional cover, put `igdb_regional_cover` in the authored port recor
 Pin the original IGDB game's `game_id`, `slug`, `name` and `platform_id`, then
 the IGDB `localization_id` and `region_id` for the supported edition, and its
 reviewed `cover_id` and `image_id`. Preparation verifies the localized cover's
-relationship to that game and region. Refresh keeps the reviewed regional cover
+relationship to that game and region. A reviewed relocation can keep the
+existing cover when the exact original game, source edition and system agree.
+A changed edition requires source review. Refresh keeps the reviewed regional cover
 when IGDB offers a different asset or the lookup is unavailable. A replacement
 cover requires updating the pin and verifying the new image. If the pinned
 image is confirmed Gone, the listing uses its fallback illustration. Only the verified image mapping goes into the
