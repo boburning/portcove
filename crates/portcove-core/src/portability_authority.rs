@@ -91,6 +91,7 @@ impl PortabilityAuthority {
 fn exported_schema(metadata: &LibraryMetadata, base: u32) -> u32 {
     let artwork = metadata.artwork.as_ref();
     [
+        (17, !metadata.mod_portal_preferences.is_empty()),
         (
             16,
             artwork.is_some_and(crate::ArtworkMetadata::contains_suppression),
@@ -177,8 +178,8 @@ pub(crate) fn seal(
 pub(crate) fn verify(metadata: &LibraryMetadata, entries: Vec<PortabilityAdmission>) -> Result<()> {
     let entries = canonical_entries(entries)?;
     match (&metadata.portability_authority, entries.is_empty()) {
-        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=16) => return Ok(()),
-        (Some(authority), false) if matches!(metadata.schema_version, 4..=16) => {
+        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=17) => return Ok(()),
+        (Some(authority), false) if matches!(metadata.schema_version, 4..=17) => {
             if authority.format != 1 || authority.entries != entries {
                 return Err(PortcoveError::verification(
                     "portability authority does not match the retained installations",

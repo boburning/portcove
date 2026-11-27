@@ -1876,6 +1876,11 @@ portcove --library <path> --json library export --output <new-file.json>
 Export reads one consistent SQLite snapshot. The metadata records source
 references, managed version identities, and which versions are active, previous,
 or staged. It also records per-port preferences and successful launches.
+Format 17 carries local mod website choices, hidden source IDs, and exact hidden
+Thunderstore communities. Metadata import and verified recovery restore those
+choices to the same port, including choices whose source is temporarily absent.
+The choices grant no permission to install mods. Earlier exports remain
+importable. To carry current mod source choices, create a new export or bundle.
 
 The metadata lists separate folders for application versions, user data, Source
 Inbox, backups, toolchains, and local artwork. The file contains none of those

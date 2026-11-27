@@ -319,6 +319,7 @@ fn verify_completed_destination(target: &Library, journal: &ImportJournal) -> Re
         target,
         &journal.plan.metadata,
         &journal.plan.content,
+        true,
     )?;
     let installer = Installer::new(target.clone())?;
     let catalogs = crate::library_import::PortabilityCatalogs::from_root(
@@ -405,6 +406,7 @@ fn restore_metadata(target: &Library, metadata: &LibraryMetadata) -> Result<()> 
     crate::retained_build::restore_references(&transaction, &metadata.retained_build_references)?;
     crate::profile::restore(&transaction, &metadata.profiles)?;
     crate::library_membership::restore(&transaction, &metadata.library_memberships)?;
+    crate::mod_portal_preferences::restore(&transaction, &metadata.mod_portal_preferences)?;
     for settings in &metadata.port_settings {
         transaction.execute(
             "INSERT INTO port_settings(port_id, channel, update_policy, active_install_id,

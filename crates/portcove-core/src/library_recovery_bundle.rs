@@ -76,7 +76,9 @@ impl PortcoveService {
 
 enum Creation {
     New,
-    Continuing,
+    Continuing {
+        include_mod_portal_preferences: bool,
+    },
 }
 
 fn prepare(
@@ -101,7 +103,15 @@ fn prepare(
             &destination_root,
         )?;
     }
-    let metadata = service.export_library_metadata()?;
+    let include_mod_portal_preferences = match creation {
+        Creation::New => true,
+        Creation::Continuing {
+            include_mod_portal_preferences,
+        } => include_mod_portal_preferences,
+    };
+    let metadata = service
+        .library()
+        .metadata_for_transfer(&source_root, include_mod_portal_preferences)?;
     let catalogs = PortabilityCatalogs::from_root(&metadata, &source_root)?;
     validate_metadata(&metadata, &catalogs)?;
     let content = plan_portable_content(&metadata, &source_root)?;
