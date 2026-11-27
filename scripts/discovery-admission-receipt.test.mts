@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import {
   checkDiscoveryAdmissionPaths,
+  checkDiscoveryReplayTree,
   generatedAdmissionDirectory,
   generatedAdmissionRegistration,
   checkDiscoveryRegistrationDelta,
@@ -410,6 +411,63 @@ void test("an SDK retry leaves independent allowance for exact post-creation rea
   assert.equal(refReads, 2);
   assert.equal(lookups, 2);
   assert.equal(posts, 1);
+});
+
+void test("independent review binds the open App proposal to the exact replay head", async () => {
+  const commit = "c".repeat(40);
+  const repo = "boburning/portcove";
+  const app = "catalog-admission";
+  const env = {
+    DISCOVERY_RUN: "12",
+    DISCOVERY_ATTEMPT: "1",
+    EXPECTED_APP: app,
+    GH_TOKEN: "fixture",
+    COMMIT: commit,
+    GITHUB_REPOSITORY: repo,
+  };
+  const row = {
+    number: 22,
+    html_url: `https://github.com/${repo}/pull/22`,
+    state: "open",
+    head: { sha: commit, ref: "automation/catalog-admission-12-1", repo: { full_name: repo } },
+    base: { ref: "main", repo: { full_name: repo } },
+    user: { login: `${app}[bot]` },
+  };
+  const review = (record: unknown) =>
+    catalogAdmissionGitHub("review", env, async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      assert.equal(init?.method, "GET");
+      assert.equal(url.pathname, `/repos/${repo}/pulls`);
+      assert.equal(url.searchParams.get("head"), "boburning:automation/catalog-admission-12-1");
+      return Response.json([record]);
+    });
+  assert.equal(await review(row), row.html_url);
+  for (const altered of [
+    { ...row, state: "closed" },
+    { ...row, user: { login: "other[bot]" } },
+    { ...row, head: { ...row.head, sha: "d".repeat(40) } },
+  ])
+    await assert.rejects(review(altered), /proposal readback differs/u);
+});
+
+void test("a proposal must contain the whole replayed tree and exact single producer parent", () => {
+  const [head, source, tree, wrong] = ["a", "b", "c", "d"].map((hex) => hex.repeat(40)) as [
+    string,
+    string,
+    string,
+    string,
+  ];
+  checkDiscoveryReplayTree(head, source, tree, `${head}\n${source}\n${tree}\n`);
+  for (const changed of [
+    `${wrong}\n${source}\n${tree}\n`,
+    `${head}\n${source} ${wrong}\n${tree}\n`,
+    `${head}\n${wrong}\n${tree}\n`,
+    `${head}\n${source}\n${wrong}\n`,
+  ])
+    assert.throws(
+      () => checkDiscoveryReplayTree(head, source, tree, changed),
+      /replay tree or parent/u,
+    );
 });
 
 void test("proposal gate follows a numeric repository page without changing its scope", async () => {

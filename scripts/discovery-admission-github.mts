@@ -55,8 +55,9 @@ export async function catalogAdmissionGitHub(
     !/^[a-z0-9][a-z0-9-]*$/u.test(app) ||
     !token ||
     actualRepository !== repository ||
-    !["gate", "prior", "deliver"].includes(mode ?? "") ||
-    (mode !== "gate" && (app !== minted || !commit || !/^[a-f0-9]{40}$/u.test(commit)))
+    !["gate", "prior", "deliver", "review"].includes(mode ?? "") ||
+    (mode !== "gate" && (!commit || !/^[a-f0-9]{40}$/u.test(commit))) ||
+    ((mode === "prior" || mode === "deliver") && app !== minted)
   )
     throw new Error("Catalog admission requires the exact workflow and App context.");
   const branch = `automation/catalog-admission-${run}-${attempt}`;
@@ -146,6 +147,7 @@ export async function catalogAdmissionGitHub(
     if (
       rows.length !== 1 ||
       !isRecord(row) ||
+      (mode === "review" && row.state !== "open") ||
       !isRecord(row.head) ||
       row.head.sha !== commit ||
       row.head.ref !== branch ||
@@ -164,6 +166,7 @@ export async function catalogAdmissionGitHub(
       throw new Error("Exact catalog admission proposal readback differs.");
     return row.html_url;
   };
+  if (mode === "review") return verify(await lookup());
   if (mode === "prior") {
     const rows = await lookup();
     return rows.length ? verify(rows) : "";

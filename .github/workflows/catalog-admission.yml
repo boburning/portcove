@@ -24,6 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 18
     environment: catalog-admission
+    outputs:
+      commit: ${{ steps.replay.outputs.commit }}
+      proposal: ${{ steps.open.outputs.proposal }}
     env:
       DISCOVERY_RUN: ${{ github.event.workflow_run.id }}
       DISCOVERY_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
@@ -102,6 +105,7 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
       - name: Open the exact batch proposal through the App
+        id: open
         if: steps.replay.outputs.commit != ''
         timeout-minutes: 3
         env:
@@ -117,6 +121,7 @@ jobs:
           prior=$(node scripts/discovery-admission-github.mts prior)
           if [[ -n "$prior" ]]; then
             echo "$prior" >> "$GITHUB_STEP_SUMMARY"
+            echo "proposal=$prior" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           branch_ref="refs/heads/$branch"
@@ -134,3 +139,76 @@ jobs:
           fi
           delivered=$(node scripts/discovery-admission-github.mts deliver)
           echo "$delivered" >> "$GITHUB_STEP_SUMMARY"
+          echo "proposal=$delivered" >> "$GITHUB_OUTPUT"
+
+  review:
+    needs: propose
+    if: needs.propose.outputs.proposal != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      DISCOVERY_RUN: ${{ github.event.workflow_run.id }}
+      DISCOVERY_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+      DISCOVERY_SOURCE: ${{ github.event.workflow_run.head_sha }}
+      EXPECTED_APP: ${{ vars.CATALOG_ADMISSION_APP_SLUG }}
+      COMMIT: ${{ needs.propose.outputs.commit }}
+      PROPOSAL: ${{ needs.propose.outputs.proposal }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.1
+        with:
+          node-version-file: .node-version
+      - name: Independently replay the exact draft tree
+        timeout-minutes: 13
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$DISCOVERY_SOURCE" ]]
+          [[ "$COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$PROPOSAL" =~ ^https://github\.com/boburning/portcove/pull/([1-9][0-9]*)$ ]]
+          number=${BASH_REMATCH[1]}
+          pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+          [[ "$(node scripts/discovery-admission-github.mts review)" == "$PROPOSAL" ]]
+          # Use the PR head only as an inert Git object. All code runs from the
+          # trusted scheduled source checkout, using the normal replay contracts.
+          git fetch --no-tags origin "+refs/pull/$number/head:refs/remotes/admission/review"
+          [[ "$(git rev-parse refs/remotes/admission/review)" == "$COMMIT" ]]
+          scratch=$(mktemp -d)
+          mkdir "$scratch/reader"
+          node scripts/catalog-released-reader.mts acquire-scheduled "$scratch/reader" > "$scratch/reader.json"
+          validator=$(jq -er '.cli' "$scratch/reader.json")
+          digest=$(jq -er '.sha256' "$scratch/reader.json")
+          [[ "$(sha256sum "$validator" | cut -d' ' -f1)" == "$digest" ]]
+          node scripts/prepare-port.mts --discovery-scheduled-run "$DISCOVERY_RUN/$DISCOVERY_ATTEMPT" \
+            --validator-cli "$validator" --output-dir "$scratch/replay" > "$scratch/replay.json"
+          node scripts/discovery-admission-branch.mts authored
+          node scripts/generate-catalog.mts
+          node scripts/generate-catalog.mts --check
+          cmp -- "$(jq -er '.files.listings' "$scratch/replay.json")" crates/portcove-core/catalog/listings.json
+          git add -- crates/portcove-core/catalog/listings.json \
+            crates/portcove-core/catalog/generated-registration.generated.json
+          node scripts/discovery-admission-branch.mts review "$COMMIT" "$DISCOVERY_SOURCE"
+          git diff --quiet
+          [[ -z "$(git ls-files --others --exclude-standard)" ]]
+          git diff --cached --check
+          [[ "$(node scripts/discovery-admission-github.mts review)" == "$PROPOSAL" ]]
+          jq -n --arg run "$DISCOVERY_RUN" --arg attempt "$DISCOVERY_ATTEMPT" \
+            --arg source "$DISCOVERY_SOURCE" --arg head "$COMMIT" --arg tree "$(git write-tree)" \
+            --argjson pull "$number" '{format_version:1, discovery_run:$run, discovery_attempt:$attempt, source:$source, head:$head, tree:$tree, pull_request:$pull}' \
+            > "$RUNNER_TEMP/catalog-admission-review.json"
+          echo "The exact scheduled replay matched the data in $PROPOSAL." >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain the independent replay receipt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: catalog-admission-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/catalog-admission-review.json
+          retention-days: 30
+          if-no-files-found: error
