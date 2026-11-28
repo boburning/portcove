@@ -39,18 +39,19 @@ export async function verifyPublishedRecoveryObservation(
   assert.equal(observation.executable.sha256, inputs.app.sha256);
   assert.deepEqual(observation.selected_scenarios, [scenario]);
   assert.ok(Array.isArray(observation.checks) && observation.checks.length === 1);
-  const [check] = observation.checks;
+  const checks: readonly unknown[] = observation.checks;
+  const [check] = checks;
   assert.ok(isRecord(check) && check.scenario === scenario && check.outcome === "passed");
 
   const binding = observation.execution_binding;
   assert.ok(isRecord(binding) && Array.isArray(binding.product_artifacts));
+  const productArtifacts: readonly unknown[] = binding.product_artifacts;
   for (const [role, expected] of Object.entries(inputs)) {
-    const matches = binding.product_artifacts.filter(
-      (input: unknown) => isRecord(input) && input.role === role,
-    );
-    assert.ok(matches.length === 1 && isRecord(matches[0]), `Expected one observed ${role}`);
-    assert.equal(matches[0].sha256, expected.sha256);
-    assert.equal(matches[0].bytes, expected.bytes);
+    const matches = productArtifacts.filter((input) => isRecord(input) && input.role === role);
+    const [match] = matches;
+    assert.ok(matches.length === 1 && isRecord(match), `Expected one observed ${role}`);
+    assert.equal(match.sha256, expected.sha256);
+    assert.equal(match.bytes, expected.bytes);
   }
 
   const result = await json(resultLeaf);
@@ -81,10 +82,9 @@ export async function verifyPublishedRecoveryObservation(
   const resultIdentity = await fileIdentity(path.join(native, resultLeaf));
   const restartIdentity = await fileIdentity(path.join(native, restartLeaf));
   assert.ok(Array.isArray(observation.artifacts));
+  const artifacts: readonly unknown[] = observation.artifacts;
   for (const expected of [resultIdentity, restartIdentity]) {
-    const matches = observation.artifacts.filter(
-      (entry: unknown) => isRecord(entry) && entry.path === expected.path,
-    );
+    const matches = artifacts.filter((entry) => isRecord(entry) && entry.path === expected.path);
     assert.deepEqual(matches, [expected]);
   }
   return { result: resultIdentity, restart: restartIdentity };
@@ -138,8 +138,8 @@ function registry(environment: NodeJS.ProcessEnv): unknown {
 
 async function run(tag: string, version: string, temporary: string) {
   const installation = path.join(temporary, "installed");
-  const output = path.join(root, "work", "published-windows-recovery-evidence");
-  const native = path.join(output, "native");
+  const output = path.join(root, "work", "installed-windows-recovery-evidence");
+  const native = path.join(output, "desktop-verify", "installed", "native");
   const assets = windowsAssetNames(version);
   const names = [assets.installer, assets.cli, "SHA256SUMS"];
   const github = (args: string[]) =>
@@ -169,8 +169,7 @@ async function run(tag: string, version: string, temporary: string) {
   );
   command("git.exe", ["merge-base", "--is-ancestor", source, "origin/main"], childEnvironment);
 
-  await mkdir(path.dirname(output), { recursive: true });
-  await mkdir(output);
+  await mkdir(path.dirname(native), { recursive: true });
   await mkdir(temporary);
   const retain = (name: string, value: unknown) =>
     writeFile(path.join(output, name), JSON.stringify(value, null, 2) + "\n", { flag: "wx" });
@@ -333,7 +332,7 @@ if (invoked !== null && invoked === (await realpath(fileURLToPath(import.meta.ur
   assert.equal(process.env.GITHUB_REPOSITORY, repository);
   assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
   assert.equal(process.env.GITHUB_EVENT_NAME, "workflow_dispatch");
-  const tag = process.env.PORTCOVE_PUBLISHED_RECOVERY_TAG ?? "";
+  const tag = process.env.PORTCOVE_INSTALLED_RECOVERY_TAG ?? "";
   const version = recoveryPreviewVersion(tag);
   const runnerTemp = process.env.RUNNER_TEMP ?? "";
   assert.ok(

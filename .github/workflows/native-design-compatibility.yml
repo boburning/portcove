@@ -22,10 +22,10 @@ on:
             qualification-history,
             candidate-consumer,
             slice3-windows-recovery,
-            windows-published-library-recovery,
+            windows-installed-library-recovery,
           ]
-      recovery_release_tag:
-        description: Exact immutable Preview tag for the Windows published recovery operation.
+      recovery_preview_tag:
+        description: Exact immutable Preview tag for the Windows installed recovery operation.
         type: string
         default: ""
       execution_binding:
@@ -1087,62 +1087,6 @@ jobs:
           node scripts/native-backup-evidence.mts emit "$env:PORTCOVE_OUTPUT_DIR"
           if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }
 
-  windows_published_library_recovery:
-    if: ${{ inputs.operation == 'windows-published-library-recovery' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
-    runs-on: windows-2022
-    timeout-minutes: 60
-    env:
-      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/published-windows-recovery-prerequisites
-    permissions:
-      contents: read
-      attestations: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        with:
-          package_json_file: package.json
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-          package-manager-cache: false
-      - uses: ./.github/actions/setup-rust
-      - name: Prepare the held prerequisite evidence directory
-        shell: pwsh
-        run: New-Item -ItemType Directory -Path $env:PORTCOVE_OUTPUT_DIR
-      - uses: ./.github/actions/prepare-hosted-webview
-      - name: Admit the interactive hosted desktop and prepare the pinned drivers
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if (-not [Environment]::UserInteractive -or [Diagnostics.Process]::GetCurrentProcess().SessionId -le 0) {
-            throw 'An interactive hosted desktop is required.'
-          }
-          pnpm install --frozen-lockfile
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./scripts/bootstrap-quality-tools.ps1 -Profile native-drivers
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Install the attested Preview and exercise recovery while registered
-        timeout-minutes: 25
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_PUBLISHED_RECOVERY_TAG: ${{ inputs.recovery_release_tag }}
-        run: node scripts/hosted-published-windows-recovery.mts
-      - name: Retain installation identity and recovery observations
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: windows-published-library-recovery-${{ github.sha }}-${{ github.run_attempt }}
-          path: |
-            work/published-windows-recovery-prerequisites/*.json
-            work/published-windows-recovery-evidence/*.json
-            work/published-windows-recovery-evidence/native/*.json
-            work/published-windows-recovery-evidence/native/*.png
-          if-no-files-found: error
-          retention-days: 14
-
   hosted_selected:
     if: ${{ inputs.operation == 'bootstrap' || inputs.operation == 'selected' || inputs.operation == 'candidate-consumer' }}
     timeout-minutes: 60
@@ -1452,3 +1396,53 @@ jobs:
       - name: Retain bounded lossless reports and images for decoded connector retrieval
         if: always()
         run: node controller/scripts/native-backup-evidence.mts emit-hosted hosted-evidence
+
+  windows_installed_library_recovery:
+    if: ${{ inputs.operation == 'windows-installed-library-recovery' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/installed-windows-recovery-evidence
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+      - name: Prepare the held prerequisite evidence directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Path $env:PORTCOVE_OUTPUT_DIR
+      - uses: ./.github/actions/prepare-hosted-webview
+      - name: Admit the interactive hosted desktop and prepare the pinned drivers
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not [Environment]::UserInteractive -or [Diagnostics.Process]::GetCurrentProcess().SessionId -le 0) {
+            throw 'An interactive hosted desktop is required.'
+          }
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/bootstrap-quality-tools.ps1 -Profile native-drivers
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install the attested Preview and exercise recovery while registered
+        timeout-minutes: 25
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_INSTALLED_RECOVERY_TAG: ${{ inputs.recovery_preview_tag }}
+        run: node scripts/hosted-installed-windows-recovery.mts
+      - name: Retain bounded installation identity and recovery observations in job logs
+        if: always()
+        shell: pwsh
+        run: |
+          node scripts/native-backup-evidence.mts emit "$env:PORTCOVE_OUTPUT_DIR"
+          if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }

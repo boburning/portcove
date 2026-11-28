@@ -1966,7 +1966,7 @@ void test("duplicate provenance entries refuse before decoding a second payload"
 });
 
 void test("published Windows recovery has one fixed disposable installed route", async () => {
-  const { recoveryPreviewVersion } = await import("./hosted-published-windows-recovery.mts");
+  const { recoveryPreviewVersion } = await import("./hosted-installed-windows-recovery.mts");
   assert.equal(recoveryPreviewVersion("nightly-0.1.0-preview.21"), "0.1.0-preview.21");
   for (const tag of [
     "latest",
@@ -1982,11 +1982,11 @@ void test("published Windows recovery has one fixed disposable installed route",
       "utf8",
     ),
   );
-  const job = record(record(record(workflow).jobs).windows_published_library_recovery);
+  const job = record(record(record(workflow).jobs).windows_installed_library_recovery);
   assert.equal(job["runs-on"], "windows-2022");
   assert.equal(
     job.if,
-    "${{ inputs.operation == 'windows-published-library-recovery' && inputs.runner == 'windows-2022' && " +
+    "${{ inputs.operation == 'windows-installed-library-recovery' && inputs.runner == 'windows-2022' && " +
       "!inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
   );
   assert.deepEqual(job.permissions, { contents: "read", attestations: "read" });
@@ -1995,22 +1995,22 @@ void test("published Windows recovery has one fixed disposable installed route",
   const execute = record(
     required(
       steps.find(
-        (step) => record(step).run === "node scripts/hosted-published-windows-recovery.mts",
+        (step) => record(step).run === "node scripts/hosted-installed-windows-recovery.mts",
       ),
     ),
   );
   assert.equal(
-    record(execute.env).PORTCOVE_PUBLISHED_RECOVERY_TAG,
-    "${{ inputs.recovery_release_tag }}",
+    record(execute.env).PORTCOVE_INSTALLED_RECOVERY_TAG,
+    "${{ inputs.recovery_preview_tag }}",
   );
   const evidence = record(required(steps.find((step) => record(step).if === "always()")));
-  assert.match(text(record(evidence.with).path), /native\/\*\.png/u);
-  assert.doesNotMatch(text(record(evidence.with).path), /\*\*|installed|RUNNER_TEMP/u);
+  assert.match(text(evidence.run), /node scripts\/native-backup-evidence\.mts emit/u);
+  assert.doesNotMatch(JSON.stringify(job), /upload-artifact|actions\/cache|rust-cache|secrets\./u);
 });
 
 void test("published Windows recovery requires bound restore and actual restart files", async (t) => {
   const { verifyPublishedRecoveryObservation } =
-    await import("./hosted-published-windows-recovery.mts");
+    await import("./hosted-installed-windows-recovery.mts");
   const { fileIdentity } = await import("./development-evidence.mts");
   const directory = mkdtempSync(path.join(tmpdir(), "portcove-published-recovery-test-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));

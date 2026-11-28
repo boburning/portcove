@@ -2290,15 +2290,17 @@ operation. It retains those receipts, keyring readiness, recovery observations,
 process exits and images. The keyring files stay in the private session.
 
 For a published Windows package, dispatch **Native design compatibility** with
-`operation=windows-published-library-recovery`, `runner=windows-2022` and an
-exact immutable Preview `recovery_release_tag`. The disposable hosted runner
+`operation=windows-installed-library-recovery`, `runner=windows-2022` and an
+exact immutable Preview `recovery_preview_tag`. The disposable hosted runner
 refuses an existing Portcove registration. It verifies the release attestation
 against the annotated tag, installer, CLI and checksum manifest before the
 normal per-user NSIS install. The existing recovery scenario runs while that
 registration is present. It checks the installed executable and registration
 again after the scenario's explicit restore activation and app restart. The
-runner retains the exact package, registration and native evidence identities.
-The disposable runner owns the installation lifecycle.
+runner retains the package and registration identities, native reports and
+screenshots in bounded job logs. Decode the retained evidence with
+`node scripts/native-backup-evidence.mts recover LOG OUTPUT`. The disposable
+runner owns the installation lifecycle.
 
 An ordinary Linux appearance restart retains its captured driver until the
 existing stop action and that exact child's exit have completed. A failed join
