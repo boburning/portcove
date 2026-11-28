@@ -142,7 +142,6 @@ export function GroupedDiscover({
   const groups = useMemo(() => groupCatalog(all, matching), [all, matching]);
   const descriptionPrefix = useId();
   const [comparisonSelection, setComparison] = useState<GameGroup>();
-  const [comparisonPin, setComparisonPin] = useState<string>();
   const dropComparison =
     resultsReady && pendingGameDrop
       ? groups.find((group) => group.id === pendingGameDrop.gameId)
@@ -164,109 +163,56 @@ export function GroupedDiscover({
     generation: owner?.generation,
     observationKey: comparisonObservationKey,
   });
-  const origin = useRef<ComparisonReturnOrigin | undefined>(undefined);
-  const dialogRoot = useRef<HTMLDivElement>(null);
-  const comparisonId = comparison?.id;
-  const intentBinding = useMemo(
-    () => [comparisonSelection, pendingGameDrop, comparisonId, owner?.generation] as const,
-    [comparisonSelection, pendingGameDrop, comparisonId, owner?.generation],
-  );
-  const currentIntent = useMemo(() => ({ active: Boolean(intentBinding[2]) }), [intentBinding]);
-  const comparisonIntent = useRef(currentIntent);
-  useLayoutEffect(() => {
-    comparisonIntent.current = currentIntent;
-    return () => {
-      currentIntent.active = false;
-    };
-  }, [currentIntent]);
   const heading = useRef<HTMLHeadingElement>(null);
-  const leaving = useRef(false);
-  const handledDrop = useRef<NativeSourceGameDrop | undefined>(undefined);
-  const rememberOrigin = useCallback(
-    (groupKey: string, trigger: HTMLButtonElement | null) => {
-      const card = trigger?.closest<HTMLElement>("[data-detail-return-group]");
-      origin.current = {
-        collection: trigger?.closest<HTMLElement>("[data-virtual-collection]") ?? null,
-        groupKey,
-        originKey: trigger?.dataset.detailOrigin,
-        controlKey: trigger?.dataset.collectionControl,
-        controlIndex: card && trigger ? focusableControls(card).indexOf(trigger) : -1,
-        generation: owner?.generation,
-        queryKey,
-      };
-    },
-    [owner?.generation, queryKey],
-  );
+  const {
+    pin,
+    setPin,
+    dialogRoot,
+    rememberOrigin,
+    dismissIntent,
+    markLeaving,
+    finishClose,
+    finalFocus,
+    choiceKeepsFocus,
+  } = useComparisonReturnFocus({
+    generation: owner?.generation,
+    queryKey,
+    comparisonId: comparison?.id,
+    comparisonSelection,
+    pendingGameDrop,
+    onGameDropDismiss,
+    clearSelection: setComparison,
+  });
+
   // Cards are memoized, so these handlers keep their identity until something a
   // card shows changes.
   const compare = useCallback(
     (group: GameGroup, trigger: HTMLButtonElement) => {
       if (!resultsReady) return;
       rememberOrigin(group.id, trigger);
-      comparisonIntent.current.active = false;
-      leaving.current = false;
-      setComparisonPin(group.id);
+      dismissIntent();
+      setPin(group.id);
       setComparison(group);
     },
-    [rememberOrigin, resultsReady],
+    [dismissIntent, rememberOrigin, resultsReady, setPin],
   );
-  useLayoutEffect(() => {
-    if (handledDrop.current !== pendingGameDrop) {
-      handledDrop.current = pendingGameDrop;
-      if (pendingGameDrop) {
-        const trigger = document.querySelector<HTMLButtonElement>(
-          `[data-detail-return-group="${CSS.escape(pendingGameDrop.gameId)}"] .discover-game-identity`,
-        );
-        rememberOrigin(pendingGameDrop.gameId, trigger);
-        leaving.current = false;
-        return;
-      }
-    }
-    const saved = origin.current;
-    if (!saved || (saved.generation === owner?.generation && saved.queryKey === queryKey)) return;
-    comparisonIntent.current.active = false;
-    leaving.current = true;
-    origin.current = undefined;
-    setComparison(undefined);
-    setComparisonPin(undefined);
-    if (pendingGameDrop) onGameDropDismiss?.();
-  }, [onGameDropDismiss, owner?.generation, pendingGameDrop, queryKey, rememberOrigin]);
-  useLayoutEffect(() => {
-    if (!comparisonPin) return;
-    const release = (event: FocusEvent) => {
-      if (
-        comparisonIntent.current.active ||
-        (event.target instanceof Node && dialogRoot.current?.contains(event.target))
-      )
-        return;
-      document.removeEventListener("focusin", release, true);
-      setComparisonPin(undefined);
-    };
-    // Base UI 1.9 resolves finalFocus in cleanup and focuses in a microtask.
-    // Keep the virtual row until that real focus event transfers its pin to the
-    // collection; releasing on transition completion can detach the return node.
-    document.addEventListener("focusin", release, true);
-    return () => document.removeEventListener("focusin", release, true);
-  }, [comparisonPin]);
   const open = useCallback(
     (port: CatalogEntry, originKey: string) => {
-      comparisonIntent.current.active = false;
-      leaving.current = true;
+      markLeaving();
       setComparison(undefined);
       onGameDropDismiss?.();
       onSelect(port.id, originKey);
     },
-    [onSelect, onGameDropDismiss],
+    [markLeaving, onSelect, onGameDropDismiss],
   );
   const reviewDroppedFiles = useCallback(
     (port: CatalogEntry, paths: readonly string[]) => {
       if (!port.source_profile || !onGameDropSelect) return;
-      comparisonIntent.current.active = false;
-      leaving.current = true;
+      markLeaving();
       setComparison(undefined);
       onGameDropSelect({ portId: port.id, profileId: port.source_profile, paths: [...paths] });
     },
-    [onGameDropSelect],
+    [markLeaving, onGameDropSelect],
   );
   return (
     <>
@@ -276,7 +222,7 @@ export function GroupedDiscover({
         groups={groups}
         layout={layout}
         generation={owner?.generation}
-        overlayPin={dropComparison?.id ?? comparisonPin}
+        overlayPin={dropComparison?.id ?? pin}
         label={t("discover.label")}
       >
         {(group, index) => (
@@ -301,13 +247,11 @@ export function GroupedDiscover({
       </VirtualCollectionRows>
       <Dialog
         open={Boolean(comparison)}
-        onOpenChangeComplete={(open) => {
-          if (!open && leaving.current) setComparisonPin(undefined);
-        }}
+        onOpenChangeComplete={finishClose}
         onOpenChange={(open) => {
           if (!open) {
-            comparisonIntent.current.active = false;
-            if (dropComparison) setComparisonPin(dropComparison.id);
+            dismissIntent();
+            if (dropComparison) setPin(dropComparison.id);
             setComparison(undefined);
             onGameDropDismiss?.();
           }
@@ -318,18 +262,7 @@ export function GroupedDiscover({
           reviewSize="large"
           className="port-comparison-dialog"
           initialFocus={heading}
-          finalFocus={() => {
-            const saved = origin.current;
-            if (
-              leaving.current ||
-              saved?.generation !== owner?.generation ||
-              saved?.queryKey !== queryKey
-            )
-              return false;
-            const target = comparisonReturnTarget(saved);
-            if (!target) setComparisonPin(undefined);
-            return target;
-          }}
+          finalFocus={finalFocus}
         >
           {comparison && (
             <>
@@ -376,11 +309,7 @@ export function GroupedDiscover({
                     }
                     reviewDroppedFiles={reviewDroppedFiles}
                     open={() => open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`)}
-                    choiceKeepsFocus={(trigger) =>
-                      comparisonIntent.current === currentIntent &&
-                      currentIntent.active &&
-                      ownsChoiceFocus(trigger, dialogRoot.current)
-                    }
+                    choiceKeepsFocus={choiceKeepsFocus}
                   />
                 ))}
               </div>
@@ -401,6 +330,138 @@ type ComparisonReturnOrigin = {
   generation: number | undefined;
   queryKey: string;
 };
+
+function useComparisonReturnFocus({
+  generation,
+  queryKey,
+  comparisonId,
+  comparisonSelection,
+  pendingGameDrop,
+  onGameDropDismiss,
+  clearSelection,
+}: {
+  generation: number | undefined;
+  queryKey: string;
+  comparisonId: string | undefined;
+  comparisonSelection: GameGroup | undefined;
+  pendingGameDrop: NativeSourceGameDrop | undefined;
+  onGameDropDismiss: (() => void) | undefined;
+  clearSelection: (selection: undefined) => void;
+}) {
+  const dialogRoot = useRef<HTMLDivElement>(null);
+  const handledDrop = useRef<NativeSourceGameDrop | undefined>(undefined);
+  const intentBinding = useMemo(
+    () => [comparisonSelection, pendingGameDrop, comparisonId, generation] as const,
+    [comparisonSelection, pendingGameDrop, comparisonId, generation],
+  );
+  const currentIntent = useMemo(() => ({ active: Boolean(intentBinding[2]) }), [intentBinding]);
+  const comparisonIntent = useRef(currentIntent);
+  useLayoutEffect(() => {
+    comparisonIntent.current = currentIntent;
+    return () => {
+      currentIntent.active = false;
+    };
+  }, [currentIntent]);
+  const origin = useRef<ComparisonReturnOrigin | undefined>(undefined);
+  const leaving = useRef(false);
+  const [pin, setPin] = useState<string>();
+  const rememberOrigin = useCallback(
+    (groupKey: string, trigger: HTMLButtonElement | null) => {
+      leaving.current = false;
+      const card = trigger?.closest<HTMLElement>("[data-detail-return-group]");
+      origin.current = {
+        collection: trigger?.closest<HTMLElement>("[data-virtual-collection]") ?? null,
+        groupKey,
+        originKey: trigger?.dataset.detailOrigin,
+        controlKey: trigger?.dataset.collectionControl,
+        controlIndex: card && trigger ? focusableControls(card).indexOf(trigger) : -1,
+        generation,
+        queryKey,
+      };
+    },
+    [generation, queryKey],
+  );
+  const dismissIntent = useCallback(() => {
+    comparisonIntent.current.active = false;
+  }, []);
+  const markLeaving = useCallback(() => {
+    dismissIntent();
+    leaving.current = true;
+  }, [dismissIntent]);
+  useLayoutEffect(() => {
+    if (handledDrop.current !== pendingGameDrop) {
+      handledDrop.current = pendingGameDrop;
+      if (pendingGameDrop) {
+        const trigger = document.querySelector<HTMLButtonElement>(
+          `[data-detail-return-group="${CSS.escape(pendingGameDrop.gameId)}"] .discover-game-identity`,
+        );
+        rememberOrigin(pendingGameDrop.gameId, trigger);
+        return;
+      }
+    }
+    const saved = origin.current;
+    if (!saved || (saved.generation === generation && saved.queryKey === queryKey)) return;
+    markLeaving();
+    origin.current = undefined;
+    clearSelection(undefined);
+    setPin(undefined);
+    if (pendingGameDrop) onGameDropDismiss?.();
+  }, [
+    clearSelection,
+    generation,
+    markLeaving,
+    onGameDropDismiss,
+    pendingGameDrop,
+    queryKey,
+    rememberOrigin,
+  ]);
+  useLayoutEffect(() => {
+    if (!pin) return;
+    const release = (event: FocusEvent) => {
+      if (
+        comparisonIntent.current.active ||
+        (event.target instanceof Node && dialogRoot.current?.contains(event.target))
+      )
+        return;
+      document.removeEventListener("focusin", release, true);
+      setPin(undefined);
+    };
+    // Base UI 1.9 resolves finalFocus in cleanup and focuses in a microtask.
+    // Keep the virtual row until that real focus event transfers its pin to the
+    // collection; releasing on transition completion can detach the return node.
+    document.addEventListener("focusin", release, true);
+    return () => document.removeEventListener("focusin", release, true);
+  }, [pin]);
+  const finishClose = (open: boolean) => {
+    if (!open && leaving.current) setPin(undefined);
+  };
+  const finalFocus = (): HTMLElement | null | false => {
+    const saved = origin.current;
+    if (leaving.current || saved?.generation !== generation || saved?.queryKey !== queryKey)
+      return false;
+    const target = comparisonReturnTarget(saved);
+    if (!target) setPin(undefined);
+    return target;
+  };
+  function choiceKeepsFocus(trigger: HTMLButtonElement) {
+    return (
+      comparisonIntent.current === currentIntent &&
+      currentIntent.active &&
+      ownsChoiceFocus(trigger, dialogRoot.current)
+    );
+  }
+  return {
+    pin,
+    setPin,
+    dialogRoot,
+    rememberOrigin,
+    dismissIntent,
+    markLeaving,
+    finishClose,
+    finalFocus,
+    choiceKeepsFocus,
+  };
+}
 
 function comparisonReturnTarget(saved: ComparisonReturnOrigin | undefined) {
   const card = saved?.collection?.isConnected
