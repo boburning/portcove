@@ -1,7 +1,7 @@
 import { readIgdbCredentials, resolveIgdbCredentialsFile } from "./maintainer-config.mts";
 import type { ReadableStreamReadResult } from "node:stream/web";
 import { isRecord, errorCode } from "./runtime-values.mts";
-import { originalEditionMediaKey, typedIgdbScene } from "./shared-original-media.mts";
+import { directoryOnlyMedia, originalEditionMediaKey } from "./shared-original-media.mts";
 import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
 import {
   artworkEvidenceUrl,
@@ -1682,6 +1682,12 @@ export const gameMediaRoles = {
   key_art: { endpoint: "artworks", kind: "artwork", variant: "720p", caption: "Game key art" },
   logo: { endpoint: "logos", kind: "logo", variant: "logo_med_2x", caption: "Game logo" },
   header: { endpoint: "artworks", kind: "artwork", variant: "720p", caption: "Game background" },
+  landscape_cover: {
+    endpoint: "artworks",
+    kind: "artwork",
+    variant: "720p",
+    caption: "Landscape cover",
+  },
   screenshot: {
     endpoint: "screenshots",
     kind: "screenshot",
@@ -1700,6 +1706,7 @@ export const catalogGameMediaRoles = Object.freeze(Object.keys(gameMediaRoles) a
 export const gameMediaRoleLimits: Readonly<Record<GameMediaRole, number>> = {
   header: 2,
   key_art: 2,
+  landscape_cover: 2,
   logo: 2,
   screenshot: 8,
 };
@@ -1798,7 +1805,7 @@ function retainedDirectoryMedia(port: ArtworkPort, accepted: ArtworkPort | undef
     (!strict.length ||
       !isDeepStrictEqual(
         strict,
-        media.filter((asset: unknown) => !typedIgdbScene(asset)),
+        media.filter((asset: unknown) => !directoryOnlyMedia(asset)),
       ))
   )
     return [];
@@ -1806,7 +1813,7 @@ function retainedDirectoryMedia(port: ArtworkPort, accepted: ArtworkPort | undef
   const applicable = originalMediaScopes(accepted).filter(({ key }) => offered.has(key));
   return (media as unknown[]).filter((asset) => {
     if (!isRecord(asset) || !isRecord(asset.subject)) return false;
-    if (Array.isArray(strict) && !typedIgdbScene(asset)) return false;
+    if (Array.isArray(strict) && !directoryOnlyMedia(asset)) return false;
     if (asset.subject.kind === "port")
       return (
         typeof port.project_url === "string" &&
@@ -1931,9 +1938,9 @@ function eligibleHeroImage(
   const type = value.image_type;
   if (!isRecord(type) || !positiveId(type.id)) return false;
   const name = normalizedArtworkTypeName(type.name);
-  return role === "header"
-    ? name === "keyartwithoutlogo"
-    : name === "keyart" || name === "keyartwithlogo" || name === "keyartwithoutlogo";
+  if (role === "header") return name === "keyartwithoutlogo";
+  if (role === "landscape_cover") return name === "keyartwithlogo";
+  return name === "keyart" || name === "keyartwithlogo" || name === "keyartwithoutlogo";
 }
 function heroImageHasLogo(record: HeroImageCandidate) {
   return (
@@ -1959,7 +1966,9 @@ function heroAssetProposal(
   const type = isRecord(candidate.image_type) ? candidate.image_type : undefined;
   const { caption, variant, kind } = gameMediaRoles[role];
   const foregroundNeutral =
-    role === "logo" || role === "key_art" ? identity.foregroundNeutral : undefined;
+    role === "logo" || role === "key_art" || role === "landscape_cover"
+      ? identity.foregroundNeutral
+      : undefined;
   const providerId = `igdb-${role.replaceAll("_", "-")}-${identity.subject.kind}-${candidate.id}`;
   // The provider can serve one image for multiple accepted original editions.
   // Catalog IDs distinguish their separate applicability on a single listing.
@@ -2033,7 +2042,7 @@ async function inspectHeroRole(
   directoryMedia: unknown[],
   context: HeroPreparationContext,
 ) {
-  const inventoryRole = role === "header" ? "key_art" : role;
+  const inventoryRole = role === "header" || role === "landscape_cover" ? "key_art" : role;
   const inventoryKey = `${game.id}:${inventoryRole}`;
   let inventory = context.inventories.get(inventoryKey);
   if (!inventory) {
@@ -2072,6 +2081,7 @@ async function inspectHeroRole(
         continue;
       }
       if (role === "header" && image.width * 2 < image.height * 3) continue;
+      if (role === "landscape_cover" && image.width <= image.height) continue;
       const asset = heroAssetProposal(candidate, game, role, identity, image);
       if (
         [...media, ...directoryMedia].some(
@@ -2496,7 +2506,7 @@ function sameMediaSubject(value: unknown, subject: CatalogMediaSubject) {
     : value.game_id === subject.game_id && value.source_edition_id === subject.source_edition_id;
 }
 
-function normalizedArtworkTypeName(value: unknown): string | undefined {
+export function normalizedArtworkTypeName(value: unknown): string | undefined {
   if (typeof value === "string" && value.length <= 128 && !/[\p{Cc}]/u.test(value))
     return value.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
 }

@@ -7641,6 +7641,15 @@ This choice applies only to the gallery. Exact port media and the Cover and
 text fallbacks remain available. Offered editions and similar ID strings do not
 establish a selected source edition.
 
+Landscape covers use the separate `landscape_cover` role in listing format 21.
+The scheduled observer reuses the existing artwork inventory. It requires an
+IGDB Key Art With Logo record and a verified image wider than it is tall.
+The publisher rechecks positive proposals and preserves signed defaults during
+temporary provider failures. Earlier formats omit this role. First activation
+uses the protected catalog publication path, which checks that the official
+released reader accepts format 21. Local choices, hide, and reset use the
+existing Landscape artwork controls.
+
 Catalog generation can reuse an accepted IGDB asset for an original game in
 other listings that offer that exact game and source edition. The generated view
 retains the asset's subject, source and rights. An authored asset takes

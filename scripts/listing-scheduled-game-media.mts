@@ -14,12 +14,17 @@ import {
   gameMediaRoleLimits,
   gameMediaRoles,
   isConfirmedIgdbImageGone,
+  normalizedArtworkTypeName,
   type createIgdbInspector,
   type prepareCatalogGameMedia,
 } from "./inspect-igdb-artwork.mts";
 import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
 import { isRecord } from "./runtime-values.mts";
-import { originalEditionMediaKey } from "./shared-original-media.mts";
+import {
+  directoryOnlyMedia,
+  landscapeCoverMedia,
+  originalEditionMediaKey,
+} from "./shared-original-media.mts";
 import type { ScheduledCover } from "./listing-scheduled-cover.mts";
 
 export const scheduledGameMediaFile = "game-media-additions.json";
@@ -117,6 +122,10 @@ function typedAsset(value: unknown): value is CatalogMediaAsset {
     positiveId(image.game_id) &&
     positiveId(image.record_id) &&
     image.kind === kind &&
+    (role !== "landscape_cover" ||
+      (Number(value.width) > Number(value.height) &&
+        positiveId(image.image_type) &&
+        normalizedArtworkTypeName(image.image_type_name) === "keyartwithlogo")) &&
     typeof image.image_id === "string" &&
     imagePattern.test(image.image_id) &&
     typeof image.game_slug === "string" &&
@@ -424,14 +433,7 @@ export function scheduledGameMediaDefaults(
       Array.isArray(strictMedia) &&
       (!strictMedia.length ||
         !isDeepStrictEqual(
-          existing.filter(
-            (value) =>
-              !(
-                isRecord(value) &&
-                value.igdb &&
-                (value.role === "header" || value.role === "screenshot")
-              ),
-          ),
+          existing.filter((value) => !directoryOnlyMedia(value)),
           strictMedia,
         ))
     )
@@ -456,8 +458,9 @@ export function scheduledGameMediaDefaults(
         const current = [...existing, ...additions];
         if (
           scope(row, asset.subject) !== key ||
-          (Array.isArray(strictMedia) && asset.role !== "header" && asset.role !== "screenshot") ||
-          current.length >= 14 ||
+          (Array.isArray(strictMedia) && !directoryOnlyMedia(asset)) ||
+          (asset.role !== "landscape_cover" &&
+            current.filter((value) => !landscapeCoverMedia(value)).length >= 14) ||
           current.filter((value) => isRecord(value) && value.role === asset.role).length >=
             gameMediaRoleLimits[asset.role] ||
           current.some(

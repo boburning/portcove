@@ -1024,6 +1024,12 @@ void test("the history bootstrap flag is reachable only from the manual dispatch
         type: "boolean",
         default: false,
       },
+      activate_landscape_covers: {
+        description:
+          "Owner activation only - enable projected landscape covers after official reader qualification",
+        type: "boolean",
+        default: false,
+      },
       cover_replacement_packet: {
         description: "Exact independently reviewed cover replacement packet JSON",
         type: "string",
@@ -1226,6 +1232,8 @@ void test("compact listing activation selects the released reader and rechecks i
       "${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_cover_checkpoint == true }}",
     ACTIVATE_PROJECT_COVERS:
       "${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_project_covers == true }}",
+    ACTIVATE_LANDSCAPE_COVERS:
+      "${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_landscape_covers == true }}",
     PORTCOVE_COVER_REVIEW_PACKET:
       "${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_packet || '' }}",
     PORTCOVE_COVER_REVIEW_SHA256:
@@ -2080,6 +2088,65 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
   assert.equal(defaults(donor)[0]!.edition_neutral, undefined);
   assert.deepEqual(defaults(distinct), []);
   assert.deepEqual(defaults(hidden), []);
+
+  const landscape = {
+    ...asset,
+    id: "igdb-landscape-cover-original-91",
+    role: "landscape_cover" as const,
+    caption: "Landscape cover",
+    url: "https://images.igdb.com/igdb/image/upload/t_720p/wide.png",
+    igdb: {
+      ...asset.igdb,
+      kind: "artwork" as const,
+      image_id: "wide",
+      record_id: 91,
+      image_type: 4,
+      image_type_name: "Key Art With Logo",
+    },
+  };
+  const withLandscape = {
+    ...emitted,
+    additions: [...emitted.additions, { id: donor.id, asset: landscape }],
+  };
+  for (const invalid of [
+    { ...landscape, width: 200 },
+    { ...landscape, igdb: { ...landscape.igdb, image_type_name: "Key Art Without Logo" } },
+  ]) {
+    assert.throws(() =>
+      readScheduledGameMediaProposal({
+        ...emitted,
+        additions: [{ id: donor.id, asset: invalid }],
+      }),
+    );
+  }
+  const landscapeDefaults = scheduledGameMediaDefaults(
+    canonical.listings,
+    [],
+    reviewed,
+    new Set(),
+    {
+      proposal: readScheduledGameMediaProposal(withLandscape),
+      producerListings,
+    },
+  );
+  const projectedRoles = (format: number) => {
+    const result = projectListingDelivery(canonical, [], null, {
+      listingFormatFloor: format,
+      compatible: { ...canonical, format_version: format },
+      gameMediaDefaults: landscapeDefaults,
+    });
+    const rows = (
+      JSON.parse(result.bytes.toString()) as {
+        directory: { listings: { id: string; media?: { role: string }[] }[] };
+      }
+    ).directory.listings;
+    return rows
+      .find(({ id }) => id === peer.id)
+      ?.media?.map(({ role }) => role)
+      .sort();
+  };
+  assert.deepEqual(projectedRoles(20), ["logo"]);
+  assert.deepEqual(projectedRoles(21), ["landscape_cover", "logo"]);
   const competing = {
     ...incoming,
     proposal: {
@@ -3203,7 +3270,7 @@ void test("format 15 restrictions require the released reader and never reach ol
   assert.deepEqual(decoded.directory.listings[0]!.restrictions, restrictions);
 
   assert.throws(
-    () => projectListingDelivery({ format_version: 21, listings: [current] }, [], null, { now: 0 }),
+    () => projectListingDelivery({ format_version: 22, listings: [current] }, [], null, { now: 0 }),
     /supported bounded canonical directory/u,
   );
 });

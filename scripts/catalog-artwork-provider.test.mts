@@ -792,11 +792,11 @@ void test("a reviewed original correction takes precedence and a scoped exclusio
       excluded.records.filter(
         (row) => row.port_id === id && row.reason === "identity-excluded-by-review",
       ).length,
-      3,
+      4,
     );
   assert.equal(
     sceneCoverage(corrected.catalog, excluded).filter(({ state }) => state === "excluded").length,
-    6,
+    8,
   );
 });
 
@@ -924,11 +924,11 @@ void test("reviewed media discovers missing roles by exact game, edition and sys
     },
   );
   assert.deepEqual(seedReads, []);
-  assert.equal(held.records.filter((record) => record.reason === "identity-ambiguous").length, 4);
+  assert.equal(held.records.filter((record) => record.reason === "identity-ambiguous").length, 5);
   assert.equal(
     sceneCoverage({ ports: [recipient] }, held).filter(({ state }) => state === "conflicting")
       .length,
-    4,
+    5,
   );
   assert.deepEqual(held.catalog.ports, [recipient]);
   const corrected = await prepareCatalogGameMedia(
@@ -1096,6 +1096,18 @@ void test("game media preparation binds each typed role to the same exact game",
               image_id: "wide",
               image_type: { id: 993, name: "Key art without logo" },
             },
+            {
+              id: 6,
+              game: 7,
+              image_id: "withsquare",
+              image_type: { id: 992, name: "Key art with logo" },
+            },
+            {
+              id: 7,
+              game: 7,
+              image_id: "withwide",
+              image_type: { id: 992, name: "Key art with logo" },
+            },
           ];
         },
         inspectMediaImage: async (id) => {
@@ -1104,7 +1116,7 @@ void test("game media preparation binds each typed role to the same exact game",
           return {
             sha256: "a".repeat(64),
             bytes: 100,
-            width: id === "without" ? 260 : 400,
+            width: id === "without" ? 260 : id === "withsquare" ? 200 : 400,
             height: 200,
             format: "png",
             validator: "portcove-core",
@@ -1114,7 +1126,15 @@ void test("game media preparation binds each typed role to the same exact game",
     },
   );
   assert.deepEqual(relationships, ["key_art", "logo", "screenshot"]);
-  assert.deepEqual(inspected, ["with", "without", "logo", "wide", "shot"]);
+  assert.deepEqual(inspected, [
+    "with",
+    "withsquare",
+    "logo",
+    "without",
+    "wide",
+    "withwide",
+    "shot",
+  ]);
   const media = requiredFixture(result.catalog.ports[0]).presentation?.media;
   assert.ok(Array.isArray(media));
   assert.deepEqual(
@@ -1123,21 +1143,22 @@ void test("game media preparation binds each typed role to the same exact game",
       return [asset.role, asset.igdb.image_id];
     }),
     [
-      ["key_art", "without"],
+      ["key_art", "withsquare"],
       ["logo", "logo"],
       ["header", "wide"],
+      ["landscape_cover", "withwide"],
       ["screenshot", "shot"],
     ],
   );
   const first: unknown = media[0];
   assert.ok(isRecord(first) && isRecord(first.igdb));
-  assert.equal(first.igdb.image_type, 993);
-  assert.equal(first.igdb.image_type_name, "Key art without logo");
+  assert.equal(first.igdb.image_type, 992);
+  assert.equal(first.igdb.image_type_name, "Key art with logo");
   const header: unknown = media[2];
   assert.ok(isRecord(header) && isRecord(header.igdb));
   assert.equal(header.igdb.kind, "artwork");
   assert.equal(header.igdb.image_type, 993);
-  const screenshot: unknown = media[3];
+  const screenshot: unknown = media[4];
   assert.ok(isRecord(screenshot) && isRecord(screenshot.igdb));
   assert.deepEqual(screenshot.igdb, {
     kind: "screenshot",
@@ -1148,7 +1169,7 @@ void test("game media preparation binds each typed role to the same exact game",
   });
   assert.deepEqual(
     result.records.map((record) => record.reason),
-    ["role-selected", "role-selected", "role-selected", "role-selected"],
+    ["role-selected", "role-selected", "role-selected", "role-selected", "role-selected"],
   );
 });
 
@@ -1201,6 +1222,7 @@ void test("an incomplete inventory preserves artwork, shares the failed read and
         "media-provider-unavailable-or-incomplete",
         "role-selected",
         "existing-scene-retained",
+        "media-provider-unavailable-or-incomplete",
         "media-provider-unavailable-or-incomplete",
       ],
     );
@@ -1725,7 +1747,7 @@ void test("an exact 410 for an unselected scene stays attached to its provider g
 void test("a fully covered subject keeps every maintained media role without contacting IGDB", async () => {
   const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
   const id = "covered-port";
-  const media = ["key_art", "logo", "header", "screenshot"].map((role) => ({
+  const media = ["key_art", "logo", "header", "landscape_cover", "screenshot"].map((role) => ({
     id: role + "-fixture",
     role,
     subject: { kind: "port", port_id: id },
@@ -1754,6 +1776,7 @@ void test("a fully covered subject keeps every maintained media role without con
   assert.deepEqual(
     result.records.map(({ reason }) => reason),
     [
+      "existing-scene-retained",
       "existing-scene-retained",
       "existing-scene-retained",
       "existing-scene-retained",

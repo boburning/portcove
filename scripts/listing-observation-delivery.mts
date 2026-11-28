@@ -1,3 +1,4 @@
+import { landscapeCoverListingFormat } from "./shared-original-media.mts";
 /** Canonical listings and completed observer facts -> the compact signed
  * descriptive listing target, the sole live listing carrier (#1422). The legacy
  * format-11 target stays named with its last signed bytes for older previews
@@ -110,7 +111,7 @@ export { listingDeliveryTarget, ListingPublicationStop };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const legacyListingFormat = 11;
 const observedProjectCoverFormat = 20;
-const latestListingFormat = observedProjectCoverFormat;
+const latestListingFormat = landscapeCoverListingFormat;
 /** Rehearse optional portal bytes through the same final acceptance as the base. */
 export async function stageModPortalProjection<T, R>(
   baseline: T,
@@ -675,6 +676,7 @@ export function projectListingDelivery(
             ? [...(result.media as unknown[])]
             : [];
           for (const asset of additions) {
+            if (asset.role === "landscape_cover" && format < landscapeCoverListingFormat) continue;
             const expanded = [...media, asset];
             if (
               Buffer.byteLength(JSON.stringify({ ...result, media: expanded })) <=
@@ -1100,6 +1102,7 @@ const liveListingReaderFloors = new Map([
   [17, repositoryBoundListingReader],
   [19, "0.1.0-preview.21"],
   [observedProjectCoverFormat, "0.1.0-preview.22"],
+  [landscapeCoverListingFormat, "0.1.0-preview.22"],
 ]);
 
 type ListingPriorInputs = {
@@ -1248,6 +1251,7 @@ export async function prepareObservationBundle(options: {
   /** Explicit protected first activation; subsequent renewals follow signed state. */
   activateCoverCheckpoint?: boolean;
   activateProjectCovers?: boolean;
+  activateLandscapeCovers?: boolean;
   coverApproval?: ReturnType<typeof protectedCoverApproval>;
   priorHistory?: string;
   readArtworkHealth?: typeof readHostedArtworkHealth;
@@ -1299,6 +1303,10 @@ export async function prepareObservationBundle(options: {
     (!automatic || !priorCompact || !priorCoverDigest || options.activateCoverCheckpoint)
   )
     throw new Error("Project cover activation requires the existing signed cover checkpoint.");
+  if (options.activateLandscapeCovers && (!automatic || !priorCompact))
+    throw new Error(
+      "Landscape cover activation requires the authenticated compact listing and official released reader.",
+    );
   const segmentedHistory = Object.hasOwn(
     priorTargets,
     "policy/official/catalog.history-checkpoint.json",
@@ -1436,7 +1444,11 @@ export async function prepareObservationBundle(options: {
   }
   const legacyDocument = delivery(parseCatalogSource(legacyWire.toString("utf8")));
   const previousDocument = delivery(parseCatalogSource(previous.toString("utf8")));
-  const listingFormatFloor = options.activateProjectCovers ? observedProjectCoverFormat : 0;
+  const listingFormatFloor = options.activateLandscapeCovers
+    ? landscapeCoverListingFormat
+    : options.activateProjectCovers
+      ? observedProjectCoverFormat
+      : 0;
   const format = compactDirectoryFormat(
     canonical,
     priorCompact ? previousDocument : null,
@@ -1811,7 +1823,11 @@ export async function prepareObservationBundle(options: {
             eligible &&
             canonical.listings.flatMap((row) => {
               const retained = new Set(mediaDefaults!(row).map(({ id }) => id));
-              return eligible(row).filter(({ id }) => !retained.has(id));
+              return eligible(row).filter(
+                ({ id, role }) =>
+                  !retained.has(id) &&
+                  (role !== "landscape_cover" || format >= landscapeCoverListingFormat),
+              );
             });
           const deadline = performance.now() + 60_000;
           const validateImage = createCoreImageValidator(options.cli, workspace);
@@ -2344,6 +2360,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       withdrawals: { type: "string" },
       "activate-cover-checkpoint": { type: "boolean", default: false },
       "activate-project-covers": { type: "boolean", default: false },
+      "activate-landscape-covers": { type: "boolean", default: false },
       "prior-history": { type: "string" },
     },
   });
@@ -2385,6 +2402,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         officialReleasedReader: values["official-released-reader"],
         activateCoverCheckpoint: values["activate-cover-checkpoint"],
         activateProjectCovers: values["activate-project-covers"],
+        activateLandscapeCovers: values["activate-landscape-covers"],
         ...(coverApproval ? { coverApproval } : {}),
         ...(values["prior-history"] ? { priorHistory: path.resolve(values["prior-history"]) } : {}),
         ...(values.withdrawals ? { withdrawals: path.resolve(values.withdrawals) } : {}),
