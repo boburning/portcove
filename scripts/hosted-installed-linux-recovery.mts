@@ -186,6 +186,7 @@ if (process.argv[2] === "prepare") {
     const base = path.join(output, directory.name);
     const leaves = new Set(await readdir(base));
     for (const leaf of [
+      "failed-outer-join.json",
       "outer-join.json",
       "preflight.json",
       "recovery-keyring-readiness.json",
