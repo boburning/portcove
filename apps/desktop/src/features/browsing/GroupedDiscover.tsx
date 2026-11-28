@@ -774,15 +774,15 @@ function DiscoverGameCardView({
   const observation = browsePortPresentation(first, status, "catalog");
   const descriptionId = `${descriptionPrefix}:${encodeURIComponent(first.id)}`;
   const describedBy = exact && (observation.input || observation.setup) ? descriptionId : undefined;
-  // A device-based click shortcut does not choose where dropped originals belong.
-  const dropEligible = Boolean(dropChosen) && sourceDropEligible(first, status, nativeSourceDrag);
-  const groupDropEligible =
-    !dropEligible &&
-    nativeSourceDrag.active &&
-    group.ports.some((port) => sourceDropEligible(port, statuses.get(port.id), nativeSourceDrag));
-  const dropTarget =
-    (dropEligible && nativeSourceDrag.targetPortId === first.id) ||
-    (groupDropEligible && nativeSourceDrag.targetGameId === group.id);
+  const labels = discoverCardLabels(t, group, title, {
+    first,
+    status,
+    exact,
+    firstProject,
+    projectLabel,
+    state: observation.state.label,
+  });
+  const drop = discoverCardDrop(group, dropChosen, statuses, nativeSourceDrag);
   const detailOrigin = `catalog:card:${first.id}`;
   const { element: artworkElement, visible, priority } = useArtworkVisibility();
   const { display: artwork } = useArtwork(presentation.id, "cover", visible, priority);
@@ -799,23 +799,12 @@ function DiscoverGameCardView({
       aria-posinset={position}
       aria-setsize={total}
       key={group.id}
-      className={`discover-game relative min-w-0${dropTarget ? " outline-3 outline-offset-2 outline-pc-ring" : ""}`}
-      aria-label={
-        exact
-          ? t("discover.cardLabel", {
-              game: firstProject.trim() === title.trim() ? title : `${title} · ${firstProject}`,
-              state: observation.state.label,
-            })
-          : t("discover.groupLabel", {
-              title,
-              count: group.ports.length,
-              matching: group.matchingPorts.length,
-            })
-      }
+      className={`discover-game relative min-w-0${drop?.targeted ? " outline-3 outline-offset-2 outline-pc-ring" : ""}`}
+      aria-label={labels.card}
       aria-describedby={describedBy}
-      data-source-drop-game-id={groupDropEligible ? group.id : undefined}
-      data-source-drop-port-id={dropEligible ? first.id : undefined}
-      data-source-drop-profile-id={dropEligible ? first.source_profile : undefined}
+      data-source-drop-game-id={drop?.gameId}
+      data-source-drop-port-id={drop?.portId}
+      data-source-drop-profile-id={drop?.profileId}
       data-discover-port-ids={JSON.stringify(group.ports.map((port) => port.id))}
       data-detail-return-group={group.id}
       data-discover-matching-port-ids={JSON.stringify(group.matchingPorts.map((port) => port.id))}
@@ -827,23 +816,7 @@ function DiscoverGameCardView({
         data-focusable
         data-detail-origin={detailOrigin}
         data-detail-game-id={first.id}
-        aria-label={
-          !exact
-            ? undefined
-            : group.ports.length > 1
-              ? t("discover.identity.matching", {
-                  title,
-                  project: projectLabel ?? "",
-                  port: firstProject,
-                  state: observation.state.label,
-                  action: memberLabel(t, first, status),
-                })
-              : t("discover.identity.single", {
-                  identity: projectLabel ? `${title} ${projectLabel}` : title,
-                  state: observation.state.label,
-                  action: memberLabel(t, first, status),
-                })
-        }
+        aria-label={labels.identity}
         aria-describedby={describedBy}
         onClick={(event) =>
           exact ? open(first, detailOrigin) : compare(group, event.currentTarget)
@@ -904,20 +877,103 @@ function DiscoverGameCardView({
         open={open}
         compare={compare}
       />
-      {(dropEligible || groupDropEligible) && (
+      {drop && (
         <div
           aria-hidden="true"
           className="source-drop-target pointer-events-none absolute inset-0 grid place-items-center rounded-pc-md border-2 border-dashed border-pc-interactive bg-pc-interactive/90 p-3 text-center text-sm font-bold text-pc-action-foreground"
         >
-          {groupDropEligible
-            ? t("discover.drop.review")
-            : dropTarget
-              ? t("discover.drop.release")
-              : t("discover.drop.hover")}
+          {t(drop.label)}
         </div>
       )}
     </article>
   );
+}
+
+function discoverCardLabels(
+  t: TFunction<"browsing">,
+  group: GameGroup,
+  title: string,
+  {
+    first,
+    status,
+    exact,
+    firstProject,
+    projectLabel,
+    state,
+  }: Pick<
+    ReturnType<typeof discoverCardIdentity>,
+    "first" | "status" | "exact" | "firstProject" | "projectLabel"
+  > & { state: string },
+) {
+  if (!exact) {
+    return {
+      card: t("discover.groupLabel", {
+        title,
+        count: group.ports.length,
+        matching: group.matchingPorts.length,
+      }),
+      identity: undefined,
+    };
+  }
+  const action = memberLabel(t, first, status);
+  return {
+    card: t("discover.cardLabel", {
+      game: firstProject.trim() === title.trim() ? title : `${title} · ${firstProject}`,
+      state,
+    }),
+    identity:
+      group.ports.length > 1
+        ? t("discover.identity.matching", {
+            title,
+            project: projectLabel ?? "",
+            port: firstProject,
+            state,
+            action,
+          })
+        : t("discover.identity.single", {
+            identity: projectLabel ? `${title} ${projectLabel}` : title,
+            state,
+            action,
+          }),
+  };
+}
+
+function discoverCardDrop(
+  group: GameGroup,
+  exactChoice: CatalogEntry | undefined,
+  statuses: ReadonlyMap<string, PortStatus>,
+  drag: NativeSourceDragState,
+):
+  | {
+      gameId?: string;
+      portId?: string;
+      profileId?: string;
+      targeted: boolean;
+      label: "discover.drop.review" | "discover.drop.release" | "discover.drop.hover";
+    }
+  | undefined {
+  if (!drag.active) return undefined;
+  // A device-based click shortcut does not choose where dropped originals belong.
+  if (
+    exactChoice?.source_profile &&
+    sourceDropEligible(exactChoice, statuses.get(exactChoice.id), drag)
+  ) {
+    const targeted = drag.targetPortId === exactChoice.id;
+    return {
+      portId: exactChoice.id,
+      profileId: exactChoice.source_profile,
+      targeted,
+      label: targeted ? "discover.drop.release" : "discover.drop.hover",
+    };
+  }
+  if (group.ports.some((port) => sourceDropEligible(port, statuses.get(port.id), drag))) {
+    return {
+      gameId: group.id,
+      targeted: drag.targetGameId === group.id,
+      label: "discover.drop.review",
+    };
+  }
+  return undefined;
 }
 
 function DiscoverGameMetadata({
