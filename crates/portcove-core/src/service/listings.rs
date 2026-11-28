@@ -234,9 +234,9 @@ impl PortcoveService {
             return Ok(None);
         };
         let busy: bool = connection.query_row(
-            "SELECT EXISTS(SELECT 1 FROM launch_sessions WHERE port_id=?1 AND outcome IS NULL)
-                OR EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1)",
-            [&canonical.id],
+            "SELECT EXISTS(SELECT 1 FROM launch_sessions WHERE port_id IN (?1, ?2) AND outcome IS NULL)
+                OR EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id IN (?1, ?2))",
+            [&canonical.id, &retained.id],
             |row| row.get(0),
         )?;
         Ok(

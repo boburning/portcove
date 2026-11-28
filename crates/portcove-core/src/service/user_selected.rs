@@ -1045,47 +1045,69 @@ mod tests {
             Some(LOCAL)
         );
 
-        let launch_activity = service
-            .library
-            .begin_activity(
-                crate::ActivityOperation::Launch,
-                crate::ActivityTargetKind::Port,
-                Some(CANONICAL),
-            )
-            .unwrap();
-        let now = Library::now();
-        service
-            .library
-            .create_launch_session(&crate::LaunchSessionRecord {
-                id: launch_activity.id.clone(),
-                port_id: CANONICAL.into(),
-                install_id: "retired-runtime".into(),
-                install_root: working.clone(),
-                owner_kind: crate::LaunchOwnerKind::External,
-                supervisor_pid: std::process::id(),
-                supervisor_identity: None,
-                child_pid: None,
-                child_identity: None,
-                phase: crate::LaunchSessionPhase::Preparing,
-                outcome: None,
-                exit_code: None,
-                message: None,
-                started_at: now,
-                updated_at: now,
-                finished_at: None,
-            })
-            .unwrap();
-        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
-        service
-            .library
-            .finish_launch_session(
-                &launch_activity.id,
-                crate::LaunchSessionOutcome::Cancelled,
-                None,
-                None,
-            )
-            .unwrap();
-        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+        for busy_port in [CANONICAL, LOCAL] {
+            let launch_activity = service
+                .library
+                .begin_activity(
+                    crate::ActivityOperation::Launch,
+                    crate::ActivityTargetKind::Port,
+                    Some(busy_port),
+                )
+                .unwrap();
+            let now = Library::now();
+            service
+                .library
+                .create_launch_session(&crate::LaunchSessionRecord {
+                    id: launch_activity.id.clone(),
+                    port_id: busy_port.into(),
+                    install_id: "retired-runtime".into(),
+                    install_root: working.clone(),
+                    owner_kind: crate::LaunchOwnerKind::External,
+                    supervisor_pid: std::process::id(),
+                    supervisor_identity: None,
+                    child_pid: None,
+                    child_identity: None,
+                    phase: crate::LaunchSessionPhase::Preparing,
+                    outcome: None,
+                    exit_code: None,
+                    message: None,
+                    started_at: now,
+                    updated_at: now,
+                    finished_at: None,
+                })
+                .unwrap();
+            assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+            assert!(
+                service
+                    .mod_portal_offers(&connection, LOCAL, None)
+                    .unwrap()
+                    .is_empty()
+            );
+            service
+                .library
+                .finish_launch_session(
+                    &launch_activity.id,
+                    crate::LaunchSessionOutcome::Cancelled,
+                    None,
+                    None,
+                )
+                .unwrap();
+            assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+            assert_eq!(
+                service
+                    .mod_portal_offers(&connection, LOCAL, None)
+                    .unwrap()
+                    .len(),
+                1
+            );
+            assert!(
+                service
+                    .effective_external_mod_portals(LOCAL, None)
+                    .unwrap()
+                    .external_mod_portals
+                    .is_empty()
+            );
+        }
         let request = [crate::LibraryMembershipRequest {
             port_id: CANONICAL.into(),
             origin: crate::LibraryMembershipOrigin::Manual,
