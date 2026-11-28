@@ -1965,7 +1965,7 @@ void test("duplicate provenance entries refuse before decoding a second payload"
   assert.throws(() => parseProvenanceArchive(duplicate), /must contain one JSON record/);
 });
 
-void test("published Windows observation admits only the two fixed disposable installed routes", async () => {
+void test("published Windows observation admits only the fixed disposable installed routes", async () => {
   const { publishedWindowsScenario, recoveryPreviewVersion } =
     await import("./hosted-installed-windows-recovery.mts");
   assert.equal(
@@ -1975,6 +1975,10 @@ void test("published Windows observation admits only the two fixed disposable in
   assert.equal(
     publishedWindowsScenario("windows-installed-library-organization"),
     "native-library-organization-restart",
+  );
+  assert.equal(
+    publishedWindowsScenario("windows-installed-game-choice"),
+    "native-game-first-choice-and-restart",
   );
   assert.throws(() => publishedWindowsScenario("native-library-organization-restart"), /fixed/u);
   assert.equal(recoveryPreviewVersion("nightly-0.1.0-preview.21"), "0.1.0-preview.21");
@@ -1997,10 +2001,11 @@ void test("published Windows observation admits only the two fixed disposable in
   const operation = record(record(dispatch.inputs).operation);
   assert.ok(Array.isArray(operation.options));
   assert.ok(operation.options.includes("windows-installed-library-organization"));
+  assert.ok(operation.options.includes("windows-installed-game-choice"));
   assert.equal(job["runs-on"], "windows-2022");
   assert.equal(
     job.if,
-    "${{ (inputs.operation == 'windows-installed-library-recovery' || inputs.operation == 'windows-installed-library-organization') && inputs.runner == 'windows-2022' && " +
+    "${{ (inputs.operation == 'windows-installed-library-recovery' || inputs.operation == 'windows-installed-library-organization' || inputs.operation == 'windows-installed-game-choice') && inputs.runner == 'windows-2022' && " +
       "!inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
   );
   assert.deepEqual(job.permissions, { contents: "read", attestations: "read" });
@@ -2024,8 +2029,11 @@ void test("published Windows observation admits only the two fixed disposable in
 });
 
 void test("published Windows observations require their own bound results and actual restart files", async (t) => {
-  const { verifyPublishedOrganizationObservation, verifyPublishedRecoveryObservation } =
-    await import("./hosted-installed-windows-recovery.mts");
+  const {
+    verifyPublishedGameChoiceObservation,
+    verifyPublishedOrganizationObservation,
+    verifyPublishedRecoveryObservation,
+  } = await import("./hosted-installed-windows-recovery.mts");
   const { fileIdentity } = await import("./development-evidence.mts");
   const directory = mkdtempSync(path.join(tmpdir(), "portcove-published-recovery-test-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
@@ -2108,6 +2116,53 @@ void test("published Windows observations require their own bound results and ac
   write("library-organization-result.json", { ...organizationResult, persisted: initial });
   await bindOrganization();
   await assert.rejects(() => verifyPublishedOrganizationObservation(directory, revision, inputs));
+
+  const gameChoice = "native-game-first-choice-and-restart";
+  const game = "the-legend-of-zelda-majoras-mask";
+  const ports = ["2ship2harkinian", "zelda64-recomp"];
+  const chosen = { preferred_port_by_game: { [game]: ports[1] } };
+  const gameResult = {
+    scenario: gameChoice,
+    outcome: "interactions-complete",
+    failure: null,
+    identity: { game_id: game, port_ids: ports },
+    readbacks: [
+      { phase: "chosen", organization: chosen },
+      { phase: "restarted", organization: chosen },
+    ],
+  };
+  const gameRestart = write(`${gameChoice}-restart.json`, {
+    exited: { exited_at: "2026-11-28T00:00:00.000Z", observed_processes: 2 },
+  });
+  const bindGame = async (value: unknown) => {
+    const gameReport = write("game-first-choice-result.json", value);
+    write("evidence.json", {
+      ...observation,
+      selected_scenarios: [gameChoice],
+      checks: [{ scenario: gameChoice, outcome: "passed" }],
+      artifacts: await Promise.all([fileIdentity(gameReport), fileIdentity(gameRestart)]),
+    });
+  };
+  await bindGame(gameResult);
+  const gameEvidence = await verifyPublishedGameChoiceObservation(directory, revision, inputs);
+  assert.equal(gameEvidence.selected, ports[1]);
+  assert.equal(gameEvidence.restart.path, gameRestart);
+  await assert.rejects(() =>
+    verifyPublishedGameChoiceObservation(directory, "e".repeat(40), inputs),
+  );
+  await bindGame({
+    ...gameResult,
+    readbacks: [
+      gameResult.readbacks[0],
+      { phase: "restarted", organization: { preferred_port_by_game: { [game]: ports[0] } } },
+    ],
+  });
+  await assert.rejects(() => verifyPublishedGameChoiceObservation(directory, revision, inputs));
+  await bindGame(gameResult);
+  write(`${gameChoice}-restart.json`, {
+    exited: { exited_at: "2026-11-28T00:00:01.000Z", observed_processes: 3 },
+  });
+  await assert.rejects(() => verifyPublishedGameChoiceObservation(directory, revision, inputs));
 });
 
 void test("Linux continuity publishes an outside-checkout store and lossless bounded private-free reports", async (t) => {
