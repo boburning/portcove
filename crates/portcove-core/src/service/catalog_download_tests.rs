@@ -4330,7 +4330,7 @@ async fn a_shared_feed_respects_held_and_permitted_packages_without_changing_an_
         assert!(options.allowed);
         assert_eq!(options.selected_release_id, Some(7.into()));
         assert_eq!(options.candidates.len(), 1);
-        assert_eq!(options.candidates[0].asset_id, 11.into());
+        assert_eq!(options.candidates[0].asset_id, 11_u64);
         assert_eq!(options.recommended_asset_id, Some(11.into()));
         assert_eq!(options.releases.len(), 2);
 
