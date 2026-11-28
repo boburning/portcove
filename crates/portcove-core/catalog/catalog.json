@@ -57440,7 +57440,17 @@
             "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md",
             "https://github.com/Blizz127/brave-fencer-musashi-decomp-port"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "brave-fencer-musashi-playstation",
+              "title": "Brave Fencer Musashi (PlayStation)",
+              "system": "playstation",
+              "evidence_urls": [
+                "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md",
+                "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/blizz127-brave-fencer-musashi-decomp-port.json"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -86073,7 +86083,17 @@
             "https://github.com/snesrev/zelda3/releases/tag/v0.3",
             "https://github.com/snesrev/zelda3"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "the-legend-of-zelda-a-link-to-the-past-super-nintendo",
+              "title": "The Legend of Zelda: A Link to the Past (Super Nintendo)",
+              "system": "super-nintendo",
+              "evidence_urls": [
+                "https://github.com/snesrev/zelda3/releases/tag/v0.3",
+                "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/zelda3.json"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
