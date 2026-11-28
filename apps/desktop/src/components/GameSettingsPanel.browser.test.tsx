@@ -722,6 +722,10 @@ it("reviews two edits for one file and keeps a different file's draft after savi
   const apply = vi.fn(async () => updated);
   const { host } = await mount({ review, apply }, view, true);
   const [audio, controller] = host.querySelectorAll("form");
+  expect(audio?.querySelector("fieldset > legend:first-child")?.textContent).toBe(file.path);
+  expect(controller?.querySelector("fieldset > legend:first-child")?.textContent).toBe(
+    "controller.ini",
+  );
   const volume = audio?.querySelector("input[type=number]");
   const subtitles = audio?.querySelector("input[type=checkbox]");
   const rumble = controller?.querySelector("input[type=checkbox]");

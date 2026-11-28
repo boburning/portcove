@@ -23,6 +23,7 @@ type DraftValue = { action: "set"; input: string } | { action: "reset" };
 type FieldError = "tooLarge" | "whole" | "number" | "choose" | "range";
 type InvalidField = { id: string; kind: FieldError };
 type Draft = { identity: string; values: Map<string, DraftValue> };
+type FileWriteFailure = { read: number; committed: boolean; refusal?: string };
 
 export type SettingsDraftSummary = {
   formId: string;
@@ -128,60 +129,35 @@ function SettingsFileDraft({
   readRevision: number;
   reportDraft: ReportSettingsDraft | undefined;
 }) {
-  const { t } = useAppTranslation("gameSettings");
-  const [draft, setDraft] = useState<Draft>();
   const [selected, setSelected] = useState<{ identity: string; edits: GameSettingsEdit[] }>();
-  const [error, setError] = useState<InvalidField>();
-  const form = useRef<HTMLFormElement>(null);
-  const [savedAtRead, setSavedAtRead] = useState<number>();
-  // A refusal Core reports as not started keeps its own explanation; an
-  // unconfirmed save keeps the generic readback guidance.
-  const [failed, setFailed] = useState<{ read: number; committed: boolean; refusal?: string }>();
-  const needsRead = failed?.read === readRevision;
   const reviewButton = useRef<HTMLButtonElement>(null);
-  const held = draft !== undefined && draft.identity !== identity;
+  const { form, held, values, error, edit, discard, validate } = useSettingsFileDraft(identity);
+  const { failure, saved, clearSaved, applied, applyFailed } = useSettingsFileWriteOutcome(
+    readRevision,
+    discard,
+    changed,
+  );
+  const needsRead = failure !== undefined;
   const available = file.available && Boolean(file.configuration_sha256);
   const activeReview = selected?.identity === identity && available ? selected : undefined;
   if (selected && selected.identity !== identity) setSelected(undefined);
-  const values = draft?.values;
   const count = values?.size ?? 0;
   const formId = useId();
-  const canReview =
-    !disabled && !needsRead && !held && available && count > 0 && count <= MAX_CHANGES_PER_REVIEW;
-  useLayoutEffect(() => {
-    if (!error) return;
-    // The focused field must already expose its rendered error to assistive technology.
-    const element = form.current?.elements.namedItem(error.id);
-    if (element instanceof HTMLElement) element.focus();
-  }, [error]);
+  const controls = settingsFileControls({ available, disabled, held, needsRead, count });
+  const { canReview } = controls;
   useEffect(() => {
     if (!count || !reportDraft) return;
     reportDraft(formId, { formId, path: file.path, count, canReview });
     return () => reportDraft(formId);
   }, [canReview, count, file.path, formId, reportDraft]);
   const update = (id: string, value?: DraftValue) => {
-    setError(undefined);
-    setSavedAtRead(undefined);
-    setDraft((previous) => {
-      const next = new Map(previous?.values);
-      if (value) next.set(id, value);
-      else next.delete(id);
-      return next.size ? { identity, values: next } : undefined;
-    });
-  };
-  const discard = () => {
-    setDraft(undefined);
-    setError(undefined);
+    clearSaved();
+    edit(id, value);
   };
   const submit = () => {
     if (!canReview) return;
-    const result = parseSettingsEdits(file.settings, values);
-    if ("error" in result) {
-      setError(result.error);
-      return;
-    }
-    setError(undefined);
-    setSelected({ identity, edits: result.edits });
+    const edits = validate(file.settings);
+    if (edits) setSelected({ identity, edits });
   };
   return (
     <form
@@ -199,53 +175,26 @@ function SettingsFileDraft({
       <h4 id={`${formId}-heading`} className="m-0 text-sm font-medium wrap-anywhere">
         {file.path}
       </h4>
-      {!available && <p role="status">{file.reason ?? t("panel.fileUnavailable")}</p>}
-      {held && (
-        <div>
-          <p role="status">{t(available ? "panel.held" : "panel.heldUnavailable")}</p>
-          <Button variant="outline" type="button" onClick={discard}>
-            {t("panel.discard")}
-          </Button>
-        </div>
-      )}
-      {needsRead && !activeReview && (
-        <p role="status">
-          {failed?.refusal ?? t(failed?.committed ? "review.savedReadback" : "review.failure")}
-        </p>
-      )}
-      {savedAtRead === readRevision && <p role="status">{t("review.saved")}</p>}
-      {(available || held) && (
-        <fieldset
-          disabled={disabled || held || needsRead}
-          className="m-0 grid min-w-0 gap-3 border-0 p-0"
-        >
-          {file.settings.map((setting) => (
-            <SettingEditor
-              key={setting.id}
-              setting={setting}
-              draft={values?.get(setting.id)}
-              error={error?.id === setting.id ? error.kind : undefined}
-              edit={(value) => update(setting.id, value)}
-            />
-          ))}
-          {count > MAX_CHANGES_PER_REVIEW && <p role="status">{t("panel.limit")}</p>}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              ref={reviewButton}
-              type="submit"
-              data-settings-file-review
-              variant="primary"
-              disabled={!canReview}
-            >
-              {t("editor.review")}
-            </Button>
-            {count > 0 && !held && (
-              <Button variant="outline" type="button" onClick={discard}>
-                {t("panel.discard")}
-              </Button>
-            )}
-          </div>
-        </fieldset>
+      <SettingsFileStatus
+        available={available}
+        unavailableReason={file.reason}
+        held={held}
+        failure={activeReview ? undefined : failure}
+        saved={saved}
+        discard={discard}
+      />
+      {controls.showFields && (
+        <SettingsFileFields
+          file={file}
+          values={values}
+          error={error}
+          disabled={controls.fieldsDisabled}
+          canReview={canReview}
+          canDiscard={controls.canDiscard}
+          reviewButton={reviewButton}
+          update={update}
+          discard={discard}
+        />
       )}
       {activeReview && (
         <SettingReview
@@ -255,28 +204,210 @@ function SettingsFileDraft({
           identity={identity}
           edits={activeReview.edits}
           actions={actions}
-          changed={(next) => {
-            setDraft(undefined);
-            setSavedAtRead(readRevision);
-            changed(next);
-          }}
-          failed={(failure) => {
-            const state = failurePresentation(failure)?.mutation_state;
-            const committed = state === "committed";
-            setFailed({
-              read: readRevision,
-              committed,
-              ...(state === "not_started" ? { refusal: errorText(failure) } : {}),
-            });
-            if (committed) setDraft(undefined);
-          }}
-          disabled={disabled || needsRead}
+          changed={applied}
+          failed={applyFailed}
+          disabled={controls.reviewDisabled}
           close={() => setSelected(undefined)}
           returnFocus={reviewButton}
           heading={heading}
         />
       )}
     </form>
+  );
+}
+
+function settingsFileControls({
+  available,
+  disabled,
+  held,
+  needsRead,
+  count,
+}: {
+  available: boolean;
+  disabled: boolean;
+  held: boolean;
+  needsRead: boolean;
+  count: number;
+}) {
+  const reviewDisabled = disabled || needsRead;
+  const fieldsDisabled = reviewDisabled || held;
+  return {
+    reviewDisabled,
+    fieldsDisabled,
+    showFields: available || held,
+    canReview: available && !fieldsDisabled && count > 0 && count <= MAX_CHANGES_PER_REVIEW,
+    canDiscard: !held && count > 0,
+  };
+}
+
+/** Keep each write outcome tied to the file read it followed. */
+function useSettingsFileWriteOutcome(
+  readRevision: number,
+  discard: () => void,
+  changed: (view: GameSettingsView) => void,
+) {
+  const [savedAtRead, setSavedAtRead] = useState<number>();
+  const [failed, setFailed] = useState<FileWriteFailure>();
+  const failure = failed?.read === readRevision ? failed : undefined;
+
+  function applied(view: GameSettingsView) {
+    discard();
+    setSavedAtRead(readRevision);
+    changed(view);
+  }
+
+  function applyFailed(error: unknown) {
+    const state = failurePresentation(error)?.mutation_state;
+    const committed = state === "committed";
+    // Core's confirmed refusal retains its explanation. A save with an unknown
+    // outcome needs a read before another review.
+    setFailed({
+      read: readRevision,
+      committed,
+      ...(state === "not_started" ? { refusal: errorText(error) } : {}),
+    });
+    if (committed) discard();
+  }
+
+  return {
+    failure,
+    saved: savedAtRead === readRevision,
+    clearSaved: () => setSavedAtRead(undefined),
+    applied,
+    applyFailed,
+  };
+}
+
+/** Own the editable values and local validation for one exact file. */
+function useSettingsFileDraft(identity: string) {
+  const [draft, setDraft] = useState<Draft>();
+  const [error, setError] = useState<InvalidField>();
+  const form = useRef<HTMLFormElement>(null);
+  useLayoutEffect(() => {
+    if (!error) return;
+    // The focused field must already expose its rendered error to assistive technology.
+    const element = form.current?.elements.namedItem(error.id);
+    if (element instanceof HTMLElement) element.focus();
+  }, [error]);
+
+  function edit(id: string, value?: DraftValue) {
+    setError(undefined);
+    setDraft((previous) => {
+      const next = new Map(previous?.values);
+      if (value) next.set(id, value);
+      else next.delete(id);
+      return next.size ? { identity, values: next } : undefined;
+    });
+  }
+
+  function discard() {
+    setDraft(undefined);
+    setError(undefined);
+  }
+
+  function validate(settings: readonly GameSettingView[]) {
+    const result = parseSettingsEdits(settings, draft?.values);
+    if ("error" in result) {
+      setError(result.error);
+      return;
+    }
+    setError(undefined);
+    return result.edits;
+  }
+
+  const held = draft !== undefined && draft.identity !== identity;
+  return { form, values: draft?.values, error, held, edit, discard, validate };
+}
+
+function SettingsFileStatus({
+  available,
+  unavailableReason,
+  held,
+  failure,
+  saved,
+  discard,
+}: {
+  available: boolean;
+  unavailableReason: FileView["reason"];
+  held: boolean;
+  failure: FileWriteFailure | undefined;
+  saved: boolean;
+  discard: () => void;
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  return (
+    <>
+      {!available && <p role="status">{unavailableReason ?? t("panel.fileUnavailable")}</p>}
+      {held && (
+        <div>
+          <p role="status">{t(available ? "panel.held" : "panel.heldUnavailable")}</p>
+          <Button variant="outline" type="button" onClick={discard}>
+            {t("panel.discard")}
+          </Button>
+        </div>
+      )}
+      {failure && (
+        <p role="status">
+          {failure.refusal ?? t(failure.committed ? "review.savedReadback" : "review.failure")}
+        </p>
+      )}
+      {saved && <p role="status">{t("review.saved")}</p>}
+    </>
+  );
+}
+
+function SettingsFileFields({
+  file,
+  values,
+  error,
+  disabled,
+  canReview,
+  canDiscard,
+  reviewButton,
+  update,
+  discard,
+}: {
+  file: FileView;
+  values: ReadonlyMap<string, DraftValue> | undefined;
+  error: InvalidField | undefined;
+  disabled: boolean;
+  canReview: boolean;
+  canDiscard: boolean;
+  reviewButton: RefObject<HTMLButtonElement | null>;
+  update: (id: string, value?: DraftValue) => void;
+  discard: () => void;
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  return (
+    <fieldset disabled={disabled} className="m-0 grid min-w-0 gap-3 border-0 p-0">
+      <legend className="sr-only">{file.path}</legend>
+      {file.settings.map((setting) => (
+        <SettingEditor
+          key={setting.id}
+          setting={setting}
+          draft={values?.get(setting.id)}
+          error={error?.id === setting.id ? error.kind : undefined}
+          edit={(value) => update(setting.id, value)}
+        />
+      ))}
+      {(values?.size ?? 0) > MAX_CHANGES_PER_REVIEW && <p role="status">{t("panel.limit")}</p>}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          ref={reviewButton}
+          type="submit"
+          data-settings-file-review
+          variant="primary"
+          disabled={!canReview}
+        >
+          {t("editor.review")}
+        </Button>
+        {canDiscard && (
+          <Button variant="outline" type="button" onClick={discard}>
+            {t("panel.discard")}
+          </Button>
+        )}
+      </div>
+    </fieldset>
   );
 }
 
