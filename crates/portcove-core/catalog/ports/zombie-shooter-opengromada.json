@@ -3,6 +3,27 @@
   "listing": {
     "id": "zombie-shooter-opengromada",
     "project_url": "https://github.com/siohaza/OpenGromada",
+    "release_url": "https://github.com/siohaza/OpenGromada/releases",
+    "restrictions": [
+      {
+        "id": "game-specific-package-unconfirmed",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "OpenGromada shares one release feed across several games. Use upstream setup until a package for this game is identified.",
+        "reconsider_when": ["reviewed-successor-release"],
+        "tracking_issue": 7392
+      },
+      {
+        "id": "alien-shooter-release-scope",
+        "effect": "hold",
+        "operations": ["download"],
+        "scope": { "releases": ["0.1.0", "0.1.1"] },
+        "reason": "no-useful-route",
+        "explanation": "OpenGromada 0.1.0 and 0.1.1 ship the Alien Shooter build. Follow the project's setup instructions for this game.",
+        "tracking_issue": 7392
+      }
+    ],
     "name": "Zombie Shooter / OpenGromada (siohaza)",
     "summary": "Reverse engineered engine powering various Sigma Games titles",
     "issue_number": 7392,
