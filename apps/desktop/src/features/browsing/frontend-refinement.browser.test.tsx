@@ -64,6 +64,22 @@ it.each(
         view="catalog"
         collectionLayout={layout}
         catalogUniverse={entries}
+        organization={{
+          snapshot: {
+            revision: 0,
+            collections: {},
+            followed_port_ids: [],
+            followed_release_acknowledgments: {},
+            hidden_port_ids: [],
+            saved_game_ids: [],
+            update_notices: {},
+            setup_confirmations: [],
+          },
+          busy: false,
+          failure: undefined,
+          refresh: vi.fn(async () => true),
+          commit: vi.fn(async () => true),
+        }}
         ports={[entries[0]!, entries[2]!]}
         statuses={new Map()}
         libraryCount={0}
@@ -152,7 +168,9 @@ it.each(
     await expect.poll(() => getComputedStyle(pane).overflowY).toBe("visible");
     expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
     choice.element().scrollIntoView({ block: "center" });
-    expect(choice.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(300);
+    const shortChoiceBounds = choice.element().getBoundingClientRect();
+    expect(shortChoiceBounds.top).toBeGreaterThanOrEqual(0);
+    expect(shortChoiceBounds.bottom).toBeLessThanOrEqual(300);
     await userEvent.keyboard("{Escape}");
     await expect.element(dialog).not.toBeInTheDocument();
     await expect.poll(() => document.activeElement).toBe(compare.element());

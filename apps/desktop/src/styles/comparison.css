@@ -9,10 +9,10 @@
     }
   }
   @media (height > 24rem) {
-    .port-comparison-dialog {
+    .port-comparison-dialog:has(> .port-comparison-body) {
       grid-template-rows: auto minmax(min(9rem, 35dvh), 1fr);
     }
-    .port-comparison-dialog > [data-slot="dialog-title"] {
+    .port-comparison-dialog:has(> .port-comparison-body) > [data-slot="dialog-title"] {
       border-block-end: 1px solid var(--color-border-subtle);
       padding-block-end: var(--space-3);
     }
