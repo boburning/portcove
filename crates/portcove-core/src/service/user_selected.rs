@@ -1045,47 +1045,141 @@ mod tests {
             Some(LOCAL)
         );
 
-        let launch_activity = service
-            .library
-            .begin_activity(
-                crate::ActivityOperation::Launch,
-                crate::ActivityTargetKind::Port,
-                Some(CANONICAL),
+        for busy_port in [CANONICAL, LOCAL] {
+            let launch_activity = service
+                .library
+                .begin_activity(
+                    crate::ActivityOperation::Launch,
+                    crate::ActivityTargetKind::Port,
+                    Some(busy_port),
+                )
+                .unwrap();
+            let now = Library::now();
+            service
+                .library
+                .create_launch_session(&crate::LaunchSessionRecord {
+                    id: launch_activity.id.clone(),
+                    port_id: busy_port.into(),
+                    install_id: "retired-runtime".into(),
+                    install_root: working.clone(),
+                    owner_kind: crate::LaunchOwnerKind::External,
+                    supervisor_pid: std::process::id(),
+                    supervisor_identity: None,
+                    child_pid: None,
+                    child_identity: None,
+                    phase: crate::LaunchSessionPhase::Preparing,
+                    outcome: None,
+                    exit_code: None,
+                    message: None,
+                    started_at: now,
+                    updated_at: now,
+                    finished_at: None,
+                })
+                .unwrap();
+            PortcoveService::defer_new_personal_aliases(
+                &connection,
+                Some(service.catalog()),
+                service.catalog(),
             )
             .unwrap();
-        let now = Library::now();
-        service
-            .library
-            .create_launch_session(&crate::LaunchSessionRecord {
-                id: launch_activity.id.clone(),
-                port_id: CANONICAL.into(),
-                install_id: "retired-runtime".into(),
-                install_root: working.clone(),
-                owner_kind: crate::LaunchOwnerKind::External,
-                supervisor_pid: std::process::id(),
-                supervisor_identity: None,
-                child_pid: None,
-                child_identity: None,
-                phase: crate::LaunchSessionPhase::Preparing,
-                outcome: None,
-                exit_code: None,
-                message: None,
-                started_at: now,
-                updated_at: now,
-                finished_at: None,
-            })
+            assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+            PortcoveService::defer_new_personal_aliases(
+                &connection,
+                Some(&base),
+                service.catalog(),
+            )
+            .unwrap();
+            assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+            assert!(
+                service
+                    .mod_portal_offers(&connection, LOCAL, None)
+                    .unwrap()
+                    .is_empty()
+            );
+            service
+                .library
+                .finish_launch_session(
+                    &launch_activity.id,
+                    crate::LaunchSessionOutcome::Cancelled,
+                    None,
+                    None,
+                )
+                .unwrap();
+            assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+            assert_eq!(
+                service
+                    .mod_portal_offers(&connection, LOCAL, None)
+                    .unwrap()
+                    .len(),
+                1
+            );
+            assert!(
+                service
+                    .effective_external_mod_portals(LOCAL, None)
+                    .unwrap()
+                    .external_mod_portals
+                    .is_empty()
+            );
+        }
+        let (relink, _operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::RelinkExternal,
+                crate::ActivityTargetKind::Port,
+                Some(LOCAL),
+            )
+            .unwrap();
+        PortcoveService::defer_new_personal_aliases(&connection, Some(&base), service.catalog())
             .unwrap();
         assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
-        service
-            .library
-            .finish_launch_session(
-                &launch_activity.id,
-                crate::LaunchSessionOutcome::Cancelled,
-                None,
-                None,
+        service.finish_activity(relink, Ok(())).unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+
+        let (_, interrupted_remove) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::RemoveExternal,
+                crate::ActivityTargetKind::Port,
+                Some(LOCAL),
             )
             .unwrap();
+        PortcoveService::defer_new_personal_aliases(&connection, Some(&base), service.catalog())
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+        drop(interrupted_remove);
+        service.recover_pending_operations().unwrap();
         assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+
+        connection
+            .execute(
+                "INSERT INTO lifecycle_operations(id, kind, port_id, phase, created_at, updated_at)
+                 VALUES ('deferred-alias', 'update', ?1, 'prepared', 1, 1)",
+                [CANONICAL],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO external_runtime_registrations(port_id, record_json, retained_catalog_json, registered_at)
+                 VALUES ('github-1', 'malformed', 'malformed', 1)",
+                [],
+            )
+            .unwrap();
+        PortcoveService::defer_new_personal_aliases(&connection, Some(&base), service.catalog())
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+        connection
+            .execute(
+                "DELETE FROM external_runtime_registrations WHERE port_id='github-1'",
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "DELETE FROM lifecycle_operations WHERE id='deferred-alias'",
+                [],
+            )
+            .unwrap();
+        service.retry_personal_aliases(None).unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+
         let request = [crate::LibraryMembershipRequest {
             port_id: CANONICAL.into(),
             origin: crate::LibraryMembershipOrigin::Manual,
@@ -1125,12 +1219,9 @@ mod tests {
         );
         assert_eq!(service.library_memberships().unwrap(), retained_membership);
         assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
-        assert!(
-            service
-                .library
-                .remove_library_membership(CANONICAL)
-                .unwrap()
-        );
+        PortcoveService::defer_new_personal_aliases(&connection, Some(&base), service.catalog())
+            .unwrap();
+        assert!(service.remove_library_membership(CANONICAL).unwrap());
         assert_eq!(
             service
                 .artwork_port(LOCAL)

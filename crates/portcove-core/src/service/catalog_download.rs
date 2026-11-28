@@ -1765,6 +1765,7 @@ impl PortcoveService {
         }
         // The destination and any retained private staging are deliberately not
         // traversed or deleted by this bookkeeping operation.
+        self.retry_personal_aliases_after_operation(Some(port_id));
         Ok(())
     }
 

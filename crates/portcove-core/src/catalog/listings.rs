@@ -1635,7 +1635,15 @@ impl Catalog {
         retained: &PortListing,
     ) -> Option<&PortListing> {
         let repository_id = retained.private_github_repository_id()?;
-        if self.listing(&retained.id).is_ok() {
+        self.canonical_for_personal_github_key(&retained.id, repository_id)
+    }
+
+    pub(crate) fn canonical_for_personal_github_key(
+        &self,
+        personal_id: &str,
+        repository_id: u64,
+    ) -> Option<&PortListing> {
+        if self.listing(personal_id).is_ok() {
             // Same-key admission already resolves directly and needs no association.
             return None;
         }
