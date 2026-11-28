@@ -2,7 +2,7 @@
 //! original validator and are never synthesized from an incomplete listing.
 use super::*;
 use crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT;
-use crate::catalog_media::IGDB_SCENE_LISTING_FORMAT;
+use crate::catalog_media::{IGDB_SCENE_LISTING_FORMAT, LANDSCAPE_COVER_LISTING_FORMAT};
 use crate::{CatalogListingDocument, IgdbArtwork, ListingAvailability, Platform, PortListing};
 use std::{collections::BTreeMap, sync::LazyLock};
 
@@ -31,6 +31,7 @@ pub(crate) const REPOSITORY_BOUND_LISTING_FORMAT: u32 = 17;
 pub(crate) const OFFICIAL_SETUP_LISTING_FORMAT: u32 = 18;
 pub(crate) const ASSIGNED_COVER_LISTING_FORMAT: u32 = 19;
 pub(crate) const OBSERVED_PROJECT_COVER_LISTING_FORMAT: u32 = 20;
+pub(crate) const MAX_LISTING_FORMAT: u32 = LANDSCAPE_COVER_LISTING_FORMAT;
 const MAX_OBSERVED_REPOSITORY_ID: u64 = 9_007_199_254_740_991;
 
 // Keep the directory extras separate from platforms supplied by its embedded
@@ -99,6 +100,13 @@ fn has_extended_media(listing: &PortListing) -> bool {
         .filter(|asset| asset.role == crate::CatalogMediaRole::Header)
         .count()
         > 1
+}
+
+fn has_landscape_cover(listing: &PortListing) -> bool {
+    listing
+        .media
+        .iter()
+        .any(|asset| asset.role == crate::CatalogMediaRole::LandscapeCover)
 }
 
 fn has_typed_igdb_scene(listing: &PortListing) -> bool {
@@ -215,13 +223,20 @@ pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=OBSERVED_PROJECT_COVER_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=MAX_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 20",
+                "listing export supports formats 5 through 21",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < LANDSCAPE_COVER_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                listing
+                    .media
+                    .retain(|asset| asset.role != crate::CatalogMediaRole::LandscapeCover);
+            }
+        }
         if format_version < OBSERVED_PROJECT_COVER_LISTING_FORMAT {
             for listing in &mut document.listings {
                 if let Some(artwork) = &mut listing.artwork {
@@ -297,6 +312,9 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self.listings.iter().any(has_landscape_cover) {
+            self.format_version = self.format_version.max(LANDSCAPE_COVER_LISTING_FORMAT);
+        }
         if self.listings.iter().any(has_observed_project_cover) {
             self.format_version = self
                 .format_version
@@ -465,10 +483,7 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(
-            self.format_version,
-            1..=OBSERVED_PROJECT_COVER_LISTING_FORMAT
-        ) {
+        if !matches!(self.format_version, 1..=MAX_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
@@ -565,6 +580,13 @@ impl CatalogListingDocument {
         {
             return Err(PortcoveError::usage(
                 "verified source edition bindings require listing format 14",
+            ));
+        }
+        if self.format_version < LANDSCAPE_COVER_LISTING_FORMAT
+            && self.listings.iter().any(has_landscape_cover)
+        {
+            return Err(PortcoveError::unsupported(
+                "landscape covers require listing format 21",
             ));
         }
         if self.format_version < IGDB_SCENE_LISTING_FORMAT
@@ -2293,7 +2315,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":OBSERVED_PROJECT_COVER_LISTING_FORMAT + 1,"listings":[listing()]}),
+            json!({"format_version":MAX_LISTING_FORMAT + 1,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -2924,6 +2946,36 @@ mod observation_metadata_tests {
         }
     }
     #[test]
+    fn signed_landscape_cover_has_its_own_reader_gate() {
+        let mut row = listing();
+        row["media"] = json!([{
+            "id": "reviewed-wide-art",
+            "role": "landscape_cover",
+            "subject": {"kind": "port", "port_id": "observed-project"},
+            "caption": "Project landscape cover",
+            "url": "https://raw.githubusercontent.com/example/game/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/wide.png",
+            "sha256": "b".repeat(64),
+            "width": 960,
+            "height": 540,
+            "attribution": "Example project",
+            "source_url": "https://github.com/example/game",
+            "license": "CC-BY-4.0",
+            "rights_url": "https://creativecommons.org/licenses/by/4.0/",
+        }]);
+        assert!(parse(&row, OBSERVED_PROJECT_COVER_LISTING_FORMAT).is_err());
+        let accepted = parse(&row, LANDSCAPE_COVER_LISTING_FORMAT).unwrap();
+        assert_eq!(
+            accepted.listings[0].media[0].role,
+            crate::CatalogMediaRole::LandscapeCover
+        );
+        let legacy = accepted
+            .export_format(OBSERVED_PROJECT_COVER_LISTING_FORMAT)
+            .unwrap();
+        assert!(legacy.listings[0].media.is_empty());
+        assert_eq!(legacy.listings[0].id, accepted.listings[0].id);
+    }
+
+    #[test]
     fn combined_advice_and_gitlab_observations_keep_independent_reader_gates() {
         let mut value = listing();
         value["project_url"] = "https://gitlab.com/example/game".into();
@@ -2942,7 +2994,7 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
-        let unsupported_format = OBSERVED_PROJECT_COVER_LISTING_FORMAT + 1;
+        let unsupported_format = MAX_LISTING_FORMAT + 1;
         let mut future = document;
         future.format_version = unsupported_format;
         future.promote_projected_format();
