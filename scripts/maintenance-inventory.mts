@@ -2916,11 +2916,14 @@ const reportQuery = (
     SELECT cl.platform, g ->> 'subject_key' AS subject_key, g ->> 'code' AS code, g ->> 'message' AS message
       FROM core_latest cl CROSS JOIN LATERAL jsonb_array_elements(cl.gaps) g
   ), latest_gap_runs AS (
-    SELECT DISTINCT ON (source) source, gaps
-      FROM portcove_maintenance.collection_runs
-      WHERE source IN ('hosted-intake', 'release-health', 'release-content', 'upstream-observations')
-        AND coverage NOT IN ('in_progress', 'failed')
-      ORDER BY source, acquisition DESC
+    SELECT scope.source, latest.gaps
+      FROM (VALUES ('hosted-intake'), ('release-health'), ('release-content'),
+                   ('upstream-observations')) scope(source)
+      CROSS JOIN LATERAL (
+        SELECT r.gaps FROM portcove_maintenance.collection_runs r
+          WHERE r.source = scope.source AND r.coverage NOT IN ('in_progress', 'failed')
+          ORDER BY r.acquisition DESC LIMIT 1
+      ) latest
   ), report_gaps AS (
     -- Match the first gap per subject in the latest eligible run, retaining array order.
     SELECT DISTINCT ON (r.source, gap.value ->> 'subject_key')
