@@ -1677,6 +1677,7 @@ export default interface Resources {
         "discardOlder": "Discard older changes",
         "done": "Done",
         "draftLimit": "A setup can hold up to {{limit}} mods. Apply or undo some changes before adding more.",
+        "draftSaveFailed": "Portcove couldn’t save this draft for later. You can still review it here. Closing Portcove may lose these changes.",
         "editOrder": "Edit order",
         "emptySource": "{{provider}} has no mods for this port.",
         "enabledFilter": "Enabled",
