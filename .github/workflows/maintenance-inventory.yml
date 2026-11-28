@@ -190,6 +190,7 @@ jobs:
           node scripts/maintenance-store.mts resource-probe --output work/maintenance-report/status.json || rc=$?
           [[ "$rc" == 0 || "$rc" == 75 ]]
       - name: Prepare the production resource ledger
+        id: migrate
         if: ${{ !cancelled() && steps.postgres.outcome == 'success' &&
           (github.event_name == 'schedule' || inputs.purpose == 'recover' || inputs.purpose == 'recovery-full') }}
         timeout-minutes: 4
@@ -199,6 +200,7 @@ jobs:
         run: |
           rc=0
           node scripts/maintenance-store.mts migrate > work/maintenance-evidence/migrate.json || rc=$?
+          if [[ "$rc" == 75 ]]; then echo 'deferred=true' >> "$GITHUB_OUTPUT"; fi
           [[ "$rc" == 0 || "$rc" == 75 ]]
       - name: Collect changed sources and periodically reassess all Core subjects
         id: collect
@@ -369,6 +371,7 @@ jobs:
         if: ${{ !cancelled() && steps.postgres.outcome == 'success' }}
         timeout-minutes: 2
         env:
+          MIGRATION_OUTCOME: ${{ steps.migrate.outputs.deferred == 'true' && 'deferred' || steps.migrate.outcome }}
           COLLECT_OUTCOME: ${{ steps.collect.outcome }}
           REPORT_OUTCOME: ${{ steps.report.outcome }}
           BACKUP_OUTCOME: ${{ steps.backup.outputs.artifact && 'captured' || steps.backup.outputs.reused == 'true' && 'reused' || steps.backup.outcome == 'success' && 'deferred' || steps.backup.outcome }}
@@ -399,6 +402,16 @@ jobs:
           manifest = load(work / "maintenance-backup/store/manifest.json") or {}
           server = load(evidence_dir / "server.json") or {}
           collected = load(evidence_dir / "collect.json") or {}
+          migration = {"outcome": os.environ["MIGRATION_OUTCOME"]}
+          if migration["outcome"] == "success":
+              receipt = load(evidence_dir / "migrate.json")
+              if (isinstance(receipt, dict) and type(receipt.get("schema_version")) is int
+                      and receipt["schema_version"] >= 0
+                      and all(isinstance(receipt.get(field), list)
+                              for field in ("applied", "pending", "problems", "newly_applied"))):
+                  migration["receipt"] = receipt
+              else:
+                  migration["outcome"] = "unknown"
           collect_outcome = os.environ["COLLECT_OUTCOME"]
           collection = None
           if collect_outcome == "success":
@@ -437,6 +450,7 @@ jobs:
               "outcomes": {"collect": collect_outcome, "report": os.environ["REPORT_OUTCOME"],
                            "backup": os.environ["BACKUP_OUTCOME"],
                            "public_summary": os.environ["PUBLIC_SUMMARY_OUTCOME"]},
+              "migration": migration,
               "collection": collection,
               "purpose": os.environ["PORTCOVE_MAINTENANCE_PURPOSE"],
               "previous_verified_recovery": load(work / "maintenance-report/previous-recovery.json"),

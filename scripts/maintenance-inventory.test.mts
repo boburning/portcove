@@ -584,6 +584,16 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     /needs\.reconcile-intake-receipts\.outputs\.receipt_outcome == 'verified'/u,
   );
   const evidence = collect!.steps.find((step) => step.name === "Record run evidence")!;
+  const migration = collect!.steps.find(
+    (step) => step.name === "Prepare the production resource ledger",
+  )!;
+  assert.match(migration.run!, /if \[\[ "\$rc" == 75 \]\]; then echo 'deferred=true'/u);
+  assert.equal(
+    evidence.env?.MIGRATION_OUTCOME,
+    "${{ steps.migrate.outputs.deferred == 'true' && 'deferred' || steps.migrate.outcome }}",
+  );
+  assert.match(evidence.run!, /receipt = load\(evidence_dir \/ "migrate\.json"\)/u);
+  assert.match(evidence.run!, /"migration": migration/u);
   assert.equal(
     evidence.env?.INTAKE_RECEIPT_OUTCOME,
     "${{ needs.reconcile-intake-receipts.outputs.receipt_outcome }}",
