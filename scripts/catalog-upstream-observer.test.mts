@@ -5679,6 +5679,97 @@ void test("a non-quota GitLab 403 is a failed rejection that notifies and is not
   }
 });
 
+void test("reciprocal mod work continues from a bounded checkpoint without a game input contract", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: [{ id: "other-port", project_url: "https://github.com/owner/other" }],
+  };
+  const first = await advanceCatalogObservations(input, null, h.options);
+  const now = h.options.now!();
+  const communities = [
+    {
+      community: "other",
+      game_uuid: "65f499f1-ea2e-46aa-9b5c-a9d26a2d3706",
+      listed: true,
+      gamebanana_game: null,
+      github_document: { repository: "owner/other", path: null, ref: null },
+    },
+  ];
+  first.checkpoint.mod_provider_registry = {
+    next_due_at: new Date(now + 3600_000).toISOString(),
+    exception: null,
+    last_complete: {
+      format: 1,
+      source: "https://thunderstore.io/api/experimental/schema/ecosystem-json-data/latest/",
+      schema: "0.3.0",
+      observed_at: new Date(now).toISOString(),
+      expires_at: new Date(now + 3600_000 * 24 * 30).toISOString(),
+      response_sha256: "a".repeat(64),
+      communities_sha256: observationHash(communities),
+      communities,
+    },
+  };
+  const proof = {
+    state: "observed" as const,
+    repository_id: 8,
+    commit: "b".repeat(40),
+    path: "README.md",
+    blob: "c".repeat(40),
+    sha256: "d".repeat(64),
+    community: "other",
+  };
+  let calls = 0;
+  h.options.observeReciprocalMods = async (subject, account) => {
+    calls++;
+    assert.equal(subject.repository_id, 8);
+    assert.equal(subject.community, "other");
+    for (let request = 0; request < 3; request++) {
+      account.admitRequest();
+      account.observeResponse(new Response());
+      account.consumeResponseBytes(20);
+    }
+    return calls === 1 ? proof : { state: "unavailable", reason: "provider-outage" };
+  };
+  h.options.reciprocalModRequestLimit = 2;
+  const deferred = await advanceCatalogObservations(input, first.checkpoint, h.options);
+  assert.deepEqual(deferred.report.reciprocal_mod_sources, {
+    enrolled: 1,
+    attempted: 0,
+    observed: 0,
+    deferred: 1,
+    requests: 0,
+  });
+
+  h.options.reciprocalModRequestLimit = 3;
+  const observed = await advanceCatalogObservations(input, deferred.checkpoint, h.options);
+  assert.equal(observed.report.reciprocal_mod_sources?.requests, 3);
+  const accepted = observed.checkpoint.reciprocal_mod_sources?.["other-port"]?.last_success;
+  assert.deepEqual(accepted?.proof, proof);
+  const replay = await advanceCatalogObservations(input, observed.checkpoint, h.options);
+  assert.equal(replay.report.reciprocal_mod_sources?.attempted, 0);
+
+  h.advanceClock(8 * 24 * 3600_000);
+  const unavailable = await advanceCatalogObservations(input, replay.checkpoint, h.options);
+  assert.equal(
+    unavailable.checkpoint.reciprocal_mod_sources?.["other-port"]?.outcome,
+    "unavailable",
+  );
+  assert.deepEqual(
+    unavailable.checkpoint.reciprocal_mod_sources?.["other-port"]?.last_success,
+    accepted,
+  );
+  assert.equal(calls, 2);
+
+  const snapshot = unavailable.checkpoint.mod_provider_registry!.last_complete!;
+  snapshot.communities[0]!.listed = false;
+  snapshot.communities_sha256 = observationHash(snapshot.communities);
+  const withdrawn = await advanceCatalogObservations(input, unavailable.checkpoint, h.options);
+  assert.equal(withdrawn.report.reciprocal_mod_sources?.enrolled, 0);
+  assert.deepEqual(withdrawn.checkpoint.reciprocal_mod_sources, {});
+  assert.equal(calls, 2);
+});
+
 void test("first-party mod observation shares the opportunity budget and retains last success on outage", async () => {
   const h = harness();
   const input = {

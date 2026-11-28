@@ -240,6 +240,13 @@ export function catalogPositionAdvanced(
 }
 
 interface BatchReport {
+  reciprocal_mod_sources?: {
+    enrolled: number;
+    attempted: number;
+    observed: number;
+    deferred: number;
+    requests: number;
+  };
   launcher_mod_sources?: {
     enrolled: number;
     due: number;
@@ -298,6 +305,7 @@ export async function continueCatalogBatches<
   const failures = new Map<string, BatchReport["failures"][number]>();
   let failureBytes = 0;
   let launcherProgress: BatchReport["launcher_mod_sources"];
+  let reciprocalProgress: BatchReport["reciprocal_mod_sources"];
   let notify = false,
     requests = 0,
     bytes = 0,
@@ -313,6 +321,14 @@ export async function continueCatalogBatches<
     requests += result.report.requests;
     bytes += result.report.response_bytes_charged;
     const launcher = result.report.launcher_mod_sources;
+    const reciprocal = result.report.reciprocal_mod_sources;
+    if (reciprocal)
+      reciprocalProgress = {
+        ...reciprocal,
+        attempted: (reciprocalProgress?.attempted ?? 0) + reciprocal.attempted,
+        observed: (reciprocalProgress?.observed ?? 0) + reciprocal.observed,
+        requests: (reciprocalProgress?.requests ?? 0) + reciprocal.requests,
+      };
     if (launcher)
       launcherProgress = {
         ...launcher,
@@ -340,7 +356,8 @@ export async function continueCatalogBatches<
       throw new ObservationFailure("cancelled", "Observation cancelled after bounded batch");
     const more =
       result.report.pending_source_keys.some((key) => !excluded.has(key)) ||
-      (!!launcher && launcher.requests > 0 && launcher.deferred > 0);
+      (!!launcher && launcher.requests > 0 && launcher.deferred > 0) ||
+      (!!reciprocal && reciprocal.requests > 0 && reciprocal.deferred > 0);
     if (
       !more ||
       !result.made_progress ||
@@ -358,6 +375,7 @@ export async function continueCatalogBatches<
           requests,
           response_bytes_charged: bytes,
           ...(launcherProgress ? { launcher_mod_sources: launcherProgress } : {}),
+          ...(reciprocalProgress ? { reciprocal_mod_sources: reciprocalProgress } : {}),
           attempted_source_keys: [...attempted],
           completed_source_keys: [...completed],
           failures: [...failures.values()],

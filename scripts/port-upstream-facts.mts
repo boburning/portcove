@@ -296,12 +296,25 @@ type ScopeRead = (
   reuseCached?: boolean,
 ) => Promise<Pick<FactResult, "status" | "body" | "reason" | "retry_after">>;
 
+export type ReciprocalThunderstoreObservation =
+  | { state: "held"; reason: string }
+  | { state: "unavailable"; reason: string; retry_after?: string }
+  | {
+      state: "observed";
+      repository_id: number;
+      commit: string;
+      path: string;
+      blob: string;
+      sha256: string;
+      community: string;
+    };
+
 export async function observeReciprocalThunderstoreDocument(
   repository: { slug: string; id: number },
   document: { repository: string; path: string | null; ref: string | null },
   community: string,
   read: ScopeRead,
-) {
+): Promise<ReciprocalThunderstoreObservation> {
   if (
     !Number.isSafeInteger(repository.id) ||
     repository.id <= 0 ||
@@ -321,7 +334,7 @@ export async function observeReciprocalThunderstoreDocument(
     return {
       state: "unavailable",
       reason: project.reason ?? "repository-unobserved",
-      retry_after: project.retry_after,
+      ...(project.retry_after ? { retry_after: project.retry_after } : {}),
     } as const;
   if (
     !isRecord(project.body) ||
@@ -338,7 +351,7 @@ export async function observeReciprocalThunderstoreDocument(
     return {
       state: "unavailable",
       reason: head.reason ?? "default-commit-unobserved",
-      retry_after: head.retry_after,
+      ...(head.retry_after ? { retry_after: head.retry_after } : {}),
     } as const;
   const branchCommit: unknown =
     Array.isArray(head.body) && head.body.length === 1 ? head.body[0] : null;
@@ -352,7 +365,7 @@ export async function observeReciprocalThunderstoreDocument(
     return {
       state: "unavailable",
       reason: file.reason ?? "project-document-unobserved",
-      retry_after: file.retry_after,
+      ...(file.retry_after ? { retry_after: file.retry_after } : {}),
     } as const;
   const path = isRecord(file.body) ? file.body.path : undefined;
   const blob = isRecord(file.body) ? file.body.sha : undefined;

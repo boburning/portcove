@@ -10,7 +10,7 @@ import { observationHash } from "./upstream-observer.mts";
 
 const now = Date.parse("2026-11-28T00:00:00Z");
 
-test("retains only bounded GitHub document pointers from the provider registry", async () => {
+void test("retains only bounded GitHub document pointers from the provider registry", async () => {
   const urls = {
     root: "https://github.com/SomeOwner/Port?tab=readme-ov-file#creating-mods",
     document: "https://github.com/SomeOwner/OtherPort/blob/main/docs/Mods.md",
@@ -73,7 +73,7 @@ test("retains only bounded GitHub document pointers from the provider registry",
   assert.throws(() => validateModProviderRegistryProgress(injected, now), /community/u);
 });
 
-test("binds a reciprocal link to the exact public repository, commit and document", async () => {
+void test("binds a reciprocal link to the exact public repository, commit and document", async () => {
   const repository = { slug: "SomeOwner/SomePort", id: 18 };
   const document = { repository: repository.slug, path: null, ref: null };
   const commit = "a".repeat(40);
