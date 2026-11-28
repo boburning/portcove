@@ -164,18 +164,7 @@ export function GroupedDiscover({
     generation: owner?.generation,
     observationKey: comparisonObservationKey,
   });
-  const origin = useRef<
-    | {
-        collection: HTMLElement | null;
-        groupKey: string;
-        originKey: string | undefined;
-        controlKey: string | undefined;
-        controlIndex: number;
-        generation: number | undefined;
-        queryKey: string;
-      }
-    | undefined
-  >(undefined);
+  const origin = useRef<ComparisonReturnOrigin | undefined>(undefined);
   const dialogRoot = useRef<HTMLDivElement>(null);
   const comparisonId = comparison?.id;
   const intentBinding = useMemo(
@@ -337,36 +326,7 @@ export function GroupedDiscover({
               saved?.queryKey !== queryKey
             )
               return false;
-            const card = saved?.collection?.isConnected
-              ? saved.collection.querySelector<HTMLElement>(
-                  `[data-detail-return-group="${CSS.escape(saved.groupKey)}"]`,
-                )
-              : null;
-            // Base UI resolves finalFocus in layout cleanup before its passive
-            // aria-hidden cleanup. The dialog's temporary outside masking must
-            // not hide this exact return target from the resolver.
-            const controls = card
-              ? [...card.querySelectorAll<HTMLButtonElement>("button")].filter(
-                  (control) =>
-                    !control.matches(":disabled, [aria-disabled=true], [aria-hidden=true]") &&
-                    !control.closest("[hidden], [inert]") &&
-                    control.getClientRects().length > 0 &&
-                    getComputedStyle(control).visibility !== "hidden",
-                )
-              : [];
-            const target =
-              controls.find((control, index) =>
-                saved?.originKey
-                  ? control.dataset.detailOrigin === saved.originKey
-                  : saved?.controlKey
-                    ? control.dataset.collectionControl === saved.controlKey
-                    : index === saved?.controlIndex,
-              ) ??
-              controls[0] ??
-              null;
-            // Responsive regrouping keeps the return card mounted, but it can
-            // move outside the viewport while focus belongs to the dialog.
-            target?.scrollIntoView({ block: "nearest", inline: "nearest" });
+            const target = comparisonReturnTarget(saved);
             if (!target) setComparisonPin(undefined);
             return target;
           }}
@@ -394,147 +354,251 @@ export function GroupedDiscover({
                 {t("discover.compare.optionsIntro")}
               </p>
               <div className="port-comparison-grid">
-                {comparison.ports.map((port) => {
-                  const status = statuses.get(port.id);
-                  const observation = browsePortPresentation(port, status, "catalog");
-                  const descriptionId = `${descriptionPrefix}:comparison:${encodeURIComponent(port.id)}`;
-                  const describedBy =
-                    observation.input || observation.setup ? descriptionId : undefined;
-                  const dropEligible = sourceDropEligible(port, status, nativeSourceDrag);
-                  const canCheckDroppedFiles = Boolean(
-                    dropComparison &&
-                    pendingGameDrop &&
-                    onGameDropSelect &&
-                    sourceDropEligible(port, status, {
-                      active: true,
-                      pathCount: pendingGameDrop.paths.length,
-                    }),
-                  );
-                  // With one port there is nothing to compare an absence against; rows
-                  // without a value are omitted. Several ports keep every row aligned.
-                  const single = comparison.ports.length === 1;
-                  return (
-                    <article
-                      key={port.id}
-                      className="port-comparison-project min-w-0 wrap-anywhere"
-                      aria-label={t("discover.cardLabel", {
-                        game: gameIdentityLabel(port),
-                        state: observation.state.label,
-                      })}
-                      aria-describedby={describedBy}
-                      data-source-drop-port-id={dropEligible ? port.id : undefined}
-                      data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
-                    >
-                      <header>
-                        <h3>{gameProjectLabel(port) || port.name}</h3>
-                        <p>{port.summary}</p>
-                        <IdentityChips port={port} includeUnknown />
-                        {!single && !port.platforms.length && (
-                          <p>{t("discover.compare.noPlatform")}</p>
-                        )}
-                        {!single && !port.channels?.length && (
-                          <p>{t("discover.compare.noChannel")}</p>
-                        )}
-                        {!matching.some((candidate) => candidate.id === port.id) && (
-                          <p className="text-sm text-pc-muted-foreground">
-                            {t("discover.compare.outsideFilters")}
-                          </p>
-                        )}
-                      </header>
-                      <ComparisonPortFacts
-                        port={port}
-                        status={status}
-                        single={single}
-                        platform={
-                          evidence.context.platform || devicePlatform || evidence.report?.platform
-                        }
-                        explicitOtherPlatform={Boolean(
-                          evidence.context.platform && evidence.context.platform !== devicePlatform,
-                        )}
-                      />
-                      <div className="grid min-w-0 content-start gap-2">
-                        <ImplementationFacts port={port} />
-                        <GameComparisonEvidence
-                          comparison={evidence}
-                          portId={port.id}
-                          organization={organization}
-                        />
-                      </div>
-                      <div>
-                        <h4>{t("discover.compare.status")}</h4>
-                        <BrowsePortObservationsContent
-                          t={t}
-                          port={port}
-                          status={status}
-                          observation={observation}
-                          descriptionId={descriptionId}
-                          noticeChoice={organization?.snapshot?.update_notices[port.id]}
-                        />
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap gap-3">
-                        {canCheckDroppedFiles && pendingGameDrop && (
-                          <Button
-                            data-focusable
-                            variant="outline"
-                            onClick={() => reviewDroppedFiles(port, pendingGameDrop.paths)}
-                          >
-                            <Trans
-                              t={t}
-                              i18nKey="discover.drop.checkWith"
-                              components={{
-                                name: <bdi>{gameProjectLabel(port) || port.name}</bdi>,
-                              }}
-                            />
-                          </Button>
-                        )}
-                        {comparison.ports.length > 1 && (
-                          <ImplementationChoice
-                            port={port}
-                            organization={organization}
-                            onSelected={(trigger) => {
-                              if (
-                                comparisonIntent.current === currentIntent &&
-                                currentIntent.active &&
-                                ownsChoiceFocus(trigger, dialogRoot.current)
-                              ) {
-                                if (canCheckDroppedFiles && pendingGameDrop)
-                                  reviewDroppedFiles(port, pendingGameDrop.paths);
-                                else open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`);
-                              }
-                            }}
-                          />
-                        )}
-                        <Button
-                          data-focusable
-                          variant="outline"
-                          onClick={() =>
-                            open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`)
-                          }
-                          data-discover-port-id={port.id}
-                          aria-label={t("discover.memberLabel", {
-                            action: memberLabel(t, port, status),
-                            game: gameIdentityLabel(port),
-                          })}
-                          aria-describedby={describedBy}
-                        >
-                          {memberLabel(t, port, statuses.get(port.id))}
-                        </Button>
-                        {port.project_url && (
-                          <ExternalLink href={port.project_url}>
-                            {t("discover.compare.instructions")}
-                          </ExternalLink>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
+                {comparison.ports.map((port) => (
+                  <ComparisonProject
+                    key={port.id}
+                    port={port}
+                    status={statuses.get(port.id)}
+                    single={comparison.ports.length === 1}
+                    matchesFilters={matching.some((candidate) => candidate.id === port.id)}
+                    platform={
+                      evidence.context.platform || devicePlatform || evidence.report?.platform
+                    }
+                    explicitOtherPlatform={Boolean(
+                      evidence.context.platform && evidence.context.platform !== devicePlatform,
+                    )}
+                    evidence={evidence}
+                    organization={organization}
+                    descriptionPrefix={descriptionPrefix}
+                    nativeSourceDrag={nativeSourceDrag}
+                    droppedFiles={
+                      dropComparison && onGameDropSelect ? pendingGameDrop?.paths : undefined
+                    }
+                    reviewDroppedFiles={reviewDroppedFiles}
+                    open={() => open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`)}
+                    choiceKeepsFocus={(trigger) =>
+                      comparisonIntent.current === currentIntent &&
+                      currentIntent.active &&
+                      ownsChoiceFocus(trigger, dialogRoot.current)
+                    }
+                  />
+                ))}
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+type ComparisonReturnOrigin = {
+  collection: HTMLElement | null;
+  groupKey: string;
+  originKey: string | undefined;
+  controlKey: string | undefined;
+  controlIndex: number;
+  generation: number | undefined;
+  queryKey: string;
+};
+
+function comparisonReturnTarget(saved: ComparisonReturnOrigin | undefined) {
+  const card = saved?.collection?.isConnected
+    ? saved.collection.querySelector<HTMLElement>(
+        `[data-detail-return-group="${CSS.escape(saved.groupKey)}"]`,
+      )
+    : null;
+  // Base UI resolves finalFocus in layout cleanup before its passive
+  // aria-hidden cleanup. The dialog's temporary outside masking must
+  // not hide this exact return target from the resolver.
+  const controls = card
+    ? [...card.querySelectorAll<HTMLButtonElement>("button")].filter(
+        (control) =>
+          !control.matches(":disabled, [aria-disabled=true], [aria-hidden=true]") &&
+          !control.closest("[hidden], [inert]") &&
+          control.getClientRects().length > 0 &&
+          getComputedStyle(control).visibility !== "hidden",
+      )
+    : [];
+  const target =
+    controls.find((control, index) =>
+      saved?.originKey
+        ? control.dataset.detailOrigin === saved.originKey
+        : saved?.controlKey
+          ? control.dataset.collectionControl === saved.controlKey
+          : index === saved?.controlIndex,
+    ) ??
+    controls[0] ??
+    null;
+  // Responsive regrouping keeps the return card mounted, but it can
+  // move outside the viewport while focus belongs to the dialog.
+  target?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  return target;
+}
+
+type ComparisonProjectActionsProps = {
+  port: CatalogEntry;
+  status: PortStatus | undefined;
+  single: boolean;
+  organization: Organization | undefined;
+  describedBy: string | undefined;
+  droppedFiles: readonly string[] | undefined;
+  reviewDroppedFiles: (port: CatalogEntry, paths: readonly string[]) => void;
+  open: () => void;
+  choiceKeepsFocus: (trigger: HTMLButtonElement) => boolean;
+};
+
+function ComparisonProject({
+  port,
+  status,
+  single,
+  organization,
+  droppedFiles,
+  reviewDroppedFiles,
+  open,
+  choiceKeepsFocus,
+  matchesFilters,
+  platform,
+  explicitOtherPlatform,
+  evidence,
+  descriptionPrefix,
+  nativeSourceDrag,
+}: Omit<ComparisonProjectActionsProps, "describedBy"> & {
+  matchesFilters: boolean;
+  platform: ComparisonPortFactsProps["platform"];
+  explicitOtherPlatform: boolean;
+  evidence: ReturnType<typeof useGameComparison>;
+  descriptionPrefix: string;
+  nativeSourceDrag: NativeSourceDragState;
+}) {
+  const { t } = useAppTranslation("browsing");
+  const observation = browsePortPresentation(port, status, "catalog");
+  const descriptionId = `${descriptionPrefix}:comparison:${encodeURIComponent(port.id)}`;
+  const describedBy = observation.input || observation.setup ? descriptionId : undefined;
+  const dropEligible = sourceDropEligible(port, status, nativeSourceDrag);
+  const checkedDrop =
+    droppedFiles &&
+    sourceDropEligible(port, status, { active: true, pathCount: droppedFiles.length })
+      ? droppedFiles
+      : undefined;
+  return (
+    <article
+      className="port-comparison-project min-w-0 wrap-anywhere"
+      aria-label={t("discover.cardLabel", {
+        game: gameIdentityLabel(port),
+        state: observation.state.label,
+      })}
+      aria-describedby={describedBy}
+      data-source-drop-port-id={dropEligible ? port.id : undefined}
+      data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
+    >
+      <header>
+        <h3>{gameProjectLabel(port) || port.name}</h3>
+        <p>{port.summary}</p>
+        <IdentityChips port={port} includeUnknown />
+        {!single && !port.platforms.length && <p>{t("discover.compare.noPlatform")}</p>}
+        {!single && !port.channels?.length && <p>{t("discover.compare.noChannel")}</p>}
+        {!matchesFilters && (
+          <p className="text-sm text-pc-muted-foreground">{t("discover.compare.outsideFilters")}</p>
+        )}
+      </header>
+      <ComparisonPortFacts
+        port={port}
+        status={status}
+        single={single}
+        platform={platform}
+        explicitOtherPlatform={explicitOtherPlatform}
+      />
+      <div className="grid min-w-0 content-start gap-2">
+        <ImplementationFacts port={port} />
+        <GameComparisonEvidence
+          comparison={evidence}
+          portId={port.id}
+          organization={organization}
+        />
+      </div>
+      <div>
+        <h4>{t("discover.compare.status")}</h4>
+        <BrowsePortObservationsContent
+          t={t}
+          port={port}
+          status={status}
+          observation={observation}
+          descriptionId={descriptionId}
+          noticeChoice={organization?.snapshot?.update_notices[port.id]}
+        />
+      </div>
+
+      <ComparisonProjectActions
+        port={port}
+        status={status}
+        single={single}
+        organization={organization}
+        describedBy={describedBy}
+        droppedFiles={checkedDrop}
+        reviewDroppedFiles={reviewDroppedFiles}
+        open={open}
+        choiceKeepsFocus={choiceKeepsFocus}
+      />
+    </article>
+  );
+}
+
+function ComparisonProjectActions({
+  port,
+  status,
+  single,
+  organization,
+  describedBy,
+  droppedFiles,
+  reviewDroppedFiles,
+  open,
+  choiceKeepsFocus,
+}: ComparisonProjectActionsProps) {
+  const { t } = useAppTranslation("browsing");
+  return (
+    <div className="mt-3 flex flex-wrap gap-3">
+      {droppedFiles && (
+        <Button
+          data-focusable
+          variant="outline"
+          onClick={() => reviewDroppedFiles(port, droppedFiles)}
+        >
+          <Trans
+            t={t}
+            i18nKey="discover.drop.checkWith"
+            components={{ name: <bdi>{gameProjectLabel(port) || port.name}</bdi> }}
+          />
+        </Button>
+      )}
+      {!single && (
+        <ImplementationChoice
+          port={port}
+          organization={organization}
+          onSelected={(trigger) => {
+            if (!choiceKeepsFocus(trigger)) return;
+            if (droppedFiles) reviewDroppedFiles(port, droppedFiles);
+            else open();
+          }}
+        />
+      )}
+      <Button
+        data-focusable
+        variant="outline"
+        onClick={open}
+        data-discover-port-id={port.id}
+        aria-label={t("discover.memberLabel", {
+          action: memberLabel(t, port, status),
+          game: gameIdentityLabel(port),
+        })}
+        aria-describedby={describedBy}
+      >
+        {memberLabel(t, port, status)}
+      </Button>
+      {port.project_url && (
+        <ExternalLink href={port.project_url}>{t("discover.compare.instructions")}</ExternalLink>
+      )}
+    </div>
   );
 }
 
