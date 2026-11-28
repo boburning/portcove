@@ -546,10 +546,15 @@ export async function boundedJson(
 }
 
 export async function atomicJson(filename: string, value: unknown) {
+  const contents = JSON.stringify(value);
+  if (contents === undefined) throw new Error("observer checkpoint exceeds its byte budget");
+  await atomicJsonText(filename, contents);
+}
+
+export async function atomicJsonText(filename: string, contents: string) {
   await assertOwnedUnlinkedPath(repositoryRoot, filename, "observer output");
   const temporary = `${filename}.${randomUUID()}.next`;
-  const contents = JSON.stringify(value);
-  if (contents === undefined || Buffer.byteLength(contents) > checkpointLimit)
+  if (Buffer.byteLength(contents) > checkpointLimit)
     throw new Error("observer checkpoint exceeds its byte budget");
   await mkdir(path.dirname(filename), { recursive: true });
   try {

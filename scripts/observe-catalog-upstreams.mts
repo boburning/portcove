@@ -26,6 +26,7 @@ import { isRecord } from "./runtime-values.mts";
 import { advanceCatalogObservations } from "./catalog-upstream-observer.mts";
 import {
   atomicJson,
+  atomicJsonText,
   boundedJson,
   projectObservation,
   projectProviderObservation,
@@ -369,6 +370,7 @@ export async function runCatalogUpstreams(
     await assertCoreEntry();
     const prior = await boundedJson(statePath, 32 * 1024 * 1024, true);
     const beforePosition = catalogProgressPosition(prior);
+    let controllerCheckpointWrites = 0;
     const result = await advanceCatalogObservations(catalog, prior, {
       config,
       now,
@@ -415,7 +417,10 @@ export async function runCatalogUpstreams(
           acceptedProgress = true;
         sourcePositions.set(key, acceptedObservationPosition(checkpoint));
       },
-      commit: (checkpoint) => atomicJson(statePath, checkpoint),
+      commit: async (contents) => {
+        await atomicJsonText(statePath, contents);
+        controllerCheckpointWrites++;
+      },
       repositoryId: async (source, transport) => {
         const equivalent = observedHealthRepositoryIdentity(health, source.repository);
         if (equivalent !== null) return equivalent;
@@ -773,6 +778,7 @@ export async function runCatalogUpstreams(
       summary,
       handoff_directory: handoffDirectory,
       handoff_exhausted: handoffExhausted,
+      controller_checkpoint_writes: controllerCheckpointWrites,
       made_progress:
         acceptedProgress ||
         (result.report.launcher_mod_sources?.attempted ?? 0) > 0 ||
@@ -937,6 +943,7 @@ export async function runCatalogOpportunity(
               response_bytes: batch.report.response_bytes_charged,
               completed: batch.report.completed_source_keys.length,
               pending: batch.report.pending_source_keys.length,
+              controller_checkpoint_writes: batch.controller_checkpoint_writes,
               made_progress: batch.made_progress,
               handoff_exhausted: batch.handoff_exhausted,
             }),
