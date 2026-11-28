@@ -400,29 +400,20 @@ it.for([
   expect(review).not.toHaveBeenCalled();
 });
 
-it("explains an occupied restore destination and keeps the verified bundle for a fresh review", async () => {
+it.each(["review", "details"])("handles an occupied restore folder (%s)", async (focus) => {
   await page.viewport(320, 500);
   const occupied = "D:/occupied";
   const message = "import requires a new or empty library; existing data was retained";
   const summary =
     "This folder already contains other files, so Portcove didn’t change anything. Choose a new or empty folder to restore the library.";
   const inspect = vi.spyOn(desktopApi, "inspectLibraryRecoveryBundle").mockResolvedValue(bundle);
+  let refuse!: (reason: unknown) => void;
+  const pending = new Promise<never>((_resolve, reject) => {
+    refuse = reject;
+  });
   const review = vi
     .spyOn(desktopApi, "planLibraryRecoveryRestore")
-    .mockRejectedValueOnce({
-      code: "conflict",
-      details: { import_destination_state: "occupied" },
-      presentation: {
-        presentation_key: "conflict",
-        summary:
-          "The selection changed or another operation is using it. Review its current state.",
-        tone: "error",
-        mutation_state: "unknown",
-        technical_message: message,
-        technical_context: {},
-        recovery_actions: [],
-      },
-    })
+    .mockReturnValueOnce(pending)
     .mockResolvedValue({
       bundle,
       destination_root: restoreDestination,
@@ -430,6 +421,19 @@ it("explains an occupied restore destination and keeps the verified bundle for a
       available_bytes: plan.available_bytes,
       plan_sha256: "3".repeat(64),
     });
+  const refusal = {
+    code: "conflict",
+    details: { import_destination_state: "occupied" },
+    presentation: {
+      presentation_key: "conflict",
+      summary: "The selection changed or another operation is using it. Review its current state.",
+      tone: "error",
+      mutation_state: "unknown",
+      technical_message: message,
+      technical_context: {},
+      recovery_actions: [],
+    },
+  };
   const restore = vi.spyOn(desktopApi, "restoreLibraryRecoveryBundle");
   await render(
     <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />,
@@ -442,7 +446,14 @@ it("explains an occupied restore destination and keeps the verified bundle for a
   const check = dialog.getByRole("button", { name: "Review restore" });
   await field.fill(occupied);
   await check.click();
-  await expect.element(field).toHaveFocus();
+  await expect.element(dialog.getByText("Checking the restore destination…")).toBeVisible();
+  const detailRegion = dialog.getByRole("region", { name: "Recovery details" });
+  if (focus === "details") (detailRegion.element() as HTMLElement).focus();
+  await controlledAct(async () => {
+    refuse(refusal);
+    await pending.catch(() => {});
+  });
+  await expect.element(focus === "details" ? detailRegion : field).toHaveFocus();
   await expect.element(field).toHaveValue(occupied);
   await expect.element(field).toHaveAttribute("aria-invalid", "true");
   await expect.element(field).toHaveAccessibleDescription(summary);
@@ -467,10 +478,12 @@ it("explains an occupied restore destination and keeps the verified bundle for a
   const headingBounds = heading.element().getBoundingClientRect();
   expect(headingBounds.top).toBeGreaterThanOrEqual(details.getBoundingClientRect().top);
   expect(headingBounds.bottom).toBeLessThanOrEqual(details.getBoundingClientRect().bottom);
-  await page.screenshot({
-    path: "../../../../outputs/recovery-review/restore-320x500.png",
-    element: dialog,
-  });
+  if (focus === "review") {
+    await page.screenshot({
+      path: "../../../../outputs/recovery-review/restore-320x500.png",
+      element: dialog,
+    });
+  }
   expect(review.mock.calls).toEqual([
     [destination, occupied, 7],
     [destination, restoreDestination, 7],

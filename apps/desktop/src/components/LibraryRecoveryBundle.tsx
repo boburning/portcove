@@ -245,8 +245,11 @@ function RecoveryBundleDialog({
     failure?.action === "planRestore" &&
     errorDetail(error, "import_destination_state") === "occupied";
   useEffect(() => {
-    if (destinationOccupied && !pending) restoreDestinationField.current?.focus();
-  }, [destinationOccupied, pending]);
+    const field = restoreDestinationField.current;
+    if (!visible || !destinationOccupied || pending || !field) return;
+    const { activeElement, body } = field.ownerDocument;
+    if (activeElement === reviewAction.current || activeElement === body) field.focus();
+  }, [destinationOccupied, pending, visible]);
   const reviewedPlan = creation ?? restore;
   useEffect(() => {
     const heading = reviewHeading.current;
