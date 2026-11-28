@@ -4280,6 +4280,16 @@ void test(
     );
     assert.match(renderHtml(report1), /Holds and deferrals/u);
 
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("manual") }));
+    await run();
+    const changed = buildReport(store.owner).reconsiderations?.find(
+      ({ kind, status }) => kind === "intentional_deferral" && status === "pending",
+    );
+    assert.deepEqual(
+      changed?.technical_changes?.map(({ subject_key }) => subject_key),
+      ["port:2ship2harkinian@linux-x86-64"],
+    );
+
     // A failed owner read resolves nothing.
     issuesFail = true;
     status = "Ready";

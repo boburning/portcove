@@ -3749,6 +3749,8 @@ export function buildReport(
     subjects: {
       subject_key: string;
       port_key: string;
+      state?: string;
+      changed_at?: string;
       in_latest_core_run?: boolean;
       latest_core_gap?: { code: string; message: string } | null;
     }[];
@@ -3756,6 +3758,7 @@ export function buildReport(
       port_key: string;
       removed?: boolean | null;
       identity?: { target_key?: string | null };
+      work?: { number?: number }[];
     }[];
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
     publication: { definition: string; facts: unknown }[];
@@ -3935,10 +3938,7 @@ export function buildReport(
     reconsiderations: (() => {
       const issues = new Map(Object.entries(data.universe_inputs.issues));
       const complete = latestRun("issues-project")?.coverage === "complete";
-      return deferralChanges(
-        data.reconsiderations,
-        data.subjects as Parameters<typeof deferralChanges>[1],
-      ).map((entry) => {
+      return deferralChanges(data.reconsiderations, subjects).map((entry) => {
         if (entry.status !== "pending") return entry;
         const wake = dependencyWake(
           entry.condition,
