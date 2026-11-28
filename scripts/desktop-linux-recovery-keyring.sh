@@ -12,7 +12,7 @@ mkdir "$root/home" "$root/runtime" "$root/data" "$root/config" "$root/cache"
 export XDG_RUNTIME_DIR="$root/runtime"
 export GNOME_KEYRING_CONTROL="$root/runtime"
 
-password=$(/usr/bin/python3 -I -S -c 'from secrets import token_urlsafe; print(token_urlsafe(32))')
+password=$("$1" -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
 HOME="$root/home" XDG_DATA_HOME="$root/data" XDG_CONFIG_HOME="$root/config" XDG_CACHE_HOME="$root/cache" \
   /usr/bin/gnome-keyring-daemon --foreground --unlock --components=secrets \
   <<<"$password" >/dev/null 2>&1 &

@@ -351,11 +351,9 @@ jobs:
           node scripts/run-rust-tests.mts --guard-command \
             cargo build --locked -p portcove-desktop --features tauri/custom-protocol
           node scripts/run-rust-tests.mts --guard-command cargo build --locked -p portcove-cli
-          if [ "$PORTCOVE_LINUX_NATIVE_OPERATION" = linux-preparation-continuity ]; then
-            rustc --edition=2024 --crate-name portcove_host_tool_fixture \
-              crates/portcove-core/src/testdata/host_tool_probe.rs.txt \
-              -o "$RUNNER_TEMP/slice3-native-owned-probe"
-          fi
+          rustc --edition=2024 --crate-name portcove_host_tool_fixture \
+            crates/portcove-core/src/testdata/host_tool_probe.rs.txt \
+            -o "$RUNNER_TEMP/slice3-native-owned-probe"
       - name: Prepare exact private-X11 selections
         run: |
           node --input-type=module <<'NODE'
@@ -381,9 +379,7 @@ jobs:
                 '--driver', fs.realpathSync(path.join(process.env.RUNNER_TEMP, 'slice3-native-driver/bin/tauri-driver')),
                 '--native-driver', fs.realpathSync('/usr/bin/WebKitWebDriver'),
                 '--preparation-cli', fs.realpathSync(path.join(process.env.CARGO_TARGET_DIR, 'debug/portcove')),
-                ...(recovery ? [] : [
-                  '--preparation-tool', fs.realpathSync(path.join(process.env.RUNNER_TEMP, 'slice3-native-owned-probe')),
-                ]),
+                '--preparation-tool', fs.realpathSync(path.join(process.env.RUNNER_TEMP, 'slice3-native-owned-probe')),
                 '--output', path.join(output, name), '--scenario', scenario,
               ],
             };

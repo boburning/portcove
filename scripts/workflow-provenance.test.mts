@@ -41,6 +41,7 @@ import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   chmodSync,
+  existsSync,
   realpathSync,
   mkdtempSync,
   mkdirSync,
@@ -2042,6 +2043,7 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
   const environmentProgram = extract(
     "Retain the exact ordinary hosted environment before preparation",
   );
+  const selectionProgram = extract("Prepare exact private-X11 selections");
   const collector = extract("Retain bounded Linux reports and images in ordinary job logs");
   assert.ok(!JSON.stringify(job).includes("actions/upload-artifact"));
   const temporary = mkdtempSync(path.join(tmpdir(), "portcove-linux-evidence-"));
@@ -2092,6 +2094,50 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
   assert.equal(
     record(JSON.parse(readFileSync(path.join(root, "host.json"), "utf8"))).retained_evidence,
     retained,
+  );
+  const selection = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      "import fs from 'node:fs';\nfs.realpathSync = (file) => file;\n" +
+        "await import('data:text/javascript,' + encodeURIComponent(" +
+        JSON.stringify(selectionProgram) +
+        "));",
+    ],
+    {
+      cwd: checkout,
+      env: {
+        ...environment,
+        CARGO_TARGET_DIR: path.join(checkout, "mock-target"),
+        PORTCOVE_LINUX_NATIVE_OPERATION: "linux-library-recovery",
+      },
+      encoding: "utf8",
+      timeout: 15_000,
+    },
+  );
+  assert.equal(selection.status, 0, selection.stderr);
+  assert.ok(!existsSync(path.join(root, "cancellation-config.json")));
+  assert.ok(!existsSync(path.join(root, "interruption-config.json")));
+  const recoveryConfig = record(
+    JSON.parse(readFileSync(path.join(root, "recovery-config.json"), "utf8")),
+  );
+  assert.ok(Array.isArray(recoveryConfig.harness_args));
+  const recoveryArgs = recoveryConfig.harness_args.map(text);
+  assert.deepEqual(recoveryArgs.slice(-6), [
+    "--preparation-tool",
+    path.join(runnerTemporary, "slice3-native-owned-probe"),
+    "--output",
+    path.join(root, "recovery"),
+    "--scenario",
+    "native-library-recovery-bundle",
+  ]);
+  const { parseDesktopHarnessOptions, resolveDesktopHarnessSelection } =
+    await import("./desktop-execution-plan.mts");
+  assert.deepEqual(
+    resolveDesktopHarnessSelection(parseDesktopHarnessOptions(recoveryArgs).values)
+      .selected_scenarios,
+    ["native-library-recovery-bundle"],
   );
   const fixture: Record<string, string> = {
     "driver-help.txt": "exact driver inventory\n",
@@ -2144,6 +2190,7 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
       "private-x11-abc123/outer-join.json",
       "private-x11-abc123/preflight.json",
       "private-x11-abc123/recovery-keyring-readiness.json",
+      "recovery-config.json",
       "recovery/report.json",
     ],
   );

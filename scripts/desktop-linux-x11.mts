@@ -158,13 +158,7 @@ function recoveryKeyringInputs(config: X11Configuration): string[] {
       parseDesktopHarnessOptions(config.harness_args).values,
     ).selected_scenarios.includes("native-library-recovery-bundle")
   ) {
-    return [
-      "/usr/bin/bash",
-      recoveryKeyring,
-      "/usr/bin/gnome-keyring-daemon",
-      "/usr/bin/gdbus",
-      "/usr/bin/python3",
-    ];
+    return ["/usr/bin/bash", recoveryKeyring, "/usr/bin/gnome-keyring-daemon", "/usr/bin/gdbus"];
   }
   return [];
 }
