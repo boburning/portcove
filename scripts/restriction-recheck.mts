@@ -13,6 +13,7 @@ import {
   type ListingObservedRelease,
 } from "./listing-observation-reader.mts";
 import { isRecord } from "./runtime-values.mts";
+import { orderedJsonSha256 } from "./json-values.mts";
 
 /**
  * Read-only recheck of authored `reconsider_when` conditions. Core never
@@ -461,6 +462,211 @@ export function restrictionRecheckReport(inputs: RecheckInputs): RecheckReport {
     flagged: rows.filter((row) => row.flag !== "not-satisfied"),
     rows,
   };
+}
+
+type ReleaseObservation = Record<string, unknown>;
+const sha256 = /^[0-9a-f]{64}$/u;
+const observationOf = (listing: unknown): ReleaseObservation | undefined =>
+  isRecord(listing) && isRecord(listing.upstream_observation)
+    ? listing.upstream_observation
+    : undefined;
+
+function repoIdentity(observation: ReleaseObservation) {
+  const provider = observation.provider ?? "github";
+  const id = observation.repository_id;
+  return (provider === "github" || provider === "gitlab") &&
+    typeof id === "number" &&
+    Number.isSafeInteger(id) &&
+    id > 0
+    ? `${provider}:${id}`
+    : null;
+}
+
+function managedRouteMatches(route: unknown, observation: ReleaseObservation) {
+  if (!isRecord(route) || !isRecord(route.release)) return false;
+  const provider = route.release.provider ?? "github";
+  if ((observation.provider ?? "github") !== provider) return false;
+  return (
+    typeof route.release.repository === "string" &&
+    typeof observation.repository === "string" &&
+    route.release.repository.toLowerCase() === observation.repository.toLowerCase()
+  );
+}
+
+function packageWindow(observation: ReleaseObservation) {
+  if (!Array.isArray(observation.releases)) return null;
+  const releases = new Map<string, string>();
+  for (const release of observation.releases) {
+    if (
+      !isRecord(release) ||
+      typeof release.version !== "string" ||
+      releases.has(release.version) ||
+      release.assets_complete !== true ||
+      !Array.isArray(release.assets)
+    )
+      return null;
+    const gitlab = observation.provider === "gitlab";
+    if (
+      gitlab
+        ? !isRecord(release.id) ||
+          release.id.provider !== "gitlab" ||
+          release.id.project_id !== observation.repository_id ||
+          release.id.tag !== release.version
+        : typeof release.id !== "number" || !Number.isSafeInteger(release.id) || release.id < 1
+    )
+      return null;
+    const assets = new Map<number, unknown[]>();
+    for (const asset of release.assets) {
+      if (
+        !isRecord(asset) ||
+        typeof asset.id !== "number" ||
+        !Number.isSafeInteger(asset.id) ||
+        asset.id < 1 ||
+        assets.has(asset.id) ||
+        typeof asset.name !== "string" ||
+        !Number.isSafeInteger(asset.size) ||
+        (gitlab && typeof asset.url !== "string") ||
+        (asset.sha256 != null && (typeof asset.sha256 !== "string" || !sha256.test(asset.sha256)))
+      )
+        return null;
+      assets.set(asset.id, [
+        asset.name,
+        asset.size,
+        asset.sha256 ?? null,
+        ...(gitlab ? [asset.url] : []),
+      ]);
+    }
+    releases.set(
+      release.version,
+      orderedJsonSha256({
+        id: release.id,
+        assets: [...assets].sort(([a], [b]) => a - b),
+      }),
+    );
+  }
+  return releases;
+}
+
+/** Read-only prompts for maintainers of holds in the current reviewed catalog. */
+export function heldPackageWindowReview(input: {
+  canonicalListings: readonly unknown[];
+  canonicalPorts: readonly unknown[];
+  previous: readonly unknown[];
+  proposed: readonly unknown[];
+  now: number;
+}) {
+  const holds = (value: unknown) =>
+    Array.isArray(value) && value.some((row) => isRecord(row) && row.effect === "hold");
+  const listingHolds = new Set<string>();
+  const managedHolds = new Map<string, Record<string, unknown>>();
+  for (const row of input.canonicalListings) {
+    if (
+      isRecord(row) &&
+      typeof row.id === "string" &&
+      (typeof row.download_block_reason === "string" || holds(row.restrictions))
+    )
+      listingHolds.add(row.id);
+  }
+  for (const row of input.canonicalPorts) {
+    if (
+      isRecord(row) &&
+      typeof row.id === "string" &&
+      (isRecord(row.managed_acquisition_hold) || holds(row.acquisition_restrictions))
+    )
+      managedHolds.set(row.id, row);
+  }
+  const held = new Set([...listingHolds, ...managedHolds.keys()]);
+  const byId = (rows: readonly unknown[]) =>
+    new Map(
+      rows.flatMap((row) =>
+        isRecord(row) && typeof row.id === "string" && held.has(row.id)
+          ? [[row.id, observationOf(row)]]
+          : [],
+      ),
+    );
+  const before = byId(input.previous);
+  const after = byId(input.proposed);
+  const counts = {
+    no_complete_baseline: 0,
+    no_complete_proposal: 0,
+    unbound_or_changed_identity: 0,
+    outside_held_route: 0,
+    not_newer_or_stale: 0,
+    incomplete_release_assets: 0,
+    unchanged: 0,
+    review_due: 0,
+  };
+  const changes = [];
+  const epoch = (value: unknown) => (typeof value === "string" ? Date.parse(value) : NaN);
+  const complete = (
+    observation: ReleaseObservation | undefined,
+  ): observation is ReleaseObservation =>
+    !!observation &&
+    (observation.status ?? "complete") === "complete" &&
+    typeof observation.facts_sha256 === "string" &&
+    sha256.test(observation.facts_sha256);
+  for (const port of [...held].sort()) {
+    const prior = before.get(port);
+    const proposed = after.get(port);
+    if (!complete(prior)) {
+      counts.no_complete_baseline++;
+      continue;
+    }
+    if (!complete(proposed)) {
+      counts.no_complete_proposal++;
+      continue;
+    }
+    const id = repoIdentity(prior);
+    if (!id || id !== repoIdentity(proposed)) {
+      counts.unbound_or_changed_identity++;
+      continue;
+    }
+    const carriers = [
+      ...(listingHolds.has(port) ? ["listing"] : []),
+      ...(managedRouteMatches(managedHolds.get(port), proposed) ? ["managed"] : []),
+    ];
+    if (!carriers.length) {
+      counts.outside_held_route++;
+      continue;
+    }
+    const observed = epoch(proposed.observed_at);
+    if (
+      !(
+        observed > epoch(prior.observed_at) &&
+        observed <= input.now &&
+        epoch(proposed.fresh_until) > input.now
+      )
+    ) {
+      counts.not_newer_or_stale++;
+      continue;
+    }
+    const old = packageWindow(prior);
+    const next = packageWindow(proposed);
+    if (!old || !next) {
+      counts.incomplete_release_assets++;
+      continue;
+    }
+    const newReleases = [...next.keys()].filter((version) => !old.has(version)).sort();
+    const removedReleases = [...old.keys()].filter((version) => !next.has(version)).sort();
+    const changedReleases = [...next.keys()]
+      .filter((version) => old.has(version) && old.get(version) !== next.get(version))
+      .sort();
+    if (!(newReleases.length || removedReleases.length || changedReleases.length)) {
+      counts.unchanged++;
+      continue;
+    }
+    counts.review_due++;
+    changes.push({
+      port_id: port,
+      carriers,
+      source: id,
+      facts_sha256: proposed.facts_sha256,
+      new_releases: newReleases,
+      out_of_window: removedReleases,
+      changed_releases: changedReleases,
+    });
+  }
+  return { subjects: held.size, counts, changes };
 }
 
 const flaggedGroups = [

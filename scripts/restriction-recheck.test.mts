@@ -6,6 +6,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { readCatalogSource, type AuthoredPort } from "./catalog-authoring.mts";
 import {
+  heldPackageWindowReview,
   main,
   manualConditions,
   renderRestrictionRecheck,
@@ -66,6 +67,137 @@ const conditionsOf = (inputs: RecheckInputs, id = "a") =>
       .rows.filter((row) => row.port_id === id)
       .flatMap((row) => row.conditions.map((entry) => [entry.condition, entry.status])),
   );
+
+void test("publication review detects same-tag replacements and release arrivals on held ports", () => {
+  const now = Date.parse("2026-11-28T00:00:00Z");
+  const release = (version: string, id: number, digest: string) => ({
+    version,
+    id,
+    assets_complete: true,
+    assets: [{ id: id + 10, name: "game.zip", size: 12, sha256: sha(digest) }],
+  });
+  const row = (id: string, releases = [release("v1", 1, "a")], fields = {}) => ({
+    id,
+    upstream_observation: {
+      provider: "github",
+      repository: "upstream/game",
+      repository_id: 42,
+      status: "complete",
+      facts_sha256: sha("b"),
+      releases,
+      observed_at: "2026-11-26T00:00:00Z",
+      fresh_until: "2026-11-29T00:00:00Z",
+      ...fields,
+    },
+  });
+  const newer = (id: string, releases?: ReturnType<typeof release>[], fields = {}) =>
+    row(id, releases, { observed_at: "2026-11-27T00:00:00Z", ...fields });
+  const ids = [
+    "changed",
+    "identical",
+    "unbound",
+    "partial",
+    "stale",
+    "first",
+    "unobserved",
+    "wrong-source",
+    "free",
+  ];
+  const result = heldPackageWindowReview({
+    canonicalListings: ids
+      .filter((id) => !["changed", "free", "wrong-source"].includes(id))
+      .map((id) => ({ id, restrictions: [hold("download")] })),
+    canonicalPorts: [
+      {
+        id: "changed",
+        managed_acquisition_hold: { reason: "review" },
+        release: { repository: "upstream/renamed-game" },
+      },
+      {
+        id: "wrong-source",
+        managed_acquisition_hold: { reason: "review" },
+        release: { repository: "other/canonical-game" },
+      },
+    ],
+    previous: ids.filter((id) => id !== "first").map((id) => row(id)),
+    proposed: [
+      newer("changed", [release("v1", 1, "c"), release("v2", 2, "d")], {
+        repository: "upstream/renamed-game",
+      }),
+      newer("identical", undefined, { facts_sha256: sha("e") }),
+      newer("unbound", [release("v2", 2, "d")], { repository_id: 43 }),
+      newer("partial", [{ ...release("v1", 1, "c"), assets_complete: false }]),
+      newer("stale", [release("v2", 2, "d")], { fresh_until: "2026-11-27T01:00:00Z" }),
+      newer("first", [release("v2", 2, "d")]),
+      newer("wrong-source", [release("v2", 2, "d")]),
+      newer("free", [release("v2", 2, "d")]),
+    ],
+    now,
+  });
+  assert.equal(result.subjects, 8);
+  assert.deepEqual(result.counts, {
+    no_complete_baseline: 1,
+    no_complete_proposal: 1,
+    unbound_or_changed_identity: 1,
+    outside_held_route: 1,
+    not_newer_or_stale: 1,
+    incomplete_release_assets: 1,
+    unchanged: 1,
+    review_due: 1,
+  });
+  assert.deepEqual(result.changes, [
+    {
+      port_id: "changed",
+      carriers: ["managed"],
+      source: "github:42",
+      facts_sha256: sha("b"),
+      new_releases: ["v2"],
+      out_of_window: [],
+      changed_releases: ["v1"],
+    },
+  ]);
+});
+
+void test("GitLab generic packages keep same-name files distinct by provider ID", () => {
+  const row = (observed_at: string, packageName: string) => ({
+    id: "gitlab-listing",
+    upstream_observation: {
+      provider: "gitlab",
+      repository_id: 42,
+      status: "complete",
+      facts_sha256: sha("b"),
+      observed_at,
+      fresh_until: "2026-11-29T00:00:00Z",
+      releases: [
+        {
+          id: { provider: "gitlab", project_id: 42, tag: "v1" },
+          version: "v1",
+          assets_complete: true,
+          assets: [
+            [11, "a"],
+            [12, packageName],
+          ].map(([id, namespace]) => ({
+            id,
+            name: "game.zip",
+            size: 12,
+            sha256: sha("d"),
+            url: `https://gitlab.com/api/v4/projects/42/packages/generic/${namespace}/v1/game.zip`,
+          })),
+        },
+      ],
+    },
+  });
+  const result = heldPackageWindowReview({
+    canonicalListings: [{ id: "gitlab-listing", restrictions: [hold("download")] }],
+    canonicalPorts: [],
+    previous: [row("2026-11-26T00:00:00Z", "b")],
+    proposed: [row("2026-11-27T00:00:00Z", "c")],
+    now: Date.parse("2026-11-28T00:00:00Z"),
+  });
+  assert.equal(result.counts.incomplete_release_assets, 0);
+  assert.deepEqual(result.changes[0]?.changed_releases, ["v1"]);
+  assert.deepEqual(result.changes[0]?.carriers, ["listing"]);
+});
 
 void test("holds without conditions are counted and never flagged", () => {
   const result = report({ records: [port("a", [hold("download")])] });
