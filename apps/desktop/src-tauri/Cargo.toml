@@ -17,8 +17,8 @@ qualification-fixtures = ["portcove-core/qualification-fixtures"]
 
 [build-dependencies]
 sha2.workspace = true
-tauri-build = { version = "=2.7.4", features = [] }
-tauri-codegen = "=2.7.4"
+tauri-build = { version = "=2.7.6", features = [] }
+tauri-codegen = "=2.7.6"
 
 [dependencies]
 base64 = "0.23.1"
@@ -31,7 +31,7 @@ serde.workspace = true
 serde_json.workspace = true
 schemars.workspace = true
 sha2.workspace = true
-tauri = { version = "=2.12.5", features = [] }
+tauri = { version = "=2.12.7", features = [] }
 tauri-plugin-dialog = "=2.8.4"
 tauri-plugin-updater = { version = "=2.14.1", default-features = false }
 tauri-plugin-wdio-webdriver = { version = "=1.5.1", optional = true }
@@ -43,7 +43,7 @@ url.workspace = true
 zip.workspace = true
 
 [dev-dependencies]
-tauri-codegen = "=2.7.4"
+tauri-codegen = "=2.7.6"
 portcove-diagnostics = { path = "../../../crates/portcove-diagnostics", features = [
   "qualification-fixtures",
 ] }
