@@ -826,7 +826,7 @@ async function prepareArtworkProposalRun(
           return {
             id: listing.id,
             input_sha256: digest({
-              version: "game-media-due/3",
+              version: "game-media-due/4",
               validator,
               id: listing.id,
               name: listing.name,

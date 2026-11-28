@@ -683,12 +683,13 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
   };
   const rows = sceneCoverage(accepted, preparation);
   const main = rows.filter((row) => row.port_id === "main-port");
-  assert.equal(main.length, 16);
+  assert.equal(main.length, 20);
   const portRoles = Object.fromEntries(
     main.filter(({ subject }) => subject.kind === "port").map((row) => [row.role, row]),
   );
   assert.equal(portRoles.header?.state, "missing");
   assert.equal(portRoles.key_art?.state, "unknown");
+  assert.equal(portRoles.landscape_cover?.state, "unknown");
   assert.equal(portRoles.screenshot?.state, "withdrawn");
   assert.deepEqual(portRoles.screenshot?.withdrawn_image_ids, ["goneshot"]);
   assert.equal(portRoles.logo?.state, "admitted");

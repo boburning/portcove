@@ -320,13 +320,14 @@ void test("explicit IGDB hero preparation retains unknown acquisition when its s
       ["key_art", "igdb", "unknown"],
       ["logo", "igdb", "unknown"],
       ["header", "igdb", "unknown"],
+      ["landscape_cover", "igdb", "unknown"],
       ["screenshot", "igdb", "unknown"],
     ],
   );
   const exactPort = media.filter((item) => record(item.subject).kind === "port");
   assert.deepEqual(
     exactPort.map((item) => item.role),
-    ["key_art", "logo", "header", "screenshot"],
+    ["key_art", "logo", "header", "landscape_cover", "screenshot"],
   );
   assert.ok(
     media.every(
