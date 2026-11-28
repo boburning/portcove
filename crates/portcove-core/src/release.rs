@@ -6021,6 +6021,51 @@ mod tests {
         );
     }
 
+    fn differing_cache_key_fields(
+        left: &ReleaseSelectionCacheKey,
+        right: &ReleaseSelectionCacheKey,
+    ) -> Vec<&'static str> {
+        macro_rules! compare_fields {
+            ($($field:ident),+ $(,)?) => {{
+                let ReleaseSelectionCacheKey { $($field),+ } = left;
+                [
+                    $(
+                        ($field != &right.$field).then_some(stringify!($field)),
+                    )+
+                ]
+                .into_iter()
+                .flatten()
+                .collect()
+            }};
+        }
+        compare_fields!(
+            adapter,
+            n64_runtime_at_executable_parent,
+            partitioned_archive,
+            requires_tar_xz,
+            native_appimage,
+            native_appimage_two_part,
+            restricted_native_archive,
+            repository,
+            channel,
+            platform,
+            rolling_tag,
+            asset_hints,
+            other_stream_tag_prefixes,
+            accepted_uploaders,
+            scope_binding,
+            acquisition_policy,
+        )
+    }
+
+    fn cache_key_hash(key: &ReleaseSelectionCacheKey) -> u64 {
+        use std::hash::{DefaultHasher, Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        key.hash(&mut hasher);
+        hasher.finish()
+    }
+
     #[test]
     fn release_selection_cache_key_preserves_exact_selector_identity() {
         let catalog = crate::Catalog::embedded().unwrap();
@@ -6036,13 +6081,18 @@ mod tests {
 
         let mut different_id = first.clone();
         different_id.id = "another-port-id".into();
+        let alternate = ReleaseSelectionCacheKey::new(
+            &different_id,
+            ReleaseChannel::Rolling,
+            Platform::WindowsX86_64,
+        );
         assert_eq!(
-            ReleaseSelectionCacheKey::new(
-                &different_id,
-                ReleaseChannel::Rolling,
-                Platform::WindowsX86_64,
-            ),
-            baseline
+            alternate,
+            baseline,
+            "unequal fields: {:?}; hashes agree: {}; baseline == alternate: {}",
+            differing_cache_key_fields(&alternate, &baseline),
+            cache_key_hash(&alternate) == cache_key_hash(&baseline),
+            baseline == alternate,
         );
 
         let mut reordered = first.clone();
