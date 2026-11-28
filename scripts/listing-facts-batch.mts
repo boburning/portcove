@@ -109,6 +109,7 @@ import {
   gateBaselineRevision,
   readGateBaseline,
   identityShards,
+  matrixJobLimit,
   releaseLine,
   reproductionDeadlineMinutes,
   githubTokenHourlyRequests,
@@ -151,6 +152,7 @@ import {
   safeText,
   unreadableReleases,
   type ByteInspector,
+  type InspectionNeed,
   type NameClassifier,
   type ObservedAsset,
   type CarriedItem,
@@ -655,6 +657,36 @@ export function reproductionParallelism(entries: number, shards: number) {
     1,
     Math.min(shards, Math.floor(reproductionHourlyRequests / Math.max(1, perShard))),
   );
+}
+
+/** Assign related inspection work together. Reproduction keeps its independent identity shards. */
+export function inspectionShards(needs: readonly InspectionNeed[]): string[][] {
+  const byRelease = new Map<string, { ids: string[]; bytes: number }>();
+  for (const need of needs.toSorted((a, b) => compareCodePoints(a.port_id, b.port_id))) {
+    const key = `${need.repository_id}/${need.release_id}`;
+    const current = byRelease.get(key) ?? { ids: [], bytes: 0 };
+    current.ids.push(need.port_id);
+    current.bytes += need.bytes;
+    byRelease.set(key, current);
+  }
+  const groups = [...byRelease.values()].sort(
+    (a, b) => b.bytes - a.bytes || compareCodePoints(a.ids[0]!, b.ids[0]!),
+  );
+  const shards = Array.from({ length: Math.min(matrixJobLimit, groups.length) }, () => ({
+    ids: [] as string[],
+    bytes: 0,
+  }));
+  for (const group of groups) {
+    const shard = shards.reduce((least, current) =>
+      current.bytes < least.bytes ||
+      (current.bytes === least.bytes && current.ids.length < least.ids.length)
+        ? current
+        : least,
+    );
+    shard.ids.push(...group.ids);
+    shard.bytes += group.bytes;
+  }
+  return shards.map(({ ids }) => ids.toSorted(compareCodePoints));
 }
 
 export { githubTokenHourlyRequests, reproductionHourlyRequests };
@@ -3582,12 +3614,12 @@ async function main(argv: string[]): Promise<string> {
       return `Listing facts change verified: ${entries.length} eligible entries reproduced.\n`;
     }
     case "worker-shards": {
-      // The facts worker's shards: one per identity that needs bytes, at
-      // most `matrixJobLimit`, each written as `only-<index>.json`.
+      // Keep a release's consumers together so verified archive facts can be reused.
+      // Each shard is written as `only-<index>.json`.
       if (!option.needs || !option.directory)
         throw new Error("worker-shards needs --needs and --directory.");
-      const needs = JSON.parse(readFileSync(option.needs, "utf8")) as { port_id: string }[];
-      const shards = identityShards(needs.map((need) => need.port_id));
+      const needs = JSON.parse(readFileSync(option.needs, "utf8")) as InspectionNeed[];
+      const shards = inspectionShards(needs);
       mkdirSync(option.directory, { recursive: true });
       for (const [index, only] of shards.entries())
         writeFileSync(

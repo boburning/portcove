@@ -744,6 +744,13 @@ export interface ReportRow {
   inspected: number;
   reused: number;
 }
+export interface InspectionNeed {
+  port_id: string;
+  bytes: number;
+  repository_id: number;
+  release_id: number;
+}
+
 export interface DeriveResult {
   table: ListingFactsTable;
   state: WorkerState;
@@ -760,7 +767,7 @@ export interface DeriveResult {
    */
   backlog: Backlog;
   /** Identities that need bytes, with their unread archive bytes, in port_id order. */
-  needs: { port_id: string; bytes: number }[];
+  needs: InspectionNeed[];
   /** Candidate identities the observer report did not cover, in port_id order. */
   unobserved: string[];
   /** Identities this run settled into the table: complete, or newly ineligible. */
@@ -1600,13 +1607,36 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     inputs.identityBudgetMs ??
     identityBudgetMinutes(Math.min(candidates.size, reproductionBatchEntries)) * 60_000;
   const cut = new Set<string>();
+  type InspectionFacts = {
+    players: PlayerFact[];
+    toolchain: readonly string[];
+    counts: ArtifactFactV2["listing_counts"];
+  };
+  const inspectionKey = (need: Need, asset: ObservedAsset) =>
+    JSON.stringify([
+      need.repositoryId,
+      need.release.id,
+      asset.id,
+      asset.name,
+      asset.size,
+      asset.sha256,
+      asset.url,
+    ]);
+  const intendedReads = new Map<string, number>();
+  if (inputs.inspectBytes !== false)
+    for (const need of needs)
+      for (const asset of need.archives) {
+        const retainedKey = `${asset.id}/${asset.sha256}`;
+        if (need.reusable.has(retainedKey) || need.reusableRefusals.has(retainedKey)) continue;
+        const key = inspectionKey(need, asset);
+        intendedReads.set(key, (intendedReads.get(key) ?? 0) + 1);
+      }
+  // Keep only successful derived facts for exact repeated assets in this worker.
+  // This cache never retains archive bytes, partial results or failed attempts.
+  const sharedInspections = new Map<string, InspectionFacts>();
+  const maximumSharedInspections = 64;
   const inspectOne = async (need: Need) => {
-    const found: {
-      asset: ObservedAsset & { sha256: string };
-      players: PlayerFact[];
-      toolchain: readonly string[];
-      counts: ArtifactFactV2["listing_counts"];
-    }[] = [];
+    const found: (InspectionFacts & { asset: ObservedAsset & { sha256: string } })[] = [];
     const refused: { asset: ObservedAsset & { sha256: string }; refusal: RefusalClass }[] = [];
     let inspected = 0;
     let reused = 0;
@@ -1654,6 +1684,17 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         reused++;
         continue;
       }
+      const key = inspectionKey(need, asset);
+      const left = (intendedReads.get(key) ?? 1) - 1;
+      if (left) intendedReads.set(key, left);
+      else intendedReads.delete(key);
+      const shared = sharedInspections.get(key);
+      if (shared) {
+        found.push({ asset, ...shared });
+        if (!left) sharedInspections.delete(key);
+        reused++;
+        continue;
+      }
       if (Date.now() >= identityDeadline && !pastDeadline()) {
         runnerTime();
         return;
@@ -1666,12 +1707,14 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
           readerPlatform(asset.name),
           identityDeadline,
         );
-        found.push({
-          asset,
+        const facts = {
           players: inspection.players,
           toolchain: toolchainNames(inspection.names, inspection.leaves),
           counts: listingCounts(inspection.leaves),
-        });
+        };
+        found.push({ asset, ...facts });
+        if (left && sharedInspections.size < maximumSharedInspections)
+          sharedInspections.set(key, facts);
       } catch (error) {
         // The shard deadline cut this identity: it is pending, not failed.
         if (error instanceof OverBudgetError && pastDeadline()) {
@@ -1813,7 +1856,12 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     bytes,
     backlog,
     needs: needs
-      .map((need) => ({ port_id: need.id, bytes: need.cost }))
+      .map((need) => ({
+        port_id: need.id,
+        bytes: need.cost,
+        repository_id: need.repositoryId,
+        release_id: need.release.id,
+      }))
       .toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
     unobserved: [...candidates.keys()]
       .filter((id) => (only === undefined || only.has(id)) && !observed.has(id))

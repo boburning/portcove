@@ -86,6 +86,7 @@ import {
   refreshAfterDays,
   reproductionDetails,
   reproductionParallelism,
+  inspectionShards,
   reproductionScopeProblems,
   reproductionTransient,
   githubJson,
@@ -992,6 +993,25 @@ void test("reproduction shards hold every entry, deterministically, within the m
   assert.deepEqual(identityShards(ids), shards, "independent of input order");
   assert.deepEqual(identityShards(["zz-a", "zz-b"]), [["zz-a"], ["zz-b"]]);
   assert.deepEqual(identityShards([]), []);
+});
+
+void test("inspection keeps exact release consumers together without dropping other work", () => {
+  const needs = Array.from({ length: 400 }, (_, index) => ({
+    port_id: `zz-${String(index).padStart(3, "0")}`,
+    repository_id: index < 5 ? 1 : index,
+    release_id: index === 4 ? 2 : 1,
+    bytes: 100,
+  }));
+  const shards = inspectionShards(needs);
+  assert.equal(shards.length, 256);
+  assert.deepEqual(
+    shards.flat().toSorted(),
+    needs.map((need) => need.port_id),
+  );
+  assert.deepEqual(inspectionShards(needs.toReversed()), shards);
+  const shared = shards.find((shard) => shard.includes("zz-000"));
+  assert.deepEqual(shared, ["zz-000", "zz-001", "zz-002", "zz-003"]);
+  assert.deepEqual(inspectionShards([]), []);
 });
 
 void test("reproduction proves the named release is still the newest stable one (F2)", async () => {
