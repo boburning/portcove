@@ -6253,6 +6253,15 @@ verdict on the facts: the entry is refused as `transient` (with
 `over-budget`, the `transientReasons`), and pull-request CI reports such a
 shard as transient, to be re-run, rather than refused.
 
+After all inspection shards combine, the scheduled worker retains successful
+archive inspection evidence independently from the delivery cursor. A later
+run can reuse a complete, successful archive inventory when the parser,
+repository, release, and every asset identity and digest still match. When
+the inventory changes, the worker measures the current archives in the
+normal inspection budget. Eligible registration additions and changes still
+require independent reproduction. A failed batch can preserve successful
+inspections without advancing the worker cursor.
+
 A facts change may not record
 `generated_at`, or any added or changed `observed_at`, ahead of the clock
 (`clockProblems`): facts age is measured from those times, which all come

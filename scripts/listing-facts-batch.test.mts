@@ -4100,6 +4100,50 @@ void test("a reproduction refusal of one identity withholds only that identity; 
   );
 });
 
+void test("the workflow retains inspections independently and binds reuse to the new run inputs", () => {
+  const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
+    jobs: Record<
+      string,
+      {
+        steps: {
+          id?: string;
+          name?: string;
+          if?: string;
+          run?: string;
+          with?: { path?: string; key?: string };
+        }[];
+      }
+    >;
+  };
+  const { prepare, inspect, combine, decide } = workflow.jobs;
+  const restored = prepare!.steps.find(
+    (step) => step.name === "Restore independent archive inspection evidence",
+  );
+  const saved = combine!.steps.find(
+    (step) => step.name === "Retain completed inspections before generating any catalog change",
+  );
+  assert.equal(restored?.with?.path, "work/listing-facts-batch/inspection-receipts/facts.json");
+  assert.equal(saved?.with?.path, restored?.with?.path);
+  assert.equal(saved?.with?.key, restored?.with?.key);
+  assert.match(saved?.if ?? "", /env\.DRY_RUN != 'true'/u);
+  const generate = combine!.steps.findIndex((step) => step.id === "generate");
+  assert.ok(saved && combine!.steps.indexOf(saved) < generate);
+  assert.match(
+    prepare!.steps.find((step) => step.id === "inputs")?.run ?? "",
+    /attach-inspections[\s\S]*listing-facts-batch\.mts inputs/u,
+  );
+  assert.match(
+    inspect!.steps.find((step) => step.name === "Inspect this shard's identities")?.run ?? "",
+    /inputs\/state-before\.json[\s\S]*state\.inspection_receipts = receipts/u,
+  );
+  assert.match(
+    decide!.steps.find(
+      (step) => step.name === "Keep the previous worker state beside the new run history",
+    )?.run ?? "",
+    /delete state\.inspection_receipts/u,
+  );
+});
+
 void test("the decide job withholds refused identities and re-checks the batch before proposing it (#1422 2)", () => {
   const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
     jobs: Record<

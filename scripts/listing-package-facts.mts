@@ -70,7 +70,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -163,6 +163,8 @@ export interface WorkerState {
    * when its batch lands, like any other. Absent when nothing is carried.
    */
   carried?: CarriedItem[];
+  /** Provider-bound inspection evidence for this attempt only. The worker never saves it as a cursor. */
+  inspection_receipts?: ListingFactsEntry[];
 }
 export interface CarriedItem {
   since: string;
@@ -743,6 +745,8 @@ export interface ReportRow {
   reason?: string;
   inspected: number;
   reused: number;
+  /** The complete archive inventory fit in one inspection budget. */
+  complete_inspection?: true;
 }
 export interface InspectionNeed {
   port_id: string;
@@ -1032,6 +1036,9 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   );
   /** Inspection receipts of carried entries (`WorkerState.carried`). */
   const receipts = new Map((state.carried ?? []).map((item) => [item.entry.port_id, item]));
+  const recoveredInspections = new Map(
+    (state.inspection_receipts ?? []).map((entry) => [entry.port_id, entry]),
+  );
   const observed = observations(
     only === undefined ? candidates : new Map([...candidates].filter(([id]) => only.has(id))),
     inputs.observerReport,
@@ -1103,10 +1110,18 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     reason?: string,
     inspected = 0,
     reused = 0,
+    completeInspection = false,
   ) => {
     const existing = report.findIndex((item) => item.port_id === port_id);
     if (existing >= 0) report.splice(existing, 1);
-    report.push({ port_id, outcome, ...(reason ? { reason } : {}), inspected, reused });
+    report.push({
+      port_id,
+      outcome,
+      ...(reason ? { reason } : {}),
+      inspected,
+      reused,
+      ...(completeInspection ? { complete_inspection: true } : {}),
+    });
   };
 
   const observationOf = (id: string, release: ObservedRelease | undefined) => {
@@ -1356,6 +1371,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     archives: (ObservedAsset & { sha256: string })[];
     reusable: Map<string, ArtifactFactV2>;
     reusableRefusals: Map<string, RefusalClass>;
+    recoveredFullInspection: boolean;
     unread: Map<ObservedAsset, string>;
     cost: number;
   };
@@ -1549,10 +1565,30 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       receipt?.repository_id === repositoryId && receipt.parser_version === FACTS_PARSER_VERSION
         ? receipt
         : undefined;
+    const recovered = recoveredInspections.get(id);
+    // A partial match could hide part of the time independent reproduction
+    // still needs. Reuse only the whole inventory measured in one budget.
+    const recoveredFullInspection =
+      recovered?.repository_id === repositoryId &&
+      recovered.parser_version === FACTS_PARSER_VERSION &&
+      recovered.observation.release_id === release.id &&
+      !recovered.refused_archives.length &&
+      recovered.artifacts.length === digestBound.length &&
+      recovered.artifacts.every((artifact) =>
+        digestBound.some(
+          (asset) =>
+            asset.id === artifact.asset_id &&
+            asset.name === artifact.name &&
+            asset.size === artifact.size &&
+            asset.sha256 === artifact.sha256,
+        ),
+      );
     const reusable = new Map(
-      [prior, receipted]
-        .flatMap((entry) => entry?.artifacts ?? [])
-        .map((artifact) => [`${artifact.asset_id}/${artifact.sha256}`, artifact] as const),
+      [
+        ...(prior?.artifacts ?? []),
+        ...(receipted?.artifacts ?? []),
+        ...(recoveredFullInspection ? recovered.artifacts : []),
+      ].map((artifact) => [`${artifact.asset_id}/${artifact.sha256}`, artifact] as const),
     );
     // A carried refusal is not reused: an ineligible verdict needs no
     // reproduction, so only a committed (reproduced) refusal may stand for
@@ -1598,6 +1634,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       archives: digestBound,
       reusable,
       reusableRefusals,
+      recoveredFullInspection,
       unread,
       cost,
     });
@@ -1792,7 +1829,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       )
     ) {
       settledIds.add(need.id);
-      row(need.id, "complete", undefined, inspected, reused);
+      const completeInspection =
+        found.length === need.archives.length &&
+        found.length > 0 &&
+        (need.recoveredFullInspection || inspected === need.archives.length);
+      row(need.id, "complete", undefined, inspected, reused, completeInspection);
     }
   };
   const waiting = new Map(state.pending.map((id, index) => [id, index]));
@@ -1995,6 +2036,18 @@ function sanitizeState(state: WorkerState): WorkerState {
         (item.cause === undefined || (failureCauses as readonly unknown[]).includes(item.cause)),
     ),
     ...carriedOf(state.carried),
+    ...(Array.isArray(state.inspection_receipts)
+      ? {
+          inspection_receipts: state.inspection_receipts.filter((entry) => {
+            try {
+              checkListingFactsEntry(entry, "A recovered inspection entry");
+              return true;
+            } catch {
+              return false;
+            }
+          }),
+        }
+      : {}),
   };
 }
 /** The well-formed carried items (`WorkerState.carried`); a malformed one is dropped and re-read. */
@@ -2313,7 +2366,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const catalogRoot = path.join(root, "crates/portcove-core/catalog");
 export const factsTablePath = path.join(catalogRoot, "listing-package-facts.generated.json");
 const usage =
-  "Usage: node scripts/listing-package-facts.mts --check | derive --observations REPORT --cli PORTCOVE [--state FILE] [--output FILE] [--table FILE] [--now ISO] [--plan true --needs FILE | --only FILE --deadline ISO] [--workflow-run-id ID --source-commit SHA --inputs-sha256 SHA] [--report FILE] [--result FILE] | combine --plan RESULT --shards DIR [--output FILE] [--state FILE] [--report FILE]";
+  "Usage: node scripts/listing-package-facts.mts --check | derive --observations REPORT --cli PORTCOVE [--state FILE] [--output FILE] [--table FILE] [--now ISO] [--plan true --needs FILE | --only FILE --deadline ISO] [--workflow-run-id ID --source-commit SHA --inputs-sha256 SHA] [--report FILE] [--result FILE] | combine --plan RESULT --shards DIR [--output FILE] [--state FILE] [--report FILE] [--inspection-output FILE] | attach-inspections --table FILE --state FILE";
 
 function parseState(text: string): WorkerState {
   const value: unknown = JSON.parse(text);
@@ -2331,18 +2384,50 @@ function parseState(text: string): WorkerState {
 export const workerSummary = (result: DeriveResult) =>
   `${JSON.stringify({ no_progress: result.no_progress, settled: result.settled, pending: result.state.pending.length, pending_ids: result.state.pending, retry: result.state.retry.length, bytes: result.bytes, archive_body_bytes: result.archive_body_bytes, backlog: result.backlog, needs: result.needs.length, ineligible: result.ineligible, unobserved: result.unobserved, identities: result.report })}\n`;
 
+/** Retain only complete, positive inventories previously inspected within a single identity budget. */
+export function retainableInspectionTable(table: ListingFactsTable, report: readonly ReportRow[]) {
+  const progress = new Map(report.map((row) => [row.port_id, row]));
+  const entries = table.entries.filter((entry) => {
+    const row = progress.get(entry.port_id);
+    return (
+      row?.outcome === "complete" &&
+      entry.artifacts.length > 0 &&
+      !entry.refused_archives.length &&
+      (row.complete_inspection === true || row.inspected === entry.artifacts.length)
+    );
+  });
+  return { ...table, entries, entries_sha256: digestOf(entries) };
+}
+
 async function main(argv: string[]) {
   if (argv.length === 1 && argv[0] === "--check") {
     checkListingFactsTable(parseCatalogSource(await readFile(factsTablePath, "utf8")));
     return "Listing package facts are well formed.\n";
   }
-  if (argv[0] !== "derive" && argv[0] !== "combine") throw new Error(usage);
+  if (!["derive", "combine", "attach-inspections"].includes(argv[0] ?? "")) throw new Error(usage);
   const options: Record<string, string> = {};
   for (let index = 1; index < argv.length; index += 2) {
     const name = argv[index];
     const value = argv[index + 1];
     if (!name?.startsWith("--") || !value || value.startsWith("--")) throw new Error(usage);
     options[name.slice(2)] = value;
+  }
+  if (argv[0] === "attach-inspections") {
+    if (!options.table || !options.state) throw new Error(usage);
+    const info = await lstat(options.table);
+    if (!info.isFile() || info.size > 32 * 1024 * 1024)
+      throw new Error("Recovered inspection table is not a bounded regular file.");
+    const facts = parseCatalogSource(await readFile(options.table, "utf8"));
+    checkListingFactsTable(facts);
+    if (!facts.provenance) throw new Error("Recovered inspection table has no worker provenance.");
+    const original = await readFile(options.state, "utf8");
+    const state = original.trim() ? parseState(original) : initialState();
+    const inspection_receipts = facts.entries.filter(
+      (entry) => entry.artifacts.length && !entry.refused_archives.length,
+    );
+    if (inspection_receipts.length)
+      await writeFile(options.state, `${JSON.stringify({ ...state, inspection_receipts })}\n`);
+    return `Attached inspection evidence for ${inspection_receipts.length} listings.\n`;
   }
   const output = options.output ?? factsTablePath;
   const write = async (result: DeriveResult) => {
@@ -2367,7 +2452,13 @@ async function main(argv: string[]) {
             result: DeriveResult;
           },
         );
-    return await write(combineShards(plan, shards));
+    const combined = combineShards(plan, shards);
+    if (options["inspection-output"])
+      await writeFile(
+        options["inspection-output"],
+        `${JSON.stringify(retainableInspectionTable(combined.table, combined.report))}\n`,
+      );
+    return await write(combined);
   }
   if (!options.observations || !options.cli) throw new Error(usage);
   const provenanceOptions = ["workflow-run-id", "source-commit", "inputs-sha256"].map((name) =>
