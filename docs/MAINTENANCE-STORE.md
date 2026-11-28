@@ -538,8 +538,11 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
   `index.html` to a new directory, renamed into place when complete. The report
   lists each source's latest run, coverage and revision, and each subject's
   current Core assessment, history and latest observations, and whether the
-  latest Core run assessed it, recorded a gap or did not include it. Unsupported sources
-  and published delivery are shown as unknown with their reasons.
+  latest Core run assessed it, recorded a gap or did not include it. The report
+  query returns shared port facts once per port and keeps platform-specific
+  assessments and Core observations separate. The report builder combines them
+  from that single database snapshot before writing the existing JSON and HTML.
+  Unsupported sources and published delivery are shown as unknown with their reasons.
   - The subjects table searches every column: each word must appear somewhere
     in the row, including linked work, upstream, offering, qualification,
     attention and next action. Filters narrow it by host platform, Core
