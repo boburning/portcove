@@ -307,7 +307,7 @@ export async function continueCatalogBatches<
     finishOffline?: boolean;
     now?: () => number;
     signal?: AbortSignal;
-    onBatch?: (result: T) => void | Promise<void>;
+    onBatch?: (result: T, allowance: number) => void | Promise<void>;
     evidenceByteLimit?: number;
   },
 ) {
@@ -334,13 +334,18 @@ export async function continueCatalogBatches<
     const result = await operation(excluded, allowance);
     batches++;
     // Publish original batch evidence before bounded aggregate admission can fail.
-    await onBatch(result);
+    await onBatch(result, allowance);
     if (result.report.requests > allowance)
       throw new ObservationFailure(
         "budget",
         "Catalog observer batch exceeded its request allowance",
       );
-    if (allowance > 0) providerCapacity = result.report.provider_capacity;
+    if (
+      allowance > 0 &&
+      result.report.provider_capacity &&
+      (result.report.provider_capacity.availability !== "unknown" || providerCapacity === undefined)
+    )
+      providerCapacity = result.report.provider_capacity;
     if (result.report.unknown_response_size_requests !== undefined)
       unknownResponseSizes =
         (unknownResponseSizes ?? 0) + result.report.unknown_response_size_requests;

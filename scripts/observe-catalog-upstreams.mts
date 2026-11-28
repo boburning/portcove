@@ -870,6 +870,7 @@ export async function runCatalogOpportunity(
   try {
     const { modProviderRegistryFetch, ...batchRuntime } = runtime;
     let prioritizeConfigured = true;
+    let offlinePolicyCompleted = 0;
     const maxRequests =
       runtime.requestCeiling ?? hostedRequestCeiling(process.env.GITHUB_EVENT_NAME);
     let launcherRequestsRemaining = hostedLauncherModRequestLimit(maxRequests);
@@ -909,7 +910,9 @@ export async function runCatalogOpportunity(
         finishOffline: true,
         now,
         ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
-        onBatch: (batch) => {
+        onBatch: (batch, allowance) => {
+          const offlinePolicyOnly = allowance === 0;
+          if (offlinePolicyOnly) offlinePolicyCompleted = batch.report.completed_source_keys.length;
           for (const failure of batch.report.failures) {
             const evidence = JSON.stringify({
               format: 1,
@@ -928,6 +931,7 @@ export async function runCatalogOpportunity(
             JSON.stringify({
               format: 1,
               kind: "catalog-observation-batch",
+              offline_policy_only: offlinePolicyOnly,
               launcher_mod_sources: batch.report.launcher_mod_sources,
               requests: batch.report.requests,
               response_bytes: batch.report.response_bytes_charged,
@@ -953,6 +957,7 @@ export async function runCatalogOpportunity(
       {
         ...result.report,
         bounded_batches: result.batches,
+        offline_policy_completed_sources: offlinePolicyCompleted,
         artifact_bytes: handoff.bytes,
         artifact_byte_limit: artifactByteLimit,
       },
@@ -966,6 +971,7 @@ export async function runCatalogOpportunity(
           "partial diagnostic export; full obligations remain in current checkpoint and catalog",
         checkpoint_sha256: observationHash(result.checkpoint),
         bounded_batches: result.batches,
+        offline_policy_completed_sources: offlinePolicyCompleted,
         total_sources: result.report.total_sources,
         pending_sources: result.report.pending_source_keys.length,
         failure_events: result.report.failures.length,

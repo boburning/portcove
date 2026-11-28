@@ -3437,6 +3437,57 @@ void test("known changed partial provider facts cannot be replaced by an older f
   );
 });
 
+void test("offline policy leaves a configured source's interrupted continuation intact", async () => {
+  const h = harness();
+  h.input.ports = h.input.ports.slice(0, 2);
+  const [source] = catalogObservationSources(h.input).sources;
+  assert.ok(source);
+  const options = {
+    ...h.options,
+    config: validateObserverConfig({
+      ...h.options.config,
+      port_id: "stable-port",
+      repository: "owner/shared",
+      repository_id: 7,
+    }),
+  };
+  const first = await advanceCatalogObservations(h.input, null, options);
+  assert.deepEqual(first.report.completed_source_keys, [source.key]);
+  const progress = first.checkpoint.sources[source.key]!;
+  assert.equal(progress.exception_key, null);
+  assert.equal(progress.selection_progress?.binding, progress.completed_scope_sha256);
+  const [, config, initial] = h.exported[0]!;
+  const stored = structuredClone(initial.checkpoint);
+  const cache = stored.last_complete!.cache as {
+    pages: NonNullable<typeof stored.continuation>["pages"];
+  };
+  const [url, page] = Object.entries(cache.pages)[0]!;
+  stored.continuation = {
+    format: 1,
+    config_sha256: observationHash(config),
+    started_at: first.report.generated_at,
+    phase: "collect",
+    pages: { [url]: page },
+    validation_cursor: 0,
+    first_validated_at: null,
+    last_validated_at: null,
+    validation_order_sha256: null,
+    consumed: { requests: 1, response_bytes: 1, conditional_hits: 0 },
+  };
+  h.states.set(observationHash(config), stored);
+  const requests = h.network.length;
+  const resumed = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...options,
+    policyIdentity: "b".repeat(64),
+    offlinePolicyOnly: true,
+  });
+  assert.deepEqual(h.states.get(observationHash(config)), stored);
+  assert.deepEqual(resumed.report.failures, []);
+  assert.deepEqual(resumed.report.pending_source_keys, [source.key]);
+  assert.deepEqual(resumed.report.completed_source_keys, []);
+  assert.equal(h.network.length, requests);
+});
+
 void test("a Core executable changed during projection cannot publish a completed source scope", async (t) => {
   const work = fileURLToPath(new URL("../work/", import.meta.url));
   await mkdir(work, { recursive: true });

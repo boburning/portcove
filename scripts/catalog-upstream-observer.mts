@@ -1790,6 +1790,7 @@ export async function advanceCatalogObservations(
         // Start a fresh provider attempt when its committed selection inputs move.
         const priorSource =
           configured &&
+          !offlinePolicyOnly &&
           isRecord(retainedSource) &&
           retainedSource.continuation &&
           progress.selection_progress &&
