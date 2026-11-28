@@ -3055,8 +3055,10 @@ SELECT json_build_object(
         'curated_platforms', c.payload -> 'curated_platforms')
         ORDER BY c.subject_key), '[]')
       FROM latest_catalog c
-      LEFT JOIN latest_targets t ON t.subject_key = c.subject_key
-      LEFT JOIN latest_upstream u ON u.subject_key = c.subject_key
+      -- Assessed ports already return these two payloads in subject_port_facts.
+      LEFT JOIN assessed_ports a ON a.port_key = c.subject_key
+      LEFT JOIN latest_targets t ON t.subject_key = c.subject_key AND a.port_key IS NULL
+      LEFT JOIN latest_upstream u ON u.subject_key = c.subject_key AND a.port_key IS NULL
       WHERE c.payload -> 'operational_definition' = 'true'::jsonb),
   'upstream_present_members', (SELECT coalesce(json_object_agg(u.subject_key, u.content_sha256), '{}')
       FROM latest_upstream u WHERE u.payload <> portcove_maintenance.absent_payload()),
@@ -3140,10 +3142,10 @@ SELECT json_build_object(
               ORDER BY acquisition DESC LIMIT 1) cr
            CROSS JOIN LATERAL jsonb_array_elements(cr.gaps) g
            WHERE g ->> 'subject_key' = p.port_key LIMIT 1) AS latest_content_gap,
-        (SELECT CASE WHEN u.payload = portcove_maintenance.absent_payload() THEN NULL ELSE u.payload END
-           FROM latest_upstream u WHERE u.subject_key = p.port_key) AS upstream,
-        (SELECT CASE WHEN t.payload = portcove_maintenance.absent_payload() THEN NULL ELSE t.payload END
-           FROM latest_targets t WHERE t.subject_key = p.port_key) AS target_routes,
+        u.payload AS upstream,
+        u.payload = portcove_maintenance.absent_payload() AS upstream_absent,
+        t.payload AS target_routes,
+        t.payload = portcove_maintenance.absent_payload() AS target_routes_absent,
         (SELECT g FROM (
             SELECT gaps FROM portcove_maintenance.collection_runs
               WHERE source = 'upstream-observations' AND coverage NOT IN ('in_progress', 'failed')
@@ -3167,6 +3169,8 @@ SELECT json_build_object(
         coalesce(w.work, '[]') AS work
         FROM assessed_ports p
         LEFT JOIN latest_catalog lc ON lc.subject_key = p.port_key
+        LEFT JOIN latest_upstream u ON u.subject_key = p.port_key
+        LEFT JOIN latest_targets t ON t.subject_key = p.port_key
         LEFT JOIN port_work w ON w.port_key = p.port_key) f)
 );`;
 
@@ -3759,6 +3763,10 @@ export function buildReport(
       removed?: boolean | null;
       identity?: { target_key?: string | null };
       work?: { number?: number }[];
+      upstream: unknown;
+      upstream_absent: boolean | null;
+      target_routes: TargetRoutesFact | null;
+      target_routes_absent: boolean | null;
     }[];
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
     publication: { definition: string; facts: unknown }[];
@@ -3781,7 +3789,17 @@ export function buildReport(
   const subjects = data.subjects.map((subject) => {
     const facts = portFacts.get(subject.port_key);
     if (!facts) throw new Error(`Maintenance report is missing facts for ${subject.port_key}`);
-    return { ...subject, ...facts };
+    const { upstream_absent, target_routes_absent, ...port } = facts;
+    return {
+      ...subject,
+      ...port,
+      upstream: upstream_absent ? null : port.upstream,
+      target_routes: target_routes_absent ? null : port.target_routes,
+    };
+  });
+  const managedRouteInputs = data.managed_route_inputs.map((input) => {
+    const facts = portFacts.get(input.port_key);
+    return facts ? { ...input, upstream: facts.upstream, targets: facts.target_routes } : input;
   });
   // Alternatives: other implementations sharing the authored lineage target key.
   const byTarget = new Map<string, string[]>();
@@ -3908,7 +3926,7 @@ export function buildReport(
         }
       : {}),
     managed_route_observation_coverage: managedRouteObservationCoverage(
-      data.managed_route_inputs,
+      managedRouteInputs,
       data.runs,
       data.upstream_present_members,
     ),

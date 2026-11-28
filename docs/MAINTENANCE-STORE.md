@@ -540,8 +540,9 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
   current Core assessment, history and latest observations, and whether the
   latest Core run assessed it, recorded a gap or did not include it. The report
   query returns shared port facts once per port and keeps platform-specific
-  assessments and Core observations separate. The report builder combines them
-  from that single database snapshot before writing the existing JSON and HTML.
+  assessments and Core observations separate. The same port facts also supply
+  the route coverage calculation for assessed ports. The report builder uses
+  that single database snapshot to produce the existing JSON and HTML.
   Unsupported sources and published delivery are shown as unknown with their reasons.
   - The subjects table searches every column: each word must appear somewhere
     in the row, including linked work, upstream, offering, qualification,
