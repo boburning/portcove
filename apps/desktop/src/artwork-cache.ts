@@ -83,14 +83,25 @@ function decodedBytes(encoded: string) {
   return (encoded.length / 4) * 3 - padding;
 }
 
+function artworkSourceId(source: ArtworkState["resolved_source"] | undefined) {
+  switch (source?.kind) {
+    case "local_import":
+      return source.asset_sha256;
+    case "igdb_cover":
+      return source.cache_id;
+    case "catalog_media":
+      return source.asset.sha256;
+    default:
+      return undefined;
+  }
+}
+
 function thumbnailUrl(thumbnail: DesktopArtworkThumbnail, state: ArtworkState) {
-  const expectedId =
-    state.resolved_source.kind === "local_import"
-      ? state.resolved_source.asset_sha256
-      : state.resolved_source.kind === "igdb_cover"
-        ? state.resolved_source.cache_id
-        : undefined;
-  return verifiedThumbnailUrl(thumbnail, expectedId, state.choice.revision);
+  return verifiedThumbnailUrl(
+    thumbnail,
+    artworkSourceId(state.resolved_source),
+    state.choice.revision,
+  );
 }
 
 function verifiedThumbnailUrl(
@@ -544,18 +555,10 @@ export class ArtworkCache {
     this.remoteQueued.delete(key);
     this.cancelRetry(key);
     const previous = this.read(portId, slot);
-    const sourceId =
-      state.resolved_source.kind === "local_import"
-        ? state.resolved_source.asset_sha256
-        : state.resolved_source.kind === "igdb_cover"
-          ? state.resolved_source.cache_id
-          : undefined;
-    const previousId =
-      previous.state?.resolved_source.kind === "local_import"
-        ? previous.state.resolved_source.asset_sha256
-        : previous.state?.resolved_source.kind === "igdb_cover"
-          ? previous.state.resolved_source.cache_id
-          : undefined;
+    const sourceId = artworkSourceId(state.resolved_source);
+    const previousId = artworkSourceId(previous.state?.resolved_source);
+    const remote =
+      state.resolved_source.kind === "igdb_cover" || state.resolved_source.kind === "catalog_media";
     const image =
       sourceId &&
       previousId === sourceId &&
@@ -596,10 +599,9 @@ export class ArtworkCache {
               ...current,
               image: undefined,
               onImageError: undefined,
-              error:
-                state.resolved_source.kind === "igdb_cover"
-                  ? "The catalog cover cannot be displayed right now."
-                  : "The selected image cannot be displayed. Your choice is retained.",
+              error: remote
+                ? "The catalog cover cannot be displayed right now."
+                : "The selected image cannot be displayed. Your choice is retained.",
               loading: false,
             });
           },
@@ -625,7 +627,7 @@ export class ArtworkCache {
       }
       return "done";
     };
-    if (state.resolved_source.kind === "igdb_cover") {
+    if (remote) {
       // Keep remote work separate from the local read lanes. Only current
       // viewport requests reach IPC; newer state replaces an undispatched one.
       this.remoteQueued.set(key, {
