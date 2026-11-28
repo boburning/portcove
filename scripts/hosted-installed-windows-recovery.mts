@@ -424,10 +424,10 @@ async function run(tag: string, version: string, temporary: string, scenario: In
     ],
     childEnvironment,
   );
-  assert.ok(
-    cachedDesktopDrivers(),
-    "Verified cached Desktop drivers are required before installation",
-  );
+  // The tagged worktree has no checkout-local tool receipt. Pass the paths
+  // verified by the controller to the child harness explicitly.
+  const drivers = cachedDesktopDrivers();
+  assert.ok(drivers, "Verified cached Desktop drivers are required before installation");
 
   const lock = await acquireNativeSessionLock({ workspace: harnessRoot, scenarios: [scenario] });
   try {
@@ -457,6 +457,10 @@ async function run(tag: string, version: string, temporary: string, scenario: In
         native,
         "--scenario",
         scenario,
+        "--driver",
+        drivers.driver,
+        "--native-driver",
+        drivers.nativeDriver,
         "--preparation-cli",
         cli,
         "--preparation-tool",
