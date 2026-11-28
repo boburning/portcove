@@ -7,9 +7,7 @@
     "summary": "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GTTeancum/SpideyPS1recomp",
     "release_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases",
-    "platforms": [
-      "windows-x86-64"
-    ],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases/tag/sm2-v1.2",
     "manual_setup": {
@@ -42,9 +40,7 @@
     "original_game": {
       "format_version": 1,
       "id": "spider-man-2-enter-electro",
-      "evidence_urls": [
-        "https://github.com/GTTeancum/SpideyPS1recomp"
-      ],
+      "evidence_urls": ["https://github.com/GTTeancum/SpideyPS1recomp"],
       "source_editions": [
         {
           "id": "spider-man-2-enter-electro-playstation",
@@ -60,22 +56,16 @@
       {
         "id": "shared-repository-package-scope",
         "effect": "hold",
-        "operations": [
-          "download"
-        ],
+        "operations": ["download"],
         "reason": "package-facts-unresolved",
         "explanation": "OpenSpideyPS1 publishes separate games in the same release feed. Choose this game's reviewed ZIP or use the upstream setup instructions.",
-        "reconsider_when": [
-          "reviewed-successor-release"
-        ],
+        "reconsider_when": ["reviewed-successor-release"],
         "tracking_issue": 3359
       },
       {
         "id": "reviewed-game-specific-archives",
         "effect": "permit",
-        "operations": [
-          "download"
-        ],
+        "operations": ["download"],
         "scope": {
           "artifacts": [
             {

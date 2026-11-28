@@ -25,9 +25,7 @@
       {
         "id": "upstream-overlay-test-builds",
         "effect": "hold",
-        "operations": [
-          "download"
-        ],
+        "operations": ["download"],
         "scope": {
           "releases": [
             "test-2026-11-19-windows",
@@ -45,9 +43,7 @@
         },
         "reason": "no-useful-route",
         "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
-        "reconsider_when": [
-          "reviewed-successor-release"
-        ],
+        "reconsider_when": ["reviewed-successor-release"],
         "tracking_issue": 2780
       }
     ],
