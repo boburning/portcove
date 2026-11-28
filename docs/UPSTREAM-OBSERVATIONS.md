@@ -103,11 +103,16 @@ the existing request, byte and time budgets and revalidates all consumed pages.
 Missing candidate
 coverage produces `release-asset-observation-incomplete`, never metadata eligibility.
 Unknown, repeated or foreign coverage IDs and asset payloads outside declared
-coverage are refused. Format 1 retains its existing full-asset semantics; existing
-clients and the configured Shipwright workflow continue to use that format.
+coverage are refused. Format 1 retains its existing full-asset semantics. The
+scheduled configured source uses format 2 with the same Core selection and
+complete header validation as other catalog sources. The standalone format-1
+route and its retained checkpoints remain readable.
 
-The format-2 configuration binds `asset_scope: core-channel-candidates` and a
-`policy_input_sha256` to the maintained selection inputs. A changed Core candidate
+Format 2 binds `asset_scope: core-channel-candidates`. Catalog sources bind
+their maintained selection inputs in `policy_input_sha256`. The configured
+report derives its configuration hash from the committed template and selection
+mode. Its continuation separately binds current catalog and Core inputs and
+restarts partial collection when they change. A changed Core candidate
 set during continuation resets the validation cursor and discards irrelevant
 asset pages from the active scope. Retained conditional representations may save
 bytes but cannot establish current coverage. This interface adds no artifact
@@ -571,8 +576,16 @@ sources. Every turn uses the existing source quantum and shared request,
 runtime, and byte limits. Sources that run out of capacity keep their durable
 place for a later batch.
 
-The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
-one `report.json` and its existing consumer/configuration binding. Catalog reports
+The `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
+one `report.json` staged apart from the standalone report and checkpoint. Daily discovery accepts
+historical full-asset reports and current Core-scoped reports only when the
+report and observation both match the corresponding committed configuration.
+The scoped collector stores a separately bound checkpoint. It preserves the
+prior full collection and its original freshness until a scoped collection
+finishes. The scheduled observer leaves the standalone checkpoint available
+after rollover. Daily discovery can use an earlier fresh, bound scheduled
+report while a new batch has no artifact or records a budget continuation.
+Catalog reports
 use a separate, uniquely owned handoff directory for each invocation, exported as
 `catalog-upstream-observations-RUN-ATTEMPT`. It contains inert observations and
 per-port Core policies for #246's existing supplied-observation → bounded-candidate

@@ -123,7 +123,9 @@ export async function retireObserverConfigurations(
   checkpoint: CatalogObserverCheckpoint,
   deadline: number,
   now = Date.now,
+  standaloneConfig?: ObserverConfig,
 ) {
+  const standaloneHash = standaloneConfig ? observationHash(standaloneConfig) : null;
   const cleanupDeferred: string[] = [];
   const directory = (config: ObserverConfig) =>
     path.join(root, "work/upstream-observer", observationHash(config));
@@ -139,6 +141,15 @@ export async function retireObserverConfigurations(
         continue;
       const checkpointFile = path.join(directory(retired), "checkpoint.json");
       try {
+        // The scheduled scope no longer references the standalone checkpoint.
+        // Forget that dependency without modifying the standalone files.
+        if (digest === standaloneHash) {
+          progress.retired_configs = progress.retired_configs.filter(
+            (config) => observationHash(config) !== digest,
+          );
+          await atomicJson(statePath, checkpoint);
+          continue;
+        }
         await withCheckpointLock(checkpointFile, async () => {
           validateObserverCheckpoint(
             decodeStoredObserverCheckpoint(
@@ -651,13 +662,12 @@ export async function runCatalogUpstreams(
         return policy;
       },
       export: async (source, sourceConfig, observation, policies) => {
-        const legacy =
-          sourceConfig.format === 1 &&
+        const configured =
           sourceConfig.port_id === config.port_id &&
-          sourceConfig.repository === config.repository;
+          sourceConfig.repository === config.repository &&
+          sourceConfig.repository_id === config.repository_id;
         const filename = path.join(handoffDirectory, `${observationHash(sourceConfig)}.json`);
-        // The legacy report retains the full configured inventory. In the
-        // catalog handoff it would repeat the same large list for each source.
+        // Only the configured report carries the full list of unmonitored ports.
         const { unmonitored_port_ids: _inventory, ...sourceReport } = observation.report;
         const report = {
           ...sourceReport,
@@ -692,8 +702,8 @@ export async function runCatalogUpstreams(
             ? "last-complete-historical-fallback; current state unknown"
             : "complete-current-consumer-projections; managed eligibility remains Core-only",
         };
-        if (legacy)
-          await atomicJson(path.join(directory(sourceConfig), "report.json"), {
+        if (configured)
+          await atomicJson(path.join(root, "work/upstream-observer-configured/report.json"), {
             ...observation.report,
             execution: report.execution,
           });
@@ -723,6 +733,7 @@ export async function runCatalogUpstreams(
       result.checkpoint,
       operationDeadline,
       now,
+      config,
     );
     let summary: unknown = omitOversizedBindingInputs(
       {
