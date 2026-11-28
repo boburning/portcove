@@ -140,7 +140,7 @@ it.each(
     });
     const title = dialog.getByRole("heading", { level: 2 }).element();
     const close = dialog.getByRole("button", { name: "Close", exact: true }).element();
-    const review = dialog.getByRole("region", { name: title.textContent! });
+    const review = dialog.getByRole("region", { name: title.textContent });
     await expect.element(review).toBeInTheDocument();
     const pane = review.element() as HTMLElement;
     const header = title.parentElement!;
