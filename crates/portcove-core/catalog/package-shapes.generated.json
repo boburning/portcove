@@ -437,6 +437,44 @@
       ]
     },
     {
+      "port_id": "mega-man-x2-snes-recomp",
+      "platform": "windows-x86-64",
+      "version": "v0.2.2",
+      "sha256": "f54bf04ea2975c338d62db5b4647082d8d1342f0378a861e15e42ddeb6d0e95a",
+      "derivation_inputs_sha256": "8b38072191d48a444cd2912ca01bf43ce140f2c28f31c4bef61c5a72989ee76f",
+      "size": 13139689,
+      "asset_name": "MegaManX2SNESRecomp-windows-x64-v0.2.2.zip",
+      "reviewed_by": "applicability:mega-man-x2-snes-recomp-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "megamanx2snesrecomp.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "docs",
+          "mods",
+          "tools"
+        ],
+        "persistent_parent_children": [
+          "mods/preloaded/packages"
+        ],
+        "persistent_overlap": [],
+        "config_files": [
+          "logging.ini",
+          "mods/preloaded/packages/megaman-x2.enhancement.widescreen/1.0.0/manifest.toml"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "megamanx2snesrecomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "746e5d06d0132dcd299bafa0f1aeef3cf80bf346ad8b5941ebee80dcdf1f0780"
+        }
+      ]
+    },
+    {
       "port_id": "sonic-the-hedgehog-2-recomp",
       "platform": "windows-x86-64",
       "version": "v0.8.3",
@@ -1030,6 +1068,56 @@
       ]
     },
     {
+      "port_id": "the-force-engine-dark-forces",
+      "platform": "windows-x86-64",
+      "version": "1.22.420",
+      "sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac",
+      "derivation_inputs_sha256": "05ddba04f270d72f3182e5c49f408a66e6788821cf846a394a812546e990e4e9",
+      "size": 10561878,
+      "asset_name": "TheForceEngine-v1.22.420.zip",
+      "reviewed_by": "applicability:the-force-engine-dark-forces-managed-data",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "theforceengine.exe"
+        ],
+        "top_directories": [
+          "captions",
+          "documentation",
+          "editordef",
+          "externaldata",
+          "fonts",
+          "mods",
+          "shaders",
+          "soundfonts",
+          "ui_images",
+          "ui_text"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [
+          "editordef/darkforces/entitydef.ini",
+          "editordef/darkforces/logicdef.ini",
+          "editordef/darkforces/vardef.ini",
+          "editordef/examples/level-editor-wip/customentitydef.ini",
+          "editordef/examples/level-editor-wip/level editor wip.ini",
+          "editordef/examples/level-editor-wip/snapshots/secbase/manifest.ini",
+          "externaldata/darkforces/effects.json",
+          "externaldata/darkforces/pickups.json",
+          "externaldata/darkforces/projectiles.json",
+          "externaldata/darkforces/weapons.json"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "theforceengine.exe",
+          "machine": "pe-x86-64",
+          "sha256": "122712b4e780257fa3ad4ba26a88460776299426931cc347fd5b9cd01dd82639"
+        }
+      ]
+    },
+    {
       "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
       "platform": "windows-x86-64",
       "version": "v0.6.1",
@@ -1247,5 +1335,5 @@
       ]
     }
   ],
-  "entries_sha256": "9cb8cb993dd2c8feb0b43ef61fe99712db0063026c54e80a5c2710f09034e660"
+  "entries_sha256": "9b24f7de20f5f1dc318a4262ad5e3108f66956185afd7878a4e8e1346df6d183"
 }
