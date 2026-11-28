@@ -1736,7 +1736,11 @@ it("names the selected collection and edits its existing identity without droppi
   await name.fill("  Weekend sessions  ");
   change.mockRejectedValueOnce(new Error("Fixture organization write refused"));
   await save.click();
-  await expect.element(dialog.getByRole("status")).toHaveTextContent("couldn’t confirm");
+  await expect
+    .element(dialog.getByRole("status"))
+    .toHaveTextContent(
+      "Portcove couldn’t confirm the changes. Showing your last confirmed choices.",
+    );
   await expect.element(name).toHaveValue("  Weekend sessions  ");
   await expect
     .poll(() => document.querySelector("[data-library-header] h1")?.textContent)
@@ -1771,7 +1775,11 @@ it("names the selected collection and edits its existing identity without droppi
     collections: {},
   });
   await dialog.getByRole("button", { name: "Reload choices" }).click();
-  await expect.element(dialog.getByRole("status")).toHaveTextContent("no longer available");
+  await expect
+    .element(dialog.getByRole("status"))
+    .toHaveTextContent(
+      "This collection is no longer available. Close the editor to return to the Library.",
+    );
   await expect.element(name).toHaveValue("Unconfirmed name");
   await expect.element(save).toBeDisabled();
   expect(change).toHaveBeenCalledTimes(3);
