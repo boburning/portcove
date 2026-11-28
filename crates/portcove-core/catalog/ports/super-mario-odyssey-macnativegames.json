@@ -23,7 +23,17 @@
       "format_version": 1,
       "id": "super-mario-odyssey",
       "evidence_urls": ["https://github.com/ly05010419/MacNativeGames"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-mario-odyssey-nintendo-switch",
+          "title": "Super Mario Odyssey (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/ly05010419/MacNativeGames/blob/04e848efae505869cbdae60ae7fd08d1f5e19b29/games/odyssey/README.md",
+            "https://github.com/ly05010419/MacNativeGames/blob/04e848efae505869cbdae60ae7fd08d1f5e19b29/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -55,7 +55,16 @@
         "https://github.com/motor-dev/nfs-recompiled/tree/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
         "https://github.com/motor-dev/nfs-recompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "need-for-speed-ii-special-edition-pc",
+          "title": "Need for Speed II: Special Edition (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/motor-dev/nfs-recompiled/blob/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -48,7 +48,32 @@
       "evidence_urls": [
         "https://github.com/spita90/konami-viper-recomp/blob/v0.16.2/README.md#download-and-play"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "thrill-drive-2-konami-viper-ebb",
+          "title": "Thrill Drive 2 (Konami Viper, Europe EBB)",
+          "system": "konami-viper",
+          "evidence_urls": [
+            "https://github.com/spita90/konami-viper-recomp/blob/bb38db8ca70182130b71207984cb1e3a8a2fb365/README.md#download-and-play"
+          ]
+        },
+        {
+          "id": "thrill-drive-2-konami-viper-jaa",
+          "title": "Thrill Drive 2 (Konami Viper, Japan JAA)",
+          "system": "konami-viper",
+          "evidence_urls": [
+            "https://github.com/spita90/konami-viper-recomp/blob/bb38db8ca70182130b71207984cb1e3a8a2fb365/README.md#download-and-play"
+          ]
+        },
+        {
+          "id": "thrill-drive-2-konami-viper-aaa",
+          "title": "Thrill Drive 2 (Konami Viper, Asia AAA)",
+          "system": "konami-viper",
+          "evidence_urls": [
+            "https://github.com/spita90/konami-viper-recomp/blob/bb38db8ca70182130b71207984cb1e3a8a2fb365/README.md#download-and-play"
+          ]
+        }
+      ]
     }
   }
 }

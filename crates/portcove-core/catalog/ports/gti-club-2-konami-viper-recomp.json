@@ -48,7 +48,24 @@
       "evidence_urls": [
         "https://github.com/spita90/konami-viper-recomp/blob/v0.16.2/README.md#download-and-play"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "gti-club-2-konami-viper-jab",
+          "title": "GTI Club: Corso Italiano (Konami Viper, Japan JAB)",
+          "system": "konami-viper",
+          "evidence_urls": [
+            "https://github.com/spita90/konami-viper-recomp/blob/bb38db8ca70182130b71207984cb1e3a8a2fb365/README.md#download-and-play"
+          ]
+        },
+        {
+          "id": "gti-club-2-konami-viper-eaa",
+          "title": "Driving Party: Racing in Italy (Konami Viper, Europe EAA)",
+          "system": "konami-viper",
+          "evidence_urls": [
+            "https://github.com/spita90/konami-viper-recomp/blob/bb38db8ca70182130b71207984cb1e3a8a2fb365/README.md#download-and-play"
+          ]
+        }
+      ]
     }
   }
 }
