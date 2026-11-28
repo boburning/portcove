@@ -229,6 +229,36 @@
       ]
     },
     {
+      "port_id": "cvlod-recomp",
+      "platform": "macos-aarch64",
+      "version": "v0.2.29",
+      "sha256": "fdedea70286fff585ec671600ec3e863b8297b27281df44a1ff4b07c8798e1f8",
+      "derivation_inputs_sha256": "a84ce4d8de503d86a8e7c45a8bb5e0a361faea1858d89af50e602eda37f3b9d1",
+      "size": 21232725,
+      "asset_name": "LodRecomp-v0.2.29-macos-arm64.zip",
+      "reviewed_by": "applicability:cvlod-recomp-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "contents/macos/lodrecomp"
+        ],
+        "top_directories": [
+          "contents"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "contents/macos/lodrecomp",
+          "machine": "macho-arm64",
+          "sha256": "cfd908dc4a93db80fcd978d61d0bce1cf778f14dc9807553566bc3108911f3e9"
+        }
+      ]
+    },
+    {
       "port_id": "diablo-devilutionx",
       "platform": "windows-x86-64",
       "version": "1.5.5",
@@ -289,6 +319,43 @@
       ]
     },
     {
+      "port_id": "diddy-kong-racing-golden-balloon",
+      "platform": "windows-x86-64",
+      "version": "v1.8.0",
+      "sha256": "98ab31dd7108e478cc1469b3cbcce05e321b97b16a06035c2ea99c2122f2b0e1",
+      "derivation_inputs_sha256": "0ecfcec647a85ad1ce9e5799852682c9f94bca1a463a1dab019e2b0a0f3fe29a",
+      "size": 31898069,
+      "asset_name": "Golden-Balloon-1.8.0-windows-x64.zip",
+      "reviewed_by": "applicability:diddy-kong-racing-golden-balloon-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "goldenballoon.exe",
+          "tools/character_importer.exe",
+          "tools/mdkr-character-lod.exe",
+          "tools/validators/gltf_validator.exe"
+        ],
+        "top_directories": [
+          "dist",
+          "tools"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [
+          "tools/character_importer.exe.manifest.json",
+          "tools/validators/gltf_validator.exe.manifest.json"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "goldenballoon.exe",
+          "machine": "pe-x86-64",
+          "sha256": "62b2a036ee68244805b7b6bcd843e1da421b01199464863543b81a82dab52cfe"
+        }
+      ]
+    },
+    {
       "port_id": "doom-3-classic-dhewm3",
       "platform": "linux-x86-64",
       "version": "1.5.5",
@@ -433,6 +500,74 @@
           "path": "dhewm3.exe",
           "machine": "pe-x86",
           "sha256": "2b57a9b61c2693914760d409999665afd82884d085ccf8d7f081c84ce2eed1ee"
+        }
+      ]
+    },
+    {
+      "port_id": "dr-mario-64-recomp",
+      "platform": "windows-x86-64",
+      "version": "1.0.0",
+      "sha256": "ba749f48725e23636845c9a79a89e17859172ac80fa7b98bf4523d12c1f0d2cf",
+      "derivation_inputs_sha256": "2d7ddf2ff17cf8b54b5fe1ff3bc6a6baa98469a096ea4df5783ffe246668eb7d",
+      "size": 24225142,
+      "asset_name": "Dr.Mario.64.Recompiled-v1.0.0-Windows.zip",
+      "reviewed_by": "applicability:dr-mario-64-recomp-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "drmario64_recomp.exe"
+        ],
+        "top_directories": [
+          "assets"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [
+          "assets/scss/package-lock.json",
+          "assets/scss/package.json"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "drmario64_recomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "9448a88d4b004c223eb99686dae48d85f413cd40cb97ec1cb3d6c5d7157e4c9a"
+        }
+      ]
+    },
+    {
+      "port_id": "goldeneye-007-n64-pc-port",
+      "platform": "windows-x86-64",
+      "version": "v0.5.0",
+      "sha256": "b49bfb826566367a4d1af16466530f0fadd85e522b33859521d849c143a005ef",
+      "derivation_inputs_sha256": "73abc4748d5480b184eed258541eb77dce30108043506ffe8e7f636bf80a4f3c",
+      "size": 17178242,
+      "asset_name": "goldeneye-pc-port-0.5.0-win64.zip",
+      "reviewed_by": "applicability:goldeneye-007-n64-pc-port-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "ge007.x86_64.exe",
+          "prepare-assets/ge007-convert.exe"
+        ],
+        "top_directories": [
+          "licenses",
+          "prepare-assets",
+          "tools"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": [
+          "data"
+        ]
+      },
+      "player_candidates": [
+        {
+          "path": "ge007.x86_64.exe",
+          "machine": "pe-x86-64",
+          "sha256": "923d89a0132d3a888005e687041ea448d40f3f845713e22aee915e137d12526b"
         }
       ]
     },
@@ -1193,6 +1328,74 @@
       ]
     },
     {
+      "port_id": "wave-race-64-racewave46",
+      "platform": "windows-x86-64",
+      "version": "v1.0.0",
+      "sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028",
+      "derivation_inputs_sha256": "9f3778769cc2267a0c91c1202466108cd2f1ed40c6508de453b3eb271da4bb49",
+      "size": 35768574,
+      "asset_name": "RaceWave46-Windows-x64-v1.0.0.zip",
+      "reviewed_by": "applicability:wave-race-64-racewave46-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "waverace64recompiled.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "licenses"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [
+          "package-manifest.json"
+        ],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "waverace64recompiled.exe",
+          "machine": "pe-x86-64",
+          "sha256": "a5b00cadb0a390854603456f4c8015fb379a349d878e918291e28065b1edc3d1"
+        }
+      ]
+    },
+    {
+      "port_id": "wave-race-64-recomp",
+      "platform": "windows-x86-64",
+      "version": "v1.0.2",
+      "sha256": "8603e582e7a549f1f3a02c108d1453ad61e7f5df03b2f3232f9939323b044583",
+      "derivation_inputs_sha256": "18290cf8a2c7413283f61aa9efd7c7d64801c24befd7654378ff7c43f2b99fce",
+      "size": 17397538,
+      "asset_name": "WaveRace64Recomp-1.0.2-windows-x64.zip",
+      "reviewed_by": "applicability:wave-race-64-recomp-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "waverace64recomp.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "licenses"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [
+          "assets/water/profiles.json"
+        ],
+        "missing_persistent_parents": [
+          "waverace64recomp-1.0.2-linux-x86_64"
+        ]
+      },
+      "player_candidates": [
+        {
+          "path": "waverace64recomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "464d72ff3ca4595f44bf26a93da5eab151bb59b58082791a0feadcdab45e5f67"
+        }
+      ]
+    },
+    {
       "port_id": "zelda64-recomp",
       "platform": "linux-x86-64",
       "version": "v1.2.2",
@@ -1335,5 +1538,5 @@
       ]
     }
   ],
-  "entries_sha256": "9b24f7de20f5f1dc318a4262ad5e3108f66956185afd7878a4e8e1346df6d183"
+  "entries_sha256": "559d51dc742cc00aea873dbb5d35f12c991139d3502f857ea7643c76e2716281"
 }
