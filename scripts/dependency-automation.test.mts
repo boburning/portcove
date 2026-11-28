@@ -198,7 +198,10 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
   assert.equal(repositoryPackage.type, "module");
   assert.ok(Object.keys(repositoryPackage.devDependencies).length > 0);
   assert.ok(Object.keys(desktopPackage.devDependencies).length > 0);
-  assert.deepEqual(repositoryPackage.dependencies, { "@octokit/core": "7.0.8" });
+  assert.deepEqual(repositoryPackage.dependencies, {
+    "@octokit/core": "7.0.8",
+    "markdown-it": "15.0.3",
+  });
   assert.deepEqual(Object.keys(repositoryPackage.devDependencies).sort(), [
     "@octokit/plugin-paginate-rest",
     "@resvg/resvg-js",
