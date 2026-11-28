@@ -1473,6 +1473,22 @@ void test(
         ports,
         environment: store.owner,
         runner: "fixture",
+        releaseHealth: async () => ({
+          revision: "hosted-health:shared-by-port",
+          report: {
+            format_version: 1,
+            authority:
+              "upstream-monitoring-only; no acquisition, artifact, lineage or publication authority",
+            inventory: {
+              total_ports: 2,
+              fresh_complete_port_ids: ["2ship2harkinian"],
+              fresh_partial_port_ids: [],
+              stale_port_ids: ["not-a-catalog-port"],
+              unmonitored_port_ids: [],
+            },
+            known_conditions: [],
+          },
+        }),
       });
     };
     // Identical Core results on alternating hosts: no spurious transitions or notifications.
@@ -1500,6 +1516,22 @@ void test(
       ["port:not-a-catalog-port@linux-x86-64", "assessed"],
       ["port:not-a-catalog-port@windows-x86-64", "assessed"],
     ]);
+    const [shipLinux, shipWindows, otherLinux, otherWindows] = inventory.subjects as {
+      identity: unknown;
+      release_health: unknown;
+      latest_health_gap: string | null;
+      removed: boolean | null;
+    }[];
+    assert.deepEqual(shipLinux!.identity, shipWindows!.identity);
+    assert.ok(shipLinux!.release_health);
+    assert.deepEqual(shipLinux!.release_health, shipWindows!.release_health);
+    assert.equal(shipLinux!.latest_health_gap, null);
+    assert.equal(shipWindows!.latest_health_gap, null);
+    assert.equal(otherLinux!.release_health, null);
+    assert.equal(otherWindows!.release_health, null);
+    assert.equal(otherLinux!.latest_health_gap, "stale");
+    assert.equal(otherWindows!.latest_health_gap, otherLinux!.latest_health_gap);
+    assert.equal(otherLinux!.removed, otherWindows!.removed);
   },
 );
 
@@ -4247,6 +4279,16 @@ void test(
       /reprioritizes native Linux packaging/u,
     );
     assert.match(renderHtml(report1), /Holds and deferrals/u);
+
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("manual") }));
+    await run();
+    const changed = buildReport(store.owner).reconsiderations?.find(
+      ({ kind, status }) => kind === "intentional_deferral" && status === "pending",
+    );
+    assert.deepEqual(
+      changed?.technical_changes?.map(({ subject_key }) => subject_key),
+      ["port:2ship2harkinian@linux-x86-64"],
+    );
 
     // A failed owner read resolves nothing.
     issuesFail = true;

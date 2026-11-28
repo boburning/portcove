@@ -3055,8 +3055,10 @@ SELECT json_build_object(
         'curated_platforms', c.payload -> 'curated_platforms')
         ORDER BY c.subject_key), '[]')
       FROM latest_catalog c
-      LEFT JOIN latest_targets t ON t.subject_key = c.subject_key
-      LEFT JOIN latest_upstream u ON u.subject_key = c.subject_key
+      -- Assessed ports already return these two payloads in subject_port_facts.
+      LEFT JOIN assessed_ports a ON a.port_key = c.subject_key
+      LEFT JOIN latest_targets t ON t.subject_key = c.subject_key AND a.port_key IS NULL
+      LEFT JOIN latest_upstream u ON u.subject_key = c.subject_key AND a.port_key IS NULL
       WHERE c.payload -> 'operational_definition' = 'true'::jsonb),
   'upstream_present_members', (SELECT coalesce(json_object_agg(u.subject_key, u.content_sha256), '{}')
       FROM latest_upstream u WHERE u.payload <> portcove_maintenance.absent_payload()),
@@ -3117,34 +3119,39 @@ SELECT json_build_object(
                    ORDER BY r.source, r.acquisition DESC, ob.observation_id DESC) o) AS observations,
         m.subject_key IS NOT NULL AS in_latest_core_run,
         (SELECT json_build_object('code', g.code, 'message', g.message) FROM core_gap g
-          WHERE g.platform = c.platform AND g.subject_key = c.port_key LIMIT 1) AS latest_core_gap,
+          WHERE g.platform = c.platform AND g.subject_key = c.port_key LIMIT 1) AS latest_core_gap
+        FROM assessed c
+        JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
+        LEFT JOIN core_member m ON m.platform = c.platform AND m.subject_key = c.port_key) s),
+  'subject_port_facts', (SELECT coalesce(json_agg(f ORDER BY f.port_key), '[]') FROM (
+      SELECT p.port_key,
         lc.payload = portcove_maintenance.absent_payload() AS removed,
         (SELECT CASE WHEN h.payload = portcove_maintenance.absent_payload() THEN NULL ELSE h.payload END
-           FROM latest_health h WHERE h.subject_key = c.port_key) AS release_health,
+           FROM latest_health h WHERE h.subject_key = p.port_key) AS release_health,
         (SELECT g ->> 'code' FROM (
             SELECT gaps FROM portcove_maintenance.collection_runs
               WHERE source = 'release-health' AND coverage NOT IN ('in_progress', 'failed')
               ORDER BY acquisition DESC LIMIT 1) hr
            CROSS JOIN LATERAL jsonb_array_elements(hr.gaps) g
-           WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_health_gap,
+           WHERE g ->> 'subject_key' = p.port_key LIMIT 1) AS latest_health_gap,
         (SELECT CASE WHEN rc.payload = portcove_maintenance.absent_payload() THEN NULL ELSE rc.payload END
-           FROM latest_content rc WHERE rc.subject_key = c.port_key) AS release_content,
+           FROM latest_content rc WHERE rc.subject_key = p.port_key) AS release_content,
         (SELECT g FROM (
             SELECT gaps FROM portcove_maintenance.collection_runs
               WHERE source = 'release-content' AND coverage NOT IN ('in_progress', 'failed')
               ORDER BY acquisition DESC LIMIT 1) cr
            CROSS JOIN LATERAL jsonb_array_elements(cr.gaps) g
-           WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_content_gap,
-        (SELECT CASE WHEN u.payload = portcove_maintenance.absent_payload() THEN NULL ELSE u.payload END
-           FROM latest_upstream u WHERE u.subject_key = c.port_key) AS upstream,
-        (SELECT CASE WHEN t.payload = portcove_maintenance.absent_payload() THEN NULL ELSE t.payload END
-           FROM latest_targets t WHERE t.subject_key = c.port_key) AS target_routes,
+           WHERE g ->> 'subject_key' = p.port_key LIMIT 1) AS latest_content_gap,
+        u.payload AS upstream,
+        u.payload = portcove_maintenance.absent_payload() AS upstream_absent,
+        t.payload AS target_routes,
+        t.payload = portcove_maintenance.absent_payload() AS target_routes_absent,
         (SELECT g FROM (
             SELECT gaps FROM portcove_maintenance.collection_runs
               WHERE source = 'upstream-observations' AND coverage NOT IN ('in_progress', 'failed')
               ORDER BY acquisition DESC LIMIT 1) ur
            CROSS JOIN LATERAL jsonb_array_elements(ur.gaps) g
-           WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_upstream_gap,
+           WHERE g ->> 'subject_key' = p.port_key LIMIT 1) AS latest_upstream_gap,
         json_build_object(
           'name', lc.payload -> 'authored_record' -> 'listing' ->> 'name',
           'game', lc.payload -> 'authored_record' -> 'listing' ->> 'original_game_title',
@@ -3160,11 +3167,11 @@ SELECT json_build_object(
                         FROM jsonb_array_elements(coalesce(lc.payload -> 'scoped_qualification', '[]')) q)
         ) AS identity,
         coalesce(w.work, '[]') AS work
-        FROM assessed c
-        JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
-        LEFT JOIN latest_catalog lc ON lc.subject_key = c.port_key
-        LEFT JOIN core_member m ON m.platform = c.platform AND m.subject_key = c.port_key
-        LEFT JOIN port_work w ON w.port_key = c.port_key) s)
+        FROM assessed_ports p
+        LEFT JOIN latest_catalog lc ON lc.subject_key = p.port_key
+        LEFT JOIN latest_upstream u ON u.subject_key = p.port_key
+        LEFT JOIN latest_targets t ON t.subject_key = p.port_key
+        LEFT JOIN port_work w ON w.port_key = p.port_key) f)
 );`;
 
 export interface InventoryReport {
@@ -3743,7 +3750,24 @@ export function buildReport(
       last_good_at: string | null;
       observed_at: string | null;
     }[];
-    subjects: unknown[];
+    subjects: {
+      subject_key: string;
+      port_key: string;
+      state?: string;
+      changed_at?: string;
+      in_latest_core_run?: boolean;
+      latest_core_gap?: { code: string; message: string } | null;
+    }[];
+    subject_port_facts: {
+      port_key: string;
+      removed?: boolean | null;
+      identity?: { target_key?: string | null };
+      work?: { number?: number }[];
+      upstream: unknown;
+      upstream_absent: boolean | null;
+      target_routes: TargetRoutesFact | null;
+      target_routes_absent: boolean | null;
+    }[];
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
     publication: { definition: string; facts: unknown }[];
     delivery: { definition: string; facts: unknown }[];
@@ -3758,14 +3782,25 @@ export function buildReport(
   )
     ? "complete-authored-catalog"
     : "declared-sample";
-  const subjects = data.subjects as {
-    subject_key: string;
-    port_key: string;
-    in_latest_core_run?: boolean;
-    latest_core_gap?: { code: string; message: string } | null;
-    removed?: boolean | null;
-    identity?: { target_key?: string | null };
-  }[];
+  // Both sets come from the same report statement and use the same assessed port keys.
+  const portFacts = new Map(
+    data.subject_port_facts.map(({ port_key, ...facts }) => [port_key, facts]),
+  );
+  const subjects = data.subjects.map((subject) => {
+    const facts = portFacts.get(subject.port_key);
+    if (!facts) throw new Error(`Maintenance report is missing facts for ${subject.port_key}`);
+    const { upstream_absent, target_routes_absent, ...port } = facts;
+    return {
+      ...subject,
+      ...port,
+      upstream: upstream_absent ? null : port.upstream,
+      target_routes: target_routes_absent ? null : port.target_routes,
+    };
+  });
+  const managedRouteInputs = data.managed_route_inputs.map((input) => {
+    const facts = portFacts.get(input.port_key);
+    return facts ? { ...input, upstream: facts.upstream, targets: facts.target_routes } : input;
+  });
   // Alternatives: other implementations sharing the authored lineage target key.
   const byTarget = new Map<string, string[]>();
   for (const subject of subjects) {
@@ -3891,7 +3926,7 @@ export function buildReport(
         }
       : {}),
     managed_route_observation_coverage: managedRouteObservationCoverage(
-      data.managed_route_inputs,
+      managedRouteInputs,
       data.runs,
       data.upstream_present_members,
     ),
@@ -3921,10 +3956,7 @@ export function buildReport(
     reconsiderations: (() => {
       const issues = new Map(Object.entries(data.universe_inputs.issues));
       const complete = latestRun("issues-project")?.coverage === "complete";
-      return deferralChanges(
-        data.reconsiderations,
-        data.subjects as Parameters<typeof deferralChanges>[1],
-      ).map((entry) => {
+      return deferralChanges(data.reconsiderations, subjects).map((entry) => {
         if (entry.status !== "pending") return entry;
         const wake = dependencyWake(
           entry.condition,
