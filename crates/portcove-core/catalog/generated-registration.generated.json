@@ -1,7 +1,7 @@
 {
   "format": 1,
   "generator": "scripts/generate-catalog.mts",
-  "generator_version": 33,
+  "generator_version": 34,
   "facts_provenance": null,
   "enrollments": [],
   "blocked": {
@@ -48,7 +48,8 @@
     "archive-name-unaccounted": 0,
     "program-name-unaccounted": 0,
     "route-held": 0,
-    "guide-bound": 0
+    "guide-bound": 0,
+    "missing-original-game-title": 0
   },
   "blocked_exclusions": []
 }

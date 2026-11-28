@@ -130,7 +130,7 @@ import { bodyFirstLine, compareRange, statementText, withoutTags } from "./relea
 export { bodyFirstLine, compareRange, statementText, withoutTags };
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 33;
+export const GENERATOR_VERSION = 34;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
 export const FACTS_PARSER_VERSION = 26;
@@ -5686,6 +5686,7 @@ export const blockedReasons = [
   "program-name-unaccounted",
   "route-held",
   "guide-bound",
+  "missing-original-game-title",
 ] as const;
 export type BlockedReason = (typeof blockedReasons)[number];
 /**
@@ -6165,6 +6166,11 @@ export function fitDecision(
     return blocked(
       "guide-bound",
       "The authored guide leaves no room for the selection step and ownership reference within the eight-entry guide bound.",
+    );
+  if (!record.listing.original_game_title)
+    return blocked(
+      "missing-original-game-title",
+      "Generated registration requires an authored original-game title.",
     );
   return {
     port_id,
@@ -10409,6 +10415,11 @@ function gateEnrollmentProblems(
     if (record.integration !== undefined || record.route_facts_v1 !== undefined)
       problems.push(`${id} already has an operational route; it has one runtime owner.`);
     if (gateScummvm(record)) problems.push(`${id} runs on the ScummVM engine.`);
+    const gameTitle = record.listing.original_game_title;
+    if (typeof gameTitle !== "string" || gameTitle.length === 0)
+      problems.push(
+        `${id} lacks the authored original-game title required for a generated registration.`,
+      );
     const availability = (record.listing as Record<string, unknown>).availability;
     if (availability === "source-only" || availability === "unavailable")
       problems.push(`${id} has upstream availability ${String(availability)}.`);

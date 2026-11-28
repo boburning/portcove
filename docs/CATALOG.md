@@ -5621,6 +5621,12 @@ because facts age is measured against that time. `--check` also requires the
 committed table to equal the generator output, so a hand-edited table is
 refused.
 
+A generated registration requires the authored original-game title that
+Core requires for every operational definition. When the inspected package
+otherwise fits, the generator records a missing title for that port and
+retains its package facts. The listing and its independent download policy
+remain in effect. Correcting the title allows later generation to use those
+facts.
 Raising `GENERATOR_VERSION` changes every enrollment, because each records the
 version; it lands in the reviewed change that raises it, with no bound to
 raise. Raise `GENERATOR_VERSION` when the fit rule or the generated route
