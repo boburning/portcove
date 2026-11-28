@@ -1590,7 +1590,10 @@ fn mod_portal_choices_round_trip_through_export_and_interrupted_import() {
 
     fs::write(&export, original).unwrap();
     let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
-    assert_eq!(plan.metadata.mod_portal_preferences, [expected.clone()]);
+    assert_eq!(
+        plan.metadata.mod_portal_preferences.as_slice(),
+        std::slice::from_ref(&expected)
+    );
     start_import(
         &export,
         &source,
@@ -1616,8 +1619,9 @@ fn mod_portal_choices_round_trip_through_export_and_interrupted_import() {
         restored
             .export_library_metadata()
             .unwrap()
-            .mod_portal_preferences,
-        [expected.clone()]
+            .mod_portal_preferences
+            .as_slice(),
+        std::slice::from_ref(&expected)
     );
     // A prior reader can write a new raw revision without knowing the sidecar.
     restored
