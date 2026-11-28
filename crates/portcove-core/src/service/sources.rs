@@ -123,6 +123,43 @@ impl PortcoveService {
         }
     }
 
+    /// Read at most one saved original for artwork applicability, inside the
+    /// same bounded inspection used by the desktop's artwork context.
+    pub fn inspect_registered_artwork_source(
+        &self,
+        profile_id: &str,
+    ) -> Result<crate::SourceInspectionReport> {
+        self.with_registered_artwork_source(profile_id, |report| report, || Ok(()))
+    }
+
+    pub(crate) fn with_registered_artwork_source<T>(
+        &self,
+        profile_id: &str,
+        project: impl FnOnce(crate::SourceInspectionReport) -> T,
+        before_publish: impl FnOnce() -> Result<()>,
+    ) -> Result<T> {
+        let operation = crate::OperationCoordinator::new("artwork-source", None);
+        let limits = crate::RegisteredSourceInspectionLimits {
+            max_file_bytes: 64 * 1024 * 1024,
+            max_hash_bytes: 128 * 1024 * 1024,
+            max_elapsed_ms: 5_000,
+        };
+        self.inspect_registered_sources_bounded_with_projection(
+            &[profile_id.to_owned()],
+            &limits,
+            &operation,
+            |batch| match batch.observations.into_iter().next() {
+                Some(crate::RegisteredSourceObservation::Inspected { report }) => {
+                    Ok(project(*report))
+                }
+                _ => Err(PortcoveError::not_found(
+                    "the original is no longer registered",
+                )),
+            },
+            |_| before_publish(),
+        )
+    }
+
     /// Inspect the registered source and preserve missing/unreadable states as a
     /// machine-readable report. The saved baseline and source bytes are unchanged.
     pub fn inspect_registered_source(

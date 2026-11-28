@@ -1,3 +1,4 @@
+import type { CoverMediaMatch } from "./shared-cover-projection.mts";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import type { CatalogMediaAsset } from "../apps/desktop/src/transport-types.generated.d.ts";
@@ -14,12 +15,17 @@ import {
   gameMediaRoleLimits,
   gameMediaRoles,
   isConfirmedIgdbImageGone,
+  normalizedArtworkTypeName,
   type createIgdbInspector,
   type prepareCatalogGameMedia,
 } from "./inspect-igdb-artwork.mts";
 import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
 import { isRecord } from "./runtime-values.mts";
-import { originalEditionMediaKey } from "./shared-original-media.mts";
+import {
+  directoryOnlyMedia,
+  landscapeCoverMedia,
+  originalEditionMediaKey,
+} from "./shared-original-media.mts";
 import type { ScheduledCover } from "./listing-scheduled-cover.mts";
 
 export const scheduledGameMediaFile = "game-media-additions.json";
@@ -117,6 +123,10 @@ function typedAsset(value: unknown): value is CatalogMediaAsset {
     positiveId(image.game_id) &&
     positiveId(image.record_id) &&
     image.kind === kind &&
+    (role !== "landscape_cover" ||
+      (Number(value.width) > Number(value.height) &&
+        positiveId(image.image_type) &&
+        normalizedArtworkTypeName(image.image_type_name) === "keyartwithlogo")) &&
     typeof image.image_id === "string" &&
     imagePattern.test(image.image_id) &&
     typeof image.game_slug === "string" &&
@@ -301,7 +311,11 @@ export function scheduledGameMediaDefaults(
   reviewed: ReadonlyMap<string, ReviewedOriginalMediaDecision>,
   excluded: ReadonlySet<string>,
   incoming?: { proposal: Proposal; producerListings: readonly Listing[] },
-  options: { strict?: ReadonlyMap<unknown, Listing>; withdrawn?: ReadonlySet<string> } = {},
+  options: {
+    strict?: ReadonlyMap<unknown, Listing>;
+    withdrawn?: ReadonlySet<string>;
+    coverMediaMatches?: ReadonlyMap<string, CoverMediaMatch>;
+  } = {},
 ) {
   const byId = new Map(canonical.map((row) => [row.id, row]));
   const accepted = acceptedHeroMediaMatches(
@@ -317,8 +331,9 @@ export function scheduledGameMediaDefaults(
   );
   const choices = new Map<
     string,
-    Map<string, { asset: CatalogMediaAsset; retained: boolean } | null>
+    Map<string, { asset: CatalogMediaAsset; retained: boolean; coverBacked: boolean } | null>
   >();
+  const retainedCoverMediaRecipients = new Map<string, Set<string>>();
   const verifiedOriginalScreenshots = new Set(
     canonical
       .filter((row) => typeof row.id === "string" && !excluded.has(row.id))
@@ -365,15 +380,27 @@ export function scheduledGameMediaDefaults(
       validArtworkMapping(row.artwork) && row.artwork.match_kind === "port"
         ? row.artwork
         : undefined;
+    const directMatch =
+      decision?.decision === "exclude" ? undefined : (decision ?? accepted.get(key));
+    const coverMatch = options.coverMediaMatches?.get(id);
+    const coverBacked = asset.subject.kind === "original" && directMatch === undefined;
     const mapping =
       asset.subject.kind === "port"
         ? portCover && { game_id: portCover.game_id, slug: portCover.game_slug }
         : decision?.decision === "exclude"
           ? undefined
-          : (decision ?? accepted.get(key));
+          : directMatch !== undefined
+            ? directMatch
+            : coverMatch?.scope === key && (retained || coverMatch.confirmedBySignedCover)
+              ? coverMatch.claim
+              : undefined;
     if (!mapping || mapping.game_id !== image.game_id || mapping.slug !== image.game_slug) return;
     const roles =
-      choices.get(key) ?? new Map<string, { asset: CatalogMediaAsset; retained: boolean } | null>();
+      choices.get(key) ??
+      new Map<
+        string,
+        { asset: CatalogMediaAsset; retained: boolean; coverBacked: boolean } | null
+      >();
     const stored = roles.get(asset.role);
     const fingerprint = [
       key,
@@ -388,9 +415,14 @@ export function scheduledGameMediaDefaults(
       id: automaticPrefix + createHash("sha256").update(JSON.stringify(fingerprint)).digest("hex"),
     };
     if (retained && asset.id !== normalized.id) return;
+    if (retained && coverBacked) {
+      const recipients = retainedCoverMediaRecipients.get(normalized.id) ?? new Set<string>();
+      recipients.add(id);
+      retainedCoverMediaRecipients.set(normalized.id, recipients);
+    }
     // An automatic observation never widens a maintained edition scope.
     delete normalized.edition_neutral;
-    if (stored === undefined) roles.set(asset.role, { asset: normalized, retained });
+    if (stored === undefined) roles.set(asset.role, { asset: normalized, retained, coverBacked });
     else if (stored && stored.retained === retained && stored.asset.id !== normalized.id)
       roles.set(asset.role, null);
     choices.set(key, roles);
@@ -424,14 +456,7 @@ export function scheduledGameMediaDefaults(
       Array.isArray(strictMedia) &&
       (!strictMedia.length ||
         !isDeepStrictEqual(
-          existing.filter(
-            (value) =>
-              !(
-                isRecord(value) &&
-                value.igdb &&
-                (value.role === "header" || value.role === "screenshot")
-              ),
-          ),
+          existing.filter((value) => !directoryOnlyMedia(value)),
           strictMedia,
         ))
     )
@@ -453,11 +478,17 @@ export function scheduledGameMediaDefaults(
       for (const entry of choices.get(key)?.values() ?? []) {
         if (!entry) continue;
         const { asset } = entry;
+        const coverMatch = options.coverMediaMatches?.get(row.id);
         const current = [...existing, ...additions];
         if (
           scope(row, asset.subject) !== key ||
-          (Array.isArray(strictMedia) && asset.role !== "header" && asset.role !== "screenshot") ||
-          current.length >= 14 ||
+          (entry.coverBacked &&
+            (coverMatch?.scope !== key ||
+              (!coverMatch.confirmedBySignedCover &&
+                !retainedCoverMediaRecipients.get(asset.id)?.has(row.id)))) ||
+          (Array.isArray(strictMedia) && !directoryOnlyMedia(asset)) ||
+          (asset.role !== "landscape_cover" &&
+            current.filter((value) => !landscapeCoverMedia(value)).length >= 14) ||
           current.filter((value) => isRecord(value) && value.role === asset.role).length >=
             gameMediaRoleLimits[asset.role] ||
           current.some(

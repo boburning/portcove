@@ -10312,7 +10312,8 @@
           "header",
           "screenshot",
           "logo",
-          "key_art"
+          "key_art",
+          "landscape_cover"
         ],
         "type": "string"
       },
@@ -25079,7 +25080,8 @@
           "header",
           "screenshot",
           "logo",
-          "key_art"
+          "key_art",
+          "landscape_cover"
         ],
         "type": "string"
       },

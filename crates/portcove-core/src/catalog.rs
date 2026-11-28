@@ -1274,10 +1274,10 @@ impl Catalog {
                 let media = presentation.media.as_deref().unwrap_or_default();
                 if media
                     .iter()
-                    .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+                    .any(crate::CatalogMediaAsset::is_directory_only)
                 {
                     return Err(PortcoveError::unsupported(
-                        "IGDB backgrounds and screenshots belong in listing format 13",
+                        "IGDB backgrounds, IGDB screenshots and landscape covers belong in the listing directory",
                     ));
                 }
                 crate::catalog_media::validate_catalog_media(

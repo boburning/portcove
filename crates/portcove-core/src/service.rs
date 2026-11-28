@@ -1226,7 +1226,7 @@ impl PortcoveService {
 
     // Execution retains the original status checks, then verifies its rollback
     // target once under the operation lock instead of discarding that assessment.
-    fn status_without_rollback_assessment(&self, port_id: &str) -> Result<PortStatus> {
+    pub(crate) fn status_without_rollback_assessment(&self, port_id: &str) -> Result<PortStatus> {
         let status_catalog = match self.catalog_for_installed_fallback(port_id) {
             Ok(catalog) => catalog,
             Err(error) if error.code == crate::ErrorCode::NotFound => {

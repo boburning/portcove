@@ -3,7 +3,8 @@ import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mt
 import { orderedJsonSha256 } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
 
-const limits = { header: 2, logo: 2, key_art: 2, screenshot: 8 } as const;
+const limits = { header: 2, logo: 2, key_art: 2, screenshot: 8, landscape_cover: 2 } as const;
+export const landscapeCoverListingFormat = 21;
 type Role = keyof typeof limits;
 type Asset = Record<string, unknown> & { id: string; role: Role };
 type Claim = { asset: Asset; digest: string };
@@ -36,6 +37,14 @@ export function typedIgdbScene(asset: unknown) {
     (asset.role === "header" || asset.role === "screenshot") &&
     asset.igdb != null
   );
+}
+
+export function landscapeCoverMedia(asset: unknown) {
+  return isRecord(asset) && asset.role === "landscape_cover";
+}
+
+export function directoryOnlyMedia(asset: unknown) {
+  return landscapeCoverMedia(asset) || typedIgdbScene(asset);
 }
 
 function sharedAsset(value: unknown, game: AuthoredListing["original_game"]) {
@@ -123,19 +132,21 @@ export function sharedOriginalMedia<
       }
       for (const claim of scope.roles.values()) if (claim) candidates.push(claim);
     }
-    const count = { header: 0, logo: 0, key_art: 0, screenshot: 0 };
+    const count = { header: 0, logo: 0, key_art: 0, screenshot: 0, landscape_cover: 0 };
+    let ordinaryMedia = authored.filter((asset) => !landscapeCoverMedia(asset)).length;
     for (const { asset: item, digest } of candidates) {
       if (
         claims.get(item.id)?.digest !== digest ||
         ids.has(item.id) ||
         roles.has(item.role) ||
         count[item.role] >= limits[item.role] ||
-        media.length >= 14
+        (item.role !== "landscape_cover" && ordinaryMedia >= 14)
       )
         continue;
       media.push(structuredClone(item));
       ids.add(item.id);
       count[item.role]++;
+      if (item.role !== "landscape_cover") ordinaryMedia++;
     }
     return media.length === authored.length ? listing : { ...listing, media };
   });

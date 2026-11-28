@@ -163,7 +163,7 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
                 .listing
                 .media
                 .iter()
-                .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+                .any(crate::CatalogMediaAsset::is_directory_only)
             || crate::catalog::listings::has_verified_source_editions(&retained.listing)
             || !retained.listing.mod_portals.is_empty()
             || retained.listing.official_setup_id.is_some()

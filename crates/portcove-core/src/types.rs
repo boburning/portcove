@@ -3027,8 +3027,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: (5..=crate::catalog::listings::OBSERVED_PROJECT_COVER_LISTING_FORMAT)
-                .collect(),
+            listing_formats: (5..=crate::catalog::listings::MAX_LISTING_FORMAT).collect(),
             listing_delivery_carriers: vec![
                 "json-v1".into(),
                 crate::definition_repository::publisher_policy::listing_delivery::COMPACT_CARRIER

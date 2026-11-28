@@ -1,3 +1,4 @@
+import { coverBackedMediaMatches } from "./shared-cover-projection.mts";
 import {
   requireOriginalGameDecision,
   checkOriginalGameConsistency,
@@ -21,7 +22,6 @@ import {
   serializeCurrentCatalog,
   readCatalogSource,
   catalogSourceNames,
-  typedIgdbScene,
 } from "./catalog-authoring.mts";
 import type { CurrentCatalog, NamedRecord } from "./catalog-authoring.mts";
 import { createHash } from "node:crypto";
@@ -51,7 +51,12 @@ import {
 } from "./catalog-setup-release-advice.mts";
 import { isRecord } from "./runtime-values.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
-import { originalEditionMediaKey } from "./shared-original-media.mts";
+import {
+  directoryOnlyMedia,
+  landscapeCoverListingFormat,
+  landscapeCoverMedia,
+  originalEditionMediaKey,
+} from "./shared-original-media.mts";
 import { previewReviewedOriginalMedia } from "./reviewed-original-media.mts";
 import { isDeepStrictEqual } from "node:util";
 
@@ -577,11 +582,13 @@ function splitListingSceneProposal(
     if (excluded.has(port.id) || !isRecord(presentation) || !Array.isArray(presentation.media))
       return listingOnly ? [] : [port];
     const media: unknown[] = presentation.media;
-    const scenes = media.filter(isRecord).filter((asset) => listingOnly || typedIgdbScene(asset));
-    const legacy = listingOnly ? [] : media.filter((asset) => !typedIgdbScene(asset));
+    const scenes = media
+      .filter(isRecord)
+      .filter((asset) => listingOnly || directoryOnlyMedia(asset));
+    const legacy = listingOnly ? [] : media.filter((asset) => !directoryOnlyMedia(asset));
     const listing = accepted.get(port.id);
     const acceptedMedia: unknown[] = Array.isArray(listing?.media) ? listing.media : [];
-    const acceptedLegacy = acceptedMedia.filter((asset) => !typedIgdbScene(asset));
+    const acceptedLegacy = acceptedMedia.filter((asset) => !directoryOnlyMedia(asset));
     const matchingProject = listing?.project_url === port.project_url;
     const prior = baseline.get(port.id);
     const priorMedia = isRecord(prior) ? prior.media : undefined;
@@ -611,7 +618,7 @@ function splitListingSceneProposal(
       canAlign &&
       (prepared.length ||
         (legacy.length &&
-          acceptedMedia.some(typedIgdbScene) &&
+          acceptedMedia.some(directoryOnlyMedia) &&
           !isDeepStrictEqual(legacy, priorMedia) &&
           !isDeepStrictEqual(legacy, acceptedLegacy)))
     )
@@ -627,7 +634,7 @@ function splitListingSceneProposal(
     if (excluded.has(listing.id)) return [];
     const stage = staged.get(listing.id);
     const media: unknown[] = Array.isArray(listing.media) ? listing.media : [];
-    const currentScenes = media.filter(isRecord).filter(typedIgdbScene);
+    const currentScenes = media.filter(isRecord).filter(directoryOnlyMedia);
     const retained = currentScenes.filter((asset) => {
       if (withdrawn(asset)) return false;
       if (stage && isRecord(asset.subject) && asset.subject.kind === "original") {
@@ -637,8 +644,8 @@ function splitListingSceneProposal(
       return !stage?.additions.some(
         (next) =>
           next.id === asset.id ||
-          (next.role === "header" &&
-            asset.role === "header" &&
+          ((next.role === "header" || next.role === "landscape_cover") &&
+            asset.role === next.role &&
             isDeepStrictEqual(next.subject, asset.subject)),
       );
     });
@@ -646,7 +653,7 @@ function splitListingSceneProposal(
       ? stage.legacy
       : media.filter(
           (asset) =>
-            !typedIgdbScene(asset) &&
+            !directoryOnlyMedia(asset) &&
             (!directoryOnly.has(listing.id) || !withdrawn(asset)) &&
             (!isRecord(asset) || !stage?.additions.some((next) => next.id === asset.id)),
         );
@@ -659,7 +666,15 @@ function splitListingSceneProposal(
   });
   return {
     catalog: { ...catalog, ports },
-    directory: { format_version: Math.max(13, authored.directory.format_version), listings },
+    directory: {
+      format_version: Math.max(
+        listings.some(({ media }) => Array.isArray(media) && media.some(landscapeCoverMedia))
+          ? landscapeCoverListingFormat
+          : 13,
+        authored.directory.format_version,
+      ),
+      listings,
+    },
     pending,
   };
 }
@@ -779,6 +794,9 @@ async function prepareArtworkProposalRun(
         }))
       : [],
   };
+  const coverMediaMatches = heroMedia
+    ? coverBackedMediaMatches(authored.authored, authored.reviewedOriginalMedia)
+    : undefined;
   let mediaPlan:
     | ReturnType<(typeof import("./artwork-preparation-progress.mts"))["planDueGameMedia"]>
     | undefined;
@@ -812,7 +830,8 @@ async function prepareArtworkProposalRun(
           return {
             id: listing.id,
             input_sha256: digest({
-              version: "game-media-due/3",
+              version: "game-media-due/4",
+              cover_media_match: coverMediaMatches?.get(listing.id),
               validator,
               id: listing.id,
               name: listing.name,
@@ -949,6 +968,7 @@ async function prepareArtworkProposalRun(
               reviewedOriginalMedia: authored.reviewedOriginalMedia,
               excludedPortIds: excludedMedia,
               explicitClearPortIds: cleared,
+              ...(coverMediaMatches ? { coverMediaMatches } : {}),
               knownGoneMediaTargets: gone,
               knownHeldMediaTargets: held,
               refreshPortIds: ids

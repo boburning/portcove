@@ -10,7 +10,10 @@ use std::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{Library, PortcoveError, PortcoveService, Result};
+use crate::{
+    CatalogMediaAsset, CatalogMediaRole, CatalogMediaSubject, Library, PortcoveError,
+    PortcoveService, Result,
+};
 
 mod destination;
 mod igdb_cache;
@@ -354,7 +357,133 @@ pub enum ArtworkResolvedSource {
         artwork: crate::IgdbArtwork,
         cache_id: String,
     },
+    CatalogMedia {
+        asset: Box<CatalogMediaAsset>,
+    },
     GeneratedFallback,
+}
+
+#[derive(PartialEq, Eq)]
+struct LandscapeSourceBinding {
+    profile: String,
+    active_install: Option<String>,
+    registration: String,
+}
+
+fn select_landscape_cover<'a>(
+    port: &'a crate::PortListing,
+    verified_edition: impl FnOnce() -> Option<crate::VerifiedOriginalEdition>,
+) -> Option<&'a CatalogMediaAsset> {
+    let covers = || {
+        port.media
+            .iter()
+            .filter(|asset| asset.role == CatalogMediaRole::LandscapeCover)
+    };
+    if let Some(asset) = covers().find(|asset| {
+        matches!(&asset.subject, CatalogMediaSubject::Port { port_id } if port_id == &port.id)
+    }) {
+        return Some(asset);
+    }
+    let game = port.original_game.as_ref()?;
+    let original_covers = || {
+        covers().filter(|asset| {
+        matches!(&asset.subject, CatalogMediaSubject::Original { game_id, .. } if game_id == &game.id)
+    })
+    };
+    if original_covers().any(|asset| asset.edition_neutral != Some(true))
+        && let Some(edition) = verified_edition()
+        && edition.port_id == port.id
+        && edition.original_game_id == game.id
+        && let Some(asset) = original_covers().find(|asset| {
+            matches!(&asset.subject, CatalogMediaSubject::Original { source_edition_id, .. }
+                if source_edition_id == &edition.source_edition_id)
+        })
+    {
+        return Some(asset);
+    }
+    let mut neutral = original_covers().filter(|asset| asset.edition_neutral == Some(true));
+    let first = neutral.next()?;
+    neutral
+        .all(|candidate| candidate.sha256 == first.sha256)
+        .then_some(first)
+}
+
+#[cfg(test)]
+#[test]
+fn landscape_cover_uses_edition_only_when_the_port_and_game_match() {
+    let listing = crate::CatalogListingDocument::from_json(
+        &serde_json::json!({
+            "format_version": 21,
+            "listings": [{
+                "id": "landscape-fixture",
+                "name": "Landscape fixture",
+                "summary": "Two source editions.",
+                "project_url": "https://github.com/example/game",
+                "original_game": {
+                    "format_version": 1,
+                    "id": "original-game",
+                    "evidence_urls": ["https://example.com/game"],
+                    "source_editions": [
+                        {"id": "retail", "title": "Retail", "evidence_urls": ["https://example.com/retail"]},
+                        {"id": "demo", "title": "Demo", "evidence_urls": ["https://example.com/demo"]},
+                    ]
+                },
+                "media": ([false, true].map(|neutral| serde_json::json!({
+                    "id": if neutral { "neutral-art" } else { "retail-art" },
+                    "role": "landscape_cover",
+                    "subject": {
+                        "kind": "original",
+                        "game_id": "original-game",
+                        "source_edition_id": if neutral { "demo" } else { "retail" },
+                    },
+                    "edition_neutral": neutral,
+                    "caption": "Landscape",
+                    "url": "https://raw.githubusercontent.com/example/game/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/wide.png",
+                    "sha256": "b".repeat(64),
+                    "width": 16,
+                    "height": 9,
+                    "attribution": "Example",
+                    "source_url": "https://github.com/example/game",
+                    "license": "CC0-1.0",
+                    "rights_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+                }))),
+            }],
+        }).to_string(),
+    ).unwrap().listings.remove(0);
+    let edition = |port: &str, game: &str| {
+        Some(crate::VerifiedOriginalEdition {
+            port_id: port.into(),
+            original_game_id: game.into(),
+            source_edition_id: "retail".into(),
+        })
+    };
+    assert_eq!(
+        select_landscape_cover(&listing, || None).unwrap().id,
+        "neutral-art"
+    );
+    assert_eq!(
+        select_landscape_cover(&listing, || edition("landscape-fixture", "original-game"))
+            .unwrap()
+            .id,
+        "retail-art",
+    );
+    for evidence in [
+        edition("other-port", "original-game"),
+        edition("landscape-fixture", "other-game"),
+    ] {
+        assert_eq!(
+            select_landscape_cover(&listing, || evidence).unwrap().id,
+            "neutral-art"
+        );
+    }
+    let mut port_art = listing;
+    port_art.media.truncate(1);
+    port_art.media[0].subject = CatalogMediaSubject::Port {
+        port_id: port_art.id.clone(),
+    };
+    let selected =
+        select_landscape_cover(&port_art, || panic!("port artwork needs no edition read"));
+    assert_eq!(selected.unwrap().id, "retail-art");
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -784,6 +913,104 @@ impl PortcoveService {
         Ok(artwork)
     }
 
+    fn landscape_source_binding(
+        &self,
+        port: &crate::PortListing,
+    ) -> Option<LandscapeSourceBinding> {
+        let profile = self
+            .catalog()
+            .port(&port.id)
+            .ok()?
+            .source_profile
+            .as_deref()?;
+        let registered = self.library().source(profile).ok()??;
+        let status = self.status_without_rollback_assessment(&port.id).ok()?;
+        if status.external_runtime.is_some()
+            || (status.active.is_some()
+                && !status.readiness.is_some_and(|readiness| {
+                    readiness.active_game_source_profile.as_deref() == Some(profile)
+                        && matches!(
+                            readiness.source,
+                            Some(crate::SourceHealth::Current | crate::SourceHealth::NotChecked)
+                        )
+                }))
+        {
+            return None;
+        }
+        Some(LandscapeSourceBinding {
+            profile: profile.into(),
+            active_install: status.active.map(|active| active.id),
+            registration: crate::source_batch::fingerprint(&registered).ok()?,
+        })
+    }
+
+    fn with_automatic_landscape_cover<T>(
+        &self,
+        port: &crate::PortListing,
+        project: impl Fn(&CatalogMediaAsset) -> Result<T>,
+    ) -> Result<Option<T>> {
+        let fallback = select_landscape_cover(port, || None);
+        let can_verify_edition = !fallback.is_some_and(|asset| matches!(&asset.subject, CatalogMediaSubject::Port { .. }))
+            && port.original_game.as_ref().is_some_and(|game| {
+                port.media.iter().any(|asset| {
+                    asset.role == CatalogMediaRole::LandscapeCover
+                        && asset.edition_neutral != Some(true)
+                        && matches!(&asset.subject,
+                            CatalogMediaSubject::Original { game_id, source_edition_id }
+                                if game_id == &game.id && game.source_editions.iter().any(|edition| {
+                                    &edition.id == source_edition_id && !edition.verified_sources.is_empty()
+                                })
+                        )
+                })
+            });
+        if can_verify_edition && let Some(before) = self.landscape_source_binding(port) {
+            let verified = self.with_registered_artwork_source(
+                &before.profile,
+                |report| {
+                    let registered = report.registered.as_ref()?;
+                    if report.health != crate::SourceHealth::Current
+                        || crate::source_batch::fingerprint(registered).ok()? != before.registration
+                        || self.landscape_source_binding(port).as_ref() != Some(&before)
+                    {
+                        return None;
+                    }
+                    let mut editions = report
+                        .original_editions
+                        .into_iter()
+                        .filter(|edition| edition.port_id == port.id);
+                    let edition = editions.next()?;
+                    if editions.next().is_some() {
+                        return None;
+                    }
+                    select_landscape_cover(port, || Some(edition))
+                        .filter(|asset| asset.edition_neutral != Some(true))
+                        .map(&project)
+                },
+                || {
+                    let expected = self.artwork_port(&port.id)?;
+                    if expected.as_ref() != port {
+                        return Err(PortcoveError::conflict(
+                            "catalog artwork changed; refresh its details",
+                        ));
+                    }
+                    self.require_current_artwork_listing(&expected)?;
+                    if self.landscape_source_binding(port).as_ref() != Some(&before) {
+                        return Err(PortcoveError::conflict(
+                            "the original edition changed during landscape cover retrieval",
+                        ));
+                    }
+                    Ok(())
+                },
+            );
+            // Missing, stale and unsupported originals cannot select edition
+            // artwork. Port and neutral defaults have independent authority.
+            if let Ok(Some(result)) = verified {
+                return result.map(Some);
+            }
+        }
+        fallback.map(project).transpose()
+    }
+
     fn artwork_for_listing<'a>(
         &self,
         port: &crate::PortListing,
@@ -828,6 +1055,20 @@ impl PortcoveService {
                 None,
                 ArtworkResolvedSource::GeneratedFallback,
             ),
+            None if slot == ArtworkSlot::Landscape && choice.is_automatic() => {
+                match self.with_automatic_landscape_cover(port, |asset| Ok(Box::new(asset.clone())))? {
+                    Some(asset) => (
+                        ArtworkAvailability::Available,
+                        None,
+                        ArtworkResolvedSource::CatalogMedia { asset },
+                    ),
+                    None => (
+                        ArtworkAvailability::Fallback,
+                        None,
+                        ArtworkResolvedSource::GeneratedFallback,
+                    ),
+                }
+            }
             None => match if slot == ArtworkSlot::Cover && choice.is_automatic() {
                 default_cover()
             } else {
@@ -1776,6 +2017,41 @@ impl PortcoveService {
         expected_revision: u64,
     ) -> Result<ArtworkThumbnail> {
         let port = self.artwork_port(port_id)?;
+        if slot == ArtworkSlot::Landscape {
+            let automatic = {
+                let connection = self.library().connection()?;
+                crate::artwork_store::require_revision(
+                    &connection,
+                    port_id,
+                    slot,
+                    expected_revision,
+                )?
+                .is_automatic()
+            };
+            if automatic
+                && let Some(mut thumbnail) = self
+                    .with_automatic_landscape_cover(&port, |asset| {
+                        self.catalog_media_thumbnail(port_id, &asset.id, &asset.sha256)
+                    })?
+            {
+                self.require_current_artwork_listing(&port)?;
+                let connection = self.library().connection()?;
+                if !crate::artwork_store::require_revision(
+                    &connection,
+                    port_id,
+                    slot,
+                    expected_revision,
+                )?
+                .is_automatic()
+                {
+                    return Err(PortcoveError::conflict(
+                        "the artwork choice changed during landscape cover retrieval",
+                    ));
+                }
+                thumbnail.choice_revision = expected_revision;
+                return Ok(thumbnail);
+            }
+        }
         let mapped_cover = if slot == ArtworkSlot::Cover {
             port.automatic_cover(self.catalog())
         } else {

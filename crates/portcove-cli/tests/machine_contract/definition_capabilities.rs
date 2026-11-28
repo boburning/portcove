@@ -541,7 +541,9 @@ fn listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority() {
     // The reader range is independent of the format currently published.
     assert_eq!(
         capabilities["data"]["listing_formats"],
-        serde_json::json!([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20])
+        serde_json::json!([
+            5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
+        ])
     );
     let commands = capabilities["data"]["commands"].as_array().unwrap();
     assert!(
