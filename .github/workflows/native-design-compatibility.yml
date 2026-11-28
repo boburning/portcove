@@ -22,6 +22,7 @@ on:
             qualification-history,
             candidate-consumer,
             slice3-windows-recovery,
+            macos-selector-identity,
           ]
       execution_binding:
         description: Exact independently reviewed source/controller/inventory/selected-plan JSON.
@@ -1391,3 +1392,38 @@ jobs:
       - name: Retain bounded lossless reports and images for decoded connector retrieval
         if: always()
         run: node controller/scripts/native-backup-evidence.mts emit-hosted hosted-evidence
+
+  macos_selector_identity:
+    if: ${{ inputs.operation == 'macos-selector-identity' && inputs.runner == 'macos-15' && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/test/4319-appimage-selector-arm' }}
+    runs-on: macos-15
+    timeout-minutes: 75
+    env:
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+      CARGO_PROFILE_TEST_DEBUG: line-tables-only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+        with:
+          test-fixtures: true
+      - name: Bind the exact ARM selector candidate and test tools
+        run: |
+          test "$(uname -m)" = 'arm64'
+          test "$(git rev-parse HEAD^)" = '8c84aa165f8bba02344312ecd96ddb020459168a'
+          test "$(git diff --name-only HEAD^ HEAD | sort)" = "$(printf '%s\n' .github/workflows/native-design-compatibility.yml scripts/diagnose-arm-selector.mts)"
+          rustc --version --verbose
+          echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          version="$(node -p 'require("./.github/quality-tools.json").tools.find(tool => tool.id === "cargo-nextest").version')"
+          echo "spec=cargo-nextest@$version" >> "$GITHUB_OUTPUT"
+        id: test-runner
+      - uses: taiki-e/install-action@fe3acb53a98b62c772db35d75ce0e4595e7ca8c # v2.90.8
+        with:
+          tool: ${{ steps.test-runner.outputs.spec }}
+      - name: Run the affected cache and adjacent provider tests
+        run: node scripts/diagnose-arm-selector.mts
