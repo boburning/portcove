@@ -203,7 +203,8 @@ export function readScheduledGameMediaProposal(value: unknown): Proposal {
             ? Object.keys(cover).length === 2
             : Object.keys(cover).length === 3 &&
               isRecord(cover.project) &&
-              Object.keys(cover.project).length === 2 &&
+              Object.keys(cover.project).length === 3 &&
+              positiveId(cover.project.github_repository_id) &&
               typeof cover.project.name === "string" &&
               cover.project.name.length > 0 &&
               cover.project.name.length <= 255 &&

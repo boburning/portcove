@@ -2173,6 +2173,7 @@ void test("scheduled project covers require the exact upstream website and stay 
         return image;
       },
     },
+    async () => 12345,
   );
   assert.equal(inspections, 1);
   assert.deepEqual(
@@ -2202,11 +2203,13 @@ void test("scheduled project covers require the exact upstream website and stay 
     incoming: proposal.covers,
     shared: new Map(),
     denied: new Set<string>(),
+    inspectRepository: async () => 12345,
     now: Date.now(),
   };
   const fresh = await projectScheduledCovers({ ...options, inspect: async () => image });
-  assert.deepEqual([...fresh.proposals], [[project.id, cover.artwork]]);
-  const alreadySigned = new Map([[project.id, { ...project, artwork: cover.artwork }]]);
+  const acceptedArtwork = { ...cover.artwork, observed_github_repository_id: 12345 };
+  assert.deepEqual([...fresh.proposals], [[project.id, acceptedArtwork]]);
+  const alreadySigned = new Map([[project.id, { ...project, artwork: acceptedArtwork }]]);
   const outage = await projectScheduledCovers({
     ...options,
     previous: alreadySigned,
@@ -2215,7 +2218,22 @@ void test("scheduled project covers require the exact upstream website and stay 
       throw Error("provider outage");
     },
   });
-  assert.deepEqual([...outage.proposals], [[project.id, cover.artwork]]);
+  assert.deepEqual([...outage.proposals], [[project.id, acceptedArtwork]]);
+  const reused = await projectScheduledCovers({
+    ...options,
+    previous: alreadySigned,
+    observedRepositoryIds: new Map([[project.id, 12346]]),
+    inspectRepository: async () => 12346,
+    inspect: async () => assert.fail("a reused GitHub URL must not inherit the previous cover"),
+  });
+  assert.equal(reused.proposals.size, 0);
+  const removedByMaintainer = await projectScheduledCovers({
+    ...options,
+    previous: new Map([[project.id, { ...project, artwork: cover.artwork }]]),
+    incoming: [],
+    inspect: async () => assert.fail("removed authored artwork has no scheduled provenance"),
+  });
+  assert.equal(removedByMaintainer.proposals.size, 0);
   const moved = await projectScheduledCovers({
     ...options,
     authored: [{ ...authored[0]!, listing: { ...project, project_url: other.project_url } }],

@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.d.ts";
-import type { AuthoredPort } from "./catalog-authoring.mts";
-import { validArtworkMapping } from "./catalog-cover-mapping.mts";
+import { admittedGithubRepositoryId, type AuthoredPort } from "./catalog-authoring.mts";
+import { positiveId, validArtworkMapping } from "./catalog-cover-mapping.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
+import { createGitHubClient } from "./github-client.mts";
 import {
   ArtworkBatchExhausted,
   isConfirmedIgdbImageGone,
@@ -11,14 +12,19 @@ import {
   type createIgdbInspector,
 } from "./inspect-igdb-artwork.mts";
 import { advanceArtworkCheckpoint } from "./listing-artwork-checkpoint.mts";
+import { githubRepository } from "./listing-funding.mts";
 import type { ReviewedOriginalMediaDecision } from "./reviewed-original-media.mts";
+import { isRecord } from "./runtime-values.mts";
 import {
   coverIdentity,
   matchesSharedCoverScope,
   sharedCoverScope,
 } from "./shared-cover-projection.mts";
+import { readObserverMetadata } from "./upstream-observer.mts";
 
-type ProjectCoverIdentity = { name: string; project_url: string };
+type ProjectCoverIdentity = { name: string; project_url: string; github_repository_id: number };
+type ProjectRepositoryReader = (projectUrl: string) => Promise<number | undefined>;
+type ObservedArtwork = IgdbArtwork & { observed_github_repository_id?: number };
 export type ScheduledCover = {
   id: string;
   artwork: IgdbArtwork;
@@ -51,17 +57,56 @@ function reviewedScope(record: AuthoredPort, reviewed: Decisions) {
 }
 
 function projectScope(record: AuthoredPort) {
-  const { id, name, project_url, artwork, collection_covers } = record.listing;
+  const { name, project_url, artwork, collection_covers } = record.listing;
   if (
     artwork ||
     collection_covers ||
     record.igdb_regional_cover ||
     record.igdb_no_shared_cover ||
     usesScummvmEngine(record) ||
-    !project_url.startsWith("https://")
+    !githubRepository(project_url)
   )
     return undefined;
-  return { key: JSON.stringify(["project", id, project_url]), name, project_url };
+  return { name, project_url };
+}
+
+function projectKey(id: string, repositoryId: number) {
+  return JSON.stringify(["project", id, repositoryId]);
+}
+
+/** Positives use one bounded repository lookup per slug. Redirects can't bind a stale URL. */
+export function readScheduledCoverRepositories(signal: AbortSignal, token?: string) {
+  let client: ReturnType<typeof createGitHubClient> | undefined;
+  const reads = new Map<string, Promise<number | undefined>>();
+  return (projectUrl: string) => {
+    const project = githubRepository(projectUrl);
+    if (!project || signal.aborted) return Promise.resolve(undefined);
+    const repository = `${project.owner}/${project.name}`.toLowerCase();
+    const old = reads.get(repository);
+    if (old) return old;
+    client ??= createGitHubClient({
+      credential: token ? { kind: "explicit", token } : { kind: "anonymous" },
+      deadline: performance.now() + 45_000,
+      maxBytes: 64 * 1024,
+      signal,
+      allowRequest: (method, url) =>
+        method === "GET" && /^\/repos\/[a-z0-9_.-]+\/[a-z0-9_.-]+$/u.test(url.pathname),
+    });
+    const read = client
+      .then(async (sdk) => {
+        const { status, body } = await readObserverMetadata(sdk, `/repos/${repository}`);
+        return status === 200 &&
+          isRecord(body) &&
+          positiveId(body.id) &&
+          typeof body.full_name === "string" &&
+          body.full_name.toLowerCase() === repository
+          ? body.id
+          : undefined;
+      })
+      .catch(() => undefined);
+    reads.set(repository, read);
+    return read;
+  };
 }
 
 /** Observe a reviewed original once per edition, or the exact project website. */
@@ -70,16 +115,19 @@ export async function prepareScheduledCovers(
   selected: ReadonlySet<string>,
   reviewed: Decisions,
   inspector: Inspector,
+  inspectRepository: ProjectRepositoryReader = readScheduledCoverRepositories(
+    inspector.signal ?? AbortSignal.timeout(45_000),
+  ),
 ) {
   const representatives = new Map<string, string>();
   const representativeByPort = new Map<string, string>();
-  const projects = new Map<string, ProjectCoverIdentity>();
+  const projects = new Map<string, Omit<ProjectCoverIdentity, "github_repository_id">>();
   const inputs = authored.flatMap((record) => {
     const { listing } = record;
     if (!selected.has(listing.id)) return [];
     const match = reviewedScope(record, reviewed);
     const project = match ? undefined : projectScope(record);
-    const key = match?.scope.key ?? project?.key;
+    const key = match?.scope.key ?? (project && JSON.stringify(["project", listing.id]));
     if (!key) return [];
     if (project) projects.set(listing.id, { name: project.name, project_url: project.project_url });
     const representative = representatives.get(key);
@@ -131,17 +179,35 @@ export async function prepareScheduledCovers(
     false,
   );
   const records = [...originals.records, ...implementations.records];
-  const covers: ScheduledCover[] = records.flatMap(({ port_id: id, reason, mapping }) => {
-    if (!mapping) return [];
-    if (reason === "exact-original-game-cover" && !projects.has(id))
-      return [{ id, artwork: mapping }];
+  const covers: ScheduledCover[] = [];
+  const unresolvedProjects = new Set<string>();
+  for (const { port_id: id, reason, mapping } of records) {
+    if (!mapping) continue;
+    if (reason === "exact-original-game-cover" && !projects.has(id)) {
+      covers.push({ id, artwork: mapping });
+      continue;
+    }
     const project = projects.get(id);
-    return reason === "exact-port-cover" && project ? [{ id, artwork: mapping, project }] : [];
-  });
+    if (reason !== "exact-port-cover" || !project) continue;
+    const repositoryId = await inspectRepository(project.project_url);
+    const admitted = admittedGithubRepositoryId(id);
+    if (repositoryId === undefined || (admitted !== undefined && admitted !== repositoryId)) {
+      unresolvedProjects.add(id);
+      continue;
+    }
+    covers.push({
+      id,
+      artwork: mapping,
+      project: { ...project, github_repository_id: repositoryId },
+    });
+  }
   const recordsByPort = new Map(records.map((record) => [record.port_id, record]));
   const progress = [...representativeByPort].flatMap(([id, representative]) => {
     const record = recordsByPort.get(representative);
-    return record ? [asCoverProgress(id, record)] : [];
+    if (!record) return [];
+    const progress = asCoverProgress(id, record);
+    if (unresolvedProjects.has(id)) progress.reason = "media-provider-unavailable-or-incomplete";
+    return [progress];
   });
   return { covers, records, progress };
 }
@@ -172,6 +238,7 @@ export async function projectScheduledCovers({
   incoming,
   shared,
   denied,
+  observedRepositoryIds = new Map<string, number>(),
   held = new Set<string>(),
   ambiguous = new Set<string>(),
   priorCheckpoint = null,
@@ -180,6 +247,7 @@ export async function projectScheduledCovers({
   receiptDigest,
   now,
   inspect,
+  inspectRepository,
 }: {
   authored: readonly AuthoredPort[];
   reviewed: Decisions;
@@ -188,6 +256,7 @@ export async function projectScheduledCovers({
   incoming?: readonly ScheduledCover[];
   shared: ReadonlyMap<string, IgdbArtwork>;
   denied: ReadonlySet<string>;
+  observedRepositoryIds?: ReadonlyMap<string, number>;
   held?: ReadonlySet<string>;
   ambiguous?: ReadonlySet<string>;
   priorCheckpoint?: Parameters<typeof advanceArtworkCheckpoint>[0];
@@ -196,6 +265,7 @@ export async function projectScheduledCovers({
   receiptDigest?: string;
   now: number;
   inspect?: Inspector["inspectImage"];
+  inspectRepository?: ProjectRepositoryReader;
 }) {
   const eligible = new Map(
     authored.flatMap((record) => {
@@ -211,6 +281,7 @@ export async function projectScheduledCovers({
   type Offer = { artwork: IgdbArtwork; key: string };
   const retained = new Map<string, Offer>();
   const fresh = new Map<string, Offer>();
+  const projectKeys = new Map<string, string>();
   function accepted(
     id: string,
     artwork: unknown,
@@ -229,15 +300,24 @@ export async function projectScheduledCovers({
       return undefined;
     if (artwork.match_kind === "port") {
       const project = entry.project;
+      const repositoryId = signed
+        ? (artwork as ObservedArtwork).observed_github_repository_id
+        : evidence?.github_repository_id;
+      const boundId = admittedGithubRepositoryId(id);
+      const observedId = observedRepositoryIds.get(id);
       if (
         !project ||
+        !positiveId(repositoryId) ||
+        (boundId !== undefined && boundId !== repositoryId) ||
+        (observedId !== undefined && observedId !== repositoryId) ||
         producer.id !== id ||
         producer.name !== project.name ||
         (!signed &&
           (evidence?.name !== project.name || evidence?.project_url !== project.project_url))
       )
         return undefined;
-      return { artwork, key: project.key };
+      const key = projectKey(id, repositoryId);
+      return { artwork: { ...artwork, observed_github_repository_id: repositoryId }, key };
     }
     const original = entry.original;
     if (
@@ -255,11 +335,19 @@ export async function projectScheduledCovers({
   }
   for (const [id, row] of previous) {
     const offer = accepted(id, row.artwork, row, true);
-    if (offer && !shared.has(id)) retained.set(id, offer);
+    if (!offer || shared.has(id)) continue;
+    if (offer.artwork.match_kind === "port") projectKeys.set(id, offer.key);
+    retained.set(id, offer);
   }
   for (const { id, artwork, project } of incoming ?? []) {
     const offer = accepted(id, artwork, source?.get(id), false, project);
-    if (offer && !shared.has(id)) fresh.set(id, offer);
+    if (!offer || shared.has(id)) continue;
+    if (project) {
+      if ((await inspectRepository?.(project.project_url)) !== project.github_repository_id)
+        continue;
+      projectKeys.set(id, offer.key);
+    }
+    fresh.set(id, offer);
   }
   const reads = new Map<string, Promise<string | null>>();
   function observe(artwork: IgdbArtwork) {
@@ -318,10 +406,11 @@ export async function projectScheduledCovers({
   }
   function distribute(allowNew: boolean) {
     const proposals = new Map<string, IgdbArtwork>();
-    for (const [id, { original, project }] of eligible) {
+    for (const [id, { original }] of eligible) {
       const retainedOffer = retained.get(id);
       const originalMapping = original && offers.get(original.scope.key);
-      const projectMapping = project && offers.get(project.key);
+      const projectKey = projectKeys.get(id);
+      const projectMapping = projectKey && offers.get(projectKey);
       const canUse = (mapping: IgdbArtwork | null | undefined, key: string | undefined) =>
         mapping &&
         ((retainedOffer &&
@@ -330,7 +419,7 @@ export async function projectScheduledCovers({
           (allowNew && !changed.has(mapping.image_id) && verified.has(coverIdentity(mapping))));
       const mapping = canUse(originalMapping, original?.scope.key)
         ? originalMapping
-        : canUse(projectMapping, project?.key)
+        : canUse(projectMapping || undefined, projectKey)
           ? projectMapping
           : undefined;
       if (!shared.has(id) && mapping) proposals.set(id, mapping);
@@ -382,7 +471,7 @@ export async function projectScheduledCovers({
       const binding = eligible.get(row.id);
       const mapping = proposals.get(row.id);
       const key =
-        mapping?.match_kind === "port" ? binding?.project?.key : binding?.original?.scope.key;
+        mapping?.match_kind === "port" ? projectKeys.get(row.id) : binding?.original?.scope.key;
       if (!key) continue;
       const restored = restorations.get(key);
       if (
