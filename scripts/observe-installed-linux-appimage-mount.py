@@ -6,6 +6,7 @@ import select
 import stat
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 root = Path(os.environ["RUNNER_TEMP"]) / "portcove-installed-linux-recovery"
@@ -34,26 +35,42 @@ if identity(app) != expected:
 report = {"package": expected, "mode": "ordinary built-in FUSE mount", "outcome": "failed"}
 out = output / "ordinary-package-mount.json"
 process = None
+recorded_mount = None
+
+
+def mount_rows():
+    return Path("/proc/self/mountinfo").read_text().splitlines()
+
+
 try:
     process = subprocess.Popen([app, "--appimage-mount"], stdout=subprocess.PIPE, text=False)
-    if not select.select([process.stdout], [], [], 20)[0]:
-        raise RuntimeError("FUSE mount did not announce a path")
-    mount = process.stdout.readline(4096).decode("utf-8").strip()
+    deadline = time.monotonic() + 20
+    announcement = bytearray()
+    while b"\n" not in announcement:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0 or not select.select([process.stdout], [], [], remaining)[0]:
+            raise RuntimeError("FUSE mount did not announce a path")
+        block = os.read(process.stdout.fileno(), 4096 - len(announcement))
+        if not block:
+            raise RuntimeError("FUSE mount announcement was incomplete")
+        announcement.extend(block)
+    mount = bytes(announcement).split(b"\n", 1)[0].decode("utf-8")
     directory = Path(mount)
     if not directory.is_absolute() or not directory.name.startswith(".mount_"):
         raise RuntimeError("Unexpected AppImage mount path")
     records = []
-    for row in Path("/proc/self/mountinfo").read_text().splitlines():
+    for row in mount_rows():
         before, after = row.split(" - ", 1)
         fields = before.split()
         if fields[4] != mount:
             continue
         filesystem, source, _ = after.split(" ", 2)
-        records.append({"fs": filesystem, "source": source, "device": fields[2]})
+        records.append({"id": fields[0], "path": mount, "fs": filesystem, "source": source, "device": fields[2]})
     if len(records) != 1 or not records[0]["fs"].startswith("fuse"):
         raise RuntimeError("No unique ordinary FUSE filesystem belongs to the owned runtime")
     binaries = directory / "usr/bin"
-    report["mount"] = records[0]
+    recorded_mount = records[0]
+    report["mount"] = recorded_mount
     report["bin_names"] = sorted(entry.name for entry in binaries.iterdir())
     report["desktops"] = [
         {"relative": f"usr/bin/{entry.name}", **identity(entry)}
@@ -74,6 +91,20 @@ finally:
         except subprocess.TimeoutExpired:
             process.kill()
             report["mounted_process_exit"] = process.wait(timeout=5)
+            report["outcome"] = "failed"
+    if recorded_mount is not None:
+        deadline = time.monotonic() + 8
+        while True:
+            retained = any(
+                row.split(" - ", 1)[0].split()[0] == recorded_mount["id"]
+                and row.split(" - ", 1)[0].split()[4] == recorded_mount["path"]
+                for row in mount_rows()
+            )
+            if not retained or time.monotonic() >= deadline:
+                break
+            time.sleep(0.05)
+        report["owned_mount_retired"] = not retained
+        if retained:
             report["outcome"] = "failed"
     with out.open("x", encoding="utf-8") as stream:
         json.dump(report, stream, indent=2)

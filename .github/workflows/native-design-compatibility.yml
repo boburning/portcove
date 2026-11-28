@@ -1460,9 +1460,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        with:
-          package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
@@ -1475,39 +1472,10 @@ jobs:
           mkdir -p work/linux-installed-recovery
           printf '%s\n' "PORTCOVE_RETAINED_EVIDENCE_DIR=$RUNNER_TEMP/installed-linux-retained" >> "$GITHUB_ENV"
           node --input-type=module -e 'import { writeFileSync } from "node:fs"; writeFileSync("work/linux-installed-recovery/host.json",JSON.stringify({source:process.env.GITHUB_SHA,platform:process.platform,arch:process.arch,runner:process.env.ImageVersion,fuse:true})+"\n",{flag:"wx"})'
-          command -v strace || sudo -n apt-get install --no-install-recommends -y strace
-      - name: Grant user namespaces only to the disposable qualification interpreter
-        id: namespace_profile
-        run: node scripts/desktop-linux-namespace-profile.mts --prepare
-      - name: Admit the maintained native session boundary
-        timeout-minutes: 3
-        run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
-      - name: Install pinned package runtime and native drivers
-        timeout-minutes: 30
+      - name: Prepare the fixed FUSE library and the inert fixture used for custody
+        timeout-minutes: 5
         run: |
-          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver --include-appimage-runtime --prefer-archive-mirror --install-timeout-seconds=1200
-          if
-              ! pkg-config --atleast-version=2.52.6 webkit2gtk-4.1; then
-            printf 'Linux recovery needs WebKitGTK 2.52.6 or later. Found %s.\n' \
-              "$(pkg-config --modversion webkit2gtk-4.1)" >&2
-            exit 1
-          fi
-          version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
-          cargo install tauri-driver --locked --version "$version" \
-            --root "$RUNNER_TEMP/installed-linux-driver" \
-            --target-dir "$RUNNER_TEMP/installed-linux-driver-target"
-          "$RUNNER_TEMP/installed-linux-driver/bin/tauri-driver" --help \
-            > work/linux-installed-recovery/driver-help.txt
-          cargo install --list --root "$RUNNER_TEMP/installed-linux-driver" \
-            > work/linux-installed-recovery/driver-installation.txt
-          dpkg-query --show --showformat='${Package} ${Version} ${Architecture}\n' \
-            libwebkit2gtk-4.1-0 webkit2gtk-driver xvfb x11-xkb-utils \
-            > work/linux-installed-recovery/native-packages.txt
-      - name: Prepare the private keyring and inert owned fixture
-        timeout-minutes: 8
-        run: |
-          sudo -n apt-get install --no-install-recommends -y gnome-keyring
-          pnpm install --frozen-lockfile
+          sudo -n apt-get install --no-install-recommends -y libfuse2t64
           rustc --edition=2024 --crate-name portcove_host_tool_fixture \
             crates/portcove-core/src/testdata/host_tool_probe.rs.txt \
             -o "$RUNNER_TEMP/portcove-linux-owned-probe"
@@ -1520,9 +1488,6 @@ jobs:
       - name: Decode the exact mounted package paths and filesystem identity
         timeout-minutes: 2
         run: python3 scripts/observe-installed-linux-appimage-mount.py
-      - name: Withdraw only the quiescent qualification profile
-        if: ${{ always() && steps.namespace_profile.outcome == 'success' }}
-        run: '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup'
       - name: Retain lossless bounded native reports
         if: always()
         run: node scripts/native-backup-evidence.mts emit "$PWD/work/linux-installed-recovery"
