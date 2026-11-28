@@ -238,13 +238,15 @@ void test("every reviewed row is typed and projects to its generated legacy byte
       assert.ok(!reasonTable.has(id), id);
       continue;
     }
-    // Re-running the deterministic migration on the legacy form reproduces the
-    // file, apart from the reviewed later permits above.
-    assert.deepEqual(
-      withLaterReview(id, migrateRecord(id, legacyOf(id, record)).record),
-      record,
-      id,
-    );
+    // Only the original reviewed inputs have a legacy migration to replay.
+    // Later typed rows still have to match their generated projection below.
+    if (reasonTable.has(id)) {
+      assert.deepEqual(
+        withLaterReview(id, migrateRecord(id, legacyOf(id, record)).record),
+        record,
+        id,
+      );
+    }
     if (typed) {
       listingRows++;
       const row = listings.listings.find((listing) => listing.id === id);
@@ -262,13 +264,13 @@ void test("every reviewed row is typed and projects to its generated legacy byte
       assert.ok(!Object.hasOwn(port ?? {}, "acquisition_restrictions"), id);
     }
   }
-  assert.equal(listingRows, 152);
+  assert.equal(listingRows, 156);
   assert.equal(managedRows, 5);
   assert.equal(reasonTable.size, 157);
   assert.deepEqual(migrateCatalogSource(portsRoot, false), {
     listing: 0,
     integration: 0,
-    alreadyTyped: 157,
+    alreadyTyped: 161,
     files: 0,
   });
 });
