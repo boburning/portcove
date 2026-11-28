@@ -1549,9 +1549,16 @@ export async function installScenarios({
       await revealDetailSection(browser, "Saves & backups");
       const savesPanel = await visibleDetailPanel();
       await visibleSnapshotPolicy(savesPanel);
-      const coverage = await savesPanel.findElement(
+      const coverageSummary = await savesPanel.findElement(
+        By.xpath('.//summary[normalize-space(.)="Coverage and recorded rules"]'),
+      );
+      const coverageDetails = await coverageSummary.findElement(By.xpath(".."));
+      if ((await coverageDetails.getAttribute("open")) === null)
+        await clickVisible(browser, coverageSummary);
+      const coverage = await coverageDetails.findElement(
         By.css('section[aria-label="Saved-data coverage"]'),
       );
+      await browser.wait(until.elementIsVisible(coverage), 15_000);
       assert.match(
         await coverage.getText(),
         /Portcove checks the managed saves and settings folder when creating a backup\. Other locations are not covered\./u,
