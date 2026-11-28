@@ -439,6 +439,192 @@ void test("scheduled observation keeps the configured cadence, read-only authori
   assert.match(workflow, /retention-days: 7/);
 });
 
+void test("warm collection validates the retained release tail and selected assets once", async () => {
+  const server = fixture();
+  const first = `${root}/releases?per_page=100&page=1`;
+  const tail = `${root}/releases?per_page=100&page=2`;
+  const assets = `${root}/releases/1/assets?per_page=100&page=1`;
+  server.replies.set(first, {
+    body: Array.from({ length: 100 }, (_, index) => release(index + 1)),
+    link: `<${tail}>; rel="next"`,
+  });
+  server.replies.set(tail, { body: [release(101)] });
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+  });
+  const options = {
+    fetch: server.fetch,
+    reuseValidatedPages: true,
+    selectAssetReleases: async () => [1],
+  };
+  const cold = await observeUpstream(scoped, options);
+  assert.equal(cold.observation.consumed.requests, 8);
+  server.requests.length = 0;
+  const warm = await observeUpstream(scoped, { ...options, cache: cold.cache });
+  assert.equal(warm.observation.consumed.requests, 6);
+  assert.equal(warm.observation.facts_sha256, cold.observation.facts_sha256);
+  for (const url of [root, first])
+    assert.equal(server.requests.filter((request) => request.url === url).length, 2);
+  for (const url of [tail, assets])
+    assert.equal(server.requests.filter((request) => request.url === url).length, 1);
+
+  server.replies.get(tail).body = [release(101, { prerelease: true })];
+  let restart: ObservationFailure["continuation"];
+  await assert.rejects(observeUpstream(scoped, { ...options, cache: warm.cache }), (error) => {
+    assert.ok(error instanceof ObservationFailure);
+    assert.equal(error.rule, "concurrent-change");
+    restart = error.continuation;
+    assert.equal(restart?.phase, "restart");
+    return true;
+  });
+  server.requests.length = 0;
+  const repaired = await observeUpstream(scoped, {
+    ...options,
+    cache: warm.cache,
+    continuation: restart,
+  });
+  assert.equal(repaired.observation.facts.releases.at(-1)?.prerelease, true);
+  for (const url of [tail, assets])
+    assert.equal(server.requests.filter((request) => request.url === url).length, 2);
+});
+
+void test("a truncated fresh asset page retains its warm collection", async () => {
+  const server = fixture();
+  const headers = `${root}/releases?per_page=100&page=1`;
+  const cachedAssets = `${root}/releases/1/assets?per_page=100&page=1`;
+  const freshAssets = `${root}/releases/2/assets?per_page=100&page=1`;
+  server.replies.get(headers).body = [release(1), release(2)];
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+  });
+  const options = { fetch: server.fetch, reuseValidatedPages: true };
+  const first = await observeUpstream(scoped, { ...options, selectAssetReleases: async () => [1] });
+  server.replies.set(freshAssets, {
+    body: [],
+    link: `<${root}/releases/2/assets?per_page=100&page=2>; rel="next"`,
+  });
+  const expanded = { ...options, cache: first.cache, selectAssetReleases: async () => [1, 2] };
+  let retained: ObservationFailure["continuation"];
+  await assert.rejects(observeUpstream(scoped, expanded), (error) => {
+    assert.ok(error instanceof ObservationFailure);
+    assert.equal(error.rule, "pagination");
+    assert.equal(error.statedCoverage, "partial");
+    retained = error.continuation;
+    assert.equal(retained?.phase, "collect");
+    assert.deepEqual(retained?.tentative_pages, [cachedAssets]);
+    assert.ok(!Object.hasOwn(retained.pages, freshAssets));
+    return true;
+  });
+  server.replies.set(freshAssets, { body: [] });
+  const resumed = await observeUpstream(scoped, { ...expanded, continuation: retained });
+  assert.deepEqual(resumed.observation.coverage?.asset_release_ids, [1, 2]);
+});
+
+void test("a temporary provider outage retains warm validation progress", async () => {
+  const assets = `${root}/releases/1/assets?per_page=100&page=1`;
+  let outage = false;
+  const server = fixture({
+    intercept: (url) =>
+      outage && url === assets ? new Response("Unavailable", { status: 503 }) : null,
+  });
+  const noRetries = validateObserverConfig({
+    ...config,
+    budget: { ...config.budget, retries: 0 },
+  });
+  const options = { fetch: server.fetch, reuseValidatedPages: true };
+  const baseline = await observeUpstream(noRetries, options);
+  outage = true;
+  let retained: ObservationFailure["continuation"];
+  await assert.rejects(
+    observeUpstream(noRetries, { ...options, cache: baseline.cache }),
+    (error) => {
+      assert.ok(error instanceof ObservationFailure);
+      assert.equal(error.rule, "provider-status");
+      assert.equal(error.httpStatus, 503);
+      retained = error.continuation;
+      assert.equal(retained?.phase, "validate");
+      assert.equal(retained?.validation_cursor, 2);
+      assert.deepEqual(retained?.tentative_pages, [assets]);
+      return true;
+    },
+  );
+  outage = false;
+  server.requests.length = 0;
+  const resumed = await observeUpstream(noRetries, {
+    ...options,
+    cache: baseline.cache,
+    continuation: retained,
+  });
+  assert.deepEqual(
+    server.requests.map(({ url }) => url),
+    [assets],
+  );
+  assert.equal(resumed.observation.facts_sha256, baseline.observation.facts_sha256);
+});
+
+void test("warm checksum transport verifies tentative assets after a budget continuation", async () => {
+  const server = checksumFixture(false);
+  const assets = `${root}/releases/1/assets?per_page=100&page=1`;
+  const checksum = `${root}/releases/assets/3`;
+  const options = {
+    fetch: server.fetch,
+    reuseValidatedPages: true,
+    selectChecksumSources: async (observation: ProviderObservation) =>
+      observation.facts.releases.some((item) => item.assets.some((value) => value.id === 3))
+        ? checksumSelection()
+        : [],
+  };
+  const full = await observeUpstream(config, options);
+  let requests = 0;
+  let retained: ObservationFailure["continuation"];
+  await assert.rejects(
+    observeUpstream(config, {
+      ...options,
+      cache: full.cache,
+      admitRequest: () => {
+        if (++requests === 3) throw new ObservationFailure("budget", "fixture boundary");
+      },
+    }),
+    (error) => {
+      assert.ok(error instanceof ObservationFailure);
+      assert.equal(error.rule, "budget");
+      retained = error.continuation;
+      assert.deepEqual(retained?.tentative_pages, [assets]);
+      return true;
+    },
+  );
+  server.replies.get(assets).body = [{ ...asset(), digest: null }];
+  server.requests.length = 0;
+  let restart: ObservationFailure["continuation"];
+  await assert.rejects(
+    observeUpstream(config, { ...options, cache: full.cache, continuation: retained }),
+    (error) => {
+      assert.ok(error instanceof ObservationFailure);
+      assert.equal(error.rule, "concurrent-change");
+      restart = error.continuation;
+      assert.equal(restart?.phase, "restart");
+      return true;
+    },
+  );
+  assert.deepEqual(
+    server.requests.map(({ url }) => url),
+    [assets],
+  );
+  const refreshed = await observeUpstream(config, {
+    ...options,
+    cache: full.cache,
+    continuation: restart,
+  });
+  assert.equal(refreshed.observation.facts.checksum_sidecars, undefined);
+  assert.ok(!server.requests.some(({ url }) => url === checksum));
+});
+
 void test("records exact release and asset facts, conditional cache and changed fixture artifacts", async () => {
   const server = fixture();
   const first = await observeUpstream(config, {

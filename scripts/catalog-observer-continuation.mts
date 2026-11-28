@@ -130,7 +130,13 @@ export function retainedCoreProjection<T>(projection: T): T {
 }
 export function acceptedObservationPosition(value: unknown) {
   if (!isRecord(value))
-    return { pages: 0, validation: 0, facts: null, coverage: "unstated" as CoreCoverage };
+    return {
+      pages: 0,
+      validation: 0,
+      tentative: null,
+      facts: null,
+      coverage: "unstated" as CoreCoverage,
+    };
   const continuation = isRecord(value.continuation) ? value.continuation : null;
   const complete =
     isRecord(value.last_complete) && isRecord(value.last_complete.observation)
@@ -145,6 +151,15 @@ export function acceptedObservationPosition(value: unknown) {
           : 0,
     validation:
       typeof continuation?.validation_cursor === "number" ? continuation.validation_cursor : 0,
+    tentative:
+      continuation?.phase !== "restart" && typeof continuation?.started_at === "string"
+        ? {
+            start: continuation.started_at,
+            remaining: Array.isArray(continuation.tentative_pages)
+              ? continuation.tentative_pages.length
+              : 0,
+          }
+        : null,
     facts: typeof complete?.facts_sha256 === "string" ? complete.facts_sha256 : null,
     coverage: coreProjectionCoverage(
       isRecord(value.last_complete) ? value.last_complete.projection : null,
@@ -155,13 +170,17 @@ export function acceptedObservationAdvanced(
   before: ReturnType<typeof acceptedObservationPosition> | undefined,
   after: ReturnType<typeof acceptedObservationPosition>,
 ) {
-  const a = before ?? { pages: 0, validation: 0, facts: null },
+  const a = before ?? { pages: 0, validation: 0, tentative: null, facts: null },
     b = after;
   // Changed last-good facts are never an accepted advance with stated
   // incomplete coverage.
   return (
     b.pages > a.pages ||
     b.validation > a.validation ||
+    (a.tentative !== null &&
+      b.tentative !== null &&
+      b.tentative.start === a.tentative.start &&
+      b.tentative.remaining < a.tentative.remaining) ||
     (b.facts !== null &&
       b.facts !== a.facts &&
       (b.coverage === "complete" || b.coverage === "unstated"))

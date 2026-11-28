@@ -1787,6 +1787,7 @@ export async function advanceCatalogObservations(
           return observationHash({
             phase: continuation.phase,
             cursor: continuation.validation_cursor,
+            tentative: continuation.tentative_pages ?? [],
             pages: isRecord(continuation.pages)
               ? Object.entries(continuation.pages).map(([url, page]) => [
                   url,
@@ -1809,6 +1810,7 @@ export async function advanceCatalogObservations(
           now,
           catalogIds,
           reprojectFreshFacts,
+          reuseValidatedPages: true,
           admitRequest: admitSourceRequest,
           observeResponse,
           consumeResponseBytes,

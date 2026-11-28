@@ -75,9 +75,17 @@ and excludes it from package facts and selection. Pages without these rows
 continue to use `observer-facts-v1`. A later upload can change the package facts under
 the same release identity. Unknown states and malformed rows still fail
 validation, and exact pins still require an uploaded asset.
-GitHub offers
-no atomic repository snapshot: evidence therefore records the observation's
-start/end interval, and any detected change invalidates the entire attempt.
+On a new warm catalog turn, the observer fetches the current repository and
+first release page. If the first page still matches the prior complete page,
+it can collect the retained tail and selected asset pages locally. The final
+pass still reads and verifies every consumed URL, including pages collected
+locally. When Core requests an exact checksum, the observer verifies tentative
+collection pages before fetching the checksum. A changed page holds publication
+and restarts with ordinary provider collection. A temporary provider outage
+retains verification progress. Cold collection and in-progress continuations use their existing
+admission and validation. GitHub offers no atomic repository snapshot.
+Evidence records the observation interval, and any detected concurrent change
+invalidates the attempt.
 
 The format-1 observation carries `authority: provider-observation-only`,
 `config_sha256`, `facts_sha256`, `facts`, clocks and consumed budgets. Digests
