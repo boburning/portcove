@@ -16,7 +16,7 @@ on:
             linux-package-boundary,
             linux-preparation-continuity,
             linux-library-recovery,
-            linux-installed-library-recovery,
+            linux-installed-package-mount,
             bootstrap,
             selected,
             compiled,
@@ -1449,7 +1449,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }
 
   linux_installed_library_recovery:
-    if: ${{ inputs.operation == 'linux-installed-library-recovery' && inputs.runner == 'ubuntu-24.04' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    if: ${{ inputs.operation == 'linux-installed-package-mount' && inputs.runner == 'ubuntu-24.04' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -1517,11 +1517,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PORTCOVE_INSTALLED_RECOVERY_TAG: ${{ inputs.recovery_preview_tag }}
         run: node scripts/hosted-installed-linux-recovery.mts prepare
-      - name: Observe mounted AppImage recovery with the private Secret Service
-        timeout-minutes: 15
-        run: |
-          node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-installed-recovery/harness-config.json"
-          node scripts/hosted-installed-linux-recovery.mts verify
+      - name: Decode the exact mounted package paths and filesystem identity
+        timeout-minutes: 2
+        run: python3 scripts/observe-installed-linux-appimage-mount.py
       - name: Withdraw only the quiescent qualification profile
         if: ${{ always() && steps.namespace_profile.outcome == 'success' }}
         run: '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup'
