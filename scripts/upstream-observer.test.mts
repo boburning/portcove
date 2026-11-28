@@ -471,6 +471,19 @@ void test("warm collection validates the retained release tail and selected asse
   for (const url of [tail, assets])
     assert.equal(server.requests.filter((request) => request.url === url).length, 1);
 
+  server.replies.get(first).body = Array.from({ length: 100 }, (_, index) => ({
+    ...release(index + 1),
+    provider_only_counter: index + 1,
+  }));
+  server.requests.length = 0;
+  const sameFacts = await observeUpstream(scoped, { ...options, cache: warm.cache });
+  assert.equal(sameFacts.observation.facts_sha256, warm.observation.facts_sha256);
+  assert.notEqual(sameFacts.cache.pages[first]?.sha256, warm.cache.pages[first]?.sha256);
+  assert.equal(sameFacts.cache.pages[first]?.facts_sha256, warm.cache.pages[first]?.facts_sha256);
+  assert.equal(sameFacts.observation.consumed.requests, 6);
+  for (const url of [tail, assets])
+    assert.equal(server.requests.filter((request) => request.url === url).length, 1);
+
   server.replies.get(tail).body = [release(101, { prerelease: true })];
   let restart: ObservationFailure["continuation"];
   await assert.rejects(observeUpstream(scoped, { ...options, cache: warm.cache }), (error) => {
@@ -489,6 +502,51 @@ void test("warm collection validates the retained release tail and selected asse
   assert.equal(repaired.observation.facts.releases.at(-1)?.prerelease, true);
   for (const url of [tail, assets])
     assert.equal(server.requests.filter((request) => request.url === url).length, 2);
+});
+
+void test("a changed release frontier reuses assets only for unchanged release headers", async () => {
+  const server = fixture();
+  const first = `${root}/releases?per_page=100&page=1`;
+  const assetsFor = (id: number) => `${root}/releases/${id}/assets?per_page=100&page=1`;
+  server.replies.get(first).body = [release(1), release(2)];
+  server.replies.set(assetsFor(2), { body: [] });
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+  });
+  const options = { fetch: server.fetch, reuseValidatedPages: true };
+  const prior = await observeUpstream(scoped, {
+    ...options,
+    selectAssetReleases: async () => [1, 2],
+  });
+  server.replies.get(first).body = [
+    release(3),
+    release(1),
+    release(2, { tag_name: "v2.1.0", prerelease: true }),
+  ];
+  server.replies.set(assetsFor(3), { body: [] });
+  const expanded = { ...options, cache: prior.cache, selectAssetReleases: async () => [1, 2, 3] };
+  server.requests.length = 0;
+  const refreshed = await observeUpstream(scoped, expanded);
+  assert.deepEqual(
+    refreshed.observation.facts.releases.map(({ id }) => id),
+    [3, 1, 2],
+  );
+  assert.equal(refreshed.observation.facts.releases[2]?.tag_name, "v2.1.0");
+  assert.deepEqual(refreshed.observation.coverage?.asset_release_ids, [1, 2, 3]);
+  assert.equal(server.requests.filter(({ url }) => url === assetsFor(1)).length, 1);
+  for (const url of [first, assetsFor(2), assetsFor(3)])
+    assert.equal(server.requests.filter((request) => request.url === url).length, 2);
+
+  server.replies.get(assetsFor(1)).body = [asset(4)];
+  await assert.rejects(observeUpstream(scoped, expanded), (error) => {
+    assert.ok(error instanceof ObservationFailure);
+    assert.equal(error.rule, "concurrent-change");
+    assert.equal(error.continuation?.phase, "restart");
+    return true;
+  });
 });
 
 void test("a truncated fresh asset page retains its warm collection", async () => {
