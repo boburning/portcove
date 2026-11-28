@@ -999,6 +999,14 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     throw new Error("Integration must be a strict object.");
   const integration = projectExternalRegistration(value as AuthoredPort).integration;
   if (integration !== undefined) {
+    const reviewedLayouts = integration.reviewed_package_layouts;
+    if (
+      integration.adapter !== "native-portable" &&
+      isRecord(reviewedLayouts) &&
+      Object.keys(reviewedLayouts).length > 0
+    ) {
+      throw new Error(`${listing.id} reviewed package layouts require native-portable.`);
+    }
     if (
       integration.upstream_active_reviewed !== undefined &&
       (typeof integration.upstream_active_reviewed !== "boolean" ||
