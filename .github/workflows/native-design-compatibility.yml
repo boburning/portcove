@@ -1090,7 +1090,9 @@ jobs:
   windows_published_library_recovery:
     if: ${{ inputs.operation == 'windows-published-library-recovery' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
     runs-on: windows-2022
-    timeout-minutes: 45
+    timeout-minutes: 60
+    env:
+      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/published-windows-recovery-prerequisites
     permissions:
       contents: read
       attestations: read
@@ -1107,6 +1109,9 @@ jobs:
           node-version-file: .node-version
           package-manager-cache: false
       - uses: ./.github/actions/setup-rust
+      - name: Prepare the held prerequisite evidence directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Path $env:PORTCOVE_OUTPUT_DIR
       - uses: ./.github/actions/prepare-hosted-webview
       - name: Admit the interactive hosted desktop and prepare the pinned drivers
         shell: pwsh
@@ -1131,6 +1136,7 @@ jobs:
         with:
           name: windows-published-library-recovery-${{ github.sha }}-${{ github.run_attempt }}
           path: |
+            work/published-windows-recovery-prerequisites/*.json
             work/published-windows-recovery-evidence/*.json
             work/published-windows-recovery-evidence/native/*.json
             work/published-windows-recovery-evidence/native/*.png

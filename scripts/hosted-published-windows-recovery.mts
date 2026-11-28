@@ -4,7 +4,7 @@ import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { requireCatalogReleaseAttestation } from "./catalog-released-reader.mts";
-import { fileIdentity } from "./development-evidence.mts";
+import { fileIdentity, type FileIdentity } from "./development-evidence.mts";
 import { parseSha256Sums, windowsAssetNames } from "./hosted-installed-update.mts";
 import { acquireNativeSessionLock } from "./native-session-lock.mts";
 import { resourceEntrypoint } from "./resource-command.mts";
@@ -15,11 +15,79 @@ const repository = "boburning/portcove";
 const scenario = "native-library-recovery-bundle";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const packageLimit = 128 * 1024 * 1024;
+const resultLeaf = "native-recovery-bundle-result.json";
+const restartLeaf = "restored-library-explicitly-opened-restart.json";
 
 export function recoveryPreviewVersion(tag: string) {
   const matched = /^nightly-(\d{1,3}\.\d{1,3}\.\d{1,3}-preview\.[1-9]\d{0,3})$/u.exec(tag);
   assert.ok(matched, "Supply an exact published Portcove Preview tag");
   return matched[1]!;
+}
+
+export async function verifyPublishedRecoveryObservation(
+  native: string,
+  revision: string,
+  inputs: Record<"app" | "preparation-cli" | "preparation-tool", FileIdentity>,
+) {
+  const json = async (leaf: string): Promise<unknown> =>
+    JSON.parse(await readFile(path.join(native, leaf), "utf8"));
+  const observation = await json("evidence.json");
+  assert.ok(isRecord(observation) && isRecord(observation.executable));
+  assert.equal(observation.revision, revision);
+  assert.equal(observation.outcome, "passed");
+  assert.equal(observation.executable.path, inputs.app.path);
+  assert.equal(observation.executable.sha256, inputs.app.sha256);
+  assert.deepEqual(observation.selected_scenarios, [scenario]);
+  assert.ok(Array.isArray(observation.checks) && observation.checks.length === 1);
+  const [check] = observation.checks;
+  assert.ok(isRecord(check) && check.scenario === scenario && check.outcome === "passed");
+
+  const binding = observation.execution_binding;
+  assert.ok(isRecord(binding) && Array.isArray(binding.product_artifacts));
+  for (const [role, expected] of Object.entries(inputs)) {
+    const matches = binding.product_artifacts.filter(
+      (input: unknown) => isRecord(input) && input.role === role,
+    );
+    assert.ok(matches.length === 1 && isRecord(matches[0]), `Expected one observed ${role}`);
+    assert.equal(matches[0].sha256, expected.sha256);
+    assert.equal(matches[0].bytes, expected.bytes);
+  }
+
+  const result = await json(resultLeaf);
+  assert.ok(
+    isRecord(result) &&
+      isRecord(result.initial) &&
+      isRecord(result.afterRestore) &&
+      isRecord(result.opened),
+  );
+  assert.equal(result.source, path.join(native, "library"));
+  assert.equal(result.destination, path.join(native, "restored-library"));
+  assert.ok(typeof result.initial.id === "string" && result.initial.id.length > 0);
+  assert.equal(result.afterRestore.id, result.initial.id);
+  assert.ok(typeof result.opened.id === "string" && result.opened.id.length > 0);
+  assert.notEqual(result.opened.id, result.initial.id);
+  assert.ok(
+    typeof result.opened.generation === "number" &&
+      typeof result.afterRestore.generation === "number" &&
+      result.opened.generation > result.afterRestore.generation,
+  );
+  const restart = await json(restartLeaf);
+  assert.ok(isRecord(restart) && isRecord(restart.exited));
+  assert.ok(typeof restart.exited.exited_at === "string");
+  assert.ok(
+    typeof restart.exited.observed_processes === "number" && restart.exited.observed_processes > 1,
+  );
+
+  const resultIdentity = await fileIdentity(path.join(native, resultLeaf));
+  const restartIdentity = await fileIdentity(path.join(native, restartLeaf));
+  assert.ok(Array.isArray(observation.artifacts));
+  for (const expected of [resultIdentity, restartIdentity]) {
+    const matches = observation.artifacts.filter(
+      (entry: unknown) => isRecord(entry) && entry.path === expected.path,
+    );
+    assert.deepEqual(matches, [expected]);
+  }
+  return { result: resultIdentity, restart: restartIdentity };
 }
 
 function command(
@@ -239,24 +307,17 @@ async function run(tag: string, version: string, temporary: string) {
     );
     if (result.error) throw result.error;
     assert.equal(result.status, 0, "Installed recovery scenario failed");
-    const observation: unknown = JSON.parse(
-      await readFile(path.join(native, "evidence.json"), "utf8"),
-    );
-    assert.ok(isRecord(observation) && isRecord(observation.executable));
-    assert.equal(observation.revision, currentRevision);
-    assert.equal(observation.outcome, "passed");
-    assert.equal(observation.executable.sha256, executable.sha256);
-    assert.deepEqual(observation.selected_scenarios, [scenario]);
-    assert.ok(Array.isArray(observation.restart_cycles) && observation.restart_cycles.length === 1);
-    const recoveryResult = await fileIdentity(
-      path.join(native, "native-recovery-bundle-result.json"),
-    );
+    const recoveryEvidence = await verifyPublishedRecoveryObservation(native, currentRevision, {
+      app: executable,
+      "preparation-cli": cliIdentity,
+      "preparation-tool": await fileIdentity(probe),
+    });
     assert.deepEqual(await fileIdentity(application), executable);
     assert.deepEqual(registry(childEnvironment), registration);
     await retain("installed-after.json", {
       registration,
       executable,
-      recovery_result: recoveryResult,
+      recovery_evidence: recoveryEvidence,
       outcome: "passed",
     });
     return 0;

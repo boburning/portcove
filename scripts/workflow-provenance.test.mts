@@ -2008,6 +2008,57 @@ void test("published Windows recovery has one fixed disposable installed route",
   assert.doesNotMatch(text(record(evidence.with).path), /\*\*|installed|RUNNER_TEMP/u);
 });
 
+void test("published Windows recovery requires bound restore and actual restart files", async (t) => {
+  const { verifyPublishedRecoveryObservation } =
+    await import("./hosted-published-windows-recovery.mts");
+  const { fileIdentity } = await import("./development-evidence.mts");
+  const directory = mkdtempSync(path.join(tmpdir(), "portcove-published-recovery-test-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const scenario = "native-library-recovery-bundle";
+  const revision = "a".repeat(40);
+  const write = (leaf: string, value: unknown) => {
+    const target = path.join(directory, leaf);
+    writeFileSync(target, JSON.stringify(value));
+    return target;
+  };
+  const result = write("native-recovery-bundle-result.json", {
+    source: path.join(directory, "library"),
+    destination: path.join(directory, "restored-library"),
+    initial: { id: "source-library", generation: 1 },
+    afterRestore: { id: "source-library", generation: 4 },
+    opened: { id: "restored-library", generation: 5 },
+  });
+  const restart = write("restored-library-explicitly-opened-restart.json", {
+    exited: { exited_at: "2026-11-28T00:00:00.000Z", observed_processes: 2 },
+  });
+  const inputs = {
+    app: { path: "installed-app", sha256: "b".repeat(64), bytes: 22 },
+    "preparation-cli": { path: "released-cli", sha256: "c".repeat(64), bytes: 25 },
+    "preparation-tool": { path: "owned-probe", sha256: "d".repeat(64), bytes: 30 },
+  };
+  const observation = {
+    revision,
+    outcome: "passed",
+    executable: inputs.app,
+    selected_scenarios: [scenario],
+    checks: [{ scenario, outcome: "passed" }],
+    restart_cycles: 1,
+    execution_binding: {
+      product_artifacts: Object.entries(inputs).map(([role, identity]) => ({ role, ...identity })),
+    },
+    artifacts: await Promise.all([fileIdentity(result), fileIdentity(restart)]),
+  };
+  write("evidence.json", observation);
+  const verified = await verifyPublishedRecoveryObservation(directory, revision, inputs);
+  assert.equal(verified.restart.path, restart);
+  write("restored-library-explicitly-opened-restart.json", {});
+  await assert.rejects(() => verifyPublishedRecoveryObservation(directory, revision, inputs));
+  write("restored-library-explicitly-opened-restart.json", {
+    exited: { exited_at: "2026-11-28T00:00:01.000Z", observed_processes: 3 },
+  });
+  await assert.rejects(() => verifyPublishedRecoveryObservation(directory, revision, inputs));
+});
+
 void test("Linux continuity publishes an outside-checkout store and lossless bounded private-free reports", async (t) => {
   const workflow: unknown = parseYaml(
     readFileSync(
