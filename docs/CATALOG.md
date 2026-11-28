@@ -5956,8 +5956,9 @@ A sharded run splits the work across a job matrix
    deadline. The plan groups bounded sets of identities that need the same
    exact archive, then balances the estimated bytes across at most 256
    shards. A worker reuses a successful read only for the same repository,
-   release, asset, filename, size, digest and URL. Failures keep their own
-   retry and deadline handling. Independent reproduction reads the exact
+   release, asset, filename, size, digest and URL. A reused read counts its
+   measured time against the consumer's inspection budget. Failures keep
+   their own retry and deadline handling. Independent reproduction reads the exact
    archives through its separate identity shards.
 3. Combine (`combine`): each shard's identities are taken from that shard
    and everything else from the plan, so a sharded run lands exactly what one

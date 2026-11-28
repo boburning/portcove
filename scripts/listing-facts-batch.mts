@@ -666,7 +666,7 @@ export function inspectionShards(needs: readonly InspectionNeed[]): string[][] {
   const groups: Group[] = [];
   // A large group can still use several runners. Keep each group near the
   // ordinary matrix load so later consumers also have time to run.
-  const groupLimit = Math.max(4, 2 * Math.ceil(needs.length / matrixJobLimit));
+  const groupLimit = Math.max(3, Math.ceil(needs.length / matrixJobLimit));
   for (const need of needs.toSorted((a, b) => compareCodePoints(a.port_id, b.port_id))) {
     let group = need.archive_keys
       .map((key) => byArchive.get(key))

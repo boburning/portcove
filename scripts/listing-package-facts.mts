@@ -1632,14 +1632,14 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         intendedReads.set(key, (intendedReads.get(key) ?? 0) + 1);
   // Keep only successful derived facts for exact repeated assets in this worker.
   // This cache never retains archive bytes, partial results or failed attempts.
-  const sharedInspections = new Map<string, InspectionFacts>();
+  const sharedInspections = new Map<string, { facts: InspectionFacts; elapsedMs: number }>();
   const maximumSharedInspections = 64;
   const inspectOne = async (need: Need) => {
     const found: (InspectionFacts & { asset: ObservedAsset & { sha256: string } })[] = [];
     const refused: { asset: ObservedAsset & { sha256: string }; refusal: RefusalClass }[] = [];
     let inspected = 0;
     let reused = 0;
-    const identityDeadline = Date.now() + identityBudgetMs;
+    let identityDeadline = Date.now() + identityBudgetMs;
     // One identity that does not fit the per-identity budget CI can
     // reproduce in: retried once, then settled with the runner-time cause.
     const runnerTime = () => {
@@ -1689,9 +1689,12 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       if (left) intendedReads.set(key, left);
       else intendedReads.delete(key);
       const shared = sharedInspections.get(key);
-      if (shared) {
-        found.push({ asset, ...shared });
-        if (!left) sharedInspections.delete(key);
+      if (!left) sharedInspections.delete(key);
+      // Charge a hit for the original inspection time. If it might not fit,
+      // attempt a fresh read within the remaining budget, as reproduction will.
+      if (shared && !pastDeadline() && Date.now() + shared.elapsedMs < identityDeadline) {
+        identityDeadline -= shared.elapsedMs;
+        found.push({ asset, ...shared.facts });
         reused++;
         continue;
       }
@@ -1702,6 +1705,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       try {
         inspected++;
         bytes += asset.size;
+        const started = Date.now();
         const inspection = await inputs.inspect(
           asset,
           readerPlatform(asset.name),
@@ -1714,7 +1718,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         };
         found.push({ asset, ...facts });
         if (left && sharedInspections.size < maximumSharedInspections)
-          sharedInspections.set(key, facts);
+          sharedInspections.set(key, { facts, elapsedMs: Math.max(0, Date.now() - started) });
       } catch (error) {
         // The shard deadline cut this identity: it is pending, not failed.
         if (error instanceof OverBudgetError && pastDeadline()) {

@@ -548,6 +548,54 @@ void test("a worker shares only successful inspection of an exact release asset"
   assert.equal(retry.table.entries.filter((entry) => entry.artifacts.length === 1).length, 1);
 });
 
+void test("shared inspections retain the time needed by independent reproduction", async (context) => {
+  const ids = ["zz-one-release-item", "zz-two-release-item", "zz-z-both-items"];
+  const repository = "fixture-owner/shared-release";
+  const projectUrl = `https://github.com/${repository}`;
+  const records = ids.map((id) => listing(id, { project_url: projectUrl }));
+  const first = { id: 24, name: windowsZip, sha256: sha("first-item") };
+  const second = {
+    id: 25,
+    name: linuxTar,
+    sha256: sha("second-item"),
+  };
+  const report = observerReport(
+    Object.fromEntries(
+      [[first], [second], [first, second]].map((assets, index) => [
+        ids[index]!,
+        { repository, releases: [{ ...defaultRelease(ids[index]!), assets }] },
+      ]),
+    ),
+  );
+  for (const row of report.listings)
+    for (const asset of row.listing_update.upstream_observation.releases[0]!.assets)
+      asset.url = `${projectUrl}/releases/download/v1.0/${asset.name}`;
+  let clock = Date.now();
+  context.mock.method(Date, "now", () => clock);
+  const attempts: number[] = [];
+  const result = await deriveListingFacts({
+    records,
+    observerReport: report,
+    table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
+    classify: coreClassifier,
+    now: "2026-11-21T00:00:00.000Z",
+    identityBudgetMs: 100,
+    async inspect(asset, _, deadline) {
+      attempts.push(asset.id);
+      if (clock + 60 >= deadline!) throw new OverBudgetError("no time left to reproduce");
+      clock += 60;
+      return {
+        players: [asset.id === 25 ? player("Game/Game", "elf64-x86-64") : player("Game/Game.exe")],
+        names: [],
+        leaves: [],
+      };
+    },
+  });
+  assert.deepEqual(attempts, [24, 25, 25]);
+  assert.equal(result.table.entries.filter((entry) => entry.artifacts.length === 1).length, 2);
+  assert.equal(result.state.retry.find((entry) => entry.port_id === ids[2])?.cause, "runner-time");
+});
+
 const enrolledIds = (records: AuthoredPort[], facts: ListingFactsTable) =>
   generateRegistrations(records, facts).enrollments.map((row) => row.port_id);
 const outcome = (result: DeriveResult, id: string) =>

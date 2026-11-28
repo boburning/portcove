@@ -1009,7 +1009,7 @@ void test("inspection keeps exact release consumers together without dropping ot
   );
   assert.deepEqual(inspectionShards(needs.toReversed()), shards);
   const shared = shards.find((shard) => shard.includes("zz-000"));
-  assert.deepEqual(shared, ["zz-000", "zz-001", "zz-002", "zz-003"]);
+  assert.deepEqual(shared, ["zz-000", "zz-001", "zz-002"]);
   assert.deepEqual(inspectionShards([]), []);
   const busyRelease = needs.map((need) => ({ ...need, archive_keys: ["one-large-group"] }));
   const split = inspectionShards(busyRelease);
@@ -1018,7 +1018,7 @@ void test("inspection keeps exact release consumers together without dropping ot
     split.flat().toSorted(),
     needs.map((need) => need.port_id),
   );
-  assert.ok(split.every((shard) => shard.length === 4));
+  assert.ok(split.every((shard) => shard.length <= 3));
 });
 
 void test("reproduction proves the named release is still the newest stable one (F2)", async () => {
