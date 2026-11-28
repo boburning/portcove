@@ -998,8 +998,7 @@ void test("reproduction shards hold every entry, deterministically, within the m
 void test("inspection keeps exact release consumers together without dropping other work", () => {
   const needs = Array.from({ length: 400 }, (_, index) => ({
     port_id: `zz-${String(index).padStart(3, "0")}`,
-    repository_id: index < 5 ? 1 : index,
-    release_id: index === 4 ? 2 : 1,
+    archive_keys: [index < 4 ? "shared-exact-archive" : `asset-${index}`],
     bytes: 100,
   }));
   const shards = inspectionShards(needs);
@@ -1012,7 +1011,7 @@ void test("inspection keeps exact release consumers together without dropping ot
   const shared = shards.find((shard) => shard.includes("zz-000"));
   assert.deepEqual(shared, ["zz-000", "zz-001", "zz-002", "zz-003"]);
   assert.deepEqual(inspectionShards([]), []);
-  const busyRelease = needs.map((need) => ({ ...need, repository_id: 1, release_id: 1 }));
+  const busyRelease = needs.map((need) => ({ ...need, archive_keys: ["one-large-group"] }));
   const split = inspectionShards(busyRelease);
   assert.ok(split.length > 1);
   assert.deepEqual(

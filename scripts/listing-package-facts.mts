@@ -747,8 +747,7 @@ export interface ReportRow {
 export interface InspectionNeed {
   port_id: string;
   bytes: number;
-  repository_id: number;
-  release_id: number;
+  archive_keys: string[];
 }
 
 export interface DeriveResult {
@@ -1357,6 +1356,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     archives: (ObservedAsset & { sha256: string })[];
     reusable: Map<string, ArtifactFactV2>;
     reusableRefusals: Map<string, RefusalClass>;
+    unread: Map<string, string>;
     cost: number;
   };
   const needs: Need[] = [];
@@ -1562,13 +1562,25 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         .flatMap((entry) => entry?.refused_archives ?? [])
         .map((archive) => [`${archive.asset_id}/${archive.sha256}`, archive.refusal] as const),
     );
-    const cost = digestBound
-      .filter(
-        (asset) =>
-          !reusable.has(`${asset.id}/${asset.sha256}`) &&
-          !reusableRefusals.has(`${asset.id}/${asset.sha256}`),
-      )
-      .reduce((sum, asset) => sum + asset.size, 0);
+    const unread = new Map<string, string>();
+    let cost = 0;
+    for (const asset of digestBound) {
+      const assetKey = `${asset.id}/${asset.sha256}`;
+      if (reusable.has(assetKey) || reusableRefusals.has(assetKey)) continue;
+      unread.set(
+        assetKey,
+        digestOf([
+          repositoryId,
+          release.id,
+          asset.id,
+          asset.name,
+          asset.size,
+          asset.sha256,
+          asset.url,
+        ]),
+      );
+      cost += asset.size;
+    }
     // The generated registration fit already requires the chosen release's
     // text. Acquire that upstream evidence before reading novel archive bytes.
     // Read-only package discovery and previously inspected bytes are independent.
@@ -1586,6 +1598,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       archives: digestBound,
       reusable,
       reusableRefusals,
+      unread,
       cost,
     });
   };
@@ -1612,25 +1625,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     toolchain: readonly string[];
     counts: ArtifactFactV2["listing_counts"];
   };
-  const inspectionKey = (need: Need, asset: ObservedAsset) =>
-    JSON.stringify([
-      need.repositoryId,
-      need.release.id,
-      asset.id,
-      asset.name,
-      asset.size,
-      asset.sha256,
-      asset.url,
-    ]);
   const intendedReads = new Map<string, number>();
   if (inputs.inspectBytes !== false)
     for (const need of needs)
-      for (const asset of need.archives) {
-        const retainedKey = `${asset.id}/${asset.sha256}`;
-        if (need.reusable.has(retainedKey) || need.reusableRefusals.has(retainedKey)) continue;
-        const key = inspectionKey(need, asset);
+      for (const key of need.unread.values())
         intendedReads.set(key, (intendedReads.get(key) ?? 0) + 1);
-      }
   // Keep only successful derived facts for exact repeated assets in this worker.
   // This cache never retains archive bytes, partial results or failed attempts.
   const sharedInspections = new Map<string, InspectionFacts>();
@@ -1666,7 +1665,8 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       notComplete(need.id, "failed");
     };
     for (const asset of need.archives) {
-      const known = need.reusable.get(`${asset.id}/${asset.sha256}`);
+      const assetKey = `${asset.id}/${asset.sha256}`;
+      const known = need.reusable.get(assetKey);
       if (known) {
         // The recorded helper entries stand for the listing already read.
         found.push({
@@ -1678,13 +1678,13 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         reused++;
         continue;
       }
-      const knownRefusal = need.reusableRefusals.get(`${asset.id}/${asset.sha256}`);
+      const knownRefusal = need.reusableRefusals.get(assetKey);
       if (knownRefusal) {
         refused.push({ asset, refusal: knownRefusal });
         reused++;
         continue;
       }
-      const key = inspectionKey(need, asset);
+      const key = need.unread.get(assetKey)!;
       const left = (intendedReads.get(key) ?? 1) - 1;
       if (left) intendedReads.set(key, left);
       else intendedReads.delete(key);
@@ -1859,8 +1859,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       .map((need) => ({
         port_id: need.id,
         bytes: need.cost,
-        repository_id: need.repositoryId,
-        release_id: need.release.id,
+        archive_keys: [...need.unread.values()].toSorted(compareCodePoints),
       }))
       .toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
     unobserved: [...candidates.keys()]

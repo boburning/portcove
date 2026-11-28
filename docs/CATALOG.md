@@ -5953,9 +5953,12 @@ A sharded run splits the work across a job matrix
    that needs bytes is left pending and listed in `needs`.
 2. Inspect: each shard runs the worker on the plan's table with the plan's
    clock (`--now`), restricted to its identities (`--only`), with its
-   deadline. Shards are `identityShards`: one identity per shard, identity i
-   in port_id order in shard i mod N, N the number of identities that need
-   bytes but at most 256 (GitHub's matrix job limit).
+   deadline. The plan groups bounded sets of identities that need the same
+   exact archive, then balances the estimated bytes across at most 256
+   shards. A worker reuses a successful read only for the same repository,
+   release, asset, filename, size, digest and URL. Failures keep their own
+   retry and deadline handling. Independent reproduction reads the exact
+   archives through its separate identity shards.
 3. Combine (`combine`): each shard's identities are taken from that shard
    and everything else from the plan, so a sharded run lands exactly what one
    unsharded run would (`combineShards`). Each identity's retry record also

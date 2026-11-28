@@ -662,21 +662,22 @@ export function reproductionParallelism(entries: number, shards: number) {
 /** Assign related inspection work together. Reproduction keeps its independent identity shards. */
 export function inspectionShards(needs: readonly InspectionNeed[]): string[][] {
   type Group = { ids: string[]; bytes: number };
-  const byRelease = new Map<string, Group>();
+  const byArchive = new Map<string, Group>();
   const groups: Group[] = [];
-  // A large shared feed can still use several runners. Keep each group near
-  // the ordinary matrix load so later consumers also have time to run.
+  // A large group can still use several runners. Keep each group near the
+  // ordinary matrix load so later consumers also have time to run.
   const groupLimit = Math.max(4, 2 * Math.ceil(needs.length / matrixJobLimit));
   for (const need of needs.toSorted((a, b) => compareCodePoints(a.port_id, b.port_id))) {
-    const key = `${need.repository_id}/${need.release_id}`;
-    let current = byRelease.get(key);
-    if (!current || current.ids.length >= groupLimit) {
-      current = { ids: [], bytes: 0 };
-      groups.push(current);
-      byRelease.set(key, current);
+    let group = need.archive_keys
+      .map((key) => byArchive.get(key))
+      .find((candidate) => candidate && candidate.ids.length < groupLimit);
+    if (!group) {
+      group = { ids: [], bytes: 0 };
+      groups.push(group);
     }
-    current.ids.push(need.port_id);
-    current.bytes += need.bytes;
+    group.ids.push(need.port_id);
+    group.bytes += need.bytes;
+    for (const key of need.archive_keys) byArchive.set(key, group);
   }
   groups.sort((a, b) => b.bytes - a.bytes || compareCodePoints(a.ids[0]!, b.ids[0]!));
   const shards = Array.from({ length: Math.min(matrixJobLimit, groups.length) }, () => ({
@@ -3621,7 +3622,7 @@ async function main(argv: string[]): Promise<string> {
       return `Listing facts change verified: ${entries.length} eligible entries reproduced.\n`;
     }
     case "worker-shards": {
-      // Keep a release's consumers together so verified archive facts can be reused.
+      // Keep consumers of exact unread assets together so verified facts can be reused.
       // Each shard is written as `only-<index>.json`.
       if (!option.needs || !option.directory)
         throw new Error("worker-shards needs --needs and --directory.");
