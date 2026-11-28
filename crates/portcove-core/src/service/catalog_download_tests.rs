@@ -207,7 +207,7 @@ fn pending_catalog_record_formats_preserve_legacy_and_refuse_missing_or_foreign_
 async fn pending_downloads_strip_and_reject_directory_only_artwork() {
     let (_temporary, mut service, request) = fixture();
     let mut directory = service.catalog.listing_document().clone();
-    directory.format_version = crate::catalog::listings::LANDSCAPE_COVER_LISTING_FORMAT;
+    directory.format_version = crate::catalog_media::LANDSCAPE_COVER_LISTING_FORMAT;
     let artwork = serde_json::from_value(json!({
         "game_id":17, "cover_id":31, "image_id":"projectcover",
         "image_sha256":"a".repeat(64), "game_slug":"project", "match_kind":"port",
@@ -236,6 +236,10 @@ async fn pending_downloads_strip_and_reject_directory_only_artwork() {
         .clone()
         .with_listing_document(directory)
         .unwrap();
+    assert_eq!(
+        service.catalog.listing(&request.port_id).unwrap().media,
+        [landscape.clone()]
+    );
     let github = GithubFixture::new(archive(), None, None);
     let preview = service
         .catalog_download_preview_with_provider(&request, &github.provider)
