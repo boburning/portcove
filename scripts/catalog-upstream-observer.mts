@@ -616,6 +616,7 @@ export interface CatalogObservationOptions extends Pick<
   excludedSources?: ReadonlySet<string>;
   /** Hard cap on provider requests this operation may admit (#4779). */
   requestLimit?: number;
+  offlinePolicyOnly?: boolean;
   /** Give stale recovery regular turns after appointments and expiring managed work. */
   rotateStaleSources?: boolean;
   prioritizeConfigured?: boolean;
@@ -774,7 +775,8 @@ export async function advanceCatalogObservations(
       delete progress.coverage.retry_at;
   }
   const template = validateObserverConfig(options.config);
-  const requestCeiling = options.requestLimit ?? Infinity;
+  const offlinePolicyOnly = options.offlinePolicyOnly === true;
+  const requestCeiling = offlinePolicyOnly ? 0 : (options.requestLimit ?? Infinity);
   const policyIdentity = options.policyIdentity;
   if (!/^[a-f0-9]{64}$/u.test(policyIdentity))
     throw new Error("Exact Core policy input identity is required");
@@ -908,6 +910,18 @@ export async function advanceCatalogObservations(
       .filter((source) => {
         if (options.excludedSources?.has(source.key)) return false;
         const progress = state.sources[source.key];
+        if (
+          offlinePolicyOnly &&
+          ((source.provider ?? "github") !== "github" ||
+            listingOnly(source) ||
+            source.ports.some((port) => port.original_source_family) ||
+            !progress?.repository_id ||
+            progress.completed_scope_sha256 === null ||
+            progress.completed_scope_sha256 === scopeBinding(source) ||
+            progress.exception_key !== null ||
+            freshnessExpired(progress))
+        )
+          return false;
         return (
           (scopeDue(source, progress) || source.repository === template.repository) &&
           (!progress?.retry_at || Date.parse(progress.retry_at) <= now())
@@ -976,7 +990,7 @@ export async function advanceCatalogObservations(
       }
     | undefined;
   const observeLauncherMods = options.observeLauncherMods;
-  if (observeLauncherMods) {
+  if (observeLauncherMods && !offlinePolicyOnly) {
     const gameScopes = launcherModGameScopes(
       catalog,
       isRecord(catalog) && Array.isArray(catalog.listings) ? catalog.listings : [],
@@ -1240,6 +1254,7 @@ export async function advanceCatalogObservations(
       previousProgress.freshness_observed_at !== null &&
       now() - Date.parse(previousProgress.freshness_observed_at) <
         template.stale_after_hours * 3600000;
+    if (offlinePolicyOnly && !freshOfflineCandidate) continue;
     if (
       (source.provider ?? "github") === "github" &&
       capacity() < 1 &&
@@ -1809,7 +1824,7 @@ export async function advanceCatalogObservations(
           ...(options.sleep ? { sleep: options.sleep } : {}),
           now,
           catalogIds,
-          reprojectFreshFacts,
+          reprojectFreshFacts: offlinePolicyOnly ? "only" : reprojectFreshFacts,
           reuseValidatedPages: true,
           admitRequest: admitSourceRequest,
           observeResponse,
@@ -1827,6 +1842,7 @@ export async function advanceCatalogObservations(
             );
           },
         });
+        if (offlinePolicyOnly && result.report.transition === "deferred") return result;
         const continuation = result.checkpoint.continuation;
         const readProgress =
           continuation &&
@@ -2068,6 +2084,7 @@ export async function advanceCatalogObservations(
         await options.export(source, config, result, result.report.exception ? fallback : policies);
         return result;
       });
+      if (offlinePolicyOnly && result.report.transition === "deferred") continue;
       if (result.report.exception) {
         if (
           result.report.exception.rule === "budget" &&

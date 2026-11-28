@@ -279,6 +279,8 @@ interface BatchReport {
   }[];
   requests: number;
   response_bytes_charged: number;
+  unknown_response_size_requests?: number;
+  provider_capacity?: { availability: string };
 }
 export async function continueCatalogBatches<
   T extends {
@@ -292,15 +294,17 @@ export async function continueCatalogBatches<
   {
     deadline,
     maxRequests = Infinity,
+    finishOffline = false,
     now = Date.now,
     signal,
     onBatch = () => {},
     evidenceByteLimit = 4 * 1024 * 1024,
   }: {
     deadline: number;
-    /** Hard aggregate request cap: each batch receives only the remaining
-     * allowance, and no batch starts once it is spent (#4779). */
+    /** Each batch receives only its remaining provider allowance. */
     maxRequests?: number;
+    /** The hosted collector can finish one retained-policy batch with zero provider requests. */
+    finishOffline?: boolean;
     now?: () => number;
     signal?: AbortSignal;
     onBatch?: (result: T) => void | Promise<void>;
@@ -317,6 +321,8 @@ export async function continueCatalogBatches<
   const failures = new Map<string, BatchReport["failures"][number]>();
   let failureBytes = 0;
   let launcherProgress: BatchReport["launcher_mod_sources"];
+  let providerCapacity: BatchReport["provider_capacity"];
+  let unknownResponseSizes: number | undefined;
   let notify = false,
     requests = 0,
     bytes = 0,
@@ -324,10 +330,20 @@ export async function continueCatalogBatches<
   for (;;) {
     if (signal?.aborted)
       throw new ObservationFailure("cancelled", "Observation cancelled between bounded batches");
-    const result = await operation(excluded, maxRequests - requests);
+    const allowance = maxRequests - requests;
+    const result = await operation(excluded, allowance);
     batches++;
     // Publish original batch evidence before bounded aggregate admission can fail.
     await onBatch(result);
+    if (result.report.requests > allowance)
+      throw new ObservationFailure(
+        "budget",
+        "Catalog observer batch exceeded its request allowance",
+      );
+    if (allowance > 0) providerCapacity = result.report.provider_capacity;
+    if (result.report.unknown_response_size_requests !== undefined)
+      unknownResponseSizes =
+        (unknownResponseSizes ?? 0) + result.report.unknown_response_size_requests;
     notify ||= result.notify_exception;
     requests += result.report.requests;
     bytes += result.report.response_bytes_charged;
@@ -364,7 +380,7 @@ export async function continueCatalogBatches<
       !more ||
       !result.made_progress ||
       result.handoff_exhausted ||
-      requests >= maxRequests ||
+      (requests >= maxRequests && (!finishOffline || allowance === 0)) ||
       now() >= deadline ||
       signal?.aborted
     )
@@ -376,6 +392,10 @@ export async function continueCatalogBatches<
           ...result.report,
           requests,
           response_bytes_charged: bytes,
+          ...(unknownResponseSizes === undefined
+            ? {}
+            : { unknown_response_size_requests: unknownResponseSizes }),
+          ...(providerCapacity ? { provider_capacity: providerCapacity } : {}),
           ...(launcherProgress ? { launcher_mod_sources: launcherProgress } : {}),
           attempted_source_keys: [...attempted],
           completed_source_keys: [...completed],

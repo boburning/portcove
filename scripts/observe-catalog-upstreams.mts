@@ -237,6 +237,7 @@ export async function runCatalogUpstreams(
     deadline?: number;
     excludedSources?: ReadonlySet<string>;
     requestLimit?: number;
+    offlinePolicyOnly?: boolean;
     rotateStaleSources?: boolean;
     prioritizeConfigured?: boolean;
     scheduledPrioritySources?: ReadonlySet<string>;
@@ -374,6 +375,7 @@ export async function runCatalogUpstreams(
       deadline: operationDeadline,
       ...(runtime.excludedSources ? { excludedSources: runtime.excludedSources } : {}),
       ...(runtime.requestLimit === undefined ? {} : { requestLimit: runtime.requestLimit }),
+      offlinePolicyOnly: runtime.offlinePolicyOnly === true,
       rotateStaleSources: runtime.rotateStaleSources === true,
       prioritizeConfigured: runtime.prioritizeConfigured === true,
       ...(runtime.scheduledPrioritySources
@@ -891,6 +893,7 @@ export async function runCatalogOpportunity(
           handoff,
           excludedSources: excluded,
           requestLimit,
+          offlinePolicyOnly: requestLimit === 0,
           rotateStaleSources: true,
           prioritizeConfigured,
           handoffByteLimit: hostedHandoffByteLimit,
@@ -903,6 +906,7 @@ export async function runCatalogOpportunity(
       {
         deadline: runtime.deadline,
         maxRequests,
+        finishOffline: true,
         now,
         ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
         onBatch: (batch) => {
