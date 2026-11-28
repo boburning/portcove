@@ -2087,6 +2087,24 @@ export async function installScenarios({
       assert.ok(fresh.acquisition);
       assert.equal(fresh.acquisition.id, acquired.acquired.id);
       assert.equal(fresh.acquisition.release.asset.sha256, release.sha256);
+      if (!activate) {
+        // Core can finish the acquisition while the renderer is still refreshing workspace state.
+        const ready = By.xpath(
+          '//section[@aria-label="Review game update"]//details[not(@inert) and button[normalize-space(.)="Prepare for later" and not(@disabled)]]/summary[normalize-space(.)="Advanced update choice"]',
+        );
+        const started = Date.now();
+        await browser.wait(
+          async () => {
+            for (const summary of await browser.findElements(ready)) {
+              if (await summary.isDisplayed()) return true;
+            }
+            return false;
+          },
+          acquisitionScriptBudgetMs,
+          "The retained update review must expose the enabled preparation choice",
+        );
+        observations.prepare_choice_ready_ms = Date.now() - started;
+      }
       await reviewGameUpdateDisposition(browser, activate ? "install" : "prepare");
       const review = await browser.wait(
         until.elementLocated(By.css("[data-game-update-review]")),
