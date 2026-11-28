@@ -585,6 +585,42 @@ async function inspect(archive: string, target: DriftTarget, cli: string, deadli
   return inspectionFromResponse(JSON.parse(stdout), target);
 }
 
+/** Share only an exact transport; each target still gets its own Core verdict. */
+function driftArchiveKey(target: DriftTarget) {
+  const { name, url, size, sha256 } = target.asset;
+  return JSON.stringify([
+    target.repositoryId,
+    target.releaseId,
+    target.assetId,
+    name,
+    url,
+    size,
+    sha256,
+  ]);
+}
+
+async function verifySharedDriftArchive(
+  archive: string,
+  asset: DriftTarget["asset"],
+  hasTime: () => boolean,
+) {
+  if (!hasTime()) return false;
+  const file = await lstat(archive);
+  if (!file.isFile() || file.size !== asset.size)
+    throw new Error("Downloaded shared archive does not match its expected size");
+  const hash = createHash("sha256");
+  let size = 0;
+  for await (const chunk of createReadStream(archive)) {
+    if (!hasTime()) return false;
+    if (!Buffer.isBuffer(chunk) || (size += chunk.length) > asset.size)
+      throw new Error("Downloaded shared archive changed during verification");
+    hash.update(chunk);
+  }
+  if (size !== asset.size || hash.digest("hex") !== asset.sha256)
+    throw new Error("Downloaded shared archive does not match its expected digest");
+  return hasTime();
+}
+
 export async function scanDriftTargets(
   targets: readonly DriftTarget[],
   completed: ReadonlyMap<string, Inspection>,
@@ -607,43 +643,79 @@ export async function scanDriftTargets(
       priorContinuation[tier],
     ),
   }));
+  const routes = queues.flatMap(({ routes }) =>
+    routes.map((route) => ({
+      ...route,
+      archiveKey: driftArchiveKey(route.target),
+    })),
+  );
+  const archiveUses = new Map<string, number>();
+  for (const { archiveKey } of routes)
+    archiveUses.set(archiveKey, (archiveUses.get(archiveKey) ?? 0) + 1);
+  const downloaded = new Map<string, string>();
   const deferred: DriftContinuation = {};
-  for (const { key: route, target } of queues.flatMap(({ routes }) => routes)) {
-    const key = driftTargetKey(target);
-    const prior = completed.get(key);
-    if (
-      prior?.shapeVersion === target.shapeVersion &&
-      prior.derivationSha256 === target.derivationSha256 &&
-      prior.predecessorScopeSha256 === predecessorScope(target.predecessorObservation) &&
-      (prior.status !== "unknown" ||
-        (target.baselineSource === "reviewed_layout" && prior.layoutMatch === true))
-    ) {
-      observations.push({ key, target, inspection: prior });
-      continue;
+  const hasTime = () => now() < stopAt;
+  const defer = (target: DriftTarget, route: string) => {
+    if (target.asset.size <= archiveLimit) deferred[driftTier(target)] ??= route;
+    unassessed.push({ target, reason: "inspection-budget" });
+  };
+  let scratch: string | undefined;
+  try {
+    for (const { key: route, target, archiveKey } of routes) {
+      const key = driftTargetKey(target);
+      const prior = completed.get(key);
+      if (
+        prior?.shapeVersion === target.shapeVersion &&
+        prior.derivationSha256 === target.derivationSha256 &&
+        prior.predecessorScopeSha256 === predecessorScope(target.predecessorObservation) &&
+        (prior.status !== "unknown" ||
+          (target.baselineSource === "reviewed_layout" && prior.layoutMatch === true))
+      ) {
+        observations.push({ key, target, inspection: prior });
+        continue;
+      }
+      let archive = downloaded.get(archiveKey);
+      if (
+        target.asset.size > archiveLimit ||
+        (!archive && target.asset.size + bytes > totalArchiveLimit) ||
+        !hasTime()
+      ) {
+        defer(target, route);
+        continue;
+      }
+      let directory: string | undefined;
+      let phase = "download";
+      try {
+        if (!archive) {
+          bytes += target.asset.size;
+          scratch ??= await mkdtemp(path.join(os.tmpdir(), "portcove-package-drift-"));
+          directory = await mkdtemp(path.join(scratch, "asset-"));
+          archive = path.join(directory, target.asset.name);
+          await dependencies.download(target.asset, archive, stopAt);
+          if ((archiveUses.get(archiveKey) ?? 0) > 1) {
+            if (!(await verifySharedDriftArchive(archive, target.asset, hasTime))) {
+              defer(target, route);
+              continue;
+            }
+            downloaded.set(archiveKey, archive);
+            directory = undefined;
+          }
+        }
+        if (!hasTime()) {
+          defer(target, route);
+          continue;
+        }
+        phase = "core-inspection";
+        const inspection = await dependencies.inspect(archive, target, stopAt);
+        observations.push({ key, target, inspection });
+      } catch {
+        unassessed.push({ target, reason: `${phase}-failed` });
+      } finally {
+        if (directory) await rm(directory, { recursive: true, force: true });
+      }
     }
-    if (
-      target.asset.size > archiveLimit ||
-      target.asset.size + bytes > totalArchiveLimit ||
-      now() >= stopAt
-    ) {
-      if (target.asset.size <= archiveLimit) deferred[driftTier(target)] ??= route;
-      unassessed.push({ target, reason: "inspection-budget" });
-      continue;
-    }
-    bytes += target.asset.size;
-    const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-package-drift-"));
-    let phase = "download";
-    try {
-      const archive = path.join(directory, target.asset.name);
-      await dependencies.download(target.asset, archive, stopAt);
-      phase = "core-inspection";
-      const inspection = await dependencies.inspect(archive, target, stopAt);
-      observations.push({ key, target, inspection });
-    } catch {
-      unassessed.push({ target, reason: `${phase}-failed` });
-    } finally {
-      await rm(directory, { recursive: true, force: true });
-    }
+  } finally {
+    if (scratch) await rm(scratch, { recursive: true, force: true });
   }
   const continuation: DriftContinuation = {};
   for (const { tier, routes } of queues) {
