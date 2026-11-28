@@ -1777,6 +1777,7 @@
             "an interrupted maintenance migration leaves no partial schema and resumes cleanly",
             "a completed charge leaves the ledger once the provider counter has settled past it",
             "shared admissions fence concurrent callers and retain crash charges",
+            "retains captured transfer evidence when the admission ledger update fails",
             "recovery retries reserve and settle real ledger attempts without retrying uncertain transfers",
             "recovery caps row-delta metadata against measured remaining response bytes",
             "a pre-0011 portable backup restores and migrates normalized discovery hints",
