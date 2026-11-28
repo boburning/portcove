@@ -753,7 +753,10 @@ mod tests {
         let service = fixture(&source);
         let expected = crate::mod_portal_preferences::record_portability_fixture(service.library());
         let mut plan = service.plan_library_move(&destination).unwrap();
-        assert_eq!(plan.metadata.mod_portal_preferences, [expected.clone()]);
+        assert_eq!(
+            plan.metadata.mod_portal_preferences.as_slice(),
+            std::slice::from_ref(&expected)
+        );
         plan.metadata = service
             .library()
             .metadata_for_transfer(&plan.source_root, false)
