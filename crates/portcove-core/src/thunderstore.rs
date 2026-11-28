@@ -59,21 +59,6 @@ const SNAPSHOT_MAX_SOURCE_BYTES: u64 = 512 * 1024 * 1024;
 /// packages of the setup it builds, so the shared setup capacity bounds them.
 const MAX_DEPENDENCIES: usize = crate::setup_capacity::MAX_SETUP_PACKAGES;
 
-/// Reviewed port → Thunderstore community bindings. A community's own listing is
-/// the only route; a package is never matched to a game by name.
-const COMMUNITY_BINDINGS: &[(&str, &str)] = &[("zelda64-recomp", "zelda-64-recompiled")];
-
-pub(crate) fn thunderstore_community(port_id: &str) -> Option<&'static str> {
-    #[cfg(test)]
-    if port_id == "starship" {
-        return Some("starship-test");
-    }
-    COMMUNITY_BINDINGS
-        .iter()
-        .find(|(port, _)| *port == port_id)
-        .map(|(_, community)| *community)
-}
-
 #[derive(Clone)]
 pub struct ThunderstoreClient {
     http: ProviderHttp,

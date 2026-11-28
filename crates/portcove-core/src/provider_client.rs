@@ -69,12 +69,16 @@ impl ProviderClient {
     /// The GameBanana binding with a given client (tests).
     #[cfg(test)]
     pub(crate) fn gamebanana(client: &GameBananaClient, port_id: &str) -> Result<Self> {
-        let game = crate::provider_install::gamebanana_game(port_id).ok_or_else(|| {
-            PortcoveError::unsupported("this game has no reviewed GameBanana binding yet")
-        })?;
+        let Some(ModProviderBinding::Gamebanana { game_id }) =
+            crate::provider_binding::legacy_binding(port_id, crate::gamebanana::PROVIDER)
+        else {
+            return Err(PortcoveError::unsupported(
+                "this game has no reviewed GameBanana binding yet",
+            ));
+        };
         Ok(Self::GameBanana {
             client: client.clone(),
-            game,
+            game: game_id,
         })
     }
 

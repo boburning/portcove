@@ -721,15 +721,6 @@ fn a_chunk_naming_another_site_is_refused() {
 }
 
 #[test]
-fn only_reviewed_communities_are_bound() {
-    assert_eq!(
-        thunderstore_community("zelda64-recomp"),
-        Some("zelda-64-recompiled")
-    );
-    assert_eq!(thunderstore_community("shipwright"), None);
-}
-
-#[test]
 fn thunderstore_flags_distinguish_absent_null_malformed_and_boolean() {
     use crate::ProviderStatusUnknown::{Malformed, Null, Omitted};
     for (raw, expected, flag) in [

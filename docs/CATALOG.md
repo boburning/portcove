@@ -3925,7 +3925,7 @@ Use an exact `integration.mod_provider_bindings` scope with an already reviewed
 loader. Shipwright declares its GameBanana game ID and Zelda 64: Recompiled
 declares its Thunderstore community. Ordinary projects, files and compatible
 updates within those scopes use the existing provider selectors. Retained
-package references can still replay their original compiled binding. When an
+package references can still replay their original recorded binding. When an
 indexed provider selection expires or is withdrawn, new provider operations
 wait for a current authenticated selection. Use the
 [indexed definition binding contract](DEFINITION-DELIVERY.md#reviewed-mod-provider-bindings)
