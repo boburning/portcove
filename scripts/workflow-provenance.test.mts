@@ -1973,7 +1973,14 @@ void test("Linux continuity publishes an outside-checkout store and lossless bou
     ),
   );
   const job = record(record(record(workflow).jobs).linux_preparation_continuity);
-  assert.equal(job["runs-on"], "ubuntu-22.04");
+  assert.equal(job["runs-on"], "${{ inputs.runner }}");
+  assert.equal(
+    job.if,
+    "${{ ((inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-22.04') || " +
+      "(inputs.operation == 'linux-library-recovery' && inputs.runner == 'ubuntu-24.04')) && " +
+      "!inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}",
+  );
+  assert.equal(record(job.env).PORTCOVE_LINUX_NATIVE_RUNNER, "${{ inputs.runner }}");
   assert.equal(job["timeout-minutes"], 75);
   assert.ok(!Object.hasOwn(record(job.env), "PORTCOVE_RETAINED_EVIDENCE_DIR"));
   assert.ok(Array.isArray(job.steps));
@@ -1994,6 +2001,15 @@ void test("Linux continuity publishes an outside-checkout store and lossless bou
     "--prefer-archive-mirror",
     "--install-timeout-seconds=1200",
   ]);
+  const prerequisiteRun = text(prerequisiteStep.run);
+  const recoveryEngineGuard = required(
+    prerequisiteRun.match(
+      /if \[\[ "\$PORTCOVE_LINUX_NATIVE_OPERATION" == linux-library-recovery \]\] &&\n[\s\S]*?\nfi/u,
+    )?.[0],
+  );
+  assert.match(recoveryEngineGuard, /pkg-config --atleast-version=2\.52\.6 webkit2gtk-4\.1/u);
+  assert.match(recoveryEngineGuard, /\n  exit 1\nfi$/u);
+  assert.ok(prerequisiteRun.indexOf(recoveryEngineGuard) < prerequisiteRun.indexOf("cargo install"));
   const prerequisitePlan = prerequisiteOperations(
     String.raw`
 plan_desktop_prerequisites ubuntu 22.04 "$@"
@@ -2060,6 +2076,7 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
     RUNNER_TEMP: runnerTemporary,
     GITHUB_ENV: environmentFile,
     GITHUB_SHA: "a".repeat(40),
+    PORTCOVE_LINUX_NATIVE_RUNNER: "ubuntu-24.04",
   };
   const stubbedEnvironment = [
     "import cp from 'node:child_process';",
@@ -2091,10 +2108,9 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
   );
   assert.ok(path.relative(checkout, retained).startsWith(".." + path.sep));
   const root = path.join(checkout, "work/linux-preparation-continuity");
-  assert.equal(
-    record(JSON.parse(readFileSync(path.join(root, "host.json"), "utf8"))).retained_evidence,
-    retained,
-  );
+  const host = record(JSON.parse(readFileSync(path.join(root, "host.json"), "utf8")));
+  assert.equal(host.retained_evidence, retained);
+  assert.equal(host.runner, "ubuntu-24.04");
   const selection = spawnSync(
     process.execPath,
     [

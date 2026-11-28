@@ -277,12 +277,13 @@ jobs:
           retention-days: 14
 
   linux_preparation_continuity:
-    if: ${{ (inputs.operation == 'linux-preparation-continuity' || inputs.operation == 'linux-library-recovery') && inputs.runner == 'ubuntu-22.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
-    runs-on: ubuntu-22.04
+    if: ${{ ((inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-22.04') || (inputs.operation == 'linux-library-recovery' && inputs.runner == 'ubuntu-24.04')) && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 75
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
       PORTCOVE_LINUX_NATIVE_OPERATION: ${{ inputs.operation }}
+      PORTCOVE_LINUX_NATIVE_RUNNER: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -312,7 +313,7 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_ENV, 'PORTCOVE_RETAINED_EVIDENCE_DIR=' + retained + '\n');
           fs.mkdirSync('work/linux-preparation-continuity', { recursive: true });
           fs.writeFileSync('work/linux-preparation-continuity/host.json', JSON.stringify({
-            revision, runner: 'ubuntu-22.04', platform: process.platform,
+            revision, runner: process.env.PORTCOVE_LINUX_NATIVE_RUNNER, platform: process.platform,
             architecture: process.arch, kernel: read('uname', ['-r']),
             retained_evidence: retained,
             image_os: process.env.ImageOS, image_version: process.env.ImageVersion,
@@ -325,6 +326,12 @@ jobs:
         timeout-minutes: 30
         run: |
           ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver --prefer-archive-mirror --install-timeout-seconds=1200
+          if [[ "$PORTCOVE_LINUX_NATIVE_OPERATION" == linux-library-recovery ]] &&
+              ! pkg-config --atleast-version=2.52.6 webkit2gtk-4.1; then
+            printf 'Linux recovery needs WebKitGTK 2.52.6 or later. Found %s.\n' \
+              "$(pkg-config --modversion webkit2gtk-4.1)" >&2
+            exit 1
+          fi
           version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
           cargo install tauri-driver --locked --version "$version" \
             --root "$RUNNER_TEMP/slice3-native-driver" \
