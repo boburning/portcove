@@ -28,7 +28,13 @@ import { LaunchBehaviorStages } from "../../components/LaunchBehaviorStages";
 import { ReleaseWithdrawalBadge } from "../../components/ReleaseWithdrawal";
 import { Button } from "../../components/ui/button";
 import { Chip } from "../../components/ui/chip";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import { gameIdentityLabel, gameProjectLabel } from "../../port-identity";
 import {
   platformLabel,
@@ -266,9 +272,20 @@ export function GroupedDiscover({
         >
           {comparison && (
             <>
-              <DialogTitle id={`${descriptionPrefix}:comparison-title`} ref={heading} tabIndex={-1}>
-                {gameGroupTitle(comparison)}
-              </DialogTitle>
+              <DialogHeader>
+                <DialogTitle
+                  id={`${descriptionPrefix}:comparison-title`}
+                  ref={heading}
+                  tabIndex={-1}
+                >
+                  {gameGroupTitle(comparison)}
+                </DialogTitle>
+                <DialogDescription>
+                  {comparison.ports.length === 1
+                    ? t("discover.compare.single")
+                    : t("discover.compare.several", { total: comparison.ports.length })}
+                </DialogDescription>
+              </DialogHeader>
               <div
                 className="port-comparison-body"
                 role="region"
@@ -276,11 +293,6 @@ export function GroupedDiscover({
                 // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard input scrolls this named comparison pane.
                 tabIndex={0}
               >
-                <DialogDescription>
-                  {comparison.ports.length === 1
-                    ? t("discover.compare.single")
-                    : t("discover.compare.several", { total: comparison.ports.length })}
-                </DialogDescription>
                 <FavoriteGameButton
                   port={gameGroupPresentationPort(comparison)}
                   groupPorts={comparison.ports}

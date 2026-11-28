@@ -143,7 +143,8 @@ it.each(
     const review = dialog.getByRole("region", { name: title.textContent! });
     await expect.element(review).toBeInTheDocument();
     const pane = review.element() as HTMLElement;
-    const titleTop = title.getBoundingClientRect().top;
+    const header = title.parentElement!;
+    const headerTop = header.getBoundingClientRect().top;
     const closeTop = close.getBoundingClientRect().top;
     expect(pane.scrollHeight).toBeGreaterThan(pane.clientHeight);
     pane.focus();
@@ -155,7 +156,8 @@ it.each(
     await expect.element(choice).toHaveFocus();
     const paneBounds = pane.getBoundingClientRect();
     const choiceBounds = choice.element().getBoundingClientRect();
-    expect(title.getBoundingClientRect().top).toBe(titleTop);
+    expect(header.getBoundingClientRect().top).toBe(headerTop);
+    expect(header.getBoundingClientRect().bottom).toBeLessThanOrEqual(paneBounds.top);
     expect(close.getBoundingClientRect().top).toBe(closeTop);
     expect(choiceBounds.top).toBeGreaterThanOrEqual(paneBounds.top);
     expect(choiceBounds.bottom).toBeLessThanOrEqual(paneBounds.bottom);
