@@ -301,6 +301,7 @@ async function observeDiscoveryScope(
   repositoryId: number,
   read: ScopeRead,
   purpose: LauncherScopePurpose = "admission",
+  priorLauncherAbsence?: LauncherModAbsence,
 ) {
   const outcome = (
     state: "held" | "unavailable" | "restricted",
@@ -342,6 +343,14 @@ async function observeDiscoveryScope(
     !/^[a-f0-9]{40}$/u.test(treeId)
   )
     return outcome("held", "default-commit-unresolved");
+  // A verified absence covers the immutable root tree, including manifests
+  // whose bytes declared no supported mod source. Rebind it to the fresh head.
+  if (
+    purpose === "launcher-mods" &&
+    priorLauncherAbsence?.repository_id === repositoryId &&
+    priorLauncherAbsence.tree === treeId
+  )
+    return { ...outcome("held", "launcher-manifest-absent"), commit, tree: treeId };
   const tree = await read(`${location}/git/trees/${treeId}`, 24);
   if (tree.status === "unavailable")
     return outcome("unavailable", tree.reason ?? "default-tree-unobserved", tree.retry_after);
@@ -512,10 +521,17 @@ export type LauncherModObservation =
       mod_portals: NonNullable<AuthoredListing["mod_portals"]>;
     };
 
+type LauncherModAbsence = Extract<LauncherModObservation, { state: "absent" }>;
+export interface LauncherModRepository {
+  slug: string;
+  id: number;
+  priorAbsence?: LauncherModAbsence;
+}
+
 /** Read descriptive links from the exact public repository already accepted for one port.
  * The caller owns eligibility and supplies a budgeted provider transport. */
 export async function observeLauncherModPortals(
-  repository: { slug: string; id: number },
+  repository: LauncherModRepository,
   read: ScopeRead,
 ): Promise<LauncherModObservation> {
   if (!Number.isSafeInteger(repository.id) || repository.id <= 0)
@@ -535,7 +551,13 @@ export async function observeLauncherModPortals(
     project.body.full_name.toLowerCase() !== repository.slug.toLowerCase()
   )
     return { state: "held", reason: "repository-binding-unresolved" };
-  const scope = await observeDiscoveryScope(project.body, repository.id, read, "launcher-mods");
+  const scope = await observeDiscoveryScope(
+    project.body,
+    repository.id,
+    read,
+    "launcher-mods",
+    repository.priorAbsence,
+  );
   if (
     "manifest" in scope &&
     scope.manifest &&

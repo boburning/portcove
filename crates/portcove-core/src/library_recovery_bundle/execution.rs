@@ -1589,7 +1589,10 @@ mod tests {
         let service = PortcoveService::new(Library::open(&restore).unwrap()).unwrap();
         let recovered = service.export_library_metadata().unwrap();
         assert_eq!(recovered.schema_version, 17);
-        assert_eq!(recovered.mod_portal_preferences, [expected.clone()]);
+        assert_eq!(
+            recovered.mod_portal_preferences.as_slice(),
+            std::slice::from_ref(&expected)
+        );
         let mut directory = service.catalog().listing_document().clone();
         directory.format_version = directory.format_version.max(16);
         let listing = directory

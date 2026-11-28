@@ -1806,6 +1806,12 @@ game input ID must match the current catalog’s reviewed game contract. Prefixe
 missing IDs and ambiguous editions cannot authorize a website. Each attempt
 uses at most four GitHub reads, with a 256 KiB response limit per read.
 
+A due absence check first verifies the public repository and reads the current
+default head. It reuses a complete absence only when the subject binding and
+immutable root tree still match. A changed tree triggers the full scan, so a
+new declaration can become eligible. Positive declarations use the full scan
+on renewal.
+
 Without a reviewed game scope, the observer can record an absent manifest or
 an unresolved declaration. The unresolved result cannot supply publisher input.
 The checkpoint reconsiders those results weekly, retries transient failures

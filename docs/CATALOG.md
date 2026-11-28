@@ -2973,7 +2973,7 @@ least its operations and scope, and every permit must already be reviewed in
 the embedded definition. It cannot drop an exclusion or add a reviewed fallback. Embedded catalog changes reach players
 with an application release. Independent delivery remains with #246.
 
-An integration may also record `reviewed_package_layouts`, one bounded fingerprint
+A `native-portable` integration may also record `reviewed_package_layouts`, one bounded fingerprint
 per platform, so a release that matches the selector but changes shape is held
 without a maintainer edit. The fingerprint lists the lowercase top-level directory
 names and the package-relative path of every program or script (`.exe`, `.appimage`,
