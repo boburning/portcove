@@ -549,7 +549,12 @@ authorize another batch. A hosted opportunity's observation step spends at most 
 requests, about a third of the observed hourly allowance, so upstream-health and
 other workflows sharing the token keep capacity. The ceiling is a hard total.
 Each batch receives only the remaining allowance, and release and registry
-requests count against it. GitLab and direct-manifest sources also keep
+requests count against it. When the cap is reached after accepted progress, one
+final operation may reproject still-fresh, complete GitHub facts for managed
+ports under the current Core policy. It receives zero provider requests and
+uses the existing deadline and handoff limits. It retains the original freshness
+clock. Sources needing additional provider facts, original-file evidence, or
+continuation stay pending for ordinary collection. GitLab and direct-manifest sources also keep
 their own per-source bound. Checkpoint recovery, push admission and
 relocation proposals make separately bounded reads outside the step. A
 gap-filling push opportunity (below) spends at most 900, so a push followed by

@@ -3437,6 +3437,57 @@ void test("known changed partial provider facts cannot be replaced by an older f
   );
 });
 
+void test("offline policy leaves a configured source's interrupted continuation intact", async () => {
+  const h = harness();
+  h.input.ports = h.input.ports.slice(0, 2);
+  const [source] = catalogObservationSources(h.input).sources;
+  assert.ok(source);
+  const options = {
+    ...h.options,
+    config: validateObserverConfig({
+      ...h.options.config,
+      port_id: "stable-port",
+      repository: "owner/shared",
+      repository_id: 7,
+    }),
+  };
+  const first = await advanceCatalogObservations(h.input, null, options);
+  assert.deepEqual(first.report.completed_source_keys, [source.key]);
+  const progress = first.checkpoint.sources[source.key]!;
+  assert.equal(progress.exception_key, null);
+  assert.equal(progress.selection_progress?.binding, progress.completed_scope_sha256);
+  const [, config, initial] = h.exported[0]!;
+  const stored = structuredClone(initial.checkpoint);
+  const cache = stored.last_complete!.cache as {
+    pages: NonNullable<typeof stored.continuation>["pages"];
+  };
+  const [url, page] = Object.entries(cache.pages)[0]!;
+  stored.continuation = {
+    format: 1,
+    config_sha256: observationHash(config),
+    started_at: first.report.generated_at,
+    phase: "collect",
+    pages: { [url]: page },
+    validation_cursor: 0,
+    first_validated_at: null,
+    last_validated_at: null,
+    validation_order_sha256: null,
+    consumed: { requests: 1, response_bytes: 1, conditional_hits: 0 },
+  };
+  h.states.set(observationHash(config), stored);
+  const requests = h.network.length;
+  const resumed = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...options,
+    policyIdentity: "b".repeat(64),
+    offlinePolicyOnly: true,
+  });
+  assert.deepEqual(h.states.get(observationHash(config)), stored);
+  assert.deepEqual(resumed.report.failures, []);
+  assert.deepEqual(resumed.report.pending_source_keys, [source.key]);
+  assert.deepEqual(resumed.report.completed_source_keys, []);
+  assert.equal(h.network.length, requests);
+});
+
 void test("a Core executable changed during projection cannot publish a completed source scope", async (t) => {
   const work = fileURLToPath(new URL("../work/", import.meta.url));
   await mkdir(work, { recursive: true });
@@ -3795,6 +3846,72 @@ void test("hosted opportunity hands each batch only its remaining request allowa
   assert.deepEqual(limits, [1000, 700, 400, 100]);
   assert.equal(result.report.requests, 1000);
   assert.deepEqual(result.report.pending_source_keys, ["large"]);
+});
+
+void test("hosted opportunity leaves one zero-request turn for retained policy", async () => {
+  const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
+  const limits: number[] = [];
+  const result = await continueCatalogBatches(
+    async (_, allowance) => {
+      limits.push(allowance);
+      return {
+        report: {
+          pending_source_keys: ["still-due"],
+          attempted_source_keys: allowance > 0 ? ["provider"] : ["retained"],
+          completed_source_keys: allowance > 0 ? ["provider"] : ["retained"],
+          requests: allowance,
+          response_bytes_charged: allowance * 100,
+          failures: [],
+          unknown_response_size_requests: allowance > 0 ? 2 : 0,
+          provider_capacity:
+            allowance > 0
+              ? { availability: "observed", remaining: 35 }
+              : { availability: "unknown" },
+        },
+        made_progress: true,
+        handoff_exhausted: false,
+        notify_exception: false,
+      };
+    },
+    { deadline: 100, now: () => 0, maxRequests: 5, finishOffline: true },
+  );
+  assert.deepEqual(limits, [5, 0]);
+  assert.equal(result.report.requests, 5);
+  assert.equal(result.report.response_bytes_charged, 500);
+  assert.equal(result.report.unknown_response_size_requests, 2);
+  assert.deepEqual(result.report.provider_capacity, { availability: "observed", remaining: 35 });
+  assert.deepEqual(result.report.completed_source_keys, ["provider", "retained"]);
+});
+
+void test("a later provider batch with unreported capacity supersedes the earlier sample", async () => {
+  const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
+  const limits: number[] = [];
+  const result = await continueCatalogBatches(
+    async (_, allowance) => {
+      limits.push(allowance);
+      return {
+        report: {
+          pending_source_keys: ["still-due"],
+          attempted_source_keys: [],
+          completed_source_keys: [],
+          requests: Math.min(5, allowance),
+          response_bytes_charged: 0,
+          failures: [],
+          provider_capacity:
+            allowance === 10
+              ? { availability: "observed", remaining: 35 }
+              : { availability: "unknown" },
+        },
+        made_progress: true,
+        handoff_exhausted: false,
+        notify_exception: false,
+      };
+    },
+    { deadline: 100, now: () => 0, maxRequests: 10, finishOffline: true },
+  );
+  assert.deepEqual(limits, [10, 5, 0]);
+  assert.equal(result.report.requests, 10);
+  assert.deepEqual(result.report.provider_capacity, { availability: "unknown" });
 });
 
 void test("opportunity refuses unknown capacity and stops on no accepted progress, byte exhaustion, deadline and cancellation", async () => {
@@ -4374,6 +4491,42 @@ void test("Core rebuilds retain pure listing completion and invalidate exact man
     ...initialInputs.sources[managedSource.key],
     current_sha256: previousBinding(managedSource, "b".repeat(64)),
   });
+
+  const outdatedClock = new Date(
+    Date.parse(first.report.generated_at) - 13 * 3600000,
+  ).toISOString();
+  const offlineInput = structuredClone(first.checkpoint);
+  const expired = managed[1]!;
+  offlineInput.sources[expired.key]!.freshness_observed_at = outdatedClock;
+  const requestCount = h.network.length;
+  const stored = structuredClone(h.states);
+  const missing = await advanceCatalogObservations(catalog, offlineInput, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    offlinePolicyOnly: true,
+    load: async () => null,
+  });
+  assert.deepEqual(h.states, stored);
+  assert.deepEqual(missing.report.completed_source_keys, []);
+  assert.deepEqual(missing.report.failures, []);
+  assert.ok(missing.report.pending_source_keys.includes(managedSource.key));
+  assert.equal(missing.report.requests, 0);
+  assert.equal(h.network.length, requestCount);
+  const offline = await advanceCatalogObservations(catalog, offlineInput, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    offlinePolicyOnly: true,
+  });
+  assert.equal(offline.report.requests, 0);
+  assert.equal(h.network.length, requestCount);
+  assert.deepEqual(offline.report.failures, []);
+  assert.deepEqual(offline.report.completed_source_keys, [managedSource.key]);
+  assert.equal(
+    offline.checkpoint.sources[managedSource.key]!.freshness_observed_at,
+    first.checkpoint.sources[managedSource.key]!.freshness_observed_at,
+  );
+  assert.deepEqual(offline.checkpoint.sources[expired.key], offlineInput.sources[expired.key]);
+  assert.deepEqual(offline.checkpoint.sources[pure.key], pureProgress);
 
   const rebuilt = await advanceCatalogObservations(catalog, first.checkpoint, {
     ...h.options,
