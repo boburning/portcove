@@ -486,8 +486,6 @@ function managedRouteMatches(route: unknown, observation: ReleaseObservation) {
   if (!isRecord(route) || !isRecord(route.release)) return false;
   const provider = route.release.provider ?? "github";
   if ((observation.provider ?? "github") !== provider) return false;
-  if (typeof route.release.repository_id === "number")
-    return route.release.repository_id === observation.repository_id;
   return (
     typeof route.release.repository === "string" &&
     typeof observation.repository === "string" &&
