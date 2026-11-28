@@ -2283,9 +2283,11 @@ GNOME Keyring in the same private D-Bus session as the harness and application.
 The wrapper records the unlocked default collection before running the
 library-recovery flow. It keeps the store and its generated password private
 and uses the pinned harness Node executable with Bash, GNOME Keyring and
-gdbus. The public hosted `linux-library-recovery` operation uses the
-existing Ubuntu 22.04 private-X11 runner. It retains the readiness, recovery
-and process-exit observations and images without collecting keyring files.
+gdbus. The public hosted `linux-library-recovery` operation uses Ubuntu 24.04
+with WebKitGTK 2.52.6 or later. It uses the same disposable interpreter profile,
+namespace preflight and quiescent withdrawal as the Linux package-boundary
+operation. It retains those receipts, keyring readiness, recovery observations,
+process exits and images. The keyring files stay in the private session.
 
 An ordinary Linux appearance restart retains its captured driver until the
 existing stop action and that exact child's exit have completed. A failed join

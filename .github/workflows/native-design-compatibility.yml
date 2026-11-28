@@ -322,6 +322,17 @@ jobs:
             scope: 'Ordinary hosted Linux development fixture; no minimum OS, installed package or physical device claim',
           }, null, 2) + '\n', { flag: 'wx' });
           NODE
+      - name: Prepare bounded recovery namespace diagnostics
+        if: inputs.operation == 'linux-library-recovery'
+        run: command -v strace || sudo -n apt-get install --no-install-recommends -y strace
+      - name: Grant user namespaces only to this disposable qualification interpreter
+        id: namespace_profile
+        if: inputs.operation == 'linux-library-recovery'
+        run: node scripts/desktop-linux-namespace-profile.mts --prepare
+      - name: Admit the actual recovery namespace before building the application
+        if: inputs.operation == 'linux-library-recovery'
+        timeout-minutes: 3
+        run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
       - name: Install the existing disposable Linux prerequisites
         timeout-minutes: 30
         run: |
@@ -404,6 +415,9 @@ jobs:
         timeout-minutes: 15
         run: |
           node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-preparation-continuity/recovery-config.json"
+      - name: Withdraw only the quiescent qualification profile
+        if: ${{ always() && steps.namespace_profile.outcome == 'success' }}
+        run: '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup'
       - name: Retain bounded Linux reports and images in ordinary job logs
         if: always()
         run: |
@@ -426,19 +440,30 @@ jobs:
               directories.push(path.join(root, entry.name));
             }
           }
+          if (process.env.PORTCOVE_LINUX_NATIVE_OPERATION === 'linux-library-recovery') {
+            for (const name of ['linux-namespace-preflight', 'linux-namespace-profile']) {
+              const directory = path.resolve('work', name);
+              const entry = fs.lstatSync(directory, { throwIfNoEntry: false });
+              if (!entry) continue;
+              assert.ok(entry.isDirectory() && !entry.isSymbolicLink(), 'Namespace report root must be an owned directory');
+              directories.push(directory);
+            }
+          }
           const inventory = [];
           for (const directory of directories.sort()) {
             for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-              if (!/\.(json|jsonl|log|png|txt)$/.test(entry.name)) continue;
+              if (!/\.(json|jsonl|log|png|txt)$/.test(entry.name) &&
+                  !(directory === path.resolve('work/linux-namespace-preflight') && entry.name === 'namespace.strace')) continue;
               assert.ok(entry.isFile() && !entry.isSymbolicLink(), 'Report must be a regular file');
               assert.ok(inventory.length < 126, 'Report inventory exceeds the existing codec bound');
               const source = path.join(directory, entry.name);
               assert.ok(fs.statSync(source).size <= 12 * 1024 * 1024, 'Report exceeds the existing codec bound');
               const bytes = fs.readFileSync(source);
-              const extension = path.extname(entry.name) === '.txt' ? '.log' : path.extname(entry.name);
+              const extension = /\.(txt|strace)$/.test(entry.name) ? '.log' : path.extname(entry.name);
               const name = String(inventory.length).padStart(3, '0') + extension;
               fs.writeFileSync(path.join(native, name), bytes, { flag: 'wx' });
-              inventory.push({ original: path.relative(root, source), retained: name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
+              const original = directory === root ? entry.name : path.join(path.basename(directory), entry.name);
+              inventory.push({ original, retained: name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
             }
           }
           fs.writeFileSync(path.join(encoded, 'collection.json'), JSON.stringify({

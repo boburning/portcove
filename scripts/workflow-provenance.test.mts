@@ -2043,6 +2043,33 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
   );
   assert.equal(recoveryStep.if, "inputs.operation == 'linux-library-recovery'");
   assert.match(text(recoveryStep.run), /desktop-linux-x11\.mts.*recovery-config\.json/u);
+  const namespaceStep = (name: string) =>
+    record(required(steps.find((value) => record(value).name === name)));
+  const grant = namespaceStep(
+    "Grant user namespaces only to this disposable qualification interpreter",
+  );
+  const admit = namespaceStep(
+    "Admit the actual recovery namespace before building the application",
+  );
+  const withdraw = namespaceStep("Withdraw only the quiescent qualification profile");
+  assert.equal(grant.if, recoveryStep.if);
+  assert.equal(admit.if, recoveryStep.if);
+  assert.equal(grant.id, "namespace_profile");
+  assert.equal(grant.run, "node scripts/desktop-linux-namespace-profile.mts --prepare");
+  assert.equal(
+    admit.run,
+    "node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts",
+  );
+  assert.equal(withdraw.if, "${{ always() && steps.namespace_profile.outcome == 'success' }}");
+  assert.equal(
+    withdraw.run,
+    '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup',
+  );
+  const stepIndices = steps
+    .map(record)
+    .map(({ name }) => name)
+    .filter((name) => [grant.name, admit.name, recoveryStep.name, withdraw.name].includes(name));
+  assert.deepEqual(stepIndices, [grant.name, admit.name, recoveryStep.name, withdraw.name]);
   const nodeSetup = record(
     required(steps.find((value) => text(record(value).uses).startsWith("actions/setup-node@"))),
   );
@@ -2181,6 +2208,15 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(file, bytes);
   }
+  const namespaceReports = {
+    "linux-namespace-preflight/namespace.strace": "owned preflight trace",
+    "linux-namespace-profile/cleanup.json": '{"profile_removed":true}\n',
+  };
+  for (const [name, bytes] of Object.entries(namespaceReports)) {
+    const file = path.join(path.dirname(root), name);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, bytes);
+  }
   mkdirSync(path.join(checkout, "scripts"));
   for (const file of ["native-backup-evidence.mts", "runtime-values.mts"])
     writeFileSync(
@@ -2189,6 +2225,7 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
     );
   const collected = spawnSync(process.execPath, ["--input-type=module", "--eval", collector], {
     cwd: checkout,
+    env: { ...process.env, PORTCOVE_LINUX_NATIVE_OPERATION: "linux-library-recovery" },
     encoding: "utf8",
     timeout: 15_000,
   });
@@ -2209,6 +2246,8 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
       "driver-help.txt",
       "host.json",
       "interruption/report.json",
+      "linux-namespace-preflight/namespace.strace",
+      "linux-namespace-profile/cleanup.json",
       "private-x11-abc123/outer-join.json",
       "private-x11-abc123/preflight.json",
       "private-x11-abc123/recovery-keyring-readiness.json",
@@ -2221,7 +2260,9 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
     const bytes = readFileSync(
       path.join(decoded, "desktop-verify/slice3/native", text(entry.retained)),
     );
-    assert.deepEqual(bytes, readFileSync(path.join(root, text(entry.original))));
+    const original = text(entry.original);
+    const originalRoot = original.startsWith("linux-namespace-") ? path.dirname(root) : root;
+    assert.deepEqual(bytes, readFileSync(path.join(originalRoot, original)));
     assert.equal(entry.sha256, createHash("sha256").update(bytes).digest("hex"));
     assert.equal(entry.bytes, bytes.length);
   }
