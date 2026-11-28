@@ -4249,8 +4249,14 @@ fn permit_reviewed_package(service: &mut PortcoveService, sha256: &str) {
 }
 
 #[tokio::test]
-async fn a_shared_feed_prefers_an_exactly_permitted_package_without_changing_an_explicit_release() {
-    for signed in [false, true] {
+async fn a_shared_feed_respects_held_and_permitted_packages_without_changing_an_explicit_release() {
+    for (signed, release_hold, held_only_observation) in [
+        (false, false, false),
+        (true, false, false),
+        (false, true, false),
+        (true, true, false),
+        (true, true, true),
+    ] {
         let (_temporary, mut service, request) = fixture();
         let bytes = archive();
         let sha256 = crate::signed_catalog::digest(&bytes);
@@ -4278,6 +4284,13 @@ async fn a_shared_feed_prefers_an_exactly_permitted_package_without_changing_an_
 
         let mut document = service.catalog.listing_document().clone();
         let listing = &mut document.listings[0];
+        if release_hold {
+            listing.restrictions = serde_json::from_value(json!([{
+                "id":"test-build","effect":"hold","operations":["download"],
+                "scope":{"releases":["v2.0"]},"reason":"no-useful-route","explanation":SCOPED_HOLD
+            }]))
+            .unwrap();
+        }
         listing
             .download_asset_hints
             .insert(Platform::current().unwrap(), vec!["game.zip".into()]);
@@ -4295,6 +4308,9 @@ async fn a_shared_feed_prefers_an_exactly_permitted_package_without_changing_an_
                 "https://github.com/owner/game/releases/download/v2.0/game.zip".into();
             sibling.assets[0].sha256 = Some("4".repeat(64));
             observation.releases.insert(0, sibling);
+            if held_only_observation {
+                observation.releases.truncate(1);
+            }
         }
         service.catalog = service
             .catalog
@@ -4332,7 +4348,13 @@ async fn a_shared_feed_prefers_an_exactly_permitted_package_without_changing_an_
         assert!(explicit.candidates.is_empty());
         assert_eq!(
             github.requests.load(Ordering::SeqCst),
-            if signed { 0 } else { 4 }
+            if held_only_observation {
+                2
+            } else if signed {
+                0
+            } else {
+                4
+            }
         );
     }
 }

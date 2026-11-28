@@ -919,7 +919,7 @@ impl PortcoveService {
         let github_scope = GithubCatalogDownloadScope {
             other_stream_prefixes: github_other_stream_prefixes,
             package_hints: hints,
-            reviewed: (listing_only && restrictions.prefers_reviewed_listing_downloads())
+            listing_rules: (listing_only && !listing.restrictions.is_empty())
                 .then_some((&restrictions, platform)),
         };
         // Shared observations only serve the non-managed browse window. They never

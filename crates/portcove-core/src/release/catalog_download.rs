@@ -2,7 +2,7 @@
 //! managed runtime definitions or turn descriptive platform labels into grants.
 use super::*;
 use crate::acquisition_restriction::{
-    EffectiveRestrictions, RestrictedOperation, RestrictionState, RestrictionSubject,
+    EffectiveRestrictions, Knowledge, RestrictedOperation, RestrictionState, RestrictionSubject,
     SubjectArtifact,
 };
 use crate::service::package_selection::{PackageSuitability, assess_package_name};
@@ -18,7 +18,7 @@ const RELEASE_LIMIT: usize = 10;
 #[derive(Clone, Copy, Default)]
 pub(crate) struct GithubCatalogDownloadScope<'a> {
     pub(crate) other_stream_prefixes: &'a [String],
-    pub(crate) reviewed: Option<(&'a EffectiveRestrictions, Platform)>,
+    pub(crate) listing_rules: Option<(&'a EffectiveRestrictions, Platform)>,
     pub(crate) package_hints: &'a [String],
 }
 
@@ -31,7 +31,14 @@ impl GithubCatalogDownloadScope<'_> {
         complete_assets: impl Fn(&GithubRelease) -> bool,
     ) -> Option<&'a GithubRelease> {
         let selectable = |release: &GithubRelease| {
-            !release.draft && tag_in_stream(&release.tag_name, self.other_stream_prefixes)
+            !release.draft
+                && tag_in_stream(&release.tag_name, self.other_stream_prefixes)
+                && self.listing_rules.is_none_or(|(rules, platform)| {
+                    let mut subject =
+                        RestrictionSubject::deferred(RestrictedOperation::Download).on(platform);
+                    subject.release = Knowledge::Known(&release.tag_name);
+                    !rules.evaluate(&subject).is_held()
+                })
         };
         let ordinary = select_channel_candidate(
             releases,
@@ -41,7 +48,10 @@ impl GithubCatalogDownloadScope<'_> {
             is_beta_release,
             |release| &release.tag_name,
         );
-        if let Some((restrictions, platform)) = self.reviewed {
+        if let Some((restrictions, platform)) = self
+            .listing_rules
+            .filter(|(rules, _)| rules.prefers_reviewed_listing_downloads())
+        {
             let requires_preview =
                 channel == ReleaseChannel::Beta && ordinary.is_some_and(is_beta_release);
             let explicitly_permitted = |release: &GithubRelease| {
@@ -785,7 +795,7 @@ mod tests {
         .unwrap();
         let rules = EffectiveRestrictions::listing_only(&listing);
         let scope = GithubCatalogDownloadScope {
-            reviewed: Some((&rules, Platform::LinuxX86_64)),
+            listing_rules: Some((&rules, Platform::LinuxX86_64)),
             ..Default::default()
         };
         let release = |id, tag, prerelease, name: &str| -> GithubRelease {
