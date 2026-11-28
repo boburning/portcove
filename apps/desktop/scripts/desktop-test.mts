@@ -158,6 +158,7 @@ import {
   nativePickerObservation,
   nativePreparedRuntimePicker,
   nativeGameFileFolderPicker,
+  nativeLinuxRecoveryLibraryPicker,
 } from "./desktop-native-confirmation.mts";
 import { installScenarios } from "./desktop-install-test.mts";
 import type { AcquisitionGameObserver } from "./desktop-install-test.mts";
@@ -423,6 +424,7 @@ const linuxSelectedSession =
         [
           "native-selected-setup-completion",
           "native-saved-folder-selected-setup",
+          "native-library-recovery-bundle",
           "native-large-discovery-setup-review",
           "native-linux-packaged-webview-boundary",
           "native-linux-webview-origin-boundary",
@@ -1822,7 +1824,12 @@ async function restartApplication(
   }
   const selectedSetupRestart = name === "selected-setup-inputs";
   if (linuxSelectedSession) {
-    assert.equal(name, "selected-setup-inputs");
+    assert.equal(
+      name,
+      selection.selected_scenarios.includes("native-library-recovery-bundle")
+        ? "restored-library-explicitly-opened"
+        : "selected-setup-inputs",
+    );
     assert.equal(prepareWhileStopped, undefined, "Selected restart cannot rewrite fixture state");
     await required(browser).quit();
     browser = undefined;
@@ -5415,12 +5422,21 @@ try {
             ...(executionPlan.fixtures.acquisitionJourney
               ? { ownedGameProcess: acquisitionGameObserver }
               : {}),
-            chooseOwnedLibrary: nativeConfirmation({
-              application,
-              getDriverPid: () => required(required(driver).pid),
-              output,
-              artifacts,
-            }),
+            chooseOwnedLibrary:
+              process.platform === "linux" &&
+              selection.selected_scenarios.includes("native-library-recovery-bundle")
+                ? nativeLinuxRecoveryLibraryPicker({
+                    application,
+                    getLinuxLaunch: () => linuxPublication.launch,
+                    output,
+                    artifacts,
+                  })
+                : nativeConfirmation({
+                    application,
+                    getDriverPid: () => required(required(driver).pid),
+                    output,
+                    artifacts,
+                  }),
             chooseGameFileFolder: ["win32", "linux"].includes(process.platform)
               ? nativeGameFileFolderPicker({
                   application: application,
