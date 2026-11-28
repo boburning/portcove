@@ -10,7 +10,10 @@ use std::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{Library, PortcoveError, PortcoveService, Result};
+use crate::{
+    CatalogMediaAsset, CatalogMediaRole, CatalogMediaSubject, Library, PortcoveError,
+    PortcoveService, Result,
+};
 
 mod destination;
 mod igdb_cache;
@@ -354,7 +357,33 @@ pub enum ArtworkResolvedSource {
         artwork: crate::IgdbArtwork,
         cache_id: String,
     },
+    CatalogMedia {
+        asset: Box<CatalogMediaAsset>,
+    },
     GeneratedFallback,
+}
+
+fn automatic_landscape_cover(port: &crate::PortListing) -> Option<&CatalogMediaAsset> {
+    let covers = || {
+        port.media
+            .iter()
+            .filter(|asset| asset.role == CatalogMediaRole::LandscapeCover)
+    };
+    if let Some(asset) = covers().find(|asset| {
+        matches!(&asset.subject, CatalogMediaSubject::Port { port_id } if port_id == &port.id)
+    }) {
+        return Some(asset);
+    }
+
+    let game = port.original_game.as_ref()?;
+    let mut candidates = covers().filter(|asset| {
+        asset.edition_neutral == Some(true)
+            && matches!(&asset.subject, CatalogMediaSubject::Original { game_id, .. } if game_id == &game.id)
+    });
+    let first = candidates.next()?;
+    candidates
+        .all(|candidate| candidate.sha256 == first.sha256)
+        .then_some(first)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -828,6 +857,22 @@ impl PortcoveService {
                 None,
                 ArtworkResolvedSource::GeneratedFallback,
             ),
+            None if slot == ArtworkSlot::Landscape && choice.is_automatic() => {
+                match automatic_landscape_cover(port) {
+                    Some(asset) => (
+                        ArtworkAvailability::Available,
+                        None,
+                        ArtworkResolvedSource::CatalogMedia {
+                            asset: Box::new(asset.clone()),
+                        },
+                    ),
+                    None => (
+                        ArtworkAvailability::Fallback,
+                        None,
+                        ArtworkResolvedSource::GeneratedFallback,
+                    ),
+                }
+            }
             None => match if slot == ArtworkSlot::Cover && choice.is_automatic() {
                 default_cover()
             } else {
@@ -1776,6 +1821,40 @@ impl PortcoveService {
         expected_revision: u64,
     ) -> Result<ArtworkThumbnail> {
         let port = self.artwork_port(port_id)?;
+        if slot == ArtworkSlot::Landscape
+            && let Some(asset) = automatic_landscape_cover(&port)
+        {
+            let automatic = {
+                let connection = self.library().connection()?;
+                crate::artwork_store::require_revision(
+                    &connection,
+                    port_id,
+                    slot,
+                    expected_revision,
+                )?
+                .is_automatic()
+            };
+            if automatic {
+                let mut thumbnail =
+                    self.catalog_media_thumbnail(port_id, &asset.id, &asset.sha256)?;
+                self.require_current_artwork_listing(&port)?;
+                let connection = self.library().connection()?;
+                if !crate::artwork_store::require_revision(
+                    &connection,
+                    port_id,
+                    slot,
+                    expected_revision,
+                )?
+                .is_automatic()
+                {
+                    return Err(PortcoveError::conflict(
+                        "the artwork choice changed during landscape cover retrieval",
+                    ));
+                }
+                thumbnail.choice_revision = expected_revision;
+                return Ok(thumbnail);
+            }
+        }
         let mapped_cover = if slot == ArtworkSlot::Cover {
             port.automatic_cover(self.catalog())
         } else {

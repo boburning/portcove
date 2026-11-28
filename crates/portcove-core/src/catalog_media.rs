@@ -89,6 +89,10 @@ pub struct CatalogMediaAsset {
 impl CatalogMediaAsset {
     /// New scene records live in the descriptive directory, with a versioned
     /// reader requirement independent of the operational catalog schema.
+    pub(crate) fn is_directory_only(&self) -> bool {
+        self.role == CatalogMediaRole::LandscapeCover || self.is_typed_igdb_scene()
+    }
+
     pub(crate) fn is_typed_igdb_scene(&self) -> bool {
         self.igdb.is_some()
             && matches!(

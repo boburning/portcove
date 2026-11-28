@@ -165,7 +165,7 @@ pub(crate) fn has_observed_project_cover(listing: &PortListing) -> bool {
 pub(crate) fn strip_directory_only_retained_fields(listing: &mut PortListing) {
     listing.mod_portals.clear();
     listing.official_setup_id = None;
-    listing.media.retain(|asset| !asset.is_typed_igdb_scene());
+    listing.media.retain(|asset| !asset.is_directory_only());
     strip_verified_sources(listing);
     if listing
         .artwork
@@ -196,7 +196,7 @@ pub(crate) fn inherit_verified_sources(
     }
 }
 
-fn retain_directory_scenes(port: &PortDefinition, listing: &PortListing) -> bool {
+fn retain_directory_media(port: &PortDefinition, listing: &PortListing) -> bool {
     port.project_url == listing.project_url
         && port
             .presentation
@@ -207,7 +207,7 @@ fn retain_directory_scenes(port: &PortDefinition, listing: &PortListing) -> bool
                     && listing
                         .media
                         .iter()
-                        .filter(|asset| !asset.is_typed_igdb_scene())
+                        .filter(|asset| !asset.is_directory_only())
                         .eq(strict)
             })
 }
@@ -1420,20 +1420,21 @@ impl Catalog {
                 }
             }
         }
-        for listing in document
-            .listings
-            .iter_mut()
-            .filter(|listing| has_typed_igdb_scene(listing))
-        {
+        for listing in document.listings.iter_mut().filter(|listing| {
+            listing
+                .media
+                .iter()
+                .any(crate::CatalogMediaAsset::is_directory_only)
+        }) {
             if let Ok(port) = self.port(&listing.id) {
-                let same_authority = retain_directory_scenes(port, listing);
+                let same_authority = retain_directory_media(port, listing);
                 let original = port
                     .presentation
                     .as_ref()
                     .and_then(|presentation| presentation.original_game.as_ref())
                     .or(listing.original_game.as_ref());
                 listing.media.retain(|asset| {
-                    !asset.is_typed_igdb_scene()
+                    !asset.is_directory_only()
                         || (same_authority
                             && crate::catalog_media::validate_catalog_media(
                                 &port.id,
@@ -1504,15 +1505,15 @@ impl Catalog {
                     .presentation
                     .as_ref()
                     .and_then(|value| value.media.as_ref());
-                // The authored directory owns typed IGDB backgrounds and screenshots.
+                // The signed directory supplies current directory-only media.
                 // A corrected strict identity or explicit replacement still wins.
-                let can_append_typed_media = retain_directory_scenes(port, listing);
+                let can_append_typed_media = retain_directory_media(port, listing);
                 let mut media = strict_media.cloned().unwrap_or_else(|| {
                     // A corrected strict identity cannot inherit another edition's images.
                     listing
                         .media
                         .iter()
-                        .filter(|asset| !asset.is_typed_igdb_scene())
+                        .filter(|asset| !asset.is_directory_only())
                         .filter(|asset| {
                             crate::catalog_media::validate_catalog_media(
                                 &port.id,
@@ -1530,7 +1531,7 @@ impl Catalog {
                             .media
                             .iter()
                             .filter(|asset| {
-                                asset.is_typed_igdb_scene()
+                                asset.is_directory_only()
                                     && crate::catalog_media::validate_catalog_media(
                                         &port.id,
                                         original_game.as_ref(),
