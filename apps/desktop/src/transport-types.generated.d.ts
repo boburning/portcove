@@ -6055,6 +6055,10 @@ export interface ListingDeliveryStatus {
 export interface PortListingStatus {
   actions: ListingActionAssessment[];
   /**
+   * Canonical listing represented by this retained local registration.
+   */
+  canonical_port_id?: string | null;
+  /**
    * Optional inert read model; absence cannot suppress an independently allowed action.
    */
   capabilities?: PortCapabilityReport | null;

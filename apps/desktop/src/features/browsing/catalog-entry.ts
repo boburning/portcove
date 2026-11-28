@@ -99,6 +99,10 @@ export function catalogEntries(
   const listingStatuses = new Map(statuses.map((status) => [status.port_id, status]));
   const pendingSetups = new Map(pending.map((setup) => [setup.port_id, setup]));
   const ids = new Set([...definitions.keys(), ...listings.keys()]);
+  for (const { port_id, canonical_port_id } of statuses) {
+    if (canonical_port_id && canonical_port_id !== port_id && listings.has(port_id))
+      ids.delete(canonical_port_id);
+  }
   return Array.from(ids, (id): CatalogEntry => {
     const definition = definitions.get(id);
     const listing = listings.get(id);

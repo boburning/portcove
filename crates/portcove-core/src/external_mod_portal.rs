@@ -120,6 +120,16 @@ fn site_label(site: ModPortalSite) -> ExternalModSite {
     }
 }
 
+fn listing_portal(link: &crate::ListingModPortal) -> ExternalModPortal {
+    descriptive_portal(
+        link.id.clone(),
+        site_label(link.site),
+        link.name.clone(),
+        link.url.clone(),
+        link.instructions.clone(),
+    )
+}
+
 fn portal(
     port: &PortDefinition,
     platform: Option<Platform>,
@@ -194,15 +204,7 @@ pub(crate) fn portals(
                         port.mod_sources.iter().all(|source| source.id != link.id)
                     })
                 })
-                .map(|link| {
-                    descriptive_portal(
-                        link.id.clone(),
-                        site_label(link.site),
-                        link.name.clone(),
-                        link.url.clone(),
-                        link.instructions.clone(),
-                    )
-                }),
+                .map(listing_portal),
         );
     }
     let mut communities = std::collections::HashSet::new();
@@ -289,16 +291,50 @@ impl crate::PortcoveService {
             })
     }
 
-    pub(crate) fn effective_external_mod_portals(
+    pub(crate) fn mod_portal_offers(
         &self,
+        connection: &rusqlite::Connection,
         port_id: &str,
         platform: Option<Platform>,
-    ) -> crate::Result<ModPortalsView> {
-        let preferences = self.mod_portal_preferences(port_id)?;
-        Ok(project_mod_portals(
-            portals(self.catalog(), port_id, platform),
-            preferences,
-        ))
+    ) -> crate::Result<Vec<ExternalModPortal>> {
+        let catalog = self.catalog();
+        if catalog.listing(port_id).is_ok()
+            || catalog.port(port_id).is_ok()
+            || portcove_listing_carrier::admitted_github_repository_id(port_id).is_none()
+        {
+            return Ok(portals(catalog, port_id, platform));
+        }
+        let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
+        let Some((record, retained)) = crate::Library::external_runtime_with_port_bounded_from(
+            connection,
+            port_id,
+            &mut budget,
+        )?
+        else {
+            return Ok(Vec::new());
+        };
+        let Some(canonical) = Self::unoccupied_personal_listing_match(
+            catalog,
+            connection,
+            retained.listing(port_id)?,
+        )?
+        else {
+            return Ok(Vec::new());
+        };
+        if record.user_selected.is_none() {
+            return Ok(Vec::new());
+        }
+        // Reuse every applicable signed source, including websites declared in
+        // a full definition. Only a descriptive provider catalog can browse
+        // under the retained registration, without that definition's adapter.
+        let mut offered = portals(catalog, &canonical.id, platform);
+        for portal in &mut offered {
+            if portal.browser != Some(ExternalModBrowser::ProviderCatalog) {
+                portal.browser = None;
+                portal.browse_available = false;
+            }
+        }
+        Ok(offered)
     }
 
     /// Recheck that a clicked destination belongs to the selected port and source.

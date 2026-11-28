@@ -1537,6 +1537,9 @@ pub struct ListingActionAssessment {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortListingStatus {
     pub port_id: String,
+    /// Canonical listing represented by this retained local registration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canonical_port_id: Option<String>,
     pub status: PortStatus,
     pub actions: Vec<ListingActionAssessment>,
     /// Optional inert read model; absence cannot suppress an independently allowed action.

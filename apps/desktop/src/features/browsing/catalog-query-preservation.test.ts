@@ -1,6 +1,6 @@
 import { expect, it } from "vite-plus/test";
-import { portDefinition } from "../../test-fixtures";
-import type { CatalogBrowsingContext, CatalogBrowsingSnapshot } from "../../types";
+import { portDefinition, portStatus } from "../../test-fixtures";
+import type { CatalogBrowsingContext, CatalogBrowsingSnapshot, PortListing } from "../../types";
 import { catalogEntries, type CatalogEntry } from "./catalog-entry";
 import { evaluateCatalogQuery, type CatalogQueryContext } from "./catalog-query";
 
@@ -137,6 +137,35 @@ it("preserves first integration identity and interleaved input order with confli
   const filtered = evaluateCatalogQuery(inputs, { version: 1, platforms: ["linux-x86-64"] });
   expect(filtered.ports).toEqual([]);
   expect(filtered.counts.platforms["linux-x86-64"]).toBe(0);
+});
+
+it("presents one entry for a Core-associated registration and keeps unrelated choices visible", () => {
+  const canonical = { ...portDefinition(), id: "canonical" };
+  const other = { ...portDefinition(), id: "different-implementation", name: canonical.name };
+  const local: PortListing = {
+    id: "github-12345",
+    name: canonical.name,
+    summary: canonical.summary,
+    project_url: canonical.project_url,
+    platforms: [],
+    availability: "unknown",
+  };
+  const directory = { format_version: 19, listings: [{ ...local, id: canonical.id }, local] };
+  const status = {
+    port_id: local.id,
+    status: { ...portStatus(), port_id: local.id },
+    canonical_port_id: canonical.id,
+    actions: [],
+  };
+  const definitions = { schema_version: 1, ports: [canonical, other], source_profiles: [] };
+  const associated = catalogEntries(definitions, directory, [status], []);
+  expect(associated.map(({ id }) => id)).toEqual([other.id, local.id]);
+  expect(associated.find(({ id }) => id === local.id)?.definition).toBeUndefined();
+  expect(catalogEntries(definitions, directory, [], []).map(({ id }) => id)).toEqual([
+    canonical.id,
+    other.id,
+    local.id,
+  ]);
 });
 
 it("keeps pending setup membership and finish-setup visible with unknown platform facts", () => {

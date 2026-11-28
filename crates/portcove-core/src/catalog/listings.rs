@@ -810,6 +810,23 @@ impl PortListing {
         }
     }
 
+    pub(crate) fn private_github_project(repository_id: u64, full_name: &str) -> Result<Self> {
+        Ok(serde_json::from_value(serde_json::json!({
+            "id": format!("github-{repository_id}"),
+            "name": full_name,
+            "summary": "Public upstream project selected for this library.",
+            "project_url": format!("https://github.com/{full_name}"),
+        }))?)
+    }
+
+    fn private_github_repository_id(&self) -> Option<u64> {
+        let id = self.admitted_github_repository_id()?;
+        // Older registration envelopes use an exact, generated listing for a
+        // personal selection. Ordinary retained catalog listings are different.
+        let address = crate::release::catalog_download_repository(&self.project_url).ok()?;
+        (Self::private_github_project(id, &address).ok().as_ref() == Some(self)).then_some(id)
+    }
+
     fn validate_observation_metadata(&self) -> Result<()> {
         let invalid = || {
             PortcoveError::usage("invalid descriptive listing observation or maintenance metadata")
@@ -1508,6 +1525,23 @@ impl Catalog {
             ));
         }
         Ok(())
+    }
+
+    pub(crate) fn canonical_for_private_github_listing(
+        &self,
+        retained: &PortListing,
+    ) -> Option<&PortListing> {
+        let repository_id = retained.private_github_repository_id()?;
+        if self.listing(&retained.id).is_ok() {
+            // Same-key admission already resolves directly and needs no association.
+            return None;
+        }
+        let mut matches = self
+            .listings()
+            .iter()
+            .filter(|listing| listing.observed_github_repository_id() == Some(repository_id));
+        let candidate = matches.next()?;
+        matches.next().is_none().then_some(candidate)
     }
 
     /// Durable launch intent retains only the descriptive project and an explicit

@@ -54,6 +54,25 @@ describe("startup play request", () => {
     expect(openDetails).not.toHaveBeenCalled();
   });
 
+  it("opens a retained registration for a canonical shortcut without launching it", async () => {
+    const canonical = "canonical-port";
+    const local = {
+      ...port,
+      listingStatus: {
+        port_id: port.id,
+        canonical_port_id: canonical,
+        status: playable,
+        actions: [],
+      },
+    };
+    vi.spyOn(desktopApi, "takeStartupPlayRequest").mockResolvedValue(canonical);
+    const { play, openDetails, props } = setup(playable);
+    const input = { ...props(true), entries: [local] };
+    await renderHook((value = input) => useStartupPlayRequest(value), { initialProps: input });
+    await vi.waitFor(() => expect(openDetails).toHaveBeenCalledWith(port.id));
+    expect(play).not.toHaveBeenCalled();
+  });
+
   it("opens details when the game needs attention", async () => {
     vi.spyOn(desktopApi, "takeStartupPlayRequest").mockResolvedValue(port.id);
     const blocked = installedLaunchStatus({
