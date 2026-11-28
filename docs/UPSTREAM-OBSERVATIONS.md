@@ -1811,6 +1811,18 @@ game input ID must match the current catalog’s reviewed game contract. Prefixe
 missing IDs and ambiguous editions cannot authorize a website. Each attempt
 uses at most four GitHub reads, with a 256 KiB response limit per read.
 
+When the hosted token supports GraphQL, an operation can collect the initial
+repository, default commit and root tree reads for up to six selected subjects
+in one request. It verifies stable repository IDs and reproduces each complete
+Git root tree digest from its raw entries before using them. The existing
+manifest checks still determine scope and fetch any exact blob through REST.
+Invalid or incomplete root evidence falls back to the original reads. The
+query consumes the same transport and byte allowance, with one request
+reserved ahead of the full REST fallback. REST and GraphQL primary rate
+limits stay separate. The observer reports GraphQL transport attempts and
+provider-reported point cost, including attempts with unknown cost. The
+opportunity's shared secondary deferral still applies.
+
 A due absence check first verifies the public repository and reads the current
 default head. It reuses a complete absence only when the subject binding and
 immutable root tree still match. A changed tree triggers the full scan, so a
