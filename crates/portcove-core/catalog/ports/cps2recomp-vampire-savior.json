@@ -66,7 +66,17 @@
         "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vampire_savior/README.md",
         "https://github.com/tmcleroy/cps2recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "vampire-savior-the-lord-of-vampire-cps2-vsavj",
+          "title": "Vampire Savior (CPS-2, Japan 970519, vsavj)",
+          "system": "capcom-cps-2",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L48",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vampire_savior/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

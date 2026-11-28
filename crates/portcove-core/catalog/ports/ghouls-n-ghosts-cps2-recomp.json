@@ -55,7 +55,17 @@
       "evidence_urls": [
         "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ghouls/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "ghouls-n-ghosts-cps1-ghouls",
+          "title": "Ghouls'n Ghosts (CPS-1, World, ghouls)",
+          "system": "capcom-cps-1",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L56",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ghouls/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

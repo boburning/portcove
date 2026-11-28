@@ -60127,7 +60127,17 @@
             "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/avsp/README.md",
             "https://github.com/tmcleroy/cps2recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "alien-vs-predator-cps2-avspu",
+              "title": "Alien vs. Predator (CPS-2, USA 940520, avspu)",
+              "system": "capcom-cps-2",
+              "evidence_urls": [
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L52",
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/avsp/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -60215,7 +60225,17 @@
             "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/dino/README.md",
             "https://github.com/tmcleroy/cps2recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "cadillacs-and-dinosaurs-cps1-dino",
+              "title": "Cadillacs and Dinosaurs (CPS-1, World 930201, dino)",
+              "system": "capcom-cps-1",
+              "evidence_urls": [
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L57",
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dino/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -60303,7 +60323,17 @@
             "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/msh/README.md",
             "https://github.com/tmcleroy/cps2recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "marvel-super-heroes-cps2-msh",
+              "title": "Marvel Super Heroes (CPS-2, Europe 951024, msh)",
+              "system": "capcom-cps-2",
+              "evidence_urls": [
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L40",
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/msh/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -60391,7 +60421,17 @@
             "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa/README.md",
             "https://github.com/tmcleroy/cps2recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "street-fighter-alpha-warriors-dreams-cps2-sfa",
+              "title": "Street Fighter Alpha (CPS-2, Europe 950727, sfa)",
+              "system": "capcom-cps-2",
+              "evidence_urls": [
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L34",
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -60576,7 +60616,17 @@
             "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/pocket_fighter/README.md",
             "https://github.com/tmcleroy/cps2recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "super-gem-fighter-mini-mix-cps2-sgemf",
+              "title": "Super Gem Fighter Mini Mix (CPS-2, USA 970904, sgemf)",
+              "system": "capcom-cps-2",
+              "evidence_urls": [
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L38",
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/pocket_fighter/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -60664,7 +60714,17 @@
             "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/puzzle_fighter/README.md",
             "https://github.com/tmcleroy/cps2recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "super-puzzle-fighter-ii-turbo-cps2-spf2t",
+              "title": "Super Puzzle Fighter II Turbo (CPS-2, Europe 960529, spf2t)",
+              "system": "capcom-cps-2",
+              "evidence_urls": [
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L44",
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/puzzle_fighter/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -60752,7 +60812,17 @@
             "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vhunt2/README.md",
             "https://github.com/tmcleroy/cps2recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "vampire-hunter-2-cps2-vhunt2",
+              "title": "Vampire Hunter 2 (CPS-2, Japan 970929, vhunt2)",
+              "system": "capcom-cps-2",
+              "evidence_urls": [
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L50",
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vhunt2/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -60840,7 +60910,17 @@
             "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vampire_savior/README.md",
             "https://github.com/tmcleroy/cps2recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "vampire-savior-the-lord-of-vampire-cps2-vsavj",
+              "title": "Vampire Savior (CPS-2, Japan 970519, vsavj)",
+              "system": "capcom-cps-2",
+              "evidence_urls": [
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L48",
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vampire_savior/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -60928,7 +61008,17 @@
             "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md",
             "https://github.com/tmcleroy/cps2recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "vampire-savior-2-cps2-vsav2",
+              "title": "Vampire Savior 2 (CPS-2, Japan 970913, vsav2)",
+              "system": "capcom-cps-2",
+              "evidence_urls": [
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L49",
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vsav2/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -61095,7 +61185,17 @@
             "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/xmvsf/README.md",
             "https://github.com/tmcleroy/cps2recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "x-men-vs-street-fighter-cps2-xmvsf",
+              "title": "X-Men vs. Street Fighter (CPS-2, Europe 961004, xmvsf)",
+              "system": "capcom-cps-2",
+              "evidence_urls": [
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L41",
+                "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmvsf/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [

@@ -56,7 +56,17 @@
         "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mvsc/README.md",
         "https://github.com/TechnicallyComputers/Marvel-vs.-Capcom-Clash-of-Super-Heroes-Recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "marvel-vs-capcom-clash-of-super-heroes-cps2-mvsc",
+          "title": "Marvel vs. Capcom (CPS-2, Europe 980123, mvsc)",
+          "system": "capcom-cps-2",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L43",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mvsc/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
