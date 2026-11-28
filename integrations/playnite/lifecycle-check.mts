@@ -56,6 +56,9 @@ export function cargoPhaseArguments(phase: string | undefined, action?: string) 
     return [
       "test",
       "--locked",
+      "--lib",
+      "--profile",
+      "dev",
       "-p",
       "portcove-core",
       "--features",
@@ -126,12 +129,10 @@ interface CargoExecutionOptions {
   ) => Promise<Pick<HeavyRustLock, "inherited" | "release">>;
   execute?: (command: string, args: string[], options: RunOptions) => Promise<unknown>;
 }
-// The first definition-state action (`select`) compiles the fixture-enabled
-// Core test binary on a cold Windows runner; later actions reuse it.
-// Qualification 43715629646 cut `select` at 20 minutes while the same run's
-// cold Core-inclusive archive build took about 34 minutes, so only `select`
-// gets 40 minutes. With `install` and `revoke` at 20 minutes the phase stays
-// inside the job's 120-minute limit. Other child budgets stay at ten minutes.
+// The first definition-state action compiles the fixture-enabled Core unit-test
+// target. Its development profile can reuse compatible dependencies from the
+// CLI build and avoids the separate optimization pass used by the full test
+// suite. Later actions reuse the unit-test binary. Keep the existing budgets.
 function cargoPhaseBudget(phase: string | undefined, action: string | undefined) {
   if (phase !== "definition-state") return {};
   return { timeout: (action === "select" ? 40 : 20) * 60_000 };
