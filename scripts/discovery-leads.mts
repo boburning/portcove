@@ -1,3 +1,11 @@
+import {
+  isFrameworkForkNetworkKey,
+  validateFrameworkForkProgress,
+} from "./discovery-framework-forks.mts";
+import type {
+  FrameworkForkNetworkKey,
+  FrameworkForkProgress,
+} from "./discovery-framework-forks.mts";
 import { isRecord } from "./runtime-values.mts";
 import { orderedJsonSha256 } from "./json-values.mts";
 import { externalRepository } from "./discovery-claims.mts";
@@ -58,6 +66,7 @@ export interface DiscoveryLead {
   search_families?: string[];
   /** Curated community lists that named this repository; provenance only. */
   external_lists?: string[];
+  framework_forks?: FrameworkForkNetworkKey[];
   external_change?: { fingerprint: string; observed_at: string };
   release_hint?: {
     assets_observed: boolean;
@@ -151,6 +160,7 @@ export interface LeadState {
   /** Next family the backfill visits, round robin. */
   backfill_next?: number;
   external?: ExternalLeadState;
+  framework_forks?: Partial<Record<FrameworkForkNetworkKey, FrameworkForkProgress>>;
 }
 let leadStateEnvelope = discoveryCheckpointBytes;
 /**
@@ -215,6 +225,7 @@ export function parseLeadState(value: unknown): LeadState {
   if (value.retired_slices !== undefined && !isRecord(value.retired_slices))
     throw new Error("Invalid retired lead slices");
   parseExternalLeadState(value.external);
+  validateFrameworkForkProgress(value.framework_forks);
   for (const [id, raw] of [
     ...Object.entries(value.slices),
     ...Object.entries(value.retired_slices ?? {}),
@@ -284,6 +295,13 @@ export function parseLeadState(value: unknown): LeadState {
         new Set(raw.external_lists).size !== raw.external_lists.length)
     )
       throw new Error("Invalid retained external list provenance");
+    if (
+      raw.framework_forks !== undefined &&
+      (!Array.isArray(raw.framework_forks) ||
+        !raw.framework_forks.every(isFrameworkForkNetworkKey) ||
+        new Set(raw.framework_forks).size !== raw.framework_forks.length)
+    )
+      throw new Error("Invalid retained framework fork provenance");
     if (
       raw.aliases !== undefined &&
       (!Array.isArray(raw.aliases) ||
@@ -448,6 +466,7 @@ export function retainLeadResults(
               : {}),
             ...(old?.search_families ? { search_families: old.search_families } : {}),
             ...(old?.external_lists ? { external_lists: old.external_lists } : {}),
+            ...(old?.framework_forks ? { framework_forks: old.framework_forks } : {}),
             ...(old?.external_change ? { external_change: old.external_change } : {}),
             // Release observations are dated evidence for the immutable repository,
             // not a qualification of its current source revision or location.

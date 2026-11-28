@@ -250,6 +250,7 @@ export function discoveryNextPage(
   first: string,
   current: string,
   repositoryId?: number,
+  fixedParameters: readonly string[] = [],
 ) {
   const raw = header(response, "link");
   if (raw) {
@@ -293,7 +294,14 @@ export function discoveryNextPage(
     candidate.searchParams.getAll("page").length !== 1 ||
     candidate.searchParams.getAll("per_page").length !== 1 ||
     candidate.searchParams.get("per_page") !== base.searchParams.get("per_page") ||
-    [...candidate.searchParams.keys()].some((key) => !["page", "per_page"].includes(key)) ||
+    fixedParameters.some(
+      (key) =>
+        candidate.searchParams.getAll(key).length !== 1 ||
+        candidate.searchParams.get(key) !== base.searchParams.get(key),
+    ) ||
+    [...candidate.searchParams.keys()].some(
+      (key) => !["page", "per_page", ...fixedParameters].includes(key),
+    ) ||
     !page ||
     !/^[1-9]\d*$/u.test(page) ||
     !Number.isSafeInteger(Number(page)) ||

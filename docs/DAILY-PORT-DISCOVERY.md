@@ -852,10 +852,25 @@ also inspect framework references in README files: PS2Recomp, XboxRecomp,
 ReXGlue/XenonRecomp, PS3Recomp, bbport, PSPRecomp/PSP-Web-Recomp,
 gcn-recomp/DolRecomp/GCRecomp/NWiiRecomp, PSXRecomp, XboxXBERecomp,
 [N64Recomp](https://github.com/N64Recomp/N64Recomp) and
-[libultraship](https://github.com/HarbourMasters/libultraship),
+[libultraship](https://github.com/Kenix3/libultraship),
 plus the static-recompilation topic, rexglue organization and sp00nznet owner.
 Ecosystem searches include forks for lineage review. A framework reference in
 compiler/cache/SDK documentation remains only a lead, not a native port.
+
+The unattended worker also walks the two reviewed N64 framework fork networks.
+It binds N64Recomp to GitHub repository ID `566578350` and the original
+libultraship network to `561153676`. The numeric request routes keep this
+scope stable after a repository move or path reuse. Each admitted worker pass
+gives at most one public fork page to the least recently attempted
+due network, after the retained release-watch turn. A page records positive
+lead IDs with the validated next page. An overlapping page restarts the
+traversal while retaining previously attributed leads. A traversal without
+progress for fourteen days restarts from the first page. A reused fork path
+remains an identity conflict while other leads and the continuation proceed.
+Provider exhaustion schedules a new traversal after seven days. Public pages
+can differ from the provider's reported total. A fork relationship supplies
+lineage evidence. Implementation and package eligibility still use the
+normal primary-evidence and admission rules.
 Rank explicit game/recomp/decomp metadata ahead of generic packaged software.
 Game names in repository names and console/game metadata are stronger signals
 than a generic description mentioning recompilation, a curated list or shared
