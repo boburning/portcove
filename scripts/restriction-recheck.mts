@@ -482,6 +482,19 @@ function repoIdentity(observation: ReleaseObservation) {
     : null;
 }
 
+function managedRouteMatches(route: unknown, observation: ReleaseObservation) {
+  if (!isRecord(route) || !isRecord(route.release)) return false;
+  const provider = route.release.provider ?? "github";
+  if ((observation.provider ?? "github") !== provider) return false;
+  if (typeof route.release.repository_id === "number")
+    return route.release.repository_id === observation.repository_id;
+  return (
+    typeof route.release.repository === "string" &&
+    typeof observation.repository === "string" &&
+    route.release.repository.toLowerCase() === observation.repository.toLowerCase()
+  );
+}
+
 function packageWindow(observation: ReleaseObservation) {
   if (!Array.isArray(observation.releases)) return null;
   const releases = new Map<string, string>();
@@ -494,24 +507,42 @@ function packageWindow(observation: ReleaseObservation) {
       !Array.isArray(release.assets)
     )
       return null;
-    const names = new Set<string>();
+    const gitlab = observation.provider === "gitlab";
+    if (
+      gitlab
+        ? !isRecord(release.id) ||
+          release.id.provider !== "gitlab" ||
+          release.id.project_id !== observation.repository_id ||
+          release.id.tag !== release.version
+        : typeof release.id !== "number" || !Number.isSafeInteger(release.id) || release.id < 1
+    )
+      return null;
+    const assets = new Map<number, unknown[]>();
     for (const asset of release.assets) {
       if (
         !isRecord(asset) ||
+        typeof asset.id !== "number" ||
+        !Number.isSafeInteger(asset.id) ||
+        asset.id < 1 ||
+        assets.has(asset.id) ||
         typeof asset.name !== "string" ||
-        names.has(asset.name) ||
+        !Number.isSafeInteger(asset.size) ||
+        (gitlab && typeof asset.url !== "string") ||
         (asset.sha256 != null && (typeof asset.sha256 !== "string" || !sha256.test(asset.sha256)))
       )
         return null;
-      names.add(asset.name);
+      assets.set(asset.id, [
+        asset.name,
+        asset.size,
+        asset.sha256 ?? null,
+        ...(gitlab ? [asset.url] : []),
+      ]);
     }
     releases.set(
       release.version,
       orderedJsonSha256({
         id: release.id,
-        assets: release.assets
-          .map((asset) => [asset.name, asset.id, asset.size, asset.sha256 ?? null])
-          .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+        assets: [...assets].sort(([a], [b]) => a - b),
       }),
     );
   }
@@ -528,14 +559,15 @@ export function heldPackageWindowReview(input: {
 }) {
   const holds = (value: unknown) =>
     Array.isArray(value) && value.some((row) => isRecord(row) && row.effect === "hold");
-  const held = new Set<string>();
+  const listingHolds = new Set<string>();
+  const managedHolds = new Map<string, Record<string, unknown>>();
   for (const row of input.canonicalListings) {
     if (
       isRecord(row) &&
       typeof row.id === "string" &&
       (typeof row.download_block_reason === "string" || holds(row.restrictions))
     )
-      held.add(row.id);
+      listingHolds.add(row.id);
   }
   for (const row of input.canonicalPorts) {
     if (
@@ -543,8 +575,9 @@ export function heldPackageWindowReview(input: {
       typeof row.id === "string" &&
       (isRecord(row.managed_acquisition_hold) || holds(row.acquisition_restrictions))
     )
-      held.add(row.id);
+      managedHolds.set(row.id, row);
   }
+  const held = new Set([...listingHolds, ...managedHolds.keys()]);
   const byId = (rows: readonly unknown[]) =>
     new Map(
       rows.flatMap((row) =>
@@ -559,6 +592,7 @@ export function heldPackageWindowReview(input: {
     no_complete_baseline: 0,
     no_complete_proposal: 0,
     unbound_or_changed_identity: 0,
+    outside_held_route: 0,
     not_newer_or_stale: 0,
     incomplete_release_assets: 0,
     unchanged: 0,
@@ -587,6 +621,14 @@ export function heldPackageWindowReview(input: {
     const id = repoIdentity(prior);
     if (!id || id !== repoIdentity(proposed)) {
       counts.unbound_or_changed_identity++;
+      continue;
+    }
+    const carriers = [
+      ...(listingHolds.has(port) ? ["listing"] : []),
+      ...(managedRouteMatches(managedHolds.get(port), proposed) ? ["managed"] : []),
+    ];
+    if (!carriers.length) {
+      counts.outside_held_route++;
       continue;
     }
     const observed = epoch(proposed.observed_at);
@@ -618,6 +660,7 @@ export function heldPackageWindowReview(input: {
     counts.review_due++;
     changes.push({
       port_id: port,
+      carriers,
       source: id,
       facts_sha256: proposed.facts_sha256,
       new_releases: newReleases,
