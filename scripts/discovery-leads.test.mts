@@ -1,3 +1,11 @@
+import { createGitHubClient } from "./github-client.mts";
+import {
+  FrameworkForkPaginationChanged,
+  frameworkForkNetworks,
+  frameworkForkRequest,
+  parseFrameworkForkPage,
+  validateFrameworkForkProgress,
+} from "./discovery-framework-forks.mts";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -45,7 +53,11 @@ import {
 } from "./discovery-external-lists.mts";
 import type { ExternalLeadState } from "./discovery-external-lists.mts";
 import { DiscoverySession } from "./daily-discovery-session.mts";
-import { collectLeadReleaseHints, type DiscoveryCollectionHost } from "./discovery-collection.mts";
+import {
+  collectFrameworkForkPage,
+  collectLeadReleaseHints,
+  type DiscoveryCollectionHost,
+} from "./discovery-collection.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from "node:fs";
@@ -2299,4 +2311,120 @@ void test("a conditional list read keeps its retained copy until the source chan
   await session.collectExternalLists();
   assert.equal(session.leads.external?.lists["decomp-buddy-finds"]?.unchanged_at, later);
   assert.equal(session.leads.external?.attempts?.["decomp-buddy-finds"]?.outcome, "partial");
+});
+
+const forkObservationClock = "2026-11-28T04:00:00Z";
+const forkRow = (id: number, repository = `fork-owner/port-${id}`) => ({
+  id,
+  full_name: repository,
+  html_url: `https://github.com/${repository}`,
+  description: null,
+  created_at: forkObservationClock,
+  pushed_at: forkObservationClock,
+  private: false,
+  fork: true,
+});
+
+void test("framework fork pagination remains bound to the exact numeric repository", () => {
+  const framework = frameworkForkNetworks[1];
+  const page = (ids: number[], next: string | null) => ({
+    data: ids.map((id) => forkRow(id)),
+    headers: next ? { link: `<https://api.github.com/${next}>; rel="next"` } : {},
+  });
+  const link = frameworkForkRequest(framework.repositoryId, 2);
+  const first = parseFrameworkForkPage(framework, page([1, 2], link), undefined);
+  assert.deepEqual(first.seen, [1, 2]);
+  const checkpoint = {
+    repository_id: framework.repositoryId,
+    turn: 1,
+    attempted_at: forkObservationClock,
+    advanced_at: forkObservationClock,
+    seen: first.seen,
+    next_page: first.next_page,
+  };
+  validateFrameworkForkProgress({ libultraship: checkpoint });
+  assert.deepEqual(parseFrameworkForkPage(framework, page([3], null), checkpoint).seen, [1, 2, 3]);
+  assert.throws(
+    () => parseFrameworkForkPage(framework, page([2, 3], null), checkpoint),
+    FrameworkForkPaginationChanged,
+  );
+  for (const changed of [
+    link.replace("sort=oldest", "sort=newest"),
+    frameworkForkRequest(1391380119, 2),
+    frameworkForkRequest(framework.repositoryId, 3),
+  ]) {
+    assert.throws(
+      () => parseFrameworkForkPage(framework, page([1], changed), undefined),
+      /escaped or failed to advance/u,
+    );
+  }
+  assert.throws(
+    () =>
+      parseFrameworkForkPage(framework, page([3], null), {
+        ...checkpoint,
+        repository_id: 1391380119,
+      }),
+    /belongs to another repository/u,
+  );
+});
+
+void test("framework discovery rotates within one run and isolates a reused repository path", async () => {
+  const [n64, ship] = frameworkForkNetworks;
+  const requests: string[] = [];
+  let persisted = retainLeadResults(
+    parseLeadState(undefined),
+    [forkRow(99, "fork-owner/port-120")],
+    forkObservationClock,
+    "prior",
+  );
+  const guarded = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 10000,
+    allowRequest: (method) => method === "GET" || method === "HEAD",
+    fetch: async (input) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      requests.push(url.pathname.slice(1) + url.search);
+      if (url.pathname.includes(String(ship.repositoryId))) {
+        return new Response("{}", { status: 404 });
+      }
+      const continued = url.searchParams.get("page") === "2";
+      return Response.json(continued ? [forkRow(122)] : [forkRow(120), forkRow(121)], {
+        headers: continued
+          ? {}
+          : {
+              link: `<https://api.github.com/${frameworkForkRequest(n64.repositoryId, 2)}>; rel="next"`,
+            },
+      });
+    },
+  });
+  const host = {
+    leads: persisted,
+    journal: { started_at: forkObservationClock, notes: [] },
+    budget: { remaining: () => ({ requests: 2 }) },
+    source: { sdk: guarded },
+    runDir: "work",
+    save() {},
+    persist() {
+      persisted = parseLeadState(host.leads);
+    },
+  };
+  for (let iteration = 0; iteration < 3; iteration++) {
+    host.leads = parseLeadState(persisted);
+    await collectFrameworkForkPage(host as unknown as DiscoveryCollectionHost);
+  }
+  assert.deepEqual(requests, [
+    frameworkForkRequest(n64.repositoryId),
+    frameworkForkRequest(ship.repositoryId),
+    frameworkForkRequest(n64.repositoryId, 2),
+  ]);
+  assert.deepEqual(persisted.framework_forks?.n64recomp?.seen, [120, 121, 122]);
+  assert.deepEqual(persisted.framework_forks?.n64recomp?.conflicts, {
+    120: { repository: "fork-owner/port-120", retained_id: 99 },
+  });
+  assert.equal(persisted.framework_forks?.n64recomp?.completed_at, forkObservationClock);
+  assert.equal(persisted.framework_forks?.libultraship?.completed_at, undefined);
+  assert.equal(persisted.records["120"], undefined);
+  assert.equal(persisted.records["99"]?.url, "https://github.com/fork-owner/port-120");
+  assert.deepEqual(persisted.records["121"]?.framework_forks, ["n64recomp"]);
+  assert.equal(persisted.records["122"]?.status, "pending");
 });

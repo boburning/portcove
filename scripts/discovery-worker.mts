@@ -1,3 +1,4 @@
+import { frameworkForkNetworks } from "./discovery-framework-forks.mts";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statfsSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -91,6 +92,8 @@ const passClocks = new Set([
   "observed_at",
   "checked_at",
   "attempted_at",
+  "advanced_at",
+  "turn",
   "unchanged_at",
   // A read's measured transfer, not something learned.
   "bytes",
@@ -369,7 +372,19 @@ export interface DiscoveryWorkerResult {
   canonical_overlap: "unknown";
   sources: { id: string; status: string; records: number; next_path?: unknown }[];
   notes: unknown[];
-  leads: { records: number; pending_families: number; external: unknown };
+  leads: {
+    records: number;
+    pending_families: number;
+    external: unknown;
+    framework_forks?: {
+      framework: string;
+      repository_id: number;
+      distinct_seen: number;
+      identity_conflicts: number;
+      next_page: number | null;
+      provider_pages_exhausted_at: string | null;
+    }[];
+  };
   committed: {
     pages: number;
     observations: number;
@@ -749,6 +764,24 @@ export async function runDiscoveryWorker(
     records: Object.keys(host.leads.records).length,
     pending_families: leadFamilyIds.length - host.leadFamilies.size,
     external: host.leadSummary().external,
+    ...(!stale && !halted && !dirty && host.leads.framework_forks
+      ? {
+          framework_forks: frameworkForkNetworks.flatMap(({ key, repositoryId }) => {
+            const progress = host.leads.framework_forks?.[key];
+            if (!progress || progress.repository_id !== repositoryId) return [];
+            return [
+              {
+                framework: key,
+                repository_id: repositoryId,
+                distinct_seen: progress.seen.length,
+                identity_conflicts: Object.keys(progress.conflicts ?? {}).length,
+                next_page: progress.next_page,
+                provider_pages_exhausted_at: progress.completed_at ?? null,
+              },
+            ];
+          }),
+        }
+      : {}),
   };
   const remaining = budget.remaining();
   const wake = spent ? undefined : providerWake(budget, now());
@@ -1166,9 +1199,25 @@ export function renderDiscoveryStatus(status: Record<string, unknown>) {
       lines.push(`| ${String(s.id)} | ${String(s.status)} | ${String(s.records)} |`);
     lines.push("");
   }
-  // Curated lists and inventory baselines: coverage and contribution per source.
   const cell = (value: unknown) =>
     typeof value === "string" || typeof value === "number" ? String(value) : "";
+  const forkNetworks =
+    isRecord(result.leads) && Array.isArray(result.leads.framework_forks)
+      ? result.leads.framework_forks.filter(isRecord)
+      : [];
+  if (forkNetworks.length) {
+    lines.push(
+      "| Fork network | Repository ID | Observed IDs | Identity conflicts | Next page | Pages exhausted |",
+      "| --- | ---: | ---: | ---: | ---: | --- |",
+    );
+    for (const network of forkNetworks) {
+      lines.push(
+        `| ${String(network.framework)} | ${String(network.repository_id)} | ${String(network.distinct_seen)} | ${String(network.identity_conflicts)} | ${cell(network.next_page)} | ${cell(network.provider_pages_exhausted_at)} |`,
+      );
+    }
+    lines.push("");
+  }
+  // Curated lists and inventory baselines: coverage and contribution per source.
   const external =
     isRecord(result.leads) && isRecord(result.leads.external) ? result.leads.external : {};
   const lists = isRecord(external.lists) ? external.lists : {};
