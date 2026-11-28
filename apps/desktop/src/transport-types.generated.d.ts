@@ -2596,6 +2596,10 @@ export interface IgdbArtwork {
   image_id: string;
   image_sha256: string;
   match_kind: IgdbArtworkMatch;
+  /**
+   * Publisher-observed identity of the implementation repository, under listing format 20.
+   */
+  observed_github_repository_id?: number | null;
 }
 export interface OutputArtworkThumbnail {
   asset_sha256: string;

@@ -47,7 +47,12 @@ import {
   retainArtworkProviderBackoff,
 } from "./artwork-preparation-progress.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
-import { projectScheduledCovers } from "./listing-scheduled-cover.mts";
+import {
+  listingGithubRepositoryId,
+  observedProjectCoverRepositoryId,
+  projectScheduledCovers,
+  readScheduledCoverRepositories,
+} from "./listing-scheduled-cover.mts";
 import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.d.ts";
 import {
   indexSharedCoverRows,
@@ -104,7 +109,8 @@ import {
 export { listingDeliveryTarget, ListingPublicationStop };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const legacyListingFormat = 11;
-const latestListingFormat = 19;
+const observedProjectCoverFormat = 20;
+const latestListingFormat = observedProjectCoverFormat;
 /** Rehearse optional portal bytes through the same final acceptance as the base. */
 export async function stageModPortalProjection<T, R>(
   baseline: T,
@@ -354,11 +360,12 @@ function retainFreshObservation(
   );
 }
 
-function compactDirectoryFormat(canonical: Directory, previous: Delivery | null) {
+function compactDirectoryFormat(canonical: Directory, previous: Delivery | null, floor = 0) {
   return Math.max(
     legacyListingFormat,
     canonical.format_version,
     previous?.directory.format_version ?? 0,
+    floor,
   );
 }
 
@@ -424,6 +431,7 @@ export function projectListingDelivery(
     firstPartyModDefaults?: ReturnType<typeof firstPartyListingModDefaults>;
     gameMediaDefaults?: ReturnType<typeof scheduledGameMediaDefaults>;
     scheduledCovers?: ReadonlyMap<string, IgdbArtwork>;
+    listingFormatFloor?: number;
   } = {},
 ) {
   const {
@@ -439,12 +447,13 @@ export function projectListingDelivery(
     firstPartyModDefaults,
     gameMediaDefaults,
     scheduledCovers,
+    listingFormatFloor,
   } = options;
   const raw = directory(canonical);
   const previousDocument = previous
     ? delivery(parseCatalogSource(previous.toString("utf8")))
     : null;
-  const format = compactDirectoryFormat(raw, previousDocument);
+  const format = compactDirectoryFormat(raw, previousDocument, listingFormatFloor);
   const baseline = directory(compatible ?? raw);
   const identities = new Set(raw.listings.map((listing) => listing.id));
   if (
@@ -520,10 +529,7 @@ export function projectListingDelivery(
       const defaultCover =
         sharedCoverDefaults?.proposals.get(String(listing.id)) ??
         scheduledCovers?.get(String(listing.id));
-      if (defaultCover && !declaration.artwork && !declaration.collection_covers)
-        result.artwork = defaultCover;
       const old = previousListings.get(listing.id);
-      coverCheckpoint?.assertHistoricalCoverVisibility(result, declaration, old);
       const prior =
         old &&
         releaseObservationListingHash(old) === releaseObservationListingHash(listing) &&
@@ -548,6 +554,18 @@ export function projectListingDelivery(
         result.upstream_observation = structuredClone(proposed);
       if (result.upstream_observation !== undefined)
         result.upstream_observation = omitUnknownAssetDigests(result.upstream_observation);
+      if (defaultCover && !declaration.artwork && !declaration.collection_covers) {
+        const coverRepository = observedProjectCoverRepositoryId(defaultCover);
+        const listingRepository = listingGithubRepositoryId(result);
+        if (
+          defaultCover.match_kind === "underlying-game" ||
+          (coverRepository !== undefined &&
+            format >= observedProjectCoverFormat &&
+            (listingRepository === undefined || listingRepository === coverRepository))
+        )
+          result.artwork = defaultCover;
+      }
+      coverCheckpoint?.assertHistoricalCoverVisibility(result, declaration, old);
       if (prior) retained++;
       if (
         result.upstream_observation !== undefined &&
@@ -1006,6 +1024,7 @@ const liveListingReaderFloors = new Map([
   [16, repositoryBoundListingReader],
   [17, repositoryBoundListingReader],
   [19, "0.1.0-preview.21"],
+  [observedProjectCoverFormat, "0.1.0-preview.22"],
 ]);
 
 type ListingPriorInputs = {
@@ -1153,6 +1172,7 @@ export async function prepareObservationBundle(options: {
   observe?: boolean;
   /** Explicit protected first activation; subsequent renewals follow signed state. */
   activateCoverCheckpoint?: boolean;
+  activateProjectCovers?: boolean;
   coverApproval?: ReturnType<typeof protectedCoverApproval>;
   priorHistory?: string;
   readArtworkHealth?: typeof readHostedArtworkHealth;
@@ -1199,6 +1219,11 @@ export async function prepareObservationBundle(options: {
   const priorCompact = Object.hasOwn(priorTargets, compactListingDeliveryTarget);
   const priorCoverDigest = priorTargets[artworkCheckpointTarget];
   const coverEnabled = priorCoverDigest !== undefined || options.activateCoverCheckpoint === true;
+  if (
+    options.activateProjectCovers &&
+    (!automatic || !priorCompact || !priorCoverDigest || options.activateCoverCheckpoint)
+  )
+    throw new Error("Project cover activation requires the existing signed cover checkpoint.");
   const segmentedHistory = Object.hasOwn(
     priorTargets,
     "policy/official/catalog.history-checkpoint.json",
@@ -1336,7 +1361,12 @@ export async function prepareObservationBundle(options: {
   }
   const legacyDocument = delivery(parseCatalogSource(legacyWire.toString("utf8")));
   const previousDocument = delivery(parseCatalogSource(previous.toString("utf8")));
-  const format = compactDirectoryFormat(canonical, priorCompact ? previousDocument : null);
+  const listingFormatFloor = options.activateProjectCovers ? observedProjectCoverFormat : 0;
+  const format = compactDirectoryFormat(
+    canonical,
+    priorCompact ? previousDocument : null,
+    listingFormatFloor,
+  );
 
   // Released-reader gate: the compact carrier is first published, or raised to
   // a newer format, only after the current released preview is verified to read
@@ -1649,6 +1679,14 @@ export async function prepareObservationBundle(options: {
         previous: indexSharedCoverRows(prior),
         shared: sharedCoverDefaults?.proposals ?? new Map<string, IgdbArtwork>(),
         denied: deniedScheduledCovers,
+        observedRepositoryIds: new Map(
+          candidates.flatMap((row) => {
+            const repository = listingGithubRepositoryId(row);
+            return typeof row.id === "string" && repository !== undefined
+              ? [[row.id, repository] as const]
+              : [];
+          }),
+        ),
         held: heldCoverImages,
         ambiguous: new Set(
           sharedCoverDefaults?.outcomes
@@ -1753,6 +1791,13 @@ export async function prepareObservationBundle(options: {
                       }
                     : {}),
                   inspect: (id) => coverInspector.inspectImage(id),
+                  ...(format >= observedProjectCoverFormat
+                    ? {
+                        inspectRepository: readScheduledCoverRepositories(
+                          coverInspector.signal ?? AbortSignal.timeout(20_000),
+                        ),
+                      }
+                    : {}),
                 });
                 scheduledCovers = covers.preserved;
                 proposedCovers = covers.proposals;
@@ -1811,6 +1856,7 @@ export async function prepareObservationBundle(options: {
     publishedAbove(
       projectListingDelivery(canonical, observations, previous, {
         revisionFloor: legacyDocument.revision,
+        listingFormatFloor,
         compatible,
         now,
         withdrawals,
@@ -2222,6 +2268,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       "official-released-reader": { type: "boolean", default: false },
       withdrawals: { type: "string" },
       "activate-cover-checkpoint": { type: "boolean", default: false },
+      "activate-project-covers": { type: "boolean", default: false },
       "prior-history": { type: "string" },
     },
   });
@@ -2262,6 +2309,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           : {}),
         officialReleasedReader: values["official-released-reader"],
         activateCoverCheckpoint: values["activate-cover-checkpoint"],
+        activateProjectCovers: values["activate-project-covers"],
         ...(coverApproval ? { coverApproval } : {}),
         ...(values["prior-history"] ? { priorHistory: path.resolve(values["prior-history"]) } : {}),
         ...(values.withdrawals ? { withdrawals: path.resolve(values.withdrawals) } : {}),

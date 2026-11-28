@@ -1018,6 +1018,12 @@ void test("the history bootstrap flag is reachable only from the manual dispatch
         type: "boolean",
         default: false,
       },
+      activate_project_covers: {
+        description:
+          "Owner activation only - enable format 20 project cover observations for a capable released reader",
+        type: "boolean",
+        default: false,
+      },
       cover_replacement_packet: {
         description: "Exact independently reviewed cover replacement packet JSON",
         type: "string",
@@ -1218,6 +1224,8 @@ void test("compact listing activation selects the released reader and rechecks i
   assert.deepEqual(observe.env, {
     ACTIVATE_COVER_CHECKPOINT:
       "${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_cover_checkpoint == true }}",
+    ACTIVATE_PROJECT_COVERS:
+      "${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_project_covers == true }}",
     PORTCOVE_COVER_REVIEW_PACKET:
       "${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_packet || '' }}",
     PORTCOVE_COVER_REVIEW_SHA256:
@@ -2134,10 +2142,13 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
 });
 
 void test("scheduled project covers require the exact upstream website and stay with that listing", async () => {
-  const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
   const { prepareScheduledCovers, projectScheduledCovers } =
     await import("./listing-scheduled-cover.mts");
   const { readScheduledGameMediaProposal } = await import("./listing-scheduled-game-media.mts");
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
   const project = { ...fixtureListing, id: "art-project", name: "Art Project" };
   const other = {
     ...project,
@@ -2209,6 +2220,33 @@ void test("scheduled project covers require the exact upstream website and stay 
   const fresh = await projectScheduledCovers({ ...options, inspect: async () => image });
   const acceptedArtwork = { ...cover.artwork, observed_github_repository_id: 12345 };
   assert.deepEqual([...fresh.proposals], [[project.id, acceptedArtwork]]);
+  const canonical = { format_version: 15, listings: [project, other] };
+  const listing19 = projectListingDelivery(canonical, [], null, {
+    compatible: { ...canonical, format_version: 19 },
+    listingFormatFloor: 19,
+    scheduledCovers: fresh.proposals,
+  });
+  const projectedArt = (bytes: Buffer) =>
+    JSON.parse(bytes.toString()).directory.listings.find(
+      (row: { id: string }) => row.id === project.id,
+    )?.artwork;
+  assert.equal(projectedArt(listing19.bytes), undefined);
+  const listing20 = projectListingDelivery(canonical, [], null, {
+    compatible: { ...canonical, format_version: 20 },
+    listingFormatFloor: 20,
+    scheduledCovers: fresh.proposals,
+  });
+  assert.deepEqual(projectedArt(listing20.bytes), acceptedArtwork);
+  const currentlyReused = projectListingDelivery(
+    canonical,
+    [fixturePolicy(project, { id: 12346, name: "owner/game" }).listing_update],
+    listing20.bytes,
+    {
+      compatible: { ...canonical, format_version: 20 },
+      scheduledCovers: fresh.proposals,
+    },
+  );
+  assert.equal(projectedArt(currentlyReused.bytes), undefined);
   const alreadySigned = new Map([[project.id, { ...project, artwork: acceptedArtwork }]]);
   const outage = await projectScheduledCovers({
     ...options,
@@ -2241,6 +2279,50 @@ void test("scheduled project covers require the exact upstream website and stay 
     inspect: async () => assert.fail("the superseded project URL must not apply"),
   });
   assert.equal(moved.proposals.size, 0);
+  const gone = createIgdbInspector(
+    null,
+    () => assert.fail("withdrawn cover cannot decode"),
+    async () => new Response(null, { status: 410 }),
+  );
+  const withdrawn = await projectScheduledCovers({
+    ...options,
+    previous: alreadySigned,
+    incoming: [],
+    inspect: (id) => gone.inspectImage(id),
+  });
+  const publishedWithout = projectListingDelivery(canonical, [], listing20.bytes, {
+    compatible: { ...canonical, format_version: 20 },
+    scheduledCovers: withdrawn.proposals,
+  }).bytes;
+  const checkpoint = withdrawn.preservedCheckpoint.finish(publishedWithout)!;
+  assert.ok(checkpoint);
+  const renamed = { ...project, name: "Renamed project", project_url: other.project_url };
+  const recovery = {
+    ...options,
+    authored: [{ ...authored[0]!, listing: renamed }],
+    source: new Map([[project.id, renamed]]),
+    incoming: [
+      {
+        ...cover,
+        project: {
+          name: renamed.name,
+          project_url: renamed.project_url,
+          github_repository_id: 12345,
+        },
+      },
+    ],
+    priorCheckpoint: { bytes: checkpoint, listing: publishedWithout },
+    receiptDigest: `sha256:${"f".repeat(64)}`,
+    now: options.now + 2,
+    inspect: async () => image,
+  };
+  const staleRename = await projectScheduledCovers({ ...recovery, receiptStarted: options.now });
+  assert.equal(staleRename.proposals.size, 0);
+  const freshRename = await projectScheduledCovers({
+    ...recovery,
+    receiptStarted: options.now + 1,
+  });
+  assert.deepEqual([...freshRename.proposals], [[project.id, acceptedArtwork]]);
   const wrongProducer = await projectScheduledCovers({
     ...options,
     source: new Map([[project.id, { ...project, name: "Different project" }]]),
@@ -3030,7 +3112,7 @@ void test("format 15 restrictions require the released reader and never reach ol
   assert.deepEqual(decoded.directory.listings[0]!.restrictions, restrictions);
 
   assert.throws(
-    () => projectListingDelivery({ format_version: 20, listings: [current] }, [], null, { now: 0 }),
+    () => projectListingDelivery({ format_version: 21, listings: [current] }, [], null, { now: 0 }),
     /supported bounded canonical directory/u,
   );
 });

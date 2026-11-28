@@ -24,7 +24,6 @@ import { readObserverMetadata } from "./upstream-observer.mts";
 
 type ProjectCoverIdentity = { name: string; project_url: string; github_repository_id: number };
 type ProjectRepositoryReader = (projectUrl: string) => Promise<number | undefined>;
-type ObservedArtwork = IgdbArtwork & { observed_github_repository_id?: number };
 export type ScheduledCover = {
   id: string;
   artwork: IgdbArtwork;
@@ -72,6 +71,28 @@ function projectScope(record: AuthoredPort) {
 
 function projectKey(id: string, repositoryId: number) {
   return JSON.stringify(["project", id, repositoryId]);
+}
+
+export function observedProjectCoverRepositoryId(artwork: unknown) {
+  return isRecord(artwork) && positiveId(artwork.observed_github_repository_id)
+    ? artwork.observed_github_repository_id
+    : undefined;
+}
+
+export function listingGithubRepositoryId(listing: Record<string, unknown>) {
+  const observation = listing.upstream_observation;
+  const project =
+    typeof listing.project_url === "string" ? githubRepository(listing.project_url) : undefined;
+  if (
+    project &&
+    isRecord(observation) &&
+    observation.provider === "github" &&
+    typeof observation.observed_at === "string" &&
+    typeof observation.repository === "string" &&
+    observation.repository.toLowerCase() === `${project.owner}/${project.name}`.toLowerCase() &&
+    positiveId(observation.repository_id)
+  )
+    return observation.repository_id;
 }
 
 /** Positives use one bounded repository lookup per slug. Redirects can't bind a stale URL. */
@@ -301,15 +322,18 @@ export async function projectScheduledCovers({
     if (artwork.match_kind === "port") {
       const project = entry.project;
       const repositoryId = signed
-        ? (artwork as ObservedArtwork).observed_github_repository_id
+        ? observedProjectCoverRepositoryId(artwork)
         : evidence?.github_repository_id;
       const boundId = admittedGithubRepositoryId(id);
       const observedId = observedRepositoryIds.get(id);
+      const priorListing = previous.get(id);
+      const priorId = priorListing && listingGithubRepositoryId(priorListing);
       if (
         !project ||
         !positiveId(repositoryId) ||
         (boundId !== undefined && boundId !== repositoryId) ||
         (observedId !== undefined && observedId !== repositoryId) ||
+        (priorId !== undefined && priorId !== repositoryId) ||
         producer.id !== id ||
         producer.name !== project.name ||
         (!signed &&
@@ -371,6 +395,20 @@ export async function projectScheduledCovers({
     const width = 8;
     const offset =
       (Math.floor(now / 86_400_000) % Math.max(1, Math.ceil(targets.length / width))) * width;
+    const projectTargets = [...retained]
+      .filter(([, { artwork }]) => artwork.match_kind === "port")
+      .sort(([left], [right]) => left.localeCompare(right));
+    if (inspectRepository && projectTargets.length) {
+      const start =
+        (Math.floor(now / 86_400_000) % Math.ceil(projectTargets.length / width)) * width;
+      for (const [id, { artwork }] of projectTargets.slice(start, start + width)) {
+        const url = eligible.get(id)?.project?.project_url;
+        if (!url) continue;
+        const actual = await inspectRepository(url);
+        if (actual !== undefined && actual !== observedProjectCoverRepositoryId(artwork))
+          retained.delete(id);
+      }
+    }
     for (const [, { artwork }] of targets.slice(offset, offset + width)) {
       const value = await observe(artwork);
       if (value !== null && value !== artwork.image_sha256) changed.add(artwork.image_id);
