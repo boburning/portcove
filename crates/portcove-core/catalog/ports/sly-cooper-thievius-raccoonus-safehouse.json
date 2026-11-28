@@ -7,6 +7,15 @@
     "summary": "SafeHouse is a launcher and PC port project for all the Sly Cooper games.",
     "issue_number": 8270,
     "listed_at": "2026-11-24",
+    "mod_portals": [
+      {
+        "id": "safehouse-modding",
+        "site": "community_site",
+        "name": "SafeHouse modding guide",
+        "url": "https://github.com/FridiNaTor1/SafeHouse/blob/main/docs/MODDING.md",
+        "instructions": "Follow the section for this game. SafeHouse manages the installation and uses its own Mods folder."
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "sly-cooper-and-the-thievius-raccoonus",
