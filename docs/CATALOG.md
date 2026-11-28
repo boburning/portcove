@@ -6473,6 +6473,22 @@ withdrawals, additions or changes proceed. A stop condition found while deriving
 batch. An open batch pull request that still fails stops the job again after
 its issue is closed; close that pull request too.
 
+For a rule-version stop, the workflow records the exact parser, generator
+and classifier versions from the CLI in the prepare job. A missing version
+receipt or unreadable retained history stops the run.
+Restore worker state and run history together. If cached history is missing
+after a recorded stop or delivery, recover the bound pair before retrying.
+Review the held run's batch artifact and delta. When the version change is
+the only stop and the batch passed its other checks, the stop issue records
+the transition and the prior run that it applies to. An authorized person
+closes that issue as completed after accepting the reviewed transition.
+The workflow must have written the issue body before closure. If the body
+changes at the same time or later, let the workflow file the current stop,
+review the recorded transition and close it again.
+The next run can use that closure for the exact transition. It derives a
+fresh batch using the existing cursor and receipts and still applies every
+other stop, including withdrawals that require a reviewed pull request.
+
 The freshness watchdog compares the committed facts' `generated_at` with the
 real clock on every enabled run, also while a batch waits or a stop issue is
 open. When the table is more than 15 days old (`freshnessAlertDays`: a quiet

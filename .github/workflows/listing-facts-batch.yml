@@ -359,6 +359,7 @@ jobs:
     outputs:
       shards: ${{ steps.shards.outputs.shards }}
       now: ${{ steps.inputs.outputs.now }}
+      prior_worker_state: ${{ steps.inputs.outputs.prior_worker_state }}
     env:
       WORK: ${{ github.workspace }}/work/listing-facts-batch
     steps:
@@ -389,11 +390,12 @@ jobs:
         run: |
           set -euo pipefail
           cargo build --locked -p portcove-cli
-          mkdir -p "$WORK/cli"
+          mkdir -p "$WORK/cli" "$WORK/plan"
           cp target/debug/portcove "$WORK/cli/portcove"
           # Every inspection and reproduction shard downloads this private copy.
           # The dynamic symbols needed at runtime survive; the cached build is untouched.
           strip --strip-all "$WORK/cli/portcove"
+          node scripts/listing-facts-batch.mts versions --cli "$WORK/cli/portcove" > "$WORK/plan/versions.txt"
       # Every listing the observer has accumulated: its checkpoint snapshot,
       # not one rotating run's handoff, so a source observed in any earlier
       # observer run reaches the worker.
@@ -423,6 +425,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$WORK/inputs" "$WORK/plan"
+          if [ -e "$WORK/state.json" ] || [ -e "$WORK/history.json" ]; then
+            if [ ! -s "$WORK/state.json" ] || [ ! -s "$WORK/history.json" ]; then
+              echo "The listing worker state and run history must be restored together." >&2
+              exit 1
+            fi
+            echo "prior_worker_state=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prior_worker_state=false" >> "$GITHUB_OUTPUT"
+          fi
           if [ -f "$WORK/state.json" ]; then cp "$WORK/state.json" "$WORK/inputs/state-before.json"; else : > "$WORK/inputs/state-before.json"; fi
           if [ -f "$WORK/history.json" ]; then cp "$WORK/history.json" "$WORK/plan/history.json"; fi
           node scripts/listing-facts-batch.mts inputs --observations "$WORK/inputs/observations.json" \
@@ -722,6 +733,7 @@ jobs:
     timeout-minutes: 120
     permissions:
       contents: read
+      issues: read
     outputs:
       ready: ${{ steps.ready.outputs.ready }}
       reproduced: ${{ steps.ready.outputs.reproduced }}
@@ -859,7 +871,7 @@ jobs:
           PATHS: ${{ steps.rechecked_paths.outcome }}
           GATE: ${{ steps.rechecked_gate.outcome }}
           CHECKS: ${{ steps.rechecked_checks.outcome }}
-          CAPACITY: ${{ steps.rechecked_capacity.outputs.capacity }}
+          CAPACITY: ${{ steps.rechecked_capacity.outcome == 'success' && steps.rechecked_capacity.outputs.capacity || '' }}
           MATERIAL: ${{ steps.regenerate.outputs.material }}
         run: |
           set -euo pipefail
@@ -882,17 +894,25 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 3
         env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PRIOR_WORKER_STATE: ${{ needs.prepare.outputs.prior_worker_state }}
           PATHS: ${{ steps.effective.outputs.paths == 'failure' && 'violated' || steps.effective.outputs.paths == 'success' && 'ok' || 'skipped' }}
           GATE: ${{ steps.effective.outputs.gate == 'failure' && 'refused' || steps.effective.outputs.gate == 'success' && 'ok' || 'skipped' }}
           VERIFY: ${{ (steps.effective.outputs.checks == 'failure' || steps.withhold.outcome == 'failure' || needs.reproduce.result == 'failure' || needs.reproduce.result == 'cancelled') && 'refused' || 'ok' }}
           SHARDS: ${{ needs.combine.outputs.shards }}
           RECHECK: ${{ steps.effective.outputs.recheck }}
+          REVIEWABLE: >-
+            ${{ needs.combine.result == 'success' && steps.effective.outcome == 'success' &&
+            steps.effective.outputs.paths == 'success' && steps.effective.outputs.gate == 'success' &&
+            steps.effective.outputs.checks == 'success' && steps.effective.outputs.capacity == 'ok' &&
+            steps.effective.outputs.recheck == '' && (needs.reproduce.result == 'skipped' ||
+            (needs.reproduce.result == 'success' && steps.withhold.outcome == 'success')) }}
         run: |
           set -euo pipefail
           if [ ! -f "$WORK/history.json" ] && [ -f "$WORK/plan-artifact/plan/history.json" ]; then
             cp "$WORK/plan-artifact/plan/history.json" "$WORK/history.json"
           fi
-          versions=$(node scripts/listing-facts-batch.mts versions --cli "$WORK/plan-artifact/cli/portcove" || echo unknown)
+          versions=$(cat "$WORK/plan-artifact/plan/versions.txt")
           delta=()
           if [ -f "$WORK/delta.json" ]; then delta=(--delta "$WORK/delta.json"); fi
           report=()
@@ -908,6 +928,8 @@ jobs:
           shard_count=$(node -e 'try{console.log(JSON.parse(process.argv[1]||"[]").length)}catch{console.log(0)}' "$SHARDS")
           node scripts/listing-facts-batch.mts assess "${report[@]}" "${delta[@]}" "${capacity[@]}" "${recheck[@]}" \
             --history "$WORK/history.json" --run-id "$GITHUB_RUN_ID" --versions "$versions" \
+            --base HEAD~1 --read-rule-version-review true --prior-worker-state "$PRIOR_WORKER_STATE" \
+            --reviewable-rule-batch "$REVIEWABLE" --deadline-minutes 2 \
             --gate "$GATE" --paths "$PATHS" --reproduction "$VERIFY" --refusals "$WORK/refusals" \
             --shard-count "$shard_count" --output "$WORK/conditions.json" > /dev/null
       # A batch is proposed only when every check and every reproduction

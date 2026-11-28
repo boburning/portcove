@@ -128,6 +128,7 @@ import {
   reproduceFacts,
   requiredCheckState,
   requiredContexts,
+  completedRuleVersionReview,
   stopConditions,
   stopConditionNames,
   stopIssueBody,
@@ -1542,6 +1543,46 @@ const assess = (history: RunRecord[], fields: Partial<Parameters<typeof stopCond
     ...fields,
   }).conditions.map((condition) => condition.name);
 
+void test("assessment refuses missing rule proof or unreadable history before updating the cursor", () => {
+  const directory = mkdtempSync(join(tmpdir(), "listing-rule-history-"));
+  try {
+    const history = join(directory, "history.json");
+    const run = (versions: string, ...extra: string[]) =>
+      spawnSync(
+        process.execPath,
+        [
+          join(root, "scripts/listing-facts-batch.mts"),
+          "assess",
+          "--history",
+          history,
+          "--run-id",
+          "46084943750",
+          "--versions",
+          versions,
+          ...extra,
+        ],
+        { cwd: root, encoding: "utf8" },
+      );
+    writeFileSync(history, "[]");
+    const unobserved = run("unknown");
+    assert.equal(unobserved.status, 1);
+    assert.match(unobserved.stderr, /did not record the exact listing rule versions/u);
+    assert.equal(readFileSync(history, "utf8"), "[]");
+    writeFileSync(history, "{}");
+    const corrupt = run("facts-26/generator-33/filename-rule-1");
+    assert.equal(corrupt.status, 1);
+    assert.match(corrupt.stderr, /retained listing batch history has unreadable rule versions/u);
+    assert.equal(readFileSync(history, "utf8"), "{}");
+    writeFileSync(history, "[]");
+    const incomplete = run("facts-26/generator-33/filename-rule-1", "--prior-worker-state", "true");
+    assert.equal(incomplete.status, 1);
+    assert.match(incomplete.stderr, /prior listing batch history is missing/u);
+    assert.equal(readFileSync(history, "utf8"), "[]");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 void test("each stop condition is detected and named", () => {
   assert.deepEqual(assess([record()]), []);
   assert.deepEqual(assess([], { gate: "refused" }), ["gate-refused"]);
@@ -1640,6 +1681,84 @@ void test("each stop condition is detected and named", () => {
   const body = stopIssueBody({ name: "gate-refused", detail: "Grouped reason." }, "https://run");
   assert.match(body, /Grouped reason\./u);
   assert.match(body, /close this issue/u);
+});
+
+void test("only a human-completed stop for the exact listed transition records the version review", () => {
+  const versions = "facts-26/generator-33/filename-rule-1";
+  const prior = record({ run_id: "46071452366", versions: "unknown" });
+  const input = {
+    runId: "46084943750",
+    now: "2026-11-28T00:00:00.000Z",
+    summary: summary(),
+    history: [prior],
+    versions,
+    reviewableRuleBatch: true,
+    gate: "ok",
+    paths: "ok",
+    reproduction: "ok",
+    delta: { added: 37, changed: 0, withdrawn: 0 },
+  } as const;
+  const [stop] = stopConditions(input).conditions;
+  assert.ok(stop);
+  assert.equal(stop.name, "rule-version-changed");
+  const body = stopIssueBody(stop, "https://example.com/actions/runs/46084943750");
+  const workflowActor = { login: "github-actions", __typename: "Bot" };
+  const closedAt = "2026-11-28T01:00:00Z";
+  const closure = { createdAt: closedAt, actor: { __typename: "User" } };
+  const issue = {
+    title: "Listing facts batch stopped: rule-version-changed",
+    author: workflowActor,
+    state: "CLOSED",
+    stateReason: "COMPLETED",
+    createdAt: "2026-11-28T00:55:00Z",
+    closedAt,
+    lastEditedAt: null,
+    timelineItems: { nodes: [closure] },
+    body,
+  };
+  assert.equal(completedRuleVersionReview(issue, prior, versions), true);
+  const workflowEdit = { editor: workflowActor, lastEditedAt: "2026-11-28T00:59:59Z" };
+  assert.equal(completedRuleVersionReview({ ...issue, ...workflowEdit }, prior, versions), true);
+  assert.equal(
+    completedRuleVersionReview(issue, { ...prior, run_id: "46071452367" }, versions),
+    false,
+  );
+  assert.equal(completedRuleVersionReview(issue, { ...prior, versions }, versions), false);
+  assert.equal(
+    completedRuleVersionReview(issue, prior, "facts-26/generator-34/filename-rule-1"),
+    false,
+  );
+  for (const invalid of [
+    { state: "OPEN" },
+    { stateReason: "NOT_PLANNED" },
+    { ...workflowEdit, lastEditedAt: closedAt },
+    { ...workflowEdit, lastEditedAt: "2026-11-28T01:00:01Z" },
+    { ...workflowEdit, editor: { __typename: "User" } },
+    { createdAt: closedAt },
+    { closedAt: null },
+    { timelineItems: { nodes: [{ ...closure, actor: { __typename: "Bot" } }] } },
+    { timelineItems: { nodes: [{ ...closure, createdAt: "2026-11-28T00:59:01Z" }] } },
+    { author: { ...workflowActor, login: "someone-else" } },
+    { body: body + "\n" + body },
+    { body: "Prior diagnosis without reviewable outputs." },
+  ]) {
+    assert.equal(completedRuleVersionReview({ ...issue, ...invalid }, prior, versions), false);
+  }
+  assert.deepEqual(stopConditions({ ...input, reviewedRuleVersion: true }).conditions, []);
+  assert.deepEqual(
+    stopConditions({ ...input, reviewedRuleVersion: true, gate: "refused" }).conditions.map(
+      ({ name }) => name,
+    ),
+    ["gate-refused"],
+  );
+  assert.equal(
+    stopConditions({ ...input, gate: "refused" }).conditions.at(-1)?.version_transition,
+    undefined,
+  );
+  assert.equal(
+    stopConditions({ ...input, reviewableRuleBatch: false }).conditions.at(0)?.version_transition,
+    undefined,
+  );
 });
 
 void test("the notify job adds a failed batch and failed jobs, never doubling a derive failure", () => {
@@ -3488,7 +3607,10 @@ void test("a batch past either released-reader bound is never proposed; it stops
   assert.equal(ready.env!.CAPACITY, "${{ steps.effective.outputs.capacity }}");
   const effective = decide.steps.find((item) => item.id === "effective")!;
   assert.equal(effective.env!.COMBINE_CAPACITY, "${{ needs.combine.outputs.capacity }}");
-  assert.equal(effective.env!.CAPACITY, "${{ steps.rechecked_capacity.outputs.capacity }}");
+  assert.equal(
+    effective.env!.CAPACITY,
+    "${{ steps.rechecked_capacity.outcome == 'success' && steps.rechecked_capacity.outputs.capacity || '' }}",
+  );
   const recheck = decide.steps.find((item) => item.id === "rechecked_capacity")!;
   assert.match(
     recheck.run!,
@@ -4008,6 +4130,19 @@ void test("the decide job withholds refused identities and re-checks the batch b
     assert.equal(steps[index(id)]!["continue-on-error"], true, id);
   // A failed withhold is an unsound reproduction, and nothing is proposed.
   const assess = steps[index("assess")]!;
+  const buildsCli = workflow.jobs.prepare!.steps.find((step) => step.run?.includes("cargo build"));
+  assert.match(
+    buildsCli!.run!,
+    /listing-facts-batch\.mts versions --cli "\$WORK\/cli\/portcove" > "\$WORK\/plan\/versions\.txt"/u,
+  );
+  assert.match(assess.run!, /cat "\$WORK\/plan-artifact\/plan\/versions\.txt"/u);
+  assert.match(assess.run!, /--read-rule-version-review true/u);
+  assert.match(assess.run!, /--prior-worker-state "\$PRIOR_WORKER_STATE"/u);
+  assert.match(assess.env!.PRIOR_WORKER_STATE!, /needs\.prepare\.outputs\.prior_worker_state/u);
+  assert.match(assess.run!, /--reviewable-rule-batch "\$REVIEWABLE"/u);
+  assert.match(assess.env!.REVIEWABLE!, /steps\.effective\.outputs\.capacity == 'ok'/u);
+  assert.match(assess.env!.REVIEWABLE!, /steps\.effective\.outputs\.checks == 'success'/u);
+  assert.doesNotMatch(assess.run!, /echo unknown/u);
   assert.match(assess.env!.VERIFY!, /steps\.withhold\.outcome == 'failure'/u);
   assert.match(assess.env!.PATHS!, /steps\.effective\.outputs\.paths/u);
   assert.match(assess.env!.GATE!, /steps\.effective\.outputs\.gate/u);
