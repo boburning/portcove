@@ -1045,11 +1045,19 @@ mod tests {
             Some(LOCAL)
         );
 
+        let launch_activity = service
+            .library
+            .begin_activity(
+                crate::ActivityOperation::Launch,
+                crate::ActivityTargetKind::Port,
+                Some(CANONICAL),
+            )
+            .unwrap();
         let now = Library::now();
         service
             .library
             .create_launch_session(&crate::LaunchSessionRecord {
-                id: "pending-canonical-launch".into(),
+                id: launch_activity.id.clone(),
                 port_id: CANONICAL.into(),
                 install_id: "retired-runtime".into(),
                 install_root: working.clone(),
@@ -1071,7 +1079,7 @@ mod tests {
         service
             .library
             .finish_launch_session(
-                "pending-canonical-launch",
+                &launch_activity.id,
                 crate::LaunchSessionOutcome::Cancelled,
                 None,
                 None,
