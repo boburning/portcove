@@ -46,41 +46,54 @@ export function resetSteamGridDbCheckForTests() {
 export function listingSummary(report: SteamGridDbListingReport): string[] {
   if (report.images.length === 0)
     return ["Your library has no SteamGridDB images to check. Nothing was changed."];
+
+  const lines = listingCoverageLines(report.images);
+  const stop = listingStopMessage(report.stopped);
+  if (stop) lines.push(stop);
+  lines.push(...listingChangeNotices(report.images), ...listingRecordingLines(report));
+  return lines;
+}
+
+function listingCoverageLines(images: SteamGridDbListingReport["images"]): string[] {
   let listed = 0;
   let missing = 0;
   let unconfirmed = 0;
   let unreached = 0;
-  for (const image of report.images) {
+  for (const image of images) {
     if (image.listing.status === "listed") listed += 1;
     else if (image.listing.status === "not_listed") missing += 1;
     else if (image.attempted) unconfirmed += 1;
     else unreached += 1;
   }
   const lines = [
-    `${plural(report.images.length, "SteamGridDB image", "SteamGridDB images")}: ${listed} still listed, ${missing} not in SteamGridDB's list when checked, ${unconfirmed} not confirmed.`,
+    `${plural(images.length, "SteamGridDB image", "SteamGridDB images")}: ${listed} still listed, ${missing} not in SteamGridDB's list when checked, ${unconfirmed} not confirmed.`,
   ];
   if (unreached > 0)
     lines.push(
       `${plural(unreached, "image was", "images were")} not reached this run. Checking again starts with them.`,
     );
-  const stop = report.stopped;
+  return lines;
+}
+
+function listingStopMessage(stop: SteamGridDbListingReport["stopped"]): string | undefined {
   if (stop?.reason === "rate_limited")
-    lines.push(
-      stop.retry_after_seconds
-        ? `SteamGridDB asked Portcove to slow down. Check again in ${plural(Math.max(1, Math.ceil(stop.retry_after_seconds / 60)), "minute", "minutes")}.`
-        : "SteamGridDB asked Portcove to slow down. Check again later.",
-    );
-  else if (stop?.reason === "key_rejected")
-    lines.push("SteamGridDB rejected your saved key. Replace it above, then check again.");
-  else if (stop?.reason === "unavailable")
-    lines.push("SteamGridDB could not be reached. Check again later.");
-  else if (stop?.reason === "time_limit")
-    lines.push("The check reached its three-minute limit. Check again to continue.");
-  else if (stop?.reason === "cancelled")
-    lines.push("The check stopped because the library changed. Check again when you are ready.");
-  const reached = report.images.some((image) => image.attempted);
-  const kept = report.images.filter((image) => image.effect === "withdrawn").length;
-  const listedAgain = report.images.filter((image) => image.effect === "listed_again").length;
+    return stop.retry_after_seconds
+      ? `SteamGridDB asked Portcove to slow down. Check again in ${plural(Math.max(1, Math.ceil(stop.retry_after_seconds / 60)), "minute", "minutes")}.`
+      : "SteamGridDB asked Portcove to slow down. Check again later.";
+  if (stop?.reason === "key_rejected")
+    return "SteamGridDB rejected your saved key. Replace it above, then check again.";
+  if (stop?.reason === "unavailable") return "SteamGridDB could not be reached. Check again later.";
+  if (stop?.reason === "time_limit")
+    return "The check reached its three-minute limit. Check again to continue.";
+  if (stop?.reason === "cancelled")
+    return "The check stopped because the library changed. Check again when you are ready.";
+  return undefined;
+}
+
+function listingChangeNotices(images: SteamGridDbListingReport["images"]): string[] {
+  const lines: string[] = [];
+  const kept = images.filter((image) => image.effect === "withdrawn").length;
+  const listedAgain = images.filter((image) => image.effect === "listed_again").length;
   if (kept > 0)
     lines.push(
       `${plural(kept, "image is", "images are")} confirmed removed from SteamGridDB. Portcove kept ${kept === 1 ? "its copy" : "their copies"}, because you imported ${kept === 1 ? "it" : "them"} yourself or another credit still lists ${kept === 1 ? "it" : "them"}.`,
@@ -89,23 +102,30 @@ export function listingSummary(report: SteamGridDbListingReport): string[] {
     lines.push(
       `${plural(listedAgain, "image is", "images are")} listed again. If Portcove removed ${listedAgain === 1 ? "its copy" : "their copies"}, choose ${listedAgain === 1 ? "it" : "them"} again to restore ${listedAgain === 1 ? "it" : "them"}.`,
     );
+  return lines;
+}
+
+function listingRecordingLines(report: SteamGridDbListingReport): string[] {
+  const lines: string[] = [];
+  const reached = report.images.some((image) => image.attempted);
   const removing =
     report.removal_deferred + report.removal_failed > 0 ||
     report.images.some((image) => image.effect === "removed");
   const removedLine = `Removed ${plural(report.removed, "copy", "copies")} of images SteamGridDB no longer lists. Your choices and credits were kept, and nothing changed in Steam.`;
-  if (report.removed > 0 && !reached) lines.push("Nothing new was checked this time.", removedLine);
-  else
+  if (!reached) {
+    if (report.removed > 0) lines.push("Nothing new was checked this time.", removedLine);
+    else lines.push("Nothing was checked this time. Nothing was removed.");
+  } else if (!report.recorded) {
+    lines.push("These results were not recorded. Nothing was removed; check again to record them.");
+  } else if (report.removed > 0) {
+    lines.push(`Portcove recorded what it found. ${removedLine}`);
+  } else if (removing) {
     lines.push(
-      !reached
-        ? "Nothing was checked this time. Nothing was removed."
-        : !report.recorded
-          ? "These results were not recorded. Nothing was removed; check again to record them."
-          : report.removed > 0
-            ? `Portcove recorded what it found. ${removedLine}`
-            : removing
-              ? "Portcove recorded what it found. No copy was deleted yet. Your choices and credits were kept, and nothing changed in Steam."
-              : "Portcove recorded what it found. Nothing was removed.",
+      "Portcove recorded what it found. No copy was deleted yet. Your choices and credits were kept, and nothing changed in Steam.",
     );
+  } else {
+    lines.push("Portcove recorded what it found. Nothing was removed.");
+  }
   if (report.removed > 0 || (report.recorded && removing))
     lines.push(
       "If Portcove added any of these images to Steam, choose the game's Steam shortcut button, then Review artwork update or Review artwork removal.",
