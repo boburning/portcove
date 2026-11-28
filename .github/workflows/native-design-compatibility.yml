@@ -14,6 +14,7 @@ on:
             product-workflows,
             linux-namespace-preflight,
             linux-package-boundary,
+            linux-package-device-check,
             linux-preparation-continuity,
             linux-library-recovery,
             bootstrap,
@@ -1446,3 +1447,32 @@ jobs:
         run: |
           node scripts/native-backup-evidence.mts emit "$env:PORTCOVE_OUTPUT_DIR"
           if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }
+
+  linux_package_device_check:
+    if: ${{ inputs.operation == 'linux-package-device-check' && inputs.runner == 'ubuntu-24.04' && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/test/8315-linux-appimage-device' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Verify ordinary Linux FUSE device access without changing the runner
+        run: |
+          set -eu
+          uname -srmo
+          test "$(id -u)" -ne 0
+          if command -v fusermount; then fusermount --version; fi
+          if command -v fusermount3; then fusermount3 --version; fi
+          python3 - <<'PY'
+          import os
+          import stat
+
+          device = "/dev/fuse"
+          try:
+              info = os.stat(device, follow_symlinks=False)
+              if not stat.S_ISCHR(info.st_mode):
+                  raise RuntimeError("FUSE path is not a character device")
+              print(f"FUSE device {os.major(info.st_rdev)}:{os.minor(info.st_rdev)}, mode {stat.S_IMODE(info.st_mode):o}")
+              fd = os.open(device, os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC)
+              os.close(fd)
+          except (OSError, RuntimeError) as error:
+              raise SystemExit(f"Ordinary AppImage device admission failed: {error}")
+          print("Ordinary runner can open the existing FUSE device")
+          PY
