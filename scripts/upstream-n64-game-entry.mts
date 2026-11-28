@@ -1,6 +1,7 @@
 import { isRecord } from "./runtime-values.mts";
 
 export const n64GameTablePath = "src/main/main.cpp";
+export const n64AlternateGameTablePath = "src/main.cpp";
 const maximumGames = 64;
 const nativeId = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u;
 const hash = /^[a-f0-9]{16}$/u;
