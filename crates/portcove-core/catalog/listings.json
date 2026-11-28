@@ -34308,7 +34308,16 @@
         "evidence_urls": [
           "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Cubis2/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "cubis-2-ipod-click-wheel-99999",
+            "title": "Cubis 2 (iPod Click Wheel, 99999)",
+            "system": "ipod-click-wheel",
+            "evidence_urls": [
+              "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Cubis2/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -38961,7 +38970,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "diamic-days-windows",
+            "title": "Diamic Days (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/dd/",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -39648,7 +39667,17 @@
           "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
           "https://github.com/spacestate1/namco22-decompile"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dirt-dash-namco-super-system-22-dirtdasha",
+            "title": "Dirt Dash (Namco Super System 22, World DT2 Ver.A)",
+            "system": "namco-super-system-22",
+            "evidence_urls": [
+              "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/docs/ROM_CHECKSUMS.md#dirt-dash",
+              "https://github.com/mamedev/mame/blob/4da96a0c4fbc9ee692082e889b3a5a913fc0659e/src/mame/namco/namcos22.cpp#L6305"
+            ]
+          }
+        ]
       }
     },
     {
@@ -50881,7 +50910,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "gakuou-its-heartful-days-windows",
+            "title": "Gakuou: It’s Heartful Days (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/gkhd/",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -50940,7 +50979,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "gakuou-the-royal-seven-stars-windows",
+            "title": "Gakuou: The Royal Seven Stars (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/gackoh/",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -56351,7 +56400,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "hanairo-heptagram-windows",
+            "title": "Hanairo Heptagram (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/hanairo/",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -60437,7 +60496,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "itsuka-todoku-ano-sora-ni-windows",
+            "title": "Itsuka, Todoku, Ano Sora ni (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/itsusora/system.html",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -64966,7 +65035,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "kodomo-no-asobi-windows",
+            "title": "Kodomo no Asobi (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/kodomo/",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -67325,7 +67404,16 @@
         "evidence_urls": [
           "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Lost/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "lost-ipod-click-wheel-1b200",
+            "title": "Lost (iPod Click Wheel, 1B200)",
+            "system": "ipod-click-wheel",
+            "evidence_urls": [
+              "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Lost/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -68259,7 +68347,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "magical-charming-windows",
+            "title": "Magical Charming! (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/magicha/",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -68850,7 +68948,16 @@
           "https://github.com/HarbourMasters/SpaghettiKart/blob/ce0f9358f0505bbdeb76b1aff7a25556cda3fdef/README.md",
           "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mario-kart-64-nintendo-64-north-america",
+            "title": "Mario Kart 64 (Nintendo 64, North America)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -73454,7 +73561,16 @@
         "evidence_urls": [
           "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Mini%20Golf/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mini-golf-ipod-click-wheel-88888",
+            "title": "Mini Golf (iPod Click Wheel, 88888)",
+            "system": "ipod-click-wheel",
+            "evidence_urls": [
+              "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Mini%20Golf/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -80527,7 +80643,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "nursery-rhyme-windows",
+            "title": "Nursery Rhyme (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/nursery_rhyme/system.html",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -90295,7 +90421,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "prism-rhythm-windows",
+            "title": "Prism Rhythm (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/prismrhythm/",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -91180,7 +91316,17 @@
           "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
           "https://github.com/spacestate1/namco22-decompile"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "prop-cycle-namco-super-system-22-propcycl",
+            "title": "Prop Cycle (Namco Super System 22, World PR2 Ver.A)",
+            "system": "namco-super-system-22",
+            "evidence_urls": [
+              "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/docs/ROM_CHECKSUMS.md#prop-cycle",
+              "https://github.com/mamedev/mame/blob/4da96a0c4fbc9ee692082e889b3a5a913fc0659e/src/mame/namco/namcos22.cpp#L6309"
+            ]
+          }
+        ]
       }
     },
     {
@@ -93758,7 +93904,17 @@
           "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
           "https://github.com/spacestate1/namco22-decompile"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "rave-racer-namco-system-22-raverace",
+            "title": "Rave Racer (Namco System 22, World RV2 Ver.B)",
+            "system": "namco-system-22",
+            "evidence_urls": [
+              "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/docs/ROM_CHECKSUMS.md#rave-racer",
+              "https://github.com/mamedev/mame/blob/4da96a0c4fbc9ee692082e889b3a5a913fc0659e/src/mame/namco/namcos22.cpp#L6289"
+            ]
+          }
+        ]
       }
     },
     {
@@ -101518,7 +101674,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "sekai-to-sekai-no-mannaka-de-windows",
+            "title": "Sekai to Sekai no Mannaka de (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/sekachu/",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -107800,7 +107966,16 @@
           "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md",
           "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "star-fox-64-nintendo-64-north-america-rev-1-1",
+            "title": "Star Fox 64 (Nintendo 64, North America, revision 1.1)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -114346,7 +114521,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "tayutama-2-after-stories-windows",
+            "title": "Tayutama 2: After Stories (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/tayutama2_as/index.html",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -114405,7 +114590,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "tayutama-its-happy-days-windows",
+            "title": "Tayutama: It’s Happy Days (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/happydays/",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -114464,7 +114659,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "tayutama-kiss-on-my-deity-windows",
+            "title": "Tayutama: Kiss on my Deity (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/tayutama/product/index.html",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -116003,7 +116208,16 @@
         "evidence_urls": [
           "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/HoldEm/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "texas-holdem-ipod-click-wheel-33333",
+            "title": "Texas Hold’em (iPod Click Wheel, 33333)",
+            "system": "ipod-click-wheel",
+            "evidence_urls": [
+              "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/HoldEm/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -118759,7 +118973,16 @@
         "evidence_urls": [
           "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Sims%20Bowling/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-sims-bowling-ipod-click-wheel-1500c",
+            "title": "The Sims Bowling (iPod Click Wheel, 1500C)",
+            "system": "ipod-click-wheel",
+            "evidence_urls": [
+              "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Sims%20Bowling/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -119901,7 +120124,17 @@
           "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
           "https://github.com/spacestate1/namco22-decompile"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "time-crisis-namco-super-system-22-timecris",
+            "title": "Time Crisis (Namco Super System 22, World TS2 Ver.B)",
+            "system": "namco-super-system-22",
+            "evidence_urls": [
+              "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/docs/ROM_CHECKSUMS.md#time-crisis",
+              "https://github.com/mamedev/mame/blob/4da96a0c4fbc9ee692082e889b3a5a913fc0659e/src/mame/namco/namcos22.cpp#L6307"
+            ]
+          }
+        ]
       }
     },
     {
@@ -120850,7 +121083,17 @@
           "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
           "https://github.com/spacestate1/namco22-decompile"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "tokyo-wars-namco-super-system-22-tokyowar",
+            "title": "Tokyo Wars (Namco Super System 22, World TW2 Ver.A)",
+            "system": "namco-super-system-22",
+            "evidence_urls": [
+              "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/docs/ROM_CHECKSUMS.md#tokyo-wars",
+              "https://github.com/mamedev/mame/blob/4da96a0c4fbc9ee692082e889b3a5a913fc0659e/src/mame/namco/namcos22.cpp#L6313"
+            ]
+          }
+        ]
       }
     },
     {
@@ -125108,7 +125351,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "unmei-senjou-no-phi-windows",
+            "title": "Unmei Senjou no Phi (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/unmei/index.html",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {
@@ -128400,7 +128653,16 @@
         "evidence_urls": [
           "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Vortex/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "vortex-ipod-click-wheel-12345",
+            "title": "Vortex (iPod Click Wheel, 12345)",
+            "system": "ipod-click-wheel",
+            "evidence_urls": [
+              "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Vortex/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -128688,7 +128950,17 @@
         "evidence_urls": [
           "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wakabairo-no-quartet-windows",
+            "title": "Wakabairo no Quartet (Windows PC)",
+            "system": "windows",
+            "evidence_urls": [
+              "https://www.lumpofsugar.co.jp/product/quartet/",
+              "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+            ]
+          }
+        ]
       }
     },
     {

@@ -69988,7 +69988,16 @@
             "https://github.com/HarbourMasters/SpaghettiKart/blob/ce0f9358f0505bbdeb76b1aff7a25556cda3fdef/README.md",
             "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "mario-kart-64-nintendo-64-north-america",
+              "title": "Mario Kart 64 (Nintendo 64, North America)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "help_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",
@@ -79618,7 +79627,16 @@
             "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md",
             "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "star-fox-64-nintendo-64-north-america-rev-1-1",
+              "title": "Star Fox 64 (Nintendo 64, North America, revision 1.1)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "help_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md",

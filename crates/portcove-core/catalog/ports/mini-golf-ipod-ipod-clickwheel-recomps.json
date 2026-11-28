@@ -133,7 +133,16 @@
       "evidence_urls": [
         "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Mini%20Golf/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mini-golf-ipod-click-wheel-88888",
+          "title": "Mini Golf (iPod Click Wheel, 88888)",
+          "system": "ipod-click-wheel",
+          "evidence_urls": [
+            "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Mini%20Golf/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

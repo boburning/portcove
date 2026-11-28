@@ -68,7 +68,17 @@
         "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
         "https://github.com/spacestate1/namco22-decompile"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "rave-racer-namco-system-22-raverace",
+          "title": "Rave Racer (Namco System 22, World RV2 Ver.B)",
+          "system": "namco-system-22",
+          "evidence_urls": [
+            "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/docs/ROM_CHECKSUMS.md#rave-racer",
+            "https://github.com/mamedev/mame/blob/4da96a0c4fbc9ee692082e889b3a5a913fc0659e/src/mame/namco/namcos22.cpp#L6289"
+          ]
+        }
+      ]
     }
   }
 }
