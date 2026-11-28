@@ -55,7 +55,26 @@
       "format_version": 1,
       "id": "san-francisco-rush-2049",
       "evidence_urls": ["https://t3hd0gg.com/project-r/"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "san-francisco-rush-2049-arcade-special-edition",
+          "title": "San Francisco Rush 2049: Special Edition (arcade)",
+          "system": "arcade",
+          "evidence_urls": ["https://t3hd0gg.com/project-r/"]
+        },
+        {
+          "id": "san-francisco-rush-2049-arcade-tournament-edition",
+          "title": "San Francisco Rush 2049: Tournament Edition (arcade)",
+          "system": "arcade",
+          "evidence_urls": ["https://t3hd0gg.com/project-r/"]
+        },
+        {
+          "id": "san-francisco-rush-2049-arcade-tournament-edition-unlocked",
+          "title": "San Francisco Rush 2049: Tournament Edition Unlocked (arcade)",
+          "system": "arcade",
+          "evidence_urls": ["https://t3hd0gg.com/project-r/"]
+        }
+      ]
     },
     "original_game_title": "San Francisco Rush 2049"
   },

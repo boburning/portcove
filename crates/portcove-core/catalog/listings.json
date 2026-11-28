@@ -38623,7 +38623,16 @@
         "evidence_urls": [
           "https://github.com/CDarrow/DXX-Retro"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "descent-pc",
+            "title": "Descent (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/CDarrow/DXX-Retro/blob/b9e30e92543e098c470be514d17377e0219b3831/d1/INSTALL.txt"
+            ]
+          }
+        ]
       },
       "original_game_title": "Descent",
       "platforms": [],
@@ -38728,7 +38737,16 @@
         "evidence_urls": [
           "https://github.com/CDarrow/DXX-Retro"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "descent-ii-pc",
+            "title": "Descent II (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/CDarrow/DXX-Retro/blob/b9e30e92543e098c470be514d17377e0219b3831/d2/INSTALL.txt"
+            ]
+          }
+        ]
       },
       "original_game_title": "Descent II",
       "platforms": [],
@@ -41955,7 +41973,24 @@
           "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
           "https://github.com/fabiangreffrath/crispy-doom"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "doom-ii-pc",
+            "title": "Doom II (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+            ]
+          },
+          {
+            "id": "doom-ii-pc-french",
+            "title": "Doom II: L’Enfer sur Terre (PC French edition)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -42500,7 +42535,25 @@
           "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
           "https://github.com/fabiangreffrath/crispy-doom"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "doom-pc-retail",
+            "title": "Doom (PC retail)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+            ]
+          },
+          {
+            "id": "doom-pc-ultimate",
+            "title": "The Ultimate Doom (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -55751,7 +55804,24 @@
         "evidence_urls": [
           "https://github.com/spita90/konami-viper-recomp/blob/v0.16.2/README.md#download-and-play"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "gti-club-2-konami-viper-jab",
+            "title": "GTI Club: Corso Italiano (Konami Viper, Japan JAB)",
+            "system": "konami-viper",
+            "evidence_urls": [
+              "https://github.com/spita90/konami-viper-recomp/blob/bb38db8ca70182130b71207984cb1e3a8a2fb365/README.md#download-and-play"
+            ]
+          },
+          {
+            "id": "gti-club-2-konami-viper-eaa",
+            "title": "Driving Party: Racing in Italy (Konami Viper, Europe EAA)",
+            "system": "konami-viper",
+            "evidence_urls": [
+              "https://github.com/spita90/konami-viper-recomp/blob/bb38db8ca70182130b71207984cb1e3a8a2fb365/README.md#download-and-play"
+            ]
+          }
+        ]
       }
     },
     {
@@ -57998,7 +58068,16 @@
           "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
           "https://github.com/fabiangreffrath/crispy-doom"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "heretic-pc",
+            "title": "Heretic (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -58406,7 +58485,16 @@
           "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
           "https://github.com/fabiangreffrath/crispy-doom"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "hexen-pc",
+            "title": "Hexen (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -64343,7 +64431,16 @@
           "https://github.com/thefixinhixon/UltraCombo",
           "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "killer-instinct-2-arcade-l1-4",
+            "title": "Killer Instinct 2 (arcade L1.4)",
+            "system": "arcade",
+            "evidence_urls": [
+              "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -64433,7 +64530,24 @@
           "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/README.md",
           "https://github.com/thefixinhixon/UltraCombo"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "killer-instinct-arcade-l1-5d",
+            "title": "Killer Instinct (arcade L1.5D)",
+            "system": "arcade",
+            "evidence_urls": [
+              "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/README.md"
+            ]
+          },
+          {
+            "id": "killer-instinct-arcade-l1-4",
+            "title": "Killer Instinct (arcade L1.4)",
+            "system": "arcade",
+            "evidence_urls": [
+              "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -71508,7 +71622,17 @@
           "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
           "https://github.com/openmoh/openmohaa"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "medal-of-honor-allied-assault-breakthrough-pc",
+            "title": "Medal of Honor: Allied Assault: Breakthrough (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/01-intro/01-installation.md",
+              "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/02-running/01-running.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -71594,7 +71718,17 @@
           "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
           "https://github.com/openmoh/openmohaa"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "medal-of-honor-allied-assault-pc",
+            "title": "Medal of Honor: Allied Assault (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/01-intro/01-installation.md",
+              "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/02-running/01-running.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -71680,7 +71814,17 @@
           "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
           "https://github.com/openmoh/openmohaa"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "medal-of-honor-allied-assault-spearhead-pc",
+            "title": "Medal of Honor: Allied Assault: Spearhead (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/01-intro/01-installation.md",
+              "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/02-running/01-running.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -79027,7 +79171,16 @@
           "https://github.com/motor-dev/nfs-recompiled/tree/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
           "https://github.com/motor-dev/nfs-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "need-for-speed-ii-special-edition-pc",
+            "title": "Need for Speed II: Special Edition (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/motor-dev/nfs-recompiled/blob/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -79149,7 +79302,16 @@
           "https://github.com/motor-dev/nfs-recompiled/tree/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
           "https://github.com/motor-dev/nfs-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "need-for-speed-iii-hot-pursuit-pc",
+            "title": "Need for Speed III: Hot Pursuit (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/motor-dev/nfs-recompiled/blob/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -90559,7 +90721,17 @@
           "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta",
           "https://github.com/MaurycyLiebner/eZeus"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "poseidon-master-of-atlantis-pc",
+            "title": "Poseidon: Master of Atlantis (PC expansion)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/MaurycyLiebner/eZeus/blob/474a96206278293dbd9cde6d506b5570934f8acf/README.md#how-to-play",
+              "https://store.steampowered.com/app/566050/Zeus_Poseidon/"
+            ]
+          }
+        ]
       }
     },
     {
@@ -92055,7 +92227,32 @@
         "evidence_urls": [
           "https://t3hd0gg.com/project-r/"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "san-francisco-rush-2049-arcade-special-edition",
+            "title": "San Francisco Rush 2049: Special Edition (arcade)",
+            "system": "arcade",
+            "evidence_urls": [
+              "https://t3hd0gg.com/project-r/"
+            ]
+          },
+          {
+            "id": "san-francisco-rush-2049-arcade-tournament-edition",
+            "title": "San Francisco Rush 2049: Tournament Edition (arcade)",
+            "system": "arcade",
+            "evidence_urls": [
+              "https://t3hd0gg.com/project-r/"
+            ]
+          },
+          {
+            "id": "san-francisco-rush-2049-arcade-tournament-edition-unlocked",
+            "title": "San Francisco Rush 2049: Tournament Edition Unlocked (arcade)",
+            "system": "arcade",
+            "evidence_urls": [
+              "https://t3hd0gg.com/project-r/"
+            ]
+          }
+        ]
       },
       "original_game_title": "San Francisco Rush 2049"
     },
@@ -92116,7 +92313,16 @@
         "evidence_urls": [
           "https://t3hd0gg.com/project-r/"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "san-francisco-rush-the-rock-arcade",
+            "title": "San Francisco Rush: The Rock (arcade)",
+            "system": "arcade",
+            "evidence_urls": [
+              "https://t3hd0gg.com/project-r/"
+            ]
+          }
+        ]
       },
       "original_game_title": "San Francisco Rush: The Rock"
     },
@@ -93479,7 +93685,16 @@
           "https://ioquake3.org/help/players-guide/",
           "https://github.com/ioquake/ioq3"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "quake-iii-arena-pc",
+            "title": "Quake III Arena (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -93578,7 +93793,16 @@
           "https://ioquake3.org/help/players-guide/",
           "https://github.com/ioquake/ioq3"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "quake-iii-team-arena-pc",
+            "title": "Quake III: Team Arena (PC expansion)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -111633,7 +111857,24 @@
           "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
           "https://github.com/fabiangreffrath/crispy-doom"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "strife-pc",
+            "title": "Strife (PC retail)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+            ]
+          },
+          {
+            "id": "strife-pc-veteran-edition",
+            "title": "Strife: Veteran Edition (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -112818,7 +113059,17 @@
         "evidence_urls": [
           "https://github.com/ly05010419/MacNativeGames"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-odyssey-nintendo-switch",
+            "title": "Super Mario Odyssey (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/ly05010419/MacNativeGames/blob/04e848efae505869cbdae60ae7fd08d1f5e19b29/games/odyssey/README.md",
+              "https://github.com/ly05010419/MacNativeGames/blob/04e848efae505869cbdae60ae7fd08d1f5e19b29/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -118710,7 +118961,16 @@
         "evidence_urls": [
           "https://github.com/ly05010419/MacNativeGames"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-breath-of-the-wild-nintendo-switch",
+            "title": "The Legend of Zelda: Breath of the Wild (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/ly05010419/MacNativeGames/blob/04e848efae505869cbdae60ae7fd08d1f5e19b29/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -119091,7 +119351,16 @@
         "evidence_urls": [
           "https://github.com/ly05010419/MacNativeGames"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-tears-of-the-kingdom-nintendo-switch",
+            "title": "The Legend of Zelda: Tears of the Kingdom (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/ly05010419/MacNativeGames/blob/04e848efae505869cbdae60ae7fd08d1f5e19b29/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -121244,7 +121513,32 @@
         "evidence_urls": [
           "https://github.com/spita90/konami-viper-recomp/blob/v0.16.2/README.md#download-and-play"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "thrill-drive-2-konami-viper-ebb",
+            "title": "Thrill Drive 2 (Konami Viper, Europe EBB)",
+            "system": "konami-viper",
+            "evidence_urls": [
+              "https://github.com/spita90/konami-viper-recomp/blob/bb38db8ca70182130b71207984cb1e3a8a2fb365/README.md#download-and-play"
+            ]
+          },
+          {
+            "id": "thrill-drive-2-konami-viper-jaa",
+            "title": "Thrill Drive 2 (Konami Viper, Japan JAA)",
+            "system": "konami-viper",
+            "evidence_urls": [
+              "https://github.com/spita90/konami-viper-recomp/blob/bb38db8ca70182130b71207984cb1e3a8a2fb365/README.md#download-and-play"
+            ]
+          },
+          {
+            "id": "thrill-drive-2-konami-viper-aaa",
+            "title": "Thrill Drive 2 (Konami Viper, Asia AAA)",
+            "system": "konami-viper",
+            "evidence_urls": [
+              "https://github.com/spita90/konami-viper-recomp/blob/bb38db8ca70182130b71207984cb1e3a8a2fb365/README.md#download-and-play"
+            ]
+          }
+        ]
       }
     },
     {
@@ -129234,7 +129528,16 @@
         "evidence_urls": [
           "https://github.com/drakenabarion/virtualon_pc"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "cyber-troopers-virtual-on-playstation-4-masterpiece",
+            "title": "Cyber Troopers Virtual-On (PlayStation 4 Masterpiece collection)",
+            "system": "playstation-4",
+            "evidence_urls": [
+              "https://github.com/drakenabarion/virtualon_pc/blob/522b0b512655aaae40401dcf8397e3a592e130e5/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -129282,7 +129585,16 @@
         "evidence_urls": [
           "https://github.com/drakenabarion/virtualon_pc"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "cyber-troopers-virtual-on-force-playstation-4-masterpiece",
+            "title": "Cyber Troopers Virtual-On Force (PlayStation 4 Masterpiece collection)",
+            "system": "playstation-4",
+            "evidence_urls": [
+              "https://github.com/drakenabarion/virtualon_pc/blob/522b0b512655aaae40401dcf8397e3a592e130e5/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -129330,7 +129642,16 @@
         "evidence_urls": [
           "https://github.com/drakenabarion/virtualon_pc"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "cyber-troopers-virtual-on-oratorio-tangram-playstation-4-masterpiece",
+            "title": "Cyber Troopers Virtual-On: Oratorio Tangram (PlayStation 4 Masterpiece collection)",
+            "system": "playstation-4",
+            "evidence_urls": [
+              "https://github.com/drakenabarion/virtualon_pc/blob/522b0b512655aaae40401dcf8397e3a592e130e5/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -136145,7 +136466,17 @@
           "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta",
           "https://github.com/MaurycyLiebner/eZeus"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "zeus-master-of-olympus-pc",
+            "title": "Zeus: Master of Olympus (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/MaurycyLiebner/eZeus/blob/474a96206278293dbd9cde6d506b5570934f8acf/README.md#how-to-play",
+              "https://store.steampowered.com/app/566050/Zeus_Poseidon/"
+            ]
+          }
+        ]
       }
     },
     {

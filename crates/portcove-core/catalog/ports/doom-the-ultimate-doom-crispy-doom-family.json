@@ -63,7 +63,25 @@
         "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
         "https://github.com/fabiangreffrath/crispy-doom"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "doom-pc-retail",
+          "title": "Doom (PC retail)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+          ]
+        },
+        {
+          "id": "doom-pc-ultimate",
+          "title": "The Ultimate Doom (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+            "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

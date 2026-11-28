@@ -67,7 +67,17 @@
         "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta",
         "https://github.com/MaurycyLiebner/eZeus"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "zeus-master-of-olympus-pc",
+          "title": "Zeus: Master of Olympus (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/MaurycyLiebner/eZeus/blob/474a96206278293dbd9cde6d506b5570934f8acf/README.md#how-to-play",
+            "https://store.steampowered.com/app/566050/Zeus_Poseidon/"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

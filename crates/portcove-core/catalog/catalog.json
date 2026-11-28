@@ -64093,7 +64093,24 @@
             "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
             "https://github.com/fabiangreffrath/crispy-doom"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "doom-ii-pc",
+              "title": "Doom II (PC)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+              ]
+            },
+            {
+              "id": "doom-ii-pc-french",
+              "title": "Doom II: L’Enfer sur Terre (PC French edition)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -64455,7 +64472,25 @@
             "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
             "https://github.com/fabiangreffrath/crispy-doom"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "doom-pc-retail",
+              "title": "Doom (PC retail)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+              ]
+            },
+            {
+              "id": "doom-pc-ultimate",
+              "title": "The Ultimate Doom (PC)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+                "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -66862,7 +66897,16 @@
             "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
             "https://github.com/fabiangreffrath/crispy-doom"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "heretic-pc",
+              "title": "Heretic (PC)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -67207,7 +67251,16 @@
             "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
             "https://github.com/fabiangreffrath/crispy-doom"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "hexen-pc",
+              "title": "Hexen (PC)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -70523,7 +70576,17 @@
             "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
             "https://github.com/openmoh/openmohaa"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "medal-of-honor-allied-assault-breakthrough-pc",
+              "title": "Medal of Honor: Allied Assault: Breakthrough (PC)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/01-intro/01-installation.md",
+                "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/02-running/01-running.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -70673,7 +70736,17 @@
             "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
             "https://github.com/openmoh/openmohaa"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "medal-of-honor-allied-assault-pc",
+              "title": "Medal of Honor: Allied Assault (PC)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/01-intro/01-installation.md",
+                "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/02-running/01-running.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -70822,7 +70895,17 @@
             "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
             "https://github.com/openmoh/openmohaa"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "medal-of-honor-allied-assault-spearhead-pc",
+              "title": "Medal of Honor: Allied Assault: Spearhead (PC)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/01-intro/01-installation.md",
+                "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/02-running/01-running.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -76302,7 +76385,17 @@
             "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta",
             "https://github.com/MaurycyLiebner/eZeus"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "poseidon-master-of-atlantis-pc",
+              "title": "Poseidon: Master of Atlantis (PC expansion)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/MaurycyLiebner/eZeus/blob/474a96206278293dbd9cde6d506b5570934f8acf/README.md#how-to-play",
+                "https://store.steampowered.com/app/566050/Zeus_Poseidon/"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -76539,7 +76632,16 @@
             "https://ioquake3.org/help/players-guide/",
             "https://github.com/ioquake/ioq3"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "quake-iii-arena-pc",
+              "title": "Quake III Arena (PC)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -76667,7 +76769,16 @@
             "https://ioquake3.org/help/players-guide/",
             "https://github.com/ioquake/ioq3"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "quake-iii-team-arena-pc",
+              "title": "Quake III: Team Arena (PC expansion)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -80855,7 +80966,24 @@
             "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
             "https://github.com/fabiangreffrath/crispy-doom"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "strife-pc",
+              "title": "Strife (PC retail)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+              ]
+            },
+            {
+              "id": "strife-pc-veteran-edition",
+              "title": "Strife: Veteran Edition (PC)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -86354,7 +86482,17 @@
             "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta",
             "https://github.com/MaurycyLiebner/eZeus"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "zeus-master-of-olympus-pc",
+              "title": "Zeus: Master of Olympus (PC)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/MaurycyLiebner/eZeus/blob/474a96206278293dbd9cde6d506b5570934f8acf/README.md#how-to-play",
+                "https://store.steampowered.com/app/566050/Zeus_Poseidon/"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [

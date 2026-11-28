@@ -71,7 +71,16 @@
         "https://ioquake3.org/help/players-guide/",
         "https://github.com/ioquake/ioq3"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "quake-iii-arena-pc",
+          "title": "Quake III Arena (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

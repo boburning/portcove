@@ -54,7 +54,24 @@
         "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/README.md",
         "https://github.com/thefixinhixon/UltraCombo"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "killer-instinct-arcade-l1-5d",
+          "title": "Killer Instinct (arcade L1.5D)",
+          "system": "arcade",
+          "evidence_urls": [
+            "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/README.md"
+          ]
+        },
+        {
+          "id": "killer-instinct-arcade-l1-4",
+          "title": "Killer Instinct (arcade L1.4)",
+          "system": "arcade",
+          "evidence_urls": [
+            "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

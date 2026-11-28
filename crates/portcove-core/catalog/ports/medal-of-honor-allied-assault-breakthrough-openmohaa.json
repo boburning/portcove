@@ -65,7 +65,17 @@
         "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
         "https://github.com/openmoh/openmohaa"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "medal-of-honor-allied-assault-breakthrough-pc",
+          "title": "Medal of Honor: Allied Assault: Breakthrough (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/01-intro/01-installation.md",
+            "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/docs/markdown/02-running/01-running.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
