@@ -1105,7 +1105,6 @@ mod tests {
                     None,
                 )
                 .unwrap();
-            service.finish_activity(launch_activity, Ok(())).unwrap();
             assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
             assert_eq!(
                 service
@@ -1143,9 +1142,22 @@ mod tests {
                 [CANONICAL],
             )
             .unwrap();
+        connection
+            .execute(
+                "INSERT INTO external_runtime_registrations(port_id, record_json, retained_catalog_json, registered_at)
+                 VALUES ('github-1', 'malformed', 'malformed', 1)",
+                [],
+            )
+            .unwrap();
         PortcoveService::defer_new_personal_aliases(&connection, Some(&base), service.catalog())
             .unwrap();
         assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+        connection
+            .execute(
+                "DELETE FROM external_runtime_registrations WHERE port_id='github-1'",
+                [],
+            )
+            .unwrap();
         connection
             .execute(
                 "DELETE FROM lifecycle_operations WHERE id='deferred-alias'",

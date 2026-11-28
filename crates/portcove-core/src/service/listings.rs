@@ -282,25 +282,19 @@ impl PortcoveService {
         if !Library::has_personal_registration_candidates_from(connection)? {
             return Ok(());
         }
-        let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
         for id in Library::external_runtime_port_ids_from(connection)? {
-            if portcove_listing_carrier::admitted_github_repository_id(&id).is_none() {
-                continue;
-            }
-            let Some((record, retained)) =
-                Library::external_runtime_with_port_bounded_from(connection, &id, &mut budget)?
+            let Some(repository_id) = portcove_listing_carrier::admitted_github_repository_id(&id)
             else {
                 continue;
             };
-            if record.user_selected.is_none() {
-                continue;
-            }
-            let listing = retained.listing(&id)?;
-            let Some(canonical) = selected.canonical_for_private_github_listing(listing) else {
+            // A potential key can only defer. Resolution validates the private
+            // retained registration before demonstrating the actual association.
+            let Some(canonical) = selected.canonical_for_personal_github_key(&id, repository_id)
+            else {
                 continue;
             };
             let already_matched = prior
-                .and_then(|catalog| catalog.canonical_for_private_github_listing(listing))
+                .and_then(|catalog| catalog.canonical_for_personal_github_key(&id, repository_id))
                 .is_some_and(|entry| entry.id == canonical.id);
             if already_matched
                 || (!Self::canonical_target_occupied(connection, &canonical.id)?
@@ -323,7 +317,7 @@ impl PortcoveService {
         Ok(())
     }
 
-    fn settle_deferred_personal_aliases(
+    pub(crate) fn settle_deferred_personal_aliases(
         connection: &rusqlite::Connection,
         port_id: Option<&str>,
     ) -> Result<()> {

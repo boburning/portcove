@@ -2194,17 +2194,20 @@ impl Library {
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let now = Self::now();
-        let changed = transaction.execute(
-            "UPDATE launch_sessions
-             SET outcome=?2, exit_code=?3, message=?4, updated_at=?5, finished_at=?5
-             WHERE id=?1 AND outcome IS NULL",
-            params![id, outcome.to_string(), exit_code, message, now],
-        )?;
-        if changed != 1 {
+        let port_id: Option<String> = transaction
+            .query_row(
+                "UPDATE launch_sessions
+                 SET outcome=?2, exit_code=?3, message=?4, updated_at=?5, finished_at=?5
+                 WHERE id=?1 AND outcome IS NULL RETURNING port_id",
+                params![id, outcome.to_string(), exit_code, message, now],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(port_id) = port_id else {
             return Err(PortcoveError::state(format!(
                 "active launch session {id} was not found"
             )));
-        }
+        };
         let activity_status = match outcome {
             LaunchSessionOutcome::Succeeded => ActivityStatus::Succeeded,
             LaunchSessionOutcome::Failed => ActivityStatus::Failed,
@@ -2222,6 +2225,15 @@ impl Library {
                 ));
             }
             crate::ghostship_data_store::finish_consumption(&transaction, seal)?;
+        }
+        if let Err(error) =
+            crate::PortcoveService::settle_deferred_personal_aliases(&transaction, Some(&port_id))
+        {
+            tracing::warn!(
+                component = "catalog",
+                error_code = crate::runtime_diagnostics::code_label(error.code),
+                "Retry of a deferred personal catalog association after launch failed",
+            );
         }
         transaction.execute(
             "DELETE FROM launch_sessions
