@@ -3644,10 +3644,10 @@ impl Library {
             for row in rows {
                 let (port_id, setting, from, outcome) = row?;
                 metrics.settings_row_count += 1;
-                if let (Some(from), Some(outcome)) = (from, outcome) {
-                    if let Some(outcome) = crate::carried_files::decode_outcome(&outcome) {
-                        carry_outcomes.insert(port_id.clone(), (from, outcome));
-                    }
+                if let (Some(from), Some(outcome)) = (from, outcome)
+                    && let Some(outcome) = crate::carried_files::decode_outcome(&outcome)
+                {
+                    carry_outcomes.insert(port_id.clone(), (from, outcome));
                 }
                 settings.insert(port_id, setting);
             }
