@@ -2137,9 +2137,20 @@ export const stopConditionNames = [
   "worker-error",
 ] as const;
 export type StopConditionName = (typeof stopConditionNames)[number];
+interface RuleVersionTransition {
+  prior_run: string;
+  from: string;
+  to: string;
+}
+
+const ruleVersions = /^facts-\d+\/generator-\d+\/filename-rule-\d+$/u;
+const versionReviewMarker = "<!-- portcove-facts-rule-review ";
+const versionStopTitle = `${stopIssuePrefix}rule-version-changed`;
+
 export interface StopCondition {
   name: StopConditionName;
   detail: string;
+  version_transition?: RuleVersionTransition;
 }
 
 /** One run's record in the job's history (kept in the worker cache). */
@@ -2234,6 +2245,8 @@ export function stopConditions(input: {
   summary: WorkerSummary | undefined;
   history: readonly RunRecord[];
   versions: string;
+  reviewedRuleVersion?: boolean;
+  reviewableRuleBatch?: boolean;
   gate: "ok" | "refused" | "skipped";
   paths: "ok" | "violated" | "skipped";
   /** `transient`: refused only for the runner's time (`reproductionTransient`), no stop. */
@@ -2338,7 +2351,7 @@ export function stopConditions(input: {
       "repository-identity-changed",
       `${identityChanged} listed repositories now resolve to another repository id.`,
     );
-  if (previous && previous.versions !== input.versions)
+  if (previous && previous.versions !== input.versions && !input.reviewedRuleVersion)
     add(
       "rule-version-changed",
       `The facts parser, generator, classifier or CLI changed (${previous.versions} → ${input.versions}); review one batch by hand.`,
@@ -2376,6 +2389,23 @@ export function stopConditions(input: {
       "observer-coverage-dropped",
       `The observer no longer covers ${lost.length} identities it covered in the previous run: ${lost.slice(0, 5).join(", ")}${lost.length > 5 ? ", …" : ""}.`,
     );
+  const [onlyCondition] = conditions;
+  if (
+    conditions.length === 1 &&
+    onlyCondition?.name === "rule-version-changed" &&
+    previous &&
+    input.delta &&
+    input.reviewableRuleBatch &&
+    input.gate === "ok" &&
+    input.paths === "ok" &&
+    input.reproduction === "ok"
+  ) {
+    onlyCondition.version_transition = {
+      prior_run: previous.run_id,
+      from: previous.versions,
+      to: input.versions,
+    };
+  }
   return { conditions, record };
 }
 
@@ -2444,6 +2474,14 @@ export function stopIssueBody(condition: StopCondition, runUrl: string) {
     "",
     `Run: ${runUrl}`,
     "",
+    ...(condition.version_transition
+      ? [
+          "Review this run's retained batch, including its delta and any route withdrawals. Close this issue as completed after accepting the rule transition. The next batch repeats all checks with fresh inputs.",
+          "",
+          `${versionReviewMarker}${JSON.stringify(condition.version_transition)} -->`,
+          "",
+        ]
+      : []),
     "The job does nothing while any issue titled `" +
       stopIssuePrefix +
       "…` is open. Investigate, repair or accept the cause, then close this issue to let the next scheduled run continue. A recurrence reopens this same issue.",
@@ -3177,7 +3215,7 @@ export const workflowLogin = "github-actions[bot]";
  * first, at most 1,000. A list the API refuses fails the run: an unknown
  * stop state is never read as "not stopped".
  */
-async function jobIssues(state: "open" | "closed") {
+async function jobIssues(state: "open" | "closed", requireComplete = state === "open") {
   const issues: { number: number; title: string; state: string }[] = [];
   for (let page = 1; page <= 10; page++) {
     const batch = await githubJson(
@@ -3185,22 +3223,106 @@ async function jobIssues(state: "open" | "closed") {
       token(),
     );
     if (!Array.isArray(batch)) throw new Error("The issue list is malformed.");
-    for (const issue of batch)
+    for (const issue of batch) {
+      if (isRecord(issue) && isRecord(issue.pull_request)) continue;
       if (
-        isRecord(issue) &&
-        !isRecord(issue.pull_request) &&
-        Number.isSafeInteger(issue.number) &&
-        typeof issue.title === "string" &&
-        typeof issue.state === "string"
-      )
-        issues.push({ number: Number(issue.number), title: issue.title, state: issue.state });
+        !isRecord(issue) ||
+        !Number.isSafeInteger(issue.number) ||
+        typeof issue.title !== "string" ||
+        issue.state !== state
+      ) {
+        if (requireComplete) throw new Error("The workflow issue list has an unreadable record.");
+        continue;
+      }
+      issues.push({ number: Number(issue.number), title: issue.title, state });
+    }
     if (batch.length < 100) return issues;
   }
-  // Never read a truncated open list as "not stopped". The closed list only
-  // finds an issue to reopen; when it is truncated (closed issues and pull
-  // requests only grow), a recurrence opens a new issue instead.
-  if (state === "closed") return issues;
-  throw new Error(`More than 1,000 open workflow issues; the stop state is unknown.`);
+  // Reuse may open a new issue when the old one falls out of the read.
+  // Decisions that depend on a stop's absence need the complete inventory.
+  if (!requireComplete) return issues;
+  throw new Error(`The ${state} workflow issue list reached 1,000; the stop state is unknown.`);
+}
+
+function isWorkflowIssueActor(actor: unknown) {
+  return isRecord(actor) && actor.__typename === "Bot" && actor.login === "github-actions";
+}
+
+export function completedRuleVersionReview(issue: unknown, prior: RunRecord, version: string) {
+  if (
+    !isRecord(issue) ||
+    issue.title !== versionStopTitle ||
+    issue.state !== "CLOSED" ||
+    issue.stateReason !== "COMPLETED" ||
+    !isWorkflowIssueActor(issue.author) ||
+    typeof issue.body !== "string" ||
+    typeof issue.createdAt !== "string" ||
+    typeof issue.closedAt !== "string" ||
+    (issue.lastEditedAt !== null &&
+      (typeof issue.lastEditedAt !== "string" || !isWorkflowIssueActor(issue.editor))) ||
+    !isRecord(issue.timelineItems) ||
+    !Array.isArray(issue.timelineItems.nodes) ||
+    issue.timelineItems.nodes.length !== 1
+  )
+    return false;
+  const close: unknown = issue.timelineItems.nodes[0];
+  const bodyAt = Date.parse(issue.lastEditedAt ?? issue.createdAt);
+  if (
+    !isRecord(close) ||
+    close.createdAt !== issue.closedAt ||
+    !isRecord(close.actor) ||
+    close.actor.__typename !== "User" ||
+    !(bodyAt < Date.parse(issue.closedAt))
+  )
+    return false;
+  const marker = issue.body.split("\n").filter((line) => line.startsWith(versionReviewMarker));
+  const expected = { prior_run: prior.run_id, from: prior.versions, to: version };
+  return (
+    marker.length === 1 && marker[0] === `${versionReviewMarker}${JSON.stringify(expected)} -->`
+  );
+}
+
+async function readRuleVersionReview(prior: RunRecord, version: string) {
+  const closed = (await jobIssues("closed")).find((issue) => issue.title === versionStopTitle);
+  if (!closed) return undefined;
+  const [owner, name] = repository().split("/");
+  if (!owner || !name) throw new Error("The listing batch repository is unavailable.");
+  // Read the body, last body edit and actual closure event in one snapshot.
+  const result = await githubRequest("POST", "https://api.github.com/graphql", token(), {
+    ...(stepDeadline.at === undefined ? {} : { deadline: stepDeadline.at }),
+    body: {
+      query: `query($owner:String!,$name:String!,$number:Int!) {
+        repository(owner:$owner,name:$name) { issue(number:$number) {
+          number title body state stateReason createdAt lastEditedAt closedAt
+          author { login __typename } editor { login __typename }
+          timelineItems(last:1,itemTypes:[CLOSED_EVENT]) { nodes {
+            ... on ClosedEvent { createdAt actor { __typename } }
+          } }
+        } }
+      }`,
+      variables: { owner, name, number: closed.number },
+    },
+  });
+  if (
+    !isRecord(result) ||
+    (Array.isArray(result.errors) && result.errors.length > 0) ||
+    !isRecord(result.data) ||
+    !isRecord(result.data.repository) ||
+    !isRecord(result.data.repository.issue) ||
+    result.data.repository.issue.number !== closed.number
+  )
+    throw new Error("The rule-version review issue and its closure could not be read.");
+  return completedRuleVersionReview(result.data.repository.issue, prior, version)
+    ? closed.number
+    : undefined;
+}
+
+async function findPriorBatchStop() {
+  const issues = [...(await jobIssues("open")), ...(await jobIssues("closed", true))];
+  return issues.some(
+    (issue) =>
+      issue.title === versionStopTitle || issue.title === `${stopIssuePrefix}required-check-failed`,
+  );
 }
 
 /** One issue the job files: its title and body. */
@@ -3228,7 +3350,12 @@ async function fileIssues(
       // An open issue already says it; only a recurrence after it was closed
       // reopens and comments, so a waiting stop never repeats itself each run.
       else if (issue.state !== "open") {
-        await githubWrite("PATCH", `/issues/${issue.number}`, { state: "open" });
+        // Update the rule transition with the reopen so a closure cannot
+        // acknowledge the earlier transition instead of the current stop.
+        await githubWrite("PATCH", `/issues/${issue.number}`, {
+          state: "open",
+          ...(title === versionStopTitle ? { body } : {}),
+        });
         await githubWrite("POST", `/issues/${issue.number}/comments`, { body });
       }
     }
@@ -3539,11 +3666,21 @@ async function main(argv: string[]): Promise<string> {
       if (!option.history || !option["run-id"])
         throw new Error("assess needs --history and --run-id.");
       let history: RunRecord[] = [];
-      try {
+      if (existsSync(option.history)) {
         const parsed: unknown = JSON.parse(readFileSync(option.history, "utf8"));
-        if (Array.isArray(parsed)) history = parsed as RunRecord[];
-      } catch {
-        history = [];
+        if (
+          !Array.isArray(parsed) ||
+          parsed.some(
+            (item) =>
+              !isRecord(item) ||
+              typeof item.run_id !== "string" ||
+              !/^\d+$/u.test(item.run_id) ||
+              typeof item.versions !== "string" ||
+              (item.versions !== "unknown" && !ruleVersions.test(item.versions)),
+          )
+        )
+          throw new Error("The retained listing batch history has unreadable rule versions.");
+        history = parsed as RunRecord[];
       }
       let workerSummary: WorkerSummary | undefined;
       try {
@@ -3561,12 +3698,39 @@ async function main(argv: string[]): Promise<string> {
             held?: { port_id: string; cause: string }[];
           })
         : undefined;
+      const versions = option.versions;
+      if (!versions || !ruleVersions.test(versions)) {
+        throw new Error("The prepared CLI did not record the exact listing rule versions.");
+      }
+      const prior = history.at(-1);
+      const readVersionReview = option["read-rule-version-review"] === "true";
+      if (
+        !prior &&
+        (option["prior-worker-state"] === "true" ||
+          (readVersionReview &&
+            (option["prior-worker-state"] !== "false" ||
+              !option.base ||
+              currentFacts(option.base).provenance ||
+              (await findPriorBatchStop()))))
+      ) {
+        throw new Error(
+          "The prior listing batch history is missing. Restore the bound worker state and history before retrying.",
+        );
+      }
+      const reviewIssue =
+        readVersionReview && prior && prior.versions !== versions
+          ? await readRuleVersionReview(prior, versions)
+          : undefined;
+      if (reviewIssue !== undefined)
+        summary(`Rule-version transition reviewed in completed issue #${reviewIssue}.`);
       const { conditions, record } = stopConditions({
         runId: option["run-id"],
         now: option.now ?? new Date().toISOString(),
         summary: workerSummary,
         history,
-        versions: option.versions ?? "unknown",
+        versions,
+        reviewedRuleVersion: reviewIssue !== undefined,
+        reviewableRuleBatch: option["reviewable-rule-batch"] === "true",
         gate: (option.gate as "ok" | "refused" | "skipped") ?? "skipped",
         paths: (option.paths as "ok" | "violated" | "skipped") ?? "skipped",
         reproduction:
@@ -3968,7 +4132,10 @@ async function main(argv: string[]): Promise<string> {
           assets: ["Game-v1.0-windows-x64.zip"],
           programs: [],
         });
-        return `facts-${FACTS_PARSER_VERSION}/generator-${GENERATOR_VERSION}/filename-rule-${probe.filename_rule_version}\n`;
+        const versions = `facts-${FACTS_PARSER_VERSION}/generator-${GENERATOR_VERSION}/filename-rule-${probe.filename_rule_version}`;
+        if (!ruleVersions.test(versions))
+          throw new Error("The Core CLI did not report a filename rule version.");
+        return `${versions}\n`;
       } finally {
         await rm(work, { recursive: true, force: true });
       }
