@@ -2221,6 +2221,7 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
     { coverMediaMatches: withoutSignedCover },
   );
   assert.deepEqual(afterCoverChange(peer), coverBacked(peer));
+  assert.deepEqual(afterCoverChange(coverDonor), []);
   const newAssetsWithoutSignedCover = scheduledGameMediaDefaults(
     [coverDonor, peer],
     [],

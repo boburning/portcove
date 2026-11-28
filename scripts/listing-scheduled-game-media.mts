@@ -333,6 +333,7 @@ export function scheduledGameMediaDefaults(
     string,
     Map<string, { asset: CatalogMediaAsset; retained: boolean; coverBacked: boolean } | null>
   >();
+  const retainedCoverMediaRecipients = new Map<string, Set<string>>();
   const verifiedOriginalScreenshots = new Set(
     canonical
       .filter((row) => typeof row.id === "string" && !excluded.has(row.id))
@@ -413,6 +414,11 @@ export function scheduledGameMediaDefaults(
       id: automaticPrefix + createHash("sha256").update(JSON.stringify(fingerprint)).digest("hex"),
     };
     if (retained && asset.id !== normalized.id) return;
+    if (retained && coverBacked) {
+      const recipients = retainedCoverMediaRecipients.get(normalized.id) ?? new Set<string>();
+      recipients.add(id);
+      retainedCoverMediaRecipients.set(normalized.id, recipients);
+    }
     // An automatic observation never widens a maintained edition scope.
     delete normalized.edition_neutral;
     if (stored === undefined) roles.set(asset.role, { asset: normalized, retained, coverBacked });
@@ -471,10 +477,14 @@ export function scheduledGameMediaDefaults(
       for (const entry of choices.get(key)?.values() ?? []) {
         if (!entry) continue;
         const { asset } = entry;
+        const coverMatch = options.coverMediaMatches?.get(row.id);
         const current = [...existing, ...additions];
         if (
           scope(row, asset.subject) !== key ||
-          (entry.coverBacked && options.coverMediaMatches?.get(row.id)?.scope !== key) ||
+          (entry.coverBacked &&
+            (coverMatch?.scope !== key ||
+              (!coverMatch.confirmedBySignedCover &&
+                !retainedCoverMediaRecipients.get(asset.id)?.has(row.id)))) ||
           (Array.isArray(strictMedia) && !directoryOnlyMedia(asset)) ||
           (asset.role !== "landscape_cover" &&
             current.filter((value) => !landscapeCoverMedia(value)).length >= 14) ||
