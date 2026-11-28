@@ -1832,10 +1832,11 @@ points to the README or a Markdown document on the accepted GitHub project
 and that document links back to the exact community landing page. The observer
 requires one listing for the verified numeric repository identity. It reads
 the current public project, pins the default commit, and checks the
-document's blob digest before recording the association. The reciprocal link
-must be a normal Markdown link to the community landing page. Examples,
-comments and displayed text alone supply no proof. Several claims for one
-project leave the source unresolved and are reported as ambiguous.
+document's blob digest before recording the association. The observer parses
+CommonMark and reads exact landing-page link destinations, including autolinks.
+Examples, comments, quotes, raw HTML blocks and displayed text alone supply no
+proof. Several claims for one project leave the source unresolved and are
+reported as ambiguous.
 
 The observer reserves at most 12 GitHub requests per hosted opportunity for
 these proofs and spends at most three requests per subject. It retains the

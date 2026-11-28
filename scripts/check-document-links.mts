@@ -1,7 +1,7 @@
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 
-export function documentText(source: string) {
+function documentText(source: string) {
   let fence = "";
   return source
     .split(/\r?\n/u)

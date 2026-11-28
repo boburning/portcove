@@ -1,7 +1,6 @@
 import { mkdirSync, lstatSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import { documentText } from "./check-document-links.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
@@ -387,36 +386,34 @@ export async function observeReciprocalThunderstoreDocument(
   } catch {
     return { state: "unavailable", reason: "project-document-unverified" } as const;
   }
-  // Require one exact community landing page. A document naming several
-  // communities cannot establish the target scope.
-  const prose = documentText(
-    text
-      .replace(/<!--[\s\S]*?(?:-->|$)/gu, "\n")
-      .replace(/<(pre|code|script|style|blockquote)(?:\s[^>]*)?>[\s\S]*?(?:<\/\1\s*>|$)/giu, "\n"),
-  ).replace(/(?<!`)(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/gu, " ");
+  const { default: MarkdownIt } = await import("markdown-it");
+  const parser = new MarkdownIt("commonmark", { html: true, linkify: true }).enable("linkify");
   const links = new Set<string>();
-  let htmlBlock = false;
-  let unsupportedLink = false;
-  for (const line of prose.split("\n")) {
-    if (!line.trim()) htmlBlock = false;
-    const html = /^\s*<\/?[A-Za-z][A-Za-z0-9-]*(?:[\s/>]|$)/u.test(line);
-    if (html) htmlBlock = true;
-    // Only ordinary unindented Markdown is supported. A link in a list
-    // continuation could be a code example underneath a nested fence.
-    if (htmlBlock || /^[\s>]/u.test(line)) continue;
-    const matches = Array.from(
-      line.matchAll(
-        /(?<![!\\])\[[^[\]\n]+\]\(https:\/\/thunderstore\.io\/c\/([a-z0-9]+(?:[-_][a-z0-9]+)*)\/?\)/gu,
-      ),
-    );
-    for (const match of matches) {
-      if (match[1]) links.add(match[1]);
+  let quoted = 0;
+  for (const block of parser.parse(text, {})) {
+    if (block.type === "blockquote_open") quoted++;
+    if (block.type === "blockquote_close") quoted--;
+    if (quoted > 0 || block.type !== "inline") continue;
+    let opaque = "";
+    for (const token of block.children ?? []) {
+      if (token.type === "html_inline") {
+        const tag = /^<(\/?)(code|pre|script|style|template|blockquote)(?=[\s>])/iu.exec(
+          token.content,
+        );
+        const name = tag?.[2]?.toLowerCase();
+        if (name && tag?.[1] === "/" && opaque === name) opaque = "";
+        else if (name && !opaque && !tag?.[1]) opaque = name;
+      }
+      if (opaque || token.type !== "link_open") continue;
+      const url = token.attrGet("href");
+      if (typeof url !== "string") continue;
+      const candidate = /^https:\/\/thunderstore\.io\/c\/([a-z0-9]+(?:[-_][a-z0-9]+)*)\/?$/u.exec(
+        url,
+      )?.[1];
+      if (candidate && candidate.length <= 128) links.add(candidate);
     }
-    if (!matches.length && line.includes(`https://thunderstore.io/c/${community}/`))
-      unsupportedLink = true;
   }
-  if (!links.size && unsupportedLink)
-    return { state: "unavailable", reason: "project-document-link-form-unverified" };
+  // A document linking to more than one community does not establish scope.
   if (links.size !== 1 || !links.has(community))
     return { state: "held", reason: "community-link-unresolved" } as const;
   return {
