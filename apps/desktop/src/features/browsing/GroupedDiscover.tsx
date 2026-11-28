@@ -16,16 +16,7 @@ import {
   type Organization,
 } from "../organization/OrganizationControls";
 import type { TFunction } from "i18next";
-import {
-  memo,
-  useCallback,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { memo, useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../../localization";
 import { ArrowRight, GitCompareArrows } from "lucide-react";
@@ -172,24 +163,26 @@ export function GroupedDiscover({
     generation: owner?.generation,
     observationKey: comparisonObservationKey,
   });
-  const dialogRoot = useRef<HTMLDivElement>(null);
-  const comparisonId = comparison?.id;
-  const intentBinding = useMemo(
-    () => [comparisonSelection, pendingGameDrop, comparisonId, owner?.generation] as const,
-    [comparisonSelection, pendingGameDrop, comparisonId, owner?.generation],
-  );
-  const currentIntent = useMemo(() => ({ active: Boolean(intentBinding[2]) }), [intentBinding]);
-  const comparisonIntent = useRef(currentIntent);
-  useLayoutEffect(() => {
-    comparisonIntent.current = currentIntent;
-    return () => {
-      currentIntent.active = false;
-    };
-  }, [currentIntent]);
   const heading = useRef<HTMLHeadingElement>(null);
-  const handledDrop = useRef<NativeSourceGameDrop | undefined>(undefined);
-  const { pin, setPin, rememberOrigin, markLeaving, discardStaleOrigin, finishClose, finalFocus } =
-    useComparisonReturnFocus(owner?.generation, queryKey, comparisonIntent, dialogRoot);
+  const {
+    pin,
+    setPin,
+    dialogRoot,
+    rememberOrigin,
+    dismissIntent,
+    markLeaving,
+    finishClose,
+    finalFocus,
+    choiceKeepsFocus,
+  } = useComparisonReturnFocus({
+    generation: owner?.generation,
+    queryKey,
+    comparisonId: comparison?.id,
+    comparisonSelection,
+    pendingGameDrop,
+    onGameDropDismiss,
+    clearSelection: setComparison,
+  });
 
   // Cards are memoized, so these handlers keep their identity until something a
   // card shows changes.
@@ -197,27 +190,12 @@ export function GroupedDiscover({
     (group: GameGroup, trigger: HTMLButtonElement) => {
       if (!resultsReady) return;
       rememberOrigin(group.id, trigger);
-      comparisonIntent.current.active = false;
+      dismissIntent();
       setPin(group.id);
       setComparison(group);
     },
-    [rememberOrigin, resultsReady, setPin],
+    [dismissIntent, rememberOrigin, resultsReady, setPin],
   );
-  useLayoutEffect(() => {
-    if (handledDrop.current !== pendingGameDrop) {
-      handledDrop.current = pendingGameDrop;
-      if (pendingGameDrop) {
-        const trigger = document.querySelector<HTMLButtonElement>(
-          `[data-detail-return-group="${CSS.escape(pendingGameDrop.gameId)}"] .discover-game-identity`,
-        );
-        rememberOrigin(pendingGameDrop.gameId, trigger);
-        return;
-      }
-    }
-    if (!discardStaleOrigin()) return;
-    setComparison(undefined);
-    if (pendingGameDrop) onGameDropDismiss?.();
-  }, [discardStaleOrigin, onGameDropDismiss, pendingGameDrop, rememberOrigin]);
   const open = useCallback(
     (port: CatalogEntry, originKey: string) => {
       markLeaving();
@@ -272,7 +250,7 @@ export function GroupedDiscover({
         onOpenChangeComplete={finishClose}
         onOpenChange={(open) => {
           if (!open) {
-            comparisonIntent.current.active = false;
+            dismissIntent();
             if (dropComparison) setPin(dropComparison.id);
             setComparison(undefined);
             onGameDropDismiss?.();
@@ -331,11 +309,7 @@ export function GroupedDiscover({
                     }
                     reviewDroppedFiles={reviewDroppedFiles}
                     open={() => open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`)}
-                    choiceKeepsFocus={(trigger) =>
-                      comparisonIntent.current === currentIntent &&
-                      currentIntent.active &&
-                      ownsChoiceFocus(trigger, dialogRoot.current)
-                    }
+                    choiceKeepsFocus={choiceKeepsFocus}
                   />
                 ))}
               </div>
@@ -357,12 +331,37 @@ type ComparisonReturnOrigin = {
   queryKey: string;
 };
 
-function useComparisonReturnFocus(
-  generation: number | undefined,
-  queryKey: string,
-  comparisonIntent: RefObject<{ active: boolean }>,
-  dialogRoot: RefObject<HTMLDivElement | null>,
-) {
+function useComparisonReturnFocus({
+  generation,
+  queryKey,
+  comparisonId,
+  comparisonSelection,
+  pendingGameDrop,
+  onGameDropDismiss,
+  clearSelection,
+}: {
+  generation: number | undefined;
+  queryKey: string;
+  comparisonId: string | undefined;
+  comparisonSelection: GameGroup | undefined;
+  pendingGameDrop: NativeSourceGameDrop | undefined;
+  onGameDropDismiss: (() => void) | undefined;
+  clearSelection: (selection: undefined) => void;
+}) {
+  const dialogRoot = useRef<HTMLDivElement>(null);
+  const handledDrop = useRef<NativeSourceGameDrop | undefined>(undefined);
+  const intentBinding = useMemo(
+    () => [comparisonSelection, pendingGameDrop, comparisonId, generation] as const,
+    [comparisonSelection, pendingGameDrop, comparisonId, generation],
+  );
+  const currentIntent = useMemo(() => ({ active: Boolean(intentBinding[2]) }), [intentBinding]);
+  const comparisonIntent = useRef(currentIntent);
+  useLayoutEffect(() => {
+    comparisonIntent.current = currentIntent;
+    return () => {
+      currentIntent.active = false;
+    };
+  }, [currentIntent]);
   const origin = useRef<ComparisonReturnOrigin | undefined>(undefined);
   const leaving = useRef(false);
   const [pin, setPin] = useState<string>();
@@ -382,18 +381,40 @@ function useComparisonReturnFocus(
     },
     [generation, queryKey],
   );
-  const markLeaving = useCallback(() => {
+  const dismissIntent = useCallback(() => {
     comparisonIntent.current.active = false;
+  }, []);
+  const markLeaving = useCallback(() => {
+    dismissIntent();
     leaving.current = true;
-  }, [comparisonIntent]);
-  const discardStaleOrigin = useCallback(() => {
+  }, [dismissIntent]);
+  useLayoutEffect(() => {
+    if (handledDrop.current !== pendingGameDrop) {
+      handledDrop.current = pendingGameDrop;
+      if (pendingGameDrop) {
+        const trigger = document.querySelector<HTMLButtonElement>(
+          `[data-detail-return-group="${CSS.escape(pendingGameDrop.gameId)}"] .discover-game-identity`,
+        );
+        rememberOrigin(pendingGameDrop.gameId, trigger);
+        return;
+      }
+    }
     const saved = origin.current;
-    if (!saved || (saved.generation === generation && saved.queryKey === queryKey)) return false;
+    if (!saved || (saved.generation === generation && saved.queryKey === queryKey)) return;
     markLeaving();
     origin.current = undefined;
+    clearSelection(undefined);
     setPin(undefined);
-    return true;
-  }, [generation, markLeaving, queryKey]);
+    if (pendingGameDrop) onGameDropDismiss?.();
+  }, [
+    clearSelection,
+    generation,
+    markLeaving,
+    onGameDropDismiss,
+    pendingGameDrop,
+    queryKey,
+    rememberOrigin,
+  ]);
   useLayoutEffect(() => {
     if (!pin) return;
     const release = (event: FocusEvent) => {
@@ -410,7 +431,7 @@ function useComparisonReturnFocus(
     // collection; releasing on transition completion can detach the return node.
     document.addEventListener("focusin", release, true);
     return () => document.removeEventListener("focusin", release, true);
-  }, [comparisonIntent, dialogRoot, pin]);
+  }, [pin]);
   const finishClose = (open: boolean) => {
     if (!open && leaving.current) setPin(undefined);
   };
@@ -422,7 +443,24 @@ function useComparisonReturnFocus(
     if (!target) setPin(undefined);
     return target;
   };
-  return { pin, setPin, rememberOrigin, markLeaving, discardStaleOrigin, finishClose, finalFocus };
+  function choiceKeepsFocus(trigger: HTMLButtonElement) {
+    return (
+      comparisonIntent.current === currentIntent &&
+      currentIntent.active &&
+      ownsChoiceFocus(trigger, dialogRoot.current)
+    );
+  }
+  return {
+    pin,
+    setPin,
+    dialogRoot,
+    rememberOrigin,
+    dismissIntent,
+    markLeaving,
+    finishClose,
+    finalFocus,
+    choiceKeepsFocus,
+  };
 }
 
 function comparisonReturnTarget(saved: ComparisonReturnOrigin | undefined) {
