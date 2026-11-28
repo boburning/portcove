@@ -440,6 +440,7 @@ type ReviewedFile = (&'static str, &'static str, &'static str);
 ///   menu-art owner exceptions for the v4.0 desktop ZIPs.
 /// - linewars-ii-sdl3: lead decision under the #6090 freeware exception and
 ///   the bundled-fonts note for the v1.0.0 desktop archives.
+/// - OpenSpideyPS1: the two game-specific ZIP streams share a repository.
 const REVIEWED_LISTING_PERMITS: &[(&str, &[ReviewedFile])] = &[
     (
         "chameleon-twist-recompiled",
@@ -476,6 +477,46 @@ const REVIEWED_LISTING_PERMITS: &[(&str, &[ReviewedFile])] = &[
                 "v1.0.0",
                 "8166787cd8a76cfa349ea35b59c3ef8b7d6624dcabe4c67097149bb9c077ac20",
                 "LineWars2-SDL3-v1.0.0-linux-x86_64.tar.gz",
+            ),
+        ],
+    ),
+    (
+        "openspideyps1-gtteancum-spider-man",
+        &[
+            (
+                "sm1-v1.2",
+                "a43e4e6ae4d97d49888e09981e9cf389217be171b8fdf50d855ca21f3c679c18",
+                "Spider-Man-1.2-Windows-x64.zip",
+            ),
+            (
+                "sm1-v1.1",
+                "a7ed8752b40c0e36a88cca64162e71939344239f6bc7e4be6d3136f3f3fa96b7",
+                "Spider-Man-1.1-Windows-x64.zip",
+            ),
+            (
+                "sm1-v1.0",
+                "790948e00cdd40a7611ef98eef14635c26a8894ee7ba504041ce8d0f3fb8ee33",
+                "Spider-Man-1.0-Windows-x64.zip",
+            ),
+        ],
+    ),
+    (
+        "openspideyps1-gtteancum-spider-man-2-enter-electro",
+        &[
+            (
+                "sm2-v1.2",
+                "e6ef4965abe8a377c2b114836a3762e0492a4ccc8c7bcab080343b98ccd9e9ef",
+                "Spider-Man-2-1.2-Windows-x64.zip",
+            ),
+            (
+                "sm2-v1.1",
+                "3c69a7701e467b15b5b6f2fa6f0aef1abc2b478075de8e2cec0b99e97f4f700c",
+                "Spider-Man-2-1.1-Windows-x64.zip",
+            ),
+            (
+                "sm2-v1.0",
+                "6de898c7e567c12716fb92848ed9eb125474b3105637eaad975fd5df0f90bf87",
+                "Spider-Man-2-1.0-Windows-x64.zip",
             ),
         ],
     ),
@@ -581,7 +622,7 @@ fn migration_is_behavior_preserving() {
         .map(|listing| listing.id.clone())
         .collect();
     assert_eq!(managed.len(), 5, "managed holds");
-    assert_eq!(listed.len(), 156, "listing restrictions");
+    assert_eq!(listed.len(), 158, "listing restrictions");
     for listing in catalog.listings() {
         // Every row is typed; none relies on reader normalization.
         assert_eq!(

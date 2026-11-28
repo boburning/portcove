@@ -264,13 +264,13 @@ void test("every reviewed row is typed and projects to its generated legacy byte
       assert.ok(!Object.hasOwn(port ?? {}, "acquisition_restrictions"), id);
     }
   }
-  assert.equal(listingRows, 156);
+  assert.equal(listingRows, 158);
   assert.equal(managedRows, 5);
   assert.equal(reasonTable.size, 157);
   assert.deepEqual(migrateCatalogSource(portsRoot, false), {
     listing: 0,
     integration: 0,
-    alreadyTyped: 161,
+    alreadyTyped: 163,
     files: 0,
   });
 });
