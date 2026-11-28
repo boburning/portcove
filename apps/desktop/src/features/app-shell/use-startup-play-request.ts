@@ -20,7 +20,10 @@ export function startupPlayAction(
   statuses: ReadonlyMap<string, PortStatus>,
 ): StartupPlayAction | undefined {
   const port = entries.find((entry) => entry.id === portId);
-  if (!port) return undefined;
+  if (!port) {
+    const associated = entries.find((entry) => entry.listingStatus?.canonical_port_id === portId);
+    return associated ? { kind: "details", port: associated } : undefined;
+  }
   return directlyPlayable(port, statuses.get(port.id))
     ? { kind: "play", port }
     : { kind: "details", port };

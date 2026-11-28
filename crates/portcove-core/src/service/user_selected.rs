@@ -67,12 +67,7 @@ impl PortcoveService {
 
     fn personal_runtime_context(&self, repository_id: u64, full_name: &str) -> Result<Self> {
         let (current, provenance) = self.library.load_catalog()?;
-        let listing = serde_json::from_value(serde_json::json!({
-            "id": format!("github-{repository_id}"),
-            "name": full_name,
-            "summary": "Public upstream project selected for this library.",
-            "project_url": format!("https://github.com/{full_name}"),
-        }))?;
+        let listing = crate::PortListing::private_github_project(repository_id, full_name)?;
         current.require_personal_project_unlisted(&listing)?;
         Library::require_no_legacy_personal_project_registration(
             &self.library.connection()?,
@@ -299,6 +294,10 @@ impl PortcoveService {
             checkpoint,
         )?;
         self.require_user_selected_path_ownership(&preview.executable, &preview.path)?;
+        if pending.is_none() {
+            let connection = self.library.connection()?;
+            Library::require_no_associated_personal_runtime(&connection, &self.catalog, port_id)?;
+        }
         self.require_user_selected_registration_available(port_id)?;
         if let Some(port) = selected_definition {
             preview.preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
@@ -820,6 +819,466 @@ mod tests {
         assert_eq!(
             fs::read(working.join("player-save.dat")).unwrap(),
             b"player save"
+        );
+    }
+
+    #[test]
+    fn private_registration_uses_unique_canonical_description_and_cover() {
+        const REPO: u64 = 982741657;
+        const LOCAL: &str = "github-982741657";
+        const CANONICAL: &str = "reviewed-fixture-port";
+        let (_temporary, mut service, executable, working) = fixture("personal-fixture");
+        let local = service
+            .personal_runtime_context(REPO, "FixtureOwner/BeforeRename")
+            .unwrap();
+        let registered = register(&local, LOCAL, &executable, &working);
+        let connection = service.library.connection().unwrap();
+        let base = service.catalog().clone();
+        let canonical = |id: &str, repository: &str, repository_id: u64| -> crate::PortListing {
+            serde_json::from_value(serde_json::json!({
+                "id": id,
+                "name": "Reviewed fixture",
+                "summary": "Accepted metadata for a retained personal registration.",
+                "project_url": format!("https://github.com/{repository}"),
+                "original_game": {
+                    "format_version": 1,
+                    "id": "fixture-original",
+                    "evidence_urls": ["https://example.com/original"],
+                    "source_editions": [{
+                        "id": "retail",
+                        "title": "Retail edition",
+                        "evidence_urls": ["https://example.com/retail"],
+                        "verified_sources": [{
+                            "game_id": "fixture-input",
+                            "variant_id": "retail",
+                            "representation_id": "retail-file-set"
+                        }]
+                    }]
+                },
+                "media": [
+                    {
+                        "id": "implementation-scene",
+                        "role": "screenshot",
+                        "subject": {"kind": "port", "port_id": id},
+                        "caption": "Implementation screenshot",
+                        "url": format!("https://raw.githubusercontent.com/{repository}/{}/port.png", "a".repeat(40)),
+                        "sha256": "b".repeat(64),
+                        "width": 10,
+                        "height": 5,
+                        "attribution": "Portcove test fixture",
+                        "source_url": format!("https://github.com/{repository}"),
+                        "license": "CC0-1.0",
+                        "rights_url": "https://example.com/license"
+                    },
+                    {
+                        "id": "retail-scene",
+                        "role": "screenshot",
+                        "subject": {
+                            "kind": "original",
+                            "game_id": "fixture-original",
+                            "source_edition_id": "retail"
+                        },
+                        "caption": "Original retail screenshot",
+                        "url": format!("https://raw.githubusercontent.com/{repository}/{}/original.png", "a".repeat(40)),
+                        "sha256": "c".repeat(64),
+                        "width": 10,
+                        "height": 5,
+                        "attribution": "Portcove test fixture",
+                        "source_url": "https://example.com/retail",
+                        "license": "CC0-1.0",
+                        "rights_url": "https://example.com/license"
+                    }
+                ],
+                "artwork": {
+                    "game_id": 31,
+                    "cover_id": 32,
+                    "image_id": "fixturecover",
+                    "game_slug": "fixture-game",
+                    "match_kind": "port",
+                    "image_sha256": "a".repeat(64)
+                },
+                "mod_portals": [{
+                    "id": "community-fixture",
+                    "site": "community_site",
+                    "name": "Fixture community",
+                    "url": "https://thunderstore.io/c/fixture/",
+                    "instructions": "Browse the community’s mods."
+                }],
+                "upstream_observation": {
+                    "provider": "github",
+                    "repository": repository,
+                    "repository_id": repository_id,
+                    "status": "complete",
+                    "attempted_at": "2026-09-15T06:00:00Z",
+                    "observed_at": "2026-09-15T06:00:00Z",
+                    "fresh_until": "2026-09-15T18:00:00Z",
+                    "facts_sha256": "b".repeat(64),
+                    "release_limit": 4,
+                    "releases": []
+                }
+            }))
+            .unwrap()
+        };
+        let catalog = |rows| {
+            let mut document = base.listing_document().clone();
+            document.listings.extend(rows);
+            base.clone()
+                .with_projected_listing_document(document)
+                .unwrap()
+        };
+        let verified = canonical(CANONICAL, "FixtureOwner/AfterRename", REPO);
+        let wrong = canonical(
+            "reused-address-fixture",
+            "FixtureOwner/BeforeRename",
+            REPO + 1,
+        );
+        let sibling = canonical("sibling-fixture", "FixtureOwner/AfterRename", REPO);
+        for rows in [vec![wrong.clone()], vec![verified.clone(), sibling]] {
+            let projected = service
+                .catalog_with_registered_listings(catalog(rows), &connection)
+                .unwrap();
+            let retained = projected.listing(LOCAL).unwrap();
+            assert_eq!(retained.name, "FixtureOwner/BeforeRename");
+            assert!(retained.artwork.is_none());
+        }
+        service.catalog = catalog(vec![verified, wrong]);
+        let projected = service
+            .catalog_with_registered_listings(service.catalog().clone(), &connection)
+            .unwrap();
+        let associated = projected.listing(LOCAL).unwrap();
+        let statuses = service.listing_statuses().unwrap();
+        let local_status = statuses
+            .iter()
+            .find(|status| status.port_id == LOCAL)
+            .unwrap();
+        let canonical_status = statuses
+            .iter()
+            .find(|status| status.port_id == CANONICAL)
+            .unwrap();
+        assert_eq!(local_status.canonical_port_id.as_deref(), Some(CANONICAL));
+        assert!(local_status.status.external_runtime.is_some());
+        assert!(canonical_status.canonical_port_id.is_none());
+        assert!(canonical_status.status.external_runtime.is_none());
+        assert_eq!(associated.name, "Reviewed fixture");
+        assert_eq!(
+            associated.project_url,
+            "https://github.com/FixtureOwner/AfterRename"
+        );
+        assert_eq!(associated.artwork.as_ref().unwrap().cover_id, 32);
+        assert_eq!(associated.media.len(), 2);
+        assert_eq!(
+            associated.media[0].subject,
+            crate::CatalogMediaSubject::Port {
+                port_id: LOCAL.into(),
+            }
+        );
+        assert_eq!(
+            associated.media[1].subject,
+            crate::CatalogMediaSubject::Original {
+                game_id: "fixture-original".into(),
+                source_edition_id: "retail".into(),
+            }
+        );
+        assert!(
+            associated.original_game.as_ref().unwrap().source_editions[0]
+                .verified_sources
+                .is_empty()
+        );
+        assert_eq!(service.artwork_port(LOCAL).unwrap().as_ref(), associated);
+        assert_eq!(
+            service
+                .external_provider_scope(LOCAL, "community-fixture", None)
+                .unwrap(),
+            crate::ModProviderBinding::Thunderstore {
+                community: "fixture".into()
+            }
+        );
+        let portals = service.effective_external_mod_portals(LOCAL, None).unwrap();
+        assert_eq!(portals.external_mod_portals.len(), 1);
+        assert!(portals.external_mod_portals[0].browse_available);
+        let hidden = service
+            .set_mod_portal_preferences(
+                LOCAL,
+                0,
+                crate::ModPortalChoices {
+                    hidden_sources: vec!["community-fixture".into()],
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert!(hidden.external_mod_portals.is_empty());
+        assert_eq!(
+            service
+                .effective_external_mod_portals(CANONICAL, None)
+                .unwrap()
+                .external_mod_portals
+                .len(),
+            1
+        );
+        assert!(projected.port(LOCAL).is_err());
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(CANONICAL)
+                .unwrap()
+                .is_none()
+        );
+        let (retained, _) = service
+            .library
+            .external_runtime_with_port(LOCAL)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(retained).unwrap(),
+            serde_json::to_value(&registered).unwrap()
+        );
+
+        let duplicate = service
+            .preview_user_selected_runtime(CANONICAL, &executable, &working, &[])
+            .unwrap_err();
+        assert_eq!(duplicate.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            duplicate
+                .details
+                .get("existing_port_id")
+                .map(String::as_str),
+            Some(LOCAL)
+        );
+
+        let launch_activity = service
+            .library
+            .begin_activity(
+                crate::ActivityOperation::Launch,
+                crate::ActivityTargetKind::Port,
+                Some(CANONICAL),
+            )
+            .unwrap();
+        let now = Library::now();
+        service
+            .library
+            .create_launch_session(&crate::LaunchSessionRecord {
+                id: launch_activity.id.clone(),
+                port_id: CANONICAL.into(),
+                install_id: "retired-runtime".into(),
+                install_root: working.clone(),
+                owner_kind: crate::LaunchOwnerKind::External,
+                supervisor_pid: std::process::id(),
+                supervisor_identity: None,
+                child_pid: None,
+                child_identity: None,
+                phase: crate::LaunchSessionPhase::Preparing,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+        service
+            .library
+            .finish_launch_session(
+                &launch_activity.id,
+                crate::LaunchSessionOutcome::Cancelled,
+                None,
+                None,
+            )
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+        let request = [crate::LibraryMembershipRequest {
+            port_id: CANONICAL.into(),
+            origin: crate::LibraryMembershipOrigin::Manual,
+            sources: Vec::new(),
+        }];
+        let current = service.catalog().clone();
+        service.catalog = catalog(vec![canonical(CANONICAL, "NewOwner/Reused", REPO + 1)]);
+        let saved = service
+            .add_games_to_library_from(&request, |_| Ok(current.clone()))
+            .unwrap();
+        service.catalog = current;
+        assert_eq!(
+            saved[0].outcome,
+            crate::LibraryMembershipOutcomeKind::AlreadyInLibrary
+        );
+        assert!(service.library_memberships().unwrap().is_empty());
+
+        // Simulate a canonical save that predated detection of the local association.
+        service
+            .library
+            .add_library_memberships(
+                &[crate::LibraryMembershipRequest {
+                    port_id: CANONICAL.into(),
+                    origin: crate::LibraryMembershipOrigin::Manual,
+                    sources: Vec::new(),
+                }],
+                &HashSet::new(),
+            )
+            .unwrap();
+        let retained_membership = service.library_memberships().unwrap();
+        let saved = service
+            .add_games_to_library_from(&request, |_| Ok(service.catalog().clone()))
+            .unwrap();
+        assert_eq!(
+            saved[0].outcome,
+            crate::LibraryMembershipOutcomeKind::AlreadySaved
+        );
+        assert_eq!(service.library_memberships().unwrap(), retained_membership);
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+        assert!(
+            service
+                .library
+                .remove_library_membership(CANONICAL)
+                .unwrap()
+        );
+        assert_eq!(
+            service
+                .artwork_port(LOCAL)
+                .unwrap()
+                .artwork
+                .as_ref()
+                .unwrap()
+                .cover_id,
+            32
+        );
+
+        let mut accepted = canonical(CANONICAL, "FixtureOwner/AfterRename", REPO);
+        // This definition describes the port without making an original-edition claim.
+        accepted.original_game = None;
+        accepted
+            .media
+            .retain(|asset| matches!(asset.subject, crate::CatalogMediaSubject::Port { .. }));
+        let mut operational_document = serde_json::to_value(base.document()).unwrap();
+        let definition = &mut operational_document["ports"][0];
+        definition["id"] = json!(CANONICAL);
+        definition["project_url"] = json!(accepted.project_url);
+        definition["mod_sources"] = json!([{
+            "id": "definition-website",
+            "authority": "link_out",
+            "platforms": [],
+            "name": "Reviewed website",
+            "instructions": "Open the mod website.",
+            "source": {
+                "kind": "external_portal",
+                "site": "community_site",
+                "url": "https://thunderstore.io/c/definition/"
+            }
+        }]);
+        let operational = Catalog::from_json(&operational_document.to_string()).unwrap();
+        let operational_listings = catalog(vec![accepted]).listing_document().clone();
+        service.catalog = operational
+            .with_projected_listing_document(operational_listings)
+            .unwrap();
+        let sites = service.effective_external_mod_portals(LOCAL, None).unwrap();
+        let website = sites
+            .external_mod_portals
+            .iter()
+            .find(|portal| portal.source == "definition-website")
+            .unwrap();
+        assert_eq!(website.url, "https://thunderstore.io/c/definition/");
+        assert!(website.browser.is_none());
+        assert!(!website.browse_available);
+        assert!(
+            service
+                .external_provider_scope(LOCAL, "definition-website", None)
+                .is_err()
+        );
+
+        let mut without_cover = canonical(CANONICAL, "FixtureOwner/AfterRename", REPO);
+        without_cover.artwork = None;
+        let mut donor = canonical("edition-donor", "AnotherOwner/Port", REPO + 2);
+        donor.artwork.as_mut().unwrap().match_kind = crate::IgdbArtworkMatch::UnderlyingGame;
+        let active = catalog(vec![without_cover, donor]);
+        let mut signed = active.listing_document().clone();
+        signed.format_version = crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT;
+        service.catalog = active.with_signed_cover_assignments(&signed);
+        let projected = service.artwork_port(LOCAL).unwrap();
+        assert!(projected.artwork.is_none());
+        assert!(service.catalog().automatic_cover(&projected).is_some());
+        let artwork = service.artwork(LOCAL, crate::ArtworkSlot::Cover).unwrap();
+        assert!(matches!(
+            artwork.resolved_source,
+            crate::artwork::ArtworkResolvedSource::GeneratedFallback
+        ));
+        let error = service
+            .artwork_thumbnail(LOCAL, crate::ArtworkSlot::Cover, artwork.choice.revision)
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::NotFound);
+        assert_eq!(error.to_string(), "this artwork slot uses the fallback");
+
+        service
+            .library
+            .add_library_memberships(
+                &[crate::LibraryMembershipRequest {
+                    port_id: CANONICAL.into(),
+                    origin: crate::LibraryMembershipOrigin::Manual,
+                    sources: Vec::new(),
+                }],
+                &HashSet::new(),
+            )
+            .unwrap();
+        assert!(projected.automatic_cover(service.catalog()).is_none());
+        assert!(service.artwork_port(LOCAL).unwrap().original_game.is_none());
+
+        // A canonical download saved before the association keeps its exact continuation.
+        let mut retained_listing = service.catalog().listing(CANONICAL).unwrap().clone();
+        retained_listing.mod_portals.clear();
+        retained_listing.official_setup_id = None;
+        retained_listing
+            .media
+            .retain(|asset| !asset.is_typed_igdb_scene());
+        crate::catalog::listings::strip_verified_sources(&mut retained_listing);
+        let pending_id = Uuid::new_v4().to_string();
+        let pending = serde_json::to_string(&json!({
+            "id": pending_id,
+            "port_id": CANONICAL,
+            "listing": retained_listing,
+            "path": working.join("preexisting.zip"),
+            "state": "attention-required",
+            "artifact": {
+                "release_id": 1,
+                "asset_id": 2,
+                "release_tag": "v1",
+                "release_url": "https://github.com/FixtureOwner/AfterRename/releases/tag/v1",
+                "name": "preexisting.zip",
+                "size": 1,
+                "download_url": "https://github.com/FixtureOwner/AfterRename/releases/download/v1/preexisting.zip",
+                "can_extract": true
+            },
+            "archive_sha256": "a".repeat(64),
+            "downloaded_at": "2026-11-27T00:00:00Z",
+            "reason": null
+        }))
+        .unwrap();
+        connection
+            .execute(
+                "INSERT INTO catalog_downloads (
+                    port_id, pending_id, record_json, stage_path, phase, preview_sha256, activity_id
+                ) VALUES (?1, ?2, ?3, NULL, 'attention-required', ?4, ?5)",
+                rusqlite::params![
+                    CANONICAL,
+                    pending_id,
+                    pending,
+                    "b".repeat(64),
+                    Uuid::new_v4().to_string()
+                ],
+            )
+            .unwrap();
+        let another = working.join("prior-canonical-setup");
+        fs::create_dir(&another).unwrap();
+        let another_executable = another.join(executable.file_name().unwrap());
+        fs::copy(&executable, &another_executable).unwrap();
+        let selected = register(&service, CANONICAL, &another_executable, &another);
+        assert_eq!(selected.setup_download.unwrap().filename, "preexisting.zip");
+        assert!(service.pending_setups().unwrap().is_empty());
+        let (still_personal, _) = service
+            .library
+            .external_runtime_with_port(LOCAL)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(still_personal).unwrap(),
+            serde_json::to_value(registered).unwrap()
         );
     }
 

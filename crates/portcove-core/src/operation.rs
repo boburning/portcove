@@ -362,6 +362,23 @@ impl OperationStore {
         let mut connection = database::connect(self.library.root())?;
         let transaction =
             connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        if operation.kind == LifecycleOperationKind::Install
+            && operation.phase == LifecyclePhase::Prepared
+            && operation.external_registration_sha256.is_none()
+        {
+            let new_intent: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE id=?1 AND phase='preparing')
+                    AND NOT EXISTS(SELECT 1 FROM installs WHERE port_id=?2)",
+                params![operation.id, operation.port_id],
+                |row| row.get(0),
+            )?;
+            if new_intent {
+                Library::require_no_associated_personal_runtime_from_current(
+                    &transaction,
+                    &operation.port_id,
+                )?;
+            }
+        }
         acquisition::require_capacity(&transaction, operation, update_acquisition_json.as_deref())?;
         if operation.kind != LifecycleOperationKind::AcquireUpdate {
             crate::ghostship_data_store::invalidate(&transaction, &operation.port_id)?;

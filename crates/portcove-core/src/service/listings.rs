@@ -1,6 +1,6 @@
 //! Descriptive directory and actual Library membership without operational definitions.
 use super::*;
-use crate::acquisition_restriction::EffectiveRestrictions;
+use crate::{PortListing, acquisition_restriction::EffectiveRestrictions};
 
 mod recommendations;
 
@@ -95,6 +95,17 @@ impl PortcoveService {
             .any(|session| session.port_id == port_id && session.outcome.is_none());
         let restrictions = EffectiveRestrictions::of(&self.catalog, port_id);
         let mut projected = Self::assess_listing_status(status, owned, launching, &restrictions);
+        if projected
+            .status
+            .external_runtime
+            .as_ref()
+            .is_some_and(|record| record.user_selected.is_some())
+        {
+            let connection = self.library.connection()?;
+            projected.canonical_port_id =
+                Self::unoccupied_personal_listing_match(&self.catalog, &connection, listing)?
+                    .map(|canonical| canonical.id.clone());
+        }
         projected.library_membership = self
             .library
             .library_memberships()?
@@ -131,21 +142,31 @@ impl PortcoveService {
         connection: &rusqlite::Connection,
     ) -> Result<Catalog> {
         let mut document = catalog.listing_document().clone();
+        let mut associated = std::collections::BTreeMap::new();
         // Reading retired registrations is a request-wide aggregate.
         let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
         for id in Library::external_runtime_port_ids_from(connection)? {
             if document.listings.iter().any(|listing| listing.id == id) {
                 continue;
             }
-            let Some((_, retained)) = self
-                .library
-                .external_runtime_with_port_bounded(&id, &mut budget)?
+            let Some((record, retained)) =
+                Library::external_runtime_with_port_bounded_from(connection, &id, &mut budget)?
             else {
                 continue;
             };
             // Retaining display identity preserves the user's Library entry;
             // it does not restore a retired managed installation definition.
-            document.listings.push(retained.listing(&id)?.clone());
+            let listing = retained.listing(&id)?.clone();
+            if record.user_selected.is_some() {
+                let (projected, canonical) =
+                    Self::personal_listing_projection(&catalog, connection, listing)?;
+                if let Some(canonical) = canonical {
+                    associated.insert(id, canonical);
+                }
+                document.listings.push(projected);
+            } else {
+                document.listings.push(listing);
+            }
         }
         for pending in Self::pending_setups_from(connection)? {
             if !document
@@ -156,7 +177,99 @@ impl PortcoveService {
                 document.listings.push(pending.listing);
             }
         }
-        catalog.with_projected_listing_document(document)
+        let mut projected = catalog.with_projected_listing_document(document)?;
+        projected.personal_canonical_ports = std::sync::Arc::new(associated);
+        Ok(projected)
+    }
+
+    pub(crate) fn personal_listing_projection(
+        catalog: &Catalog,
+        connection: &rusqlite::Connection,
+        mut retained: PortListing,
+    ) -> Result<(PortListing, Option<String>)> {
+        let Some(canonical) =
+            Self::unoccupied_personal_listing_match(catalog, connection, &retained)?
+        else {
+            return Ok((retained, None));
+        };
+        // The registration remains the owner of its local operation key.
+        retained.name.clone_from(&canonical.name);
+        retained.summary.clone_from(&canonical.summary);
+        retained.project_url.clone_from(&canonical.project_url);
+        retained
+            .original_game_title
+            .clone_from(&canonical.original_game_title);
+        retained.variant_label.clone_from(&canonical.variant_label);
+        retained.original_game.clone_from(&canonical.original_game);
+        if let Some(game) = &mut retained.original_game {
+            for edition in &mut game.source_editions {
+                edition.verified_sources.clear();
+            }
+        }
+        retained.media.clone_from(&canonical.media);
+        for asset in &mut retained.media {
+            if let crate::CatalogMediaSubject::Port { port_id } = &mut asset.subject {
+                port_id.clone_from(&retained.id);
+            }
+        }
+        crate::catalog_media::validate_catalog_media(
+            &retained.id,
+            retained.original_game.as_ref(),
+            &retained.media,
+        )?;
+        retained.issue_number = canonical.issue_number;
+        retained.artwork = catalog.automatic_cover(canonical).cloned();
+        retained
+            .collection_covers
+            .clone_from(&canonical.collection_covers);
+        Ok((retained, Some(canonical.id.clone())))
+    }
+
+    pub(crate) fn unoccupied_personal_listing_match<'a>(
+        catalog: &'a Catalog,
+        connection: &rusqlite::Connection,
+        retained: &PortListing,
+    ) -> Result<Option<&'a PortListing>> {
+        let Some(canonical) = catalog.canonical_for_private_github_listing(retained) else {
+            return Ok(None);
+        };
+        let busy: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM launch_sessions WHERE port_id=?1 AND outcome IS NULL)
+                OR EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1)",
+            [&canonical.id],
+            |row| row.get(0),
+        )?;
+        Ok(
+            (!busy && !Self::canonical_target_occupied(connection, &canonical.id)?)
+                .then_some(canonical),
+        )
+    }
+
+    fn canonical_target_occupied(connection: &rusqlite::Connection, port_id: &str) -> Result<bool> {
+        Ok(connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)
+                OR EXISTS(SELECT 1 FROM installs WHERE port_id=?1)
+                OR EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)
+                OR EXISTS(SELECT 1 FROM library_memberships WHERE port_id=?1)",
+            [port_id],
+            |row| row.get(0),
+        )?)
+    }
+
+    fn has_personal_registration_for_canonical(
+        catalog: &Catalog,
+        connection: &rusqlite::Connection,
+        port_id: &str,
+        budget: &mut u64,
+    ) -> Result<bool> {
+        catalog.listing(port_id)?;
+        if Self::canonical_target_occupied(connection, port_id)? {
+            return Ok(false);
+        }
+        Ok(
+            Library::personal_runtime_for_canonical_from(connection, catalog, port_id, budget)?
+                .is_some(),
+        )
     }
 
     pub(super) fn listing_statuses_from(
@@ -209,6 +322,10 @@ impl PortcoveService {
                 let mut projected =
                     Self::assess_listing_status(status, has_owner, launching, &restrictions);
                 projected.library_membership = members.get(&projected.port_id).cloned();
+                projected.canonical_port_id = catalog
+                    .personal_canonical_ports
+                    .get(&projected.port_id)
+                    .cloned();
                 if let Some(report) = projected.capabilities.as_mut() {
                     let pending = pending.iter().find(|p| p.port_id == projected.port_id);
                     report.add_setup_context(
@@ -276,6 +393,7 @@ impl PortcoveService {
         ];
         crate::PortListingStatus {
             port_id: status.port_id.clone(),
+            canonical_port_id: None,
             capabilities: Some(crate::PortCapabilityReport::from_status(
                 &status,
                 &actions,
@@ -293,6 +411,17 @@ impl PortcoveService {
     pub fn add_games_to_library(
         &self,
         requests: &[crate::LibraryMembershipRequest],
+    ) -> Result<Vec<crate::LibraryMembershipOutcome>> {
+        self.add_games_to_library_from(requests, |connection| {
+            crate::catalog_store::load_catalog_from(connection, Library::now())
+                .map(|(catalog, _)| catalog)
+        })
+    }
+
+    pub(super) fn add_games_to_library_from(
+        &self,
+        requests: &[crate::LibraryMembershipRequest],
+        resolve_catalog: impl FnOnce(&rusqlite::Connection) -> Result<Catalog>,
     ) -> Result<Vec<crate::LibraryMembershipOutcome>> {
         for request in requests {
             request.validate()?;
@@ -319,7 +448,31 @@ impl PortcoveService {
             }
         }
         drop(connection);
-        self.library.add_library_memberships(requests, &present)
+        let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
+        let mut resolver = Some(resolve_catalog);
+        let mut current = None;
+        self.library.add_library_memberships_with_check(
+            requests,
+            &present,
+            |connection, port_id| {
+                if let Some(resolve) = resolver.take() {
+                    // No catalog resolution is needed for a library with no
+                    // possible personal GitHub registration.
+                    if Library::has_personal_registration_candidates_from(connection)? {
+                        current = Some(resolve(connection)?);
+                    }
+                }
+                let Some(catalog) = &current else {
+                    return Ok(false);
+                };
+                Self::has_personal_registration_for_canonical(
+                    catalog,
+                    connection,
+                    port_id,
+                    &mut budget,
+                )
+            },
+        )
     }
 
     pub fn library_memberships(&self) -> Result<Vec<crate::LibraryMembership>> {

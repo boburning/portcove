@@ -114,10 +114,19 @@ impl PublicationJournal {
         candidate.record.install = Some(install);
         candidate.record.phase = LifecyclePhase::Prepared;
         PublicationOperation::decode(&store.library, &mut candidate.record)?;
-        *self = candidate;
-        // Preserve the in-memory publication barrier even when persistence
-        // fails: error cleanup must not mistake a sealed payload for private work.
-        self.persist(store)
+        let private = std::mem::replace(self, candidate);
+        let result = self.persist(store);
+        // This refusal is checked before the journal write. Other failures
+        // retain the publication barrier for recovery of an uncertain commit.
+        if self.record.kind == LifecycleOperationKind::Install
+            && result.as_ref().is_err_and(|error| {
+                error.code == crate::ErrorCode::Conflict
+                    && error.details.contains_key("existing_port_id")
+            })
+        {
+            *self = private;
+        }
+        result
     }
 
     pub(crate) fn advance(&mut self, phase: LifecyclePhase, store: &OperationStore) -> Result<()> {

@@ -556,13 +556,47 @@ impl Library {
     }
 }
 
+pub(crate) struct ArtworkListing<'a> {
+    listing: std::borrow::Cow<'a, crate::PortListing>,
+    cover_resolved: bool,
+}
+
+impl AsRef<crate::PortListing> for ArtworkListing<'_> {
+    fn as_ref(&self) -> &crate::PortListing {
+        &self.listing
+    }
+}
+
+impl std::ops::Deref for ArtworkListing<'_> {
+    type Target = crate::PortListing;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl ArtworkListing<'_> {
+    pub(crate) fn automatic_cover<'a>(
+        &'a self,
+        catalog: &'a crate::Catalog,
+    ) -> Option<&'a crate::IgdbArtwork> {
+        if self.cover_resolved {
+            self.listing.artwork.as_ref()
+        } else {
+            catalog.automatic_cover(&self.listing)
+        }
+    }
+}
+
 impl PortcoveService {
-    pub(crate) fn artwork_port(
-        &self,
-        port_id: &str,
-    ) -> Result<std::borrow::Cow<'_, crate::PortListing>> {
+    pub(crate) fn artwork_port(&self, port_id: &str) -> Result<ArtworkListing<'_>> {
         let unknown = match self.catalog().listing(port_id) {
-            Ok(listing) => return Ok(std::borrow::Cow::Borrowed(listing)),
+            Ok(listing) => {
+                return Ok(ArtworkListing {
+                    listing: std::borrow::Cow::Borrowed(listing),
+                    cover_resolved: false,
+                });
+            }
             Err(unknown) => unknown,
         };
         // Keep the exact admitted-definition boundary for retained managed
@@ -584,41 +618,54 @@ impl PortcoveService {
             {
                 return Err(unknown);
             }
-            return Ok(std::borrow::Cow::Owned(crate::PortListing::from(
-                retained.port(port_id)?,
-            )));
+            return Ok(ArtworkListing {
+                listing: std::borrow::Cow::Owned(crate::PortListing::from(retained.port(port_id)?)),
+                cover_resolved: false,
+            });
         }
         // User-owned registrations and unfinished setup retain their display
         // identity independently of whether a newer directory still lists it.
         // Their validated snapshots grant no managed lifecycle authority.
         let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
-        if let Some((_, retained)) = self
-            .library()
-            .external_runtime_with_port_bounded(port_id, &mut budget)?
+        let connection = self.library().connection()?;
+        if let Some((record, retained)) =
+            Library::external_runtime_with_port_bounded_from(&connection, port_id, &mut budget)?
         {
-            return Ok(std::borrow::Cow::Owned(retained.listing(port_id)?.clone()));
+            let listing = retained.listing(port_id)?.clone();
+            let (listing, canonical) = if record.user_selected.is_some() {
+                Self::personal_listing_projection(self.catalog(), &connection, listing)?
+            } else {
+                (listing, None)
+            };
+            return Ok(ArtworkListing {
+                listing: std::borrow::Cow::Owned(listing),
+                cover_resolved: canonical.is_some(),
+            });
         }
         if let Some(pending) = self
             .pending_setups()?
             .into_iter()
             .find(|record| record.port_id == port_id)
         {
-            return Ok(std::borrow::Cow::Owned(pending.listing));
+            return Ok(ArtworkListing {
+                listing: std::borrow::Cow::Owned(pending.listing),
+                cover_resolved: false,
+            });
         }
         Err(unknown)
     }
 
     pub(crate) fn require_current_artwork_listing(
         &self,
-        expected: &crate::PortListing,
+        expected: &ArtworkListing<'_>,
     ) -> Result<()> {
         let Some(current) = self.current_artwork_service()? else {
             return Ok(());
         };
         let actual = current.artwork_port(&expected.id)?;
-        if actual.as_ref() == expected
-            && self.catalog().automatic_cover(expected)
-                == current.catalog().automatic_cover(&actual)
+        if actual.as_ref() == expected.as_ref()
+            && actual.cover_resolved == expected.cover_resolved
+            && expected.automatic_cover(self.catalog()) == actual.automatic_cover(current.catalog())
             && self.catalog_companion_cover(&expected.id)
                 == current.catalog_companion_cover(&expected.id)
         {
@@ -731,15 +778,17 @@ impl PortcoveService {
 
     pub fn artwork(&self, port_id: &str, slot: ArtworkSlot) -> Result<ArtworkState> {
         let port = self.artwork_port(port_id)?;
-        let artwork = self.artwork_for_listing(&port, slot)?;
+        let artwork =
+            self.artwork_for_listing(&port, slot, || port.automatic_cover(self.catalog()))?;
         self.require_current_artwork_listing(&port)?;
         Ok(artwork)
     }
 
-    fn artwork_for_listing(
+    fn artwork_for_listing<'a>(
         &self,
         port: &crate::PortListing,
         slot: ArtworkSlot,
+        default_cover: impl FnOnce() -> Option<&'a crate::IgdbArtwork>,
     ) -> Result<ArtworkState> {
         let port_id = &port.id;
         let mut connection = self.library().connection()?;
@@ -779,10 +828,11 @@ impl PortcoveService {
                 None,
                 ArtworkResolvedSource::GeneratedFallback,
             ),
-            None => match (slot == ArtworkSlot::Cover && choice.is_automatic())
-                .then(|| self.catalog().automatic_cover(port))
-                .flatten()
-            {
+            None => match if slot == ArtworkSlot::Cover && choice.is_automatic() {
+                default_cover()
+            } else {
+                None
+            } {
                 Some(artwork) => (
                     ArtworkAvailability::Available,
                     None,
@@ -1461,7 +1511,7 @@ impl PortcoveService {
             &proposed.sha256,
             &decoded.thumbnail,
         );
-        self.artwork_for_listing(port, slot)
+        self.artwork_for_listing(port, slot, || None)
     }
 
     /// The provenance an ingestion records: a local import makes the asset the
@@ -1534,7 +1584,7 @@ impl PortcoveService {
             )?;
         }
         transaction.commit()?;
-        self.artwork_for_listing(&port, slot)
+        self.artwork_for_listing(&port, slot, || port.automatic_cover(self.catalog()))
     }
 
     pub fn reset_artwork(
@@ -1604,7 +1654,7 @@ impl PortcoveService {
                 Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
             );
         }
-        self.artwork_for_listing(&port, slot)
+        self.artwork_for_listing(&port, slot, || port.automatic_cover(self.catalog()))
     }
 
     /// Retrieve an admitted collection member only while the player keeps the default cover.
@@ -1726,9 +1776,11 @@ impl PortcoveService {
         expected_revision: u64,
     ) -> Result<ArtworkThumbnail> {
         let port = self.artwork_port(port_id)?;
-        let mapped_cover = (slot == ArtworkSlot::Cover)
-            .then(|| self.catalog().automatic_cover(&port))
-            .flatten();
+        let mapped_cover = if slot == ArtworkSlot::Cover {
+            port.automatic_cover(self.catalog())
+        } else {
+            None
+        };
         if let Some(artwork) = mapped_cover {
             let connection = self.library().connection()?;
             let choice = crate::artwork_store::require_revision(

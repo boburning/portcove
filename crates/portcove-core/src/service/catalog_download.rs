@@ -700,6 +700,10 @@ impl PortcoveService {
         }
         self.require_no_pending_setup(port_id)?;
         let state = self.library.status(port_id, ReleaseChannel::Stable)?;
+        if state.external_runtime.is_none() {
+            let connection = self.library.connection()?;
+            Library::require_no_associated_personal_runtime(&connection, &self.catalog, port_id)?;
+        }
         if state
             .external_runtime
             .as_ref()
@@ -1470,6 +1474,19 @@ impl PortcoveService {
         let json = encoded_download_record(record)?;
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        // A download can prepare a replacement for an existing user-selected
+        // registration with this exact key. Only prevent a new second entry.
+        let has_existing_registration: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)",
+            [&record.port_id],
+            |row| row.get(0),
+        )?;
+        if !has_existing_registration {
+            Library::require_no_associated_personal_runtime_from_current(
+                &transaction,
+                &record.port_id,
+            )?;
+        }
         let occupied: bool = transaction.query_row(
             "SELECT EXISTS(SELECT 1 FROM installs WHERE port_id=?1)
             OR EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
