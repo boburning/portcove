@@ -33,7 +33,10 @@ def identity(filename):
 if identity(app) != expected:
     raise SystemExit("Package bytes changed before mount")
 report = {"package": expected, "mode": "ordinary built-in FUSE mount", "outcome": "failed"}
-out = output / "ordinary-package-mount.json"
+scope = os.environ.get("PORTCOVE_APPIMAGE_MOUNT_SCOPE", "ordinary")
+if scope not in ("ordinary", "private"):
+    raise SystemExit("Invalid package mount scope")
+out = output / f"{scope}-package-mount.json"
 process = None
 recorded_mount = None
 

@@ -1520,8 +1520,15 @@ jobs:
       - name: Read the exact enclosed executable and retire the owned package mount
         timeout-minutes: 2
         run: python3 scripts/observe-installed-linux-appimage-mount.py
+      - name: Check exact mount through both maintained private namespaces
+        timeout-minutes: 2
+        env:
+          FUSERMOUNT_PROG: /usr/bin/fusermount3
+        run: node scripts/observe-installed-linux-appimage-namespace.mts
       - name: Observe mounted AppImage recovery with the private Secret Service
         timeout-minutes: 15
+        env:
+          FUSERMOUNT_PROG: /usr/bin/fusermount3
         run: |
           export PORTCOVE_QUALIFICATION_APPIMAGE_RUNTIME_RECEIPT="$PWD/work/linux-installed-recovery/ordinary-package-mount.json"
           node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-installed-recovery/harness-config.json"
