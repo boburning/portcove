@@ -151,7 +151,9 @@ export function linuxX11ExecutionBudgets(config: Pick<X11Configuration, "stage" 
   };
 }
 
-function recoveryKeyringInputs(config: X11Configuration): string[] {
+export function recoveryKeyringInputs(
+  config: Pick<X11Configuration, "stage" | "harness_args">,
+): string[] {
   if (
     config.stage === "harness" &&
     resolveDesktopHarnessSelection(

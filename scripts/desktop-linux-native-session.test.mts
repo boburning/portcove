@@ -4,6 +4,7 @@ import {
   readLinuxX11Configuration,
   assertQualificationUidMap,
   linuxX11ExecutionBudgets,
+  recoveryKeyringInputs,
 } from "./desktop-linux-x11.mts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -123,6 +124,39 @@ void test(
   },
 );
 
+void test("private-X11 retains keyring tools only for the exact Linux recovery scenario", () => {
+  assert.deepEqual(recoveryKeyringInputs({ stage: "gtk", harness_args: [] }), []);
+  assert.deepEqual(
+    recoveryKeyringInputs({
+      stage: "harness",
+      harness_args: [
+        "--scenario",
+        "native-preparation-cancellation",
+        "--preparation-cli",
+        "cli",
+        "--preparation-tool",
+        "tool",
+      ],
+    }),
+    [],
+  );
+  const inputs = recoveryKeyringInputs({
+    stage: "harness",
+    harness_args: [
+      "--scenario",
+      "native-library-recovery-bundle",
+      "--preparation-cli",
+      "cli",
+      "--preparation-tool",
+      "tool",
+    ],
+  });
+  assert.deepEqual(
+    inputs.map((input) => path.basename(input)),
+    ["bash", "desktop-linux-recovery-keyring.sh", "gnome-keyring-daemon", "gdbus"],
+  );
+});
+
 void test("private-X11 input checks outlive the former minute and still refuse finite expiry", async () => {
   const source = await readFile(new URL("./desktop-linux-x11.mts", import.meta.url), "utf8");
   const start = source.indexOf("export async function runLinuxX11(");
@@ -170,6 +204,7 @@ void test("private-X11 input checks outlive the former minute and still refuse f
       chmod: async () => {},
       acquireNativeSessionLock: async () => lease,
       linuxX11ExecutionBudgets,
+      recoveryKeyringInputs,
       retainedEvidenceRoot: () => "/retained",
       AbortSignal: {
         timeout: (milliseconds: number) => {
