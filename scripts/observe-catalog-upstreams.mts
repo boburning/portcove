@@ -370,7 +370,7 @@ export async function runCatalogUpstreams(
     await assertCoreEntry();
     const prior = await boundedJson(statePath, 32 * 1024 * 1024, true);
     const beforePosition = catalogProgressPosition(prior);
-    let controllerCheckpointWrites = 0;
+    let controllerProgressWrites = 0;
     const result = await advanceCatalogObservations(catalog, prior, {
       config,
       now,
@@ -419,7 +419,7 @@ export async function runCatalogUpstreams(
       },
       commit: async (contents) => {
         await atomicJsonText(statePath, contents);
-        controllerCheckpointWrites++;
+        controllerProgressWrites++;
       },
       repositoryId: async (source, transport) => {
         const equivalent = observedHealthRepositoryIdentity(health, source.repository);
@@ -778,7 +778,7 @@ export async function runCatalogUpstreams(
       summary,
       handoff_directory: handoffDirectory,
       handoff_exhausted: handoffExhausted,
-      controller_checkpoint_writes: controllerCheckpointWrites,
+      controller_progress_writes: controllerProgressWrites,
       made_progress:
         acceptedProgress ||
         (result.report.launcher_mod_sources?.attempted ?? 0) > 0 ||
@@ -943,7 +943,7 @@ export async function runCatalogOpportunity(
               response_bytes: batch.report.response_bytes_charged,
               completed: batch.report.completed_source_keys.length,
               pending: batch.report.pending_source_keys.length,
-              controller_checkpoint_writes: batch.controller_checkpoint_writes,
+              controller_progress_writes: batch.controller_progress_writes,
               made_progress: batch.made_progress,
               handoff_exhausted: batch.handoff_exhausted,
             }),
