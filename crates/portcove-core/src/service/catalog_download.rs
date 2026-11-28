@@ -12,6 +12,7 @@ use crate::acquisition_restriction::{
     EffectiveRestrictions, Knowledge, Phase, RestrictedOperation, RestrictionSubject,
     SubjectArtifact,
 };
+use crate::release::GithubCatalogDownloadScope;
 use rusqlite::{TransactionBehavior, params};
 
 const RECORD_LIMIT: usize = 64 * 1024;
@@ -908,11 +909,24 @@ impl PortcoveService {
             .filter(|port| port.release.provider == crate::ReleaseSource::Github)
             .map(|port| port.release.github_stream_exclusions(platform))
             .unwrap_or_default();
+        let hints = definition
+            .and_then(|port| port.release.asset_hints.get(&platform))
+            .or_else(|| listing.download_asset_hints.get(&platform))
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let listing_only = self.catalog.port(port_id).is_err();
+        let restrictions = EffectiveRestrictions::listing_only(listing);
+        let github_scope = GithubCatalogDownloadScope {
+            other_stream_prefixes: github_other_stream_prefixes,
+            package_hints: hints,
+            reviewed: (listing_only && restrictions.prefers_reviewed_listing_downloads())
+                .then_some((&restrictions, platform)),
+        };
         // Shared observations only serve the non-managed browse window. They never
         // enter the managed release resolver or the exact preview/download path.
         let observed = match provider {
             CatalogDownloadProvider::Github(provider)
-                if self.catalog.port(port_id).is_err()
+                if listing_only
                     && release_window.is_none()
                     && github_repository_id.is_none_or(|expected| {
                         listing
@@ -928,6 +942,7 @@ impl PortcoveService {
                         selected_release_id.as_ref(),
                         channel,
                         rolling_tag,
+                        github_scope,
                         time::OffsetDateTime::now_utc(),
                     )
                     .map(|(candidates, coverage, releases, selected)| {
@@ -946,7 +961,7 @@ impl PortcoveService {
                         selected_release_id.as_ref(),
                         channel,
                         rolling_tag,
-                        github_other_stream_prefixes,
+                        github_scope,
                         release_window,
                     )
                     .await?
@@ -960,11 +975,6 @@ impl PortcoveService {
         }
         result.releases = releases;
         result.selected_release_id = selected.clone();
-        let hints = definition
-            .and_then(|port| port.release.asset_hints.get(&platform))
-            .or_else(|| listing.download_asset_hints.get(&platform))
-            .map(Vec::as_slice)
-            .unwrap_or_default();
         let (packages, recommended, any_suitable) = super::package_selection::recommend_packages(
             &candidates,
             platform,

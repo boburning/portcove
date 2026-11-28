@@ -4193,6 +4193,7 @@ async fn fresh_browse_observation_works_offline_but_unknown_release_and_preview_
                 Some(&999.into()),
                 ReleaseChannel::Stable,
                 None,
+                Default::default(),
                 time::OffsetDateTime::now_utc()
             )
             .is_none()
@@ -4204,6 +4205,7 @@ async fn fresh_browse_observation_works_offline_but_unknown_release_and_preview_
                 None,
                 ReleaseChannel::Beta,
                 None,
+                Default::default(),
                 time::OffsetDateTime::now_utc()
             )
             .is_none()
@@ -4217,6 +4219,7 @@ async fn fresh_browse_observation_works_offline_but_unknown_release_and_preview_
                 None,
                 ReleaseChannel::Stable,
                 None,
+                Default::default(),
                 time::OffsetDateTime::now_utc()
             )
             .is_none()
@@ -4243,6 +4246,95 @@ fn permit_reviewed_package(service: &mut PortcoveService, sha256: &str) {
         .clone()
         .with_listing_document(document)
         .unwrap();
+}
+
+#[tokio::test]
+async fn a_shared_feed_prefers_an_exactly_permitted_package_without_changing_an_explicit_release() {
+    for signed in [false, true] {
+        let (_temporary, mut service, request) = fixture();
+        let bytes = archive();
+        let sha256 = crate::signed_catalog::digest(&bytes);
+        let github = GithubFixture::new(bytes, Some(format!("sha256:{sha256}")), None);
+        permit_reviewed_package(&mut service, &sha256);
+        let mut sibling_asset = github.assets.lock().unwrap()[0].clone();
+        sibling_asset["id"] = json!(12);
+        sibling_asset["digest"] = json!(format!("sha256:{}", "4".repeat(64)));
+        {
+            let mut releases = github.releases.lock().unwrap();
+            releases[0]["assets"] = json!(github.assets.lock().unwrap().clone());
+            releases.insert(
+                0,
+                json!({
+                    "id":8,"tag_name":"v2.0","draft":false,"prerelease":false,
+                    "published_at":null,"assets":[sibling_asset.clone()],
+                }),
+            );
+        }
+        github
+            .release_assets
+            .lock()
+            .unwrap()
+            .insert(8, vec![sibling_asset]);
+
+        let mut document = service.catalog.listing_document().clone();
+        let listing = &mut document.listings[0];
+        listing
+            .download_asset_hints
+            .insert(Platform::current().unwrap(), vec!["game.zip".into()]);
+        if signed {
+            shared_browse_observation(listing, "complete", 0);
+            let observation = listing.upstream_observation.as_mut().unwrap();
+            observation.releases[0].assets[0].sha256 = Some(sha256.clone());
+            let mut sibling = observation.releases[0].clone();
+            sibling.id = 8.into();
+            sibling.version = "v2.0".into();
+            sibling.release_url = "https://github.com/owner/game/releases/tag/v2.0".into();
+            sibling.published_at = "2026-01-02T00:00:00Z".into();
+            sibling.assets[0].id = 12;
+            sibling.assets[0].url =
+                "https://github.com/owner/game/releases/download/v2.0/game.zip".into();
+            sibling.assets[0].sha256 = Some("4".repeat(64));
+            observation.releases.insert(0, sibling);
+        }
+        service.catalog = service
+            .catalog
+            .clone()
+            .with_listing_document(document)
+            .unwrap();
+
+        let options = service
+            .catalog_download_options_with_provider(
+                &request.port_id,
+                None,
+                None,
+                Some(&github.provider),
+            )
+            .await
+            .unwrap();
+        assert!(options.allowed);
+        assert_eq!(options.selected_release_id, Some(7.into()));
+        assert_eq!(options.candidates.len(), 1);
+        assert_eq!(options.candidates[0].asset_id, 11.into());
+        assert_eq!(options.recommended_asset_id, Some(11.into()));
+        assert_eq!(options.releases.len(), 2);
+
+        let explicit = service
+            .catalog_download_options_with_provider(
+                &request.port_id,
+                Some(8),
+                None,
+                Some(&github.provider),
+            )
+            .await
+            .unwrap();
+        assert!(explicit.allowed);
+        assert_eq!(explicit.selected_release_id, Some(8.into()));
+        assert!(explicit.candidates.is_empty());
+        assert_eq!(
+            github.requests.load(Ordering::SeqCst),
+            if signed { 0 } else { 4 }
+        );
+    }
 }
 
 #[tokio::test]

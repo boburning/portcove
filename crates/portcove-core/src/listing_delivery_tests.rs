@@ -1816,6 +1816,7 @@ async fn observer_produced_target_reaches_signed_cache_and_preliminary_browse_wi
             None,
             crate::ReleaseChannel::Stable,
             None,
+            Default::default(),
             at("2026-11-10T01:00:00Z"),
         )
         .unwrap();
@@ -1832,6 +1833,7 @@ async fn observer_produced_target_reaches_signed_cache_and_preliminary_browse_wi
                 None,
                 crate::ReleaseChannel::Stable,
                 None,
+                Default::default(),
                 at("2026-11-11T01:00:00Z")
             )
             .is_none(),

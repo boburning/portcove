@@ -1,6 +1,7 @@
 //! Dispatch within the existing downloaded-setup lifecycle, not another
 //! release resolver or durable authority.
 use super::*;
+use crate::release::GithubCatalogDownloadScope;
 use crate::{GithubReleaseProvider, GitlabReleaseProvider};
 
 pub(crate) enum CatalogDownloadRepository {
@@ -117,7 +118,7 @@ impl CatalogDownloadProvider {
         selected: Option<&CatalogDownloadReleaseId>,
         channel: ReleaseChannel,
         rolling_tag: Option<&str>,
-        github_other_stream_prefixes: &[String],
+        github_scope: GithubCatalogDownloadScope<'_>,
         release_window: Option<usize>,
     ) -> Result<(
         Vec<CatalogDownloadCandidate>,
@@ -140,7 +141,7 @@ impl CatalogDownloadProvider {
                         selected,
                         channel,
                         rolling_tag,
-                        github_other_stream_prefixes,
+                        github_scope,
                         release_window.unwrap_or(0),
                     )
                     .await?;

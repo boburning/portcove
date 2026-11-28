@@ -18,6 +18,7 @@ impl GithubReleaseProvider {
         selected: Option<&crate::CatalogDownloadReleaseId>,
         channel: ReleaseChannel,
         rolling_tag: Option<&str>,
+        scope: GithubCatalogDownloadScope<'_>,
         now: OffsetDateTime,
     ) -> Option<ObservedOptions> {
         // Enrichment cannot make a broken optional observation a new prerequisite.
@@ -63,14 +64,11 @@ impl GithubReleaseProvider {
             .collect::<Option<Vec<_>>>()?;
         let chosen = match selected {
             Some(id) => releases.iter().find(|release| release.id == id.github_id()),
-            None => select_channel_candidate(
-                &releases,
-                channel,
-                rolling_tag,
-                |_| true,
-                is_beta_release,
-                |release| release.tag_name.as_str(),
-            ),
+            None => scope.select(&releases, channel, rolling_tag, |release| {
+                observation.releases.iter().any(|observed| {
+                    observed.id.github_id() == release.id && observed.assets_complete
+                })
+            }),
         }?;
         // A bounded window cannot establish that no older preview exists.
         if selected.is_none() && channel == ReleaseChannel::Beta && !is_beta_release(chosen) {

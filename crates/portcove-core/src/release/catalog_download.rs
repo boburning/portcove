@@ -1,12 +1,89 @@
 //! Explicit selection from bounded GitHub release metadata. This does not resolve
 //! managed runtime definitions or turn descriptive platform labels into grants.
 use super::*;
+use crate::acquisition_restriction::{
+    EffectiveRestrictions, RestrictedOperation, RestrictionState, RestrictionSubject,
+    SubjectArtifact,
+};
+use crate::service::package_selection::{PackageSuitability, assess_package_name};
 use crate::{CatalogDownloadCandidate, CatalogDownloadCoverage};
 use std::borrow::Cow;
 
 /// Releases the chooser lists by default; a caller can ask for a larger
 /// window, in steps, up to `MAX_RELEASE_WINDOW`.
 const RELEASE_LIMIT: usize = 10;
+
+/// Restriction evidence can improve the suggested release. This selection still
+/// goes through the normal per-file offer and byte checks.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct GithubCatalogDownloadScope<'a> {
+    pub(crate) other_stream_prefixes: &'a [String],
+    pub(crate) reviewed: Option<(&'a EffectiveRestrictions, Platform)>,
+    pub(crate) package_hints: &'a [String],
+}
+
+impl GithubCatalogDownloadScope<'_> {
+    pub(super) fn select<'a>(
+        &self,
+        releases: &'a [GithubRelease],
+        channel: ReleaseChannel,
+        rolling_tag: Option<&str>,
+        complete_assets: impl Fn(&GithubRelease) -> bool,
+    ) -> Option<&'a GithubRelease> {
+        let selectable = |release: &GithubRelease| {
+            !release.draft && tag_in_stream(&release.tag_name, self.other_stream_prefixes)
+        };
+        let ordinary = select_channel_candidate(
+            releases,
+            channel,
+            rolling_tag,
+            selectable,
+            is_beta_release,
+            |release| &release.tag_name,
+        );
+        if let Some((restrictions, platform)) = self.reviewed {
+            let requires_preview =
+                channel == ReleaseChannel::Beta && ordinary.is_some_and(is_beta_release);
+            let explicitly_permitted = |release: &GithubRelease| {
+                selectable(release)
+                    && (!requires_preview || is_beta_release(release))
+                    && complete_assets(release)
+                    && release.assets.iter().any(|asset| {
+                        let Some(sha256) = asset.digest.as_deref().and_then(parse_digest) else {
+                            return false;
+                        };
+                        let subject = RestrictionSubject::deferred(RestrictedOperation::Download)
+                            .on(platform)
+                            .artifact(SubjectArtifact {
+                                version: &release.tag_name,
+                                sha256: &sha256,
+                                asset_name: Some(&asset.name),
+                            })
+                            .final_check();
+                        restrictions.evaluate(&subject).state == RestrictionState::Permitted
+                            && assess_package_name(
+                                &asset.name,
+                                crate::archive::can_extract_download_archive(&asset.name),
+                                platform,
+                                self.package_hints,
+                            )
+                            .0 == PackageSuitability::Suitable
+                    })
+            };
+            if let Some(preferred) = select_channel_candidate(
+                releases,
+                channel,
+                rolling_tag,
+                explicitly_permitted,
+                is_beta_release,
+                |release| &release.tag_name,
+            ) {
+                return Some(preferred);
+            }
+        }
+        ordinary
+    }
+}
 /// The largest release window one request lists (ten pages of 100).
 pub(crate) const MAX_RELEASE_WINDOW: usize = 1_000;
 /// GitHub allows at most 1,000 assets per release, so this inventory bound is
@@ -186,7 +263,10 @@ impl GithubReleaseProvider {
             selected_id,
             channel,
             rolling_tag,
-            other_stream_prefixes,
+            GithubCatalogDownloadScope {
+                other_stream_prefixes,
+                ..Default::default()
+            },
             RELEASE_LIMIT,
         )
         .await
@@ -200,7 +280,7 @@ impl GithubReleaseProvider {
         selected_id: Option<u64>,
         channel: ReleaseChannel,
         rolling_tag: Option<&str>,
-        other_stream_prefixes: &[String],
+        scope: GithubCatalogDownloadScope<'_>,
         window: usize,
     ) -> Result<(
         Vec<CatalogDownloadCandidate>,
@@ -232,14 +312,7 @@ impl GithubReleaseProvider {
             }
         }
         if selected_id.is_none() && !history_complete {
-            let preferred = select_channel_candidate(
-                &releases,
-                channel,
-                rolling_tag,
-                |release| !release.draft && tag_in_stream(&release.tag_name, other_stream_prefixes),
-                is_beta_release,
-                |release| release.tag_name.as_str(),
-            );
+            let preferred = scope.select(&releases, channel, rolling_tag, |_| true);
             // A recent stable is not proof that Preview has no older preview.
             // Reuse managed discovery's finite completeness policy only when
             // the browse window cannot establish the requested channel.
@@ -282,14 +355,7 @@ impl GithubReleaseProvider {
                 .iter()
                 .find(|release| !release.draft && release.id == Some(id))
         } else {
-            select_channel_candidate(
-                &releases,
-                channel,
-                rolling_tag,
-                |release| !release.draft && tag_in_stream(&release.tag_name, other_stream_prefixes),
-                is_beta_release,
-                |release| release.tag_name.as_str(),
-            )
+            scope.select(&releases, channel, rolling_tag, |_| true)
         };
         let selected_id = selected.and_then(|release| release.id);
         let mut candidates = Vec::new();
@@ -700,6 +766,75 @@ mod tests {
         })).collect::<Vec<_>>()).unwrap()
     }
 
+    #[test]
+    fn reviewed_default_keeps_the_channel_and_host_of_the_suggested_download() {
+        let hash = "a".repeat(64);
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"shared-release-fixture","name":"Shared release fixture",
+            "summary":"Separate native packages","project_url":"https://github.com/owner/game",
+            "release_url":"https://github.com/owner/game/releases","platforms":[],
+            "restrictions":[
+                {"id":"feed-hold","effect":"hold","operations":["download"],
+                 "reason":"package-facts-unresolved","explanation":"Use the reviewed package."},
+                {"id":"reviewed","effect":"permit","operations":["download"],"scope":{"artifacts":[
+                    {"version":"v3.0","sha256":hash,"asset_name":"game-windows-x64.zip"},
+                    {"version":"v2.0","sha256":hash,"asset_name":"game-linux-x64.zip"}
+                ]}}
+            ]
+        }))
+        .unwrap();
+        let rules = EffectiveRestrictions::listing_only(&listing);
+        let scope = GithubCatalogDownloadScope {
+            reviewed: Some((&rules, Platform::LinuxX86_64)),
+            ..Default::default()
+        };
+        let release = |id, tag, prerelease, name: &str| -> GithubRelease {
+            serde_json::from_value(serde_json::json!({
+                "id":id,"tag_name":tag,"draft":false,"prerelease":prerelease,
+                "assets":[{"id":id,"name":name,"size":1,"browser_download_url":"unused",
+                           "digest":format!("sha256:{hash}")}]
+            }))
+            .unwrap()
+        };
+        let mut releases = [
+            release(4, "v4.0-beta", true, "game-linux-x64.zip"),
+            release(3, "v3.0", false, "game-windows-x64.zip"),
+            release(2, "v2.0", false, "game-linux-x64.zip"),
+        ];
+        assert_eq!(
+            scope
+                .select(&releases, ReleaseChannel::Stable, None, |_| true)
+                .unwrap()
+                .id,
+            Some(2)
+        );
+        assert_eq!(
+            scope
+                .select(&releases, ReleaseChannel::Beta, None, |_| true)
+                .unwrap()
+                .id,
+            Some(4)
+        );
+        // A partial signed release may not displace the normal default.
+        assert_eq!(
+            scope
+                .select(&releases, ReleaseChannel::Stable, None, |r| r.id != Some(2))
+                .unwrap()
+                .id,
+            Some(3)
+        );
+        // GitHub can omit inline assets. Keep ordinary browsing and let the
+        // selected release's own asset request apply the exact file gate.
+        releases[2].assets.clear();
+        assert_eq!(
+            scope
+                .select(&releases, ReleaseChannel::Stable, None, |_| true)
+                .unwrap()
+                .id,
+            Some(3)
+        );
+    }
+
     #[tokio::test]
     async fn incomplete_or_failed_channel_observation_never_becomes_preview_fallback() {
         for failure in ["rate", "network", "bound"] {
@@ -802,7 +937,7 @@ mod tests {
                 None,
                 ReleaseChannel::Stable,
                 None,
-                &[],
+                GithubCatalogDownloadScope::default(),
                 35,
             )
             .await
@@ -832,7 +967,7 @@ mod tests {
                 None,
                 ReleaseChannel::Stable,
                 None,
-                &[],
+                GithubCatalogDownloadScope::default(),
                 110,
             )
             .await
