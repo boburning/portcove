@@ -3669,6 +3669,131 @@ void test("Xbox 360 mod sources require exact title IDs and keep descriptive sco
   assert.equal(launcherModGameScopes(changed, listings).has(recipient.id), false);
 });
 
+void test("reciprocal provider proof adds only a descriptive portal and respects authority and withdrawal", async () => {
+  const { observationHash } = await import("./upstream-observer.mts");
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { firstPartyListingModDefaults } = await import("./listing-mod-portal-projection.mts");
+  const { reciprocalModSubjects, recordReciprocalModAttempt } =
+    await import("./reciprocal-mod-progress.mts");
+  const { catalogObservationSources } = await import("./catalog-upstream-observer.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const now = Date.parse("2026-11-10T01:00:00Z");
+  const catalog = { ports: [] };
+  const canonical = { format_version: 16, listings: [fixtureListing] };
+  const { sources } = catalogObservationSources({ ...catalog, listings: canonical.listings });
+  const ids = { [requiredFixture(sources[0]).key]: { repository_id: 42 } };
+  const communities = [
+    {
+      community: "fixture-community",
+      game_uuid: "12345678-9abc-4def-8123-123456789abc",
+      listed: true,
+      gamebanana_game: null,
+      github_document: { repository: "owner/game", path: null, ref: null },
+    },
+  ];
+  const registry = {
+    last_complete: {
+      format: 1 as const,
+      source:
+        "https://thunderstore.io/api/experimental/schema/ecosystem-json-data/latest/" as const,
+      schema: "0.3.0" as const,
+      observed_at: new Date(now).toISOString(),
+      expires_at: new Date(now + 6 * 3600_000).toISOString(),
+      response_sha256: "a".repeat(64),
+      communities_sha256: observationHash(communities),
+      communities,
+    },
+    next_due_at: new Date(now + 3600_000).toISOString(),
+    exception: null,
+  };
+  const subject = requiredFixture(reciprocalModSubjects(sources, ids, registry)[0]);
+  const record = recordReciprocalModAttempt(
+    subject,
+    {
+      state: "observed",
+      repository_id: 42,
+      commit: "b".repeat(40),
+      path: "README.md",
+      blob: "c".repeat(40),
+      sha256: "d".repeat(64),
+      community: subject.community,
+    },
+    undefined,
+    now,
+    168,
+  );
+  const current = {
+    sources: ids,
+    mod_provider_registry: registry,
+    reciprocal_mod_sources: { [fixtureListing.id]: record },
+  };
+  const projected = (
+    state: unknown,
+    previous: Buffer | null = null,
+    excluded = new Set<string>(),
+  ) =>
+    projectListingDelivery(canonical, [fixturePolicy().listing_update], previous, {
+      now,
+      firstPartyModDefaults: firstPartyListingModDefaults(
+        catalog,
+        canonical.listings,
+        state,
+        excluded,
+        now,
+      ),
+    });
+  const listingFrom = ({ bytes }: { bytes: Buffer }) =>
+    requiredFixture(
+      fixtureRecords(
+        fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings,
+      )[0],
+    );
+  const positive = projected(current);
+  const portals = [
+    {
+      id: "obs-gh-thunderstore-42",
+      site: "community_site",
+      url: "https://thunderstore.io/c/fixture-community/",
+      name: "Thunderstore",
+      instructions: "The upstream project links to this Thunderstore community.",
+    },
+  ];
+  assert.deepEqual(listingFrom(positive).mod_portals, portals);
+  const withoutMods = { ...listingFrom(positive) };
+  delete withoutMods.mod_portals;
+  assert.deepEqual(withoutMods, listingFrom(projected(undefined)));
+  assert.deepEqual(listingFrom(projected(undefined, positive.bytes)).mod_portals, portals);
+  assert.equal(
+    listingFrom(projected(current, positive.bytes, new Set([fixtureListing.id]))).mod_portals,
+    undefined,
+  );
+
+  const outage = {
+    ...current,
+    reciprocal_mod_sources: {
+      [fixtureListing.id]: recordReciprocalModAttempt(
+        subject,
+        { state: "unavailable", reason: "provider-outage" },
+        record,
+        now,
+        6,
+      ),
+    },
+  };
+  assert.equal(listingFrom(projected(outage)).mod_portals, undefined);
+  assert.deepEqual(listingFrom(projected(outage, positive.bytes)).mod_portals, portals);
+  const invalid = structuredClone(current);
+  invalid.reciprocal_mod_sources[fixtureListing.id]!.last_success!.proof.repository_id = 43;
+  assert.equal(listingFrom(projected(invalid, positive.bytes)).mod_portals, undefined);
+  const withdrawn = structuredClone(current);
+  withdrawn.mod_provider_registry.last_complete.communities[0]!.listed = false;
+  withdrawn.mod_provider_registry.last_complete.communities_sha256 = observationHash(
+    withdrawn.mod_provider_registry.last_complete.communities,
+  );
+  assert.equal(listingFrom(projected(withdrawn, positive.bytes)).mod_portals, undefined);
+});
+
 void test("signed listing projection accepts only bound first-party websites and handles correction and withdrawal", async () => {
   const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
   const { firstPartyListingModDefaults } = await import("./listing-mod-portal-projection.mts");

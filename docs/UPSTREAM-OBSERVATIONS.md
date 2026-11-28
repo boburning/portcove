@@ -1825,6 +1825,29 @@ can keep that website under the same admitted repository ID. A conflicting game
 or repository observation or confirmed withdrawal suppresses the link.
 Maintainer-selected websites use separate authored IDs and take precedence.
 
+### Reciprocal Thunderstore project links
+
+The same observer can verify a community when the listed Thunderstore registry
+points to the README or a Markdown document on the accepted GitHub project
+and that document links back to the exact community landing page. The observer
+requires one listing for the verified numeric repository identity. It reads
+the current public project, pins the default commit, and checks the
+document's blob digest before recording the association. A missing reciprocal
+link or several claims for one project leaves the source unresolved.
+
+The observer reserves at most 12 GitHub requests per hosted opportunity for
+these proofs and spends at most three requests per subject. It retains the
+observed time during transient failures and rechecks due results. The binding
+includes the port, repository, document and provider community identities. A
+change to those inputs requires another proof. A withdrawal or known identity
+conflict suppresses the association.
+
+The signed publisher can add the verified link as an ordinary descriptive
+website. Maintained exclusions, websites and operational bindings take
+precedence. A failed refresh can retain the same authenticated prior link.
+This evidence supports opening the source or browsing its catalog. Package and
+profile actions still require the existing operational contracts.
+
 ## Scheduled catalog media health
 
 Within the existing scheduled artwork-health opportunity, retained IGDB

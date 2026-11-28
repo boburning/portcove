@@ -69,6 +69,7 @@ import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import {
   firstPartyListingModDefaults,
   listingModPortalDefaults,
+  isReciprocalModPortal,
   withoutGeneratedModPortals,
   withoutLauncherAdmissionSeeds,
 } from "./listing-mod-portal-projection.mts";
@@ -557,7 +558,11 @@ export function projectListingDelivery(
         updated++;
       const generated = format >= 16 ? (firstPartyModDefaults?.(listing, old) ?? []) : [];
       const portal = format >= 16 ? modPortalDefaults?.(listing, old) : undefined;
-      if (portal && !generated.some(({ name }) => name === portal.name)) generated.push(portal);
+      if (portal) {
+        const reciprocal = generated.findIndex(isReciprocalModPortal);
+        if (reciprocal >= 0) generated[reciprocal] = portal;
+        else if (!generated.some(({ name }) => name === portal.name)) generated.push(portal);
+      }
       if (generated.length) {
         const modPortals: unknown[] = Array.isArray(result.mod_portals)
           ? [...(result.mod_portals as unknown[])]
