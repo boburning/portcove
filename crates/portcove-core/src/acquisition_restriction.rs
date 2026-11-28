@@ -556,6 +556,16 @@ impl EffectiveRestrictions {
             .flat_map(|restriction| &restriction.scope.artifacts)
     }
 
+    /// The normal repository default can be a different game when this listing
+    /// holds all downloads except later reviewed files.
+    pub(crate) fn prefers_reviewed_listing_downloads(&self) -> bool {
+        self.listing.iter().any(|rule| {
+            rule.effect == RestrictionEffect::Hold
+                && rule.operations.contains(&RestrictedOperation::Download)
+                && rule.scope.is_whole()
+        }) && self.has_scoped_permit(RestrictedOperation::Download)
+    }
+
     /// Whether some permit for this operation names exact releases or artifacts.
     pub(crate) fn has_scoped_permit(&self, operation: RestrictedOperation) -> bool {
         self.managed.iter().chain(&self.listing).any(|restriction| {

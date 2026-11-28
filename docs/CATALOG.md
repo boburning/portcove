@@ -1195,7 +1195,12 @@ and reconsideration condition. Core refuses download options, preview and
 mutation before contacting the provider, except for an asset a scoped permit
 names, which is checked again on its downloaded bytes. This restriction grants no
 permission to acquire, register or execute an existing copy and does not rewrite
-its retained contract. Keep useful existing permitted-copy instructions and
+its retained contract. If multiple games share a GitHub release feed, a listing
+with a whole download hold and reviewed permits can initially select a release
+whose published tag, file name and digest satisfy an existing permit. It also
+skips releases whose exact tag is already held for download. Core keeps
+explicit release selections and checks the selected file independently
+at preview and download. Keep useful existing permitted-copy instructions and
 upstream links. Remove a restriction only after reviewing the changed fact.
 Preparation refuses replacement records that remove or change an existing
 restriction; resolve its canonical condition in a reviewed Git-authored edit.

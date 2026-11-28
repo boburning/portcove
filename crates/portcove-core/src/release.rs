@@ -33,8 +33,8 @@ mod forbidden_memories_qualification;
 mod managed_variant;
 mod observation;
 mod uploader_continuity;
-pub(crate) use catalog_download::CatalogGithubRepository;
 pub(crate) use catalog_download::repository_from_url as catalog_download_repository;
+pub(crate) use catalog_download::{CatalogGithubRepository, GithubCatalogDownloadScope};
 pub(crate) use exact::ExactReleaseRefusal;
 pub use exact::{
     ExactReleaseHold, ExactReleaseHoldReason, ExactReleaseIdentity, ExactReleaseSelection,
