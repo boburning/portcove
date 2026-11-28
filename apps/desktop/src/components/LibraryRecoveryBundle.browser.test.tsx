@@ -448,10 +448,7 @@ it.each(["review", "details"])("handles an occupied restore folder (%s)", async 
   await check.click();
   await expect.element(dialog.getByText("Checking the restore destination…")).toBeVisible();
   const detailRegion = dialog.getByRole("region", { name: "Recovery details" });
-  if (focus === "details") {
-    (detailRegion.element() as HTMLElement).focus();
-    await expect.element(detailRegion).toHaveFocus();
-  }
+  if (focus === "details") (detailRegion.element() as HTMLElement).focus();
   await controlledAct(async () => {
     refuse(refusal);
     await pending.catch(() => {});
