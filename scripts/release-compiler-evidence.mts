@@ -142,7 +142,7 @@ export function inspectReleaseCompilerReport(
     throw new Error("compiler invocation is outside the exact producer job lifetime");
   if (
     !isRecord(raw.rust_toolchain) ||
-    raw.rust_toolchain.channel !== "1.99.1" ||
+    raw.rust_toolchain.channel !== "1.100.1" ||
     !isRecord(raw.node) ||
     raw.node.version !== `v${controllerNodeVersion}` ||
     !isRecord(raw.tauri) ||
@@ -161,9 +161,9 @@ export function inspectReleaseCompilerReport(
     typeof raw.rust_toolchain.rustc !== "string" ||
     !nativePath.isAbsolute(raw.rust_toolchain.rustc) ||
     typeof raw.rust_toolchain.cargo_version !== "string" ||
-    !raw.rust_toolchain.cargo_version.startsWith("cargo 1.99.1 ") ||
+    !raw.rust_toolchain.cargo_version.startsWith("cargo 1.100.1 ") ||
     typeof raw.rust_toolchain.rustc_version !== "string" ||
-    !raw.rust_toolchain.rustc_version.startsWith("rustc 1.99.1 ") ||
+    !raw.rust_toolchain.rustc_version.startsWith("rustc 1.100.1 ") ||
     !Array.isArray(invocation.args)
   )
     throw new Error("compiler actual Rust executable/version probe unavailable");
