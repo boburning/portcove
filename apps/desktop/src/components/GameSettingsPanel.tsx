@@ -129,10 +129,7 @@ function SettingsFileDraft({
   readRevision: number;
   reportDraft: ReportSettingsDraft | undefined;
 }) {
-  const [draft, setDraft] = useState<Draft>();
   const [selected, setSelected] = useState<{ identity: string; edits: GameSettingsEdit[] }>();
-  const [error, setError] = useState<InvalidField>();
-  const form = useRef<HTMLFormElement>(null);
   const [savedAtRead, setSavedAtRead] = useState<number>();
   // A refusal Core reports as not started keeps its own explanation; an
   // unconfirmed save keeps the generic readback guidance.
@@ -140,49 +137,27 @@ function SettingsFileDraft({
   const activeFailure = failed?.read === readRevision ? failed : undefined;
   const needsRead = activeFailure !== undefined;
   const reviewButton = useRef<HTMLButtonElement>(null);
-  const held = draft !== undefined && draft.identity !== identity;
+  const { form, held, values, error, edit, discard, validate } = useSettingsFileDraft(identity);
   const available = file.available && Boolean(file.configuration_sha256);
   const activeReview = selected?.identity === identity && available ? selected : undefined;
   if (selected && selected.identity !== identity) setSelected(undefined);
-  const values = draft?.values;
   const count = values?.size ?? 0;
   const formId = useId();
   const fieldsDisabled = disabled || held || needsRead;
   const canReview = available && !fieldsDisabled && count > 0 && count <= MAX_CHANGES_PER_REVIEW;
-  useLayoutEffect(() => {
-    if (!error) return;
-    // The focused field must already expose its rendered error to assistive technology.
-    const element = form.current?.elements.namedItem(error.id);
-    if (element instanceof HTMLElement) element.focus();
-  }, [error]);
   useEffect(() => {
     if (!count || !reportDraft) return;
     reportDraft(formId, { formId, path: file.path, count, canReview });
     return () => reportDraft(formId);
   }, [canReview, count, file.path, formId, reportDraft]);
   const update = (id: string, value?: DraftValue) => {
-    setError(undefined);
     setSavedAtRead(undefined);
-    setDraft((previous) => {
-      const next = new Map(previous?.values);
-      if (value) next.set(id, value);
-      else next.delete(id);
-      return next.size ? { identity, values: next } : undefined;
-    });
-  };
-  const discard = () => {
-    setDraft(undefined);
-    setError(undefined);
+    edit(id, value);
   };
   const submit = () => {
     if (!canReview) return;
-    const result = parseSettingsEdits(file.settings, values);
-    if ("error" in result) {
-      setError(result.error);
-      return;
-    }
-    setError(undefined);
-    setSelected({ identity, edits: result.edits });
+    const edits = validate(file.settings);
+    if (edits) setSelected({ identity, edits });
   };
   return (
     <form
@@ -230,7 +205,7 @@ function SettingsFileDraft({
           edits={activeReview.edits}
           actions={actions}
           changed={(next) => {
-            setDraft(undefined);
+            discard();
             setSavedAtRead(readRevision);
             changed(next);
           }}
@@ -242,7 +217,7 @@ function SettingsFileDraft({
               committed,
               ...(state === "not_started" ? { refusal: errorText(failure) } : {}),
             });
-            if (committed) setDraft(undefined);
+            if (committed) discard();
           }}
           disabled={disabled || needsRead}
           close={() => setSelected(undefined)}
@@ -252,6 +227,47 @@ function SettingsFileDraft({
       )}
     </form>
   );
+}
+
+/** Own the editable values and local validation for one exact file. */
+function useSettingsFileDraft(identity: string) {
+  const [draft, setDraft] = useState<Draft>();
+  const [error, setError] = useState<InvalidField>();
+  const form = useRef<HTMLFormElement>(null);
+  useLayoutEffect(() => {
+    if (!error) return;
+    // The focused field must already expose its rendered error to assistive technology.
+    const element = form.current?.elements.namedItem(error.id);
+    if (element instanceof HTMLElement) element.focus();
+  }, [error]);
+
+  function edit(id: string, value?: DraftValue) {
+    setError(undefined);
+    setDraft((previous) => {
+      const next = new Map(previous?.values);
+      if (value) next.set(id, value);
+      else next.delete(id);
+      return next.size ? { identity, values: next } : undefined;
+    });
+  }
+
+  function discard() {
+    setDraft(undefined);
+    setError(undefined);
+  }
+
+  function validate(settings: readonly GameSettingView[]) {
+    const result = parseSettingsEdits(settings, draft?.values);
+    if ("error" in result) {
+      setError(result.error);
+      return;
+    }
+    setError(undefined);
+    return result.edits;
+  }
+
+  const held = draft !== undefined && draft.identity !== identity;
+  return { form, values: draft?.values, error, held, edit, discard, validate };
 }
 
 function SettingsFileStatus({
