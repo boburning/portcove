@@ -790,7 +790,8 @@ jobs:
         timeout-minutes: 5
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        if: needs.combine.result == 'success'
+        if: needs.combine.result == 'success' || needs.combine.result == 'failure'
+        continue-on-error: ${{ needs.combine.result == 'failure' }}
         timeout-minutes: 5
         with:
           name: listing-facts-batch-combined-${{ github.run_id }}
@@ -962,7 +963,7 @@ jobs:
           shard_count=$(node -e 'try{console.log(JSON.parse(process.argv[1]||"[]").length)}catch{console.log(0)}' "$SHARDS")
           node scripts/listing-facts-batch.mts assess "${report[@]}" "${delta[@]}" "${capacity[@]}" "${recheck[@]}" \
             --history "$WORK/history.json" --run-id "$GITHUB_RUN_ID" --versions "$versions" \
-            --base HEAD~1 --read-rule-version-review true --prior-worker-state "$PRIOR_WORKER_STATE" \
+            --base "$GITHUB_SHA" --read-rule-version-review true --prior-worker-state "$PRIOR_WORKER_STATE" \
             --reviewable-rule-batch "$REVIEWABLE" --deadline-minutes 2 \
             --gate "$GATE" --paths "$PATHS" --reproduction "$VERIFY" --refusals "$WORK/refusals" \
             --shard-count "$shard_count" --output "$WORK/conditions.json" > /dev/null
@@ -970,6 +971,7 @@ jobs:
       # shard passed, no stop condition holds and the change is material.
       - name: Decide whether this batch can be proposed
         id: ready
+        if: needs.combine.result == 'success'
         timeout-minutes: 2
         env:
           PATHS: ${{ steps.effective.outputs.paths }}
@@ -1042,7 +1044,7 @@ jobs:
       - name: Persist the worker state and run history of a run with nothing to propose
         # A refused batch saves nothing either: the next run derives it again.
         if: >-
-          ${{ env.DRY_RUN != 'true' &&
+          ${{ needs.combine.result == 'success' && env.DRY_RUN != 'true' &&
           hashFiles('work/listing-facts-batch/state.json') != '' &&
           steps.ready.outputs.ready != 'true' && steps.assess.outputs.stop == 'false' &&
           steps.assess.outputs.transient != 'true' &&

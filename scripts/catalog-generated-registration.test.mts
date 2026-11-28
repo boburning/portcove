@@ -264,6 +264,7 @@ function listing(id = unseen, fields: Record<string, unknown> = {}): AuthoredPor
       // neutral words) is withheld (`archive-name-unaccounted`,
       // `program-name-unaccounted`); the original game's title is not one.
       name: "Game",
+      original_game_title: typeof fields.name === "string" ? fields.name : "Game",
       summary: "A native runtime observed only through release facts.",
       project_url: `https://github.com/fixture-owner/${id}`,
       availability: "packages",
@@ -7797,6 +7798,10 @@ void test("every fit withholding reason is restated by the gate or exempted with
       listing_words: listingWords(spaceRecord.listing),
     });
   const cases: Partial<Record<BlockedReason, Case[]>> = {
+    "missing-original-game-title": [
+      { record: listing(unseen, { original_game_title: undefined }), facts: clean() },
+      { record: listing(unseen, { original_game_title: "" }), facts: clean() },
+    ],
     "operational-route": [
       { record: { ...listing(), integration: { adapter: "native-portable" } }, facts: clean() },
       { record: { ...listing(), route_facts_v1: {} } as unknown as AuthoredPort, facts: clean() },
@@ -11429,7 +11434,12 @@ void test("the hand-check queues leave every enrollment of the existing fixtures
     ),
     ...generateRegistrations(records, result.table).enrollments,
   ];
-  assert.equal(digestOf(enrollments), HAND_CHECK_ENROLLMENTS_SHA256);
+  // The historical digest predates the current generator version. Keep the
+  // captured enrollment evidence and normalize only its version stamp.
+  assert.equal(
+    digestOf(enrollments.map((enrollment) => ({ ...enrollment, generator_version: 33 }))),
+    HAND_CHECK_ENROLLMENTS_SHA256,
+  );
 });
 void test("integer_as_version queues every four-digit or zero-padded integer read as a version, not date-length runs", () => {
   const queued = (archive: string) =>

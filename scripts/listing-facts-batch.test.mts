@@ -4155,12 +4155,22 @@ void test("the decide job withholds refused identities and re-checks the batch b
           if?: string;
           run?: string;
           env?: Record<string, string>;
-          "continue-on-error"?: boolean;
+          "continue-on-error"?: boolean | string;
+          with?: { name?: string; key?: string };
         }[];
       }
     >;
   };
   const steps = workflow.jobs.decide!.steps;
+  const evidence = steps.find((step) =>
+    step.with?.name?.startsWith("listing-facts-batch-combined-"),
+  );
+  assert.ok(evidence);
+  assert.match(
+    evidence.if!,
+    /needs\.combine\.result == 'success' \|\| needs\.combine\.result == 'failure'/u,
+  );
+  assert.match(String(evidence["continue-on-error"]), /needs\.combine\.result == 'failure'/u);
   const index = (id: string) => steps.findIndex((step) => step.id === id);
   const withhold = steps[index("withhold")]!;
   assert.match(withhold.run!, /listing-facts-batch\.mts withhold --base HEAD~1 --refusals/u);
@@ -4207,7 +4217,7 @@ void test("the decide job withholds refused identities and re-checks the batch b
     /listing-facts-batch\.mts versions --cli "\$WORK\/cli\/portcove" > "\$WORK\/plan\/versions\.txt"/u,
   );
   assert.match(assess.run!, /cat "\$WORK\/plan-artifact\/plan\/versions\.txt"/u);
-  assert.match(assess.run!, /--read-rule-version-review true/u);
+  assert.match(assess.run!, /--base "\$GITHUB_SHA" --read-rule-version-review true/u);
   assert.match(assess.run!, /--prior-worker-state "\$PRIOR_WORKER_STATE"/u);
   assert.match(assess.env!.PRIOR_WORKER_STATE!, /needs\.prepare\.outputs\.prior_worker_state/u);
   assert.match(assess.run!, /--reviewable-rule-batch "\$REVIEWABLE"/u);
@@ -4218,6 +4228,15 @@ void test("the decide job withholds refused identities and re-checks the batch b
   assert.match(assess.env!.PATHS!, /steps\.effective\.outputs\.paths/u);
   assert.match(assess.env!.GATE!, /steps\.effective\.outputs\.gate/u);
   const ready = steps[index("ready")]!;
+  // A late combine failure can leave every reported gate green and both the
+  // candidate patch and checkpoint intact. Neither output may advance it.
+  assert.equal(ready.if, "needs.combine.result == 'success'");
+  const save = steps.find(
+    (step) =>
+      step.with?.key?.startsWith("listing-facts-batch-v2-") &&
+      step.if?.includes("steps.effective.outputs.material == 'false'"),
+  );
+  assert.match(save?.if ?? "", /needs\.combine\.result == 'success'/u);
   assert.equal(ready.env!.MATERIAL, "${{ steps.effective.outputs.material }}");
   assert.match(ready.env!.REPRODUCE!, /steps\.withhold\.outcome == 'failure' && 'failure'/u);
 });
