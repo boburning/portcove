@@ -343,7 +343,9 @@ export async function continueCatalogBatches<
     if (
       allowance > 0 &&
       result.report.provider_capacity &&
-      (result.report.provider_capacity.availability !== "unknown" || providerCapacity === undefined)
+      (result.report.provider_capacity.availability !== "unknown" ||
+        result.report.requests > 0 ||
+        providerCapacity === undefined)
     )
       providerCapacity = result.report.provider_capacity;
     if (result.report.unknown_response_size_requests !== undefined)

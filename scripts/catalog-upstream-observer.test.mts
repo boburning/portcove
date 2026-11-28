@@ -3883,6 +3883,37 @@ void test("hosted opportunity leaves one zero-request turn for retained policy",
   assert.deepEqual(result.report.completed_source_keys, ["provider", "retained"]);
 });
 
+void test("a later provider batch with unreported capacity supersedes the earlier sample", async () => {
+  const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
+  const limits: number[] = [];
+  const result = await continueCatalogBatches(
+    async (_, allowance) => {
+      limits.push(allowance);
+      return {
+        report: {
+          pending_source_keys: ["still-due"],
+          attempted_source_keys: [],
+          completed_source_keys: [],
+          requests: Math.min(5, allowance),
+          response_bytes_charged: 0,
+          failures: [],
+          provider_capacity:
+            allowance === 10
+              ? { availability: "observed", remaining: 35 }
+              : { availability: "unknown" },
+        },
+        made_progress: true,
+        handoff_exhausted: false,
+        notify_exception: false,
+      };
+    },
+    { deadline: 100, now: () => 0, maxRequests: 10, finishOffline: true },
+  );
+  assert.deepEqual(limits, [10, 5, 0]);
+  assert.equal(result.report.requests, 10);
+  assert.deepEqual(result.report.provider_capacity, { availability: "unknown" });
+});
+
 void test("opportunity refuses unknown capacity and stops on no accepted progress, byte exhaustion, deadline and cancellation", async () => {
   const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
   const batch = {
