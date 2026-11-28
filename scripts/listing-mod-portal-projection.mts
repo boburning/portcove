@@ -426,7 +426,10 @@ export function firstPartyListingModDefaults(
   const reciprocalProgress = state?.reciprocal_mod_sources;
   if (reciprocalProgress !== undefined) validateReciprocalModProgress(reciprocalProgress, now);
   const reciprocalSubjects = new Map(
-    reciprocalModSubjects(sources, ids, registryProgress).map((entry) => [entry.port_id, entry]),
+    reciprocalModSubjects(sources, ids, registryProgress).subjects.map((entry) => [
+      entry.port_id,
+      entry,
+    ]),
   );
   return (listing: Record<string, unknown>, previous: Record<string, unknown> | undefined) => {
     const generated = direct(listing, previous);

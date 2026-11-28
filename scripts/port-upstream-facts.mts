@@ -1,6 +1,7 @@
 import { mkdirSync, lstatSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
+import { documentText } from "./check-document-links.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
@@ -361,6 +362,8 @@ export async function observeReciprocalThunderstoreDocument(
 
   const route = document.path ? `contents/${document.path}` : "readme";
   const file = await read(`${location}/${route}?ref=${commit}`, 24);
+  if (file.status === "unavailable" && file.reason === "provider-not-found")
+    return { state: "held", reason: "project-document-removed" };
   if (file.status === "unavailable")
     return {
       state: "unavailable",
@@ -375,25 +378,31 @@ export async function observeReciprocalThunderstoreDocument(
     typeof blob !== "string" ||
     !/^[a-f0-9]{40}$/u.test(blob)
   )
-    return { state: "held", reason: "project-document-unverified" } as const;
+    return { state: "unavailable", reason: "project-document-unverified" } as const;
   const bytes = boundedEvidenceBody(file.body, path, blob);
-  if (!bytes) return { state: "held", reason: "project-document-unverified" } as const;
+  if (!bytes) return { state: "unavailable", reason: "project-document-unverified" } as const;
   let text: string;
   try {
     text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch {
-    return { state: "held", reason: "project-document-unverified" } as const;
+    return { state: "unavailable", reason: "project-document-unverified" } as const;
   }
   // Require one exact community landing page. A document naming several
   // communities cannot establish the target scope.
-  const links = new Set(
-    Array.from(
-      text.matchAll(
-        /(?:^|[\s(<])https:\/\/thunderstore\.io\/c\/([a-z0-9]+(?:[-_][a-z0-9]+)*)\/?(?=[\s)>]|$)/gu,
-      ),
-      (match) => match[1],
-    ),
+  const prose = documentText(
+    text
+      .replace(/<!--[\s\S]*?(?:-->|$)/gu, "\n")
+      .replace(/<(pre|code|script|style|blockquote)(?:\s[^>]*)?>[\s\S]*?(?:<\/\1\s*>|$)/giu, "\n"),
   );
+  const links = new Set<string>();
+  for (const line of prose.split("\n")) {
+    if (/^(?: {4}|\t)|[<>`]/u.test(line)) continue;
+    for (const match of line.matchAll(
+      /(?<![!\\])\[[^[\]\n]+\]\(https:\/\/thunderstore\.io\/c\/([a-z0-9]+(?:[-_][a-z0-9]+)*)\/?\)/gu,
+    )) {
+      if (match[1]) links.add(match[1]);
+    }
+  }
   if (links.size !== 1 || !links.has(community))
     return { state: "held", reason: "community-link-unresolved" } as const;
   return {

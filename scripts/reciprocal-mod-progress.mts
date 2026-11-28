@@ -39,7 +39,8 @@ export function reciprocalModSubjects(
   identities: Readonly<Record<string, { repository_id: number | null }>>,
   registry: ModProviderRegistryProgress | undefined,
 ) {
-  if (!registry?.last_complete || registry.identity_conflicts === "unknown") return [];
+  if (!registry?.last_complete || registry.identity_conflicts === "unknown")
+    return { subjects: [], ambiguous: 0 };
   const conflicts = new Set(registry.identity_conflicts);
   const bySlug = new Map<string, ReciprocalModSubject[]>();
   const planned = launcherModSubjects(sources, identities);
@@ -72,7 +73,11 @@ export function reciprocalModSubjects(
   }
   // If several communities claim the same project, hold the association until
   // one exact implementation scope can be established.
-  return [...bySlug.values()].flatMap((entries) => (entries.length === 1 ? entries : []));
+  const candidates = [...bySlug.values()];
+  return {
+    subjects: candidates.flatMap((entries) => (entries.length === 1 ? entries : [])),
+    ambiguous: candidates.filter((entries) => entries.length > 1).length,
+  };
 }
 
 export function validateReciprocalModProgress(

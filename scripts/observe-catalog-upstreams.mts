@@ -322,7 +322,10 @@ export async function runCatalogUpstreams(
         if (error.code === "rate_limited") throw observerGitHubRateLimit(error, now());
         if (error.code === "cancelled")
           throw new ObservationFailure("cancelled", "First-party mod metadata read cancelled");
-        return { status: "unavailable", reason: "provider-transport" } as const;
+        return {
+          status: "unavailable",
+          reason: error.status === 404 ? "provider-not-found" : "provider-transport",
+        } as const;
       }
     };
   let stepLogCredential: ReturnType<typeof localDeveloperCredential> | undefined;

@@ -82,7 +82,7 @@ void test("binds a reciprocal link to the exact public repository, commit and do
   const link = "[Official mods](https://thunderstore.io/c/some-port/)";
   const readDocument = (
     text: string,
-    options: { name?: string; badDigest?: boolean; failure?: boolean } = {},
+    options: { name?: string; badDigest?: boolean; failure?: string } = {},
   ) => {
     const requests: string[] = [];
     const read = async (endpoint: string) => {
@@ -95,7 +95,7 @@ void test("binds a reciprocal link to the exact public repository, commit and do
       if (endpoint === `${root}/commits?per_page=1`)
         return { status: "observed", body: [{ sha: commit }] } as const;
       assert.equal(endpoint, `${root}/readme?ref=${commit}`);
-      if (options.failure) return { status: "unavailable", reason: "provider-quota" } as const;
+      if (options.failure) return { status: "unavailable", reason: options.failure } as const;
       const bytes = Buffer.from(text);
       const sha = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
       return {
@@ -135,8 +135,13 @@ void test("binds a reciprocal link to the exact public repository, commit and do
   for (const rejected of [
     readDocument(`${link}\n[Other game](https://thunderstore.io/c/different/)`),
     readDocument("https://example.org/?link=https://thunderstore.io/c/some-port/"),
+    readDocument(`<!-- ${link} -->`),
+    readDocument("```md\n" + link + "\n```"),
+    readDocument("`" + link + "`"),
+    readDocument(`> ${link}`),
+    readDocument(`<pre>\n${link}\n</pre>`),
+    readDocument("[See https://thunderstore.io/c/some-port/ ](https://example.org/)"),
     readDocument(link, { name: "SomeoneElse/Replacement" }),
-    readDocument(link, { badDigest: true }),
   ]) {
     const result = await observeReciprocalThunderstoreDocument(
       repository,
@@ -146,12 +151,22 @@ void test("binds a reciprocal link to the exact public repository, commit and do
     );
     assert.equal(result.state, "held");
   }
-  const failure = readDocument(link, { failure: true });
-  const result = await observeReciprocalThunderstoreDocument(
-    repository,
-    document,
-    "some-port",
-    failure.read,
+  for (const failure of [
+    readDocument(link, { failure: "provider-quota" }),
+    readDocument(link, { badDigest: true }),
+    readDocument(link + " ".repeat(65_536)),
+  ]) {
+    const result = await observeReciprocalThunderstoreDocument(
+      repository,
+      document,
+      "some-port",
+      failure.read,
+    );
+    assert.equal(result.state, "unavailable");
+  }
+  const deleted = readDocument(link, { failure: "provider-not-found" });
+  assert.deepEqual(
+    await observeReciprocalThunderstoreDocument(repository, document, "some-port", deleted.read),
+    { state: "held", reason: "project-document-removed" },
   );
-  assert.equal(result.state, "unavailable");
 });

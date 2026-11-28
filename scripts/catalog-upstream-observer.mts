@@ -1170,11 +1170,18 @@ export async function advanceCatalogObservations(
     }
   }
   let reciprocalModSummary:
-    | { enrolled: number; attempted: number; observed: number; deferred: number; requests: number }
+    | {
+        enrolled: number;
+        ambiguous: number;
+        attempted: number;
+        observed: number;
+        deferred: number;
+        requests: number;
+      }
     | undefined;
   if (options.observeReciprocalMods) {
     const registry = registryProgress ?? state.mod_provider_registry;
-    const subjects = reciprocalModSubjects(sources, state.sources, registry);
+    const { subjects, ambiguous } = reciprocalModSubjects(sources, state.sources, registry);
     const old = state.reciprocal_mod_sources ?? {};
     const progress: Record<string, ReciprocalModProgress> = Object.fromEntries(
       subjects.flatMap(({ port_id, binding }) =>
@@ -1193,6 +1200,7 @@ export async function advanceCatalogObservations(
       );
     reciprocalModSummary = {
       enrolled: subjects.length,
+      ambiguous,
       attempted: 0,
       observed: 0,
       deferred: due.length,

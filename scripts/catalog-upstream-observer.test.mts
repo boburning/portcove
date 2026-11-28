@@ -5735,6 +5735,7 @@ void test("reciprocal mod work continues from a bounded checkpoint without a gam
   const deferred = await advanceCatalogObservations(input, first.checkpoint, h.options);
   assert.deepEqual(deferred.report.reciprocal_mod_sources, {
     enrolled: 1,
+    ambiguous: 0,
     attempted: 0,
     observed: 0,
     deferred: 1,
@@ -5767,6 +5768,22 @@ void test("reciprocal mod work continues from a bounded checkpoint without a gam
   const withdrawn = await advanceCatalogObservations(input, unavailable.checkpoint, h.options);
   assert.equal(withdrawn.report.reciprocal_mod_sources?.enrolled, 0);
   assert.deepEqual(withdrawn.checkpoint.reciprocal_mod_sources, {});
+  assert.equal(calls, 2);
+
+  const ambiguousSnapshot = withdrawn.checkpoint.mod_provider_registry!.last_complete!;
+  const candidate = { ...ambiguousSnapshot.communities[0]!, listed: true };
+  ambiguousSnapshot.communities = [
+    candidate,
+    {
+      ...candidate,
+      community: "other-two",
+      game_uuid: "b6b98dfe-9207-4fbe-ba65-5f13e81dbe12",
+    },
+  ];
+  ambiguousSnapshot.communities_sha256 = observationHash(ambiguousSnapshot.communities);
+  const ambiguous = await advanceCatalogObservations(input, withdrawn.checkpoint, h.options);
+  assert.equal(ambiguous.report.reciprocal_mod_sources?.ambiguous, 1);
+  assert.equal(ambiguous.report.reciprocal_mod_sources?.enrolled, 0);
   assert.equal(calls, 2);
 });
 

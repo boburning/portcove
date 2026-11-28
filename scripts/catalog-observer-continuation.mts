@@ -242,6 +242,7 @@ export function catalogPositionAdvanced(
 interface BatchReport {
   reciprocal_mod_sources?: {
     enrolled: number;
+    ambiguous: number;
     attempted: number;
     observed: number;
     deferred: number;

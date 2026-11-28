@@ -1832,21 +1832,27 @@ points to the README or a Markdown document on the accepted GitHub project
 and that document links back to the exact community landing page. The observer
 requires one listing for the verified numeric repository identity. It reads
 the current public project, pins the default commit, and checks the
-document's blob digest before recording the association. A missing reciprocal
-link or several claims for one project leaves the source unresolved.
+document's blob digest before recording the association. The reciprocal link
+must be a normal Markdown link to the community landing page. Examples,
+comments and displayed text alone supply no proof. Several claims for one
+project leave the source unresolved and are reported as ambiguous.
 
 The observer reserves at most 12 GitHub requests per hosted opportunity for
 these proofs and spends at most three requests per subject. It retains the
 observed time during transient failures and rechecks due results. The binding
 includes the port, repository, document and provider community identities. A
-change to those inputs requires another proof. A withdrawal or known identity
-conflict suppresses the association.
+change to those inputs requires another proof. A verified document removal or
+a current document without the link withdraws the association. An incomplete
+or unverifiable read preserves its last successful proof.
 
 The signed publisher can add the verified link as an ordinary descriptive
 website. Maintained exclusions, websites and operational bindings take
 precedence. A failed refresh can retain the same authenticated prior link.
 This evidence supports opening the source or browsing its catalog. Package and
-profile actions still require the existing operational contracts.
+profile actions still require the existing operational contracts. Enable this
+projection after the released Windows and Linux readers include the
+coordinate-aware source preference behavior from #9330. That behavior keeps
+a hide scoped to the same community when the source ID changes.
 
 ## Scheduled catalog media health
 

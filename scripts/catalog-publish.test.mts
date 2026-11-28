@@ -3707,7 +3707,7 @@ void test("reciprocal provider proof adds only a descriptive portal and respects
     next_due_at: new Date(now + 3600_000).toISOString(),
     exception: null,
   };
-  const subject = requiredFixture(reciprocalModSubjects(sources, ids, registry)[0]);
+  const subject = requiredFixture(reciprocalModSubjects(sources, ids, registry).subjects[0]);
   const record = recordReciprocalModAttempt(
     subject,
     {
@@ -3783,6 +3783,19 @@ void test("reciprocal provider proof adds only a descriptive portal and respects
   };
   assert.equal(listingFrom(projected(outage)).mod_portals, undefined);
   assert.deepEqual(listingFrom(projected(outage, positive.bytes)).mod_portals, portals);
+  const deleted = {
+    ...current,
+    reciprocal_mod_sources: {
+      [fixtureListing.id]: recordReciprocalModAttempt(
+        subject,
+        { state: "held", reason: "project-document-removed" },
+        record,
+        now,
+        168,
+      ),
+    },
+  };
+  assert.equal(listingFrom(projected(deleted, positive.bytes)).mod_portals, undefined);
   const invalid = structuredClone(current);
   invalid.reciprocal_mod_sources[fixtureListing.id]!.last_success!.proof.repository_id = 43;
   assert.equal(listingFrom(projected(invalid, positive.bytes)).mod_portals, undefined);
