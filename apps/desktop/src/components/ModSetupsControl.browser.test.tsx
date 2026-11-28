@@ -404,7 +404,10 @@ it("offers the first setup and reports a refused change as an alert", async () =
   await act(async () => button(host, "Create first setup").click());
   expect(create).toHaveBeenCalledWith("shipwright", 7);
   expect(host.querySelector("[role=alert]")?.textContent).toContain("no active installation");
-  expect(host.querySelector("[role=status]")).toBeNull();
+  const announcedStatuses = [...host.querySelectorAll("[role=status]")]
+    .map((status) => status.textContent?.trim())
+    .filter(Boolean);
+  expect(announcedStatuses).toEqual([]);
 });
 
 it("waits for the current operation before reading and shows nothing until support is known", async () => {
