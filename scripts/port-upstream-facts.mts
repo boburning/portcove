@@ -296,6 +296,104 @@ type ScopeRead = (
   reuseCached?: boolean,
 ) => Promise<Pick<FactResult, "status" | "body" | "reason" | "retry_after">>;
 
+export async function observeReciprocalThunderstoreDocument(
+  repository: { slug: string; id: number },
+  document: { repository: string; path: string | null; ref: string | null },
+  community: string,
+  read: ScopeRead,
+) {
+  if (
+    !Number.isSafeInteger(repository.id) ||
+    repository.id <= 0 ||
+    repository.slug.toLowerCase() !== document.repository.toLowerCase() ||
+    !/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/u.test(community) ||
+    community.length > 128 ||
+    (document.path !== null &&
+      (document.path.length > 1024 ||
+        !/^(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*\.md$/iu.test(
+          document.path,
+        )))
+  )
+    return { state: "held", reason: "document-identity-unresolved" } as const;
+  const location = `repositories/${repository.id}`;
+  const project = await read(location, 0, false);
+  if (project.status === "unavailable")
+    return {
+      state: "unavailable",
+      reason: project.reason ?? "repository-unobserved",
+      retry_after: project.retry_after,
+    } as const;
+  if (
+    !isRecord(project.body) ||
+    project.body.id !== repository.id ||
+    project.body.private !== false ||
+    typeof project.body.full_name !== "string" ||
+    project.body.full_name.toLowerCase() !== repository.slug.toLowerCase() ||
+    (document.ref !== null && project.body.default_branch !== document.ref)
+  )
+    return { state: "held", reason: "document-identity-unresolved" } as const;
+
+  const head = await read(`${location}/commits?per_page=1`, 1, false);
+  if (head.status === "unavailable")
+    return {
+      state: "unavailable",
+      reason: head.reason ?? "default-commit-unobserved",
+      retry_after: head.retry_after,
+    } as const;
+  const branchCommit: unknown =
+    Array.isArray(head.body) && head.body.length === 1 ? head.body[0] : null;
+  const commit = isRecord(branchCommit) ? branchCommit.sha : undefined;
+  if (typeof commit !== "string" || !/^[a-f0-9]{40}$/u.test(commit))
+    return { state: "unavailable", reason: "default-commit-unresolved" } as const;
+
+  const route = document.path ? `contents/${document.path}` : "readme";
+  const file = await read(`${location}/${route}?ref=${commit}`, 24);
+  if (file.status === "unavailable")
+    return {
+      state: "unavailable",
+      reason: file.reason ?? "project-document-unobserved",
+      retry_after: file.retry_after,
+    } as const;
+  const path = isRecord(file.body) ? file.body.path : undefined;
+  const blob = isRecord(file.body) ? file.body.sha : undefined;
+  if (
+    typeof path !== "string" ||
+    (document.path ? path !== document.path : !/^README\.md$/iu.test(path)) ||
+    typeof blob !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(blob)
+  )
+    return { state: "held", reason: "project-document-unverified" } as const;
+  const bytes = boundedEvidenceBody(file.body, path, blob);
+  if (!bytes) return { state: "held", reason: "project-document-unverified" } as const;
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return { state: "held", reason: "project-document-unverified" } as const;
+  }
+  // Require one exact community landing page. A document naming several
+  // communities cannot establish the target scope.
+  const links = new Set(
+    Array.from(
+      text.matchAll(
+        /(?:^|[\s(<])https:\/\/thunderstore\.io\/c\/([a-z0-9]+(?:[-_][a-z0-9]+)*)\/?(?=[\s)>]|$)/gu,
+      ),
+      (match) => match[1],
+    ),
+  );
+  if (links.size !== 1 || !links.has(community))
+    return { state: "held", reason: "community-link-unresolved" } as const;
+  return {
+    state: "observed",
+    repository_id: repository.id,
+    commit,
+    path,
+    blob,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    community,
+  } as const;
+}
+
 async function observeDiscoveryScope(
   project: unknown,
   repositoryId: number,

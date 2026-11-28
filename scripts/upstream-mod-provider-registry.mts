@@ -25,6 +25,39 @@ interface Community {
   game_uuid: string;
   listed: boolean | null;
   gamebanana_game: number | null;
+  github_document?: GithubCommunityDocument;
+}
+
+export interface GithubCommunityDocument {
+  repository: string;
+  /** Null means the repository's default README. */
+  path: string | null;
+  /** Null means the repository's current default branch. */
+  ref: string | null;
+}
+
+const githubRepositorySegment = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
+const githubDocumentSegment = /^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/u;
+
+/** A registry wiki is a candidate document, not proof of a mod association. */
+function githubCommunityDocument(value: unknown): GithubCommunityDocument | undefined {
+  if (typeof value !== "string" || value.length > 1024) return;
+  const url = URL.parse(value);
+  if (!url || url.origin !== "https://github.com" || url.username || url.password) return;
+  const [owner, repo, route, ref, ...path] = url.pathname.slice(1).replace(/\/$/u, "").split("/");
+  const repository = `${owner}/${repo}`;
+  if (!repo || !githubRepositorySegment.test(repository)) return;
+  if (route === undefined) return { repository, path: null, ref: null };
+  if (
+    route !== "blob" ||
+    !ref ||
+    !githubDocumentSegment.test(ref) ||
+    !path.length ||
+    !path.every((part) => githubDocumentSegment.test(part)) ||
+    !path.at(-1)?.toLowerCase().endsWith(".md")
+  )
+    return;
+  return { repository, path: path.join("/"), ref };
 }
 
 interface RegistryFacts {
@@ -89,11 +122,13 @@ function projectCommunities(input: unknown): Community[] {
     )
       throw new Error("Invalid or ambiguous Thunderstore community evidence");
     identities.add(game.uuid);
+    const githubDocument = githubCommunityDocument(entry.wikiUrl);
     return {
       community: id,
       game_uuid: game.uuid,
       listed: entry.listed ?? null,
       gamebanana_game: exactGameBananaId(entry.wikiUrl),
+      ...(githubDocument ? { github_document: githubDocument } : {}),
     };
   });
 }
@@ -148,7 +183,9 @@ export function validateModProviderRegistryProgress(value: unknown, now: number)
       !(
         entry.gamebanana_game === null ||
         (Number.isSafeInteger(entry.gamebanana_game) && Number(entry.gamebanana_game) > 0)
-      )
+      ) ||
+      (entry.github_document !== undefined &&
+        !validStoredGithubCommunityDocument(entry.github_document))
     )
       throw new Error("Invalid retained mod provider community");
     previous = entry.community;
@@ -168,6 +205,26 @@ export function validateModProviderRegistryProgress(value: unknown, now: number)
     )
       throw new Error("Invalid retained mod provider identity conflicts");
   }
+}
+
+function validStoredGithubCommunityDocument(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).length !== 3 ||
+    typeof value.repository !== "string" ||
+    value.repository.length > 1024 ||
+    !githubRepositorySegment.test(value.repository)
+  )
+    return false;
+  if (value.path === null) return value.ref === null;
+  return (
+    typeof value.path === "string" &&
+    typeof value.ref === "string" &&
+    value.repository.length + value.path.length + value.ref.length <= 1024 &&
+    githubDocumentSegment.test(value.ref) &&
+    value.path.toLowerCase().endsWith(".md") &&
+    value.path.split("/").every((part) => githubDocumentSegment.test(part))
+  );
 }
 
 export async function observeModProviderRegistry(
