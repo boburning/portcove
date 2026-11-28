@@ -417,6 +417,14 @@ jobs:
             work/listing-facts-batch/history.json
           key: listing-facts-batch-v2-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: listing-facts-batch-v2-
+      - name: Restore independent archive inspection evidence
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 5
+        with:
+          path: work/listing-facts-batch/inspection-receipts/facts.json
+          key: listing-facts-inspections-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: listing-facts-inspections-v1-
       - name: Record this run's inputs
         id: inputs
         timeout-minutes: 2
@@ -436,6 +444,12 @@ jobs:
           fi
           if [ -f "$WORK/state.json" ]; then cp "$WORK/state.json" "$WORK/inputs/state-before.json"; else : > "$WORK/inputs/state-before.json"; fi
           if [ -f "$WORK/history.json" ]; then cp "$WORK/history.json" "$WORK/plan/history.json"; fi
+          if [ -s "$WORK/inspection-receipts/facts.json" ]; then
+            if ! node scripts/listing-package-facts.mts attach-inspections \
+              --table "$WORK/inspection-receipts/facts.json" --state "$WORK/inputs/state-before.json"; then
+              echo "::warning::Retained inspection evidence could not be read. Continue with normal inspection."
+            fi
+          fi
           node scripts/listing-facts-batch.mts inputs --observations "$WORK/inputs/observations.json" \
             --state "$WORK/inputs/state-before.json" --observer-run "$OBSERVER_RUN" \
             --source-commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --output "$WORK/inputs/inputs.json"
@@ -526,8 +540,15 @@ jobs:
           chmod +x "$WORK/cli/portcove"
           mkdir -p "$WORK/shard"
           deadline=$(date -u -d '+330 minutes' +%Y-%m-%dT%H:%M:%S.000Z)
-          node -e 'const fs=require("node:fs");const plan=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));fs.writeFileSync(process.argv[2],JSON.stringify(plan.state));' \
-            "$WORK/plan/plan.json" "$WORK/shard/state.json"
+          node --input-type=module - "$WORK/plan/plan.json" "$WORK/inputs/state-before.json" "$WORK/shard/state.json" <<'STATE'
+          import { readFileSync, writeFileSync } from "node:fs";
+          const [planFile, inputFile, stateFile] = process.argv.slice(2);
+          const { state } = JSON.parse(readFileSync(planFile, "utf8"));
+          const input = readFileSync(inputFile, "utf8").trim();
+          const receipts = input ? JSON.parse(input).inspection_receipts : undefined;
+          if (receipts) state.inspection_receipts = receipts;
+          writeFileSync(stateFile, JSON.stringify(state));
+          STATE
           node scripts/listing-package-facts.mts derive --observations "$WORK/inputs/observations.json" \
             --cli "$WORK/cli/portcove" --table "$WORK/plan/table.json" --state "$WORK/shard/state.json" \
             --now "$NOW" --only "$WORK/plan/only-$SHARD.json" --deadline "$deadline" \
@@ -549,7 +570,7 @@ jobs:
       !cancelled() && needs.prepare.result == 'success' &&
       (needs.inspect.result == 'success' || needs.inspect.result == 'skipped')
     runs-on: ubuntu-latest
-    timeout-minutes: 80
+    timeout-minutes: 82
     permissions:
       contents: read
       actions: read
@@ -592,14 +613,27 @@ jobs:
           pattern: listing-facts-batch-shard-${{ github.run_id }}-*
           path: ${{ env.WORK }}/shards
           merge-multiple: true
-      - name: Merge the shards and regenerate the catalog
-        id: generate
-        timeout-minutes: 10
+      - name: Merge the archive inspection shards
+        timeout-minutes: 5
         run: |
           set -euo pipefail
-          mkdir -p "$WORK/shards" "$WORK/out"
+          mkdir -p "$WORK/shards" "$WORK/out" "$WORK/inspection-receipts"
           node scripts/listing-package-facts.mts combine --plan "$WORK/plan/plan.json" --shards "$WORK/shards" \
+            --inspection-output "$WORK/inspection-receipts/facts.json" \
             --state "$WORK/out/state.json" --report "$WORK/out/worker-report.json" > /dev/null
+      - name: Retain completed inspections before generating any catalog change
+        if: ${{ env.DRY_RUN != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 2
+        with:
+          path: work/listing-facts-batch/inspection-receipts/facts.json
+          key: listing-facts-inspections-v1-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Regenerate the catalog from merged inspection facts
+        id: generate
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
           # One batch lands only what its pull-request CI can reproduce inside
           # one hour's reproduction share of the quota; the rest is carried,
           # longest wait first, with its receipts in the worker state.
@@ -1040,11 +1074,14 @@ jobs:
         timeout-minutes: 2
         run: |
           set -euo pipefail
-          if [ -s "$WORK/inputs/state-before.json" ]; then
-            cp "$WORK/inputs/state-before.json" "$WORK/state.json"
-          else
-            echo '{"format":3,"pending":[],"retry":[]}' > "$WORK/state.json"
-          fi
+          node --input-type=module - "$WORK/inputs/state-before.json" "$WORK/state.json" <<'STATE'
+          import { readFileSync, writeFileSync } from "node:fs";
+          const [inputFile, stateFile] = process.argv.slice(2);
+          const input = readFileSync(inputFile, "utf8").trim();
+          const state = input ? JSON.parse(input) : { format: 3, pending: [], retry: [] };
+          delete state.inspection_receipts;
+          writeFileSync(stateFile, JSON.stringify(state));
+          STATE
       - name: Persist the run history of a transient reproduction
         if: >-
           ${{ env.DRY_RUN != 'true' && steps.assess.outputs.transient == 'true' &&

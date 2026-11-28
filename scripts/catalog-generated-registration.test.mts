@@ -155,6 +155,7 @@ import {
   cliInspector,
   coreData,
   deriveListingFacts,
+  retainableInspectionTable,
   InspectionError,
   maximumNameBytes,
   OverBudgetError,
@@ -1787,6 +1788,89 @@ void test("the worker lands every fact in one run and reuses unchanged archives 
     enrollmentTable(generateRegistrations(records, first.table)),
     generateRegistrations(records, second.table),
   );
+});
+
+void test("recovered archive evidence requires an exact whole inventory and never advances worker state", async () => {
+  const exact = "zz-retained-exact";
+  const renamed = "zz-retained-renamed";
+  const otherRelease = "zz-retained-release";
+  const renamedRepository = "zz-retained-repository";
+  const refused = "zz-retained-refusal";
+  const expanded = "zz-retained-expanded";
+  const ids = [exact, renamed, otherRelease, renamedRepository, refused, expanded];
+  const records = ids.map((id) => listing(id));
+  const withRefusedArchive = {
+    releases: [
+      {
+        ...defaultRelease(refused),
+        assets: [...defaultRelease(refused).assets, { id: 23, name: linuxTar }],
+      },
+    ],
+  };
+  const initial = observerReport({
+    [exact]: {},
+    [renamed]: {},
+    [otherRelease]: {},
+    [renamedRepository]: {},
+    [refused]: withRefusedArchive,
+    [expanded]: {},
+  });
+  const prior = await derive(records, initial, undefined, {
+    async inspect(asset) {
+      if (asset.url.includes(refused) && asset.id === 23)
+        throw new InspectionError("Core refused the Linux archive", true);
+      return [player("Game/Game.exe")];
+    },
+  });
+  assert.equal(prior.table.entries.find((entry) => entry.port_id === exact)?.artifacts.length, 1);
+  assert.equal(
+    prior.table.entries.find((entry) => entry.port_id === refused)?.refused_archives?.length,
+    1,
+  );
+  const report = observerReport({
+    [exact]: {},
+    [renamed]: {
+      releases: [
+        {
+          ...defaultRelease(renamed),
+          assets: [{ ...defaultRelease(renamed).assets[0]!, name: "Game-v1.0.zip" }],
+        },
+      ],
+    },
+    [otherRelease]: { releases: [{ ...defaultRelease(otherRelease), id: 25 }] },
+    [renamedRepository]: { repository_id: 8080 },
+    [refused]: withRefusedArchive,
+    [expanded]: {
+      releases: [
+        {
+          ...defaultRelease(expanded),
+          assets: [...defaultRelease(expanded).assets, { id: 23, name: linuxTar }],
+        },
+      ],
+    },
+  });
+  const cached = retainableInspectionTable(prior.table, prior.report);
+  assert.ok(cached.entries.some((entry) => entry.port_id === exact));
+  assert.ok(!cached.entries.some((entry) => entry.port_id === refused));
+  const reads: string[] = [];
+  const recovered = await derive(records, report, undefined, {
+    state: { format: 3, pending: [], retry: [], inspection_receipts: cached.entries },
+    async inspect(asset) {
+      const id = /fixture-owner\/([^/]+)\//u.exec(asset.url)![1]!;
+      reads.push(id);
+      return [player("Game/Game.exe")];
+    },
+  });
+  assert.deepEqual(
+    reads.toSorted(),
+    [renamed, refused, refused, otherRelease, renamedRepository, expanded, expanded].toSorted(),
+  );
+  assert.equal(outcome(recovered, exact)?.reused, 1);
+  assert.equal(recovered.state.inspection_receipts, undefined);
+  assert.equal(outcome(recovered, expanded)?.reused, 0);
+  // A recovered full inventory can be retained across another failed delivery.
+  const next = retainableInspectionTable(recovered.table, recovered.report);
+  assert.ok(next.entries.some((entry) => entry.port_id === exact));
 });
 
 void test("a deadline cuts a run cleanly; the cut identities lead the next run (B3)", async () => {
