@@ -15,6 +15,7 @@ const repository = "boburning/portcove";
 const recoveryScenario = "native-library-recovery-bundle";
 const organizationScenario = "native-library-organization-restart";
 const gameChoiceScenario = "native-game-first-choice-and-restart";
+const gameChoiceBaseline = "688e22c40835a51b741a6124abe48bf4ccbd6bcd";
 type InstalledScenario =
   | typeof recoveryScenario
   | typeof organizationScenario
@@ -285,12 +286,25 @@ async function run(tag: string, version: string, temporary: string, scenario: In
     "Expected an annotated release tag",
   );
   command("git.exe", ["merge-base", "--is-ancestor", source, "origin/main"], childEnvironment);
+  const gameChoice = scenario === gameChoiceScenario;
+  if (gameChoice) {
+    try {
+      command(
+        "git.exe",
+        ["merge-base", "--is-ancestor", gameChoiceBaseline, source],
+        childEnvironment,
+      );
+    } catch (error) {
+      throw new Error("Game choice requires a Preview containing the #9342 fixture correction", {
+        cause: error,
+      });
+    }
+  }
 
   await mkdir(path.dirname(native), { recursive: true });
   await mkdir(temporary);
   const retain = (name: string, value: unknown) =>
     writeFile(path.join(output, name), JSON.stringify(value, null, 2) + "\n", { flag: "wx" });
-  const gameChoice = scenario === gameChoiceScenario;
   const harnessRoot = gameChoice ? path.join(temporary, "release-source") : root;
   const harnessRevision = gameChoice ? source : currentRevision;
   await retain("host.json", {
