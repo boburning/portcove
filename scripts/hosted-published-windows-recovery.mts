@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { requireCatalogReleaseAttestation } from "./catalog-released-reader.mts";
 import { fileIdentity, type FileIdentity } from "./development-evidence.mts";
-import { parseSha256Sums, windowsAssetNames } from "./hosted-installed-update.mts";
+import { parseSha256Sums, windowsAssetNames, windowsPathKey } from "./hosted-installed-update.mts";
 import { acquireNativeSessionLock } from "./native-session-lock.mts";
 import { resourceEntrypoint } from "./resource-command.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -271,14 +271,13 @@ async function run(tag: string, version: string, temporary: string) {
     assert.deepEqual(await fileIdentity(installer), identity[assets.installer]);
     command(installer, ["/S", `/D=${installation}`], childEnvironment, 10 * 60_000);
     const registration = registry(childEnvironment);
+    await retain("registration-after-install.json", registration);
     assert.ok(Array.isArray(registration) && registration.length === 1);
     const entry = registration[0] as Record<string, unknown>;
     assert.equal(entry.DisplayVersion, version);
     assert.match(String(entry.PSPath), /HKEY_CURRENT_USER/iu);
-    assert.equal(
-      path.normalize(String(entry.InstallLocation)).replace(/\\+$/u, "").toLowerCase(),
-      installation.toLowerCase(),
-    );
+    assert.ok(typeof entry.InstallLocation === "string");
+    assert.equal(windowsPathKey(entry.InstallLocation), windowsPathKey(installation));
     const application = path.join(installation, "portcove-desktop.exe");
     const executable = await fileIdentity(application);
     await retain("installed-before.json", { registration, executable, cli: cliIdentity });
