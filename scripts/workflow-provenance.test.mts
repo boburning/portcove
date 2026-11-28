@@ -2134,11 +2134,17 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
   ]);
   const { parseDesktopHarnessOptions, resolveDesktopHarnessSelection } =
     await import("./desktop-execution-plan.mts");
-  assert.deepEqual(
-    resolveDesktopHarnessSelection(parseDesktopHarnessOptions(recoveryArgs).values)
-      .selected_scenarios,
-    ["native-library-recovery-bundle"],
-  );
+  const parsedRecoveryArgs = parseDesktopHarnessOptions(recoveryArgs).values;
+  if (["win32", "linux"].includes(process.platform)) {
+    assert.deepEqual(resolveDesktopHarnessSelection(parsedRecoveryArgs).selected_scenarios, [
+      "native-library-recovery-bundle",
+    ]);
+  } else {
+    assert.throws(
+      () => resolveDesktopHarnessSelection(parsedRecoveryArgs),
+      /requires one standalone Windows or Linux scenario/u,
+    );
+  }
   const fixture: Record<string, string> = {
     "driver-help.txt": "exact driver inventory\n",
     "cancellation/report.json": '{"result":"cancelled"}\n',

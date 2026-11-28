@@ -126,6 +126,24 @@ void test(
 
 void test("private-X11 retains keyring tools only for the exact Linux recovery scenario", () => {
   assert.deepEqual(recoveryKeyringInputs({ stage: "gtk", harness_args: [] }), []);
+  const recoveryConfig = {
+    stage: "harness" as const,
+    harness_args: [
+      "--scenario",
+      "native-library-recovery-bundle",
+      "--preparation-cli",
+      "cli",
+      "--preparation-tool",
+      "tool",
+    ],
+  };
+  if (!["win32", "linux"].includes(process.platform)) {
+    assert.throws(
+      () => recoveryKeyringInputs(recoveryConfig),
+      /requires one standalone Windows or Linux scenario/u,
+    );
+    return;
+  }
   assert.deepEqual(
     recoveryKeyringInputs({
       stage: "harness",
@@ -140,17 +158,7 @@ void test("private-X11 retains keyring tools only for the exact Linux recovery s
     }),
     [],
   );
-  const inputs = recoveryKeyringInputs({
-    stage: "harness",
-    harness_args: [
-      "--scenario",
-      "native-library-recovery-bundle",
-      "--preparation-cli",
-      "cli",
-      "--preparation-tool",
-      "tool",
-    ],
-  });
+  const inputs = recoveryKeyringInputs(recoveryConfig);
   assert.deepEqual(
     inputs.map((input) => path.basename(input)),
     ["bash", "desktop-linux-recovery-keyring.sh", "gnome-keyring-daemon", "gdbus"],
