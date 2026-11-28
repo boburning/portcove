@@ -1723,47 +1723,50 @@ function updateState(
   savedCheck?: UpdateCheck,
   earlier = false,
 ): { label: string; tone: UpdateTone } {
-  if (!outcome) {
-    if (status.staged) return { label: "Update saved for later", tone: "staged" };
-    if (status.acquisition)
+  if (outcome && !outcome.ok) {
+    if (outcome.deferred)
       return {
-        label: gameUpdateAcquisitionLabel(status.acquisition.phase),
-        tone: status.acquisition.phase === "attention_required" ? "failed" : "muted",
+        label: earlier ? "Not checked at last check: request limit" : "Not checked: request limit",
+        tone: "muted",
       };
-    if (savedCheck?.update_available)
-      return { label: "Update available at last check", tone: "available" };
-    if (savedCheck) return { label: "No update found at last check", tone: "current" };
-    return { label: "Not checked", tone: "muted" };
-  }
-  if (!outcome.ok && outcome.deferred)
-    return {
-      label: earlier ? "Not checked at last check: request limit" : "Not checked: request limit",
-      tone: "muted",
-    };
-  if (!outcome.ok && isIncompleteCheck(outcome.error?.presentation.presentation_key))
-    return {
-      label: earlier ? `Earlier: ${checkIncompleteLabel.toLowerCase()}` : checkIncompleteLabel,
-      tone: "failed",
-    };
-  if (!outcome.ok)
+    if (isIncompleteCheck(outcome.error?.presentation.presentation_key))
+      return {
+        label: earlier ? `Earlier: ${checkIncompleteLabel.toLowerCase()}` : checkIncompleteLabel,
+        tone: "failed",
+      };
     return { label: earlier ? "Earlier check failed" : "Check failed", tone: "failed" };
+  }
   if (status.staged) return { label: "Update saved for later", tone: "staged" };
   if (status.acquisition)
     return {
       label: gameUpdateAcquisitionLabel(status.acquisition.phase),
       tone: status.acquisition.phase === "attention_required" ? "failed" : "muted",
     };
-  if (!outcome.result)
-    return {
-      label: earlier ? "Earlier check result unavailable" : "Check result unavailable",
-      tone: "muted",
-    };
-  if (outcome.result.update_available)
-    return {
-      label: earlier ? "Update available at last check" : "Update available",
-      tone: "available",
-    };
-  return { label: "No update found at last check", tone: "current" };
+  return updateCheckResultState(outcome, savedCheck, earlier);
+}
+
+function updateCheckResultState(
+  outcome: UpdateCheckOutcome | undefined,
+  savedCheck: UpdateCheck | undefined,
+  earlier: boolean,
+): { label: string; tone: UpdateTone } {
+  if (outcome) {
+    if (!outcome.result)
+      return {
+        label: earlier ? "Earlier check result unavailable" : "Check result unavailable",
+        tone: "muted",
+      };
+    if (outcome.result.update_available)
+      return {
+        label: earlier ? "Update available at last check" : "Update available",
+        tone: "available",
+      };
+    return { label: "No update found at last check", tone: "current" };
+  }
+  if (savedCheck?.update_available)
+    return { label: "Update available at last check", tone: "available" };
+  if (savedCheck) return { label: "No update found at last check", tone: "current" };
+  return { label: "Not checked", tone: "muted" };
 }
 
 function focusActivityRow(id: string, claim: () => boolean = () => true) {
