@@ -1565,7 +1565,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     const unread = new Map<ObservedAsset, string>();
     let cost = 0;
     for (const asset of digestBound) {
-      const assetKey = `${asset.id}/${asset.sha256}`;
+      const assetKey = `${asset.id}/${asset.sha256}` as const;
       if (reusable.has(assetKey) || reusableRefusals.has(assetKey)) continue;
       unread.set(
         asset,
