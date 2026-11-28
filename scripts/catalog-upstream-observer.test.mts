@@ -1927,6 +1927,7 @@ void test("hosted recovery rotates stale sources through ordinary managed backlo
   const stale = turn("stale", 7, clock(20));
   const never = turn("never", -1, null);
   const recentlyFailed = turn("exception", 21, null);
+  const appointment = turn("appointed", 30, clock(6), false, true);
   const ordinary = Array.from({ length: 9 }, (_, index) =>
     turn(`ordinary-${index}`, index, clock(8), true),
   );
@@ -1937,7 +1938,7 @@ void test("hosted recovery rotates stale sources through ordinary managed backlo
     never,
     turn("fresh-listing", 0, clock(8)),
     turn("critical", 9, clock(11.99), true),
-    turn("appointed", 30, clock(6), false, true),
+    appointment,
   ];
   const limits = { now, deadline: now + 60_000, freshnessMs: 12 * hour };
   const order = (turns: typeof candidates) =>
@@ -1965,6 +1966,18 @@ void test("hosted recovery rotates stale sources through ordinary managed backlo
     ).slice(0, 3),
     ["appointed", "critical", "stale"],
   );
+  const expiring = Array.from({ length: 9 }, (_, index) =>
+    turn(`expiring-${index}`, index, clock(11.99), true),
+  );
+  assert.deepEqual(order([...expiring, never, stale, appointment]).slice(0, 7), [
+    "appointed",
+    "expiring-0",
+    "never",
+    "expiring-1",
+    "expiring-2",
+    "expiring-3",
+    "stale",
+  ]);
 });
 
 void test("hosted listing turns protect expiring managed work and reduce purely descriptive debt", async () => {
