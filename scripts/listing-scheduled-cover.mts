@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.d.ts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { validArtworkMapping } from "./catalog-cover-mapping.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
 import {
   ArtworkBatchExhausted,
   isConfirmedIgdbImageGone,
@@ -17,7 +18,12 @@ import {
   sharedCoverScope,
 } from "./shared-cover-projection.mts";
 
-export type ScheduledCover = { id: string; artwork: IgdbArtwork };
+type ProjectCoverIdentity = { name: string; project_url: string };
+export type ScheduledCover = {
+  id: string;
+  artwork: IgdbArtwork;
+  project?: ProjectCoverIdentity;
+};
 type Decisions = ReadonlyMap<string, ReviewedOriginalMediaDecision>;
 type Listing = Record<string, unknown>;
 type Inspector = Pick<
@@ -27,8 +33,8 @@ type Inspector = Pick<
 type CoverObservations = Parameters<typeof advanceArtworkCheckpoint>[1];
 
 function scheduledCoverScope(key: string, artwork: IgdbArtwork) {
-  // The checkpoint record belongs to the original edition and reviewed provider
-  // identity, so new peers and renamed repositories inherit the same history.
+  // The key identifies either the original edition or the exact implementation.
+  // A provider slug rename does not change the asset's withdrawal history.
   const subject = createHash("sha256")
     .update(JSON.stringify([key, artwork.game_id]))
     .digest("hex");
@@ -44,7 +50,21 @@ function reviewedScope(record: AuthoredPort, reviewed: Decisions) {
   return { scope, decision };
 }
 
-/** Observe each missing reviewed original once, in the ordinary rotation. */
+function projectScope(record: AuthoredPort) {
+  const { id, name, project_url, artwork, collection_covers } = record.listing;
+  if (
+    artwork ||
+    collection_covers ||
+    record.igdb_regional_cover ||
+    record.igdb_no_shared_cover ||
+    usesScummvmEngine(record) ||
+    !project_url.startsWith("https://")
+  )
+    return undefined;
+  return { key: JSON.stringify(["project", id, project_url]), name, project_url };
+}
+
+/** Observe a reviewed original once per edition, or the exact project website. */
 export async function prepareScheduledCovers(
   authored: readonly AuthoredPort[],
   selected: ReadonlySet<string>,
@@ -53,14 +73,19 @@ export async function prepareScheduledCovers(
 ) {
   const representatives = new Map<string, string>();
   const representativeByPort = new Map<string, string>();
+  const projects = new Map<string, ProjectCoverIdentity>();
   const inputs = authored.flatMap((record) => {
     const { listing } = record;
-    const match = selected.has(listing.id) && reviewedScope(record, reviewed);
-    if (!match) return [];
-    const representative = representatives.get(match.scope.key);
+    if (!selected.has(listing.id)) return [];
+    const match = reviewedScope(record, reviewed);
+    const project = match ? undefined : projectScope(record);
+    const key = match?.scope.key ?? project?.key;
+    if (!key) return [];
+    if (project) projects.set(listing.id, { name: project.name, project_url: project.project_url });
+    const representative = representatives.get(key);
     representativeByPort.set(listing.id, representative ?? listing.id);
     if (representative) return [];
-    representatives.set(match.scope.key, listing.id);
+    representatives.set(key, listing.id);
     return [
       {
         id: listing.id,
@@ -87,26 +112,38 @@ export async function prepareScheduledCovers(
       throw error;
     }
   }
-  const result = await prepareCatalogArtwork(
-    { ports: inputs },
-    {
-      inspectGame: (identity) => observe(() => inspector.inspectGame(identity)),
-      inspectImage: (imageId, bytes) => observe(() => inspector.inspectImage(imageId, bytes)),
-      reviewedOriginalMedia: reviewed,
-      reviewedOriginalOnly: true,
-    },
+  const prepare = (ports: typeof inputs, reviewedOriginalOnly: boolean) =>
+    prepareCatalogArtwork(
+      { ports },
+      {
+        inspectGame: (identity) => observe(() => inspector.inspectGame(identity)),
+        inspectImage: (imageId, bytes) => observe(() => inspector.inspectImage(imageId, bytes)),
+        reviewedOriginalMedia: reviewed,
+        reviewedOriginalOnly,
+      },
+    );
+  const originals = await prepare(
+    inputs.filter(({ id }) => !projects.has(id)),
+    true,
   );
-  const covers: ScheduledCover[] = result.records.flatMap((record) =>
-    record.reason === "exact-original-game-cover" && record.mapping
-      ? [{ id: record.port_id, artwork: record.mapping }]
-      : [],
+  const implementations = await prepare(
+    inputs.filter(({ id }) => projects.has(id)),
+    false,
   );
-  const recordsByPort = new Map(result.records.map((record) => [record.port_id, record]));
+  const records = [...originals.records, ...implementations.records];
+  const covers: ScheduledCover[] = records.flatMap(({ port_id: id, reason, mapping }) => {
+    if (!mapping) return [];
+    if (reason === "exact-original-game-cover" && !projects.has(id))
+      return [{ id, artwork: mapping }];
+    const project = projects.get(id);
+    return reason === "exact-port-cover" && project ? [{ id, artwork: mapping, project }] : [];
+  });
+  const recordsByPort = new Map(records.map((record) => [record.port_id, record]));
   const progress = [...representativeByPort].flatMap(([id, representative]) => {
     const record = recordsByPort.get(representative);
     return record ? [asCoverProgress(id, record)] : [];
   });
-  return { covers, records: result.records, progress };
+  return { covers, records, progress };
 }
 
 function asCoverProgress(portId: string, record: ArtworkRecord) {
@@ -126,7 +163,7 @@ function asCoverProgress(portId: string, record: ArtworkRecord) {
 }
 
 /** Revalidate newly proposed covers, record Gone and hold changed signed bytes,
- * and share only against the exact maintained original-game edition. */
+ * and share only an exact maintained original-game edition. */
 export async function projectScheduledCovers({
   authored,
   reviewed,
@@ -162,37 +199,66 @@ export async function projectScheduledCovers({
 }) {
   const eligible = new Map(
     authored.flatMap((record) => {
-      const known = reviewedScope(record, reviewed);
-      return known && !ambiguous.has(record.listing.id)
-        ? [[record.listing.id, { ...known, listing: record.listing }] as const]
+      const original = ambiguous.has(record.listing.id)
+        ? undefined
+        : reviewedScope(record, reviewed);
+      const project = projectScope(record);
+      return original || project
+        ? [[record.listing.id, { original, project, listing: record.listing }] as const]
         : [];
     }),
   );
   type Offer = { artwork: IgdbArtwork; key: string };
   const retained = new Map<string, Offer>();
   const fresh = new Map<string, Offer>();
-  function accepted(id: string, artwork: unknown, producer: Listing | undefined, signed = false) {
+  function accepted(
+    id: string,
+    artwork: unknown,
+    producer: Listing | undefined,
+    signed = false,
+    evidence?: ProjectCoverIdentity,
+  ) {
     const entry = eligible.get(id);
     if (
       !entry ||
       !producer ||
-      !matchesSharedCoverScope(producer.original_game, entry.scope) ||
       producer.project_url !== entry.listing.project_url ||
       !validArtworkMapping(artwork) ||
-      artwork.match_kind !== "underlying-game" ||
-      artwork.game_id !== entry.decision.game_id ||
-      (!signed && artwork.game_slug !== entry.decision.slug) ||
       denied.has(artwork.image_id)
     )
       return undefined;
-    return { artwork: { ...artwork, game_slug: entry.decision.slug }, key: entry.scope.key };
+    if (artwork.match_kind === "port") {
+      const project = entry.project;
+      if (
+        !project ||
+        producer.id !== id ||
+        producer.name !== project.name ||
+        (!signed &&
+          (evidence?.name !== project.name || evidence?.project_url !== project.project_url))
+      )
+        return undefined;
+      return { artwork, key: project.key };
+    }
+    const original = entry.original;
+    if (
+      !original ||
+      evidence ||
+      !matchesSharedCoverScope(producer.original_game, original.scope) ||
+      artwork.game_id !== original.decision.game_id ||
+      (!signed && artwork.game_slug !== original.decision.slug)
+    )
+      return undefined;
+    return {
+      artwork: { ...artwork, game_slug: original.decision.slug },
+      key: original.scope.key,
+    };
   }
   for (const [id, row] of previous) {
     const offer = accepted(id, row.artwork, row, true);
     if (offer && !shared.has(id)) retained.set(id, offer);
   }
-  for (const { id, artwork } of incoming ?? []) {
-    const offer = accepted(id, artwork, source?.get(id));
+  for (const { id, artwork, project } of incoming ?? []) {
+    const offer = accepted(id, artwork, source?.get(id), false, project);
     if (offer && !shared.has(id)) fresh.set(id, offer);
   }
   const reads = new Map<string, Promise<string | null>>();
@@ -252,15 +318,22 @@ export async function projectScheduledCovers({
   }
   function distribute(allowNew: boolean) {
     const proposals = new Map<string, IgdbArtwork>();
-    for (const [id, { scope }] of eligible) {
-      const mapping = offers.get(scope.key);
-      if (
-        !shared.has(id) &&
+    for (const [id, { original, project }] of eligible) {
+      const retainedOffer = retained.get(id);
+      const originalMapping = original && offers.get(original.scope.key);
+      const projectMapping = project && offers.get(project.key);
+      const canUse = (mapping: IgdbArtwork | null | undefined, key: string | undefined) =>
         mapping &&
-        (retained.has(id) ||
-          (allowNew && !changed.has(mapping.image_id) && verified.has(coverIdentity(mapping))))
-      )
-        proposals.set(id, mapping);
+        ((retainedOffer &&
+          retainedOffer.key === key &&
+          coverIdentity(retainedOffer.artwork) === coverIdentity(mapping)) ||
+          (allowNew && !changed.has(mapping.image_id) && verified.has(coverIdentity(mapping))));
+      const mapping = canUse(originalMapping, original?.scope.key)
+        ? originalMapping
+        : canUse(projectMapping, project?.key)
+          ? projectMapping
+          : undefined;
+      if (!shared.has(id) && mapping) proposals.set(id, mapping);
     }
     return proposals;
   }
@@ -306,7 +379,10 @@ export async function projectScheduledCovers({
     const published = new Map<string, CoverObservations[number]>();
     for (const row of listings) {
       if (typeof row.id !== "string" || !proposals.has(row.id)) continue;
-      const key = eligible.get(row.id)?.scope.key;
+      const binding = eligible.get(row.id);
+      const mapping = proposals.get(row.id);
+      const key =
+        mapping?.match_kind === "port" ? binding?.project?.key : binding?.original?.scope.key;
       if (!key) continue;
       const restored = restorations.get(key);
       if (

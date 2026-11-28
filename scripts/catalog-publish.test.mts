@@ -2133,6 +2133,112 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
   );
 });
 
+void test("scheduled project covers require the exact upstream website and stay with that listing", async () => {
+  const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { prepareScheduledCovers, projectScheduledCovers } =
+    await import("./listing-scheduled-cover.mts");
+  const { readScheduledGameMediaProposal } = await import("./listing-scheduled-game-media.mts");
+  const project = { ...fixtureListing, id: "art-project", name: "Art Project" };
+  const other = {
+    ...project,
+    id: "art-other",
+    project_url: "https://github.com/test/another-project",
+  };
+  const authored = [project, other].map((listing) => ({ format_version: 1 as const, listing }));
+  const image = {
+    sha256: "a".repeat(64),
+    bytes: 4,
+    width: 240,
+    height: 360,
+    format: "jpeg" as const,
+    validator: "portcove-core" as const,
+  };
+  let inspections = 0;
+  const observation = await prepareScheduledCovers(
+    authored,
+    new Set([project.id, other.id]),
+    new Map(),
+    {
+      inspectGame: async () => [
+        {
+          id: 70,
+          name: project.name,
+          slug: "art-project",
+          websites: [{ url: project.project_url }],
+          cover: { id: 71, image_id: "projectcover" },
+        },
+      ],
+      inspectImage: async () => {
+        inspections++;
+        return image;
+      },
+    },
+  );
+  assert.equal(inspections, 1);
+  assert.deepEqual(
+    observation.progress.map(({ port_id, reason }) => [port_id, reason]),
+    [
+      [project.id, "role-selected"],
+      [other.id, "identity-mismatch"],
+    ],
+  );
+  const cover = observation.covers[0]!;
+  assert.equal(observation.covers.length, 1);
+  assert.equal(cover.artwork.match_kind, "port");
+  const proposal = readScheduledGameMediaProposal({
+    format_version: 1,
+    selected_ids: [project.id, other.id],
+    additions: [],
+    covers: [cover],
+  });
+  const options = {
+    authored,
+    reviewed: new Map(),
+    previous: new Map(),
+    source: new Map([
+      [project.id, project],
+      [other.id, other],
+    ]),
+    incoming: proposal.covers,
+    shared: new Map(),
+    denied: new Set<string>(),
+    now: Date.now(),
+  };
+  const fresh = await projectScheduledCovers({ ...options, inspect: async () => image });
+  assert.deepEqual([...fresh.proposals], [[project.id, cover.artwork]]);
+  const alreadySigned = new Map([[project.id, { ...project, artwork: cover.artwork }]]);
+  const outage = await projectScheduledCovers({
+    ...options,
+    previous: alreadySigned,
+    incoming: [],
+    inspect: async () => {
+      throw Error("provider outage");
+    },
+  });
+  assert.deepEqual([...outage.proposals], [[project.id, cover.artwork]]);
+  const moved = await projectScheduledCovers({
+    ...options,
+    authored: [{ ...authored[0]!, listing: { ...project, project_url: other.project_url } }],
+    previous: alreadySigned,
+    inspect: async () => assert.fail("the superseded project URL must not apply"),
+  });
+  assert.equal(moved.proposals.size, 0);
+  const wrongProducer = await projectScheduledCovers({
+    ...options,
+    source: new Map([[project.id, { ...project, name: "Different project" }]]),
+    inspect: async () => assert.fail("the producer must bind the same project declaration"),
+  });
+  assert.equal(wrongProducer.proposals.size, 0);
+  assert.throws(
+    () =>
+      readScheduledGameMediaProposal({
+        ...proposal,
+        covers: [{ id: project.id, artwork: cover.artwork }],
+      }),
+    /Invalid scheduled cover proposal/u,
+  );
+});
+
 void test("scheduled missing covers reuse an exact edition and survive transient provider failures", async (context) => {
   const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
   const { prepareScheduledCovers, projectScheduledCovers } =
