@@ -1762,6 +1762,11 @@ request ceiling as the release providers. When Thunderstore defers a request,
 the observer saves the retry deadline before unrelated source work. Its deadline
 is independent of GitHub's retry clock.
 
+The observer also records the local projection version. A healthy retained
+snapshot from before GitHub wiki document collection becomes due on the next
+eligible opportunity. Once refreshed, it resumes the ordinary cadence. A failed
+read retains the previous snapshot and honors its retry deadline.
+
 The checkpoint retains the schema version, raw response digest, stable community
 IDs, registry game UUIDs, listing states and exact GameBanana game links when
 present. An incomplete response, unsupported schema or change to an already

@@ -8,6 +8,7 @@ export const thunderstoreRegistryUrl =
   "https://thunderstore.io/api/experimental/schema/ecosystem-json-data/latest/";
 export const thunderstoreRegistrySubject = "source:thunderstore-ecosystem";
 const schema = "0.3.0";
+const registryProjectionVersion = 1;
 const maximumCommunities = 4096;
 const communityId = /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/u;
 const uuid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/u;
@@ -62,6 +63,7 @@ function githubCommunityDocument(value: unknown): GithubCommunityDocument | unde
 
 interface RegistryFacts {
   format: 1;
+  projection_version?: typeof registryProjectionVersion;
   source: typeof thunderstoreRegistryUrl;
   schema: typeof schema;
   response_sha256: string;
@@ -75,6 +77,19 @@ export interface ModProviderRegistryProgress {
   exception: FailureState | null;
   /** Exact old slugs whose immutable identity no longer agrees. */
   identity_conflicts?: string[] | "unknown";
+}
+
+export function modProviderRegistryDue(
+  progress: ModProviderRegistryProgress | undefined,
+  now: number,
+) {
+  if (!progress || Date.parse(progress.next_due_at) <= now) return true;
+  // The prior projection did not guarantee that wiki documents were collected.
+  // Upgrade a healthy snapshot once without bypassing a failed read's backoff.
+  return (
+    progress.exception === null &&
+    progress.last_complete?.projection_version !== registryProjectionVersion
+  );
 }
 
 export function exactGameBananaId(link: unknown) {
@@ -151,6 +166,8 @@ export function validateModProviderRegistryProgress(value: unknown, now: number)
   if (
     !isRecord(complete) ||
     complete.format !== 1 ||
+    (complete.projection_version !== undefined &&
+      complete.projection_version !== registryProjectionVersion) ||
     complete.source !== thunderstoreRegistryUrl ||
     complete.schema !== schema ||
     typeof complete.response_sha256 !== "string" ||
@@ -304,6 +321,7 @@ export async function observeModProviderRegistry(
     progress: {
       last_complete: {
         format: 1,
+        projection_version: registryProjectionVersion,
         source: thunderstoreRegistryUrl,
         schema,
         observed_at: new Date(now).toISOString(),

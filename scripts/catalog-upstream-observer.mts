@@ -61,6 +61,7 @@ import {
   validateFirstPartyModProgress,
 } from "./upstream-launcher-mod-progress.mts";
 import {
+  modProviderRegistryDue,
   observeModProviderRegistry,
   validateModProviderRegistryProgress,
   type ModProviderRegistryProgress,
@@ -1139,8 +1140,8 @@ export async function advanceCatalogObservations(
     options.modProviderRegistryFetch &&
     !options.signal?.aborted &&
     deadline - now() >= 1000 &&
-    Math.min(template.budget.requests, requestCeiling) > 1 &&
-    (!state.mod_provider_registry || Date.parse(state.mod_provider_registry.next_due_at) <= now())
+    Math.min(template.budget.requests, requestCeiling) - requests > 1 &&
+    modProviderRegistryDue(state.mod_provider_registry, now())
   ) {
     const retainedRegistry = state.mod_provider_registry;
     const retainedConflicts = retainedRegistry?.identity_conflicts;
