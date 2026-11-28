@@ -95,6 +95,27 @@ void test("only the first definition-state action gets the cold-build budget", a
   }
 });
 
+void test("each definition lifecycle action uses only the exact Core unit fixture in the development profile", () => {
+  for (const action of ["select", "install", "revoke"]) {
+    assert.deepEqual(cargoPhaseArguments("definition-state", action), [
+      "test",
+      "--locked",
+      "--lib",
+      "--profile",
+      "dev",
+      "-p",
+      "portcove-core",
+      "--features",
+      "qualification-fixtures",
+      "definition_repository::tests::qualification_adapter_conformance_definition_state",
+      "--",
+      "--ignored",
+      "--exact",
+      "--nocapture",
+    ]);
+  }
+});
+
 void test("actual private phase refuses a forged inherited token without running Cargo", () => {
   const result = spawnSync(
     process.execPath,
