@@ -145,6 +145,7 @@ void test("binds a reciprocal link to the exact public repository, commit and do
   );
   for (const text of [
     "<https://thunderstore.io/c/some-port>",
+    "<https://THUNDERSTORE.IO/c/some-port/>",
     "Official mods are on https://thunderstore.io/c/some-port/.",
     "[Mods][site]\n\n[site]: https://thunderstore.io/c/some-port/",
   ]) {
@@ -160,6 +161,7 @@ void test("binds a reciprocal link to the exact public repository, commit and do
   for (const rejected of [
     readDocument(`${link}\n[Other game](https://thunderstore.io/c/different/)`),
     readDocument(`${link}\n<https://thunderstore.io/c/different/>`),
+    readDocument(`${link}\n<https://THUNDERSTORE.IO/c/different/>`),
     readDocument(`<!-- ${link} -->`),
     readDocument("```md\n" + link + "\n```"),
     readDocument("`" + link + "`"),
@@ -169,6 +171,7 @@ void test("binds a reciprocal link to the exact public repository, commit and do
     readDocument(`<div>\n${link}\n</div>`),
     readDocument(`<![CDATA[\n${link}\n]]>`),
     readDocument(`Inline <code>${link}</code>`),
+    readDocument(`Inline <code>Outer <code>inner</code> ${link}</code>`),
     readDocument("- ```markdown\n  " + link + "\n  ```\n"),
     readDocument("https://example.org/?link=https://thunderstore.io/c/some-port/"),
     readDocument("[See https://thunderstore.io/c/some-port/ ](https://example.org/)"),

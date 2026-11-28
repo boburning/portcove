@@ -394,22 +394,23 @@ export async function observeReciprocalThunderstoreDocument(
     if (block.type === "blockquote_open") quoted++;
     if (block.type === "blockquote_close") quoted--;
     if (quoted > 0 || block.type !== "inline") continue;
-    let opaque = "";
+    const opaque: string[] = [];
     for (const token of block.children ?? []) {
       if (token.type === "html_inline") {
         const tag = /^<(\/?)(code|pre|script|style|template|blockquote)(?=[\s>])/iu.exec(
           token.content,
         );
         const name = tag?.[2]?.toLowerCase();
-        if (name && tag?.[1] === "/" && opaque === name) opaque = "";
-        else if (name && !opaque && !tag?.[1]) opaque = name;
+        if (name && !tag?.[1]) opaque.push(name);
+        else if (name && opaque.at(-1) === name) opaque.pop();
       }
-      if (opaque || token.type !== "link_open") continue;
+      if (opaque.length || token.type !== "link_open") continue;
       const url = token.attrGet("href");
       if (typeof url !== "string") continue;
-      const candidate = /^https:\/\/thunderstore\.io\/c\/([a-z0-9]+(?:[-_][a-z0-9]+)*)\/?$/u.exec(
-        url,
-      )?.[1];
+      const match = /^([A-Za-z]+):\/\/([^/]+)\/c\/([a-z0-9]+(?:[-_][a-z0-9]+)*)\/?$/u.exec(url);
+      if (match?.[1]?.toLowerCase() !== "https" || match[2]?.toLowerCase() !== "thunderstore.io")
+        continue;
+      const candidate = match[3];
       if (candidate && candidate.length <= 128) links.add(candidate);
     }
   }
