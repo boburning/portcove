@@ -2278,6 +2278,15 @@ that private virtual display; WSLg, physical display/controller and other Linux
 routes remain separate. Missing or unsupported prerequisites are reported; no
 provisioning or fallback qualification is implied.
 
+The standalone Linux `native-library-recovery-bundle` uses a fresh real
+GNOME Keyring in the same private D-Bus session as the harness and application.
+The wrapper records the unlocked default collection before running the
+library-recovery flow. It keeps the store and its generated password private
+and admits only the existing command paths for Python, Bash, GNOME Keyring
+and gdbus. The public hosted `linux-library-recovery` operation uses the
+existing Ubuntu 22.04 private-X11 runner. It retains the readiness, recovery
+and process-exit observations and images without collecting keyring files.
+
 An ordinary Linux appearance restart retains its captured driver until the
 existing stop action and that exact child's exit have completed. A failed join
 keeps the reference for owned cleanup and refuses the replacement launch. The

@@ -2015,6 +2015,17 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
     ),
   );
   assert.equal(observationStep["timeout-minutes"], 10);
+  assert.equal(observationStep.if, "inputs.operation == 'linux-preparation-continuity'");
+  const recoveryStep = record(
+    required(
+      steps.find(
+        (value) =>
+          record(value).name === "Observe exact library recovery with a private Secret Service",
+      ),
+    ),
+  );
+  assert.equal(recoveryStep.if, "inputs.operation == 'linux-library-recovery'");
+  assert.match(text(recoveryStep.run), /desktop-linux-x11\.mts.*recovery-config\.json/u);
   const nodeSetup = record(
     required(steps.find((value) => text(record(value).uses).startsWith("actions/setup-node@"))),
   );
@@ -2087,7 +2098,10 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
     "cancellation/report.json": '{"result":"cancelled"}\n',
     "cancellation/screenshot.png": "unit fixture image bytes",
     "interruption/report.json": '{"result":"recovered"}\n',
+    "recovery/report.json": '{"result":"restored"}\n',
     "private-x11-abc123/preflight.json": '{"identity":"owned"}\n',
+    "private-x11-abc123/recovery-keyring-readiness.json": '{"locked":false}\n',
+    "private-x11-abc123/recovery-keyring.abcdef01/data/private.json": "private keyring bytes",
     "private-x11-abc123/outer-join.json": '{"closed":true}\n',
     "cancellation/library/private.json": "private library bytes",
     "private-x11-abc123/xdg_config_home/private.json": "private profile bytes",
@@ -2129,6 +2143,8 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
       "interruption/report.json",
       "private-x11-abc123/outer-join.json",
       "private-x11-abc123/preflight.json",
+      "private-x11-abc123/recovery-keyring-readiness.json",
+      "recovery/report.json",
     ],
   );
   for (const value of inventory) {
