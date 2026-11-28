@@ -247,20 +247,18 @@ pub(crate) struct ReleaseSelectionCacheKey {
 
 impl ReleaseSelectionCacheKey {
     pub(crate) fn new(port: &PortDefinition, channel: ReleaseChannel, platform: Platform) -> Self {
-        let appimage = native_appimage(port, platform);
+        let (native_appimage, native_appimage_two_part) = match native_appimage(port, platform) {
+            None => (false, false),
+            Some(NativeAppImage::Exact(_)) => (true, false),
+            Some(NativeAppImage::Versioned { allow_two_part, .. }) => (true, allow_two_part),
+        };
         Self {
             adapter: port.adapter,
             n64_runtime_at_executable_parent: port.n64_runtime_at_executable_parent,
             partitioned_archive: port.archive_data_compatibility_v1.is_some(),
             requires_tar_xz: port.release.requires_tar_xz(platform),
-            native_appimage: appimage.is_some(),
-            native_appimage_two_part: matches!(
-                appimage,
-                Some(NativeAppImage::Versioned {
-                    allow_two_part: true,
-                    ..
-                })
-            ),
+            native_appimage,
+            native_appimage_two_part,
             restricted_native_archive: crate::native_external_profile::openmohaa::requires_zip(
                 port, platform,
             )
@@ -6064,6 +6062,24 @@ mod tests {
         let mut hasher = DefaultHasher::new();
         key.hash(&mut hasher);
         hasher.finish()
+    }
+
+    #[test]
+    fn release_selection_cache_key_keeps_reviewed_appimage_modes() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let openloco = catalog.port("openloco-openloco").unwrap();
+        let corsixth = catalog.port("corsixth-corsixth").unwrap();
+        for (port, platform, expected) in [
+            (openloco, Platform::WindowsX86_64, (false, false)),
+            (openloco, Platform::LinuxX86_64, (true, true)),
+            (corsixth, Platform::LinuxX86_64, (true, false)),
+        ] {
+            let key = ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, platform);
+            assert_eq!(
+                (key.native_appimage, key.native_appimage_two_part),
+                expected
+            );
+        }
     }
 
     #[test]
