@@ -1790,6 +1790,11 @@ void test(
       renderHtml(afterHealthFailure),
       /latest read failed: unavailable; previous read: stale/u,
     );
+    await collectWith(health(5));
+    const resumedHealth = (
+      buildReport(store.owner).subjects as { port_key: string; latest_health_gap: string | null }[]
+    ).find(({ port_key }) => port_key === "port:2ship2harkinian");
+    assert.equal(resumedHealth?.latest_health_gap, null, "the latest complete run has no port gap");
 
     // A failed publication-bundle inspection is a failed run; the last facts stay current.
     const bundleFailure = await collect({
