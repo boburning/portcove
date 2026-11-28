@@ -603,6 +603,77 @@ fn reviewed_listing_permits_open_only_their_exact_files() {
     }
 }
 
+fn has_cps2_overlay_hold(listing: &crate::PortListing) -> bool {
+    listing.project_url == "https://github.com/tmcleroy/cps2recomp"
+        && listing
+            .restrictions
+            .iter()
+            .any(|restriction| restriction.id == "upstream-overlay-test-builds")
+}
+
+#[test]
+fn cps2_collection_holds_apply_only_to_the_reviewed_overlay_releases() {
+    let catalog = Catalog::embedded().unwrap();
+    let mut affected = 0;
+    for listing in catalog
+        .listings()
+        .iter()
+        .filter(|listing| listing.project_url == "https://github.com/tmcleroy/cps2recomp")
+    {
+        affected += 1;
+        assert!(has_cps2_overlay_hold(listing), "{}", listing.id);
+        let [hold] = listing.restrictions.as_slice() else {
+            panic!("{}: expected one overlay hold", listing.id);
+        };
+        assert_eq!(hold.scope.releases.len(), 11, "{}", listing.id);
+        let rules = EffectiveRestrictions::of(&catalog, &listing.id);
+        let offer = |tag| {
+            RestrictionSubject::deferred(RestrictedOperation::Download)
+                .on(Platform::WindowsX86_64)
+                .artifact(SubjectArtifact {
+                    version: tag,
+                    sha256: SHA_A,
+                    asset_name: Some("CPS2Recomp-windows-x64.zip"),
+                })
+        };
+        for tag in &hold.scope.releases {
+            let requested = offer(tag);
+            assert!(rules.evaluate(&requested).is_held(), "{} {tag}", listing.id);
+            assert!(
+                rules.evaluate(&requested.final_check()).is_held(),
+                "{} {tag}",
+                listing.id
+            );
+        }
+        for tag in [
+            "v1.6.0-beta.2",
+            "v1.6.0-beta.7",
+            "test-2026-11-18-windows",
+            "test-2026-11-18-windows-2",
+            "test-2026-11-23-windows",
+        ] {
+            let requested = offer(tag);
+            assert!(
+                !rules.evaluate(&requested).is_held(),
+                "{} {tag}",
+                listing.id
+            );
+            assert!(
+                !rules.evaluate(&requested.final_check()).is_held(),
+                "{} {tag}",
+                listing.id
+            );
+        }
+        assert_eq!(
+            legacy_download_projection(&listing.restrictions),
+            listing.download_block_reason.as_deref(),
+            "{}",
+            listing.id
+        );
+    }
+    assert_eq!(affected, 32);
+}
+
 /// Every migrated row, platform, operation and artifact-knowledge case that a
 /// Core call site can produce decides exactly as before, with the same text.
 #[test]
@@ -618,7 +689,10 @@ fn migration_is_behavior_preserving() {
     let listed: Vec<_> = catalog
         .listings()
         .iter()
-        .filter(|listing| listing.download_block_reason.is_some())
+        // The later release-only CPS2 holds are checked separately above.
+        .filter(|listing| {
+            listing.download_block_reason.is_some() && !has_cps2_overlay_hold(listing)
+        })
         .map(|listing| listing.id.clone())
         .collect();
     assert_eq!(managed.len(), 5, "managed holds");
