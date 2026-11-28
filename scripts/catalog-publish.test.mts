@@ -1,3 +1,4 @@
+import type { AuthoredListing, AuthoredPort } from "./catalog-authoring.mts";
 import {
   record as fixtureRecord,
   records as fixtureRecords,
@@ -1981,7 +1982,7 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
     scheduledGameMediaProposal,
   } = await import("./listing-scheduled-game-media.mts");
   const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
-  const original_game = {
+  const original_game: NonNullable<AuthoredListing["original_game"]> = {
     format_version: 1,
     id: "sample-game",
     evidence_urls: ["https://example.org/game"],
@@ -1994,7 +1995,11 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
       },
     ],
   };
-  const donor = { ...fixtureListing, original_game };
+  const donor = {
+    ...fixtureListing,
+    availability: "unknown",
+    original_game,
+  } satisfies AuthoredListing;
   const peer = { ...donor, id: "exact-peer", project_url: "https://github.com/team/exact-peer" };
   const distinct = {
     ...peer,
@@ -2161,11 +2166,11 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
       image_sha256: "e".repeat(64),
     },
   };
-  const authoredCovers = [
-    { format_version: 1 as const, listing: coverDonor },
-    { format_version: 1 as const, listing: peer },
-    { format_version: 1 as const, listing: distinct },
-    { format_version: 1 as const, listing: hidden, igdb_no_shared_cover: true },
+  const authoredCovers: AuthoredPort[] = [
+    { format_version: 1, listing: coverDonor },
+    { format_version: 1, listing: peer },
+    { format_version: 1, listing: distinct },
+    { format_version: 1, listing: hidden, igdb_no_shared_cover: true },
   ];
   const tentative = coverBackedMediaMatches(authoredCovers, new Map());
   const matches = coverBackedMediaMatches(

@@ -380,7 +380,8 @@ export function scheduledGameMediaDefaults(
       validArtworkMapping(row.artwork) && row.artwork.match_kind === "port"
         ? row.artwork
         : undefined;
-    const directMatch = decision ?? accepted.get(key);
+    const directMatch =
+      decision?.decision === "exclude" ? undefined : (decision ?? accepted.get(key));
     const coverMatch = options.coverMediaMatches?.get(id);
     const coverBacked = asset.subject.kind === "original" && directMatch === undefined;
     const mapping =
