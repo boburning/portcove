@@ -2119,12 +2119,14 @@ export async function observeUpstream(
     }
   }
 
+  const canReuseCompletePages = options.reuseValidatedPages === true && !retained;
   let matchingReleaseFront = false;
   async function collection(
     pathname: string,
     kind: "release-headers" | "release-assets",
     normalizeItem: (value: unknown) => unknown,
     normalizeRows: (rows: unknown[], url: string) => unknown[] = (rows) => rows,
+    reuseAssetPages = false,
   ): Promise<unknown[]> {
     const all = [];
     const ids = new Set();
@@ -2155,19 +2157,20 @@ export async function observeUpstream(
         {
           deferCheckpoint: true,
           useCompletePage:
-            matchingReleaseFront &&
-            (kind === "release-assets" || page > 1) &&
-            Object.hasOwn(completePages, url),
+            Object.hasOwn(completePages, url) &&
+            (kind === "release-assets" ? reuseAssetPages : matchingReleaseFront && page > 1),
         },
       );
-      if (kind === "release-headers" && page === 1 && options.reuseValidatedPages && !retained) {
+      if (kind === "release-headers" && page === 1 && canReuseCompletePages) {
         const previous = completePages[url];
-        // A new or rearranged release frontier needs the full collection pass.
-        // Retained pages still have to pass the current validation pass below.
+        // A changed frontier needs the ordinary release-header collection pass.
+        // Raw metadata outside the kept facts can change independently.
         matchingReleaseFront =
           isRecord(previous) &&
-          previous.sha256 === response.sha256 &&
-          previous.link === response.link;
+          previous.link === response.link &&
+          (previous.sha256 === response.sha256 ||
+            (typeof previous.facts_sha256 === "string" &&
+              previous.facts_sha256 === response.facts_sha256));
       }
       let more: boolean;
       try {
@@ -2214,6 +2217,27 @@ export async function observeUpstream(
       ),
       keep,
     );
+    const retainedReleaseIdentities = new Map<number, string>();
+    if (canReuseCompletePages && !matchingReleaseFront) {
+      for (const [url, page] of Object.entries(completePages)) {
+        if (new URL(url).pathname !== `${repositoryPath}/releases`) continue;
+        const prior = validatedPage(page, url, config, completePages);
+        requireFact(
+          Array.isArray(prior.body),
+          "invalid-checkpoint",
+          "retained release rows differ",
+        );
+        for (const row of prior.body as unknown[]) {
+          const fact = releaseFact(row);
+          requireFact(
+            !retainedReleaseIdentities.has(fact.id),
+            "invalid-checkpoint",
+            "retained release identities repeat",
+          );
+          retainedReleaseIdentities.set(fact.id, observationHash(fact));
+        }
+      }
+    }
     let selectedAssets: Set<number> | null = null;
     const releases: ProviderObservation["facts"]["releases"] = headers.map((header) => ({
       ...header,
@@ -2287,11 +2311,16 @@ export async function observeUpstream(
           continue;
         const normalizeAsset = (asset: unknown) =>
           collectedAssetFact(asset, config, release.tag_name);
+        const retainedIdentity = retainedReleaseIdentities.get(release.id);
         const assets = (
           await collection(
             `${repositoryPath}/releases/${release.id}/assets`,
             "release-assets",
             normalizeAsset,
+            undefined,
+            matchingReleaseFront ||
+              (retainedIdentity !== undefined &&
+                retainedIdentity === observationHash(releaseFact(release))),
           )
         ).map(normalizeAsset);
         for (const asset of assets) {

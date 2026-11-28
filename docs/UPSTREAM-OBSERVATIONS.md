@@ -76,10 +76,12 @@ continue to use `observer-facts-v1`. A later upload can change the package facts
 the same release identity. Unknown states and malformed rows still fail
 validation, and exact pins still require an uploaded asset.
 On a new warm catalog turn, the observer fetches the current repository and
-first release page. If the first page still matches the prior complete page,
-it can collect the retained tail and selected asset pages locally. The final
-pass still reads and verifies every consumed URL, including pages collected
-locally. When Core requests an exact checksum, the observer verifies tentative
+first release page. If its retained facts and pagination match the prior
+complete page, it can collect the retained tail locally. On a changed
+frontier it reads the header collection normally. A selected release whose
+identity, tag, publication time and flags still match can reuse retained
+asset pages. The final pass reads and verifies every consumed URL, including
+pages collected locally. When Core requests an exact checksum, the observer verifies tentative
 collection pages before fetching the checksum. A changed page holds publication
 and restarts with ordinary provider collection. A temporary provider outage
 retains verification progress. Cold collection and in-progress continuations use their existing
