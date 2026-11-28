@@ -706,13 +706,16 @@ export function orderHostedObservationTurns<T extends ObservationTurn>(
     turn.freshnessObservedAt === null
       ? -Infinity
       : Date.parse(turn.freshnessObservedAt) + freshness.freshnessMs;
-  const protectedTurns: T[] = [];
+  const appointments: T[] = [];
+  const expiringManaged: T[] = [];
   const ordinaryManaged: T[] = [];
   const recovery: T[] = [];
   const remaining: T[] = [];
   for (const turn of byRole) {
-    if (turn.appointment || (turn.managed && expiry(turn) <= freshness.deadline)) {
-      protectedTurns.push(turn);
+    if (turn.appointment) {
+      appointments.push(turn);
+    } else if (turn.managed && expiry(turn) <= freshness.deadline) {
+      expiringManaged.push(turn);
     } else if (turn.managed) {
       ordinaryManaged.push(turn);
     } else if (expiry(turn) <= freshness.now) {
@@ -722,14 +725,14 @@ export function orderHostedObservationTurns<T extends ObservationTurn>(
     }
   }
 
-  // Preserve the first recovery turn, then keep one in every four ordinary
-  // turns while both groups have work. Every turn uses the existing shared
-  // quantum. Oldest attempt within recovery keeps failed sources rotating.
-  const ordered = protectedTurns;
+  // Give the first expiring managed source an early turn. The remaining urgent
+  // sources keep their managed priority without displacing every recovery turn.
+  const ordered = appointments.concat(expiringManaged.slice(0, 1));
+  const managed = expiringManaged.slice(1).concat(ordinaryManaged);
   let recovered = 0;
-  for (let index = 0; index < ordinaryManaged.length; index++) {
+  for (let index = 0; index < managed.length; index++) {
     if (index % 3 === 0 && recovered < recovery.length) ordered.push(recovery[recovered++]!);
-    ordered.push(ordinaryManaged[index]!);
+    ordered.push(managed[index]!);
   }
   return ordered.concat(recovery.slice(recovered), remaining);
 }

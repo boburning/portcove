@@ -586,10 +586,11 @@ binding change also permits offline reprojection of earlier facts. An incomplete
 refresh retains the prior observation and freshness clock. Manual dispatch has
 no scheduled appointments.
 
-Each hosted batch starts with the appointed scopes and healthy managed sources
-whose provider receipt is missing or will expire by the batch deadline. The
-batch then offers one recovery turn before every three ordinary healthy managed
-turns while both groups have work. Recovery covers eligible listing-only
+Each hosted batch starts with the appointed scopes and one healthy managed
+source whose provider receipt is missing or will expire by the batch deadline.
+The batch then offers one recovery turn before every three healthy managed
+turns while both groups have work. Expiring receipts keep priority within the
+managed turns. Recovery covers eligible listing-only
 sources and managed sources with a recorded failure whose provider freshness is
 missing or expired. Retry deadlines still apply. Within recovery, sources
 without a recorded attempt go first, followed by the least recently attempted
