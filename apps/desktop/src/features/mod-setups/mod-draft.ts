@@ -192,6 +192,7 @@ export function useModDraft(scope: {
   (update: SetStateAction<ModDraft>) => boolean,
   StaleDraft | undefined,
   (draft?: ModDraft) => void,
+  boolean,
 ] {
   const scopeKey =
     scope.setup === undefined
@@ -201,6 +202,7 @@ export function useModDraft(scope: {
   const read = () => ({
     key,
     draft: key && scope.library ? readDraft(key) : emptyModDraft,
+    saveFailed: false,
     stale:
       scopeKey && scope.library && scope.revision
         ? olderDraft(scopeKey, scope.revision)
@@ -230,27 +232,28 @@ export function useModDraft(scope: {
   }, [key, recovered, saved.stale, scopeKey, scope.revision]);
   if (saved.key !== key) {
     setSaved(read());
-    return [emptyModDraft, () => false, undefined, () => {}];
+    return [emptyModDraft, () => false, undefined, () => {}, false];
   }
   const updateDraft = (update: SetStateAction<ModDraft>) => {
     const current = latest.current;
     if (current.key !== key) return false;
     const draft = typeof update === "function" ? update(current.draft) : update;
-    const updated = { ...current, draft };
+    const pending = draftSize(draft);
+    let persisted = false;
+    let saveFailed = false;
+    if (key && scopeKey && scope.library) {
+      try {
+        if (pending) localStorage.setItem(key, JSON.stringify(draft));
+        else localStorage.removeItem(key);
+        persisted = true;
+      } catch {
+        saveFailed = pending > 0;
+      }
+    }
+    const updated = { ...current, draft, saveFailed };
     latest.current = updated;
     setSaved(updated);
-    if (!key || !scopeKey || !scope.library) return false;
-    try {
-      if (draftSize(draft)) {
-        localStorage.setItem(key, JSON.stringify(draft));
-      } else {
-        localStorage.removeItem(key);
-      }
-      return true;
-    } catch {
-      // Keep the current in-memory draft if local writes are unavailable.
-      return false;
-    }
+    return persisted;
   };
   const updateOlder = (draft?: ModDraft) => {
     const current = latest.current;
@@ -266,5 +269,11 @@ export function useModDraft(scope: {
       // The old draft stays available if the store cannot save the change.
     }
   };
-  return [saved.draft, updateDraft, recovered ? undefined : saved.stale, updateOlder];
+  return [
+    saved.draft,
+    updateDraft,
+    recovered ? undefined : saved.stale,
+    updateOlder,
+    saved.saveFailed,
+  ];
 }

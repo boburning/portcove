@@ -431,6 +431,7 @@
       "discardOlder": "Descartar cambios anteriores",
       "done": "Listo",
       "draftLimit": "Una configuración admite hasta {{limit}} mods. Aplica o deshaz cambios para añadir más.",
+      "draftSaveFailed": "Portcove no pudo guardar este borrador para más tarde. Aún puedes revisarlo aquí. Si cierras Portcove, podrías perder estos cambios.",
       "editOrder": "Editar orden",
       "emptySource": "{{provider}} no ofrece mods para este port.",
       "enabledFilter": "Activados",
