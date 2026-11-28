@@ -6089,7 +6089,7 @@ mod tests {
         assert_eq!(
             alternate,
             baseline,
-            "unequal fields: {:?}; hashes agree: {}; reverse comparison agrees: {}",
+            "unequal fields: {:?}; hashes agree: {}; baseline == alternate: {}",
             differing_cache_key_fields(&alternate, &baseline),
             cache_key_hash(&alternate) == cache_key_hash(&baseline),
             baseline == alternate,
