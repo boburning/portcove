@@ -204,6 +204,54 @@ fn pending_catalog_record_formats_preserve_legacy_and_refuse_missing_or_foreign_
 }
 
 #[tokio::test]
+async fn a_pending_download_never_serializes_directory_observed_covers() {
+    let (_temporary, mut service, request) = fixture();
+    let mut directory = service.catalog.listing_document().clone();
+    directory.format_version = crate::catalog::listings::OBSERVED_PROJECT_COVER_LISTING_FORMAT;
+    let artwork = serde_json::from_value(json!({
+        "game_id":17, "cover_id":31, "image_id":"projectcover",
+        "image_sha256":"a".repeat(64), "game_slug":"project", "match_kind":"port",
+        "observed_github_repository_id":42
+    }))
+    .unwrap();
+    directory.listings[0].artwork = Some(artwork);
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(directory)
+        .unwrap();
+    let github = GithubFixture::new(archive(), None, None);
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    let encoded = serde_json::to_string(&service.pending_setups().unwrap()[0]).unwrap();
+    let mut decoded: PendingSetupRecord = serde_json::from_str(&encoded).unwrap();
+    assert_eq!(decoded.id, pending.id);
+    assert_eq!(decoded.format_version, 1);
+    assert!(decoded.listing.artwork.is_none());
+    assert!(!encoded.contains("observed_github_repository_id"));
+    validate_record(&decoded).unwrap();
+
+    decoded.listing.artwork = service
+        .catalog
+        .listing(&request.port_id)
+        .unwrap()
+        .artwork
+        .clone();
+    assert!(validate_record(&decoded).is_err());
+}
+
+#[tokio::test]
 async fn catalog_default_candidates_use_recommendation_and_explicit_choices_win() {
     let (_temporary, mut service, request) = fixture();
     assert_eq!(

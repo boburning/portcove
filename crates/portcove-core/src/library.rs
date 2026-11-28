@@ -100,10 +100,7 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // Implementation explanations are directory-only too. Keep earlier strict
         // retained-listing readers compatible without changing their launch contract.
         listing.implementation = None;
-        listing.mod_portals.clear();
-        listing.official_setup_id = None;
-        listing.media.retain(|asset| !asset.is_typed_igdb_scene());
-        crate::catalog::listings::strip_verified_sources(&mut listing);
+        crate::catalog::listings::strip_directory_only_retained_fields(&mut listing);
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
             format_version: if listing.collection_covers.is_some() {
@@ -170,6 +167,7 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
             || crate::catalog::listings::has_verified_source_editions(&retained.listing)
             || !retained.listing.mod_portals.is_empty()
             || retained.listing.official_setup_id.is_some()
+            || crate::catalog::listings::has_observed_project_cover(&retained.listing)
             || retained.listing.id != port_id
         {
             return Err(PortcoveError::verification(
@@ -4178,6 +4176,45 @@ mod tests {
         let mut invalid: serde_json::Value = serde_json::from_str(&content).unwrap();
         invalid["listing"]["mod_portals"] = links;
         assert!(decode_external_catalog(&invalid.to_string(), id).is_err());
+    }
+
+    #[test]
+    fn a_retained_selection_leaves_observed_covers_to_the_signed_directory() {
+        let id = "observed-cover-project";
+        let artwork = serde_json::json!({
+            "game_id":17, "cover_id":31, "image_id":"projectcover",
+            "image_sha256":"a".repeat(64), "game_slug":"project", "match_kind":"port",
+            "observed_github_repository_id":42
+        });
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":id, "name":"Observed project", "summary":"External registration fixture.",
+            "project_url":"https://github.com/owner/game", "artwork":artwork
+        }))
+        .unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing.clone()).unwrap();
+        assert_eq!(
+            catalog.listing_document().format_version,
+            crate::catalog::listings::OBSERVED_PROJECT_COVER_LISTING_FORMAT
+        );
+        let content = encode_external_catalog(&catalog, id).unwrap();
+        let decoded = decode_external_catalog(&content, id).unwrap();
+        assert!(decoded.listing(id).unwrap().artwork.is_none());
+        assert!(!content.contains("observed_github_repository_id"));
+
+        let mut invalid: serde_json::Value = serde_json::from_str(&content).unwrap();
+        invalid["listing"]["artwork"] = artwork;
+        assert!(decode_external_catalog(&invalid.to_string(), id).is_err());
+
+        let mut authored = listing;
+        authored
+            .artwork
+            .as_mut()
+            .unwrap()
+            .observed_github_repository_id = None;
+        let catalog = Catalog::for_user_selected_listing(authored.clone()).unwrap();
+        let kept = encode_external_catalog(&catalog, id).unwrap();
+        let decoded = decode_external_catalog(&kept, id).unwrap();
+        assert_eq!(decoded.listing(id).unwrap().artwork, authored.artwork);
     }
 
     #[test]

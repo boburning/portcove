@@ -31,6 +31,7 @@ pub(crate) const REPOSITORY_BOUND_LISTING_FORMAT: u32 = 17;
 pub(crate) const OFFICIAL_SETUP_LISTING_FORMAT: u32 = 18;
 pub(crate) const ASSIGNED_COVER_LISTING_FORMAT: u32 = 19;
 pub(crate) const OBSERVED_PROJECT_COVER_LISTING_FORMAT: u32 = 20;
+const MAX_OBSERVED_REPOSITORY_ID: u64 = 9_007_199_254_740_991;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -140,6 +141,30 @@ pub(crate) fn strip_verified_sources(listing: &mut PortListing) {
         for edition in &mut game.source_editions {
             edition.verified_sources.clear();
         }
+    }
+}
+
+pub(crate) fn has_observed_project_cover(listing: &PortListing) -> bool {
+    listing
+        .artwork
+        .iter()
+        .chain(listing.collection_covers.iter().flatten())
+        .any(|cover| cover.observed_github_repository_id.is_some())
+}
+
+/// These fields come from the current directory. A legacy setup cannot
+/// authenticate a generated cover after the catalog withdraws or replaces it.
+pub(crate) fn strip_directory_only_retained_fields(listing: &mut PortListing) {
+    listing.mod_portals.clear();
+    listing.official_setup_id = None;
+    listing.media.retain(|asset| !asset.is_typed_igdb_scene());
+    strip_verified_sources(listing);
+    if listing
+        .artwork
+        .as_ref()
+        .is_some_and(|cover| cover.observed_github_repository_id.is_some())
+    {
+        listing.artwork = None;
     }
 }
 
@@ -272,6 +297,11 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self.listings.iter().any(has_observed_project_cover) {
+            self.format_version = self
+                .format_version
+                .max(OBSERVED_PROJECT_COVER_LISTING_FORMAT);
+        }
         if self
             .listings
             .iter()
@@ -454,7 +484,7 @@ impl CatalogListingDocument {
                     ));
                 }
                 if artwork.match_kind != crate::IgdbArtworkMatch::Port
-                    || repository_id == 0
+                    || !(1..=MAX_OBSERVED_REPOSITORY_ID).contains(&repository_id)
                     || crate::release::catalog_download_repository(&listing.project_url).is_err()
                     || listing
                         .admitted_github_repository_id()
@@ -2265,6 +2295,10 @@ mod tests {
 
         row["artwork"]["observed_github_repository_id"] = json!(891);
         assert!(read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, row.clone()).is_err());
+        let mut legacy = row.clone();
+        legacy["id"] = json!("legacy-project");
+        legacy["artwork"]["observed_github_repository_id"] = json!(MAX_OBSERVED_REPOSITORY_ID + 1);
+        assert!(read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, legacy).is_err());
         row["artwork"]["observed_github_repository_id"] = json!(890);
         row["artwork"]["match_kind"] = json!("underlying-game");
         assert!(read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, row).is_err());
