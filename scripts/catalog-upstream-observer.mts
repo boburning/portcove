@@ -41,7 +41,7 @@ import type {
   ProviderObservation,
 } from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
-import type { LauncherModObservation } from "./port-upstream-facts.mts";
+import type { LauncherModObservation, LauncherModRepository } from "./port-upstream-facts.mts";
 import {
   type FirstPartyModProgress,
   launcherModSubjects,
@@ -624,7 +624,7 @@ export interface CatalogObservationOptions extends Pick<
   providerFetch?: typeof fetch;
   modProviderRegistryFetch?: typeof fetch;
   observeLauncherMods?: (
-    repository: { id: number; slug: string },
+    repository: LauncherModRepository,
     account: Required<
       Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
     >,
@@ -1051,8 +1051,13 @@ export async function advanceCatalogObservations(
       if (options.signal?.aborted || capacity() < 4) break;
       let result: LauncherModObservation;
       try {
+        const retained = progress[subject.port_id]?.last_complete?.result;
         result = await observeLauncherMods(
-          { id: subject.repository_id, slug: subject.slug },
+          {
+            id: subject.repository_id,
+            slug: subject.slug,
+            ...(retained?.state === "absent" ? { priorAbsence: retained } : {}),
+          },
           { admitRequest, observeResponse, consumeResponseBytes },
         );
       } catch (cause) {
