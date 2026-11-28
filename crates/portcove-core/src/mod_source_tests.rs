@@ -224,8 +224,30 @@ fn data_github(
 }
 
 #[test]
+fn the_reviewed_ring_racers_listing_portal_remains_link_out_only() {
+    let catalog = Catalog::embedded().unwrap();
+    assert!(catalog.port("ring-racers").is_err());
+    for platform in PLATFORMS {
+        assert_eq!(
+            data_portals(&catalog, "ring-racers", platform),
+            [(
+                "kart-krew-addons".to_owned(),
+                "https://ms.kartkrew.org/".to_owned(),
+                false
+            )],
+            "{platform:?}"
+        );
+    }
+}
+
+#[test]
 fn data_declarations_resolve_exactly_like_the_retired_compiled_tables() {
     let catalog = Catalog::embedded().unwrap();
+    let legacy = catalog
+        .listing_document()
+        .export_format(crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT)
+        .unwrap();
+    let catalog = catalog.with_listing_document(legacy).unwrap();
     let ids: BTreeSet<&str> = catalog
         .ports()
         .iter()

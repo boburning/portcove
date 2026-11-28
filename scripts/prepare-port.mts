@@ -10,7 +10,6 @@ import {
   packagePlayerProjectionKey,
 } from "./package-player-observation.mts";
 import {
-  mkdirSync,
   mkdtempSync,
   lstatSync,
   readFileSync,
@@ -69,6 +68,7 @@ import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-packag
 import {
   createIgdbInspector,
   createCoreImageValidator,
+  hashCoreImageValidatorFile,
   readArtworkJson,
   readArtworkInput,
 } from "./inspect-igdb-artwork.mts";
@@ -78,6 +78,7 @@ import type {
   ImageValidator,
 } from "./inspect-igdb-artwork.mts";
 import {
+  openArtworkCheckpoint as openCheckpoint,
   prepareArtworkWorkset,
   readKnownGoneArtwork,
   retainedCoverDigests,
@@ -117,7 +118,6 @@ interface PrepareOptions {
   facts?: Pick<PortFactsOptions, "fetcher" | "now" | "token">;
   artwork?: Pick<ArtworkPreparationOptions, "inspectGame" | "inspectImage">;
 }
-const owner = { format_version: 1, tool: "portcove-prepare-port" };
 const repositoryCatalogPath = join("crates", "portcove-core", "catalog");
 type PackageFacts = Pick<
   Awaited<ReturnType<typeof collectPortFacts>>,
@@ -395,25 +395,6 @@ function packageHintFeedback(
     }),
   };
 }
-function openCheckpoint(directory: string) {
-  try {
-    mkdirSync(directory);
-    writeFileSync(join(directory, "owner.json"), JSON.stringify(owner), { flag: "wx" });
-  } catch (error) {
-    if (errorCode(error) !== "EEXIST") throw error;
-  }
-  const info = lstatSync(directory);
-  const ownerInfo = lstatSync(join(directory, "owner.json"));
-  if (
-    !info.isDirectory() ||
-    info.isSymbolicLink() ||
-    !ownerInfo.isFile() ||
-    ownerInfo.isSymbolicLink() ||
-    observationHash(readArtworkJson(join(directory, "owner.json"))) !== observationHash(owner)
-  )
-    throw new Error("Output directory is not a recognized preparation checkpoint.");
-  mkdirSync(join(directory, "active.lock"));
-}
 function immutableJson(directory: string, name: string, value: unknown) {
   const bytes = `${JSON.stringify(value, null, 2)}\n`;
   const file = join(directory, `${name}-${createHash("sha256").update(bytes).digest("hex")}.json`);
@@ -436,16 +417,27 @@ function retainArtifact(file: string, bytes: string) {
       throw new Error("An existing preparation artifact differs; retained it for reconciliation.");
   }
 }
-function artworkCatalog(records: readonly AuthoredPort[]): ArtworkCatalog {
+function artworkCatalog(
+  records: readonly AuthoredPort[],
+  includeOriginalGame = false,
+): ArtworkCatalog {
   return {
-    ports: records.map(({ listing, integration, igdb_regional_cover }) => {
+    ports: records.map((record) => {
+      const { listing, integration, igdb_regional_cover } = record;
       const presentation = integration?.presentation;
       const companion = isRecord(presentation) ? presentation.companion_cover : undefined;
+      const game = listing.original_game;
+      const edition = game?.source_editions.length === 1 ? game.source_editions[0] : undefined;
+      const regionalCoverEdition =
+        igdb_regional_cover && edition?.system && game?.id
+          ? observationHash([game.id, edition.id, edition.system])
+          : undefined;
       return {
         id: listing.id,
         name: listing.name,
         project_url: listing.project_url,
         ...(igdb_regional_cover ? { igdb_regional_cover } : {}),
+        ...(regionalCoverEdition ? { regional_cover_edition: regionalCoverEdition } : {}),
         ...(listing.original_game_title
           ? {
               underlying_game: {
@@ -457,6 +449,9 @@ function artworkCatalog(records: readonly AuthoredPort[]): ArtworkCatalog {
           : {}),
         ...(integration?.source_profile ? { source_profile: integration.source_profile } : {}),
         presentation: {
+          ...(includeOriginalGame && listing.original_game && !usesScummvmEngine(record)
+            ? { original_game: listing.original_game }
+            : {}),
           ...(listing.artwork ? { artwork: listing.artwork } : {}),
           ...(listing.collection_covers !== undefined
             ? { collection_covers: listing.collection_covers }
@@ -1221,14 +1216,18 @@ export async function preparePort(options: PrepareOptions) {
     if (compact !== record) record = checkedAuthoredPort(compact);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
-    const artwork = await prepareArtworkWorkset(artworkCatalog(records), {
-      root,
-      acceptedCatalog: artworkCatalog(authored.records),
-      inspector,
-      identities: options.identities ?? {},
-      validatorIdentity,
-      selectedPortIds: [id],
-    });
+    const artwork = await prepareArtworkWorkset(
+      artworkCatalog(records, authored.reviewedOriginalMedia.size > 0),
+      {
+        root,
+        acceptedCatalog: artworkCatalog(authored.records),
+        inspector,
+        identities: options.identities ?? {},
+        reviewedOriginalMedia: authored.reviewedOriginalMedia,
+        validatorIdentity,
+        selectedPortIds: [id],
+      },
+    );
     const prepared = preparedRecordOutputs(
       options,
       root,
@@ -1657,7 +1656,7 @@ export async function prepareDiscoveryListingAdditions(
               facts.discovery_scope?.state === "eligible"
                 ? [
                     projectUrl,
-                    `${projectUrl}/blob/${facts.discovery_scope.commit}/${facts.discovery_scope.manifest_path}`,
+                    `${projectUrl}/blob/${facts.discovery_scope.commit}/${facts.discovery_scope.evidence_path}`,
                   ]
                 : [projectUrl],
           },
@@ -2009,6 +2008,7 @@ export async function prepareSharedCoverBatch(
     const { proposals, outcomes } = projectExactSharedCovers({
       live,
       authored: authored.authored,
+      reviewedOriginalMedia: authored.reviewedOriginalMedia,
       gone,
       checked,
       excludedPortIds: new Set(
@@ -2063,6 +2063,7 @@ export async function prepareArtworkBatch(
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     maintenance?: boolean;
+    revalidateAccepted?: boolean;
     retainedCoverLimit?: number;
     dueCoverLimit?: number;
     now?: () => number;
@@ -2089,14 +2090,19 @@ export async function prepareArtworkBatch(
     refreshPortIds.some((id) => !selected.has(id))
   )
     throw new Error("Artwork refresh requires unique IDs within the selected workset.");
+  if (
+    options.revalidateAccepted &&
+    (options.maintenance || refreshPortIds.length !== selected.size)
+  )
+    throw new Error("Exact artwork revalidation requires an explicit fully refreshed selection.");
   const validatorIdentity = options.validatorCli
-    ? createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex")
+    ? hashCoreImageValidatorFile(options.validatorCli)
     : null;
   const boundedDue = options.dueCoverLimit !== undefined;
   const excluded = new Set(
     boundedDue ? authored.records.filter(usesScummvmEngine).map(({ listing }) => listing.id) : [],
   );
-  const acceptedArtwork = artworkCatalog(authored.records);
+  const acceptedArtwork = artworkCatalog(authored.records, authored.reviewedOriginalMedia.size > 0);
   const artworkScope = excluded.size
     ? { ...acceptedArtwork, ports: acceptedArtwork.ports.filter(({ id }) => !excluded.has(id)) }
     : acceptedArtwork;
@@ -2107,6 +2113,7 @@ export async function prepareArtworkBatch(
     let artworkResult;
     if (
       !options.maintenance &&
+      !authored.reviewedOriginalMedia.size &&
       refreshPortIds.length === 0 &&
       !existsSync(join(root, "artwork-gone.json")) &&
       readdirSync(root).some((name) => /^artwork-batch-[a-f0-9]{64}\.json$/u.test(name))
@@ -2139,10 +2146,12 @@ export async function prepareArtworkBatch(
         root,
         inspector,
         identities,
+        reviewedOriginalMedia: authored.reviewedOriginalMedia,
         validatorIdentity,
         ...(options.selectedPortIds ? { selectedPortIds: options.selectedPortIds } : {}),
         refreshPortIds,
         ...(options.maintenance ? { maintenance: true } : {}),
+        ...(options.revalidateAccepted ? { revalidateAccepted: true } : {}),
         ...(options.retainedCoverLimit === undefined
           ? {}
           : { retainedCoverLimit: options.retainedCoverLimit }),

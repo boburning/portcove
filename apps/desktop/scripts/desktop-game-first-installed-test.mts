@@ -41,6 +41,7 @@ import { createImageRefusal } from "./desktop-cover-observations.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import { captureGameFirstTarget } from "./desktop-game-first-test.mts";
 import {
+  activitySectionTab,
   catalogResultPortIds,
   captureAccessibilityReport,
   clearCatalogFilters,
@@ -582,11 +583,7 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
             ),
           );
           await selectPrimaryNavigation(browser, "Activity");
-          const updatesTab = await browser.findElement(
-            By.xpath(
-              '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="Game updates"]]',
-            ),
-          );
+          const updatesTab = await browser.findElement(activitySectionTab("Game updates"));
           await clickVisible(browser, updatesTab);
           await browser.wait(
             async () => (await updatesTab.getAttribute("aria-selected")) === "true",

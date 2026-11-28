@@ -1,6 +1,20 @@
-import { observedModPortalPrefix } from "./catalog-authoring.mts";
+import { launcherModGameScopes, verifyLauncherModGameScope } from "./launcher-mod-game-scope.mts";
+import {
+  isBoundLauncherModPortal,
+  launcherModPortalId,
+  observedLauncherModPortalPrefix,
+} from "./first-party-mod-portal.mts";
+import { admittedGithubRepositoryId, observedModPortalPrefix } from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
+import { catalogObservationSources } from "./catalog-upstream-observer.mts";
+import {
+  launcherModScopes,
+  launcherModSubjectBinding,
+  launcherModSubjects,
+  validateFirstPartyModProgress,
+  type FirstPartyModProgress,
+} from "./upstream-launcher-mod-progress.mts";
 import {
   exactGameBananaId,
   validateModProviderRegistryProgress,
@@ -36,19 +50,34 @@ function isGenerated(portal: unknown): boolean {
   return (
     isRecord(portal) &&
     typeof portal.id === "string" &&
-    portal.id.startsWith(observedModPortalPrefix)
+    (portal.id.startsWith(observedModPortalPrefix) ||
+      portal.id.startsWith(observedLauncherModPortalPrefix))
   );
 }
 
-/** Generated browser links are independent of the release observation declaration. */
-export function withoutGeneratedModPortals(listing: Record<string, unknown>) {
+function withoutModPortals(listing: Record<string, unknown>, remove: (portal: unknown) => boolean) {
   const portals = listingPortals(listing);
-  const authored = portals.filter((portal) => !isGenerated(portal));
+  const authored = portals.filter((portal) => !remove(portal));
   if (portals.length === authored.length) return listing;
   const result = { ...listing };
   if (authored.length) result.mod_portals = authored;
   else delete result.mod_portals;
   return result;
+}
+
+/** Generated browser links are independent of the release observation declaration. */
+export function withoutGeneratedModPortals(listing: Record<string, unknown>) {
+  return withoutModPortals(listing, isGenerated);
+}
+
+export function withoutLauncherAdmissionSeeds(listing: Record<string, unknown>) {
+  return withoutModPortals(
+    listing,
+    (portal) =>
+      isRecord(portal) &&
+      typeof portal.id === "string" &&
+      portal.id.startsWith(observedLauncherModPortalPrefix),
+  );
 }
 
 /**
@@ -123,7 +152,7 @@ export function listingModPortalDefaults(
       boundThunderstore.has(listing.id)
     )
       return undefined;
-    const authored = listingPortals(listing);
+    const authored = listingPortals(withoutLauncherAdmissionSeeds(listing));
     const gameIds = new Set(reviewedGameIds.get(listing.id));
     for (const portal of authored) {
       if (!isRecord(portal) || isGenerated(portal) || portal.site !== "community_site") continue;
@@ -146,8 +175,12 @@ export function listingModPortalDefaults(
     const matches = communities?.get(gameId);
     if (matches?.length === 1 && matches[0]?.listed === true) return communityPortal(matches[0]);
     if (
-      previous?.project_url !== listing.project_url ||
-      !previous ||
+      previous?.id !== listing.id ||
+      // Repository-bound listings keep their identity when the verified
+      // canonical repository changes names. Other listings still need
+      // the same authored project URL.
+      (previous.project_url !== listing.project_url &&
+        admittedGithubRepositoryId(listing.id) === undefined) ||
       observationHash(previous.original_game ?? null) !==
         observationHash(listing.original_game ?? null)
     )
@@ -178,5 +211,165 @@ export function listingModPortalDefaults(
       )
       ? retained
       : undefined;
+  };
+}
+
+/** First-party declarations are implementation-scoped website metadata. */
+export function firstPartyListingModDefaults(
+  catalog: Record<string, unknown>,
+  listings: unknown[],
+  checkpoint: unknown,
+  excluded: ReadonlySet<string>,
+  now: number,
+) {
+  const gameScopes = launcherModGameScopes(catalog, listings);
+  const sources = catalogObservationSources({ ...catalog, listings }).sources;
+  const bindings = new Map<string, Set<string>>();
+  for (const port of catalog.ports as unknown[]) {
+    if (
+      !isRecord(port) ||
+      typeof port.id !== "string" ||
+      !Array.isArray(port.mod_provider_bindings)
+    )
+      continue;
+    bindings.set(
+      port.id,
+      new Set(
+        port.mod_provider_bindings.flatMap((binding: unknown) =>
+          isRecord(binding) && typeof binding.provider === "string" ? [binding.provider] : [],
+        ),
+      ),
+    );
+  }
+  const state = isRecord(checkpoint) && isRecord(checkpoint.sources) ? checkpoint : undefined;
+  const ids: Record<string, { repository_id: number | null }> = {};
+  const observedOwners = new Map<number, Set<string>>();
+  for (const source of sources) {
+    const prior = isRecord(state?.sources) ? state.sources[source.key] : undefined;
+    if (
+      isRecord(prior) &&
+      Number.isSafeInteger(prior.repository_id) &&
+      Number(prior.repository_id) > 0
+    ) {
+      const repositoryId = Number(prior.repository_id);
+      ids[source.key] = { repository_id: repositoryId };
+      if ((source.provider ?? "github") === "github") {
+        const owners = observedOwners.get(repositoryId) ?? new Set<string>();
+        for (const port of source.ports) owners.add(port.id);
+        observedOwners.set(repositoryId, owners);
+      }
+    }
+  }
+  const scopes = launcherModScopes(sources);
+  const scopeByPort = new Map(scopes.map((scope) => [scope.port_id, scope]));
+  const subjects = new Map(
+    launcherModSubjects(sources, ids, scopes, gameScopes).map((subject) => [
+      subject.port_id,
+      subject,
+    ]),
+  );
+  const raw = state?.launcher_mod_sources;
+  if (raw !== undefined) validateFirstPartyModProgress(raw, now);
+  const progress = raw as Record<string, FirstPartyModProgress> | undefined;
+  return (
+    listing: Record<string, unknown>,
+    previous: Record<string, unknown> | undefined,
+  ): Portal[] => {
+    if (typeof listing.id !== "string" || excluded.has(listing.id)) return [];
+    const scope = scopeByPort.get(listing.id);
+    const gameScope = gameScopes.get(listing.id);
+    if (!scope || !gameScope) return [];
+    const subject = subjects.get(listing.id);
+    if (!subject && ids[scope.source_key]) return [];
+    const admittedId = admittedGithubRepositoryId(listing.id);
+    const owners = admittedId === undefined ? undefined : observedOwners.get(admittedId);
+    if (owners && (owners.size !== 1 || !owners.has(listing.id))) return [];
+    const entry = progress?.[listing.id];
+    const authored = listingPortals(withoutLauncherAdmissionSeeds(listing));
+    const blocked = new Set(bindings.get(listing.id));
+    for (const portal of authored) {
+      if (!isRecord(portal) || typeof portal.url !== "string") continue;
+      const host = URL.parse(portal.url)?.hostname;
+      if (host === "thunderstore.io" || host === "gamebanana.com") blocked.add(host.split(".")[0]!);
+    }
+    const provider = (portal: { name: string }) =>
+      portal.name === "Thunderstore" ? "thunderstore" : "gamebanana";
+    let sharedRenamePortals: readonly Pick<Portal, "name" | "url">[] | undefined;
+    if (entry && !subject) {
+      // A renamed source may lack a current checkpoint. Keep only authenticated
+      // prior websites under the same admitted ID, and honor explicit absence.
+      const result = entry.last_complete?.result;
+      const verified = result && verifyLauncherModGameScope(result, gameScope);
+      if (
+        admittedId === undefined ||
+        !previous ||
+        entry.outcome === "held" ||
+        verified?.state === "absent" ||
+        verified?.state === "held" ||
+        (result?.state === "observed" && result.repository_id !== admittedId)
+      )
+        return [];
+      if (gameScope.sharedEditionBinding) {
+        if (
+          verified?.state !== "observed" ||
+          entry.binding !==
+            launcherModSubjectBinding(
+              listing.id,
+              admittedId,
+              scope.original_game,
+              gameScope.sharedEditionBinding,
+            )
+        )
+          return [];
+        sharedRenamePortals = verified.mod_portals;
+      }
+    }
+    if (entry && subject) {
+      if (entry.binding !== subject.binding) return [];
+      const result = entry.last_complete?.result;
+      if (entry.outcome !== "unavailable" || result) {
+        if (result?.state !== "observed" || result.repository_id !== subject.repository_id)
+          return [];
+        const verified = verifyLauncherModGameScope(result, gameScope);
+        if (verified.state === "held") return [];
+        if (verified.state === "observed" && entry.reason !== "game-input-scope-unproven")
+          return verified.mod_portals
+            .filter((portal) => !blocked.has(provider(portal)))
+            .slice(0, 8 - authored.length)
+            .map((portal) => ({
+              ...portal,
+              site: "community_site",
+              id: launcherModPortalId(portal, result.repository_id),
+            }));
+      }
+    }
+    // A readable checkpoint must substantiate current shared codes. If the
+    // entire checkpoint is unavailable, fall back to the previously signed
+    // source under the unchanged game, edition and repository checks below.
+    if (gameScope.sharedEditionBinding && state && !sharedRenamePortals) return [];
+    const expectedId = subject?.repository_id ?? admittedId;
+    if (
+      previous?.id !== listing.id ||
+      (previous.project_url !== listing.project_url && admittedId === undefined) ||
+      observationHash(previous.original_game ?? null) !==
+        observationHash(listing.original_game ?? null)
+    )
+      return [];
+    const retained: Portal[] = [];
+    for (const portal of listingPortals(previous)) {
+      if (!isBoundLauncherModPortal(portal, expectedId)) continue;
+      if (
+        sharedRenamePortals &&
+        !sharedRenamePortals.some(
+          (source) => source.name === portal.name && source.url === portal.url,
+        )
+      )
+        continue;
+      const providerId = provider(portal);
+      if (blocked.has(providerId)) continue;
+      blocked.add(providerId);
+      retained.push(portal);
+    }
+    return retained.slice(0, 8 - authored.length);
   };
 }

@@ -13,10 +13,13 @@
       "evidence_urls": ["https://github.com/cheviman/tmnt-port"],
       "source_editions": [
         {
-          "id": "teenage-mutant-ninja-turtles-nintendo-switch",
-          "title": "Teenage Mutant Ninja Turtles (Nintendo Switch)",
-          "system": "nintendo-switch",
-          "evidence_urls": ["https://github.com/cheviman/tmnt-port"]
+          "id": "teenage-mutant-ninja-turtles-konami-arcade-world-4p-vx",
+          "title": "Teenage Mutant Ninja Turtles (Konami arcade, World 4 Players, version X)",
+          "system": "konami-arcade",
+          "evidence_urls": [
+            "https://github.com/cheviman/tmnt-port/blob/aba58859fbc82f214bf3e82c928cd20d12902bc4/README.md#L1-L11",
+            "https://github.com/cheviman/tmnt-port/blob/aba58859fbc82f214bf3e82c928cd20d12902bc4/tools/tmnt_rom.py#L1-L24"
+          ]
         }
       ]
     },

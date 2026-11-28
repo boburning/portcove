@@ -56,7 +56,17 @@
         "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/README.md",
         "https://github.com/tmcleroy/cps2recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "street-fighter-zero-2-alpha-cps2-sfz2al",
+          "title": "Street Fighter Zero 2 Alpha (CPS-2, Asia 960826, sfz2al)",
+          "system": "capcom-cps-2",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/README.md#L154-L155",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/recomp.json#L4-L6"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

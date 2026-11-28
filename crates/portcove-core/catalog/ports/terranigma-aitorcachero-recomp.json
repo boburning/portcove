@@ -11,7 +11,17 @@
       "format_version": 1,
       "id": "terranigma",
       "evidence_urls": ["https://github.com/aitorcachero/ark-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "terranigma-super-nintendo-spanish-pal-input",
+          "title": "Terranigma (Super Nintendo, Spanish PAL input)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/aitorcachero/ark-Recomp/blob/a9665209c2a3c3cfd6b6f46b224dafe710134c82/README.md",
+            "https://github.com/aitorcachero/ark-Recomp/blob/a9665209c2a3c3cfd6b6f46b224dafe710134c82/rom_identity.txt"
+          ]
+        }
+      ]
     },
     "original_game_title": "Terranigma"
   }

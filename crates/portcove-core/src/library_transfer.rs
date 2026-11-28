@@ -227,10 +227,15 @@ pub(crate) fn move_fingerprint(plan: &LibraryMovePlan) -> Result<String> {
     ))?)))
 }
 
-pub(crate) fn verify_source_plan(library: &crate::Library, plan: &LibraryMovePlan) -> Result<()> {
+pub(crate) fn verify_source_plan(
+    library: &crate::Library,
+    plan: &LibraryMovePlan,
+    include_mod_portal_preferences: bool,
+) -> Result<()> {
     require_transfer_idle(library, LibraryTransferPurpose::Move)?;
     let mut current = plan.clone();
-    current.metadata = library.metadata_for_root(&plan.source_root)?;
+    current.metadata =
+        library.metadata_for_transfer(&plan.source_root, include_mod_portal_preferences)?;
     for tree in &mut current.content {
         tree.copy = reviewed_tree(&plan.source_root.join(&tree.relative_path))?;
     }

@@ -1,4 +1,4 @@
-import { captureParityState } from "../../test/parity-capture";
+import { captureParityState, captureViewportScreenshot } from "../../test/parity-capture";
 import { observeCollectionLayoutReady } from "../../scripts/browser-readiness.mts";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -271,9 +271,9 @@ it.each([
       })
       .toBeGreaterThanOrEqual(160);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width + 1);
-    await page.screenshot({
-      path: `../../../../outputs/ui-refinement/continue-${theme}-${width}-100.png`,
-    });
+    await captureViewportScreenshot(
+      `../../../../outputs/ui-refinement/continue-${theme}-${width}-100.png`,
+    );
     const add = document.querySelector<HTMLButtonElement>(
       "[data-library-header] [data-add-games-trigger]",
     )!;
@@ -317,9 +317,9 @@ it.each(["dark", "light"])(
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
     const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
     expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
-    await page.screenshot({
-      path: `../../../../outputs/ui-refinement/continue-${theme}-740-interface-130.png`,
-    });
+    await captureViewportScreenshot(
+      `../../../../outputs/ui-refinement/continue-${theme}-740-interface-130.png`,
+    );
     await page.getByRole("button", { name: "Filters (0)", exact: true }).click();
     await expect.element(page.getByRole("button", { name: "Done", exact: true })).toBeVisible();
     await userEvent.keyboard("{Escape}");

@@ -1,3 +1,4 @@
+import { frameworkForkNetworks } from "./discovery-framework-forks.mts";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statfsSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -21,6 +22,7 @@ import {
 import type { DiscoveryCheckpoint } from "./discovery-checkpoint.mts";
 import { collectDiscoveryRun } from "./discovery-collection.mts";
 import type { DiscoveryCollectionHost } from "./discovery-collection.mts";
+import { sourcePortTopicFamily } from "./discovery-ecosystems.mts";
 import {
   externalHintSummary,
   externalListIds,
@@ -90,6 +92,8 @@ const passClocks = new Set([
   "observed_at",
   "checked_at",
   "attempted_at",
+  "advanced_at",
+  "turn",
   "unchanged_at",
   // A read's measured transfer, not something learned.
   "bytes",
@@ -159,14 +163,31 @@ export function parseWorkerState(value: unknown): DiscoveryWorkerState {
 }
 
 function listingCandidatePath(lead: DiscoveryLead, covered: ReadonlySet<string>) {
-  if (
-    (lead.status !== "pending" && lead.status !== "researched") ||
-    !lead.release_hint?.assets_observed
-  )
-    return undefined;
+  if (lead.status !== "pending" && lead.status !== "researched") return undefined;
   const project = externalRepository(lead.url);
   if (project?.key !== lead.url.toLowerCase() || covered.has(project.key)) return undefined;
   return project.key;
+}
+
+/** Nominate a listing for fresh scope validation even without a desktop asset hint. */
+function listingScopeHint(lead: DiscoveryLead) {
+  if (lead.manifest?.types.some((type) => type === "port" || type === "recomp"))
+    return { kind: "retained-manifest", manifest_sha256: sha256(lead.manifest) } as const;
+  if (
+    lead.release_hint?.assets_observed === false &&
+    lead.search_families?.includes(sourcePortTopicFamily)
+  )
+    return {
+      kind: "source-port-topic",
+      release_sampled_at: lead.release_hint.observed_at,
+    } as const;
+  if (lead.release_hint?.assets_observed === false && lead.external_lists?.length)
+    return {
+      kind: "curated-source",
+      sources: [...new Set(lead.external_lists)].sort(),
+      release_sampled_at: lead.release_hint.observed_at,
+    } as const;
+  return undefined;
 }
 
 /** An admitted run advances past the previous round's first candidate. Freeze
@@ -182,7 +203,10 @@ export function nextListingPreviewRound(
   const eligible = Object.values(leads.records)
     .filter((lead) => {
       const project = listingCandidatePath(lead, covered);
-      return project && lead.release_hint?.desktop_release?.project_url === project;
+      return (
+        project &&
+        (lead.release_hint?.desktop_release?.project_url === project || listingScopeHint(lead))
+      );
     })
     .map(({ id }) => id)
     .sort((a, b) => a - b);
@@ -319,6 +343,8 @@ export interface DiscoveryWorkerOptions {
    * reading them again.
    */
   retained?: DiscoveryRetainedState;
+  /** Only a retained in-memory revision is admitted for this pass. */
+  knownOnly?: boolean;
   /** Receives what this pass committed, for the next pass to reuse. */
   retain?: (retained: DiscoveryRetainedState | undefined) => void;
 }
@@ -346,7 +372,19 @@ export interface DiscoveryWorkerResult {
   canonical_overlap: "unknown";
   sources: { id: string; status: string; records: number; next_path?: unknown }[];
   notes: unknown[];
-  leads: { records: number; pending_families: number; external: unknown };
+  leads: {
+    records: number;
+    pending_families: number;
+    external: unknown;
+    framework_forks?: {
+      framework: string;
+      repository_id: number;
+      distinct_seen: number;
+      identity_conflicts: number;
+      next_page: number | null;
+      provider_pages_exhausted_at: string | null;
+    }[];
+  };
   committed: {
     pages: number;
     observations: number;
@@ -418,6 +456,7 @@ export async function runDiscoveryWorker(
       definition: discoveryDefinitionDigest,
       sourceRevision: options.sourceRevision,
       runner: options.runner,
+      ...(options.knownOnly ? { knownOnly: true } : {}),
       ...(known
         ? {
             known: {
@@ -725,6 +764,24 @@ export async function runDiscoveryWorker(
     records: Object.keys(host.leads.records).length,
     pending_families: leadFamilyIds.length - host.leadFamilies.size,
     external: host.leadSummary().external,
+    ...(!stale && !halted && !dirty && host.leads.framework_forks
+      ? {
+          framework_forks: frameworkForkNetworks.flatMap(({ key, repositoryId }) => {
+            const progress = host.leads.framework_forks?.[key];
+            if (!progress || progress.repository_id !== repositoryId) return [];
+            return [
+              {
+                framework: key,
+                repository_id: repositoryId,
+                distinct_seen: progress.seen.length,
+                identity_conflicts: Object.keys(progress.conflicts ?? {}).length,
+                next_page: progress.next_page,
+                provider_pages_exhausted_at: progress.completed_at ?? null,
+              },
+            ];
+          }),
+        }
+      : {}),
   };
   const remaining = budget.remaining();
   const wake = spent ? undefined : providerWake(budget, now());
@@ -788,7 +845,7 @@ export async function runDiscoveryWorker(
 
 export interface DiscoveryPassOptions extends Omit<
   DiscoveryWorkerOptions,
-  "budget" | "transferBytes" | "runStartedAt" | "retained" | "retain"
+  "budget" | "transferBytes" | "runStartedAt" | "retained" | "retain" | "knownOnly"
 > {
   /** Epoch milliseconds by which collection must stop, before final commits. */
   deadline: number;
@@ -802,15 +859,30 @@ export interface DiscoveryPassOptions extends Omit<
    */
   admit: (
     pass: number,
-    run: (admitted: { bytes: number; deadline: number }) => Promise<DiscoveryWorkerResult>,
+    run: (admitted: {
+      bytes: number;
+      deadline: number;
+      knownOnly?: boolean;
+    }) => Promise<DiscoveryWorkerResult>,
+    hasRetainedRevision: boolean,
   ) => Promise<DiscoveryWorkerResult | undefined>;
   sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
   signal?: AbortSignal;
   previewListings?: (preview: ReturnType<typeof scheduledListingPreview>) => void;
 }
 
-/** Select retained watch evidence for the unsigned preparer. Release hints are leads;
+/** Select retained lead evidence for the unsigned preparer. These hints nominate candidates;
  * product scope, package eligibility and all catalog writes have separate owners. */
+type ListingPreviewInput = {
+  repository_id: number;
+  repository: string;
+  lead_revision: string;
+  observed_at: string;
+} & (
+  | { desktop_asset_hint: true; release_id: number; release_response_sha256: string }
+  | { desktop_asset_hint: false; scope: NonNullable<ReturnType<typeof listingScopeHint>> }
+);
+
 export function scheduledListingPreview(
   retained: DiscoveryRetainedState,
   runStartedAt: string,
@@ -820,7 +892,7 @@ export function scheduledListingPreview(
 ) {
   const { leads, listing_preview_round: round } = parseWorkerState(retained.state);
   const observed = Object.values(leads.records)
-    .flatMap((lead) => {
+    .flatMap<ListingPreviewInput>((lead) => {
       if (
         round?.run_started_at === runStartedAt &&
         (lead.id < round.first_id || lead.id > round.through_id)
@@ -828,29 +900,43 @@ export function scheduledListingPreview(
         return [];
       const project = listingCandidatePath(lead, covered);
       const hint = lead.release_hint;
-      if (!project || !hint) return [];
-      let release = hint.desktop_release;
+      if (!project) return [];
+      let release = hint?.desktop_release;
       // Older retained records never established a release identity. Reuse
       // their provider response only if this run collected its exact bytes.
-      if (!release && hint.observed_at === runStartedAt) {
+      if (!release && hint?.assets_observed && hint.observed_at === runStartedAt) {
         try {
           release = observedLeadReleases(releaseEvidence(lead.id), lead.url).desktop_release;
         } catch {
-          return [];
+          // Independent scope hints can still go to preparation.
         }
       }
-      if (release?.project_url !== project) return [];
-      return [
-        {
-          repository_id: lead.id,
-          repository: lead.repository,
-          lead_revision: lead.revision,
-          observed_at: hint.observed_at,
-          desktop_asset_hint: true,
-          release_id: release.release_id,
-          release_response_sha256: release.response_sha256,
-        },
-      ];
+      const identity = {
+        repository_id: lead.id,
+        repository: lead.repository,
+        lead_revision: lead.revision,
+      };
+      if (hint && release?.project_url === project)
+        return [
+          {
+            ...identity,
+            observed_at: hint.observed_at,
+            desktop_asset_hint: true as const,
+            release_id: release.release_id,
+            release_response_sha256: release.response_sha256,
+          },
+        ];
+      const scope = listingScopeHint(lead);
+      return scope
+        ? [
+            {
+              ...identity,
+              observed_at: lead.observed_at,
+              desktop_asset_hint: false as const,
+              scope,
+            },
+          ]
+        : [];
     })
     .sort((a, b) => a.repository_id - b.repository_id);
   const evidence = observed.map((input) => ({ input, sha256: sha256(input) }));
@@ -867,7 +953,7 @@ export function scheduledListingPreview(
     },
     receipt: {
       format: "portcove-discovery-listing-preview",
-      format_version: 1,
+      format_version: 2,
       collector_source: sourceRevision,
       committed: {
         generation: retained.generation,
@@ -878,7 +964,7 @@ export function scheduledListingPreview(
       run_started_at: runStartedAt,
       ...(round?.run_started_at === runStartedAt ? { round } : {}),
       retained_record_count: Object.keys(leads.records).length,
-      selection: "retained-positive-release-hints-for-unsigned-preparation",
+      selection: "retained-release-and-scope-hints-for-unsigned-preparation",
       evidence,
     },
   };
@@ -934,32 +1020,38 @@ async function collectPasses(options: DiscoveryPassOptions) {
   for (let pass = 1; ; pass++) {
     let result: DiscoveryWorkerResult | undefined;
     try {
-      result = await options.admit(pass, async ({ bytes, deadline }) => {
-        const finishBy = Math.min(options.deadline, deadline - options.finalizationMs);
-        const startedAt = now();
-        const budget = new DiscoveryBudget(
-          "hosted",
-          (usage) => writeFileSync(path.join(options.runDir, "budget.json"), JSON.stringify(usage)),
-          now,
-          new Date(startedAt).toISOString(),
-          {
-            requests: Number.MAX_SAFE_INTEGER,
-            bytes: options.diskBytes,
-            milliseconds: Math.max(1, finishBy - startedAt),
-          },
-        );
-        return await runDiscoveryWorker({
-          ...options,
-          budget,
-          transferBytes: bytes,
-          runStartedAt,
-          rotateListingPreview: options.previewListings !== undefined,
-          ...(retained ? { retained } : {}),
-          retain: (value) => {
-            retained = value;
-          },
-        });
-      });
+      result = await options.admit(
+        pass,
+        async ({ bytes, deadline, knownOnly }) => {
+          const finishBy = Math.min(options.deadline, deadline - options.finalizationMs);
+          const startedAt = now();
+          const budget = new DiscoveryBudget(
+            "hosted",
+            (usage) =>
+              writeFileSync(path.join(options.runDir, "budget.json"), JSON.stringify(usage)),
+            now,
+            new Date(startedAt).toISOString(),
+            {
+              requests: Number.MAX_SAFE_INTEGER,
+              bytes: options.diskBytes,
+              milliseconds: Math.max(1, finishBy - startedAt),
+            },
+          );
+          return await runDiscoveryWorker({
+            ...options,
+            budget,
+            transferBytes: bytes,
+            runStartedAt,
+            ...(knownOnly ? { knownOnly: true } : {}),
+            rotateListingPreview: options.previewListings !== undefined,
+            ...(retained ? { retained } : {}),
+            retain: (value) => {
+              retained = value;
+            },
+          });
+        },
+        retained !== undefined,
+      );
     } catch (error) {
       // Keep the record of the passes that already committed.
       failure = `pass ${pass} failed: ${errorMessage(error).slice(0, 500)}`;
@@ -1107,9 +1199,25 @@ export function renderDiscoveryStatus(status: Record<string, unknown>) {
       lines.push(`| ${String(s.id)} | ${String(s.status)} | ${String(s.records)} |`);
     lines.push("");
   }
-  // Curated lists and inventory baselines: coverage and contribution per source.
   const cell = (value: unknown) =>
     typeof value === "string" || typeof value === "number" ? String(value) : "";
+  const forkNetworks =
+    isRecord(result.leads) && Array.isArray(result.leads.framework_forks)
+      ? result.leads.framework_forks.filter(isRecord)
+      : [];
+  if (forkNetworks.length) {
+    lines.push(
+      "| Fork network | Repository ID | Observed IDs | Identity conflicts | Next page | Pages exhausted |",
+      "| --- | ---: | ---: | ---: | ---: | --- |",
+    );
+    for (const network of forkNetworks) {
+      lines.push(
+        `| ${String(network.framework)} | ${String(network.repository_id)} | ${String(network.distinct_seen)} | ${String(network.identity_conflicts)} | ${cell(network.next_page)} | ${cell(network.provider_pages_exhausted_at)} |`,
+      );
+    }
+    lines.push("");
+  }
+  // Curated lists and inventory baselines: coverage and contribution per source.
   const external =
     isRecord(result.leads) && isRecord(result.leads.external) ? result.leads.external : {};
   const lists = isRecord(external.lists) ? external.lists : {};
@@ -1576,7 +1684,7 @@ export async function discoveryWorkerMain(argv: string[]) {
         });
         return { sdk, http: createDiscoveryTransport(budget, token) };
       },
-      admit: async (pass, collect) => {
+      admit: async (pass, collect, hasRetainedRevision) => {
         // Neon meters only what the database sends to the client: the acquire
         // read of the state and lead records (omitted when a later pass reuses
         // what this run committed), then a short acknowledgement for a commit
@@ -1584,18 +1692,21 @@ export async function discoveryWorkerMain(argv: string[]) {
         // The largest response any pass of this run or a recent run received
         // covers growth, including a full read after another writer's commit.
         // The admission meters 70% of a reservation as payload.
-        // A measured initial delta cannot fall back to an unadmitted full read.
-        // Subsequent passes retain conservative complete-read admission.
-        const measuredDiscovery = pass === 1 && selectedPlan !== undefined;
-        const reservationBytes =
-          measuredDiscovery && selectedPlan
-            ? discoverySeedReservation(selectedPlan, commits)
+        // The measured initial delta and retained-only passes both refuse an
+        // unadmitted complete read if their revision fence moves.
+        const knownOnly = hasRetainedRevision;
+        const measuredSeed = pass === 1 ? selectedPlan : undefined;
+        const measuredDiscovery = knownOnly || measuredSeed !== undefined;
+        const reservationBytes = knownOnly
+          ? discoveryPassReservation(commitResponseAllowance, 0, commits)
+          : measuredSeed
+            ? discoverySeedReservation(measuredSeed, commits)
             : discoveryPassReservation(acquireBytes, previousTransfer, commits);
         try {
           const result = await withMaintenanceAdmission(
             environment,
             "discovery",
-            async (bytes, deadline) => await collect({ bytes, deadline }),
+            async (bytes, deadline) => await collect({ bytes, deadline, knownOnly }),
             {
               request: requestKey(`pass-${pass}`),
               reservationBytes,

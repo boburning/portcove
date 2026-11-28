@@ -18,12 +18,14 @@ import {
   checkedAuthoredPort,
   parseCatalogSource,
   projectAuthoredPort,
+  projectEmbeddedOriginalGame,
   readCatalogSource,
   type AuthoredListing,
   type AuthoredPort,
 } from "./catalog-authoring.mts";
 import { buildUniverse, universeGroups } from "./maintenance-universe.mts";
 import { isRecord } from "./runtime-values.mts";
+import { assessUpstreamLineage } from "./upstream-lineage.mts";
 import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
 const sha256 = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
@@ -58,6 +60,8 @@ function generatedRecords(root: string, file: string, key: string) {
 export function catalogSemanticReview(records: readonly AuthoredPort[]) {
   const byGame = new Map<string, AuthoredListing[]>();
   const byRepositoryGame = new Map<string, AuthoredListing[]>();
+  const byRepositoryIdentityGame = new Map<string, AuthoredListing[]>();
+  const reviewedGitHubIds = new Map<string, string>();
   const byArtwork = new Map<string, AuthoredListing[]>();
   const append = (map: Map<string, AuthoredListing[]>, key: string, listing: AuthoredListing) => {
     const members = map.get(key) ?? [];
@@ -71,7 +75,8 @@ export function catalogSemanticReview(records: readonly AuthoredPort[]) {
       ? String(listing.artwork.game_id)
       : null;
   const listings = records.map(({ listing }) => listing);
-  for (const listing of listings) {
+  for (const record of records) {
+    const { listing } = record;
     const game = listing.original_game?.id;
     if (!game) continue;
     append(byGame, game, listing);
@@ -80,6 +85,12 @@ export function catalogSemanticReview(records: readonly AuthoredPort[]) {
       ?.replace(/\.git$/iu, "")
       .toLowerCase();
     if (repository) append(byRepositoryGame, JSON.stringify([game, repository]), listing);
+    const identity = assessUpstreamLineage(record).current.repository;
+    if (identity) {
+      const { host, id } = identity;
+      append(byRepositoryIdentityGame, JSON.stringify([game, host, id]), listing);
+      if (host === "github.com") reviewedGitHubIds.set(listing.id, id);
+    }
     const art = artworkId(listing);
     if (art !== null) append(byArtwork, art, listing);
   }
@@ -108,6 +119,19 @@ export function catalogSemanticReview(records: readonly AuthoredPort[]) {
     const [game_id, repository] = JSON.parse(key) as [string, string];
     return members.length > 1 ? [{ game_id, repository, port_ids: portIds(members) }] : [];
   });
+  const repositoryIdentityGame = [...byRepositoryIdentityGame].flatMap(([key, members]) => {
+    const [game_id, host, repository_id] = JSON.parse(key) as [string, string, string];
+    return members.length > 1 ? [{ game_id, host, repository_id, port_ids: portIds(members) }] : [];
+  });
+  const reusedGitHubPaths = repositoryGame.flatMap(({ game_id, repository, port_ids }) => {
+    const reviewed_ports = port_ids.flatMap((port_id) => {
+      const repository_id = reviewedGitHubIds.get(port_id);
+      return repository_id === undefined ? [] : [{ port_id, repository_id }];
+    });
+    return new Set(reviewed_ports.map(({ repository_id }) => repository_id)).size > 1
+      ? [{ game_id, repository, reviewed_ports }]
+      : [];
+  });
   return {
     scope:
       "Authored-field review signals only; resolve editions, delivery routes and effective facts before any correction.",
@@ -131,6 +155,16 @@ export function catalogSemanticReview(records: readonly AuthoredPort[]) {
     },
     same_game_different_titles: gameTitles.sort((a, b) => a.game_id.localeCompare(b.game_id, "en")),
     same_game_repository: repositoryGame.sort(
+      (a, b) =>
+        a.game_id.localeCompare(b.game_id, "en") || a.repository.localeCompare(b.repository, "en"),
+    ),
+    same_game_immutable_repository: repositoryIdentityGame.sort(
+      (a, b) =>
+        a.game_id.localeCompare(b.game_id, "en") ||
+        a.host.localeCompare(b.host, "en") ||
+        (a.repository_id < b.repository_id ? -1 : a.repository_id > b.repository_id ? 1 : 0),
+    ),
+    same_game_reused_github_path: reusedGitHubPaths.sort(
       (a, b) =>
         a.game_id.localeCompare(b.game_id, "en") || a.repository.localeCompare(b.repository, "en"),
     ),
@@ -169,6 +203,11 @@ export function catalogGameIdentityReport(catalogRoot: string) {
   const ports = records
     .map((record) => {
       const { listing, integration } = record;
+      const operational = projected.has(listing.id);
+      const embeddedOriginalGame =
+        operational && listing.original_game
+          ? projectEmbeddedOriginalGame(listing.original_game)
+          : undefined;
       const contracts = catalog.source_catalog.contracts.filter(
         (contract) => contract.port_id === listing.id,
       );
@@ -206,7 +245,7 @@ export function catalogGameIdentityReport(catalogRoot: string) {
         displayed_title: listing.original_game_title ?? listing.name,
         project_url: listing.project_url,
         summary: listing.summary,
-        operational: projected.has(listing.id),
+        operational,
         original_game: listing.original_game ?? null,
         target_key: entry.target_key,
         lineage_gap: entry.identity_gap,
@@ -225,18 +264,17 @@ export function catalogGameIdentityReport(catalogRoot: string) {
         },
         projection: {
           authored_definition:
-            !projected.has(listing.id) ||
-            sameIdentity(projected.get(listing.id), listing.original_game, true),
+            !operational || sameIdentity(projected.get(listing.id), embeddedOriginalGame, true),
           authored_listing: sameIdentity(
             projectedListings.get(listing.id),
             listing.original_game,
             false,
           ),
-          embedded_definition: !projected.has(listing.id)
+          embedded_definition: !operational
             ? "not-applicable"
             : !embedded
               ? "unavailable"
-              : sameIdentity(embedded.records.get(listing.id), listing.original_game, true),
+              : sameIdentity(embedded.records.get(listing.id), embeddedOriginalGame, true),
           generated_listing: !listings
             ? "unavailable"
             : sameIdentity(listings.records.get(listing.id), listing.original_game, false),

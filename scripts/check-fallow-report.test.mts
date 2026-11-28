@@ -13,6 +13,7 @@ import { report } from "./fallow-test-fixture.mts";
 
 void test("reviewed Fallow report version matches the committed exact dependency", () => {
   assert.equal(manifest.devDependencies.fallow, reviewedFallowVersion);
+  assert.equal(manifest.devDependencies["fallow-type-aware"], reviewedFallowVersion);
 });
 
 function requiredFixture<T>(value: T | undefined): T {
@@ -49,6 +50,19 @@ void test("Fallow report help is inert and failed reports still produce a failin
 
 void test("accepts a clean report", () => {
   assert.deepEqual(evaluateFallowReport(report()).failures, []);
+});
+
+void test("a syntactic fallback cannot satisfy Desktop type-aware qualification", () => {
+  for (const value of [
+    { ...report(), _meta: undefined },
+    { ...report(), _meta: { check: { type_aware: { executed: false } } } },
+  ]) {
+    assert.deepEqual(evaluateFallowReport(value, { requireTypeAware: true }).failures, [
+      "required Fallow type-aware analysis did not execute",
+    ]);
+    assert.deepEqual(evaluateFallowReport(value).failures, []);
+  }
+  assert.deepEqual(evaluateFallowReport(report(), { requireTypeAware: true }).failures, []);
 });
 
 void test("optional unavailable history does not invalidate unrelated static qualification", () => {

@@ -11,7 +11,17 @@
       "format_version": 1,
       "id": "power-instinct-matrimelee",
       "evidence_urls": ["https://github.com/omegakatana92/-Power-Instinct-Matrimelee-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "power-instinct-matrimelee-neo-geo-matrim",
+          "title": "Power Instinct Matrimelee (Neo Geo, set matrim)",
+          "system": "neo-geo",
+          "evidence_urls": [
+            "https://github.com/omegakatana92/-Power-Instinct-Matrimelee-Recomp/blob/440687345d7da79c399d856508ccdc738e76c55c/README.md",
+            "https://github.com/mamedev/mame/blob/ca48656c92325c821b85984952e96241d60c7aef/src/mame/neogeo/neogeo.cpp#L9735-L9756"
+          ]
+        }
+      ]
     },
     "original_game_title": "Power Instinct Matrimelee"
   }

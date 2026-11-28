@@ -81,6 +81,18 @@ pub fn decode_within(
     Ok((output, carrier.decoded_sha256))
 }
 
+/// The stable numeric GitHub identity reserved for automatically admitted ports.
+pub fn admitted_github_repository_id(listing_id: &str) -> Option<u64> {
+    let suffix = listing_id.strip_prefix("github-")?;
+    if suffix.starts_with('0') || !suffix.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    suffix
+        .parse()
+        .ok()
+        .filter(|id| *id <= 9_007_199_254_740_991)
+}
+
 /// The format-11 row a legacy reader receives for one current (format-12+)
 /// directory row, as JSON. It mirrors Core's `CatalogListingDocument::export_format(11)`
 /// field by field: typed restrictions, implementation, verified edition sources
@@ -94,7 +106,13 @@ pub fn legacy_row_projection(row: &serde_json::Value) -> serde_json::Value {
     let Some(fields) = row.as_object_mut() else {
         return row;
     };
-    for field in ["restrictions", "implementation", "upstream_observation"] {
+    for field in [
+        "restrictions",
+        "implementation",
+        "upstream_observation",
+        "mod_portals",
+        "official_setup_id",
+    ] {
         fields.remove(field);
     }
     if let Some(media) = fields

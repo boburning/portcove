@@ -75,9 +75,19 @@ and excludes it from package facts and selection. Pages without these rows
 continue to use `observer-facts-v1`. A later upload can change the package facts under
 the same release identity. Unknown states and malformed rows still fail
 validation, and exact pins still require an uploaded asset.
-GitHub offers
-no atomic repository snapshot: evidence therefore records the observation's
-start/end interval, and any detected change invalidates the entire attempt.
+On a new warm catalog turn, the observer fetches the current repository and
+first release page. If its retained facts and pagination match the prior
+complete page, it can collect the retained tail locally. On a changed
+frontier it reads the header collection normally. A selected release whose
+identity, tag, publication time and flags still match can reuse retained
+asset pages. The final pass reads and verifies every consumed URL, including
+pages collected locally. When Core requests an exact checksum, the observer verifies tentative
+collection pages before fetching the checksum. A changed page holds publication
+and restarts with ordinary provider collection. A temporary provider outage
+retains verification progress. Cold collection and in-progress continuations use their existing
+admission and validation. GitHub offers no atomic repository snapshot.
+Evidence records the observation interval, and any detected concurrent change
+invalidates the attempt.
 
 The format-1 observation carries `authority: provider-observation-only`,
 `config_sha256`, `facts_sha256`, `facts`, clocks and consumed budgets. Digests
@@ -103,11 +113,16 @@ the existing request, byte and time budgets and revalidates all consumed pages.
 Missing candidate
 coverage produces `release-asset-observation-incomplete`, never metadata eligibility.
 Unknown, repeated or foreign coverage IDs and asset payloads outside declared
-coverage are refused. Format 1 retains its existing full-asset semantics; existing
-clients and the configured Shipwright workflow continue to use that format.
+coverage are refused. Format 1 retains its existing full-asset semantics. The
+scheduled configured source uses format 2 with the same Core selection and
+complete header validation as other catalog sources. The standalone format-1
+route and its retained checkpoints remain readable.
 
-The format-2 configuration binds `asset_scope: core-channel-candidates` and a
-`policy_input_sha256` to the maintained selection inputs. A changed Core candidate
+Format 2 binds `asset_scope: core-channel-candidates`. Catalog sources bind
+their maintained selection inputs in `policy_input_sha256`. The configured
+report derives its configuration hash from the committed template and selection
+mode. Its continuation separately binds current catalog and Core inputs and
+restarts partial collection when they change. A changed Core candidate
 set during continuation resets the validation cursor and discards irrelevant
 asset pages from the active scope. Retained conditional representations may save
 bytes but cannot establish current coverage. This interface adds no artifact
@@ -256,6 +271,13 @@ this is `collect:<retained pages>` or `validate:<validation cursor>`; for
 GitLab and direct manifests it is `reads:<retained reads>:validate:<cursor>`;
 it is `null` when the attempt restarts. Incomplete API coverage is UNKNOWN. It
 never means that a release or asset is absent.
+
+The configured observer report records this invocation's admitted requests,
+bounded response bytes and conditional hits in `attempt_provider_usage`.
+Provider budget stops report the measured work even when the last completed
+observation is reused. A retry delay that skips the attempt reports zero.
+An error that produces no measurement leaves this field null. The
+`observation.consumed` counters still describe the last completed interval.
 
 The statement is recorded in three places and omitted when complete:
 
@@ -527,7 +549,12 @@ authorize another batch. A hosted opportunity's observation step spends at most 
 requests, about a third of the observed hourly allowance, so upstream-health and
 other workflows sharing the token keep capacity. The ceiling is a hard total.
 Each batch receives only the remaining allowance, and release and registry
-requests count against it. GitLab and direct-manifest sources also keep
+requests count against it. When the cap is reached after accepted progress, one
+final operation may reproject still-fresh, complete GitHub facts for managed
+ports under the current Core policy. It receives zero provider requests and
+uses the existing deadline and handoff limits. It retains the original freshness
+clock. Sources needing additional provider facts, original-file evidence, or
+continuation stay pending for ordinary collection. GitLab and direct-manifest sources also keep
 their own per-source bound. Checkpoint recovery, push admission and
 relocation proposals make separately bounded reads outside the step. A
 gap-filling push opportunity (below) spends at most 900, so a push followed by
@@ -564,14 +591,29 @@ sources. Every turn uses the existing source quantum and shared request,
 runtime, and byte limits. Sources that run out of capacity keep their durable
 place for a later batch.
 
-The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
-one `report.json` and its existing consumer/configuration binding. Catalog reports
+The `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
+one `report.json` staged apart from the standalone report and checkpoint. Daily discovery accepts
+historical full-asset reports and current Core-scoped reports only when the
+report and observation both match the corresponding committed configuration.
+The scoped collector stores a separately bound checkpoint. It preserves the
+prior full collection and its original freshness until a scoped collection
+finishes. The scheduled observer leaves the standalone checkpoint available
+after rollover. Daily discovery can use an earlier fresh, bound scheduled
+report while a new batch has no artifact or records a budget continuation.
+Catalog reports
 use a separate, uniquely owned handoff directory for each invocation, exported as
 `catalog-upstream-observations-RUN-ATTEMPT`. It contains inert observations and
 per-port Core policies for #246's existing supplied-observation → bounded-candidate
 path. Source files carry their own coverage and consumer IDs. The legacy
 configured report carries its unmonitored inventory, and the catalog summary
-reports coverage across configured sources. Historical fallback policies retain their own facts/definition identities
+reports coverage across configured sources. When it fits the existing summary
+byte limit, the catalog summary also records the Core executable digest and
+listing freshness window. Each diagnostic source entry records the active
+binding contract, the source scope digest, the normalized definition-set digest
+for managed and mixed scopes, and the current and retained binding digests.
+Compare these inputs across runs to explain a reopened scope. If the diagnostics
+would make the summary exceed its limit, the report omits them and preserves
+regular source coverage. Historical fallback policies retain their own facts/definition identities
 and are explicitly held as unknown current state. No automatic acceptance,
 publication, signing or player update eligibility follows from this handoff.
 
@@ -765,9 +807,10 @@ Only observing jobs share the per-ref concurrency slot, with one active and at
 most one pending. Hourly schedules and manual runs always observe. A merge to
 main starts an admission job that lets its run observe only to fill a schedule
 gap: when no schedule or push run of the observer observed, or is observing,
-within the last fifty-five minutes. Admission reads one ten-run page per trigger and the jobs of recent runs; a
-full page still inside the cooldown is incomplete coverage, and that or any
-read failure declines. A declined push run
+within the last fifty-five minutes. Admission asks GitHub for the cooldown
+window for each trigger and checks that each returned page matches its reported
+total. It reads at most thirty recent job inventories. Incomplete history,
+inconsistent records and read failures decline. A declined push run
 finishes without observing, so it neither consumes the slot nor displaces a
 pending scheduled observation. Actual usage is lower with a warm build cache.
 There are no agent/model calls.
@@ -1375,6 +1418,10 @@ attempt status. A first failure has no successful observation or invented digest
 Collection never accepts, signs or publishes these candidates. Actual protected
 provisioning and unchanged-client production acceptance remain #534/#246 work.
 
+Listing scope binds each listing's normalized declaration and the release
+projection's implementation and platform inventory. Changes to declaration
+normalization reopen only scopes whose normalized declarations change.
+
 A source whose consumers are all descriptive listings also keeps each of its
 four newest published releases' own text, for generated registration's
 release-text rule only: its observer configuration says so
@@ -1728,3 +1775,113 @@ the direct links available. A maintained exclusion or explicit Thunderstore
 source takes precedence. A temporary registry outage preserves the previously
 published link while its reviewed identity still matches. This projection adds
 browser navigation only.
+
+### First-party launcher websites
+
+The existing hosted opportunity gives due first-party mod observations up to
+one tenth of its GitHub request allowance, both across the opportunity and
+within each operation. First-party reads count against the same request, byte
+and time limits as release observations. Other observations can use unspent
+allowance. An enabled standalone observer uses its existing one-twentieth share.
+A subject needs one accepted implementation, an observed numeric repository ID
+and a matching public project root. The observer checks reviewed and unresolved
+game scopes in separate lanes within the same request allowance. When both lanes
+have due work, up to a quarter of the slots rounded up are reserved for
+unresolved scopes. A single slot goes to the lane serviced least recently.
+Each lane orders due work by the
+last attempt or, on the first pass, by the listing date. Legacy listings
+without a date enter the existing backfill.
+
+The observer reads the current default commit, its complete root tree, and the exact
+`recomplauncher.json` blob. It checks the repository and a single declared game
+before recording bounded GameBanana and Thunderstore coordinates. Every manifest
+game input ID must match the current catalog’s reviewed game contract. Prefixes,
+missing IDs and ambiguous editions cannot authorize a website. Each attempt
+uses at most four GitHub reads, with a 256 KiB response limit per read.
+
+Without a reviewed game scope, the observer can record an absent manifest or
+an unresolved declaration. The unresolved result cannot supply publisher input.
+The checkpoint reconsiders those results weekly, retries transient failures
+under the existing cadence, and makes the subject due when a reviewed game scope
+becomes available.
+
+A listing can reuse reviewed product codes when its canonical game, single
+source edition and system all match. Every reviewed mapping for that edition
+must agree on the code set. A listing with its own source profile or
+representation declaration uses its own contract. Supported codes include
+PlayStation product codes, GameCube disc IDs and Xbox 360 title IDs. The codes
+verify only the listing’s own repository declaration. When shared codes
+change, the observer reassesses the declaration. With a readable checkpoint,
+publication withholds a link until the new evidence qualifies. If the checkpoint
+cannot be read, publication can carry forward a signed link for the same game,
+edition and project until assessment resumes.
+
+The checkpoint records the policy and subject binding, last attempt, result,
+last complete observation, and next due time. A temporary outage keeps the
+original date on usable evidence. A verified manifest absence or conflicting
+scope suppresses previous generated links. Releases and package inspection have
+their own progress. The observer reports due, attempted, complete and deferred
+subjects separately from release completion.
+
+The protected publisher validates those observations against the current
+catalog before adding website links to a supported signed listing format.
+Maintained sources and provider bindings take precedence for their provider.
+Maintained exclusions suppress generated links. These links can open a community
+website or allow supported browsing through the existing Core resolver. They
+cannot grant installation, package, update, or profile authority.
+
+For descriptive observation, a version-1 launcher document may use the older
+single `game` field. For a disc input an exact PlayStation ISO9660 serial such
+as `SCUS_944.26` is normalized to the catalog product-code spelling before
+matching. If a launch route accepts folders, it requires explicit product IDs
+before its links can apply to the game. A disc serial alone cannot establish
+that folder scope. Where both apply, the product IDs must agree with the disc
+serial. A document that
+declares both legacy and named game inputs is held. Omission of the legacy
+mod section records absence. If a present section supplies no supported
+providers or has a malformed field for a supported provider, the attempt
+stays unresolved and preserves the accepted result and its observation age.
+These observations supply only community links and evidence for matching them
+to the game.
+
+Automatic admission can prepare a listing with unresolved game identity. The
+first-party website can be added after the current catalog and manifest establish
+the same game input. A website keeps its repository-bound source ID across later
+observations. When evidence is temporarily unavailable, the publisher can keep
+the authenticated prior website for the same listing and game. A verified rename
+can keep that website under the same admitted repository ID. A conflicting game
+or repository observation or confirmed withdrawal suppresses the link.
+Maintainer-selected websites use separate authored IDs and take precedence.
+
+## Scheduled catalog media health
+
+Within the existing scheduled artwork-health opportunity, retained IGDB
+backgrounds, logos, key art, and screenshots share one read per exact PNG
+variant. The observer reads the committed listing directory, excludes the
+deferred ScummVM engine, and uses Core's image validator without provider
+credentials. The maintenance report retains a separate `media-artwork-health.json`
+receipt bound to the workflow run, source, listing digest, and validator.
+
+The UTC-day window rotates through eligible variants. When media is present,
+it receives a 16 MiB validation budget and 30 seconds of the existing 64 MiB
+and 150-second artwork allowance. The network meter includes any final
+received chunk that exceeds the remaining validation budget. Cover observations
+retain their existing receipt and use the rest of the allowance. Provider
+backoff carries across the two phases.
+The receipt distinguishes unchanged bytes, mismatches, an exact Gone response,
+unavailable results and deferred targets. A shared image is reported
+independently for its catalog roles. The maintenance collector recomputes the
+selected variants and roles against the exact committed listing directory and
+records admitted results under `media-artwork-health`, one fact per fetched
+variant. Partial windows and provider failures retain earlier observations.
+Freshness belongs to the collection, so repeating unchanged bytes does not
+rewrite the image fact. The receipt supplies evidence for the current
+references. It does not find new images or publish catalog changes.
+
+The catalog publication preparation reads cover and media from the same
+authenticated scheduled artifact. Each receipt must match the file inventory,
+the collector's exact admission, and the committed producer directory. A
+rejected or absent media receipt leaves valid cover results available. Media
+health, receipt identity and transfer measurements are reported in
+`observed_media_health` for the publication review. This field does not grant
+media changes or determine acquisition eligibility.

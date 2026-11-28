@@ -20,7 +20,7 @@ afterEach(async () => {
 
 for (const width of [320, 576]) {
   for (const theme of ["light", "dark"]) {
-    // Allow first-render setup and the complete multi-action journey; assertion waits stay unchanged.
+    // Allow first-render setup and the complete multi-action journey.
     it(`exposes games and deliberate modal navigation at ${width}px in ${theme}`, async () => {
       await page.viewport(width, 900);
       transport = installInteractiveTransport("collection", (message) => {
@@ -100,7 +100,14 @@ for (const width of [320, 576]) {
         .element(dialog.getByRole("button", { name: "Discover", exact: true }))
         .toHaveFocus();
       await page.viewport(1280, 900);
-      await expect.poll(() => document.querySelector('[role="dialog"]')).toBeNull();
+      // The retained Mac trace first shows removal at 1.13s, before cleanup.
+      // Keep strict DOM removal with the existing finite animation-settlement allowance.
+      await expect
+        .poll(() => document.querySelector('[role="dialog"]'), {
+          timeout: 6_000,
+          message: "Navigation sheet must unmount after desktop resize",
+        })
+        .toBeNull();
       const desktopDestination = page
         .getByRole("navigation", { name: "Primary navigation" })
         .getByRole("button", { name: "Discover", exact: true });

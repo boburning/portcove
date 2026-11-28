@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import {
   closingInventoryCheckName,
@@ -1618,6 +1618,7 @@ void test("REST merge checks the reviewed composition before and after mutation"
     "success",
     "preview",
     "first-branch",
+    "first-retargeted",
     "branch",
     "parent",
     "tree",
@@ -1641,7 +1642,10 @@ void test("REST merge checks the reviewed composition before and after mutation"
                 merge_commit_sha: merge,
                 base: scenario === "retargeted" ? { ...baseRef, ref: "other" } : baseRef,
               })
-            : pull({ merge_commit_sha: preview, base: baseRef }),
+            : pull({
+                merge_commit_sha: preview,
+                base: scenario === "first-retargeted" ? { ...baseRef, ref: "other" } : baseRef,
+              }),
         );
       if (endpoint.includes("check-runs"))
         return Response.json({ total_count: required.length, check_runs: successfulRuns() });
@@ -1675,10 +1679,17 @@ void test("REST merge checks the reviewed composition before and after mutation"
       throw new Error(`unexpected endpoint ${endpoint}`);
     });
     const expected = { head, target: base, tree };
-    const operation = client.merge(7, head, required, emptyIntent, squashMessage, undefined, {
-      target: base,
-      tree,
-    });
+    const operation = client.merge(
+      7,
+      head,
+      required,
+      emptyIntent,
+      squashMessage,
+      undefined,
+      { target: base, tree },
+      undefined,
+      "main",
+    );
     if (scenario === "success") {
       const result = await operation;
       assert.equal(result.result.sha, merge);
@@ -1686,6 +1697,11 @@ void test("REST merge checks the reviewed composition before and after mutation"
     } else if (["preview", "first-branch", "branch"].includes(scenario)) {
       await assert.rejects(operation, /composition differs|target advanced|target differs/u);
       assert.equal(branchReads, scenario === "branch" ? 2 : 1);
+      assert.equal(mutations, 0);
+      continue;
+    } else if (scenario === "first-retargeted") {
+      await assert.rejects(operation, /authorized target ref/u);
+      assert.equal(branchReads, 0);
       assert.equal(mutations, 0);
       continue;
     } else {
@@ -2488,7 +2504,7 @@ void test("actual inspect CLI accepts its documented arguments and completes SDK
     process.execPath,
     [
       "--import",
-      preload,
+      pathToFileURL(preload).href,
       fileURLToPath(new URL("./pr-delivery.mts", import.meta.url)),
       "inspect",
       "--pr",

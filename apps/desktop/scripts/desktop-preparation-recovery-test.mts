@@ -194,6 +194,7 @@ import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promi
 import { DatabaseSync } from "node:sqlite";
 import { By, Key, until } from "selenium-webdriver";
 import {
+  activitySectionTab,
   assertDestructiveReviewAction,
   observeAccessibility,
   assertNoAccessibilityViolations,
@@ -1684,11 +1685,7 @@ async function livePreparationRecoveryScenario({
     });
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
     if (required(recovered).status === "succeeded") {
-      const history = await browser.findElement(
-        By.xpath(
-          '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="History"]]',
-        ),
-      );
+      const history = await browser.findElement(activitySectionTab("History"));
       await executeBrowserScript(
         browser,
         (element) => element.scrollIntoView({ block: "center" }),

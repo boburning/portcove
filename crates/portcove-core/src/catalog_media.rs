@@ -234,7 +234,7 @@ fn validate_igdb_media(asset: &CatalogMediaAsset) -> Result<()> {
     };
     let artwork_type = image
         .image_type
-        .and_then(|_| image.image_type_name.as_deref())
+        .and(image.image_type_name.as_deref())
         .and_then(normalized_artwork_type);
     let variant = match (asset.role, image.kind) {
         (CatalogMediaRole::Logo, IgdbGameImageKind::Logo) => "logo_med_2x",
@@ -483,11 +483,10 @@ fn thumbnail_with_fetch(
         success = fetched.is_ok(),
         message = "Catalog image download"
     );
-    let original = fetched.map_err(|error| {
+    let original = fetched.inspect_err(|error| {
         if error.details.contains_key(crate::artwork::ARTWORK_RETRY) {
-            failures.remember(&asset.url, &error, std::time::Instant::now());
+            failures.remember(&asset.url, error, std::time::Instant::now());
         }
-        error
     })?;
     verify_original(asset, &original)?;
     let png = convert(&original)?;

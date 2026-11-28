@@ -457,7 +457,7 @@ upstream itself publishes and holds a package only for concrete reasons.
   also covers the ordinary listing download from the upstream's own releases.
   Its accepted identity is that release location, checked against the
   provider's published digest when there is one. Automatically admitted GitHub
-  listings use `github-<repository ID>`. Core binds live release lookup,
+  listings use `github-<repository ID>` and require listing format 17. Core binds live release lookup,
   checksums and package transfer to that ID. If GitHub's asset URL identifies
   a different repository path, review the upstream move before updating the
   catalog URL. Later releases stay offered unless one bundles game data outside
@@ -503,16 +503,24 @@ acceptance. The URL must be canonical HTTPS on a public DNS host. Provider
 site families use the fixed host for that provider.
 
 The link appears in the Mods view for a listing even if no game is installed
-or its platform is unknown. These links grant browser navigation only.
-Operational definitions retain authority over provider browsing and installation
-actions. An operational source ID takes precedence over a matching listing link.
+or its platform is unknown. Recognized GameBanana and Thunderstore community
+URLs also enable read-only browsing in Portcove. Operational bindings govern
+package acquisition and installation. An operational source ID takes
+precedence over a matching listing link.
 
-The authoring generator selects directory format 16 only when a listing
-declares a link. The signed compact publication path requires a declared live
-reader floor and a released reader that advertises format 16. Live delivery
-stays on format 15 until that successor floor is set. Compatibility exports
-below format 16 omit the links. A later format-16 snapshot can update or
-withdraw a link without changing the game package or installation.
+The generator also derives GameBanana and Thunderstore websites from exact,
+explicitly reviewed provider coordinates on the same implementation. An
+authored link for that provider takes priority. `no_observed_mod_portals`
+suppresses generated links. Compiled legacy bindings supply no generated
+website. The generator uses directory format 16 or later when a listing
+contains a link. Signed publication requires Preview 20 or later with verified
+support for the format being published. Compatibility exports below format 16
+omit the links. A later snapshot can update or withdraw a link without
+changing the game package or installation.
+A generated default can survive a provider outage across a verified GitHub
+rename. The repository-bound listing keeps the same numeric identity, and the
+original game and reviewed provider association must still agree. A different
+listing or a changed legacy project URL cannot inherit the retained default.
 
 ### Acquisition restrictions
 
@@ -1950,7 +1958,9 @@ reuses its receipt. A mixed result retains useful proposals and reports
 pending subset. Missing credentials or a failed match does not block other records.
 Use a new checkpoint for a fresh scheduled refresh of unchanged mappings. Core
 listing inspection runs when a validator is supplied; operational projection
-changes require it. Neither mode changes local artwork choices or publishes data.
+changes require it. Image validation uses a temporary library on the host's
+temporary filesystem. The output directory retains the checked image and
+process receipt. Neither mode changes local artwork choices or publishes data.
 
 For a strict operational catalog proposal, use
 `node scripts/generate-catalog.mts --prepare-proposal PROPOSAL.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY`.
@@ -2110,7 +2120,9 @@ For a known regional cover, put `igdb_regional_cover` in the authored port recor
 Pin the original IGDB game's `game_id`, `slug`, `name` and `platform_id`, then
 the IGDB `localization_id` and `region_id` for the supported edition, and its
 reviewed `cover_id` and `image_id`. Preparation verifies the localized cover's
-relationship to that game and region. Refresh keeps the reviewed regional cover
+relationship to that game and region. A reviewed relocation can keep the
+existing cover when the exact original game, source edition and system agree.
+A changed edition requires source review. Refresh keeps the reviewed regional cover
 when IGDB offers a different asset or the lookup is unavailable. A replacement
 cover requires updating the pin and verifying the new image. If the pinned
 image is confirmed Gone, the listing uses its fallback illustration. Only the verified image mapping goes into the
@@ -2198,6 +2210,38 @@ A durable withdrawal removes the donor and any resulting defaults. Restoration
 can make the same verified image eligible again. The publisher keeps release
 observations independently of a generated cover. Players can still choose or
 hide artwork in their own libraries.
+
+Scheduled artwork evidence remains usable if a separate maintenance job fails.
+The publisher requires a completed run and the exact report from successful
+collection, including admission of the observation and its digest. A canceled
+run or deferred collection supplies no artwork evidence.
+
+To prepare a replacement for an existing original-game cover, use
+`node scripts/catalog-cover-replacement-review.mts --help` for the command inputs.
+Use a clean checkout at the exact commit under review. Supply the retained signed
+repository and the trusted Core and release tools. If its signed policy names a
+segmented history checkpoint, also supply its history store with `--prior-history`.
+Choose up to 32 exact port IDs and a new output directory outside the checkout.
+The predecessor must match the authored original-game cover or its exact
+withdrawal in the signed cover checkpoint.
+
+The command reuses the ordinary artwork preparation route. The review packet
+records the current and proposed image identities, the verified predecessor,
+and the hashes of the evidence. Its file name includes the packet's SHA-256.
+The packet records a proposal for independent review. After review, the
+repository owner starts a protected Catalog publish run from main. Supply the
+exact packet in `cover_replacement_packet` and its SHA-256 in
+`cover_replacement_sha256`. In `cover_replacement_preimages`, supply a JSON
+object that maps each proposed port ID to its reviewed current image SHA-256.
+
+The publisher checks the selected signed predecessor and verifies each
+replacement image again. It requires the released reader to inspect the exact
+candidate bundle. The signer records the approved packet on the compact target
+and carries that record forward through renewal. A later approval must identify
+the currently signed replacement as its predecessor. Matching original-game
+scopes keep the signed choice when the authored cover changes. The new
+authored cover can enter the signed catalog through the same reviewed process.
+
 Due refresh of a retained cover revalidates its approved IGDB game ID, slug
 and cover role. An accepted mapping can be revalidated by exact ID and slug
 even when the listing lacks an original title. This does not establish a new
@@ -2219,17 +2263,84 @@ An exact matching provider retry outside the current time is skipped for this
 pass and reconsidered later. The result counts due IDs outside the pass,
 including deferred work. The output remains a proposal for catalog review.
 
+Use the same checkpoint for a bounded game media pass.
+
+```bash
+node scripts/generate-catalog.mts --prepare-proposal crates/portcove-core/catalog/catalog.json --hero-media igdb --media-checkpoint EXISTING_CHECKPOINT --media-due-limit 24 --validator-cli TRUSTED_CLI --output-dir NEW_PROPOSAL
+```
+
+The pass selects due catalog identities, skips ScummVM, and tracks each logo,
+background, key-art and screenshot observation independently. The existing cover
+queue uses its own progress. The media pass retains each output for review
+and advances the checkpoint after writing the receipts. Reuse the checkpoint
+with a new proposal directory on each invocation. A batch resumes from the
+saved round once the checkpoint lock is released. After an abrupt stop, follow
+the [checkpoint recovery instructions](#prepare-a-new-or-updated-record).
+New arrivals join the next round. A changed identity, accepted mapping,
+current media or decoder wakes the affected entry. The preparer saves provider
+retry deadlines when it receives them. The command reports attempted,
+deferred and due work for the operator. The proposal still requires acceptance
+through the catalog delivery path.
+
+Scheduled Maintenance inventory uses this queue for up to 48 due identities
+after retaining its inventory and recovery artifacts. It uses the Core CLI
+already built by the job for validation. When the main work leaves too little
+time for the bounded media pass, the job defers it to the next schedule and
+keeps the existing checkpoint. The 32 MiB image allowance spans
+provider batches. The reader stops at the first chunk over the allowance
+and includes that chunk in the transfer count. The `PORTCOVE_IGDB_CREDENTIALS`
+Actions secret uses the maintainer credential file's `client_id` and
+`client_secret` fields. When the secret is absent, the job records a deferral
+with zero attempts. The next schedule checks for it again.
+
+The job retains the proposal and a receipt before advancing its resume cache.
+The cache contains the current round and the exact receipts referenced by its
+progress. Earlier working copies stay out of the cache. The cache is at most
+48 MiB before compression, and losing it allows the queue to resume from the
+catalog. A separate resume file keeps provider retry deadlines after a failed
+preparation or proposal upload.
+
+A missing cover can use the same rotation when a maintained mapping names an
+exact provider game and single original edition. The worker looks up a shared
+edition once, with a 45-second budget and a quarter of the image allowance for
+covers. Each selected port using that edition receives the same observation in
+its retry record. A missing provider identity, a conflicting identity, and a
+temporary provider failure have different outcomes. If the cover deadline
+expires, completed results remain in the proposal and work on other roles
+continues. The publisher checks the image again for first acceptance and retains
+the signed default during provider outages. Changed bytes retain the existing
+pin and hold new recipients. A confirmed withdrawal is recorded in the signed
+checkpoint for the shared edition. Automatic restoration requires a newer
+scheduled assessment and a fresh check of the same accepted bytes. Explicit
+cover exclusions, regional art, collections, and maintained covers take
+precedence. The other media roles have a separate share of the allowance.
+
+The protected publisher reads the small game-media additions file from the
+exact scheduled main run. It verifies GitHub's artifact digest and checks the
+producer's canonical listing against the current declaration. A still-applicable
+reviewed game and edition association, existing accepted original-media mapping,
+or project-specific cover identity must confirm the provider game. Original
+screenshots also need an accepted reference to the exact image and edition.
+The publisher checks the current bytes for first acceptance and checks a rotating
+window of signed defaults. A confirmed withdrawn image or changed digest removes
+the affected generated default. A provider outage preserves accepted defaults.
+The publisher respects authored media, explicit clears, and excluded matches.
+Core validates the compact listing, including the supported managed-reader
+composition, before the normal signing steps run.
+
 A logical workset may exceed 400 IDs. The catalog generator's `--prepare-artwork`
 runs a larger workset as consecutive operations of at most 400 IDs over the same
 input, assembles the proposal per port and reconciles exact-image Gone observations
 from every operation into all records. Ports outside an explicit workset keep their
 unchanged input until that reconciliation, so each one a Gone image withdraws gets
 its fallback record and invalidated ID. Game-media records from earlier operations
-are relabelled when a later operation finds their selected image Gone. Those
-operations share one provider budget; that path neither adapts admission nor
-checkpoints progress. The prepare-port
-driver admits operations of at most 400
-selected IDs and adjusts subsequent admission using observed elapsed time,
+are relabelled when a later operation finds their selected image Gone. A refresh
+that confirms conflicting bytes holds new proposals for that image variant
+through the end of the pass and reports the hold for review. The retained catalog
+reference keeps its existing digest. Each operation shares a byte observation
+across ordinary consumers and independently rechecks explicitly refreshed assets.
+Those operations share one provider budget. The prepare-port driver admits
+operations of at most 400 selected IDs and adjusts subsequent admission using observed elapsed time,
 requests and image bytes. Completed identities are atomically checkpointed after
 each result under the existing preparation lock. Reinvoke the same full workset
 after interruption or provider recovery: unchanged successful IDs are reused;
@@ -3871,9 +3982,11 @@ user-selected registration route. `data-only` needs known desktop packages and
 player facts for one of those platforms: an accepted package player
 observation, a reviewed package shape or prepared-player `route_facts_v1`.
 `needs-bytes-worker` has known desktop packages without player facts.
-`unobserved` has unknown availability and no complete observation; it is
-unknown, not absent. `missing-capability` names a host no release provider
-adapter reads or packages without a supported desktop platform.
+`unobserved` means package availability or its desktop platform is unknown.
+A complete release inventory can still leave the desktop platform unknown.
+`missing-capability` names a host no release provider adapter reads.
+These findings describe automatic registration fit. The player can still use
+the separately assessed upstream download route when available.
 `upstream-condition` covers source-only or unavailable upstreams, a complete
 observation without release packages, or restrictions that hold every
 registration operation on every package platform. `needs-admission` is reserved
@@ -5050,6 +5163,13 @@ every observed release with a statement per identity. Measured: every
 visible release of `youkaicountry-yknytt` is titled `vX beta` and none is
 flagged; with its text unobserved the fit had enrolled tag `0.7.3`, and with
 it observed the identity is `no-stable-release`.
+
+Before downloading new archive bytes for this registration route, the worker
+checks whether the selected release's text is observed. Missing text leaves a
+`release-text-unobserved` outcome in the worker report. A later bounded
+observer pass can supply the text and make the same release eligible for
+inspection. Existing exact archive receipts can still be reused, and the
+upstream package chooser operates independently.
 
 ##### Other package forms
 
@@ -6353,6 +6473,22 @@ withdrawals, additions or changes proceed. A stop condition found while deriving
 batch. An open batch pull request that still fails stops the job again after
 its issue is closed; close that pull request too.
 
+For a rule-version stop, the workflow records the exact parser, generator
+and classifier versions from the CLI in the prepare job. A missing version
+receipt or unreadable retained history stops the run.
+Restore worker state and run history together. If cached history is missing
+after a recorded stop or delivery, recover the bound pair before retrying.
+Review the held run's batch artifact and delta. When the version change is
+the only stop and the batch passed its other checks, the stop issue records
+the transition and the prior run that it applies to. An authorized person
+closes that issue as completed after accepting the reviewed transition.
+The workflow must have written the issue body before closure. If the body
+changes at the same time or later, let the workflow file the current stop,
+review the recorded transition and close it again.
+The next run can use that closure for the exact transition. It derives a
+fresh batch using the existing cursor and receipts and still applies every
+other stop, including withdrawals that require a reviewed pull request.
+
 The freshness watchdog compares the committed facts' `generated_at` with the
 real clock on every enabled run, also while a batch waits or a stop issue is
 open. When the table is more than 15 days old (`freshnessAlertDays`: a quiet
@@ -6424,6 +6560,7 @@ is one CI path, with no second trigger, personal token or recurring dispatch.
   equal to it; the guarded merge reads a head worktree that writes no file.
   `deliver` downloads only data (the patch, its outputs record, the delta,
   the worker report and the worker state); `merge` downloads nothing.
+
 - `deliver` pushes the batch branch with it and opens the pull request;
   `merge` merges through the guarded route and deletes the branch. Each push
   gets the token as an HTTP header through that one `git` command's
@@ -6456,7 +6593,8 @@ no dry run), so it works with the environment unset or the App unavailable.
   it (or malformed), `gate` never reports a batch green: a batch whose checks
   pass is the named `batch-app-slug-unset` stop and is not merged. `merge`
   still binds the author to the minted App's `app-slug` before any write and
-  raises `foreign-batch-author` on a mismatch.
+  raises `foreign-batch-author` on a mismatch. Both `deliver` and `merge`
+  compare the minted App's slug with the configured slug before any write.
 
 What the repository cannot show: the App's actual permission set,
 installation scope and absence from every bypass list (UNKNOWN). A
@@ -6531,6 +6669,17 @@ the one that merges it) plus its pull request's CI. A quiet catalog proposes
 a reconfirmation batch once an offered entry was last confirmed 15 days
 earlier (`refreshAfterDays`, half the facts age), which leaves the other half
 of the 30-day facts age for its checks and merge.
+
+The worker report records the provider-declared sizes of attempted archives as
+`bytes` and the archive response body bytes actually read as
+`archive_body_bytes`. The measured count includes partial downloads. A combined
+report leaves it absent if a planned shard is missing or lacks a measurement.
+The worker measure covers inspection. Reproduction uses the same byte meter
+and records its measurements in the shard receipts. The retained batch
+assessment reports both the measured subtotal and the number of measured
+shards out of the planned shard count. Missing receipts leave coverage
+incomplete. Metadata requests, HTTP and transport overhead, and recovery
+transfers have their own costs.
 
 ###### Catalog capacity
 
@@ -6653,8 +6802,8 @@ The owner or lead then:
    reproduction shards and their aggregate run on real entries before the
    migration's matrix of up to 256 jobs.
 3. Sets the required repository variable `PORTCOVE_FACTS_BATCH_APP_SLUG` to
-   the job's App's slug; without it no batch is ever merged
-   (`batch-app-slug-unset`).
+   the installed App's slug. With an absent or different slug, the worker
+   stops before writing a branch or merging a batch.
 4. Sets the repository variable `PORTCOVE_FACTS_BATCH_ENABLED` to `true`
    (unset or any other value is off).
 
@@ -7492,6 +7641,14 @@ This choice applies only to the gallery. Exact port media and the Cover and
 text fallbacks remain available. Offered editions and similar ID strings do not
 establish a selected source edition.
 
+Catalog generation can reuse an accepted IGDB asset for an original game in
+other listings that offer that exact game and source edition. The generated view
+retains the asset's subject, source and rights. An authored asset takes
+precedence for its role, and an explicit empty media array clears shared
+defaults. Conflicting defaults for a logo, background or key art stay unresolved.
+Screenshots with the same stable asset ID must agree. Implementation artwork
+stays with its port.
+
 Maintainer `--prepare-artwork`/`--prepare-proposal` can additionally use
 `--hero-media igdb` with the existing identity facts, private credentials and Core
 image validator. It queries `/v4/logos`, `/v4/artworks` and `/v4/screenshots` through
@@ -7513,17 +7670,58 @@ Image records are bound to the verified game ID before download.
 Fit variants are PNG `logo_med_2x` and `720p`, with Core content validation, finite
 candidate chains and independent role failures. Preparation may fill a missing
 background and propose one screenshot when a subject has none. It preserves
-reviewed scenes and respects catalog role limits. Exact HTTP 410 observations sweep
-all candidate references and prevent batch reselection; failed or incomplete
-requests do not establish absence or withdrawal.
+each accepted logo, key-art image, background, and screenshot for the same
+subject. A fully covered subject skips provider lookup. Each role retains its
+catalog limits. With `--hero-media igdb --refresh-artwork`, the selected ports
+also recheck the exact accepted IGDB assets. Shared references use one request
+per exact CDN variant and image in an operation. Changed bytes and provider
+failures keep the accepted mapping for review. An HTTP 410 withdraws references
+to the exact CDN variant and prevents its reselection in the batch. For example,
+a withdrawn logo does not withdraw a cover with the same provider image ID.
+Failed or incomplete requests leave withdrawal unresolved.
 
-The artwork evidence includes background and screenshot coverage by port,
-original release and IGDB game identity. It records existing catalog images,
-fresh proposals and exact observed withdrawals separately. An empty provider
+When no explicit original-edition identity is supplied, media preparation can
+reuse a fixed IGDB identity from accepted typed artwork for the same original
+game, edition and system. It rechecks the exact provider game ID and slug,
+shares provider requests within the operation, and retains the edition scope
+on newly proposed roles. Conflicting accepted associations leave those gaps
+unresolved until corrected. Project media never supplies an original-edition
+identity.
+
+To correct the provider identity for an original edition, add
+`igdb_original_media_v1` to one reviewed port record that declares that edition.
+Each decision names `original_game_id`, `source_edition_id`, `system`, and an
+`evidence_url`. Use `system: null` for an edition with no declared system.
+Use `decision: "match"` with the exact IGDB `game_id` and `slug`, or
+`decision: "exclude"` to suppress automatic matching for this scope. The same
+decision applies to every current and future catalog port with the exact game,
+edition, and system. Preparation lists those current ports under
+`game_media.reviewed_original_media`. A match supplies an identity for missing
+roles. Accepted assets remain subject to their own reviewed changes or confirmed
+withdrawal.
+Generated media and shared covers in signed listings honor the decision. They
+copy images only when the provider ID and slug agree with a reviewed match for
+that scope. An exclusion suppresses shared copies for that scope.
+Explicitly authored assets keep their existing correction path.
+
+Full proposal preparation validates typed backgrounds and screenshots in
+`listing-media-proposal.json` through the listing inspector. The strict
+`catalog-proposal.json` keeps operational definitions separate. With
+`--hero-media igdb`, explicitly selected `--artwork-ids` can include accepted
+listing-only projects. The preparation uses their accepted descriptive context
+and writes their proposed media only to the validated listing output. The artwork
+report retains proposed scenes without an exact accepted listing binding for
+manual review.
+
+The artwork evidence includes logo, key-art, background, and screenshot
+coverage by port, original release, and IGDB game identity. It records accepted
+catalog asset IDs independently of IGDB image IDs, as well as fresh proposals
+and exact observed withdrawals. `game_media.gone_media_targets` records each
+withdrawn CDN target as `variant/image_id`. An empty provider
 inventory is missing evidence for that role in that provider. A failed,
 incomplete or unrun query remains unknown. Conflicting provider identities
-stay visible for review. The default report also retains listing-only entries
-outside the proposal input, including their already reviewed media.
+stay visible for review. The default report also accounts for listing-only
+entries outside the requested proposal, including their reviewed media.
 
 Preparation proposes remote URLs, provenance, hashes and provider terms; it grants no admission, signing, publication
 or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifies

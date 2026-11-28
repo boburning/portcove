@@ -7,7 +7,7 @@ import { DiscoveryBudget } from "./discovery-budget.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { parseRecompManifest } from "./discovery-ecosystems.mts";
-import { parseCatalogSource } from "./catalog-authoring.mts";
+import { parseCatalogSource, type AuthoredListing } from "./catalog-authoring.mts";
 
 const limits = { requests: 12, bytes: 8 * 1024 * 1024, milliseconds: 120000 };
 interface CachedFact {
@@ -47,12 +47,77 @@ export interface PortFactsOptions {
   fetcher?: typeof fetch;
 }
 
-export const discoveryScopePolicy = "github-primary-single-game-manifest/2";
+export const discoveryScopePolicy = "github-primary-game-scope/6";
 
 const namesScummVm = (values: readonly unknown[]) =>
   values.some(
     (value) => typeof value === "string" && /(?:^|[^A-Z0-9])scummvm(?:$|[^A-Z0-9])/iu.test(value),
   );
+
+function launcherModPortals(value: unknown): NonNullable<AuthoredListing["mod_portals"]> {
+  if (!isRecord(value)) return [];
+  const portals: NonNullable<AuthoredListing["mod_portals"]> = [];
+  const instructions = "The upstream project lists this community. Follow its setup instructions.";
+  if (
+    typeof value.thunderstore === "string" &&
+    value.thunderstore.length <= 128 &&
+    /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/u.test(value.thunderstore)
+  )
+    portals.push({
+      id: "upstream-thunderstore",
+      site: "community_site",
+      name: "Thunderstore",
+      url: `https://thunderstore.io/c/${value.thunderstore}/`,
+      instructions,
+    });
+  if (
+    typeof value.gamebanana === "number" &&
+    Number.isSafeInteger(value.gamebanana) &&
+    value.gamebanana > 0
+  )
+    portals.push({
+      id: "upstream-gamebanana",
+      site: "community_site",
+      name: "GameBanana",
+      url: `https://gamebanana.com/games/${value.gamebanana}`,
+      instructions,
+    });
+  return portals;
+}
+
+type LauncherScopePurpose = "admission" | "launcher-mods";
+
+function legacyLauncherGameInput(game: unknown) {
+  if (
+    !isRecord(game) ||
+    game.update !== undefined ||
+    (game.kind !== undefined &&
+      !["iso", "folder", "iso_or_folder"].some((kind) => kind === game.kind))
+  )
+    return undefined;
+  const formats = [
+    ...(game.kind !== "folder" ? [{ type: "file" }] : []),
+    ...(game.kind === "folder" || game.kind === "iso_or_folder" ? [{ type: "folder" }] : []),
+  ];
+  const check = isRecord(game.check) ? game.check : {};
+  if (game.kind !== "folder" && typeof check.iso9660 === "string") {
+    const serial = /^(S[CL][A-Z]{2})_([0-9]{3})\.([0-9]{2})$/u.exec(check.iso9660);
+    if (serial) {
+      const id = serial[1] + "-" + serial[2] + serial[3];
+      if (
+        check.ids !== undefined &&
+        (!Array.isArray(check.ids) ||
+          check.ids.length === 0 ||
+          check.ids.length > 32 ||
+          !check.ids.every((value: unknown) => value === id))
+      )
+        return undefined;
+      if (game.kind !== "iso_or_folder" || check.ids !== undefined)
+        return { id: "game", label: game.label, formats, check: { ids: [id] } };
+    }
+  }
+  return { id: "game", label: game.label, formats, check };
+}
 
 function launcherScopeEvidence(value: unknown, repository: string) {
   if (
@@ -64,12 +129,17 @@ function launcherScopeEvidence(value: unknown, repository: string) {
     !isRecord(value.start) ||
     !Array.isArray(value.start.program) ||
     value.start.program.length === 0 ||
-    value.start.program.length > 16 ||
-    !Array.isArray(value.inputs) ||
-    value.inputs.length !== 1
+    value.start.program.length > 16
   )
     throw new Error("Manifest does not identify this repository and one game launch route");
-  const input: unknown = value.inputs[0];
+  const legacy = value.inputs === undefined;
+  if (!legacy && value.game !== undefined)
+    throw new Error("Manifest declares both legacy and named game inputs");
+  const input: unknown = legacy
+    ? legacyLauncherGameInput(value.game)
+    : Array.isArray(value.inputs) && value.inputs.length === 1
+      ? value.inputs[0]
+      : undefined;
   if (
     !isRecord(input) ||
     input.id !== "game" ||
@@ -99,19 +169,138 @@ function launcherScopeEvidence(value: unknown, repository: string) {
     )
   )
     throw new Error("Manifest does not declare bounded package-relative program candidates");
+  const portals = launcherModPortals(value.mods);
+  const legacyModsUnresolved =
+    legacy &&
+    value.mods !== undefined &&
+    (!isRecord(value.mods) ||
+      portals.length === 0 ||
+      (value.mods.thunderstore !== undefined &&
+        !portals.some(({ id }) => id === "upstream-thunderstore")) ||
+      (value.mods.gamebanana !== undefined &&
+        !portals.some(({ id }) => id === "upstream-gamebanana")));
+  const ids = isRecord(input.check) ? input.check.ids : undefined;
+  const gameInputIds =
+    Array.isArray(ids) &&
+    ids.length > 0 &&
+    ids.length <= 32 &&
+    ids.every(
+      (id: unknown): id is string => typeof id === "string" && /^[A-Za-z0-9_-]{1,24}$/u.test(id),
+    )
+      ? [...new Set<string>(ids)]
+      : undefined;
+  const legacyFolderScopeUnproven =
+    legacy &&
+    !gameInputIds &&
+    input.formats.some((format) => isRecord(format) && format.type === "folder");
   return {
     format: 1,
     repository,
     game_input_declared: true,
     program_count: programs.length,
     names_scummvm: namesScummVm([repository, value.name, ...programs]),
+    ...(portals.length ? { mod_portals: portals } : {}),
+    ...(gameInputIds ? { game_input_ids: gameInputIds } : {}),
+    ...(legacy && value.mods === undefined ? { legacy_mod_declaration_absent: true as const } : {}),
+    ...(legacyModsUnresolved ? { legacy_mod_declaration_unresolved: true as const } : {}),
+    ...(legacyFolderScopeUnproven ? { legacy_folder_scope_unproven: true as const } : {}),
   };
 }
+
+function desktopEntryScopeEvidence(text: string, repository: string) {
+  let group = "";
+  let entries = 0;
+  const fields = new Map<string, string>();
+  for (const raw of text.split(/\r?\n/u)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    if (line.startsWith("[") && line.endsWith("]")) {
+      group = line;
+      if (group === "[Desktop Entry]") entries++;
+      continue;
+    }
+    if (group !== "[Desktop Entry]") continue;
+    const separator = line.indexOf("=");
+    if (separator < 1) return undefined;
+    const key = line.slice(0, separator).trim();
+    if (!key || fields.has(key)) return undefined;
+    fields.set(key, line.slice(separator + 1).trim());
+  }
+  const name = fields.get("Name");
+  const categories = fields.get("Categories") ?? "";
+  const executable = /^([A-Za-z0-9][A-Za-z0-9_.-]{0,127})(?: +%[fFuU])?$/u.exec(
+    fields.get("Exec") ?? "",
+  )?.[1];
+  if (
+    entries !== 1 ||
+    fields.get("Type") !== "Application" ||
+    !name ||
+    name.length > 256 ||
+    /\p{Cc}/u.test(name) ||
+    !/^[A-Za-z][A-Za-z0-9-]*(?:;[A-Za-z][A-Za-z0-9-]*)*;?$/u.test(categories) ||
+    !categories.split(";").includes("Game") ||
+    ["Hidden", "NoDisplay", "Terminal", "DBusActivatable"].some(
+      (key) => fields.has(key) && fields.get(key) !== "false",
+    ) ||
+    fields.has("OnlyShowIn") ||
+    fields.has("NotShowIn") ||
+    !executable ||
+    (fields.has("TryExec") && fields.get("TryExec") !== executable) ||
+    executable !== repository.split("/")[1]
+  )
+    return undefined;
+  return {
+    format: 1,
+    category: "Game",
+    names_scummvm: namesScummVm([repository, name, executable]),
+  };
+}
+
+function ordinaryEvidenceBlob(entry: unknown): entry is Record<string, unknown> & { sha: string } {
+  return (
+    isRecord(entry) &&
+    entry.type === "blob" &&
+    (entry.mode === "100644" || entry.mode === "100755") &&
+    typeof entry.sha === "string" &&
+    /^[a-f0-9]{40}$/u.test(entry.sha)
+  );
+}
+
+function boundedEvidenceBody(body: unknown, path: string, sha: string) {
+  if (
+    !isRecord(body) ||
+    body.type !== "file" ||
+    body.path !== path ||
+    body.encoding !== "base64" ||
+    typeof body.content !== "string" ||
+    body.content.length > 90_000 ||
+    body.sha !== sha
+  )
+    return null;
+  const encoded = body.content.replace(/[\r\n]/gu, "");
+  const bytes = Buffer.from(encoded, "base64");
+  if (
+    !bytes.length ||
+    bytes.length > 64 * 1024 ||
+    bytes.length !== body.size ||
+    bytes.toString("base64") !== encoded ||
+    createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex") !== sha
+  )
+    return null;
+  return bytes;
+}
+
+type ScopeRead = (
+  endpoint: string,
+  hours?: number,
+  reuseCached?: boolean,
+) => Promise<Pick<FactResult, "status" | "body" | "reason" | "retry_after">>;
 
 async function observeDiscoveryScope(
   project: unknown,
   repositoryId: number,
-  read: (endpoint: string, hours?: number, reuseCached?: boolean) => Promise<FactResult>,
+  read: ScopeRead,
+  purpose: LauncherScopePurpose = "admission",
 ) {
   const outcome = (
     state: "held" | "unavailable" | "restricted",
@@ -127,11 +316,12 @@ async function observeDiscoveryScope(
   });
   if (
     !isRecord(project) ||
-    project.fork !== false ||
-    project.mirror_url !== null ||
-    project.parent != null ||
-    project.source != null ||
-    typeof project.full_name !== "string"
+    typeof project.full_name !== "string" ||
+    (purpose === "admission" &&
+      (project.fork !== false ||
+        project.mirror_url !== null ||
+        project.parent != null ||
+        project.source != null))
   )
     return outcome("held", "independent-upstream-scope-unresolved");
   const location = `repositories/${repositoryId}`;
@@ -175,45 +365,110 @@ async function observeDiscoveryScope(
     rootEntries.some(({ path }) => typeof path === "string" && /^\.recomp-[2-9]\.json$/u.test(path))
   )
     return outcome("held", "multiple-manifest-subjects");
-  const manifestPath = [".recomp.json", ".recomp-board.json", "recomplauncher.json"].find((name) =>
-    rootEntries.some(({ path }) => path === name),
+  const manifestPaths = [".recomp.json", ".recomp-board.json", "recomplauncher.json"].filter(
+    (name) => rootEntries.some(({ path }) => path === name),
   );
-  if (manifestPath === undefined) return outcome("held", "optional-project-manifest-unavailable");
-  const entries = rootEntries.filter(({ path }) => path === manifestPath);
-  const manifestEntry = entries[0];
-  if (
-    entries.length !== 1 ||
-    !isRecord(manifestEntry) ||
-    manifestEntry.type !== "blob" ||
-    (manifestEntry.mode !== "100644" && manifestEntry.mode !== "100755") ||
-    typeof manifestEntry.sha !== "string" ||
-    !/^[a-f0-9]{40}$/u.test(manifestEntry.sha)
-  )
-    return outcome("held", "unsupported-project-manifest-entry");
-  const fact = await read(`${location}/contents/${manifestPath}?ref=${commit}`, 24);
+  const [manifestPath] = manifestPaths;
+  if (purpose === "launcher-mods") {
+    if (manifestPaths.length > 1) return outcome("held", "multiple-manifest-subjects");
+    if (manifestPath !== "recomplauncher.json")
+      return { ...outcome("held", "launcher-manifest-absent"), commit, tree: treeId };
+  }
+  let evidencePath: string;
+  let entry: unknown;
+  if (manifestPath === undefined) {
+    const topics: unknown[] = Array.isArray(project.topics) ? project.topics : [];
+    if (!topics.includes("source-port"))
+      return outcome("held", "project-scope-evidence-unavailable");
+    if (namesScummVm([project.full_name, ...topics]))
+      return outcome("restricted", "scummvm-out-of-scope");
+    const complete = await read(`${location}/git/trees/${treeId}?recursive=1`, 24);
+    if (complete.status === "unavailable")
+      return outcome(
+        "unavailable",
+        complete.reason ?? "desktop-entry-tree-unobserved",
+        complete.retry_after,
+      );
+    if (
+      !isRecord(complete.body) ||
+      complete.body.sha !== treeId ||
+      complete.body.truncated !== false ||
+      !Array.isArray(complete.body.tree)
+    )
+      return outcome("held", "desktop-entry-tree-incomplete");
+    const files = (complete.body.tree as unknown[]).filter(
+      (value): value is Record<string, unknown> & { path: string } =>
+        isRecord(value) && typeof value.path === "string",
+    );
+    if (
+      files.length !== complete.body.tree.length ||
+      new Set(files.map(({ path }) => path)).size !== files.length
+    )
+      return outcome("held", "desktop-entry-tree-incomplete");
+    const desktops = files.filter(({ path }) => path.endsWith(".desktop"));
+    if (desktops.length !== 1) return outcome("held", "single-desktop-entry-unresolved");
+    entry = desktops[0];
+    evidencePath = desktops[0]!.path;
+    if (
+      evidencePath.length > 240 ||
+      !evidencePath
+        .split("/")
+        .every((part) => /^[A-Za-z0-9_.-]+$/u.test(part) && part !== "." && part !== "..") ||
+      evidencePath
+        .split("/")
+        .slice(0, -1)
+        .some((part) =>
+          /^(?:tests?|fixtures?|examples?|samples?|docs?|vendor|third[-_]party|external|\.github)$/iu.test(
+            part,
+          ),
+        )
+    )
+      return outcome("held", "unsupported-project-desktop-entry");
+  } else {
+    evidencePath = manifestPath;
+    entry = rootEntries.find(({ path }) => path === manifestPath);
+  }
+  if (!ordinaryEvidenceBlob(entry))
+    return outcome(
+      "held",
+      manifestPath ? "unsupported-project-manifest-entry" : "unsupported-project-desktop-entry",
+    );
+  const fact = await read(`${location}/contents/${evidencePath}?ref=${commit}`, 24);
   if (fact.status === "unavailable")
-    return outcome("unavailable", fact.reason ?? "project-manifest-unobserved", fact.retry_after);
-  const body = fact.body;
-  if (
-    !isRecord(body) ||
-    body.type !== "file" ||
-    body.path !== manifestPath ||
-    body.encoding !== "base64" ||
-    typeof body.content !== "string" ||
-    body.content.length > 90_000 ||
-    body.sha !== manifestEntry.sha
-  )
-    return outcome("held", "unsupported-project-manifest");
-  const encoded = body.content.replace(/[\r\n]/gu, "");
-  const bytes = Buffer.from(encoded, "base64");
-  if (
-    !bytes.length ||
-    bytes.length > 64 * 1024 ||
-    bytes.length !== body.size ||
-    bytes.toString("base64") !== encoded ||
-    createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex") !== body.sha
-  )
-    return outcome("held", "project-manifest-bytes-unverified");
+    return outcome(
+      "unavailable",
+      fact.reason ?? "project-scope-evidence-unobserved",
+      fact.retry_after,
+    );
+  const bytes = boundedEvidenceBody(fact.body, evidencePath, entry.sha);
+  if (!bytes) return outcome("held", "project-scope-evidence-bytes-unverified");
+  const binding = {
+    policy: discoveryScopePolicy,
+    state: "eligible" as const,
+    repository_id: repositoryId,
+    commit,
+    tree: treeId,
+    evidence_path: evidencePath,
+  };
+  if (manifestPath === undefined) {
+    let desktop;
+    try {
+      desktop = desktopEntryScopeEvidence(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+        project.full_name,
+      );
+    } catch {
+      return outcome("held", "unsupported-project-desktop-entry");
+    }
+    if (!desktop) return outcome("held", "unsupported-project-desktop-entry");
+    if (desktop.names_scummvm) return outcome("restricted", "scummvm-out-of-scope");
+    return {
+      ...binding,
+      desktop_entry_blob: entry.sha,
+      desktop_entry_sha256: createHash("sha256").update(bytes).digest("hex"),
+      desktop_entry: desktop,
+    };
+  }
 
   let manifest: ReturnType<typeof parseRecompManifest> | ReturnType<typeof launcherScopeEvidence>;
   try {
@@ -232,16 +487,119 @@ async function observeDiscoveryScope(
   )
     return outcome("restricted", "scummvm-out-of-scope");
   return {
-    policy: discoveryScopePolicy,
-    state: "eligible" as const,
-    repository_id: repositoryId,
-    commit,
-    tree: treeId,
+    ...binding,
     manifest_path: manifestPath,
-    manifest_blob: manifestEntry.sha,
+    manifest_blob: entry.sha,
     manifest_sha256: createHash("sha256").update(bytes).digest("hex"),
     manifest,
   };
+}
+
+export const launcherModObservationPolicy = "github-launcher-mod-links/1";
+
+export type LauncherModObservation =
+  | { state: "unavailable"; reason: string; retry_after?: string; game_input_ids?: string[] }
+  | { state: "held"; reason: string }
+  | { state: "absent"; repository_id: number; commit: string; tree: string }
+  | {
+      state: "observed";
+      repository_id: number;
+      commit: string;
+      tree: string;
+      blob: string;
+      manifest_sha256: string;
+      game_input_ids?: string[];
+      mod_portals: NonNullable<AuthoredListing["mod_portals"]>;
+    };
+
+/** Read descriptive links from the exact public repository already accepted for one port.
+ * The caller owns eligibility and supplies a budgeted provider transport. */
+export async function observeLauncherModPortals(
+  repository: { slug: string; id: number },
+  read: ScopeRead,
+): Promise<LauncherModObservation> {
+  if (!Number.isSafeInteger(repository.id) || repository.id <= 0)
+    throw new Error("First-party mod observation requires a positive bound GitHub repository ID.");
+  const project = await read(`repositories/${repository.id}`, 0, false);
+  if (project.status === "unavailable")
+    return {
+      state: "unavailable",
+      reason: project.reason ?? "repository-unobserved",
+      ...(project.retry_after ? { retry_after: project.retry_after } : {}),
+    };
+  if (
+    !isRecord(project.body) ||
+    project.body.id !== repository.id ||
+    project.body.private !== false ||
+    typeof project.body.full_name !== "string" ||
+    project.body.full_name.toLowerCase() !== repository.slug.toLowerCase()
+  )
+    return { state: "held", reason: "repository-binding-unresolved" };
+  const scope = await observeDiscoveryScope(project.body, repository.id, read, "launcher-mods");
+  if (
+    "manifest" in scope &&
+    scope.manifest &&
+    "names_scummvm" in scope.manifest &&
+    typeof scope.manifest_blob === "string" &&
+    typeof scope.manifest_sha256 === "string"
+  ) {
+    if (scope.manifest.legacy_mod_declaration_absent)
+      return {
+        state: "absent",
+        repository_id: repository.id,
+        commit: scope.commit,
+        tree: scope.tree,
+      };
+    if (scope.manifest.legacy_folder_scope_unproven)
+      return { state: "held", reason: "legacy-folder-scope-unproven" };
+    if (scope.manifest.legacy_mod_declaration_unresolved)
+      return {
+        state: "unavailable",
+        reason: "legacy-mod-declaration-unresolved",
+        ...(scope.manifest.game_input_ids ? { game_input_ids: scope.manifest.game_input_ids } : {}),
+      };
+    return {
+      state: "observed",
+      repository_id: repository.id,
+      commit: scope.commit,
+      tree: scope.tree,
+      blob: scope.manifest_blob,
+      manifest_sha256: scope.manifest_sha256,
+      ...(scope.manifest.game_input_ids ? { game_input_ids: scope.manifest.game_input_ids } : {}),
+      mod_portals: scope.manifest.mod_portals ?? [],
+    };
+  }
+  if ("reason" in scope && typeof scope.reason === "string") {
+    if (scope.state === "unavailable")
+      return {
+        state: "unavailable",
+        reason: scope.reason,
+        ...(scope.retry_after ? { retry_after: scope.retry_after } : {}),
+      };
+    if (
+      scope.reason === "launcher-manifest-absent" &&
+      "commit" in scope &&
+      "tree" in scope &&
+      typeof scope.commit === "string" &&
+      typeof scope.tree === "string"
+    )
+      return {
+        state: "absent",
+        repository_id: repository.id,
+        commit: scope.commit,
+        tree: scope.tree,
+      };
+    if (
+      [
+        "default-commit-unresolved",
+        "default-tree-incomplete",
+        "project-scope-evidence-bytes-unverified",
+      ].includes(scope.reason)
+    )
+      return { state: "unavailable", reason: scope.reason };
+    return { state: "held", reason: scope.reason };
+  }
+  return { state: "held", reason: "unsupported-project-manifest" };
 }
 
 export class BoundRepositoryUnavailable extends Error {

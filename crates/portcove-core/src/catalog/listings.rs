@@ -3,7 +3,7 @@
 use super::*;
 use crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT;
 use crate::catalog_media::IGDB_SCENE_LISTING_FORMAT;
-use crate::{CatalogListingDocument, ListingAvailability, Platform, PortListing};
+use crate::{CatalogListingDocument, IgdbArtwork, ListingAvailability, Platform, PortListing};
 use std::{collections::BTreeMap, sync::LazyLock};
 
 // A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
@@ -27,6 +27,11 @@ const _: () = assert!(
 const MAX_FUNDING_URLS: usize = 12;
 pub(crate) const VERIFIED_EDITION_LISTING_FORMAT: u32 = 14;
 pub(crate) const MOD_PORTAL_LISTING_FORMAT: u32 = 16;
+pub(crate) const REPOSITORY_BOUND_LISTING_FORMAT: u32 = 17;
+pub(crate) const OFFICIAL_SETUP_LISTING_FORMAT: u32 = 18;
+pub(crate) const ASSIGNED_COVER_LISTING_FORMAT: u32 = 19;
+pub(crate) const OBSERVED_PROJECT_COVER_LISTING_FORMAT: u32 = 20;
+const MAX_OBSERVED_REPOSITORY_ID: u64 = 9_007_199_254_740_991;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -60,6 +65,7 @@ impl From<&PortDefinition> for PortListing {
             listed_at: None,
             funding_urls: None,
             mod_portals: Vec::new(),
+            official_setup_id: None,
             platforms: port.platforms.clone(),
             availability: ListingAvailability::Unknown,
             download_block_reason: None,
@@ -138,6 +144,30 @@ pub(crate) fn strip_verified_sources(listing: &mut PortListing) {
     }
 }
 
+pub(crate) fn has_observed_project_cover(listing: &PortListing) -> bool {
+    listing
+        .artwork
+        .iter()
+        .chain(listing.collection_covers.iter().flatten())
+        .any(|cover| cover.observed_github_repository_id.is_some())
+}
+
+/// These fields come from the current directory. A legacy setup cannot
+/// authenticate a generated cover after the catalog withdraws or replaces it.
+pub(crate) fn strip_directory_only_retained_fields(listing: &mut PortListing) {
+    listing.mod_portals.clear();
+    listing.official_setup_id = None;
+    listing.media.retain(|asset| !asset.is_typed_igdb_scene());
+    strip_verified_sources(listing);
+    if listing
+        .artwork
+        .as_ref()
+        .is_some_and(|cover| cover.observed_github_repository_id.is_some())
+    {
+        listing.artwork = None;
+    }
+}
+
 pub(crate) fn inherit_verified_sources(
     original: &mut crate::OriginalGameIdentity,
     previous: &crate::OriginalGameIdentity,
@@ -185,13 +215,25 @@ pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=MOD_PORTAL_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=OBSERVED_PROJECT_COVER_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 16",
+                "listing export supports formats 5 through 20",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < OBSERVED_PROJECT_COVER_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                if let Some(artwork) = &mut listing.artwork {
+                    artwork.observed_github_repository_id = None;
+                }
+            }
+        }
+        if format_version < OFFICIAL_SETUP_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                listing.official_setup_id = None;
+            }
+        }
         if format_version < MOD_PORTAL_LISTING_FORMAT {
             for listing in &mut document.listings {
                 listing.mod_portals.clear();
@@ -255,6 +297,25 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self.listings.iter().any(has_observed_project_cover) {
+            self.format_version = self
+                .format_version
+                .max(OBSERVED_PROJECT_COVER_LISTING_FORMAT);
+        }
+        if self
+            .listings
+            .iter()
+            .any(|listing| listing.official_setup_id.is_some())
+        {
+            self.format_version = self.format_version.max(OFFICIAL_SETUP_LISTING_FORMAT);
+        }
+        if self
+            .listings
+            .iter()
+            .any(|listing| listing.admitted_github_repository_id().is_some())
+        {
+            self.format_version = self.format_version.max(REPOSITORY_BOUND_LISTING_FORMAT);
+        }
         if self
             .listings
             .iter()
@@ -404,11 +465,68 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=MOD_PORTAL_LISTING_FORMAT) {
+        if !matches!(
+            self.format_version,
+            1..=OBSERVED_PROJECT_COVER_LISTING_FORMAT
+        ) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        for listing in &self.listings {
+            if let Some(artwork) = &listing.artwork
+                && let Some(repository_id) = artwork.observed_github_repository_id
+            {
+                if self.format_version < OBSERVED_PROJECT_COVER_LISTING_FORMAT {
+                    return Err(PortcoveError::unsupported(
+                        "observed project covers require listing format 20",
+                    ));
+                }
+                if artwork.match_kind != crate::IgdbArtworkMatch::Port
+                    || !(1..=MAX_OBSERVED_REPOSITORY_ID).contains(&repository_id)
+                    || crate::release::catalog_download_repository(&listing.project_url).is_err()
+                    || listing
+                        .admitted_github_repository_id()
+                        .is_some_and(|admitted| admitted != repository_id)
+                    || listing
+                        .observed_github_repository_id()
+                        .is_some_and(|observed| observed != repository_id)
+                {
+                    return Err(PortcoveError::usage(
+                        "observed project cover has an invalid repository binding",
+                    ));
+                }
+            }
+            if listing.collection_covers.as_ref().is_some_and(|covers| {
+                covers
+                    .iter()
+                    .any(|cover| cover.observed_github_repository_id.is_some())
+            }) {
+                return Err(PortcoveError::usage(
+                    "observed project covers cannot be used in a collection",
+                ));
+            }
+        }
+        if self.format_version < OFFICIAL_SETUP_LISTING_FORMAT
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.official_setup_id.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "reviewed official setup links require listing format 18",
+            ));
+        }
+        if self.format_version < REPOSITORY_BOUND_LISTING_FORMAT
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.admitted_github_repository_id().is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "repository-bound GitHub listings require listing format 17",
+            ));
         }
         if self.format_version < MOD_PORTAL_LISTING_FORMAT
             && self
@@ -748,6 +866,42 @@ impl crate::OriginalGameIdentity {
 }
 
 impl PortListing {
+    /// The discovery admission contract reserves `github-<repository ID>`
+    /// for canonical automatic listings.
+    pub(crate) fn admitted_github_repository_id(&self) -> Option<u64> {
+        portcove_listing_carrier::admitted_github_repository_id(&self.id)
+    }
+
+    pub(crate) fn observed_github_repository_id(&self) -> Option<u64> {
+        let observed = self.upstream_observation.as_ref()?;
+        if observed.provider == "github"
+            && observed.observed_at.is_some()
+            && crate::release::catalog_download_repository(&self.project_url)
+                .is_ok_and(|name| name.eq_ignore_ascii_case(&observed.repository))
+        {
+            observed.repository_id
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn private_github_project(repository_id: u64, full_name: &str) -> Result<Self> {
+        Ok(serde_json::from_value(serde_json::json!({
+            "id": format!("github-{repository_id}"),
+            "name": full_name,
+            "summary": "Public upstream project selected for this library.",
+            "project_url": format!("https://github.com/{full_name}"),
+        }))?)
+    }
+
+    fn private_github_repository_id(&self) -> Option<u64> {
+        let id = self.admitted_github_repository_id()?;
+        // Older registration envelopes use an exact, generated listing for a
+        // personal selection. Ordinary retained catalog listings are different.
+        let address = crate::release::catalog_download_repository(&self.project_url).ok()?;
+        (Self::private_github_project(id, &address).ok().as_ref() == Some(self)).then_some(id)
+    }
+
     fn validate_observation_metadata(&self) -> Result<()> {
         let invalid = || {
             PortcoveError::usage("invalid descriptive listing observation or maintenance metadata")
@@ -801,7 +955,12 @@ impl PortListing {
             } else {
                 !observation.repository.eq_ignore_ascii_case(repository)
             }
-            || observation.repository_id.is_some_and(|id| !identity(id))
+            || observation.repository_id.is_some_and(|observed| {
+                !identity(observed)
+                    || self
+                        .admitted_github_repository_id()
+                        .is_some_and(|expected| observed != expected)
+            })
             || !(1..=4).contains(&observation.release_limit)
             || observation.releases.len() > observation.release_limit
         {
@@ -907,6 +1066,19 @@ impl PortListing {
     pub fn validate(&self) -> Result<()> {
         self.validate_observation_metadata()?;
         crate::mod_source::validate_listing_portals(&self.mod_portals)?;
+        if let Some(target) = &self.official_setup_id
+            && (target == &self.id
+                || target.is_empty()
+                || target.len() > 255
+                || !target
+                    .bytes()
+                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+                || self.original_game.is_none())
+        {
+            return Err(PortcoveError::usage(
+                "an official setup link requires a distinct stable ID and an exact original game",
+            ));
+        }
         if let Some(date) = &self.listed_at
             && !valid_listed_at(date)
         {
@@ -937,6 +1109,16 @@ impl PortListing {
                 "{} has invalid listing identity or description",
                 self.id
             )));
+        }
+        if self.admitted_github_repository_id().is_some() {
+            let project = crate::release::catalog_download_repository(&self.project_url)?;
+            if let Some(url) = &self.release_url
+                && !crate::release::catalog_download_repository(url)?.eq_ignore_ascii_case(&project)
+            {
+                return Err(PortcoveError::usage(
+                    "repository-bound listing project and release URLs differ",
+                ));
+            }
         }
         for value in [&self.original_game_title, &self.variant_label]
             .into_iter()
@@ -1060,6 +1242,84 @@ impl PortListing {
 }
 
 impl Catalog {
+    pub(crate) fn with_signed_cover_assignments(mut self, signed: &CatalogListingDocument) -> Self {
+        self.cover_assignments = Arc::new(
+            signed
+                .listings
+                .iter()
+                .filter(|listing| {
+                    signed.format_version >= ASSIGNED_COVER_LISTING_FORMAT
+                        && listing.artwork.is_none()
+                        && listing.collection_covers.is_none()
+                })
+                .map(|listing| listing.id.clone())
+                .collect(),
+        );
+        self
+    }
+
+    /// Signed current-format rows supply their own cover decisions. Legacy
+    /// rows can still use a unique exact-edition cover.
+    pub(crate) fn automatic_cover<'a>(&'a self, port: &'a PortListing) -> Option<&'a IgdbArtwork> {
+        if let Some(cover) = &port.artwork {
+            return Some(cover);
+        }
+        if port.collection_covers.is_some() || self.cover_assignments.contains(&port.id) {
+            return None;
+        }
+        let game = port.original_game.as_ref()?;
+        let [edition] = game.source_editions.as_slice() else {
+            return None;
+        };
+        let mut shared = None;
+        for candidate in self.listings() {
+            let Some((donor, cover)) = candidate
+                .original_game
+                .as_ref()
+                .zip(candidate.artwork.as_ref())
+            else {
+                continue;
+            };
+            let [donor_edition] = donor.source_editions.as_slice() else {
+                continue;
+            };
+            if donor.id != game.id
+                || donor_edition.id != edition.id
+                || donor_edition.system != edition.system
+                || cover.match_kind != crate::IgdbArtworkMatch::UnderlyingGame
+            {
+                continue;
+            }
+            if shared.is_some_and(|previous| previous != cover) {
+                return None;
+            }
+            shared = Some(cover);
+        }
+        shared
+    }
+
+    /// Export automatic defaults without revealing or applying local choices.
+    /// Format 19 exports materialize legacy rows' effective cover assignments.
+    pub fn export_listings(&self, format_version: Option<u32>) -> Result<CatalogListingDocument> {
+        let mut exported = match format_version {
+            Some(format) => self.listing_document().export_format(format)?,
+            None => self.listing_document().clone(),
+        };
+        if exported.format_version >= ASSIGNED_COVER_LISTING_FORMAT {
+            for (entry, current) in exported.listings.iter_mut().zip(self.listings()) {
+                if entry.artwork.is_none() {
+                    entry.artwork = self.automatic_cover(current).cloned();
+                    if exported.format_version < OBSERVED_PROJECT_COVER_LISTING_FORMAT
+                        && let Some(artwork) = &mut entry.artwork
+                    {
+                        artwork.observed_github_repository_id = None;
+                    }
+                }
+            }
+        }
+        Ok(exported)
+    }
+
     pub fn listing_document(&self) -> &CatalogListingDocument {
         &self.listings
     }
@@ -1290,9 +1550,15 @@ impl Catalog {
                 } else {
                     Vec::new()
                 };
+                let official_setup_id = if same_scope {
+                    listing.official_setup_id.take()
+                } else {
+                    None
+                };
                 *listing = PortListing {
                     implementation,
                     mod_portals,
+                    official_setup_id,
                     compatibility: listing.compatibility.clone(),
                     upstream_observation: listing.upstream_observation.clone(),
                     availability_override_reason: listing.availability_override_reason.clone(),
@@ -1317,6 +1583,45 @@ impl Catalog {
             }
         }
         self.with_projected_listing_document(document)
+    }
+
+    pub(crate) fn require_personal_project_unlisted(&self, proposed: &PortListing) -> Result<()> {
+        let repository_id = proposed.admitted_github_repository_id().ok_or_else(|| {
+            PortcoveError::verification("personal registration requires a stable repository ID")
+        })?;
+        let repository = crate::release::catalog_download_repository(&proposed.project_url)?;
+        if self.listings().iter().any(|row| {
+            let known_id = row
+                .admitted_github_repository_id()
+                .or_else(|| row.observed_github_repository_id());
+            match known_id {
+                Some(known_id) => known_id == repository_id,
+                None => crate::release::catalog_download_repository(&row.project_url)
+                    .is_ok_and(|name| name.eq_ignore_ascii_case(&repository)),
+            }
+        }) {
+            return Err(PortcoveError::conflict(
+                "Portcove already lists this project. Select its catalog entry to use your files.",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn canonical_for_private_github_listing(
+        &self,
+        retained: &PortListing,
+    ) -> Option<&PortListing> {
+        let repository_id = retained.private_github_repository_id()?;
+        if self.listing(&retained.id).is_ok() {
+            // Same-key admission already resolves directly and needs no association.
+            return None;
+        }
+        let mut matches = self
+            .listings()
+            .iter()
+            .filter(|listing| listing.observed_github_repository_id() == Some(repository_id));
+        let candidate = matches.next()?;
+        matches.next().is_none().then_some(candidate)
     }
 
     /// Durable launch intent retains only the descriptive project and an explicit
@@ -1370,6 +1675,94 @@ mod tests {
         })
     }
 
+    #[test]
+    fn repository_bound_listings_cannot_be_read_or_exported_in_older_formats() {
+        let mut admitted = listing();
+        admitted["id"] = json!("github-890");
+        admitted["project_url"] = json!("https://github.com/example/unknown-port");
+        admitted["release_url"] = json!("https://github.com/example/unknown-port/releases");
+        let mut directory = json!({
+            "format_version": MOD_PORTAL_LISTING_FORMAT,
+            "listings": [listing(), admitted],
+        });
+        assert!(CatalogListingDocument::from_json(&directory.to_string()).is_err());
+        directory["format_version"] = json!(REPOSITORY_BOUND_LISTING_FORMAT);
+        let accepted = CatalogListingDocument::from_json(&directory.to_string()).unwrap();
+        assert_eq!(
+            accepted.listings[1].admitted_github_repository_id(),
+            Some(890)
+        );
+        assert!(
+            accepted
+                .export_format(REPOSITORY_BOUND_LISTING_FORMAT)
+                .is_ok()
+        );
+        assert!(accepted.export_format(MOD_PORTAL_LISTING_FORMAT).is_err());
+
+        directory["listings"][1]["release_url"] =
+            json!("https://github.com/elsewhere/unknown-port/releases");
+        assert!(CatalogListingDocument::from_json(&directory.to_string()).is_err());
+    }
+
+    #[test]
+    fn personal_project_uses_verified_repository_id_before_the_address() {
+        let proposed: PortListing = serde_json::from_value(json!({
+            "id": "github-123",
+            "name": "Fixture port",
+            "summary": "Public repository selected by the player.",
+            "project_url": "https://github.com/example/reused"
+        }))
+        .unwrap();
+        let mut row = proposed.clone();
+        row.id = "github-456".into();
+        let catalog = Catalog::for_user_selected_listing(row.clone()).unwrap();
+        assert!(catalog.require_personal_project_unlisted(&proposed).is_ok());
+
+        row.id = proposed.id.clone();
+        row.project_url = "https://github.com/example/moved".into();
+        let catalog = Catalog::for_user_selected_listing(row.clone()).unwrap();
+        assert!(
+            catalog
+                .require_personal_project_unlisted(&proposed)
+                .is_err()
+        );
+
+        row.id = "legacy-port".into();
+        row.project_url.clone_from(&proposed.project_url);
+        let catalog = Catalog::for_user_selected_listing(row.clone()).unwrap();
+        assert!(
+            catalog
+                .require_personal_project_unlisted(&proposed)
+                .is_err()
+        );
+
+        row.upstream_observation = Some(crate::ListingUpstreamObservation {
+            provider: "github".into(),
+            repository: "example/reused".into(),
+            repository_id: Some(456),
+            status: crate::ListingObservationStatus::Complete,
+            attempted_at: "2026-09-15T06:00:00Z".into(),
+            observed_at: Some("2026-09-15T06:00:00Z".into()),
+            fresh_until: Some("2026-09-15T18:00:00Z".into()),
+            facts_sha256: Some("a".repeat(64)),
+            release_limit: 4,
+            releases: Vec::new(),
+        });
+        let catalog = Catalog::for_user_selected_listing(row.clone()).unwrap();
+        assert!(catalog.require_personal_project_unlisted(&proposed).is_ok());
+
+        row.project_url = "https://github.com/example/moved".into();
+        let observed = row.upstream_observation.as_mut().unwrap();
+        observed.repository = "example/moved".into();
+        observed.repository_id = Some(123);
+        let catalog = Catalog::for_user_selected_listing(row).unwrap();
+        assert!(
+            catalog
+                .require_personal_project_unlisted(&proposed)
+                .is_err()
+        );
+    }
+
     /// The release-tools signer binds an added legacy row to
     /// `portcove_listing_carrier::legacy_row_projection` of the compact row;
     /// preparation binds it to this export. Both must agree on every row.
@@ -1407,7 +1800,6 @@ mod tests {
     fn signer_legacy_row_projection_equals_core_format_eleven_export() {
         let committed =
             CatalogListingDocument::from_json(include_str!("../../catalog/listings.json")).unwrap();
-        assert_eq!(committed.format_version, RESTRICTION_LISTING_FORMAT);
         assert_signer_projection_matches_export(&committed);
 
         // Fixture rows for every format-12+ fact the export removes, and the
@@ -1901,13 +2293,89 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":17,"listings":[listing()]}),
+            json!({"format_version":OBSERVED_PROJECT_COVER_LISTING_FORMAT + 1,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
         ] {
             assert!(CatalogListingDocument::from_json(&document.to_string()).is_err());
         }
+    }
+
+    #[test]
+    fn observed_implementation_cover_requires_exact_repository_and_capable_reader() {
+        let mut row = listing();
+        row["id"] = json!("github-890");
+        row["project_url"] = json!("https://github.com/example/project");
+        row["release_url"] = json!("https://github.com/example/project/releases");
+        row["artwork"] = json!({
+            "game_id": 17, "cover_id": 31, "image_id": "projectcover",
+            "image_sha256": "a".repeat(64), "game_slug": "project",
+            "match_kind": "port", "observed_github_repository_id": 890
+        });
+        let read = |format, row| {
+            CatalogListingDocument::from_json(
+                &json!({"format_version":format,"listings":[row]}).to_string(),
+            )
+        };
+        assert!(read(ASSIGNED_COVER_LISTING_FORMAT, row.clone()).is_err());
+        let accepted = read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, row.clone()).unwrap();
+        let old_export = accepted
+            .export_format(ASSIGNED_COVER_LISTING_FORMAT)
+            .unwrap();
+        let cover = old_export.listings[0].artwork.as_ref().unwrap();
+        assert_eq!(cover.image_id, "projectcover");
+        assert_eq!(cover.observed_github_repository_id, None);
+
+        row["artwork"]["observed_github_repository_id"] = json!(891);
+        assert!(read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, row.clone()).is_err());
+        let mut legacy = row.clone();
+        legacy["id"] = json!("legacy-project");
+        legacy["artwork"]["observed_github_repository_id"] = json!(MAX_OBSERVED_REPOSITORY_ID + 1);
+        assert!(read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, legacy).is_err());
+        row["artwork"]["observed_github_repository_id"] = json!(890);
+        row["artwork"]["match_kind"] = json!("underlying-game");
+        assert!(read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, row).is_err());
+    }
+
+    #[test]
+    fn official_setup_link_requires_format_and_keeps_external_listing_identity() {
+        let catalog = Catalog::embedded().unwrap();
+        let mut listing = catalog
+            .listing("chameleon-twist-recompiled")
+            .unwrap()
+            .clone();
+        let before = listing.clone();
+        let target = "chameleon-twist-jp-recompiled";
+        listing.official_setup_id = Some(target.into());
+        let document = CatalogListingDocument {
+            format_version: OFFICIAL_SETUP_LISTING_FORMAT,
+            listings: vec![listing],
+        };
+        document.validate().unwrap();
+        let legacy = document.export_format(17).unwrap();
+        assert_eq!(legacy.listings, vec![before]);
+        assert_eq!(
+            portcove_listing_carrier::legacy_row_projection(
+                &serde_json::to_value(&document.listings[0]).unwrap()
+            ),
+            serde_json::to_value(&document.export_format(11).unwrap().listings[0]).unwrap()
+        );
+        let mut invalid = document.clone();
+        invalid.format_version = 17;
+        assert!(invalid.validate().is_err());
+        invalid.format_version = OFFICIAL_SETUP_LISTING_FORMAT;
+        for target in [
+            Some("official/chameleon-twist-jp-recompiled"),
+            Some("chameleon-twist-recompiled"),
+            Some(""),
+        ] {
+            invalid.listings[0].official_setup_id = target.map(str::to_owned);
+            assert!(invalid.validate().is_err());
+        }
+        invalid.listings[0].official_setup_id = Some(target.into());
+        invalid.listings[0].original_game = None;
+        assert!(invalid.validate().is_err());
     }
 
     #[test]
@@ -2267,8 +2735,11 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        // Embedded listings include typed acquisition restrictions.
-        assert_eq!(projected.listing_document().format_version, 15);
+        let embedded = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
+        assert_eq!(
+            projected.listing_document().format_version,
+            embedded.format_version
+        );
     }
 
     #[test]
@@ -2319,6 +2790,20 @@ mod observation_metadata_tests {
             &json!({"format_version":format,"listings":[value]}).to_string(),
         )
     }
+
+    #[test]
+    fn repository_bound_listing_observations_reject_reused_github_paths() {
+        let mut value = listing();
+        value["id"] = json!("github-7");
+        assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
+
+        value["upstream_observation"]["repository_id"] = json!(8);
+        assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_err());
+
+        value["id"] = json!("observed-project");
+        assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
+    }
+
     #[test]
     fn descriptive_observation_has_an_explicit_format_fence_and_retains_no_managed_authority() {
         let value = listing();
@@ -2456,12 +2941,14 @@ mod observation_metadata_tests {
         let retained = Catalog::for_user_selected_listing(document.listings[0].clone()).unwrap();
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
+        assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
+        let unsupported_format = OBSERVED_PROJECT_COVER_LISTING_FORMAT + 1;
         let mut future = document;
-        future.format_version = 17;
+        future.format_version = unsupported_format;
         future.promote_projected_format();
-        assert_eq!(future.format_version, 17);
+        assert_eq!(future.format_version, unsupported_format);
         assert!(future.validate().is_err());
-        assert!(parse(&value, 17).is_err());
+        assert!(parse(&value, unsupported_format).is_err());
     }
 
     #[test]
@@ -2488,8 +2975,6 @@ mod observation_metadata_tests {
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
         let current = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
-        // Typed acquisition restrictions lift the embedded directory to 15.
-        assert_eq!(current.format_version, 15);
         // Start with format 6 to isolate setup references from later fields.
         let mut document = current.export_format(6).unwrap();
         let legacy = document.export_format(5).unwrap();

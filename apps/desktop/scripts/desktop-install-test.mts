@@ -96,6 +96,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import {
+  activitySectionTab,
   revealDetailSection,
   reviewGameUpdateDisposition,
   clickVisible,
@@ -455,35 +456,49 @@ export async function installScenarios({
     });
     const scope = object(command(["game-settings", "qualification-scope", port.id]));
     assert.equal(scope.install_id, active.id);
-    assert.ok(Array.isArray(scope.files));
-    assert.equal(scope.files.length, 1);
-    const audio = object(scope.files[0]);
-    assert.equal(audio.file_id, "audio");
-    assert.equal(audio.path, "fixture-settings.json");
+    const files = scope.files;
+    assert.ok(Array.isArray(files));
+    assert.equal(files.length, 2);
     const libraryPath = path.toNamespacedPath(path.resolve(library));
-    const configPaths = [audio.canonical_path, audio.runtime_path].map((candidate) => {
-      assert.ok(typeof candidate === "string" && path.isAbsolute(candidate));
-      const configurationPath = path.toNamespacedPath(candidate);
-      const relative = path.relative(libraryPath, configurationPath);
-      assert.ok(relative && !path.isAbsolute(relative) && relative.split(path.sep)[0] !== "..");
-      return configurationPath;
-    });
-    assert.notEqual(configPaths[0], configPaths[1]);
+    const ownedCopies = (fileId: string, fileName: string) => {
+      const file = required(files.map(object).find(({ file_id }) => file_id === fileId));
+      assert.equal(file.path, fileName);
+      const copies = [file.canonical_path, file.runtime_path].map((candidate) => {
+        assert.ok(typeof candidate === "string" && path.isAbsolute(candidate));
+        const configurationPath = path.toNamespacedPath(candidate);
+        const relative = path.relative(libraryPath, configurationPath);
+        assert.ok(relative && !path.isAbsolute(relative) && relative.split(path.sep)[0] !== "..");
+        return configurationPath;
+      });
+      assert.notEqual(copies[0], copies[1]);
+      return copies;
+    };
+    const audio = { name: "fixture-settings.json", field: "master-volume" };
+    const display = { name: "fixture-display.json", field: "render-scale" };
+    const configPaths = ownedCopies("audio", audio.name);
+    const displayPaths = ownedCopies("display", display.name);
+    assert.equal(new Set([...configPaths, ...displayPaths]).size, 4);
     const initial = { master: 40, music: 60, keep: ["unrelated", true] };
-    const snapshot = async (phase: string) => {
-      const copies = await Promise.all(configPaths.map((file) => readFile(file)));
+    const initialDisplay = { scale: 100, keep: "display-owned" };
+    const snapshot = async (phase: string, files = configPaths) => {
+      const copies = await Promise.all(files.map((file) => readFile(file)));
       assert.deepEqual(copies[0], copies[1], `Configuration copies diverged at ${phase}`);
       const artifact = path.join(output, `settings-${phase}.json`);
       await writeFile(artifact, required(copies[0]), { flag: "wx" });
       artifacts.push(artifact);
       return fileIdentity(artifact);
     };
-    for (const file of configPaths) {
-      await mkdir(path.dirname(file), { recursive: true });
-      await writeFile(file, JSON.stringify(initial), { flag: "wx" });
-    }
+    const seedFile = async (copies: string[], contents: object) => {
+      for (const file of copies) {
+        await mkdir(path.dirname(file), { recursive: true });
+        await writeFile(file, JSON.stringify(contents), { flag: "wx" });
+      }
+    };
+    await seedFile(configPaths, initial);
+    await seedFile(displayPaths, initialDisplay);
     const before = await snapshot("before");
-    inputs.push(before);
+    const displayBefore = await snapshot("display-before", displayPaths);
+    inputs.push(before, displayBefore);
 
     await revealDetailSection(browser, "Game settings");
     const field = (name: string) => By.css(`input[name="${name}"]`);
@@ -498,6 +513,9 @@ export async function installScenarios({
     await click("Read game settings");
     await browser.wait(until.elementLocated(field("master-volume")), 30_000);
     assert.deepEqual(await readValues(), ["40", "60"]);
+    const displayValue = async () =>
+      (await browser.findElement(field(display.field))).getProperty("value");
+    assert.equal(await displayValue(), "100");
     const edit = async (name: string, value: string) => {
       const input = await browser.findElement(field(name));
       await input.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, value);
@@ -505,17 +523,28 @@ export async function installScenarios({
     };
     await edit("master-volume", "84");
     await edit("music-volume", "65");
+    await edit(display.field, "125");
     await revealDetailSection(browser, "Versions & updates");
     await revealDetailSection(browser, "Game settings");
     assert.deepEqual(await readValues(), ["84", "65"]);
+    assert.equal(await displayValue(), "125");
 
     const settingsReview = By.xpath(
       '//*[@role="dialog" and .//h2[normalize-space(.)="Review game settings"]]',
     );
     const technicalFailure = By.css(".failure-details pre");
     const saveChanges = By.xpath('.//button[normalize-space(.)="Save changes"]');
-    const review = async (expected: readonly string[]) => {
-      await click("Review changes");
+    const review = async (
+      editedFile: { name: string; field: string },
+      expected: readonly string[],
+      untouchedFile: string,
+    ) => {
+      const input = await browser.findElement(field(editedFile.field));
+      const form = await input.findElement(By.xpath("./ancestor::form[1]"));
+      await clickVisible(
+        browser,
+        await form.findElement(By.xpath('.//button[normalize-space(.)="Review changes"]')),
+      );
       const modal = await browser.wait(until.elementLocated(settingsReview), 30_000);
       await browser.wait(
         async () => {
@@ -535,16 +564,18 @@ export async function installScenarios({
         "The native review never loaded its exact preimage",
       );
       const reviewText = await modal.getText();
-      for (const label of [
-        "Review game settings",
-        active.version,
-        "fixture-settings.json",
-        ...expected,
-      ])
+      for (const label of ["Review game settings", active.version, editedFile.name, ...expected])
         assert.ok(reviewText.includes(label), `Review did not display ${label}`);
+      assert.ok(!reviewText.includes(untouchedFile), "The review included a different file");
       return modal;
     };
-    const initialReview = await review(["Master volume", "Music volume", "40", "84", "60", "65"]);
+    const initialReview = await review(
+      audio,
+      ["Master volume", "Music volume", "40", "84", "60", "65"],
+      display.name,
+    );
+    for (const file of displayPaths)
+      assert.equal(await readFile(file, "utf8"), JSON.stringify(initialDisplay));
     for (const file of configPaths)
       assert.equal(await readFile(file, "utf8"), JSON.stringify(initial));
     const screenshot = path.join(output, "native-game-settings-review.png");
@@ -562,10 +593,13 @@ export async function installScenarios({
         music: 65,
       });
     assert.deepEqual(await readValues(), ["84", "65"]);
+    assert.equal(await displayValue(), "125", "Saving audio must retain the display draft");
+    for (const file of displayPaths)
+      assert.equal(await readFile(file, "utf8"), JSON.stringify(initialDisplay));
     const afterSave = await snapshot("after-save");
 
     await edit("master-volume", "72");
-    const staleReview = await review(["Master volume", "84", "72"]);
+    const staleReview = await review(audio, ["Master volume", "84", "72"], display.name);
     // Core owns this player explanation; Desktop shows it unchanged.
     const staleSummary =
       "This settings file changed after you reviewed it, so your changes weren’t saved. Read the settings again, then review your changes.";
@@ -608,6 +642,25 @@ export async function installScenarios({
     assert.equal((await readValues())[0], "72", "The refused review must retain the edited value");
     for (const file of configPaths) assert.equal(await readFile(file, "utf8"), outside);
     const afterRefusal = await snapshot("outside-edit-retained");
+    assert.equal(
+      await displayValue(),
+      "125",
+      "Audio refusal must leave the display draft editable",
+    );
+    const displayReview = await review(display, ["Render scale", "100", "125"], audio.name);
+    for (const file of displayPaths)
+      assert.equal(await readFile(file, "utf8"), JSON.stringify(initialDisplay));
+    await clickVisible(browser, await displayReview.findElement(saveChanges));
+    await browser.wait(
+      async () => (await browser.findElements(settingsReview)).length === 0,
+      30_000,
+      "The display settings review did not close after saving",
+    );
+    for (const file of displayPaths)
+      assert.deepEqual(JSON.parse(await readFile(file, "utf8")), { ...initialDisplay, scale: 125 });
+    for (const file of configPaths) assert.equal(await readFile(file, "utf8"), outside);
+    assert.equal((await readValues())[0], "72", "Saving display must retain the held audio draft");
+    const displayAfter = await snapshot("display-after-save", displayPaths);
     const receipt = path.join(output, "native-game-settings-review.json");
     await writeFile(
       receipt,
@@ -618,6 +671,7 @@ export async function installScenarios({
           artifact_sha256: active.artifact.sha256,
           saved: { master: 84, music: 65 },
           snapshots: { before, afterSave, afterRefusal },
+          display: { saved: 125, snapshots: { before: displayBefore, afterSave: displayAfter } },
         },
         null,
         2,
@@ -989,7 +1043,8 @@ export async function installScenarios({
         "get_launch_failure",
         "get_runtime_prerequisites",
         "get_port_capabilities",
-        // The reopened game details can read the CLI handoff context.
+        // The reopened game details can read release eligibility and the CLI handoff context.
+        "can_review_exact_release",
         "get_cli_command_context",
         "get_automatic_snapshots",
         "get_mod_setups",
@@ -1429,16 +1484,19 @@ export async function installScenarios({
     // Core took before this real activating update, and the per-library setting.
     const snapshotPolicyText =
       "Automatic snapshots before version changes are on for this library.";
-    const snapshotCoverageText = "Portcove can snapshot existing saves and settings it manages";
+    const snapshotCoverageHint =
+      "Saves & backups shows what Portcove covers and lists completed backups.";
     const visibleDetailPanel = () => browser.findElement(By.css('[role="tabpanel"]:not([hidden])'));
     const visibleSnapshotPolicy = async (owner: WebElement) => {
       const policy = await owner.findElement(By.css("[data-automatic-snapshot-policy]"));
       await browser.wait(
-        async () => (await policy.getText()).includes(snapshotPolicyText),
+        async () => {
+          const text = await policy.getText();
+          return text.includes(snapshotPolicyText) && text.includes(snapshotCoverageHint);
+        },
         15_000,
-        "The current library must report enabled automatic snapshots",
+        "The policy must report enabled automatic snapshots and direct players to coverage",
       );
-      assert.ok((await policy.getText()).includes(snapshotCoverageText));
     };
     const snapshotEvidence = async (name: string, target: WebElement) => {
       await executeBrowserScript(browser, 'arguments[0].scrollIntoView({block:"center"});', target);
@@ -1489,7 +1547,23 @@ export async function installScenarios({
 
       await openFixture(port, true);
       await revealDetailSection(browser, "Saves & backups");
-      await visibleSnapshotPolicy(await visibleDetailPanel());
+      const savesPanel = await visibleDetailPanel();
+      await visibleSnapshotPolicy(savesPanel);
+      const coverageSummary = await savesPanel.findElement(
+        By.xpath('.//summary[normalize-space(.)="Coverage and recorded rules"]'),
+      );
+      const coverageDetails = await coverageSummary.findElement(By.xpath(".."));
+      if ((await coverageDetails.getAttribute("open")) === null)
+        await clickVisible(browser, coverageSummary);
+      const coverage = await coverageDetails.findElement(
+        By.css('section[aria-label="Saved-data coverage"]'),
+      );
+      await browser.wait(until.elementIsVisible(coverage), 15_000);
+      assert.match(
+        await coverage.getText(),
+        /Portcove checks the managed saves and settings folder when creating a backup\. Other locations are not covered\./u,
+      );
+      await snapshotEvidence("native-automatic-snapshot-coverage", coverage);
       const row = `[aria-labelledby="detail-saves-and-storage"] [data-backup-id="${snapshot.id}"]`;
       const historyLabel = await browser.wait(
         until.elementLocated(By.css(`${row} [data-automatic-snapshot]`)),
@@ -2013,6 +2087,24 @@ export async function installScenarios({
       assert.ok(fresh.acquisition);
       assert.equal(fresh.acquisition.id, acquired.acquired.id);
       assert.equal(fresh.acquisition.release.asset.sha256, release.sha256);
+      if (!activate) {
+        // Core can finish the acquisition while the renderer is still refreshing workspace state.
+        const ready = By.xpath(
+          '//section[@aria-label="Review game update"]//details[not(@inert) and button[normalize-space(.)="Prepare for later" and not(@disabled)]]/summary[normalize-space(.)="Advanced update choice"]',
+        );
+        const started = Date.now();
+        await browser.wait(
+          async () => {
+            for (const summary of await browser.findElements(ready)) {
+              if (await summary.isDisplayed()) return true;
+            }
+            return false;
+          },
+          acquisitionScriptBudgetMs,
+          "The retained update review must expose the enabled preparation choice",
+        );
+        observations.prepare_choice_ready_ms = Date.now() - started;
+      }
       await reviewGameUpdateDisposition(browser, activate ? "install" : "prepare");
       const review = await browser.wait(
         until.elementLocated(By.css("[data-game-update-review]")),
@@ -2379,11 +2471,7 @@ export async function installScenarios({
         15_000,
       );
       await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
-      const gameUpdates = await browser.findElement(
-        By.xpath(
-          '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="Game updates"]]',
-        ),
-      );
+      const gameUpdates = await browser.findElement(activitySectionTab("Game updates"));
       await clickVisible(browser, gameUpdates);
       await browser.wait(
         async () => (await gameUpdates.getAttribute("aria-selected")) === "true",

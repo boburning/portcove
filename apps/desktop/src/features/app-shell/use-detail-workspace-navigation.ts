@@ -20,6 +20,7 @@ export function useDetailWorkspaceNavigation(
   workspace: RefObject<HTMLElement | null>,
   setSelectedId: (portId: string | undefined) => void,
   availablePortIds?: ReadonlySet<string>,
+  localPortForCanonical?: ReadonlyMap<string, string>,
 ) {
   const sequence = useRef(0);
   const restoring = useRef(false);
@@ -43,7 +44,8 @@ export function useDetailWorkspaceNavigation(
   const openingToken = opening?.token;
 
   const open = useCallback(
-    (portId: string, originKey?: string, destination?: DetailDestination) => {
+    (requestedId: string, originKey?: string, destination?: DetailDestination) => {
+      const portId = localPortForCanonical?.get(requestedId) ?? requestedId;
       const token = ++sequence.current;
       const exactTrigger = originKey
         ? document.querySelector<HTMLElement>(`[data-detail-origin="${CSS.escape(originKey)}"]`)
@@ -68,12 +70,13 @@ export function useDetailWorkspaceNavigation(
       setOpening({ token, destination, originKey });
       setSelectedId(portId);
     },
-    [setSelectedId, workspace],
+    [localPortForCanonical, setSelectedId, workspace],
   );
 
   /** Switch the viewed implementation without replacing the browsing return point. */
   const replace = useCallback(
-    (portId: string, destination?: DetailDestination) => {
+    (requestedId: string, destination?: DetailDestination) => {
+      const portId = localPortForCanonical?.get(requestedId) ?? requestedId;
       const origin = current.current;
       if (!origin) {
         open(portId, undefined, destination);
@@ -85,7 +88,7 @@ export function useDetailWorkspaceNavigation(
       setOpening({ token, destination, originKey: origin.originKey });
       setSelectedId(portId);
     },
-    [open, setSelectedId, workspace],
+    [localPortForCanonical, open, setSelectedId, workspace],
   );
 
   const closeToken = useCallback(
@@ -168,9 +171,18 @@ export function useDetailWorkspaceNavigation(
 
   useEffect(() => {
     const origin = current.current;
-    if (origin && availablePortIds && !availablePortIds.has(origin.portId))
+    if (!origin || !availablePortIds) return;
+    const portId = localPortForCanonical?.get(origin.portId) ?? origin.portId;
+    if (!availablePortIds.has(portId)) {
       closeToken(origin.token);
-  }, [availablePortIds, closeToken]);
+      return;
+    }
+    const returnPortId = localPortForCanonical?.get(origin.returnPortId) ?? origin.returnPortId;
+    if (portId !== origin.portId || returnPortId !== origin.returnPortId) {
+      current.current = { ...origin, portId, returnPortId };
+      if (portId !== origin.portId) setSelectedId(portId);
+    }
+  }, [availablePortIds, closeToken, localPortForCanonical, openingToken, setSelectedId]);
 
   const invalidate = useCallback(() => {
     const origin = current.current;

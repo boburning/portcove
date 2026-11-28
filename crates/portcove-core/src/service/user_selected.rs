@@ -2,6 +2,97 @@
 use super::*;
 
 impl PortcoveService {
+    /// Review a specific upstream project and an executable the player selected.
+    /// The provider receives only the project address. The temporary listing
+    /// cannot enter the public catalog or grant any managed operation.
+    pub async fn preview_personal_github_runtime(
+        &self,
+        project_url: &str,
+        executable: &Path,
+        working_directory: &Path,
+        arguments: &[String],
+    ) -> Result<crate::PersonalProjectRuntimePreview> {
+        let (project, service) = self.personal_github_runtime_context(project_url).await?;
+        let registration = service.preview_user_selected_runtime(
+            &format!("github-{}", project.id),
+            executable,
+            working_directory,
+            arguments,
+        )?;
+        Ok(crate::PersonalProjectRuntimePreview {
+            repository_id: project.id,
+            project_url: format!("https://github.com/{}", project.full_name),
+            registration,
+        })
+    }
+
+    /// Save the exact reviewed private registration using the existing exclusive
+    /// installation owner and immutable review checks.
+    pub async fn register_personal_github_runtime(
+        &self,
+        project_url: &str,
+        executable: &Path,
+        working_directory: &Path,
+        arguments: &[String],
+        expected_preview_sha256: &str,
+    ) -> Result<ExternalRuntimeRecord> {
+        let (project, service) = self.personal_github_runtime_context(project_url).await?;
+        let port_id = format!("github-{}", project.id);
+        let authorization = service.authorize_user_selected_runtime(
+            &port_id,
+            executable,
+            working_directory,
+            arguments,
+            expected_preview_sha256,
+        )?;
+        service.register_user_selected_runtime(
+            &port_id,
+            executable,
+            working_directory,
+            arguments,
+            &authorization.token,
+        )
+    }
+
+    async fn personal_github_runtime_context(
+        &self,
+        project_url: &str,
+    ) -> Result<(crate::release::CatalogGithubRepository, Self)> {
+        let project = crate::GithubReleaseProvider::for_personal_project_lookup()?
+            .public_catalog_repository(project_url)
+            .await?;
+        let service = self.personal_runtime_context(project.id, &project.full_name)?;
+        Ok((project, service))
+    }
+
+    fn personal_runtime_context(&self, repository_id: u64, full_name: &str) -> Result<Self> {
+        let (current, provenance) = self.library.load_catalog()?;
+        let listing = crate::PortListing::private_github_project(repository_id, full_name)?;
+        current.require_personal_project_unlisted(&listing)?;
+        Library::require_no_legacy_personal_project_registration(
+            &self.library.connection()?,
+            &listing,
+        )?;
+        let private_catalog = Catalog::for_user_selected_listing(listing)?;
+        let mut service = Self::from_catalog(
+            self.library.clone(),
+            self.releases.clone(),
+            private_catalog,
+            provenance,
+        );
+        service.personal_registration = true;
+        Ok(service)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn fixture_personal_runtime_context(
+        &self,
+        repository_id: u64,
+        full_name: &str,
+    ) -> Result<Self> {
+        self.personal_runtime_context(repository_id, full_name)
+    }
+
     pub(super) fn require_user_selected_path_ownership(
         &self,
         executable: &Path,
@@ -176,7 +267,7 @@ impl PortcoveService {
         arguments: &[String],
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<ExternalRuntimePreview> {
-        let pending = self.pending_setup_registration(port_id)?;
+        let pending = self.pending_user_selection(port_id)?;
         let listing = match &pending {
             Some((record, _)) => &record.listing,
             None => self.catalog.listing(port_id)?,
@@ -203,6 +294,10 @@ impl PortcoveService {
             checkpoint,
         )?;
         self.require_user_selected_path_ownership(&preview.executable, &preview.path)?;
+        if pending.is_none() {
+            let connection = self.library.connection()?;
+            Library::require_no_associated_personal_runtime(&connection, &self.catalog, port_id)?;
+        }
         self.require_user_selected_registration_available(port_id)?;
         if let Some(port) = selected_definition {
             preview.preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
@@ -225,6 +320,18 @@ impl PortcoveService {
             ))?);
         }
         Ok(preview)
+    }
+
+    fn pending_user_selection(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<(crate::PendingSetupRecord, String)>> {
+        if self.personal_registration {
+            self.require_no_pending_setup(port_id)?;
+            Ok(None)
+        } else {
+            self.pending_setup_registration(port_id)
+        }
     }
 
     pub(super) fn with_user_selected_readiness(&self, mut status: PortStatus) -> PortStatus {
@@ -360,7 +467,9 @@ impl PortcoveService {
             ));
         }
         // A saved setup resumes at this reviewed plan after an interruption.
-        self.record_pending_registration_review(port_id, &preview)?;
+        if !self.personal_registration {
+            self.record_pending_registration_review(port_id, &preview)?;
+        }
         self.library
             .issue_authorization("register_user_selected", port_id, &preview.preview_sha256)
     }
@@ -392,14 +501,16 @@ impl PortcoveService {
             )?;
             // A staged setup whose bound facts changed cannot complete here;
             // the retained package digest check can be cancelled.
-            self.require_pending_setup_continuable(port_id, &|| operation.checkpoint())?;
+            if !self.personal_registration {
+                self.require_pending_setup_continuable(port_id, &|| operation.checkpoint())?;
+            }
             self.library.consume_authorization(
                 authorization_token,
                 "register_user_selected",
                 port_id,
                 &preview.preview_sha256,
             )?;
-            let pending = self.pending_setup_registration(port_id)?;
+            let pending = self.pending_user_selection(port_id)?;
             let accepted_selected =
                 pending.is_none() && self.current_user_selected_definition(port_id)?.is_some();
             let retained = if accepted_selected {
@@ -429,6 +540,9 @@ impl PortcoveService {
                     .flatten(),
                 shared_preferences: None,
             };
+            if self.personal_registration {
+                return self.library.register_personal_runtime(record, &retained);
+            }
             self.library.register_external_runtime_finishing_setup(
                 record,
                 &retained,
@@ -643,6 +757,609 @@ mod tests {
         register_with_arguments(service, id, executable, working, &["--help".into()])
     }
 
+    #[test]
+    fn private_repository_registration_joins_the_same_public_id_without_rekeying() {
+        const ID: &str = "github-982741653";
+        let (_temporary, service, executable, working) = fixture("personal-fixture");
+        let exact_paths = fs::read(&executable).unwrap();
+        let local = service
+            .personal_runtime_context(982741653, "FixtureOwner/FixturePort")
+            .unwrap();
+        let registration = register(&local, ID, &executable, &working);
+        assert!(
+            local
+                .preview_user_selected_runtime(ID, &executable, &working, &[])
+                .is_err()
+        );
+
+        let reopened = PortcoveService::new(service.library.clone()).unwrap();
+        assert!(reopened.catalog().listing(ID).is_err());
+        let connection = reopened.library.connection().unwrap();
+        let local_view = reopened
+            .catalog_with_registered_listings(reopened.catalog().clone(), &connection)
+            .unwrap();
+        assert_eq!(
+            local_view.listing(ID).unwrap().name,
+            "FixtureOwner/FixturePort"
+        );
+        assert!(local_view.port(ID).is_err());
+
+        let mut canonical = reopened.catalog().listing_document().clone();
+        let mut accepted = local_view.listing(ID).unwrap().clone();
+        accepted.project_url = "https://github.com/FixtureOwner/RenamedPort".into();
+        accepted.name = "Reviewed port name".into();
+        canonical.listings.push(accepted);
+        let canonical = reopened
+            .catalog()
+            .clone()
+            .with_projected_listing_document(canonical)
+            .unwrap();
+        let joined = reopened
+            .catalog_with_registered_listings(canonical, &connection)
+            .unwrap();
+        assert_eq!(joined.listing(ID).unwrap().name, "Reviewed port name");
+        assert_eq!(
+            joined.listings().iter().filter(|row| row.id == ID).count(),
+            1
+        );
+        let (retained, retained_catalog) = reopened
+            .library
+            .external_runtime_with_port(ID)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(retained).unwrap(),
+            serde_json::to_value(registration).unwrap()
+        );
+        assert_eq!(
+            retained_catalog.listing(ID).unwrap().name,
+            "FixtureOwner/FixturePort"
+        );
+        assert_eq!(fs::read(&executable).unwrap(), exact_paths);
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"player save"
+        );
+    }
+
+    #[test]
+    fn private_registration_uses_unique_canonical_description_and_cover() {
+        const REPO: u64 = 982741657;
+        const LOCAL: &str = "github-982741657";
+        const CANONICAL: &str = "reviewed-fixture-port";
+        let (_temporary, mut service, executable, working) = fixture("personal-fixture");
+        let local = service
+            .personal_runtime_context(REPO, "FixtureOwner/BeforeRename")
+            .unwrap();
+        let registered = register(&local, LOCAL, &executable, &working);
+        let connection = service.library.connection().unwrap();
+        let base = service.catalog().clone();
+        let canonical = |id: &str, repository: &str, repository_id: u64| -> crate::PortListing {
+            serde_json::from_value(serde_json::json!({
+                "id": id,
+                "name": "Reviewed fixture",
+                "summary": "Accepted metadata for a retained personal registration.",
+                "project_url": format!("https://github.com/{repository}"),
+                "original_game": {
+                    "format_version": 1,
+                    "id": "fixture-original",
+                    "evidence_urls": ["https://example.com/original"],
+                    "source_editions": [{
+                        "id": "retail",
+                        "title": "Retail edition",
+                        "evidence_urls": ["https://example.com/retail"],
+                        "verified_sources": [{
+                            "game_id": "fixture-input",
+                            "variant_id": "retail",
+                            "representation_id": "retail-file-set"
+                        }]
+                    }]
+                },
+                "media": [
+                    {
+                        "id": "implementation-scene",
+                        "role": "screenshot",
+                        "subject": {"kind": "port", "port_id": id},
+                        "caption": "Implementation screenshot",
+                        "url": format!("https://raw.githubusercontent.com/{repository}/{}/port.png", "a".repeat(40)),
+                        "sha256": "b".repeat(64),
+                        "width": 10,
+                        "height": 5,
+                        "attribution": "Portcove test fixture",
+                        "source_url": format!("https://github.com/{repository}"),
+                        "license": "CC0-1.0",
+                        "rights_url": "https://example.com/license"
+                    },
+                    {
+                        "id": "retail-scene",
+                        "role": "screenshot",
+                        "subject": {
+                            "kind": "original",
+                            "game_id": "fixture-original",
+                            "source_edition_id": "retail"
+                        },
+                        "caption": "Original retail screenshot",
+                        "url": format!("https://raw.githubusercontent.com/{repository}/{}/original.png", "a".repeat(40)),
+                        "sha256": "c".repeat(64),
+                        "width": 10,
+                        "height": 5,
+                        "attribution": "Portcove test fixture",
+                        "source_url": "https://example.com/retail",
+                        "license": "CC0-1.0",
+                        "rights_url": "https://example.com/license"
+                    }
+                ],
+                "artwork": {
+                    "game_id": 31,
+                    "cover_id": 32,
+                    "image_id": "fixturecover",
+                    "game_slug": "fixture-game",
+                    "match_kind": "port",
+                    "image_sha256": "a".repeat(64)
+                },
+                "mod_portals": [{
+                    "id": "community-fixture",
+                    "site": "community_site",
+                    "name": "Fixture community",
+                    "url": "https://thunderstore.io/c/fixture/",
+                    "instructions": "Browse the community’s mods."
+                }],
+                "upstream_observation": {
+                    "provider": "github",
+                    "repository": repository,
+                    "repository_id": repository_id,
+                    "status": "complete",
+                    "attempted_at": "2026-09-15T06:00:00Z",
+                    "observed_at": "2026-09-15T06:00:00Z",
+                    "fresh_until": "2026-09-15T18:00:00Z",
+                    "facts_sha256": "b".repeat(64),
+                    "release_limit": 4,
+                    "releases": []
+                }
+            }))
+            .unwrap()
+        };
+        let catalog = |rows| {
+            let mut document = base.listing_document().clone();
+            document.listings.extend(rows);
+            base.clone()
+                .with_projected_listing_document(document)
+                .unwrap()
+        };
+        let verified = canonical(CANONICAL, "FixtureOwner/AfterRename", REPO);
+        let wrong = canonical(
+            "reused-address-fixture",
+            "FixtureOwner/BeforeRename",
+            REPO + 1,
+        );
+        let sibling = canonical("sibling-fixture", "FixtureOwner/AfterRename", REPO);
+        for rows in [vec![wrong.clone()], vec![verified.clone(), sibling]] {
+            let projected = service
+                .catalog_with_registered_listings(catalog(rows), &connection)
+                .unwrap();
+            let retained = projected.listing(LOCAL).unwrap();
+            assert_eq!(retained.name, "FixtureOwner/BeforeRename");
+            assert!(retained.artwork.is_none());
+        }
+        service.catalog = catalog(vec![verified, wrong]);
+        let projected = service
+            .catalog_with_registered_listings(service.catalog().clone(), &connection)
+            .unwrap();
+        let associated = projected.listing(LOCAL).unwrap();
+        let statuses = service.listing_statuses().unwrap();
+        let local_status = statuses
+            .iter()
+            .find(|status| status.port_id == LOCAL)
+            .unwrap();
+        let canonical_status = statuses
+            .iter()
+            .find(|status| status.port_id == CANONICAL)
+            .unwrap();
+        assert_eq!(local_status.canonical_port_id.as_deref(), Some(CANONICAL));
+        assert!(local_status.status.external_runtime.is_some());
+        assert!(canonical_status.canonical_port_id.is_none());
+        assert!(canonical_status.status.external_runtime.is_none());
+        assert_eq!(associated.name, "Reviewed fixture");
+        assert_eq!(
+            associated.project_url,
+            "https://github.com/FixtureOwner/AfterRename"
+        );
+        assert_eq!(associated.artwork.as_ref().unwrap().cover_id, 32);
+        assert_eq!(associated.media.len(), 2);
+        assert_eq!(
+            associated.media[0].subject,
+            crate::CatalogMediaSubject::Port {
+                port_id: LOCAL.into(),
+            }
+        );
+        assert_eq!(
+            associated.media[1].subject,
+            crate::CatalogMediaSubject::Original {
+                game_id: "fixture-original".into(),
+                source_edition_id: "retail".into(),
+            }
+        );
+        assert!(
+            associated.original_game.as_ref().unwrap().source_editions[0]
+                .verified_sources
+                .is_empty()
+        );
+        assert_eq!(service.artwork_port(LOCAL).unwrap().as_ref(), associated);
+        assert_eq!(
+            service
+                .external_provider_scope(LOCAL, "community-fixture", None)
+                .unwrap(),
+            crate::ModProviderBinding::Thunderstore {
+                community: "fixture".into()
+            }
+        );
+        let portals = service.effective_external_mod_portals(LOCAL, None).unwrap();
+        assert_eq!(portals.external_mod_portals.len(), 1);
+        assert!(portals.external_mod_portals[0].browse_available);
+        let hidden = service
+            .set_mod_portal_preferences(
+                LOCAL,
+                0,
+                crate::ModPortalChoices {
+                    hidden_sources: vec!["community-fixture".into()],
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert!(hidden.external_mod_portals.is_empty());
+        assert_eq!(
+            service
+                .effective_external_mod_portals(CANONICAL, None)
+                .unwrap()
+                .external_mod_portals
+                .len(),
+            1
+        );
+        assert!(projected.port(LOCAL).is_err());
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(CANONICAL)
+                .unwrap()
+                .is_none()
+        );
+        let (retained, _) = service
+            .library
+            .external_runtime_with_port(LOCAL)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(retained).unwrap(),
+            serde_json::to_value(&registered).unwrap()
+        );
+
+        let duplicate = service
+            .preview_user_selected_runtime(CANONICAL, &executable, &working, &[])
+            .unwrap_err();
+        assert_eq!(duplicate.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            duplicate
+                .details
+                .get("existing_port_id")
+                .map(String::as_str),
+            Some(LOCAL)
+        );
+
+        let launch_activity = service
+            .library
+            .begin_activity(
+                crate::ActivityOperation::Launch,
+                crate::ActivityTargetKind::Port,
+                Some(CANONICAL),
+            )
+            .unwrap();
+        let now = Library::now();
+        service
+            .library
+            .create_launch_session(&crate::LaunchSessionRecord {
+                id: launch_activity.id.clone(),
+                port_id: CANONICAL.into(),
+                install_id: "retired-runtime".into(),
+                install_root: working.clone(),
+                owner_kind: crate::LaunchOwnerKind::External,
+                supervisor_pid: std::process::id(),
+                supervisor_identity: None,
+                child_pid: None,
+                child_identity: None,
+                phase: crate::LaunchSessionPhase::Preparing,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+        service
+            .library
+            .finish_launch_session(
+                &launch_activity.id,
+                crate::LaunchSessionOutcome::Cancelled,
+                None,
+                None,
+            )
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+        let request = [crate::LibraryMembershipRequest {
+            port_id: CANONICAL.into(),
+            origin: crate::LibraryMembershipOrigin::Manual,
+            sources: Vec::new(),
+        }];
+        let current = service.catalog().clone();
+        service.catalog = catalog(vec![canonical(CANONICAL, "NewOwner/Reused", REPO + 1)]);
+        let saved = service
+            .add_games_to_library_from(&request, |_| Ok(current.clone()))
+            .unwrap();
+        service.catalog = current;
+        assert_eq!(
+            saved[0].outcome,
+            crate::LibraryMembershipOutcomeKind::AlreadyInLibrary
+        );
+        assert!(service.library_memberships().unwrap().is_empty());
+
+        // Simulate a canonical save that predated detection of the local association.
+        service
+            .library
+            .add_library_memberships(
+                &[crate::LibraryMembershipRequest {
+                    port_id: CANONICAL.into(),
+                    origin: crate::LibraryMembershipOrigin::Manual,
+                    sources: Vec::new(),
+                }],
+                &HashSet::new(),
+            )
+            .unwrap();
+        let retained_membership = service.library_memberships().unwrap();
+        let saved = service
+            .add_games_to_library_from(&request, |_| Ok(service.catalog().clone()))
+            .unwrap();
+        assert_eq!(
+            saved[0].outcome,
+            crate::LibraryMembershipOutcomeKind::AlreadySaved
+        );
+        assert_eq!(service.library_memberships().unwrap(), retained_membership);
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+        assert!(
+            service
+                .library
+                .remove_library_membership(CANONICAL)
+                .unwrap()
+        );
+        assert_eq!(
+            service
+                .artwork_port(LOCAL)
+                .unwrap()
+                .artwork
+                .as_ref()
+                .unwrap()
+                .cover_id,
+            32
+        );
+
+        let mut accepted = canonical(CANONICAL, "FixtureOwner/AfterRename", REPO);
+        // This definition describes the port without making an original-edition claim.
+        accepted.original_game = None;
+        accepted
+            .media
+            .retain(|asset| matches!(asset.subject, crate::CatalogMediaSubject::Port { .. }));
+        let mut operational_document = serde_json::to_value(base.document()).unwrap();
+        let definition = &mut operational_document["ports"][0];
+        definition["id"] = json!(CANONICAL);
+        definition["project_url"] = json!(accepted.project_url);
+        definition["mod_sources"] = json!([{
+            "id": "definition-website",
+            "authority": "link_out",
+            "platforms": [],
+            "name": "Reviewed website",
+            "instructions": "Open the mod website.",
+            "source": {
+                "kind": "external_portal",
+                "site": "community_site",
+                "url": "https://thunderstore.io/c/definition/"
+            }
+        }]);
+        let operational = Catalog::from_json(&operational_document.to_string()).unwrap();
+        let operational_listings = catalog(vec![accepted]).listing_document().clone();
+        service.catalog = operational
+            .with_projected_listing_document(operational_listings)
+            .unwrap();
+        let sites = service.effective_external_mod_portals(LOCAL, None).unwrap();
+        let website = sites
+            .external_mod_portals
+            .iter()
+            .find(|portal| portal.source == "definition-website")
+            .unwrap();
+        assert_eq!(website.url, "https://thunderstore.io/c/definition/");
+        assert!(website.browser.is_none());
+        assert!(!website.browse_available);
+        assert!(
+            service
+                .external_provider_scope(LOCAL, "definition-website", None)
+                .is_err()
+        );
+
+        let mut without_cover = canonical(CANONICAL, "FixtureOwner/AfterRename", REPO);
+        without_cover.artwork = None;
+        let mut donor = canonical("edition-donor", "AnotherOwner/Port", REPO + 2);
+        donor.artwork.as_mut().unwrap().match_kind = crate::IgdbArtworkMatch::UnderlyingGame;
+        let active = catalog(vec![without_cover, donor]);
+        let mut signed = active.listing_document().clone();
+        signed.format_version = crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT;
+        service.catalog = active.with_signed_cover_assignments(&signed);
+        let projected = service.artwork_port(LOCAL).unwrap();
+        assert!(projected.artwork.is_none());
+        assert!(service.catalog().automatic_cover(&projected).is_some());
+        let artwork = service.artwork(LOCAL, crate::ArtworkSlot::Cover).unwrap();
+        assert!(matches!(
+            artwork.resolved_source,
+            crate::artwork::ArtworkResolvedSource::GeneratedFallback
+        ));
+        let error = service
+            .artwork_thumbnail(LOCAL, crate::ArtworkSlot::Cover, artwork.choice.revision)
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::NotFound);
+        assert_eq!(error.to_string(), "this artwork slot uses the fallback");
+
+        service
+            .library
+            .add_library_memberships(
+                &[crate::LibraryMembershipRequest {
+                    port_id: CANONICAL.into(),
+                    origin: crate::LibraryMembershipOrigin::Manual,
+                    sources: Vec::new(),
+                }],
+                &HashSet::new(),
+            )
+            .unwrap();
+        assert!(projected.automatic_cover(service.catalog()).is_none());
+        assert!(service.artwork_port(LOCAL).unwrap().original_game.is_none());
+
+        // A canonical download saved before the association keeps its exact continuation.
+        let mut retained_listing = service.catalog().listing(CANONICAL).unwrap().clone();
+        retained_listing.mod_portals.clear();
+        retained_listing.official_setup_id = None;
+        retained_listing
+            .media
+            .retain(|asset| !asset.is_typed_igdb_scene());
+        crate::catalog::listings::strip_verified_sources(&mut retained_listing);
+        let pending_id = Uuid::new_v4().to_string();
+        let pending = serde_json::to_string(&json!({
+            "id": pending_id,
+            "port_id": CANONICAL,
+            "listing": retained_listing,
+            "path": working.join("preexisting.zip"),
+            "state": "attention-required",
+            "artifact": {
+                "release_id": 1,
+                "asset_id": 2,
+                "release_tag": "v1",
+                "release_url": "https://github.com/FixtureOwner/AfterRename/releases/tag/v1",
+                "name": "preexisting.zip",
+                "size": 1,
+                "download_url": "https://github.com/FixtureOwner/AfterRename/releases/download/v1/preexisting.zip",
+                "can_extract": true
+            },
+            "archive_sha256": "a".repeat(64),
+            "downloaded_at": "2026-11-27T00:00:00Z",
+            "reason": null
+        }))
+        .unwrap();
+        connection
+            .execute(
+                "INSERT INTO catalog_downloads (
+                    port_id, pending_id, record_json, stage_path, phase, preview_sha256, activity_id
+                ) VALUES (?1, ?2, ?3, NULL, 'attention-required', ?4, ?5)",
+                rusqlite::params![
+                    CANONICAL,
+                    pending_id,
+                    pending,
+                    "b".repeat(64),
+                    Uuid::new_v4().to_string()
+                ],
+            )
+            .unwrap();
+        let another = working.join("prior-canonical-setup");
+        fs::create_dir(&another).unwrap();
+        let another_executable = another.join(executable.file_name().unwrap());
+        fs::copy(&executable, &another_executable).unwrap();
+        let selected = register(&service, CANONICAL, &another_executable, &another);
+        assert_eq!(selected.setup_download.unwrap().filename, "preexisting.zip");
+        assert!(service.pending_setups().unwrap().is_empty());
+        let (still_personal, _) = service
+            .library
+            .external_runtime_with_port(LOCAL)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(still_personal).unwrap(),
+            serde_json::to_value(registered).unwrap()
+        );
+    }
+
+    #[test]
+    fn a_withdrawn_legacy_registration_blocks_only_its_verified_repository() {
+        const REPO: u64 = 982741655;
+        const LEGACY: &str = "historical-port-fixture";
+        let (_temporary, mut service, executable, working) = fixture(LEGACY);
+        let stale = service
+            .personal_runtime_context(REPO, "FixtureOwner/RenamedPort")
+            .unwrap();
+        let mut old = stale.catalog().listings()[0].clone();
+        old.id = LEGACY.into();
+        old.project_url = "https://github.com/FixtureOwner/OldPort".into();
+        old.upstream_observation = Some(crate::ListingUpstreamObservation {
+            provider: "github".into(),
+            repository: "FixtureOwner/OldPort".into(),
+            repository_id: Some(REPO),
+            status: crate::ListingObservationStatus::Complete,
+            attempted_at: "2026-09-15T06:00:00Z".into(),
+            observed_at: Some("2026-09-15T06:00:00Z".into()),
+            fresh_until: Some("2026-09-15T18:00:00Z".into()),
+            facts_sha256: Some("a".repeat(64)),
+            release_limit: 4,
+            releases: Vec::new(),
+        });
+        service.catalog = Catalog::for_user_selected_listing(old).unwrap();
+        let prior = register(&service, LEGACY, &executable, &working);
+
+        assert!(
+            service
+                .library
+                .load_catalog()
+                .unwrap()
+                .0
+                .listing(LEGACY)
+                .is_err()
+        );
+        let refused = service
+            .personal_runtime_context(REPO, "FixtureOwner/RenamedPort")
+            .err()
+            .unwrap();
+        assert!(refused.message.contains("already has a registration"));
+        assert!(
+            service
+                .personal_runtime_context(REPO + 1, "FixtureOwner/OldPort")
+                .is_ok(),
+            "a reused address alone is not the retained repository's identity"
+        );
+        let port_id = format!("github-{REPO}");
+        let review = stale
+            .preview_user_selected_runtime(&port_id, &executable, &working, &[])
+            .unwrap();
+        let allow = stale
+            .authorize_user_selected_runtime(
+                &port_id,
+                &executable,
+                &working,
+                &[],
+                &review.preview_sha256,
+            )
+            .unwrap();
+        let refused = stale
+            .register_user_selected_runtime(&port_id, &executable, &working, &[], &allow.token)
+            .unwrap_err();
+        assert!(refused.message.contains("already has a registration"));
+        let (retained, _) = service
+            .library
+            .external_runtime_with_port(LEGACY)
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained.id, prior.id);
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(&port_id)
+                .unwrap()
+                .is_none()
+        );
+    }
+
     fn register_with_arguments(
         service: &PortcoveService,
         id: &str,
@@ -702,7 +1419,9 @@ mod tests {
         } else {
             listing_only(&mut service);
         }
-        assert!(service.catalog.port(id).is_err());
+        if embedded_download_hold.is_none() || !service.catalog.assert_generated_registration(id) {
+            assert!(service.catalog.port(id).is_err());
+        }
         eprintln!(
             "listing route {id}: embedded contract ready {:?}",
             started.elapsed()

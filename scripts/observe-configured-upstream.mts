@@ -74,9 +74,9 @@ interface Checkpoint {
   exception: CheckpointException | null;
   continuation?: ObservationContinuation;
 }
-export interface AdvanceOptions extends Omit<ObserveOptions, "cache"> {
+export interface AdvanceOptions extends Omit<ObserveOptions, "cache" | "onAttemptUsage"> {
   project: (observation: Observation) => unknown;
-  reprojectFreshFacts?: boolean;
+  reprojectFreshFacts?: boolean | "only";
   catalogIds?: string[];
   commitContinuation?: (checkpoint: unknown) => void | Promise<void>;
   execution?: {
@@ -303,13 +303,18 @@ export async function advanceObservation(
   let transition = "deferred";
   let changedException = false;
   let failedPolicyInput: Observation | null = null;
+  let attemptProviderUsage: Observation["consumed"] | null = null;
   // A retained provider clock never defers beyond the provider retry horizon.
   const retainedRetry = boundedRetainedRetryClock(now(), next.exception?.retry_at ?? null);
   const retryClock = retainedRetry ? Date.parse(retainedRetry) : 0;
   if (!retryClock || now() >= retryClock) {
     try {
       let result: Awaited<ReturnType<typeof observeUpstream>> | null = null;
-      if (options.reprojectFreshFacts && next.last_complete) {
+      if (
+        options.reprojectFreshFacts &&
+        next.last_complete &&
+        (options.reprojectFreshFacts !== "only" || (!next.continuation && !next.exception))
+      ) {
         const retained = reusableProviderObservation(
           config,
           next.last_complete.observation,
@@ -345,57 +350,63 @@ export async function advanceObservation(
             };
         }
       }
-      result ??= await observeUpstream(config, {
-        ...options,
-        cache: next.last_complete?.cache,
-        continuation: next.continuation,
-        onCheckpoint: async (continuation) => {
-          next.continuation = structuredClone(continuation);
-          await options.onCheckpoint?.(structuredClone(continuation));
-          await options.commitContinuation?.(structuredClone(next));
-        },
-      });
-      failedPolicyInput = result.observation;
-      if (options.signal?.aborted)
-        throw new ObservationFailure("cancelled", "Observation cancelled before Core projection");
-      const projection = await options.project(result.observation);
-      if (options.signal?.aborted)
-        throw new ObservationFailure(
-          "cancelled",
-          "Observation cancelled before committing Core projection",
-        );
-      if (
-        !isRecord(projection) ||
-        projection.format !== 1 ||
-        projection.port_id !== config.port_id ||
-        projection.repository_id !== config.repository_id ||
-        projection.facts_sha256 !== result.observation.facts_sha256 ||
-        !Array.isArray(projection.projections)
-      )
-        throw new ObservationFailure(
-          "core-binding",
-          "core policy output is not bound to the exact observed facts",
-        );
-      requireCompleteCoreCoverage(projection);
-      transition = !next.last_complete
-        ? "initial-baseline"
-        : next.last_complete.observation.facts_sha256 === result.observation.facts_sha256
-          ? "unchanged"
-          : "changed";
-      next.last_complete = {
-        ...result,
-        projection: {
-          ...retainedCoreProjection(projection),
-          port_id: config.port_id,
-          repository_id: config.repository_id,
-          facts_sha256: result.observation.facts_sha256,
-        },
-      };
-      next.first_complete_at ??= result.observation.completed_at;
-      next.completed_runs++;
-      next.exception = null;
-      delete next.continuation;
-      failedPolicyInput = null;
+      if (result || options.reprojectFreshFacts !== "only") {
+        result ??= await observeUpstream(config, {
+          ...options,
+          cache: next.last_complete?.cache,
+          continuation: next.continuation,
+          onAttemptUsage: (usage) => {
+            attemptProviderUsage = usage;
+          },
+          onCheckpoint: async (continuation) => {
+            next.continuation = structuredClone(continuation);
+            await options.onCheckpoint?.(structuredClone(continuation));
+            await options.commitContinuation?.(structuredClone(next));
+          },
+        });
+        attemptProviderUsage ??= result.observation.batch_consumed ?? null;
+        failedPolicyInput = result.observation;
+        if (options.signal?.aborted)
+          throw new ObservationFailure("cancelled", "Observation cancelled before Core projection");
+        const projection = await options.project(result.observation);
+        if (options.signal?.aborted)
+          throw new ObservationFailure(
+            "cancelled",
+            "Observation cancelled before committing Core projection",
+          );
+        if (
+          !isRecord(projection) ||
+          projection.format !== 1 ||
+          projection.port_id !== config.port_id ||
+          projection.repository_id !== config.repository_id ||
+          projection.facts_sha256 !== result.observation.facts_sha256 ||
+          !Array.isArray(projection.projections)
+        )
+          throw new ObservationFailure(
+            "core-binding",
+            "core policy output is not bound to the exact observed facts",
+          );
+        requireCompleteCoreCoverage(projection);
+        transition = !next.last_complete
+          ? "initial-baseline"
+          : next.last_complete.observation.facts_sha256 === result.observation.facts_sha256
+            ? "unchanged"
+            : "changed";
+        next.last_complete = {
+          ...result,
+          projection: {
+            ...retainedCoreProjection(projection),
+            port_id: config.port_id,
+            repository_id: config.repository_id,
+            facts_sha256: result.observation.facts_sha256,
+          },
+        };
+        next.first_complete_at ??= result.observation.completed_at;
+        next.completed_runs++;
+        next.exception = null;
+        delete next.continuation;
+        failedPolicyInput = null;
+      }
     } catch (error) {
       if (error instanceof ObservationFailure && error.continuation)
         next.continuation = error.continuation;
@@ -450,6 +461,10 @@ export async function advanceObservation(
       stale_after_hours: config.stale_after_hours,
     },
     unmonitored_port_ids: unmonitored,
+    attempt_provider_usage:
+      transition === "deferred"
+        ? { requests: 0, response_bytes: 0, conditional_hits: 0 }
+        : attemptProviderUsage,
     observation: next.last_complete?.observation ?? null,
     policy: next.last_complete?.projection ?? null,
     exception: next.exception,

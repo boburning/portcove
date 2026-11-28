@@ -13,6 +13,7 @@ import {
   DiscoveryStoreRefused,
   discoveryStatusQuery,
   readDiscoverySnapshot,
+  readSeededDiscoveryRows,
   postgresDiscoveryStore,
   measureDiscoverySeed,
 } from "./discovery-store.mts";
@@ -47,10 +48,11 @@ import {
 } from "./discovery-worker.mts";
 import { observedLeadReleases, overlayLocalResearch } from "./discovery-leads.mts";
 import { GitHubApiError } from "./github-operation.mts";
-import type { DiscoveryLead } from "./discovery-leads.mts";
+import type { DiscoveryLead, LeadState } from "./discovery-leads.mts";
 import { selectExternalResolutions } from "./discovery-external-lists.mts";
 import {
   backup,
+  maintenanceTransfer,
   migrate,
   migrationTransaction,
   queryJson,
@@ -684,6 +686,7 @@ void test("scheduled listing preview resumes retained release evidence and binds
   assert.equal(preview.receipt.committed.revision, 5);
   assert.equal(preview.receipt.committed.generation, 3);
   assert.equal(preview.receipt.evidence.length, 2);
+  assert.ok(preview.receipt.evidence[0]!.input.desktop_asset_hint);
   assert.equal(preview.receipt.evidence[0]!.input.release_id, 500);
   const digest = createHash("sha256")
     .update(JSON.stringify(preview.receipt.evidence[0]!.input))
@@ -698,13 +701,88 @@ void test("scheduled listing preview resumes retained release evidence and binds
     repository_id: 5,
     evidence_sha256: digest,
   });
-  assert.equal(preview.receipt.evidence[1]?.input.release_id, 1100);
+  assert.ok(preview.receipt.evidence[1]!.input.desktop_asset_hint);
+  assert.equal(preview.receipt.evidence[1]!.input.release_id, 1100);
   assert.equal(preview.receipt.evidence[1]?.input.observed_at, previous);
   assert.doesNotMatch(JSON.stringify(preview), /\/(?:private|old-run)/u);
 
   const { leads } = parseWorkerState(retained.state);
   leads.records["5"]!.release_hint = retainedRelease(5);
   const covered = new Set(["https://github.com/ports/game-10"]);
+  const manifest = {
+    game: "Exact scoped port",
+    systems: ["SNES"],
+    types: ["port"],
+    toolchains: [],
+    targets: [],
+  };
+  const withoutAssets = {
+    assets_observed: false,
+    observed_at: previous,
+    evidence: "/private/no-assets",
+  };
+  const sourceOnlyLeads: LeadState = {
+    ...leads,
+    records: {
+      "5": leads.records["5"]!,
+      "6": lead(6, {
+        search_families: ["libultraship", "n64recomp"],
+        release_hint: withoutAssets,
+      }),
+      "7": lead(7, { status: "researched", manifest, release_hint: withoutAssets }),
+      "8": lead(8, { external_lists: ["quiver"], release_hint: withoutAssets }),
+      "9": lead(9, { release_hint: withoutAssets }),
+      "10": lead(10, { manifest, release_hint: withoutAssets }),
+      "11": lead(11, { status: "held", manifest, release_hint: withoutAssets }),
+      "12": lead(12, { search_families: ["source-port-topic"], release_hint: withoutAssets }),
+    },
+  };
+  const sourceOnlyRound = nextListingPreviewRound(sourceOnlyLeads, undefined, start, covered);
+  assert.ok(sourceOnlyRound);
+  const sourceOnlyPreview = scheduledListingPreview(
+    {
+      ...retained,
+      state: { ...retained.state, leads: sourceOnlyLeads, listing_preview_round: sourceOnlyRound },
+    },
+    start,
+    covered,
+    "source",
+    () => assert.fail("scope nominations do not reread release evidence"),
+  );
+  assert.deepEqual(
+    sourceOnlyPreview.handoff.candidates.map(({ id }) => id),
+    ["github-5", "github-7", "github-8", "github-12"],
+  );
+  const [withPackage, withManifest, withCurated, withTopic] =
+    sourceOnlyPreview.receipt.evidence.map(({ input }) => input);
+  assert.ok(withPackage?.desktop_asset_hint);
+  assert.ok(withManifest && !withManifest.desktop_asset_hint);
+  assert.ok(withCurated && !withCurated.desktop_asset_hint);
+  assert.ok(
+    withTopic && !withTopic.desktop_asset_hint && withTopic.scope.kind === "source-port-topic",
+  );
+  assert.equal(withManifest.scope.kind, "retained-manifest");
+  assert.deepEqual(withCurated.scope, {
+    kind: "curated-source",
+    sources: ["quiver"],
+    release_sampled_at: previous,
+  });
+  assert.doesNotMatch(JSON.stringify(sourceOnlyPreview), /\/private/u);
+
+  sourceOnlyLeads.records["8"]!.release_hint = retainedRelease(8);
+  const subsequent = scheduledListingPreview(
+    {
+      ...retained,
+      state: { ...retained.state, leads: sourceOnlyLeads, listing_preview_round: sourceOnlyRound },
+    },
+    start,
+    covered,
+    "source",
+    () => undefined,
+  );
+  assert.equal(subsequent.handoff.candidates[2]?.id, "github-8");
+  assert.equal(subsequent.receipt.evidence[2]?.input.desktop_asset_hint, true);
+
   const first = nextListingPreviewRound(leads, undefined, start, covered);
   assert.ok(first);
   const previewRound = (round: NonNullable<typeof first>) =>
@@ -735,6 +813,8 @@ void test("scheduled listing preview resumes retained release evidence and binds
   context.after(() => rmSync(root, { recursive: true, force: true }));
   const memory = memoryStore();
   memory.leads.set(5, leads.records["5"]);
+  memory.leads.set(7, sourceOnlyLeads.records["7"]);
+  memory.leads.set(8, lead(8, { external_lists: ["quiver"], release_hint: withoutAssets }));
   memory.leads.set(11, leads.records["11"]);
   const runPreview = async (runStartedAt: string) => {
     const timestamp = Date.parse(runStartedAt);
@@ -758,13 +838,15 @@ void test("scheduled listing preview resumes retained release evidence and binds
     assert.equal(run.outcome, "partial");
     return selected;
   };
-  assert.deepEqual(await runPreview(start), [5, 11]);
+  assert.deepEqual(await runPreview(start), [5, 7, 8, 11]);
   assert.deepEqual(parseWorkerState(memory.state()).listing_preview_round, first);
   memory.leads.set(1, leads.records["1"]);
   memory.leads.set(20, leads.records["20"]);
-  assert.deepEqual(await runPreview("2026-11-02T00:00:00Z"), [11]);
+  assert.deepEqual(await runPreview("2026-11-02T00:00:00Z"), [7, 8, 11]);
   assert.equal(parseWorkerState(memory.state()).listing_preview_round?.through_id, 11);
-  assert.deepEqual(await runPreview("2026-11-03T00:00:00Z"), [1, 5, 11, 20]);
+  assert.deepEqual(await runPreview("2026-11-03T00:00:00Z"), [8, 11]);
+  assert.deepEqual(await runPreview("2026-11-04T00:00:00Z"), [11]);
+  assert.deepEqual(await runPreview("2026-11-05T00:00:00Z"), [1, 5, 7, 8, 11, 20]);
 });
 
 void test(
@@ -1106,7 +1188,8 @@ void test(
     const store = postgresDiscoveryStore(environment);
     const first = lease("1");
     const grant = store.acquire(first, options);
-    assert.equal(commit(store, first, grant.revision, { cursor: 1 }).revision, 1);
+    const state = { cursor: 1, padding: "x".repeat(2 * 1024 * 1024) };
+    assert.equal(commit(store, first, grant.revision, state).revision, 1);
     store.finish(first, "partial", {});
     const held = {
       revision: 1,
@@ -1114,7 +1197,17 @@ void test(
       definition: hex("d"),
       attempt: first.attempt,
     };
-    const reused = store.acquire(lease("2"), { ...options, known: held });
+    const transfer = () => ({
+      host: environment.PGHOST!,
+      payloadBytes: 0,
+      byteLimit: 65_536,
+      deadline: Date.now() + 10_000,
+    });
+    const warm = transfer();
+    const reused = maintenanceTransfer.run(warm, () =>
+      store.acquire(lease("2"), { ...options, known: held, knownOnly: true }),
+    );
+    assert.ok(warm.payloadBytes > 0 && warm.payloadBytes < 1024, String(warm.payloadBytes));
     assert.equal(reused.unchanged, true);
     assert.deepEqual(reused.state, {}, "the held state is not sent again");
     assert.equal(reused.revision, 1);
@@ -1126,10 +1219,39 @@ void test(
       // Another store that reached the same revision through other commits.
       ["attempt", { ...held, attempt: lease("9").attempt }],
     ] as const) {
-      const owner = lease({ revision: "3", generation: "4", definition: "5", attempt: "6" }[name]);
+      const index = { revision: 3, generation: 4, definition: 5, attempt: 6 }[name];
+      const refused = lease(String(index));
+      const warm = transfer();
+      assert.throws(
+        () =>
+          maintenanceTransfer.run(warm, () =>
+            store.acquire(refused, { ...options, known, knownOnly: true }),
+          ),
+        {
+          name: "Error",
+          reason: "stale-writer",
+          message: /complete read needs its own admission/u,
+        },
+        name,
+      );
+      assert.ok(warm.payloadBytes > 0 && warm.payloadBytes < 1024, String(warm.payloadBytes));
+      assert.equal(
+        queryJson(
+          environment,
+          `SELECT to_jsonb(outcome) FROM portcove_maintenance.discovery_collection_attempts
+          WHERE attempt_id = '${refused.attempt}'::uuid`,
+        ),
+        "failed",
+      );
+      const owner = lease(String(index + 10));
       const full = store.acquire(owner, { ...options, known });
       assert.equal(full.unchanged, undefined, name);
-      assert.deepEqual(full.state, { cursor: 1 }, `a different ${name} reads the stored state`);
+      assert.deepEqual(
+        full.state,
+        state,
+        `a separately admitted ${name} mismatch reads the stored state`,
+      );
+      assert.ok(full.received_bytes! > warm.byteLimit);
       store.finish(owner, "partial", {});
     }
   },
@@ -1158,7 +1280,7 @@ void test("an exhausted provider quota waits for its reset between passes and co
   const now = () => clock;
   const reset = start + 20 * 60_000;
   const sleeps: number[] = [];
-  const admitted: number[] = [];
+  const admitted: [number, boolean][] = [];
   let quotaReads = 0;
   let preview: ReturnType<typeof scheduledListingPreview> | undefined;
   const run = await runDiscoveryPasses({
@@ -1175,11 +1297,16 @@ void test("an exhausted provider quota waits for its reset between passes and co
     diskBytes: 512 * 1024 * 1024,
     finalizationMs: 60_000,
     // Each pass runs under its own admission, here without a provider meter.
-    admit: async (pass, collect) => {
-      admitted.push(pass);
-      return await collect({ bytes: 64 * 1024 * 1024, deadline: Number.POSITIVE_INFINITY });
+    admit: async (pass, collect, hasRetainedRevision) => {
+      admitted.push([pass, hasRetainedRevision]);
+      return await collect({
+        bytes: 64 * 1024 * 1024,
+        deadline: Number.POSITIVE_INFINITY,
+        knownOnly: hasRetainedRevision,
+      });
     },
     sleep: async (milliseconds) => {
+      assert.equal(preview, undefined, "preview waits until the resumed collection finishes");
       sleeps.push(milliseconds);
       clock += milliseconds;
     },
@@ -1213,7 +1340,14 @@ void test("an exhausted provider quota waits for its reset between passes and co
     },
   });
   assert.notEqual(run.outcome, "failed", run.passes.at(-1)?.reason ?? "");
-  assert.deepEqual(admitted, [1, 2], "each pass holds its own admission");
+  assert.deepEqual(
+    admitted,
+    [
+      [1, false],
+      [2, true],
+    ],
+    "only the resumed pass can use a retained grant",
+  );
   assert.equal(sleeps.length, 1, "one wait for the search quota reset, holding nothing");
   assert.ok(clock > reset, "collection resumed only after the reset");
   assert.equal(memory.known[0], undefined, "the first pass reads the stored state");
@@ -1224,7 +1358,13 @@ void test("an exhausted provider quota waits for its reset between passes and co
   );
   assert.equal(memory.loads(), 1, "the next pass reuses its lead records instead of rereading");
   assert.equal(preview?.receipt.committed.revision, run.passes.at(-1)?.revision);
-  assert.deepEqual(preview?.handoff.candidates, []);
+  assert.deepEqual(
+    preview?.handoff.candidates.map(({ repository_id }) => repository_id),
+    [9001],
+  );
+  const [nomination] = preview?.receipt.evidence ?? [];
+  assert.ok(nomination && !nomination.input.desktop_asset_hint);
+  assert.equal(nomination.input.scope.kind, "source-port-topic");
   assert.equal(
     memory.finished.length,
     2,
@@ -1768,6 +1908,77 @@ void test(
   },
 );
 
+void test(
+  "local seed hydration continues beyond its index page and reconciles the tail",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const authoritative = fixture.start("authoritative").owner;
+    const seed = fixture.start("seed").owner;
+    const entries = Array.from({ length: 4100 }, (_, index) => ({
+      id: 10_000 + index,
+      key: `lead-${10_000 + index}-é"'雪`,
+    }));
+    const hints = Object.fromEntries(entries.map(({ id, key }) => [key, { id }]));
+    const records = entries.map(({ id }) => ({ id, repository: `ports/game-${id}` }));
+    for (const environment of [authoritative, seed]) {
+      migrate(environment);
+      const store = postgresDiscoveryStore(environment);
+      const owner = lease("1");
+      const acquired = store.acquire(owner, options);
+      store.commit(owner, acquired.revision, {
+        definition: options.definition,
+        leaseSeconds: 600,
+        state: { leads: { external: { hints } } },
+        observations: [],
+        watches: [],
+        leadRecords: records,
+      });
+      store.finish(owner, "complete", {});
+    }
+
+    const tail = entries.at(-1)!;
+    runSql(
+      authoritative,
+      `DELETE FROM portcove_maintenance.discovery_external_hints
+       WHERE scope = 'primary' AND hint->>'id' = '${tail.id}';
+       UPDATE portcove_maintenance.discovery_lead_records
+       SET record = record || '{"repository":"ports/updated-tail"}'::jsonb
+       WHERE scope = 'primary' AND lead_id = ${tail.id};`,
+    );
+
+    const plan = measureDiscoverySeed(authoritative, seed, "primary");
+    assert.ok(plan);
+    assert.equal(Object.keys(plan.hints.hashes).length, entries.length);
+    assert.equal(Object.keys(plan.leads.hashes).length, entries.length);
+    assert.deepEqual(plan.hints.rows[tail.key], { id: tail.id });
+    assert.deepEqual(plan.leads.rows[String(tail.id)], records.at(-1));
+    const hydratedHints = readSeededDiscoveryRows(
+      authoritative,
+      seed,
+      "primary",
+      "hints",
+      plan.hintsBytes,
+      plan.hints,
+    );
+    const hydratedLeads = readSeededDiscoveryRows(
+      authoritative,
+      seed,
+      "primary",
+      "leads",
+      plan.leadsBytes,
+      plan.leads,
+    );
+    delete hints[tail.key];
+    records[records.length - 1] = { id: tail.id, repository: "ports/updated-tail" };
+    assert.deepEqual(hydratedHints?.rows, hints);
+    assert.deepEqual(
+      hydratedLeads?.rows,
+      Object.fromEntries(records.map((record) => [record.id, record])),
+    );
+  },
+);
+
 void test("a failed lead-record load finishes the attempt instead of holding the lease", async () => {
   const memory = memoryStore();
   memory.store.loadLeadRecords = () => {
@@ -1845,6 +2056,21 @@ void test("discovery pass reservation does not charge the cold read twice", () =
   const measured = discoverySeedReservation(plan, commits);
   assert.ok(measured < reservation);
   assert.ok(Math.floor(measured * 0.7) >= plan.compactBytes + plan.hintsBytes + plan.leadsBytes);
+});
+
+void test("settlement after a deferred inspection can admit only the seeded discovery pass", () => {
+  const inspection = 2_000_000;
+  const availableBefore = 1_000_000;
+  const releasedReservation = 18_000_000 - 9_000_000;
+  assert.ok(availableBefore < inspection);
+  const availableAfterInspection = availableBefore + releasedReservation - inspection;
+  const seed = discoverySeedReservation(
+    { compactBytes: 8_000, hintsBytes: 621, leadsBytes: 1094 },
+    5,
+  );
+  const cold = discoveryPassReservation(17_000_000, 18_000_000, 5);
+  assert.ok(seed <= availableAfterInspection);
+  assert.ok(cold > availableAfterInspection);
 });
 
 void test("a stored-lead read reserves enough metered payload for the whole state", () => {

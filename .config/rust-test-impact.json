@@ -243,6 +243,14 @@
       "category": "explicit-acceptance"
     },
     {
+      "source": "crates/portcove-core/src/listing_delivery.rs",
+      "test": "measure_compact_directory_admission",
+      "reason": "measurement; run explicitly, one phase per process",
+      "package": "portcove-core",
+      "platforms": ["linux"],
+      "category": "explicit-acceptance"
+    },
+    {
       "source": "crates/portcove-core/src/artwork_tests.rs",
       "test": "live_igdb_shipwright_cover_fetches_and_reuses_bounded_thumbnail",
       "reason": "manual live CDN qualification; run explicitly when network access is available",

@@ -18,19 +18,13 @@ required to merge.
   pass the cleanup and live-listener controls. The existing native
   rejected-registration and late-disposal scenarios exercise the WebView lifetime.
   [Published API 2.12.4](https://www.npmjs.com/package/@tauri-apps/api/v/2.12.4)
-- **Localization lint.** The patch applies to `i18next-cli@>=1.82.4 <2` and
-  makes both primary-translation loaders try the configured string
-  `extract.defaultNS` before their existing namespace fallbacks. Unset and false
-  defaults use the original fallbacks. The workspace pins 1.88.0. Published
-  1.88.0 still tries only `translation`, `common` and `default` in its linter
-  (checked in `src/linter.ts`), and published 1.87.0 still misses Portcove's
-  `settings.json` and accepts a missing nested interpolation argument. The patched CLI rejects that fixture and accepts the
-  provided argument. A changed patch context or out-of-range version fails
-  installation. Remove the patch when the selected upstream CLI handles the
-  configured namespace and passes the existing nested missing/provided controls and
-  placeholder checks in `check-i18n-negative-fixture.mts`.
-  [Published CLI 1.88.0](https://www.npmjs.com/package/i18next-cli/v/1.88.0),
-  [published CLI 1.87.0](https://www.npmjs.com/package/i18next-cli/v/1.87.0)
+- **Localization lint.** i18next-cli 1.95.3 uses upstream namespace-aware
+  interpolation lint instead of the former local default-namespace patch.
+  Keep the missing and provided nested interpolation controls and the
+  translated-placeholder checks in `check-i18n-negative-fixture.mts`.
+  The same check verifies that the CLI and its glob dependency use the same
+  bounded minimatch implementation.
+  [Upstream namespace fix](https://github.com/i18next/i18next-cli/blob/v1.95.3/CHANGELOG.md#1913)
 - **Signing transport.** The `@sigstore/sign@5.1.0` patch routes signing
   requests through the explicitly scoped Portcove transport. Published 5.1.0
   owns its HTTP client and retry loop. The existing signing tests exercise scope
@@ -1777,6 +1771,30 @@ still require exact trusted authority/controller revisions; changed authority
 cannot qualify itself. See [fixed hosted validation](#fixed-reviewed-hosted-validation)
 only when that transport is needed.
 
+### Choose where to run validation
+
+Start with `just local-check --plan` from the current worktree. It prints the
+selected checks and execution routes without running them. Use a focused
+`just test-node`, `just test-ui` or `just test-rust` command when it answers the
+current question. Guarded heavy local stages wait for capacity. While they wait,
+other worktrees can keep editing or run lightweight checks. Use
+`just resource-status --json` to inspect the queue.
+
+For a cold build, a full suite or a platform check, prefer the existing PR CI
+on the intended pushed commit. Use the Qualification workflow when the
+[review and merge procedure](CONTRIBUTION-CONVENTIONS.md#review-and-merge)
+calls for it. Keep the commit and run link with the result. Uncommitted changes
+can use local feedback. If hosted CI is unavailable, keep using focused local
+checks and leave required hosted checks pending.
+
+Use `just desktop-verify` when the acceptance requires this machine, its
+hardware or its desktop session. A cloud result establishes what ran there.
+Local capacity, scratch placement and desktop exclusivity follow
+[shared local resources](#shared-local-resources). Configure drive placement
+in the [machine scratch profile](DEVELOPMENT-STORAGE.md#machine-scratch-profiles)
+when needed. These repository commands work independently of agent hooks.
+Avoid direct heavy commands that bypass admission.
+
 ### Warm single-session workflow
 
 Pick up the owning specification once, implement with useful focused feedback,
@@ -2518,10 +2536,12 @@ product groups. Run it as explicit acceptance from an interactive,
 non-elevated (medium-integrity) Windows desktop session. Hosted runners present
 a high-integrity token. Core refuses settings editing there by design, so a
 hosted run can only reproduce that refusal (run 44933173974). The owned install
-fixture declares one inert settings file. Desktop reviews two edits, saves them
-through native IPC and reads both copies back. An outside edit then makes a
-second review stale. Core refuses it before starting. Desktop shows Core's
-explanation, and both outside copies stay byte-identical. The executable is
+fixture declares two inert settings files. Desktop drafts edits to both files,
+retains them through navigation, then saves only the reviewed audio file through
+native IPC. An outside edit makes the next audio review stale. Core refuses it,
+and both outside copies stay byte-identical. Desktop saves the display file
+independently while retaining the held audio draft. The receipt records verified
+file bytes after comparing canonical and runtime copies. The executable is
 inert and no game starts.
 
 `just desktop-verify --scenario native-large-discovery-setup-review --require-clean`

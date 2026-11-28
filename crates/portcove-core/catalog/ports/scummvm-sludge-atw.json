@@ -12,7 +12,12 @@
         {
           "id": "atw",
           "title": "SLUDGE engine game. Version v0.1",
-          "evidence_urls": ["https://www.scummvm.org/games/#games-sludge:atw"]
+          "evidence_urls": [
+            "https://www.scummvm.org/games/#games-sludge:atw",
+            "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L339-L344",
+            "https://atw.twolofbees.com/index.php?page=01_Downloads"
+          ],
+          "system": "linux"
         }
       ]
     },

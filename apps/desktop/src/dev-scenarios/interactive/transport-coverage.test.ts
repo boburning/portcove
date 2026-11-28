@@ -44,7 +44,7 @@ const unsupportedByReason: Record<string, string[]> = {
     poll_github_device_login recheck_host_tool
     preserve_mod_file recover_ghostship_legacy_data recover_library_import refresh_game_file_query
     refresh_official_definition register_external_runtime
-    register_user_selected_runtime relink_external_runtime relink_game_file_root
+    register_user_selected_runtime register_personal_github_runtime relink_external_runtime relink_game_file_root
     relink_mod_setup_original relink_source relink_user_selected_runtime relocate_output
     remove_external_runtime remove_game_file_root remove_library_membership remove_port remove_source
     reset_artwork suppress_artwork unhide_artwork reset_output_location restore_backup revoke_catalog_key
@@ -72,14 +72,14 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_external_runtime_relink preview_managed_route_change preview_removal
     preview_source_removal preview_steam_artwork preview_steam_batch_add
     preview_steam_entry
-    preview_user_selected_runtime preview_user_selected_runtime_relink
+    preview_user_selected_runtime preview_personal_github_runtime preview_user_selected_runtime_relink
     review_exact_release plan_install_batch review_game_setting review_game_settings_change_set review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
     review_library_selection scan_game_file_roots
     scan_source_inbox
   `.split(/\s+/),
   "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
     `
-    get_jakmods_catalog get_quaddicted_catalog get_moddb_file_notices get_mod_provider_catalog preview_mod_setup_draft apply_mod_setup_draft get_provider_project list_mod_setup_revisions list_mod_setup_recovery_builds
+    get_jakmods_catalog get_quaddicted_catalog get_moddb_file_notices get_mod_provider_catalog browse_external_provider_mods preview_mod_setup_draft apply_mod_setup_draft get_provider_project list_mod_setup_revisions list_mod_setup_recovery_builds
     forecast_installed_update_checks get_catalog get_catalog_media_thumbnail
     get_engine_capabilities get_game_settings get_game_settings_change_set_view get_install_batch get_library_identity
     get_library_memberships get_runtime_diagnostic_health get_sources get_statuses

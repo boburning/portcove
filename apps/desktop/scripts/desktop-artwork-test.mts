@@ -98,7 +98,13 @@ export async function waitForArtworkImage(
   selector: string,
   revealSelector = selector.replace(/ img$/, ""),
 ) {
-  const frame = await browser.wait(until.elementLocated(By.css(revealSelector)), 10_000);
+  // This standalone scenario observed Core thumbnail replies at 10.5–14 s
+  // and a restored Background read still pending after the original 10 s.
+  const timeoutMilliseconds = 45_000;
+  const frame = await browser.wait(
+    until.elementLocated(By.css(revealSelector)),
+    timeoutMilliseconds,
+  );
   await executeBrowserScript(browser, 'arguments[0].scrollIntoView({ block: "center" });', frame);
   await browser.wait(
     () =>
@@ -110,7 +116,7 @@ export async function waitForArtworkImage(
         },
         selector,
       ),
-    10_000,
+    timeoutMilliseconds,
     `Core thumbnail must render in ${selector}`,
   );
 }
@@ -174,13 +180,18 @@ export async function artworkScenario({
           "Closing artwork must return focus to Change artwork",
         );
       };
-      const slotLabel = (slot: "cover" | "detail") =>
-        slot === "cover" ? "Cover image" : "Background";
-      const activateSlot = (slot: "cover" | "detail") =>
-        click(By.xpath(`//*[@role="tab" and normalize-space(.)="${slotLabel(slot)}"]`));
-      const control = (slot: "cover" | "detail", label: string) =>
+      const slots = ["cover", "detail", "landscape", "logo"] as const;
+      const slotLabels: Record<ArtworkSlot, string> = {
+        cover: "Cover image",
+        detail: "Background",
+        landscape: "Wide cover",
+        logo: "Logo",
+      };
+      const activateSlot = (slot: ArtworkSlot) =>
+        click(By.xpath(`//*[@role="tab" and normalize-space(.)="${slotLabels[slot]}"]`));
+      const control = (slot: ArtworkSlot, label: string) =>
         By.xpath(
-          `//section[@aria-label="${slotLabel(slot)}"]//button[normalize-space(.)="${label}"]`,
+          `//section[@aria-label="${slotLabels[slot]}"]//button[normalize-space(.)="${label}"]`,
         );
       const state = async (slot: ArtworkSlot) => {
         const result = await invoke("get_artwork", {
@@ -189,6 +200,12 @@ export async function artworkScenario({
           generation: bootstrap.generation,
         });
         return transportValue("artwork_state", success(result));
+      };
+      const readRoles = async (roles: readonly ArtworkSlot[]) => {
+        // Each IPC observation temporarily changes the same WebDriver script budget.
+        const observed = [];
+        for (const role of roles) observed.push(await state(role));
+        return observed;
       };
       const expectFallbackVisual = async (
         selector: string,
@@ -440,16 +457,30 @@ export async function artworkScenario({
           ),
         5000,
       );
-      for (const slot of ["cover", "detail"] as const) {
+      const importLocal = async (
+        slot: ArtworkSlot,
+        selectedPath = source,
+        selectedDigest = digest,
+      ) => {
         await activateSlot(slot);
         const previous = await state(slot);
+        await browser.wait(
+          async () => {
+            const [picker] = await browser.findElements(control(slot, "Choose local image"));
+            return (
+              picker !== undefined && (await picker.isDisplayed()) && (await picker.isEnabled())
+            );
+          },
+          45_000,
+          `The ${slotLabels[slot]} editor must enable Choose local image`,
+        );
         await click(control(slot, "Choose local image"));
         await confirmNative(
           "Choose local artwork",
           "Open",
           "File name:",
           `artwork-picker-${slot}`,
-          source,
+          selectedPath,
         );
         if (slot === "detail") {
           const narrow = await browser.wait(
@@ -493,31 +524,36 @@ export async function artworkScenario({
         } else {
           await browser.wait(
             until.elementLocated(
-              By.xpath('//form[.//h4[normalize-space(.)="Review Cover image"]]'),
+              By.xpath(`//form[.//h4[normalize-space(.)="Review ${slotLabels[slot]}"]]`),
             ),
             10_000,
           );
           assert.deepEqual(await state(slot), previous);
           // Job 137084499604 reached this review while artwork reads still took
           // 17.7 s. Wait for this form's actual Apply control before clicking once.
-          const applyCover = By.xpath(
-            '//form[.//h4[normalize-space(.)="Review Cover image"]]//button[normalize-space(.)="Apply" and not(@disabled) and not(@aria-disabled="true")]',
+          const applyImage = By.xpath(
+            `//form[.//h4[normalize-space(.)="Review ${slotLabels[slot]}"]]//button[normalize-space(.)="Apply" and not(@disabled) and not(@aria-disabled="true")]`,
           );
           await browser.wait(
-            until.elementLocated(applyCover),
+            until.elementLocated(applyImage),
             45_000,
-            "The reviewed Cover Apply control did not become actionable",
+            `The reviewed ${slotLabels[slot]} Apply control did not become actionable`,
           );
-          await click(applyCover);
+          await click(applyImage);
         }
         // Hosted Windows job 136791041646 committed the Cover but still had an
         // earlier 16.35 s read and an in-flight thumbnail. Observe the exact
         // commit and the editor's settled readback before checking focus.
-        await browser.wait(
-          async () => (await state(slot)).choice.asset_sha256 === digest,
+        const selected = await browser.wait(
+          async () => {
+            const observed = await state(slot);
+            return observed.choice.asset_sha256 === selectedDigest ? observed : false;
+          },
           60_000,
           "Core must record the selected artwork digest for this role",
         );
+        assert.ok(selected);
+        assert.equal(selected.choice.revision, previous.choice.revision + 1);
         const picker = await browser.findElement(control(slot, "Choose local image"));
         await browser.wait(
           until.elementIsEnabled(picker),
@@ -563,7 +599,7 @@ export async function artworkScenario({
                   pickerDisabled: pickers[0]?.disabled,
                 };
               },
-              slotLabel(slot),
+              slotLabels[slot],
             );
             const evidence = path.join(output, "artwork-return-focus-" + slot + ".json");
             await writeFile(evidence, JSON.stringify(focus, null, 2), { flag: "wx" });
@@ -573,7 +609,10 @@ export async function artworkScenario({
           }
           throw error;
         }
-      }
+        return selected;
+      };
+      const importedCover = await importLocal("cover");
+      const importedBackground = await importLocal("detail");
       await waitForArtworkImage(browser, ".wide-artwork img");
       const sheetScreenshot = path.join(output, "native-change-artwork-sheet.png");
       await writeFile(sheetScreenshot, await browser.takeScreenshot(), {
@@ -664,11 +703,26 @@ export async function artworkScenario({
       const reviewApply = By.xpath(
         '//form[.//h4[normalize-space(.)="Review artwork change"]]//button[normalize-space(.)="Apply"]',
       );
+      // The reused Windows app committed Show in 6.6 s while an overlapping
+      // read took 13.1 s. Wait for the next exact revision and reuse that read.
+      const readCoverChange = async (previousRevision: number, action: string) => {
+        const applied = await browser.wait(
+          async () => {
+            const observed = await state("cover");
+            return observed.choice.revision > previousRevision ? observed : false;
+          },
+          60_000,
+          `Cover ${action} did not return its applied revision`,
+        );
+        assert.ok(applied);
+        assert.equal(applied.choice.revision, previousRevision + 1);
+        return applied;
+      };
       await click(control("cover", "Hide artwork"));
       assert.deepEqual(await state("cover"), cover);
       await click(reviewApply);
-      await browser.wait(async () => (await state("cover")).choice.suppressed === true, 10_000);
-      const hidden = await state("cover");
+      const hidden = await readCoverChange(cover.choice.revision, "Hide");
+      assert.equal(hidden.choice.suppressed, true);
       // Hiding keeps the selection stored but unshown.
       assert.equal(hidden.choice.asset_sha256, cover.choice.asset_sha256);
       assert.equal(hidden.resolved_source.kind, "generated_fallback");
@@ -677,22 +731,14 @@ export async function artworkScenario({
       await click(control("cover", "Show artwork"));
       assert.deepEqual(await state("cover"), hidden);
       await click(reviewApply);
-      await browser.wait(
-        async () => (await state("cover")).choice.revision > hidden.choice.revision,
-        10_000,
-      );
-      const shown = await state("cover");
+      const shown = await readCoverChange(hidden.choice.revision, "Show");
       assert.equal(shown.choice.asset_sha256, cover.choice.asset_sha256);
       assert.notEqual(shown.choice.suppressed, true);
       assert.deepEqual(shown.resolved_source, cover.resolved_source);
       await click(control("cover", "Use automatic"));
       assert.deepEqual(await state("cover"), shown);
       await click(reviewApply);
-      await browser.wait(
-        async () => (await state("cover")).choice.revision > shown.choice.revision,
-        10_000,
-      );
-      const reset = await state("cover");
+      const reset = await readCoverChange(shown.choice.revision, "Use automatic");
       assert.equal(reset.choice.asset_sha256, null);
       assert.notEqual(reset.choice.suppressed, true);
       assert.equal(reset.resolved_source.kind, "generated_fallback");
@@ -733,6 +779,95 @@ export async function artworkScenario({
       await waitForArtworkImage(browser, ".wide-artwork img");
       assert.equal((await state("cover")).choice.asset_sha256, null);
       assert.deepEqual(await state("detail"), detail);
+      const currentStates = [reset, detail, ...(await readRoles(["landscape", "logo"]))];
+      // Each extra role has distinguishable owned bytes and appropriate geometry.
+      const extraImages = [
+        {
+          slot: "landscape",
+          bytes: Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAQAAAACCAYAAAB/qH1jAAAAHUlEQVR4nGOQUPP7r+Hf8t+2evP/9OUH/zOgCwAADnAReykEi5YAAAAASUVORK5CYII=",
+            "base64",
+          ),
+        },
+        {
+          slot: "logo",
+          bytes: Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAFklEQVR4nGNgYGBgeLLD5z+IBjNgGABxgQud8NOUIQAAAABJRU5ErkJggg==",
+            "base64",
+          ),
+        },
+      ] as const;
+      for (const { slot, bytes: imageBytes } of extraImages) {
+        const selectedPath = path.join(output, `owned-local-artwork-${slot}.png`);
+        await writeFile(selectedPath, imageBytes, { flag: "wx" });
+        const selectedDigest = createHash("sha256").update(imageBytes).digest("hex");
+        const selected = await importLocal(slot, selectedPath, selectedDigest);
+        assert.equal(selected.selection?.width, imageBytes.readUInt32BE(16));
+        assert.equal(selected.selection?.height, imageBytes.readUInt32BE(20));
+        assert.deepEqual(await readFile(selectedPath), imageBytes);
+        currentStates[slots.indexOf(slot)] = selected;
+        assert.deepEqual(
+          (await readRoles(slots)).map((role) => role.choice),
+          currentStates.map((role) => role.choice),
+        );
+      }
+      await waitForArtworkImage(browser, '.artwork-slot[aria-label="Logo"] img');
+      const logoScreenshot = path.join(output, "native-logo-selection.png");
+      await writeFile(logoScreenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(logoScreenshot);
+      const importedStates = [importedCover, importedBackground, ...currentStates.slice(2)];
+
+      // Keep the Cover text-fallback and cache-recovery checks above independent
+      // of an explicit logo, then exercise the remaining roles' visibility.
+      const visibilityResults = [];
+      for (const slot of ["detail", "landscape", "logo"] as const) {
+        await activateSlot(slot);
+        const index = slots.indexOf(slot);
+        const selected = currentStates[index]!;
+        let previous = selected;
+        for (const action of ["Hide artwork", "Show artwork", "Use automatic"] as const) {
+          await browser.wait(
+            until.elementLocated(
+              By.xpath(
+                `//section[@aria-label="${slotLabels[slot]}"]//button[normalize-space(.)="${action}" and not(@disabled)]`,
+              ),
+            ),
+            45_000,
+          );
+          await click(control(slot, action));
+          assert.deepEqual((await state(slot)).choice, previous.choice);
+          await click(reviewApply);
+          const applied = await browser.wait(async () => {
+            const observed = await state(slot);
+            return observed.choice.revision > previous.choice.revision ? observed : false;
+          }, 60_000);
+          assert.ok(applied);
+          assert.equal(applied.choice.revision, previous.choice.revision + 1);
+          assert.equal(Boolean(applied.choice.suppressed), action === "Hide artwork");
+          assert.equal(
+            applied.choice.asset_sha256,
+            action === "Use automatic" ? null : selected.choice.asset_sha256,
+          );
+          if (action !== "Use automatic") {
+            assert.deepEqual(applied.choice.framing, selected.choice.framing);
+          }
+          assert.equal(
+            applied.resolved_source.kind,
+            action === "Show artwork" ? "local_import" : "generated_fallback",
+          );
+          const peers = await readRoles(slots.filter((peer) => peer !== slot));
+          assert.deepEqual(
+            peers.map((peer) => peer.choice),
+            currentStates.filter((_, position) => position !== index).map((peer) => peer.choice),
+          );
+          visibilityResults.push({ slot, action, before: previous.choice, after: applied.choice });
+          previous = applied;
+          currentStates[index] = applied;
+        }
+      }
       assert.deepEqual(await readFile(source), bytes);
       const evidence = path.join(output, "artwork-result.json");
       await writeFile(
@@ -746,6 +881,8 @@ export async function artworkScenario({
             reset,
             geometry,
             contextual_key_setup: contextualKeySetup,
+            imported_roles: importedStates,
+            additional_role_visibility: visibilityResults,
             cancelled_without_mutation: true,
             stale_generation_rejected: true,
             stale_revision_rejected: true,

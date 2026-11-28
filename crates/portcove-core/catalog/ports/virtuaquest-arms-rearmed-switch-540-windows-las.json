@@ -11,7 +11,25 @@
       "format_version": 1,
       "id": "arms",
       "evidence_urls": ["https://github.com/VirtuaQuest/Arms-Rearmed"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "arms-nintendo-switch-5-4-0",
+          "title": "ARMS (Nintendo Switch base game + update 5.4.0)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/VirtuaQuest/Arms-Rearmed/blob/324cb0c839337490152bf599f75d3df921a0adf1/README.md#L16-L26",
+            "https://github.com/VirtuaQuest/Arms-Rearmed/blob/1f57e98f01e4abebe340ba74da981b8aebde134a/README.md#L16-L27"
+          ]
+        },
+        {
+          "id": "arms-nintendo-switch-5-5-1",
+          "title": "ARMS (Nintendo Switch base game + update 5.5.1)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/VirtuaQuest/Arms-Rearmed/blob/1f57e98f01e4abebe340ba74da981b8aebde134a/README.md#L16-L27"
+          ]
+        }
+      ]
     },
     "original_game_title": "ARMS"
   }

@@ -50,8 +50,26 @@ import {
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import { isUpstreamBuildMetadataUrl } from "./upstream-github-build-output.mts";
 import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
+import { observeLauncherModPortals } from "./port-upstream-facts.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
+
+export function omitOversizedBindingInputs<T extends { scope_binding_inputs: unknown }>(
+  summary: T,
+  maximumBytes: number,
+): T | Omit<T, "scope_binding_inputs"> {
+  if (Buffer.byteLength(JSON.stringify(summary)) <= maximumBytes) return summary;
+  const { scope_binding_inputs: _diagnostics, ...base } = summary;
+  return base;
+}
+
+function launcherModMetadataUrl(url: URL) {
+  if (url.origin !== "https://api.github.com") return false;
+  const endpoint = url.pathname + url.search;
+  return /^\/repositories\/[1-9][0-9]*(?:\/commits\?per_page=1|\/git\/trees\/[a-f0-9]{40}|\/contents\/recomplauncher\.json\?ref=[a-f0-9]{40})?$/u.test(
+    endpoint,
+  );
+}
 
 /** One eligible command selects credentials lazily, once, for fresh repository identity reads. */
 function repositoryMetadataReader(
@@ -78,6 +96,7 @@ function repositoryMetadataReader(
           method === "GET" &&
           (/^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname) ||
             isUpstreamBuildMetadataUrl(url) ||
+            launcherModMetadataUrl(url) ||
             /^\/repos\/[^/]+\/[^/]+\/git\/(?:ref\/tags\/[^/]+|tags\/[a-f0-9]{40})$/u.test(
               url.pathname,
             ) ||
@@ -104,7 +123,9 @@ export async function retireObserverConfigurations(
   checkpoint: CatalogObserverCheckpoint,
   deadline: number,
   now = Date.now,
+  standaloneConfig?: ObserverConfig,
 ) {
+  const standaloneHash = standaloneConfig ? observationHash(standaloneConfig) : null;
   const cleanupDeferred: string[] = [];
   const directory = (config: ObserverConfig) =>
     path.join(root, "work/upstream-observer", observationHash(config));
@@ -120,6 +141,15 @@ export async function retireObserverConfigurations(
         continue;
       const checkpointFile = path.join(directory(retired), "checkpoint.json");
       try {
+        // The scheduled scope no longer references the standalone checkpoint.
+        // Forget that dependency without modifying the standalone files.
+        if (digest === standaloneHash) {
+          progress.retired_configs = progress.retired_configs.filter(
+            (config) => observationHash(config) !== digest,
+          );
+          await atomicJson(statePath, checkpoint);
+          continue;
+        }
         await withCheckpointLock(checkpointFile, async () => {
           validateObserverCheckpoint(
             decodeStoredObserverCheckpoint(
@@ -183,6 +213,12 @@ export function hostedRequestCeiling(event: string | undefined) {
   return event === "push" ? pushRequestLimit : hostedRequestLimit;
 }
 
+/** First-party metadata shares the existing hosted GitHub allowance. The
+ * per-operation share keeps release watches moving even in a large backfill. */
+export function hostedLauncherModRequestLimit(total: number) {
+  return Math.floor(total / 10);
+}
+
 export async function runCatalogUpstreams(
   args: string[],
   runtime: {
@@ -193,12 +229,15 @@ export async function runCatalogUpstreams(
     projectProvider?: typeof projectProviderObservation;
     providerFetch?: typeof fetch;
     modProviderRegistryFetch?: typeof fetch;
+    observeFirstPartyModLinks?: boolean;
+    launcherModRequestLimit?: number;
     inspectCatalog?: typeof inspectCatalogDefinitions;
     repositoryMetadata?: (repository: string) => Promise<GitHubMetadataResponse>;
     log?: (value: string) => void;
     deadline?: number;
     excludedSources?: ReadonlySet<string>;
     requestLimit?: number;
+    offlinePolicyOnly?: boolean;
     rotateStaleSources?: boolean;
     prioritizeConfigured?: boolean;
     scheduledPrioritySources?: ReadonlySet<string>;
@@ -255,6 +294,12 @@ export async function runCatalogUpstreams(
     runtime.observer?.signal,
   );
   const repositoryMetadata = runtime.repositoryMetadata ?? githubMetadata;
+  const launcherModMetadata = repositoryMetadataReader(
+    Math.min(256 * 1024, config.budget.response_bytes),
+    githubScope,
+    observationToken,
+    runtime.observer?.signal,
+  );
   let stepLogCredential: ReturnType<typeof localDeveloperCredential> | undefined;
   let health: unknown = null;
   try {
@@ -330,12 +375,16 @@ export async function runCatalogUpstreams(
       deadline: operationDeadline,
       ...(runtime.excludedSources ? { excludedSources: runtime.excludedSources } : {}),
       ...(runtime.requestLimit === undefined ? {} : { requestLimit: runtime.requestLimit }),
+      offlinePolicyOnly: runtime.offlinePolicyOnly === true,
       rotateStaleSources: runtime.rotateStaleSources === true,
       prioritizeConfigured: runtime.prioritizeConfigured === true,
       ...(runtime.scheduledPrioritySources
         ? { scheduledPrioritySources: runtime.scheduledPrioritySources }
         : {}),
       ...runtime.observer,
+      ...(runtime.launcherModRequestLimit === undefined
+        ? {}
+        : { launcherModRequestLimit: runtime.launcherModRequestLimit }),
       ...(runtime.modProviderRegistryFetch
         ? { modProviderRegistryFetch: runtime.modProviderRegistryFetch }
         : {}),
@@ -458,6 +507,34 @@ export async function runCatalogUpstreams(
           throw error;
         }
       },
+      ...(runtime.observeFirstPartyModLinks
+        ? {
+            observeLauncherMods: (repository, account) =>
+              observeLauncherModPortals(repository, async (endpoint) => {
+                account.admitRequest();
+                try {
+                  const response = await launcherModMetadata(repository.slug, endpoint);
+                  account.observeResponse(
+                    new Response(null, { headers: Object.fromEntries(response.headers) }),
+                  );
+                  account.consumeResponseBytes(response.bodyBytes ?? null);
+                  return response.status === 200 && response.bodyBytes !== undefined
+                    ? { status: "observed", body: response.body }
+                    : { status: "unavailable", reason: "provider-response-unavailable" };
+                } catch (error) {
+                  if (!(error instanceof GitHubApiError)) throw error;
+                  account.consumeResponseBytes(error.responseBytes);
+                  if (error.code === "rate_limited") throw observerGitHubRateLimit(error, now());
+                  if (error.code === "cancelled")
+                    throw new ObservationFailure(
+                      "cancelled",
+                      "First-party mod metadata read cancelled",
+                    );
+                  return { status: "unavailable", reason: "provider-transport" };
+                }
+              }),
+          }
+        : {}),
       readOriginalRecognition: async (repository, endpoint, account) => {
         account.admitRequest();
         try {
@@ -587,13 +664,12 @@ export async function runCatalogUpstreams(
         return policy;
       },
       export: async (source, sourceConfig, observation, policies) => {
-        const legacy =
-          sourceConfig.format === 1 &&
+        const configured =
           sourceConfig.port_id === config.port_id &&
-          sourceConfig.repository === config.repository;
+          sourceConfig.repository === config.repository &&
+          sourceConfig.repository_id === config.repository_id;
         const filename = path.join(handoffDirectory, `${observationHash(sourceConfig)}.json`);
-        // The legacy report retains the full configured inventory. In the
-        // catalog handoff it would repeat the same large list for each source.
+        // Only the configured report carries the full list of unmonitored ports.
         const { unmonitored_port_ids: _inventory, ...sourceReport } = observation.report;
         const report = {
           ...sourceReport,
@@ -628,8 +704,8 @@ export async function runCatalogUpstreams(
             ? "last-complete-historical-fallback; current state unknown"
             : "complete-current-consumer-projections; managed eligibility remains Core-only",
         };
-        if (legacy)
-          await atomicJson(path.join(directory(sourceConfig), "report.json"), {
+        if (configured)
+          await atomicJson(path.join(root, "work/upstream-observer-configured/report.json"), {
             ...observation.report,
             execution: report.execution,
           });
@@ -659,13 +735,17 @@ export async function runCatalogUpstreams(
       result.checkpoint,
       operationDeadline,
       now,
+      config,
     );
-    let summary: unknown = {
-      ...result.report,
-      artifact_bytes: artifactBytes,
-      artifact_byte_limit: artifactByteLimit,
-      cleanup_deferred_configurations: cleanupDeferred,
-    };
+    let summary: unknown = omitOversizedBindingInputs(
+      {
+        ...result.report,
+        artifact_bytes: artifactBytes,
+        artifact_byte_limit: artifactByteLimit,
+        cleanup_deferred_configurations: cleanupDeferred,
+      },
+      summaryByteLimit,
+    );
     if (Buffer.byteLength(JSON.stringify(summary)) > summaryByteLimit)
       summary = {
         format: 1,
@@ -695,6 +775,7 @@ export async function runCatalogUpstreams(
       handoff_exhausted: handoffExhausted,
       made_progress:
         acceptedProgress ||
+        (result.report.launcher_mod_sources?.attempted ?? 0) > 0 ||
         catalogPositionAdvanced(beforePosition, catalogProgressPosition(result.checkpoint)),
     };
   });
@@ -789,6 +870,10 @@ export async function runCatalogOpportunity(
   try {
     const { modProviderRegistryFetch, ...batchRuntime } = runtime;
     let prioritizeConfigured = true;
+    let offlinePolicyCompleted = 0;
+    const maxRequests =
+      runtime.requestCeiling ?? hostedRequestCeiling(process.env.GITHUB_EVENT_NAME);
+    let launcherRequestsRemaining = hostedLauncherModRequestLimit(maxRequests);
     const result = await continueCatalogBatches(
       async (excluded, requestLimit) => {
         await assertInputs();
@@ -796,6 +881,10 @@ export async function runCatalogOpportunity(
           ...batchRuntime,
           // One registry request per hosted opportunity, including partial responses.
           ...(prioritizeConfigured && modProviderRegistryFetch ? { modProviderRegistryFetch } : {}),
+          launcherModRequestLimit: Math.min(
+            launcherRequestsRemaining,
+            hostedLauncherModRequestLimit(config.budget.requests),
+          ),
           observer: {
             ...runtime.observer,
             githubScope,
@@ -805,6 +894,7 @@ export async function runCatalogOpportunity(
           handoff,
           excludedSources: excluded,
           requestLimit,
+          offlinePolicyOnly: requestLimit === 0,
           rotateStaleSources: true,
           prioritizeConfigured,
           handoffByteLimit: hostedHandoffByteLimit,
@@ -816,10 +906,13 @@ export async function runCatalogOpportunity(
       },
       {
         deadline: runtime.deadline,
-        maxRequests: runtime.requestCeiling ?? hostedRequestCeiling(process.env.GITHUB_EVENT_NAME),
+        maxRequests,
+        finishOffline: true,
         now,
         ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
-        onBatch: (batch) => {
+        onBatch: (batch, allowance) => {
+          const offlinePolicyOnly = allowance === 0;
+          if (offlinePolicyOnly) offlinePolicyCompleted = batch.report.completed_source_keys.length;
           for (const failure of batch.report.failures) {
             const evidence = JSON.stringify({
               format: 1,
@@ -833,10 +926,13 @@ export async function runCatalogOpportunity(
               );
             (runtime.log ?? console.log)(evidence);
           }
+          launcherRequestsRemaining -= batch.report.launcher_mod_sources?.requests ?? 0;
           (runtime.log ?? console.log)(
             JSON.stringify({
               format: 1,
               kind: "catalog-observation-batch",
+              offline_policy_only: offlinePolicyOnly,
+              launcher_mod_sources: batch.report.launcher_mod_sources,
               requests: batch.report.requests,
               response_bytes: batch.report.response_bytes_charged,
               completed: batch.report.completed_source_keys.length,
@@ -857,12 +953,16 @@ export async function runCatalogOpportunity(
       typeof batchSummary.artifact_byte_limit === "number"
         ? batchSummary.artifact_byte_limit
         : null;
-    let summary: unknown = {
-      ...result.report,
-      bounded_batches: result.batches,
-      artifact_bytes: handoff.bytes,
-      artifact_byte_limit: artifactByteLimit,
-    };
+    let summary: unknown = omitOversizedBindingInputs(
+      {
+        ...result.report,
+        bounded_batches: result.batches,
+        offline_policy_completed_sources: offlinePolicyCompleted,
+        artifact_bytes: handoff.bytes,
+        artifact_byte_limit: artifactByteLimit,
+      },
+      config.budget.response_bytes,
+    );
     if (Buffer.byteLength(JSON.stringify(summary)) > config.budget.response_bytes)
       summary = {
         format: 1,
@@ -871,6 +971,7 @@ export async function runCatalogOpportunity(
           "partial diagnostic export; full obligations remain in current checkpoint and catalog",
         checkpoint_sha256: observationHash(result.checkpoint),
         bounded_batches: result.batches,
+        offline_policy_completed_sources: offlinePolicyCompleted,
         total_sources: result.report.total_sources,
         pending_sources: result.report.pending_source_keys.length,
         failure_events: result.report.failures.length,
@@ -927,6 +1028,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
             deadline: Date.parse(deadline),
             scheduledPrioritySources,
             modProviderRegistryFetch: fetch,
+            observeFirstPartyModLinks: true,
           });
     if (process.env.GITHUB_OUTPUT && deadline === undefined) {
       if (/[\r\n]/u.test(result.handoff_directory)) throw new Error("Invalid artifact output path");

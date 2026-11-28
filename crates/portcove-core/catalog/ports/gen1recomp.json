@@ -22,7 +22,17 @@
       "format_version": 1,
       "id": "pokemon-red",
       "evidence_urls": ["https://github.com/bryanthaboi/gen1recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "pokemon-red-game-boy",
+          "title": "Pokémon Red (Game Boy)",
+          "system": "game-boy",
+          "evidence_urls": [
+            "https://github.com/bryanthaboi/gen1recomp/blob/53ad85ca5480cb6d52a578e01c24854ae21ae242/README.md#L90-L98",
+            "https://github.com/bryanthaboi/gen1recomp/blob/53ad85ca5480cb6d52a578e01c24854ae21ae242/docs/guides/launch-options.md#L9-L10"
+          ]
+        }
+      ]
     }
   },
   "integration": {

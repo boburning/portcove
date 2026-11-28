@@ -130,7 +130,13 @@ export function retainedCoreProjection<T>(projection: T): T {
 }
 export function acceptedObservationPosition(value: unknown) {
   if (!isRecord(value))
-    return { pages: 0, validation: 0, facts: null, coverage: "unstated" as CoreCoverage };
+    return {
+      pages: 0,
+      validation: 0,
+      tentative: null,
+      facts: null,
+      coverage: "unstated" as CoreCoverage,
+    };
   const continuation = isRecord(value.continuation) ? value.continuation : null;
   const complete =
     isRecord(value.last_complete) && isRecord(value.last_complete.observation)
@@ -145,6 +151,15 @@ export function acceptedObservationPosition(value: unknown) {
           : 0,
     validation:
       typeof continuation?.validation_cursor === "number" ? continuation.validation_cursor : 0,
+    tentative:
+      continuation?.phase !== "restart" && typeof continuation?.started_at === "string"
+        ? {
+            start: continuation.started_at,
+            remaining: Array.isArray(continuation.tentative_pages)
+              ? continuation.tentative_pages.length
+              : 0,
+          }
+        : null,
     facts: typeof complete?.facts_sha256 === "string" ? complete.facts_sha256 : null,
     coverage: coreProjectionCoverage(
       isRecord(value.last_complete) ? value.last_complete.projection : null,
@@ -155,13 +170,17 @@ export function acceptedObservationAdvanced(
   before: ReturnType<typeof acceptedObservationPosition> | undefined,
   after: ReturnType<typeof acceptedObservationPosition>,
 ) {
-  const a = before ?? { pages: 0, validation: 0, facts: null },
+  const a = before ?? { pages: 0, validation: 0, tentative: null, facts: null },
     b = after;
   // Changed last-good facts are never an accepted advance with stated
   // incomplete coverage.
   return (
     b.pages > a.pages ||
     b.validation > a.validation ||
+    (a.tentative !== null &&
+      b.tentative !== null &&
+      b.tentative.start === a.tentative.start &&
+      b.tentative.remaining < a.tentative.remaining) ||
     (b.facts !== null &&
       b.facts !== a.facts &&
       (b.coverage === "complete" || b.coverage === "unstated"))
@@ -240,6 +259,14 @@ export function catalogPositionAdvanced(
 }
 
 interface BatchReport {
+  launcher_mod_sources?: {
+    enrolled: number;
+    due: number;
+    attempted: number;
+    complete: number;
+    deferred: number;
+    requests: number;
+  };
   pending_source_keys: string[];
   attempted_source_keys: string[];
   completed_source_keys: string[];
@@ -252,6 +279,8 @@ interface BatchReport {
   }[];
   requests: number;
   response_bytes_charged: number;
+  unknown_response_size_requests?: number;
+  provider_capacity?: { availability: string };
 }
 export async function continueCatalogBatches<
   T extends {
@@ -265,18 +294,20 @@ export async function continueCatalogBatches<
   {
     deadline,
     maxRequests = Infinity,
+    finishOffline = false,
     now = Date.now,
     signal,
     onBatch = () => {},
     evidenceByteLimit = 4 * 1024 * 1024,
   }: {
     deadline: number;
-    /** Hard aggregate request cap: each batch receives only the remaining
-     * allowance, and no batch starts once it is spent (#4779). */
+    /** Each batch receives only its remaining provider allowance. */
     maxRequests?: number;
+    /** The hosted collector can finish one retained-policy batch with zero provider requests. */
+    finishOffline?: boolean;
     now?: () => number;
     signal?: AbortSignal;
-    onBatch?: (result: T) => void | Promise<void>;
+    onBatch?: (result: T, allowance: number) => void | Promise<void>;
     evidenceByteLimit?: number;
   },
 ) {
@@ -289,6 +320,9 @@ export async function continueCatalogBatches<
     throw new ObservationFailure("budget", "Observation evidence capacity unavailable");
   const failures = new Map<string, BatchReport["failures"][number]>();
   let failureBytes = 0;
+  let launcherProgress: BatchReport["launcher_mod_sources"];
+  let providerCapacity: BatchReport["provider_capacity"];
+  let unknownResponseSizes: number | undefined;
   let notify = false,
     requests = 0,
     bytes = 0,
@@ -296,13 +330,38 @@ export async function continueCatalogBatches<
   for (;;) {
     if (signal?.aborted)
       throw new ObservationFailure("cancelled", "Observation cancelled between bounded batches");
-    const result = await operation(excluded, maxRequests - requests);
+    const allowance = maxRequests - requests;
+    const result = await operation(excluded, allowance);
     batches++;
     // Publish original batch evidence before bounded aggregate admission can fail.
-    await onBatch(result);
+    await onBatch(result, allowance);
+    if (result.report.requests > allowance)
+      throw new ObservationFailure(
+        "budget",
+        "Catalog observer batch exceeded its request allowance",
+      );
+    if (
+      allowance > 0 &&
+      result.report.provider_capacity &&
+      (result.report.provider_capacity.availability !== "unknown" ||
+        result.report.requests > 0 ||
+        providerCapacity === undefined)
+    )
+      providerCapacity = result.report.provider_capacity;
+    if (result.report.unknown_response_size_requests !== undefined)
+      unknownResponseSizes =
+        (unknownResponseSizes ?? 0) + result.report.unknown_response_size_requests;
     notify ||= result.notify_exception;
     requests += result.report.requests;
     bytes += result.report.response_bytes_charged;
+    const launcher = result.report.launcher_mod_sources;
+    if (launcher)
+      launcherProgress = {
+        ...launcher,
+        attempted: (launcherProgress?.attempted ?? 0) + launcher.attempted,
+        complete: (launcherProgress?.complete ?? 0) + launcher.complete,
+        requests: (launcherProgress?.requests ?? 0) + launcher.requests,
+      };
     result.report.attempted_source_keys.forEach((key) => attempted.add(key));
     result.report.completed_source_keys.forEach((key) => completed.add(key));
     for (const failure of result.report.failures) {
@@ -321,12 +380,14 @@ export async function continueCatalogBatches<
       if (failure.rule !== "budget") excluded.add(failure.source);
     if (signal?.aborted)
       throw new ObservationFailure("cancelled", "Observation cancelled after bounded batch");
-    const more = result.report.pending_source_keys.some((key) => !excluded.has(key));
+    const more =
+      result.report.pending_source_keys.some((key) => !excluded.has(key)) ||
+      (!!launcher && launcher.requests > 0 && launcher.deferred > 0);
     if (
       !more ||
       !result.made_progress ||
       result.handoff_exhausted ||
-      requests >= maxRequests ||
+      (requests >= maxRequests && (!finishOffline || allowance === 0)) ||
       now() >= deadline ||
       signal?.aborted
     )
@@ -338,6 +399,11 @@ export async function continueCatalogBatches<
           ...result.report,
           requests,
           response_bytes_charged: bytes,
+          ...(unknownResponseSizes === undefined
+            ? {}
+            : { unknown_response_size_requests: unknownResponseSizes }),
+          ...(providerCapacity ? { provider_capacity: providerCapacity } : {}),
+          ...(launcherProgress ? { launcher_mod_sources: launcherProgress } : {}),
           attempted_source_keys: [...attempted],
           completed_source_keys: [...completed],
           failures: [...failures.values()],

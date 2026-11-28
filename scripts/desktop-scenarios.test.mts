@@ -3021,7 +3021,11 @@ void test("only the measured six-case install and Steam aggregate receives its c
   for (const [index, scenario] of scenarios.entries()) {
     assert.equal(
       desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios: [scenario] })),
-      index >= 3 ? 600_000 : 180_000,
+      scenario === "native-local-artwork-picker-and-recovery"
+        ? 1_200_000
+        : index >= 3
+          ? 600_000
+          : 180_000,
       `Keep the standalone ${scenario} allowance`,
     );
     assert.equal(

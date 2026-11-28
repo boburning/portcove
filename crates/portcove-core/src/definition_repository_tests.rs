@@ -2800,6 +2800,31 @@ async fn expired_metadata_is_refused_as_verification_failure() {
     );
 }
 
+#[test]
+fn a_full_tuf_datastore_reports_local_storage_failure() {
+    use std::{backtrace::Backtrace, io::ErrorKind};
+
+    for kind in [ErrorKind::StorageFull, ErrorKind::QuotaExceeded] {
+        let failures = [
+            tough::error::Error::DatastoreInit {
+                source: kind.into(),
+                backtrace: Backtrace::disabled(),
+            },
+            tough::error::Error::DatastoreCreate {
+                path: "timestamp.json".into(),
+                source: kind.into(),
+                backtrace: Backtrace::disabled(),
+            },
+        ];
+        for failure in failures {
+            let error = super::map_tough_error(failure);
+            assert_eq!(error.code, ErrorCode::State);
+            assert_eq!(error.catalog_fallback(), None);
+            assert_eq!(error.report().presentation.presentation_key, "storage_full");
+        }
+    }
+}
+
 #[tokio::test]
 async fn metadata_that_is_not_served_is_distinguished_from_an_outage() {
     let fixture = RepositoryFixture::new();

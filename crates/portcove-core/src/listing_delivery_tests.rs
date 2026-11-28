@@ -199,6 +199,157 @@ async fn authenticated_listings_add_correct_withdraw_without_managed_authority()
 }
 
 #[tokio::test]
+async fn registered_personal_project_joins_and_survives_signed_admission_and_withdrawal() {
+    const ID: &str = "github-982741653";
+    const RACE_ID: &str = "github-982741654";
+    let (_temp, library) = library();
+    let source = tempfile::tempdir().unwrap();
+    let executable = crate::test_fixture::build_probe(source.path());
+    let executable_bytes = fs::read(&executable).unwrap();
+    let save = source.path().join("player-save.dat");
+    fs::write(&save, b"retained original save").unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let local = service
+        .fixture_personal_runtime_context(982741653, "FixtureOwner/BeforeRename")
+        .unwrap();
+    let args = ["--help".into()];
+    let connection = library.connection().unwrap();
+    connection
+        .execute(
+            "INSERT INTO catalog_downloads(port_id,pending_id,record_json,phase,preview_sha256,activity_id)
+             VALUES (?1,'fixture-pending','{}','downloaded',?2,'fixture-activity')",
+            rusqlite::params![ID, "a".repeat(64)],
+        )
+        .unwrap();
+    let pending = local
+        .preview_user_selected_runtime(ID, &executable, source.path(), &args)
+        .unwrap_err();
+    assert!(pending.message.contains("pending setup"));
+    assert_eq!(
+        connection
+            .execute(
+                "DELETE FROM catalog_downloads WHERE port_id=?1 AND pending_id='fixture-pending'",
+                [ID],
+            )
+            .unwrap(),
+        1,
+        "the rejected personal preview must preserve a pending setup"
+    );
+    drop(connection);
+    let preview = local
+        .preview_user_selected_runtime(ID, &executable, source.path(), &args)
+        .unwrap();
+    let authorization = local
+        .authorize_user_selected_runtime(
+            ID,
+            &executable,
+            source.path(),
+            &args,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let guard = library.try_lock_port(ID, "busy-personal-fixture").unwrap();
+    assert!(
+        local
+            .register_user_selected_runtime(
+                ID,
+                &executable,
+                source.path(),
+                &args,
+                &authorization.token
+            )
+            .is_err()
+    );
+    drop(guard);
+    let registration = local
+        .register_user_selected_runtime(ID, &executable, source.path(), &args, &authorization.token)
+        .unwrap();
+    let retained = serde_json::to_value(registration).unwrap();
+    assert!(library.load_catalog().unwrap().0.listing(ID).is_err());
+    let stale = service
+        .fixture_personal_runtime_context(982741654, "FixtureOwner/ConcurrentAdmission")
+        .unwrap();
+    let stale_preview = stale
+        .preview_user_selected_runtime(RACE_ID, &executable, source.path(), &args)
+        .unwrap();
+    let stale_authorization = stale
+        .authorize_user_selected_runtime(
+            RACE_ID,
+            &executable,
+            source.path(),
+            &args,
+            &stale_preview.preview_sha256,
+        )
+        .unwrap();
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let admission = json!({
+        "listing_delivery_schema": 1, "revision": 1, "withdrawn_ids": [],
+        "directory": { "format_version": 17, "listings": [{
+            "id": ID, "name": "Official port name",
+            "summary": "Fixture signed admission after an upstream rename.",
+            "project_url": "https://github.com/FixtureOwner/AfterRename"
+        }, {
+            "id": RACE_ID, "name": "Concurrently admitted port",
+            "summary": "Fixture signed admission while a personal review is open.",
+            "project_url": "https://github.com/FixtureOwner/ConcurrentAdmission"
+        }] }
+    });
+    let root = publish_compact(&fixture, &key, 1, &admission).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let joined = PortcoveService::new(library.clone()).unwrap();
+    assert_eq!(
+        joined.catalog().listing(ID).unwrap().name,
+        "Official port name"
+    );
+    assert!(
+        joined
+            .fixture_personal_runtime_context(982741653, "FixtureOwner/AfterRename")
+            .is_err()
+    );
+    assert!(joined.catalog().port(ID).is_err());
+    let raced = stale
+        .register_user_selected_runtime(
+            RACE_ID,
+            &executable,
+            source.path(),
+            &args,
+            &stale_authorization.token,
+        )
+        .unwrap_err();
+    assert!(raced.message.contains("already lists this project"));
+    assert!(
+        library
+            .external_runtime_with_port(RACE_ID)
+            .unwrap()
+            .is_none()
+    );
+
+    let withdrawal = json!({
+        "listing_delivery_schema": 1, "revision": 2, "withdrawn_ids": [ID],
+        "directory": {"format_version": 17, "listings": [admission["directory"]["listings"][1].clone()]}
+    });
+    let root = publish_compact(&fixture, &key, 2, &withdrawal).await;
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let withdrawn = PortcoveService::new(library.clone()).unwrap();
+    assert!(withdrawn.catalog().listing(ID).is_err());
+    assert!(
+        withdrawn
+            .listing_statuses()
+            .unwrap()
+            .iter()
+            .any(|row| row.port_id == ID)
+    );
+    let (record, prior) = library.external_runtime_with_port(ID).unwrap().unwrap();
+    assert_eq!(serde_json::to_value(record).unwrap(), retained);
+    assert_eq!(prior.listing(ID).unwrap().name, "FixtureOwner/BeforeRename");
+    assert_eq!(fs::read(&executable).unwrap(), executable_bytes);
+    assert_eq!(fs::read(save).unwrap(), b"retained original save");
+}
+
+#[tokio::test]
 async fn artwork_snapshot_rechecks_a_withdrawn_cover_on_an_unchanged_receiver() {
     use crate::{
         ArtworkResolvedSource, ArtworkSlot, CompositeReleaseProvider, DestinationArtworkRole,
@@ -502,8 +653,11 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let original = library.listing_delivery_status().unwrap().target_sha256;
     let (catalog, _) = library.load_catalog().unwrap();
-    // Embedded typed acquisition restrictions require format 15 in the combined directory.
-    assert_eq!(catalog.listing_document().format_version, 15);
+    let bundled = Catalog::embedded().unwrap();
+    assert_eq!(
+        catalog.listing_document().format_version,
+        bundled.listing_document().format_version
+    );
     assert_eq!(
         catalog
             .listing("new-unmanaged-port")
@@ -524,8 +678,9 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // Readers reject formats newer than the reviewed mod portal directory.
-    candidate["directory"]["format_version"] = json!(17);
+    // Readers reject unknown formats and retain the previously accepted directory.
+    candidate["directory"]["format_version"] =
+        json!(crate::catalog::listings::OBSERVED_PROJECT_COVER_LISTING_FORMAT + 1);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -543,53 +698,412 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
 }
 
-#[tokio::test]
-async fn signed_listing_mod_portals_update_without_installation_or_operational_authority() {
+async fn publish_compact(
+    fixture: &RepositoryFixture,
+    key: &Key,
+    version: u64,
+    document: &Value,
+) -> Vec<u8> {
     use base64::{Engine as _, engine::general_purpose::STANDARD};
     use flate2::{Compression, write::GzEncoder};
     use sha2::{Digest, Sha256};
     use std::io::Write as _;
 
-    async fn publish_compact(
-        fixture: &RepositoryFixture,
-        key: &Key,
-        version: u64,
-        document: &Value,
-    ) -> Vec<u8> {
-        let bytes = serde_json::to_vec(document).unwrap();
-        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-        encoder.write_all(&bytes).unwrap();
-        let compact = json!({
-            "carrier": listing_delivery::COMPACT_CARRIER,
-            "decoded_bytes": bytes.len(),
-            "decoded_sha256": hex::encode(Sha256::digest(&bytes)),
-            "gzip_base64": STANDARD.encode(encoder.finish().unwrap()),
-        });
-        fixture
-            .publish_with_policy(
-                &[
-                    (
-                        listing_delivery::TARGET.into(),
-                        serde_json::to_vec(&feed(1)).unwrap(),
-                    ),
-                    (
-                        listing_delivery::COMPACT_TARGET.into(),
-                        serde_json::to_vec(&compact).unwrap(),
-                    ),
-                ],
-                true,
-                &DEFINITION_ROLE_PATHS,
-                later(),
-                Some((key, version)),
-            )
-            .await
-    }
+    let bytes = serde_json::to_vec(document).unwrap();
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(&bytes).unwrap();
+    let compact = json!({
+        "carrier": listing_delivery::COMPACT_CARRIER,
+        "decoded_bytes": bytes.len(),
+        "decoded_sha256": hex::encode(Sha256::digest(&bytes)),
+        "gzip_base64": STANDARD.encode(encoder.finish().unwrap()),
+    });
+    fixture
+        .publish_with_policy(
+            &[
+                (
+                    listing_delivery::TARGET.into(),
+                    serde_json::to_vec(&feed(1)).unwrap(),
+                ),
+                (
+                    listing_delivery::COMPACT_TARGET.into(),
+                    serde_json::to_vec(&compact).unwrap(),
+                ),
+            ],
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((key, version)),
+        )
+        .await
+}
 
+#[tokio::test]
+async fn signed_assigned_covers_honor_a_missing_default_without_losing_local_choices() {
+    use crate::{ArtworkResolvedSource, ArtworkSlot};
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (temp, library) = library();
+    let mut initial = feed(1);
+    let mut donor = initial["directory"]["listings"][0].clone();
+    donor["id"] = json!("fixture-donor");
+    donor["original_game"] = json!({
+        "format_version": 1,
+        "id": "fixture-original",
+        "evidence_urls": ["https://example.invalid/original"],
+        "source_editions": [{
+            "id": "fixture-edition",
+            "title": "Fixture edition",
+            "system": "pc",
+            "evidence_urls": ["https://example.invalid/edition"]
+        }]
+    });
+    let mut recipient = donor.clone();
+    recipient["id"] = json!("fixture-recipient");
+    recipient["project_url"] = json!("https://example.invalid/recipient");
+    let mut excluded = recipient.clone();
+    excluded["id"] = json!("fixture-excluded");
+    excluded["project_url"] = json!("https://example.invalid/excluded");
+    let artwork = json!({
+        "game_id": 70,
+        "game_slug": "fixture-original",
+        "cover_id": 71,
+        "image_id": "editioncover",
+        "image_sha256": "a".repeat(64),
+        "match_kind": "underlying-game"
+    });
+    donor["artwork"] = artwork.clone();
+    initial["directory"] = json!({
+        "format_version": crate::catalog::listings::OFFICIAL_SETUP_LISTING_FORMAT,
+        "listings": [donor, recipient, excluded]
+    });
+    let root = publish_compact(&fixture, &key, 1, &initial).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let before = PortcoveService::new(library.clone()).unwrap();
+    let slot = ArtworkSlot::Cover;
+    assert!(matches!(
+        before
+            .artwork("fixture-excluded", slot)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::IgdbCover { .. }
+    ));
+    let image_path = temp.path().join("local-cover.png");
+    image::RgbImage::from_pixel(8, 12, image::Rgb([32, 64, 128]))
+        .save(&image_path)
+        .unwrap();
+    let choice = before
+        .import_artwork("fixture-excluded", slot, &image_path, 0)
+        .unwrap();
+
+    let mut successor = initial;
+    successor["revision"] = json!(2);
+    successor["directory"]["format_version"] =
+        json!(crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT);
+    successor["directory"]["listings"][1]["artwork"] = artwork;
+    let root = publish_compact(&fixture, &key, 2, &successor).await;
+    let receipt = refresh(&library, &fixture, &root).await.unwrap();
+    assert!(receipt.selected);
+    assert_eq!(receipt.revision, Some(2));
+    let after = PortcoveService::new(library).unwrap();
+    assert_eq!(
+        after.catalog().listing_document().format_version,
+        crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT
+    );
+    assert!(matches!(
+        after
+            .artwork("fixture-recipient", slot)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::IgdbCover { .. }
+    ));
+    let persisted = after.artwork("fixture-excluded", slot).unwrap();
+    assert_eq!(persisted.choice, choice.choice);
+    assert!(matches!(
+        persisted.resolved_source,
+        ArtworkResolvedSource::LocalImport { .. }
+    ));
+    let reset = after
+        .reset_artwork("fixture-excluded", slot, persisted.choice.revision)
+        .unwrap();
+    assert_eq!(
+        reset.resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    let handoff = after
+        .destination_artwork(
+            "fixture-excluded",
+            crate::DestinationArtworkRole::PortraitCover,
+        )
+        .unwrap();
+    assert_eq!(
+        handoff.source,
+        crate::DestinationArtworkSource::GeneratedFallback
+    );
+    assert_eq!(
+        after
+            .artwork_thumbnail("fixture-excluded", slot, reset.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
+}
+
+#[tokio::test]
+async fn signed_mod_source_enrichment_preserves_the_installed_provider_scope() {
+    const PORT: &str = "zelda64-recomp";
+    const PORTAL: &str = "alternate-community";
+    const URL: &str = "https://thunderstore.io/c/alternate-zelda-resources/";
+    let (_temp, library, installed) = crate::thunderstore::installed_timer_fixture().await;
+    assert_eq!(installed.packages.len(), 1);
+    let reference = installed.packages[0].provider.as_ref().unwrap();
+    // This fixture uses the historical package encoding. Core resolves its
+    // implicit scope to the original community.
+    assert!(reference.binding.is_none());
+    let expected_scope = crate::ModProviderBinding::Thunderstore {
+        community: "zelda-64-recompiled".into(),
+    };
+    let user = library.user_dir(PORT);
+    let package = user.join("mods").join(&installed.packages[0].native_id);
+    let package_bytes = fs::read(&package).unwrap();
+    let native_list = fs::read(user.join("mods.json")).unwrap();
+    let before = PortcoveService::new(library.clone()).unwrap();
+    let history = before
+        .profile_revisions(PORT, &installed.profile_id)
+        .unwrap();
+    let before_port = before.catalog().port(PORT).unwrap();
+    assert_eq!(history.last(), Some(&installed));
+    assert_eq!(
+        crate::provider_binding::reviewed_binding(before_port, &reference.provider),
+        Some(expected_scope.clone())
+    );
+    assert!(crate::provider_binding::reference_matches(
+        before_port,
+        reference
+    ));
+    let definition = serde_json::to_value(before_port).unwrap();
+    assert!(
+        before
+            .mod_setups(PORT)
+            .unwrap()
+            .external_mod_portals
+            .iter()
+            .all(|portal| portal.source != PORTAL)
+    );
+
+    let mut row = before.catalog().listing(PORT).unwrap().clone();
+    row.mod_portals.push(crate::ListingModPortal {
+        id: PORTAL.into(),
+        site: crate::ModPortalSite::CommunitySite,
+        name: "Alternate community".into(),
+        url: URL.into(),
+        instructions: "Browse other mods for this edition.".into(),
+    });
+    let candidate = json!({
+        "listing_delivery_schema": 1,
+        "revision": 1,
+        "withdrawn_ids": [],
+        "directory": {
+            "format_version": crate::catalog::listings::MOD_PORTAL_LISTING_FORMAT,
+            "listings": [row]
+        }
+    });
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let root = publish_compact(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+
+    let after = PortcoveService::new(library).unwrap();
+    let mods = after.mod_setups(PORT).unwrap();
+    assert!(mods.supported);
+    assert!(
+        mods.external_mod_portals
+            .iter()
+            .any(|portal| portal.source == PORTAL && portal.url == URL)
+    );
+    assert_eq!(
+        after
+            .profile_revisions(PORT, &installed.profile_id)
+            .unwrap(),
+        history
+    );
+    let after_port = after.catalog().port(PORT).unwrap();
+    assert_eq!(serde_json::to_value(after_port).unwrap(), definition);
+    assert_eq!(
+        crate::provider_binding::reviewed_binding(after_port, &reference.provider),
+        Some(expected_scope)
+    );
+    assert!(crate::provider_binding::reference_matches(
+        after_port, reference
+    ));
+    assert_eq!(fs::read(package).unwrap(), package_bytes);
+    assert_eq!(fs::read(user.join("mods.json")).unwrap(), native_list);
+}
+
+#[tokio::test]
+async fn hidden_generated_mod_community_survives_origin_changes_and_restart() {
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let id = "new-unmanaged-port";
+    let derived = "obs-ts-789-12345678-1111-2222-3333-123456789abc";
+    let direct = "obs-gh-thunderstore-12345";
+    let expected_url = "https://thunderstore.io/c/example-community/";
+    let portal = |source: &str, url: &str| {
+        json!({
+            "id":source,"site":"community_site","name":"Thunderstore","url":url,
+            "instructions":"Open the community to browse its mods."
+        })
+    };
+    let mut candidate = feed(1);
+    candidate["directory"]["format_version"] = json!(16);
+    candidate["directory"]["listings"][0]["mod_portals"] = json!([portal(derived, expected_url)]);
+    let mut damaged_row = candidate["directory"]["listings"][0].clone();
+    damaged_row["id"] = json!("damaged-preference");
+    candidate["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .push(damaged_row);
+    let mut unresolved_row = feed(1)["directory"]["listings"][0].clone();
+    unresolved_row["id"] = json!("unresolved-preference");
+    candidate["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .push(unresolved_row);
+    let root = publish_compact(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+
+    // Simulate the old reader saving the signed source ID before its first
+    // refresh with the capable reader. Both IDs are authentic listing evidence.
+    let choices = crate::ModPortalChoices {
+        local_page: None,
+        hidden_sources: vec![derived.into()],
+    };
+    library.connection().unwrap().execute(
+        "INSERT INTO mod_portal_preferences(port_id, revision, choices_json) VALUES (?1, 1, ?2)",
+        rusqlite::params![id, serde_json::to_string(&choices).unwrap()],
+    ).unwrap();
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "INSERT INTO mod_portal_preferences(port_id, revision, choices_json)
+         VALUES ('unresolved-preference', 1, ?1)",
+            [serde_json::to_string(&crate::ModPortalChoices {
+                local_page: None,
+                hidden_sources: vec![direct.into()],
+            })
+            .unwrap()],
+        )
+        .unwrap();
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "INSERT INTO mod_portal_preferences(port_id, revision, choices_json)
+         VALUES ('damaged-preference', 1, ?1)",
+            [serde_json::to_string(&crate::ModPortalChoices {
+                local_page: None,
+                hidden_sources: vec![derived.into(), derived.into()],
+            })
+            .unwrap()],
+        )
+        .unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let before = service
+        .effective_external_mod_portals(id, crate::Platform::current().ok())
+        .unwrap();
+    assert!(before.external_mod_portals.is_empty());
+    assert_eq!(before.mod_portal_preferences.preferences.choices, choices);
+
+    let unrelated = "https://thunderstore.io/c/unrelated/";
+    for (revision, preference_revision, source, url, hidden) in [
+        (2, 2, direct, expected_url, true),
+        (3, 3, direct, unrelated, false),
+        (4, 5, derived, expected_url, true),
+        (5, 6, direct, unrelated, true),
+    ] {
+        candidate["revision"] = json!(revision);
+        candidate["directory"]["listings"][0]["mod_portals"] = json!([portal(source, url)]);
+        candidate["directory"]["listings"][2]["mod_portals"] = json!([portal(direct, unrelated)]);
+        let root = publish_compact(&fixture, &key, revision, &candidate).await;
+        assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+        let restarted = PortcoveService::new(library.clone()).unwrap();
+        let view = restarted
+            .effective_external_mod_portals(id, crate::Platform::current().ok())
+            .unwrap();
+        assert_eq!(view.external_mod_portals.is_empty(), hidden);
+        assert_eq!(
+            restarted
+                .effective_external_mod_portals(
+                    "unresolved-preference",
+                    crate::Platform::current().ok()
+                )
+                .unwrap()
+                .external_mod_portals[0]
+                .url,
+            unrelated,
+        );
+        assert_eq!(
+            view.mod_portal_preferences.preferences.revision,
+            preference_revision
+        );
+        let saved: String = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT choices_json FROM mod_portal_preferences WHERE port_id = ?1",
+                [id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let older_reader_choices: crate::ModPortalChoices = serde_json::from_str(&saved).unwrap();
+        assert_eq!(
+            older_reader_choices.hidden_sources,
+            if hidden {
+                vec![source.to_owned()]
+            } else {
+                vec![]
+            }
+        );
+        if revision == 3 {
+            restarted
+                .set_mod_portal_preferences(
+                    id,
+                    preference_revision,
+                    crate::ModPortalChoices {
+                        local_page: None,
+                        hidden_sources: vec![direct.into()],
+                    },
+                )
+                .unwrap();
+        }
+    }
+    let restarted = PortcoveService::new(library).unwrap();
+    let reset = restarted
+        .set_mod_portal_preferences(id, 6, crate::ModPortalChoices::default())
+        .unwrap();
+    assert_eq!(reset.external_mod_portals[0].source, direct);
+    assert_eq!(reset.external_mod_portals[0].url, unrelated);
+}
+
+#[tokio::test]
+async fn signed_listing_mod_portals_update_without_installation_or_operational_authority() {
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());
     let (_temp, library) = library();
     let mut candidate = feed(1);
     candidate["directory"]["format_version"] = json!(15);
+    let registered_id = "registered-catch-up";
+    let listings = candidate["directory"]["listings"].as_array_mut().unwrap();
+    let mut registered_listing = listings[0].clone();
+    registered_listing["id"] = json!(registered_id);
+    registered_listing["project_url"] = json!("https://example.invalid/registered-project");
+    listings.push(registered_listing);
     let root = publish_compact(&fixture, &key, 1, &candidate).await;
     provision(&library, &root);
     refresh(&library, &fixture, &root).await.unwrap();
@@ -608,6 +1122,52 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
             .is_err()
     );
 
+    let player_files = tempfile::tempdir().unwrap();
+    let executable = crate::test_fixture::build_probe(player_files.path());
+    let executable_sha256 = crate::signed_catalog::digest(&std::fs::read(&executable).unwrap());
+    let save = player_files.path().join("player-save.dat");
+    std::fs::write(&save, b"player save").unwrap();
+    let arguments = ["--help".into()];
+    let preview = service
+        .preview_user_selected_runtime(registered_id, &executable, player_files.path(), &arguments)
+        .unwrap();
+    let authorization = service
+        .authorize_user_selected_runtime(
+            registered_id,
+            &executable,
+            player_files.path(),
+            &arguments,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let registration = service
+        .register_user_selected_runtime(
+            registered_id,
+            &executable,
+            player_files.path(),
+            &arguments,
+            &authorization.token,
+        )
+        .unwrap();
+    let (_, retained_catalog) = library
+        .external_runtime_with_port(registered_id)
+        .unwrap()
+        .unwrap();
+    assert!(matches!(
+        service
+            .artwork(registered_id, crate::ArtworkSlot::Cover)
+            .unwrap()
+            .resolved_source,
+        crate::ArtworkResolvedSource::GeneratedFallback
+    ));
+    assert!(
+        service
+            .preview_mod_handoff(registered_id)
+            .unwrap()
+            .external_mod_portals
+            .is_empty()
+    );
+
     let url = "https://www.nexusmods.com/examplegame";
     candidate["revision"] = json!(2);
     candidate["directory"]["format_version"] = json!(16);
@@ -615,6 +1175,16 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
         "id": "nexus", "site": "nexus_mods", "name": "Nexus Mods", "url": url,
         "instructions": "Check the community page for mod requirements."
     }]);
+    let registered_url = "https://www.nexusmods.com/registeredgame";
+    candidate["directory"]["listings"][1]["mod_portals"] = json!([{
+        "id": "nexus", "site": "nexus_mods", "name": "Nexus Mods", "url": registered_url,
+        "instructions": "Check the community page for mod requirements."
+    }]);
+    candidate["directory"]["listings"][1]["artwork"] = json!({
+        "game_id": 1, "cover_id": 2, "image_id": "co1abc",
+        "image_sha256": "5".repeat(64), "game_slug": "registered-game",
+        "match_kind": "underlying-game"
+    });
     let mut incompatible = candidate.clone();
     incompatible["directory"]["format_version"] = json!(15);
     assert!(
@@ -637,6 +1207,39 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
 
     let service = PortcoveService::new_read_only(library.clone()).unwrap();
+    assert!(service.catalog().port(registered_id).is_err());
+    assert!(matches!(
+        service.artwork(registered_id, crate::ArtworkSlot::Cover).unwrap().resolved_source,
+        crate::ArtworkResolvedSource::IgdbCover { artwork, .. } if artwork.image_id == "co1abc"
+    ));
+    let registered_mods = service.preview_mod_handoff(registered_id).unwrap();
+    assert!(!registered_mods.supported);
+    assert_eq!(registered_mods.external_mod_portals[0].url, registered_url);
+    assert_eq!(
+        service
+            .review_external_mod_source_page(registered_id, "nexus", registered_url)
+            .await
+            .unwrap(),
+        registered_url
+    );
+    let (retained, reopened_catalog) = library
+        .external_runtime_with_port(registered_id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(retained).unwrap(),
+        serde_json::to_value(registration).unwrap()
+    );
+    assert_eq!(
+        serde_json::to_value(reopened_catalog.listing_document()).unwrap(),
+        serde_json::to_value(retained_catalog.listing_document()).unwrap()
+    );
+    assert_eq!(
+        crate::signed_catalog::digest(&std::fs::read(executable).unwrap()),
+        executable_sha256
+    );
+    assert_eq!(std::fs::read(save).unwrap(), b"player save");
+    assert!(library.all_installs().unwrap().is_empty());
     assert!(service.catalog().port(id).is_err());
     let view = service.preview_mod_handoff(id).unwrap();
     assert!(!view.supported);
@@ -675,6 +1278,14 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
         url: "https://mods.example.net/recomp".into(),
     };
     let service = PortcoveService::new(library.clone()).unwrap();
+    let portrait = player_files.path().join("my-portrait.png");
+    image::RgbImage::from_pixel(12, 18, image::Rgb([160, 80, 24]))
+        .save(&portrait)
+        .unwrap();
+    let artwork_choice = service
+        .import_artwork(registered_id, crate::ArtworkSlot::Cover, &portrait, 0)
+        .unwrap()
+        .choice;
     assert!(
         service
             .set_mod_portal_preferences(
@@ -762,9 +1373,32 @@ async fn signed_listing_mod_portals_update_without_installation_or_operational_a
     candidate["revision"] = json!(4);
     let revised_url = "https://www.nexusmods.com/examplegamev2";
     candidate["directory"]["listings"][0]["mod_portals"][0]["url"] = json!(revised_url);
+    let cover = &mut candidate["directory"]["listings"][1]["artwork"];
+    cover["cover_id"] = json!(3);
+    cover["image_id"] = json!("co2abc");
+    cover["image_sha256"] = json!("6".repeat(64));
     let root = publish_compact(&fixture, &key, 4, &candidate).await;
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let service = PortcoveService::new(library.clone()).unwrap();
+    let artwork = service
+        .artwork(registered_id, crate::ArtworkSlot::Cover)
+        .unwrap();
+    assert_eq!(artwork.choice, artwork_choice);
+    assert!(matches!(
+        artwork.resolved_source,
+        crate::ArtworkResolvedSource::LocalImport { .. }
+    ));
+    let automatic = service
+        .reset_artwork(
+            registered_id,
+            crate::ArtworkSlot::Cover,
+            artwork_choice.revision,
+        )
+        .unwrap();
+    assert!(matches!(
+        automatic.resolved_source,
+        crate::ArtworkResolvedSource::IgdbCover { artwork, .. } if artwork.image_id == "co2abc"
+    ));
     assert_eq!(
         service
             .preview_mod_handoff(id)
@@ -843,7 +1477,11 @@ async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_
             .funding_urls
             .is_some()
     );
-    assert_eq!(catalog.listing_document().format_version, 15);
+    let bundled = Catalog::embedded().unwrap();
+    assert_eq!(
+        catalog.listing_document().format_version,
+        bundled.listing_document().format_version
+    );
 
     // A delivered format-10 snapshot carries links for this reader.
     candidate["revision"] = json!(2);
@@ -1275,7 +1913,7 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     let mut unsupported = current.clone();
     unsupported["carrier"] = json!("unsupported");
     edition_directory["directory"]["format_version"] =
-        json!(crate::catalog::listings::MOD_PORTAL_LISTING_FORMAT + 1);
+        json!(crate::catalog::listings::OBSERVED_PROJECT_COVER_LISTING_FORMAT + 1);
     let unsupported_format = carrier(&serde_json::to_vec(&edition_directory).unwrap());
     let mut trailing = current.clone();
     let mut concatenated = gzip(&next);

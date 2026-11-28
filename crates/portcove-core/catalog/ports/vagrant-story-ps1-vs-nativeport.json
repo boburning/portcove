@@ -54,7 +54,17 @@
         "https://github.com/JEschete/VS-NativePort/blob/f104d511ca04665edfd6fc74b7216a3220fbe055/README.md",
         "https://github.com/JEschete/VS-NativePort"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "vagrant-story-playstation",
+          "title": "Vagrant Story (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/JEschete/VS-NativePort/blob/f104d511ca04665edfd6fc74b7216a3220fbe055/README.md",
+            "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/vagrant-story-ps1-vs-nativeport.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

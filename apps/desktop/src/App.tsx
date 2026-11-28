@@ -783,6 +783,15 @@ function useWorkspace(props: WorkspaceProps) {
     () => (data.catalog ? new Set(model.entries.map((port) => port.id)) : undefined),
     [data.catalog, model.entries],
   );
+  const localPortForCanonical = useMemo(
+    () =>
+      new Map(
+        model.entries.flatMap(({ id, listingStatus }) =>
+          listingStatus?.canonical_port_id ? [[listingStatus.canonical_port_id, id] as const] : [],
+        ),
+      ),
+    [model.entries],
+  );
   const {
     close: closePortDetails,
     invalidate: invalidatePortDetails,
@@ -790,7 +799,12 @@ function useWorkspace(props: WorkspaceProps) {
     replace: switchPortDetails,
     opening: detailOpening,
     captureReturn: captureDetailReturn,
-  } = useDetailWorkspaceNavigation(workspace, setSelectedId, availablePortIds);
+  } = useDetailWorkspaceNavigation(
+    workspace,
+    setSelectedId,
+    availablePortIds,
+    localPortForCanonical,
+  );
   useStartupPlayRequest({
     ready: Boolean(data.catalog),
     entries: model.entries,
@@ -1103,6 +1117,7 @@ function useWorkspace(props: WorkspaceProps) {
       <OfficialDefinitionUpdates
         portId={model.entry.id}
         portName={model.entry.name}
+        expectedSetupId={model.entry.officialSetupId}
         generation={bootstrap.generation}
         busy={Boolean(operations.busy)}
         perform={operations.perform}

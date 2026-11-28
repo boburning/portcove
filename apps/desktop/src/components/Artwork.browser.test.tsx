@@ -31,7 +31,7 @@ const thumbnailPng =
 
 let container: HTMLDivElement, root: RenderResult;
 
-async function render(portId = "sample", generation = 7, imageId = "") {
+async function render(portId = "sample", generation = 7, imageId = "", includeUnrelated = false) {
   const port = {
     ...portDefinition(),
     id: portId,
@@ -58,8 +58,23 @@ async function render(portId = "sample", generation = 7, imageId = "") {
       },
     ],
   };
+  const unrelated: PortListing = {
+    id: "unrelated",
+    name: "Unrelated project",
+    summary: "An upstream project.",
+    project_url: "https://example.com/unrelated",
+    platforms: [],
+    availability: "unknown",
+  };
   await root.rerender(
-    <ArtworkProvider generation={generation} catalog={catalog}>
+    <ArtworkProvider
+      generation={generation}
+      catalog={catalog}
+      listings={{
+        format_version: 1,
+        listings: includeUnrelated ? [unrelated] : [],
+      }}
+    >
       <h2>{port.name}</h2>
       <div style={{ display: "grid", width: 192, height: 256 }}>
         <ArtworkImage port={port} />
@@ -280,6 +295,37 @@ describe("local artwork controls", () => {
       },
     };
   }
+
+  it("reviews a Cover selected after another listing changes while the picker is open", async () => {
+    let finish!: (path: string) => void;
+    const choose = vi
+      .mocked(picker.pickArtworkPath)
+      .mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    const preview = vi.mocked(desktopApi.previewLocalArtwork).mockResolvedValueOnce(reviewedImage);
+    const save = vi
+      .spyOn(desktopApi, "importArtwork")
+      .mockResolvedValue(artworkState("sample", "cover", 1, true));
+    await render("sample", 7, "old-cover");
+    await open();
+    await expect.element(page.elementLocator(button("cover", "Choose local image"))).toBeEnabled();
+    await click("cover", "Choose local image");
+    expect(choose).toHaveBeenCalledOnce();
+    expect(preview).not.toHaveBeenCalled();
+
+    await render("sample", 7, "old-cover", true);
+    await act(async () => finish("E:/owned.png"));
+    expect(preview).toHaveBeenCalledExactlyOnceWith("sample", "E:/owned.png", 7);
+    expect(save).not.toHaveBeenCalled();
+    await applyImageReview("cover");
+    expect(save).toHaveBeenCalledExactlyOnceWith(
+      "sample",
+      "cover",
+      "E:/owned.png",
+      0,
+      7,
+      imageBinding,
+    );
+  });
 
   it("retains a local Background preview across a catalog refresh of the same choice", async () => {
     const { save, refreshCatalog, finishPreview } = await startBackgroundPreview();
@@ -645,6 +691,46 @@ describe("local artwork controls", () => {
     },
   );
 
+  it.each(["picker", "close"] as const)(
+    "keeps focus ownership when a later artwork read temporarily disables the picker (%s)",
+    async (expectedFocus) => {
+      const committed = artworkState("sample", "cover", 1, true);
+      let coverRead: ArtworkState | Promise<ArtworkState> = artworkState("sample", "cover");
+      vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+        slot === "cover" ? coverRead : artworkState(port, slot),
+      );
+      vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+      const save = vi.spyOn(desktopApi, "importArtwork").mockResolvedValue(committed);
+      await render("sample", 7, "cover");
+      await open();
+      await chooseAndApplyLocal("cover");
+      const pickerControl = page.elementLocator(button("cover", "Choose local image"));
+      await expect.element(pickerControl).toHaveFocus();
+
+      let finishRead!: (result: ArtworkState) => void;
+      coverRead = new Promise((resolve) => (finishRead = resolve));
+      await render("sample", 7, "cover", true);
+      await expect.element(pickerControl).toBeDisabled();
+      const close = page
+        .getByRole("dialog", { name: "Change artwork", exact: true })
+        .getByRole("button", { name: "Close", exact: true });
+      await expect.poll(() => document.activeElement).toBe(document.body);
+      if (expectedFocus === "close") (close.element() as HTMLButtonElement).focus();
+
+      await act(async () => finishRead(committed));
+      await expect.element(pickerControl).toBeEnabled();
+      await expect.element(expectedFocus === "close" ? close : pickerControl).toHaveFocus();
+      expect(save).toHaveBeenCalledExactlyOnceWith(
+        "sample",
+        "cover",
+        "E:/owned.png",
+        0,
+        7,
+        imageBinding,
+      );
+    },
+  );
+
   it("lets players cancel a hide and refuses a staged choice after its revision changes", async () => {
     let state = artworkState("sample", "cover", 1, true);
     vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
@@ -743,11 +829,12 @@ describe("local artwork controls", () => {
     expect(reset).not.toHaveBeenCalled();
   });
 
-  it("waits for a pre-commit replacement-cache read and then reads the committed choice", async () => {
+  it("confirms Apply while holding replacement-cache controls for the committed read", async () => {
     const showArtwork = controlledArtworkVisibility();
     let state = artworkState("sample", "cover");
     let reads = 0;
     let deferReplacement = false;
+    let readCommittedChoice = false;
     let finishRead!: (value: ArtworkState) => void;
     vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) => {
       if (slot !== "cover") return artworkState(port, slot);
@@ -756,12 +843,24 @@ describe("local artwork controls", () => {
         deferReplacement = false;
         return new Promise((resolve) => (finishRead = resolve));
       }
+      readCommittedChoice = state.choice.revision === 1;
       return state;
     });
     let finishChange!: (value: ArtworkState) => void;
     const change = vi
       .spyOn(desktopApi, "importArtwork")
       .mockReturnValue(new Promise((resolve) => (finishChange = resolve)));
+    let finishThumbnail!: () => void;
+    vi.mocked(desktopApi.artworkThumbnail).mockImplementation(async (port, slot, revision) => {
+      const thumbnail = {
+        asset_sha256: "a".repeat(64),
+        choice_revision: revision,
+        png_base64: thumbnailPng,
+      };
+      if (readCommittedChoice && port === "sample" && slot === "cover" && revision === 1)
+        await new Promise<void>((resolve) => (finishThumbnail = resolve));
+      return thumbnail;
+    });
     vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
     await render("sample", 7, "old-cover");
     await act(async () => showArtwork());
@@ -777,9 +876,14 @@ describe("local artwork controls", () => {
     state = artworkState("sample", "cover", 1, true);
     await act(async () => finishChange(state));
     expect(button("cover", "Choose local image").disabled).toBe(true);
-    expect(container.textContent).not.toContain("Local image selected.");
+    await expect.element(page.getByText("Local image selected.", { exact: true })).toBeVisible();
+    expect(finishThumbnail).toBeUndefined();
     await act(async () => finishRead(preCommit));
     expect(reads).toBe(readsBefore + 2);
+    await expect.poll(() => typeof finishThumbnail).toBe("function");
+    expect(button("cover", "Choose local image").disabled).toBe(false);
+    expect(button("cover", "Use automatic").disabled).toBe(false);
+    await act(async () => finishThumbnail());
     await expect
       .poll(() => container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource)
       .toBe("local_import");
@@ -850,6 +954,7 @@ describe("local artwork controls", () => {
         }),
       );
       const change = vi.spyOn(desktopApi, "importArtwork");
+      const preview = vi.spyOn(desktopApi, "previewLocalArtwork");
       await render("sample", 7, "cover-a");
       await open();
       await click("cover", "Choose local image");
@@ -863,6 +968,7 @@ describe("local artwork controls", () => {
         else finish(result === "select" ? "E:/obsolete.png" : null);
       });
       expect(change).not.toHaveBeenCalled();
+      expect(preview).not.toHaveBeenCalled();
       expect(container.textContent).not.toContain("Local image selected.");
       expect(container.textContent).not.toContain("Obsolete picker failed.");
       expect(button("cover", "Choose local image").disabled).toBe(false);

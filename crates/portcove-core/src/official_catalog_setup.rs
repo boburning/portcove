@@ -87,6 +87,22 @@ pub(crate) fn official_definition_id<'a>(
     Ok(port_id)
 }
 
+pub(crate) fn reviewed_setup_game<'a>(
+    catalog: &'a crate::Catalog,
+    listing_id: &str,
+    expected_setup_id: &str,
+) -> Result<&'a str> {
+    let listing = catalog.listing(listing_id)?;
+    listing
+        .original_game
+        .as_ref()
+        .filter(|_| listing.official_setup_id.as_deref() == Some(expected_setup_id))
+        .map(|game| game.id.as_str())
+        .ok_or_else(|| {
+            PortcoveError::conflict("this listing's setup choice changed; read the catalog again")
+        })
+}
+
 fn setup_plan(authority_plan: &str, source: &[u8]) -> Result<String> {
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
         "official-catalog-setup-v1",
@@ -425,6 +441,27 @@ impl PortcoveService {
             compiled_profile()?,
         )?;
         self.refresh_definition(&source, stable_id, emit).await
+    }
+
+    /// Follow one current reviewed listing link to the appointed official source.
+    /// This checks availability for a separate definition; the listing keeps its
+    /// own ID, external registrations and acquisition restrictions.
+    pub async fn refresh_linked_official_setup(
+        &self,
+        listing_id: &str,
+        expected_setup_id: &str,
+        emit: impl FnMut(crate::OperationEvent),
+    ) -> Result<crate::DefinitionRefresh> {
+        let original_game_id = reviewed_setup_game(self.catalog(), listing_id, expected_setup_id)?;
+        let source = official_repository_source()?;
+        ensure_enabled(
+            self.library(),
+            COMPILED_ROOT,
+            COMPILED_SOURCE,
+            compiled_profile()?,
+        )?;
+        self.refresh_definition_for_game(&source, expected_setup_id, original_game_id, emit)
+            .await
     }
 }
 

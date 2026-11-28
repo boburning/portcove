@@ -21,6 +21,7 @@ import {
   runCatalogUpstreams,
   runCatalogOpportunity,
   hostedHandoffByteLimit,
+  omitOversizedBindingInputs,
   retireObserverConfigurations,
 } from "./observe-catalog-upstreams.mts";
 import {
@@ -41,6 +42,7 @@ import type {
   CatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
 import {
+  configuredCandidateObserverConfig,
   observationHash,
   reusableProviderObservation,
   validateObserverConfig,
@@ -2993,7 +2995,96 @@ void test("measured quiet activity defers inside freshness and catalog changes r
   assert.equal(reset.mean_change_interval_ms, null);
 });
 
-void test("legacy artifact retains its original report shape while shared ports get separate catalog policies", async (t) => {
+void test("configured coverage rolls forward only after saving its scoped checkpoint", async (t) => {
+  const h = harness();
+  const baseline = await advanceCatalogObservations(h.input, null, h.options);
+  const source = catalogObservationSources(h.input).sources.find(
+    (candidate) => candidate.repository === "owner/shared",
+  )!;
+  const legacy = validateObserverConfig({
+    ...h.options.config,
+    port_id: "stable-port",
+    repository: source.repository,
+    repository_id: 7,
+  });
+  const full = await advanceObservation(legacy, null, {
+    now: h.options.now!,
+    fetch: h.options.fetch!,
+    project: (observation) => h.options.project(legacy.port_id, legacy.repository_id, observation),
+  });
+  assert.equal(full.report.exception, null);
+  const oldHash = observationHash(legacy);
+  const scoped = configuredCandidateObserverConfig(legacy);
+  const scopedHash = observationHash(scoped);
+  h.states.set(oldHash, structuredClone(full.checkpoint));
+  const progress = baseline.checkpoint.sources[source.key]!;
+  progress.current_config = legacy;
+  progress.last_complete_config = legacy;
+  progress.completed_at = full.report.last_complete_at;
+  progress.freshness_observed_at = full.report.freshness_observed_at;
+  progress.last_complete_facts_sha256 = full.report.observation!.facts_sha256;
+  h.advanceClock(7 * 3600000);
+  const options: CatalogObservationOptions = {
+    ...h.options,
+    config: legacy,
+    excludedSources: new Set(
+      catalogObservationSources(h.input)
+        .sources.filter(({ key }) => key !== source.key)
+        .map(({ key }) => key),
+    ),
+    commit: async (checkpoint) => {
+      const current = checkpoint.sources[source.key]?.current_config;
+      if (current) assert.ok(h.states.has(observationHash(current)));
+    },
+  };
+  const blocked = await advanceCatalogObservations(h.input, baseline.checkpoint, {
+    ...options,
+    withSourceLock: async () => {
+      throw new Error("fixture lock unavailable");
+    },
+  });
+  assert.deepEqual(blocked.checkpoint.sources[source.key]!.current_config, legacy);
+  assert.equal(h.states.has(scopedHash), false);
+
+  const partial = await advanceCatalogObservations(h.input, blocked.checkpoint, {
+    ...options,
+    requestLimit: 1,
+  });
+  const retained = partial.checkpoint.sources[source.key]!;
+  assert.deepEqual(retained.current_config, scoped);
+  assert.deepEqual(retained.last_complete_config, legacy);
+  assert.equal(retained.freshness_observed_at, full.report.freshness_observed_at);
+  assert.ok(retained.retired_configs.some((config) => observationHash(config) === oldHash));
+
+  h.tick();
+  const completed = await advanceCatalogObservations(h.input, partial.checkpoint, options);
+  const current = completed.checkpoint.sources[source.key]!;
+  assert.deepEqual(current.last_complete_config, scoped);
+  assert.notEqual(current.freshness_observed_at, full.report.freshness_observed_at);
+  assert.equal(current.change_intervals, retained.change_intervals);
+  assert.deepEqual(h.states.get(oldHash), full.checkpoint);
+
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "configured-standalone-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const standalone = path.join(root, "work/upstream-observer", oldHash, "checkpoint.json");
+  await mkdir(path.dirname(standalone), { recursive: true });
+  await writeFile(standalone, JSON.stringify(full.checkpoint));
+  const statePath = path.join(root, "work/upstream-observer/catalog/checkpoint.json");
+  await retireObserverConfigurations(
+    root,
+    statePath,
+    completed.checkpoint,
+    Infinity,
+    h.options.now,
+    legacy,
+  );
+  assert.deepEqual(JSON.parse(await readFile(standalone, "utf8")), full.checkpoint);
+  assert.ok(!current.retired_configs.some((config) => observationHash(config) === oldHash));
+});
+
+void test("configured artifact is staged separately and uses Core-selected coverage", async (t) => {
   const work = fileURLToPath(new URL("../work/", import.meta.url));
   await mkdir(work, { recursive: true });
   const root = await mkdtemp(path.join(work, "catalog-legacy-test-"));
@@ -3031,18 +3122,25 @@ void test("legacy artifact retains its original report shape while shared ports 
       h.options.project(source.port_id, source.repository_id, observation),
   });
   assert.equal(result.notify_exception, false);
+  await assert.rejects(
+    readFile(path.join(root, "work/upstream-observer", observationHash(legacy), "report.json")),
+    { code: "ENOENT" },
+  );
   const legacyReport = JSON.parse(
-    await readFile(
-      path.join(root, "work/upstream-observer", observationHash(legacy), "report.json"),
-      "utf8",
-    ),
+    await readFile(path.join(root, "work/upstream-observer-configured/report.json"), "utf8"),
   ) as Record<string, unknown>;
-  assert.equal(legacyReport.config_sha256, observationHash(legacy));
+  const scoped = configuredCandidateObserverConfig(legacy);
+  assert.equal(legacyReport.config_sha256, observationHash(scoped));
+  assert.ok(isRecord(legacyReport.observation));
+  assert.equal(legacyReport.observation.format, 2);
+  assert.equal(legacyReport.observation.config_sha256, observationHash(scoped));
+  assert.ok(isRecord(legacyReport.observation.coverage));
+  assert.equal(legacyReport.observation.coverage.complete_release_headers, true);
   assert.equal(Object.hasOwn(legacyReport, "catalog_policies"), false);
   assert.equal(Object.hasOwn(legacyReport, "source_port_ids"), false);
   assert.deepEqual(legacyReport.unmonitored_port_ids, ["rolling-port"]);
   const handoff = JSON.parse(
-    await readFile(path.join(result.handoff_directory, `${observationHash(legacy)}.json`), "utf8"),
+    await readFile(path.join(result.handoff_directory, `${observationHash(scoped)}.json`), "utf8"),
   ) as Record<string, unknown>;
   assert.ok(Array.isArray(handoff.catalog_policies) && handoff.catalog_policies.length === 2);
   assert.equal(Object.hasOwn(handoff, "unmonitored_port_ids"), false);
@@ -3337,6 +3435,57 @@ void test("known changed partial provider facts cannot be replaced by an older f
     Object.values(first.checkpoint.sources).find((source) => source.repository === "owner/other")!
       .last_complete_facts_sha256,
   );
+});
+
+void test("offline policy leaves a configured source's interrupted continuation intact", async () => {
+  const h = harness();
+  h.input.ports = h.input.ports.slice(0, 2);
+  const [source] = catalogObservationSources(h.input).sources;
+  assert.ok(source);
+  const options = {
+    ...h.options,
+    config: validateObserverConfig({
+      ...h.options.config,
+      port_id: "stable-port",
+      repository: "owner/shared",
+      repository_id: 7,
+    }),
+  };
+  const first = await advanceCatalogObservations(h.input, null, options);
+  assert.deepEqual(first.report.completed_source_keys, [source.key]);
+  const progress = first.checkpoint.sources[source.key]!;
+  assert.equal(progress.exception_key, null);
+  assert.equal(progress.selection_progress?.binding, progress.completed_scope_sha256);
+  const [, config, initial] = h.exported[0]!;
+  const stored = structuredClone(initial.checkpoint);
+  const cache = stored.last_complete!.cache as {
+    pages: NonNullable<typeof stored.continuation>["pages"];
+  };
+  const [url, page] = Object.entries(cache.pages)[0]!;
+  stored.continuation = {
+    format: 1,
+    config_sha256: observationHash(config),
+    started_at: first.report.generated_at,
+    phase: "collect",
+    pages: { [url]: page },
+    validation_cursor: 0,
+    first_validated_at: null,
+    last_validated_at: null,
+    validation_order_sha256: null,
+    consumed: { requests: 1, response_bytes: 1, conditional_hits: 0 },
+  };
+  h.states.set(observationHash(config), stored);
+  const requests = h.network.length;
+  const resumed = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...options,
+    policyIdentity: "b".repeat(64),
+    offlinePolicyOnly: true,
+  });
+  assert.deepEqual(h.states.get(observationHash(config)), stored);
+  assert.deepEqual(resumed.report.failures, []);
+  assert.deepEqual(resumed.report.pending_source_keys, [source.key]);
+  assert.deepEqual(resumed.report.completed_source_keys, []);
+  assert.equal(h.network.length, requests);
 });
 
 void test("a Core executable changed during projection cannot publish a completed source scope", async (t) => {
@@ -3699,6 +3848,72 @@ void test("hosted opportunity hands each batch only its remaining request allowa
   assert.deepEqual(result.report.pending_source_keys, ["large"]);
 });
 
+void test("hosted opportunity leaves one zero-request turn for retained policy", async () => {
+  const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
+  const limits: number[] = [];
+  const result = await continueCatalogBatches(
+    async (_, allowance) => {
+      limits.push(allowance);
+      return {
+        report: {
+          pending_source_keys: ["still-due"],
+          attempted_source_keys: allowance > 0 ? ["provider"] : ["retained"],
+          completed_source_keys: allowance > 0 ? ["provider"] : ["retained"],
+          requests: allowance,
+          response_bytes_charged: allowance * 100,
+          failures: [],
+          unknown_response_size_requests: allowance > 0 ? 2 : 0,
+          provider_capacity:
+            allowance > 0
+              ? { availability: "observed", remaining: 35 }
+              : { availability: "unknown" },
+        },
+        made_progress: true,
+        handoff_exhausted: false,
+        notify_exception: false,
+      };
+    },
+    { deadline: 100, now: () => 0, maxRequests: 5, finishOffline: true },
+  );
+  assert.deepEqual(limits, [5, 0]);
+  assert.equal(result.report.requests, 5);
+  assert.equal(result.report.response_bytes_charged, 500);
+  assert.equal(result.report.unknown_response_size_requests, 2);
+  assert.deepEqual(result.report.provider_capacity, { availability: "observed", remaining: 35 });
+  assert.deepEqual(result.report.completed_source_keys, ["provider", "retained"]);
+});
+
+void test("a later provider batch with unreported capacity supersedes the earlier sample", async () => {
+  const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
+  const limits: number[] = [];
+  const result = await continueCatalogBatches(
+    async (_, allowance) => {
+      limits.push(allowance);
+      return {
+        report: {
+          pending_source_keys: ["still-due"],
+          attempted_source_keys: [],
+          completed_source_keys: [],
+          requests: Math.min(5, allowance),
+          response_bytes_charged: 0,
+          failures: [],
+          provider_capacity:
+            allowance === 10
+              ? { availability: "observed", remaining: 35 }
+              : { availability: "unknown" },
+        },
+        made_progress: true,
+        handoff_exhausted: false,
+        notify_exception: false,
+      };
+    },
+    { deadline: 100, now: () => 0, maxRequests: 10, finishOffline: true },
+  );
+  assert.deepEqual(limits, [10, 5, 0]);
+  assert.equal(result.report.requests, 10);
+  assert.deepEqual(result.report.provider_capacity, { availability: "unknown" });
+});
+
 void test("opportunity refuses unknown capacity and stops on no accepted progress, byte exhaustion, deadline and cancellation", async () => {
   const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
   const batch = {
@@ -3807,6 +4022,34 @@ void test("accepted checkpoint advancement ignores request counts, clocks, clear
     false,
   );
   assert.equal(advanced(a, position({ continuation: { pages: { a: {}, b: {} } } })), true);
+  const preflight = {
+    phase: "collect",
+    started_at: "2026-11-27T00:00:00Z",
+    pages: { a: {}, b: {} },
+    validation_cursor: 0,
+    tentative_pages: ["a", "b"],
+  };
+  const preflightStart = position({ continuation: preflight });
+  assert.equal(
+    advanced(preflightStart, position({ continuation: { ...preflight, tentative_pages: ["b"] } })),
+    true,
+  );
+  assert.equal(
+    advanced(
+      preflightStart,
+      position({ continuation: { ...preflight, tentative_pages: [], phase: "restart" } }),
+    ),
+    false,
+  );
+  assert.equal(
+    advanced(
+      preflightStart,
+      position({
+        continuation: { ...preflight, tentative_pages: [], started_at: "2026-11-27T00:01:00Z" },
+      }),
+    ),
+    false,
+  );
   // Changed last-good facts advance only without a stated incomplete coverage.
   const facts = (sha: string, kind?: string) =>
     position({
@@ -4212,6 +4455,23 @@ void test("Core rebuilds retain pure listing completion and invalidate exact man
   }
   const pureProgress = first.checkpoint.sources[pure.key]!;
   assert.ok(pureProgress.completed_scope_sha256);
+  const initialInputs = first.report.scope_binding_inputs;
+  const managedSource = managed[0]!;
+  const definitionSet = managedSource.ports.map((port) => [
+    port.id,
+    port.kind === "listing" ? port.definition_sha256 : h.options.definitionHash(port.id),
+  ]);
+  assert.equal(initialInputs.core_executable_sha256, h.options.policyIdentity);
+  assert.equal(initialInputs.listing_stale_after_hours, h.options.config.stale_after_hours);
+  assert.deepEqual(initialInputs.sources[managedSource.key], {
+    contract: "normalized-current-catalog-core-policy-v1",
+    provider_proof: null,
+    source_sha256: managedSource.scope_sha256,
+    definitions_sha256: observationHash(definitionSet),
+    current_sha256: previousBinding(managedSource),
+    retained_sha256: previousBinding(managedSource),
+  });
+  assert.equal(initialInputs.sources[pure.key]?.definitions_sha256, null);
   assert.equal(
     pureProgress.last_complete_policies[0]!.authority,
     "descriptive-listing-observation-only",
@@ -4219,6 +4479,55 @@ void test("Core rebuilds retain pure listing completion and invalidate exact man
   assert.deepEqual(pureProgress.last_complete_policies[0]!.projections, []);
 
   h.advanceClock(1000);
+  const held = await advanceCatalogObservations(catalog, structuredClone(first.checkpoint), {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    excludedSources: new Set(sources.map(({ key }) => key)),
+  });
+  const heldInputs = held.report.scope_binding_inputs;
+  assert.equal(heldInputs.core_executable_sha256, "b".repeat(64));
+  assert.deepEqual(heldInputs.sources[pure.key], initialInputs.sources[pure.key]);
+  assert.deepEqual(heldInputs.sources[managedSource.key], {
+    ...initialInputs.sources[managedSource.key],
+    current_sha256: previousBinding(managedSource, "b".repeat(64)),
+  });
+
+  const outdatedClock = new Date(
+    Date.parse(first.report.generated_at) - 13 * 3600000,
+  ).toISOString();
+  const offlineInput = structuredClone(first.checkpoint);
+  const expired = managed[1]!;
+  offlineInput.sources[expired.key]!.freshness_observed_at = outdatedClock;
+  const requestCount = h.network.length;
+  const stored = structuredClone(h.states);
+  const missing = await advanceCatalogObservations(catalog, offlineInput, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    offlinePolicyOnly: true,
+    load: async () => null,
+  });
+  assert.deepEqual(h.states, stored);
+  assert.deepEqual(missing.report.completed_source_keys, []);
+  assert.deepEqual(missing.report.failures, []);
+  assert.ok(missing.report.pending_source_keys.includes(managedSource.key));
+  assert.equal(missing.report.requests, 0);
+  assert.equal(h.network.length, requestCount);
+  const offline = await advanceCatalogObservations(catalog, offlineInput, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    offlinePolicyOnly: true,
+  });
+  assert.equal(offline.report.requests, 0);
+  assert.equal(h.network.length, requestCount);
+  assert.deepEqual(offline.report.failures, []);
+  assert.deepEqual(offline.report.completed_source_keys, [managedSource.key]);
+  assert.equal(
+    offline.checkpoint.sources[managedSource.key]!.freshness_observed_at,
+    first.checkpoint.sources[managedSource.key]!.freshness_observed_at,
+  );
+  assert.deepEqual(offline.checkpoint.sources[expired.key], offlineInput.sources[expired.key]);
+  assert.deepEqual(offline.checkpoint.sources[pure.key], pureProgress);
+
   const rebuilt = await advanceCatalogObservations(catalog, first.checkpoint, {
     ...h.options,
     policyIdentity: "b".repeat(64),
@@ -4231,6 +4540,24 @@ void test("Core rebuilds retain pure listing completion and invalidate exact man
     managed.map(({ key }) => key).toSorted(),
   );
   assert.deepEqual(rebuilt.checkpoint.sources[pure.key], pureProgress);
+
+  const officialSetupOnly = {
+    ...catalog,
+    listings: catalog.listings.map((listing) =>
+      listing.id === "pure-description"
+        ? { ...listing, official_setup_id: "reviewed-setup" }
+        : listing,
+    ),
+  };
+  const withSetup = await advanceCatalogObservations(officialSetupOnly, rebuilt.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    requestLimit: 0,
+  });
+  assert.deepEqual(withSetup.report.attempted_source_keys, []);
+  assert.equal(withSetup.report.requests, 0);
+  assert.deepEqual(withSetup.checkpoint.sources[pure.key], pureProgress);
+
   for (const source of managed) {
     assert.equal(
       rebuilt.checkpoint.sources[source.key]!.completed_scope_sha256,
@@ -4295,6 +4622,15 @@ void test("Core rebuilds retain pure listing completion and invalidate exact man
     refreshed.checkpoint.sources[pure.key]!.freshness_observed_at,
     new Date(h.options.now!()).toISOString(),
   );
+});
+
+void test("binding diagnostics fit the summary budget without removing source coverage", () => {
+  const summary = { source_statuses: ["source"], scope_binding_inputs: { value: "入力" } };
+  const bytes = Buffer.byteLength(JSON.stringify(summary));
+  assert.deepEqual(omitOversizedBindingInputs(summary, bytes), summary);
+  assert.deepEqual(omitOversizedBindingInputs(summary, bytes - 1), {
+    source_statuses: ["source"],
+  });
 });
 
 void test("descriptive projection retains asset identity without manufacturing package or managed eligibility", async () => {
@@ -5619,4 +5955,359 @@ void test("a non-quota GitLab 403 is a failed rejection that notifies and is not
     assert.ok(g.requests() > before);
     assert.equal(next.notify_exception, false, "the same exception notifies only once");
   }
+});
+
+void test("first-party mod observation shares the opportunity budget and retains last success on outage", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    ports: h.input.ports.map((port) =>
+      port.id === "other-port" ? { ...port, source_profile: "fixture-disc" } : port,
+    ),
+    listings: [
+      {
+        id: "other-port",
+        project_url: "https://github.com/owner/other",
+        original_game: { source_editions: [{ system: "nintendo-gamecube" }] },
+      },
+    ],
+    source_catalog: {
+      contracts: [
+        {
+          port_id: "other-port",
+          role: "game",
+          admission_mode: "enforced",
+          profile_id: "fixture-disc",
+          supported_variant_ids: ["usa", "europe"],
+        },
+      ],
+      identities: [
+        {
+          id: "fixture-disc",
+          variants: [
+            { id: "usa", product_codes: ["GPIE01"] },
+            { id: "europe", product_codes: ["GPIP01"] },
+          ],
+        },
+      ],
+    },
+  };
+  const first = await advanceCatalogObservations(input, null, h.options);
+  const proof = {
+    state: "observed" as const,
+    repository_id: 8,
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+    blob: "c".repeat(40),
+    manifest_sha256: "d".repeat(64),
+    game_input_ids: ["GPIE01", "GPIP01"],
+    mod_portals: [
+      {
+        id: "upstream-gamebanana",
+        site: "community_site" as const,
+        name: "GameBanana",
+        url: "https://gamebanana.com/games/123",
+        instructions: "The upstream project lists this community. Follow its setup instructions.",
+      },
+    ],
+  };
+  const modResults = [
+    proof,
+    { state: "unavailable", reason: "provider-outage" },
+    { ...proof, game_input_ids: ["GPIE01", "GPI"] },
+  ] satisfies Awaited<ReturnType<NonNullable<CatalogObservationOptions["observeLauncherMods"]>>>[];
+  let reads = 0;
+  h.options.observeLauncherMods = async (repository, account) => {
+    assert.deepEqual(repository, { id: 8, slug: "owner/other" });
+    account.admitRequest();
+    account.observeResponse(new Response());
+    account.consumeResponseBytes(18);
+    reads++;
+    return modResults.shift()!;
+  };
+  h.options.launcherModRequestLimit = 3;
+  const deferred = await advanceCatalogObservations(input, first.checkpoint, h.options);
+  assert.equal(reads, 0);
+  assert.deepEqual(deferred.report.launcher_mod_sources, {
+    enrolled: 1,
+    due: 1,
+    attempted: 0,
+    complete: 0,
+    deferred: 1,
+    requests: 0,
+  });
+  h.options.launcherModRequestLimit = 4;
+  const observed = await advanceCatalogObservations(input, deferred.checkpoint, h.options);
+  assert.equal(reads, 1);
+  assert.equal(observed.report.launcher_mod_sources?.requests, 1);
+  assert.equal(observed.report.launcher_mod_sources?.complete, 1);
+  const row = observed.checkpoint.launcher_mod_sources?.["other-port"];
+  assert.equal(row?.outcome, "observed");
+  assert.deepEqual(row?.last_complete?.result, proof);
+  assert.deepEqual(
+    validateCatalogObserverCheckpoint(
+      decodeStoredObserverCheckpoint(
+        encodeStoredObserverCheckpoint(observed.checkpoint),
+        h.options.now!() + 1000,
+        h.options.now,
+      ),
+      h.options.now!(),
+    ).launcher_mod_sources,
+    observed.checkpoint.launcher_mod_sources,
+  );
+  const replay = await advanceCatalogObservations(input, observed.checkpoint, h.options);
+  assert.equal(reads, 1);
+  h.advanceClock(24 * 3600000);
+  const outage = await advanceCatalogObservations(input, replay.checkpoint, h.options);
+  assert.equal(reads, 2);
+  assert.equal(outage.report.launcher_mod_sources?.complete, 0);
+  assert.equal(outage.checkpoint.launcher_mod_sources?.["other-port"]?.outcome, "unavailable");
+  assert.deepEqual(
+    outage.checkpoint.launcher_mod_sources?.["other-port"]?.last_complete,
+    row?.last_complete,
+  );
+  h.advanceClock(24 * 3600000);
+  const conflicting = await advanceCatalogObservations(input, outage.checkpoint, h.options);
+  assert.equal(reads, 3);
+  assert.equal(conflicting.report.launcher_mod_sources?.complete, 0);
+  const held = conflicting.checkpoint.launcher_mod_sources?.["other-port"];
+  assert.equal(held?.outcome, "held");
+  assert.equal(held?.reason, "game-input-scope-conflict");
+  assert.equal(held?.last_complete, undefined);
+});
+
+void test("the observer enrolls a listing-only port using its accepted shared edition", async () => {
+  const h = harness();
+  const original_game = {
+    id: "shared-fixture-original",
+    source_editions: [{ id: "fixture-usa", system: "playstation" }],
+  };
+  const input = {
+    ports: h.input.ports.flatMap((port) => {
+      if (port.id === "other-port") return [];
+      return [port.id === "held-port" ? { ...port, source_profile: "fixture-disc" } : port];
+    }),
+    listings: [
+      { id: "held-port", original_game },
+      { id: "other-port", project_url: "https://github.com/owner/other", original_game },
+    ],
+    source_catalog: {
+      contracts: [
+        {
+          port_id: "held-port",
+          role: "game",
+          admission_mode: "enforced",
+          profile_id: "fixture-disc",
+          supported_variant_ids: ["usa"],
+        },
+      ],
+      identities: [
+        {
+          id: "fixture-disc",
+          variants: [{ id: "usa", product_codes: ["SLUS-01212"] }],
+        },
+      ],
+    },
+  };
+  const first = await advanceCatalogObservations(input, null, h.options);
+  const visits: number[] = [];
+  h.options.launcherModRequestLimit = 4;
+  h.options.observeLauncherMods = async (repo, account) => {
+    account.admitRequest();
+    visits.push(repo.id);
+    return {
+      state: "absent",
+      repository_id: repo.id,
+      commit: "a".repeat(40),
+      tree: "b".repeat(40),
+    };
+  };
+  const assessment = await advanceCatalogObservations(input, first.checkpoint, h.options);
+  assert.deepEqual(visits, [8]);
+  assert.equal(assessment.report.launcher_mod_sources?.enrolled, 1);
+  const old = assessment.checkpoint.launcher_mod_sources?.["other-port"];
+  assert.equal(old?.outcome, "absent");
+  const corrected = structuredClone(input);
+  corrected.source_catalog.identities[0]!.variants[0]!.product_codes = ["SLUS-03434"];
+  const reassessed = await advanceCatalogObservations(corrected, assessment.checkpoint, h.options);
+  assert.deepEqual(visits, [8, 8]);
+  assert.notEqual(
+    reassessed.checkpoint.launcher_mod_sources?.["other-port"]?.binding,
+    old?.binding,
+  );
+});
+
+void test("first-party due work reserves a share for missing scopes and follows the oldest lane with one slot", async () => {
+  const { selectLauncherModWork } = await import("./upstream-launcher-mod-progress.mts");
+  const reviewed = ["old-reviewed", "new-reviewed", "later-reviewed", "last-reviewed"];
+  const unresolved = ["old-unresolved", "new-unresolved", "later-unresolved"];
+  assert.deepEqual(selectLauncherModWork(reviewed, unresolved, 0, "", ""), []);
+  assert.deepEqual(selectLauncherModWork(reviewed, unresolved, 1, "", ""), ["old-reviewed"]);
+  assert.deepEqual(selectLauncherModWork(reviewed, unresolved, 1, "2026-11-27T00:00:00Z", ""), [
+    "old-unresolved",
+  ]);
+  assert.deepEqual(selectLauncherModWork(reviewed, unresolved, 4, "", ""), [
+    "old-reviewed",
+    "new-reviewed",
+    "later-reviewed",
+    "old-unresolved",
+  ]);
+  assert.deepEqual(selectLauncherModWork([...reviewed, "more-reviewed"], unresolved, 6, "", ""), [
+    ...reviewed,
+    "old-unresolved",
+    "new-unresolved",
+  ]);
+  assert.deepEqual(selectLauncherModWork(reviewed.slice(0, 1), unresolved, 3, "", ""), [
+    "old-reviewed",
+    "old-unresolved",
+    "new-unresolved",
+  ]);
+});
+
+void test("first-party coverage moves past reviewed renewals and retains their reserved slots", async () => {
+  const { recordLauncherModAttempt, selectLauncherModAssessmentWork } =
+    await import("./upstream-launcher-mod-progress.mts");
+  const subjects = (...ids: string[]) => ids.map((port_id) => ({ port_id }));
+  const reviewed = subjects("due-a", "due-b", "due-c", "due-d");
+  const unresolved = subjects("new-a", "new-b", "new-c", "new-d", "new-e");
+  const prior = recordLauncherModAttempt(
+    "same-binding",
+    undefined,
+    { state: "absent", repository_id: 1, commit: "a".repeat(40), tree: "b".repeat(40) },
+    Date.parse("2026-11-27T00:00:00Z"),
+    1000,
+  );
+  const progress = Object.fromEntries(reviewed.map(({ port_id }) => [port_id, prior]));
+  const plan = (limit: number, fresh = unresolved) =>
+    selectLauncherModAssessmentWork(reviewed, fresh, progress, limit, "", "").map(
+      ({ port_id }) => port_id,
+    );
+  assert.deepEqual(plan(6), ["due-a", "new-a", "new-b", "new-c", "new-d", "due-b"]);
+  assert.deepEqual(plan(4), ["due-a", "new-a", "new-b", "new-c"]);
+  assert.deepEqual(plan(3, unresolved.slice(0, 1)), ["due-a", "new-a", "due-b"]);
+  assert.deepEqual(plan(3, []), ["due-a", "due-b", "due-c"]);
+  assert.deepEqual(plan(1), ["due-a"]);
+});
+
+void test("first-party short runs resume from persisted turns and service both classes", async () => {
+  const {
+    recordLauncherModAttempt,
+    selectLauncherModAssessmentWork,
+    validateFirstPartyModProgress,
+  } = await import("./upstream-launcher-mod-progress.mts");
+  const binding = "f".repeat(64);
+  const absent = {
+    state: "absent" as const,
+    repository_id: 1,
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+  };
+  const start = Date.parse("2026-11-27T00:00:00Z");
+  const legacy = recordLauncherModAttempt(binding, undefined, absent, start, 1000);
+  delete legacy.last_attempt_kind;
+  for (const slots of [1, 6]) {
+    const due = ["due-a", "due-b", "due-c"].map((port_id) => ({ port_id }));
+    const fresh = ["fresh-a", "fresh-b", "fresh-c"].map((port_id) => ({ port_id }));
+    let progress = Object.fromEntries(due.map(({ port_id }) => [port_id, legacy]));
+    const attempted = [];
+    for (let cycle = 1; cycle <= 4; cycle++) {
+      const current = start + cycle * 1000;
+      const selected = selectLauncherModAssessmentWork(due, fresh, progress, slots, "", "")[0];
+      assert.ok(selected);
+      const { port_id } = selected;
+      attempted.push(port_id);
+      progress[port_id] = recordLauncherModAttempt(
+        binding,
+        progress[port_id],
+        absent,
+        current,
+        1000,
+      );
+      progress = JSON.parse(JSON.stringify(progress)) as typeof progress;
+      validateFirstPartyModProgress(progress, current);
+      const queue = port_id.startsWith("due-") ? due : fresh;
+      queue.splice(
+        queue.findIndex((subject) => subject.port_id === port_id),
+        1,
+      );
+    }
+    assert.deepEqual(attempted, ["fresh-a", "due-a", "fresh-b", "due-b"]);
+  }
+});
+
+void test("first-party observation retains a missing game scope and reassesses when exact evidence arrives", async () => {
+  const h = harness();
+  const listings = [
+    {
+      id: "other-port",
+      project_url: "https://github.com/owner/other",
+      original_game: {
+        id: "fixture-original",
+        source_editions: [{ id: "fixture-usa", system: "playstation" }],
+      },
+    },
+  ];
+  const input = { ...h.input, listings };
+  const first = await advanceCatalogObservations(input, null, h.options);
+  const proof = {
+    state: "observed" as const,
+    repository_id: 8,
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+    blob: "c".repeat(40),
+    manifest_sha256: "d".repeat(64),
+    game_input_ids: ["SLUS-01212"],
+    mod_portals: [
+      {
+        id: "upstream-gamebanana",
+        site: "community_site" as const,
+        name: "GameBanana",
+        url: "https://gamebanana.com/games/123",
+        instructions: "The upstream project lists this community. Follow its setup instructions.",
+      },
+    ],
+  };
+  let requests = 0;
+  h.options.launcherModRequestLimit = 4;
+  h.options.observeLauncherMods = async (repo, account) => {
+    assert.equal(repo.id, 8);
+    account.admitRequest();
+    requests++;
+    // The parser can produce no accepted portal from a present but unsupported declaration.
+    return requests === 1 ? { ...proof, mod_portals: [] } : proof;
+  };
+  const unproven = await advanceCatalogObservations(input, first.checkpoint, h.options);
+  const held = unproven.checkpoint.launcher_mod_sources?.["other-port"];
+  assert.equal(held?.outcome, "held");
+  assert.equal(held?.reason, "game-input-scope-unproven");
+  assert.equal(held?.last_complete, undefined);
+  assert.equal(requests, 1);
+  const replay = await advanceCatalogObservations(input, unproven.checkpoint, h.options);
+  assert.equal(requests, 1);
+  const known = {
+    ...input,
+    ports: input.ports.map((port) =>
+      port.id === "other-port" ? { ...port, source_profile: "fixture-disc" } : port,
+    ),
+    source_catalog: {
+      identities: [
+        { id: "fixture-disc", variants: [{ id: "usa", product_codes: ["SLUS-01212"] }] },
+      ],
+      contracts: [
+        {
+          port_id: "other-port",
+          role: "game",
+          admission_mode: "enforced",
+          profile_id: "fixture-disc",
+          supported_variant_ids: ["usa"],
+        },
+      ],
+    },
+  };
+  const reassessed = await advanceCatalogObservations(known, replay.checkpoint, h.options);
+  const resolved = reassessed.checkpoint.launcher_mod_sources?.["other-port"];
+  assert.equal(requests, 2);
+  assert.notEqual(resolved?.binding, held?.binding);
+  assert.equal(resolved?.outcome, "observed");
+  assert.deepEqual(resolved?.last_complete?.result, proof);
 });

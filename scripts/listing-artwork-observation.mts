@@ -7,11 +7,21 @@ import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
-import { coverDeclarationScope } from "./listing-artwork-checkpoint.mts";
+import {
+  coverDeclarationScope,
+  legacyCoverDeclarationScope,
+} from "./listing-artwork-checkpoint.mts";
+import {
+  readScheduledGameMediaProposal,
+  scheduledGameMediaFile,
+  scheduledGameMediaLimit,
+} from "./listing-scheduled-game-media.mts";
 import {
   artworkHealthInventory,
   artworkHealthProducer,
+  mediaHealthInventory,
   projectArtworkHealth,
+  projectMediaArtworkHealth,
 } from "./maintenance-artwork-health.mts";
 import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -22,8 +32,10 @@ const workflow = ".github/workflows/maintenance-inventory.yml";
 const prefix = `/repos/${repository}/actions`;
 const runPath = `${prefix}/workflows/maintenance-inventory.yml/runs`;
 const listingsPath = "crates/portcove-core/catalog/listings.json";
-const receiptPath = "cover-artwork-health.json";
-const receiptEvidencePath = `maintenance-report/${receiptPath}`;
+const artworkSources = {
+  cover: { source: "cover-artwork-health", generation: "scheduled-artwork-health" },
+  media: { source: "media-artwork-health", generation: "scheduled-media-health" },
+} as const;
 const evidencePath = "evidence.json";
 const archiveLimit = 8 * 1024 * 1024;
 const memberLimit = 256 * 1024;
@@ -34,7 +46,7 @@ const digest = (value: unknown): value is string =>
 const positive = (value: unknown): value is number =>
   typeof value === "number" && Number.isSafeInteger(value) && value > 0;
 
-interface CoverHealthTransport {
+interface ArtworkHealthTransport {
   read: (path: string) => Promise<unknown>;
   download: (id: number, bytes: number) => Promise<Buffer>;
 }
@@ -47,7 +59,7 @@ function readReviewedAncestor(revision: string, file: string) {
   });
 }
 
-async function hostedTransport(): Promise<CoverHealthTransport> {
+async function hostedTransport(): Promise<ArtworkHealthTransport> {
   const deadline = performance.now() + 60_000;
   const credential = localDeveloperCredential({ deadline });
   let requests = 0;
@@ -63,7 +75,7 @@ async function hostedTransport(): Promise<CoverHealthTransport> {
           url.pathname,
         )),
     reserve() {
-      if (++requests > 5) throw new Error("Cover receipt request budget exceeded");
+      if (++requests > 5) throw new Error("Artwork receipt request budget exceeded");
       return { consumeBytes() {}, settle() {} };
     },
   });
@@ -85,7 +97,7 @@ async function hostedTransport(): Promise<CoverHealthTransport> {
   };
 }
 
-function readReportMembers(archive: Buffer) {
+function readReportMembers(archive: Buffer, allowedPaths?: ReadonlySet<string>) {
   const { entries } = inspectBoundedZip(archive, {
     compressedBytes: archiveLimit,
     expandedBytes: 48 * 1024 * 1024,
@@ -93,33 +105,32 @@ function readReportMembers(archive: Buffer) {
     nameBytes: 128,
     // The successful producer emits this inert report alongside the receipt.
     // It participates in ZIP bounds but is never inflated or interpreted here.
-    allowedPaths: new Set([receiptPath, evidencePath, "report/index.html"]),
-    allowedFilePath: (name) => /^(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:jsonl?|md)$/u.test(name),
+    allowedPaths: allowedPaths ?? new Set([evidencePath, "report/index.html"]),
+    ...(allowedPaths
+      ? {}
+      : {
+          allowedFilePath: (name: string) =>
+            /^(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:jsonl?|md)$/u.test(name),
+        }),
   });
-  function read(name: string) {
+  function read(name: string, maximum = memberLimit) {
     const entry = entries.find((member) => member.name === name);
-    if (!entry || entry.bytes < 1 || entry.bytes > memberLimit)
-      throw new Error("Missing or oversized cover receipt member");
+    if (!entry || entry.bytes < 1 || entry.bytes > maximum)
+      throw new Error("Missing or oversized artwork receipt member");
     const compressed = archive.subarray(entry.data, entry.dataEnd);
     const bytes =
       entry.method === 0
         ? compressed
         : inflateRawSync(compressed, { maxOutputLength: entry.bytes });
     if (bytes.length !== entry.bytes || crc32(bytes) !== entry.crc)
-      throw new Error("Cover receipt member failed its integrity check");
+      throw new Error("Artwork receipt member failed its integrity check");
     return bytes;
   }
-  return {
-    evidence: read(evidencePath),
-    receipt: entries.some((entry) => entry.name === receiptPath) ? read(receiptPath) : null,
-  };
+  return { read, has: (name: string) => entries.some((entry) => entry.name === name) };
 }
 
-/** Authenticate an existing scheduled report as observation evidence only. */
-export async function readHostedCoverHealth(
-  readAncestorFile: (revision: string, file: string) => Buffer = readReviewedAncestor,
-  options: { transport?: CoverHealthTransport; now?: number } = {},
-) {
+type ArtworkReadOptions = { transport?: ArtworkHealthTransport; now?: number };
+async function readRecentArtworkRun(options: ArtworkReadOptions) {
   const now = options.now ?? Date.now();
   const transport = options.transport ?? (await hostedTransport());
   const response = await transport.read(
@@ -130,7 +141,7 @@ export async function readHostedCoverHealth(
     !Array.isArray(response.workflow_runs) ||
     response.workflow_runs.length > 1
   )
-    throw new Error("Invalid scheduled cover run inventory");
+    throw new Error("Invalid scheduled artwork run inventory");
   const run: unknown = response.workflow_runs[0];
   if (run === undefined) return null;
   if (
@@ -149,8 +160,10 @@ export async function readHostedCoverHealth(
     typeof run.run_started_at !== "string" ||
     typeof run.updated_at !== "string"
   )
-    throw new Error("Unbound scheduled cover run");
-  if (run.conclusion !== "success") return null;
+    throw new Error("Unbound scheduled artwork run");
+  // Discovery and restore run alongside collection. Their failure does not
+  // invalidate independently admitted observations in the exact report.
+  if (run.conclusion !== "success" && run.conclusion !== "failure") return null;
   const started = Date.parse(run.run_started_at);
   const completed = Date.parse(run.updated_at);
   if (
@@ -161,114 +174,231 @@ export async function readHostedCoverHealth(
     now - completed > day
   )
     return null;
-  const { id: runId, run_attempt: runAttempt } = run;
+  const { id: runId, run_attempt: runAttempt, head_sha: head } = run;
   const artifacts = await readCompleteRunArtifactInventoryAsync((page) =>
     transport.read(`${prefix}/runs/${runId}/artifacts?per_page=100&page=${page}`),
   );
-  const matches = artifacts.artifacts.filter(
-    (row) => row.name === `maintenance-report-${runId}-${runAttempt}`,
-  );
-  if (!matches.length || (matches.length === 1 && matches[0]!.expired === true)) return null;
-  const artifact = matches[0]!;
-  if (
-    matches.length !== 1 ||
-    !positive(artifact.id) ||
-    !positive(artifact.size_in_bytes) ||
-    artifact.size_in_bytes > archiveLimit ||
-    artifact.expired !== false ||
-    !isRecord(artifact.workflow_run) ||
-    artifact.workflow_run.id !== run.id ||
-    artifact.workflow_run.repository_id !== repositoryId ||
-    artifact.workflow_run.head_repository_id !== repositoryId ||
-    artifact.workflow_run.head_branch !== "main" ||
-    artifact.workflow_run.head_sha !== run.head_sha ||
-    typeof artifact.digest !== "string" ||
-    !/^sha256:[a-f0-9]{64}$/u.test(artifact.digest)
-  )
-    throw new Error("Unbound scheduled cover artifact");
-  const archive = await transport.download(artifact.id, artifact.size_in_bytes);
-  if (archive.length !== artifact.size_in_bytes || `sha256:${hash(archive)}` !== artifact.digest)
-    throw new Error("Scheduled cover artifact digest differs");
-  const { evidence, receipt } = readReportMembers(archive);
-  const recorded: unknown = JSON.parse(evidence.toString("utf8"));
+  async function download(stem: string) {
+    const matches = artifacts.artifacts.filter(
+      (row) => row.name === `${stem}-${runId}-${runAttempt}`,
+    );
+    if (!matches.length || (matches.length === 1 && matches[0]!.expired === true)) return null;
+    const artifact = matches[0]!;
+    if (
+      matches.length !== 1 ||
+      !positive(artifact.id) ||
+      !positive(artifact.size_in_bytes) ||
+      artifact.size_in_bytes > archiveLimit ||
+      artifact.expired !== false ||
+      !isRecord(artifact.workflow_run) ||
+      artifact.workflow_run.id !== runId ||
+      artifact.workflow_run.repository_id !== repositoryId ||
+      artifact.workflow_run.head_repository_id !== repositoryId ||
+      artifact.workflow_run.head_branch !== "main" ||
+      artifact.workflow_run.head_sha !== head ||
+      typeof artifact.digest !== "string" ||
+      !/^sha256:[a-f0-9]{64}$/u.test(artifact.digest)
+    )
+      throw new Error("Unbound scheduled artwork artifact");
+    const archive = await transport.download(artifact.id, artifact.size_in_bytes);
+    if (archive.length !== artifact.size_in_bytes || `sha256:${hash(archive)}` !== artifact.digest)
+      throw new Error("Scheduled artwork artifact digest differs");
+    return { archive, digest: artifact.digest };
+  }
+  return { runId, runAttempt, head, started, completed, download };
+}
+
+/** Authenticate an existing scheduled report as observation evidence only. */
+export async function readHostedArtworkHealth(
+  readAncestorFile: (revision: string, file: string) => Buffer = readReviewedAncestor,
+  options: ArtworkReadOptions = {},
+) {
+  const run = await readRecentArtworkRun(options);
+  if (!run) return null;
+  const artifact = await run.download("maintenance-report");
+  if (!artifact) return null;
+  const { archive } = artifact;
+  const { runId, runAttempt, started, completed } = run;
+  const reportMembers = readReportMembers(archive);
+  const recorded: unknown = JSON.parse(reportMembers.read(evidencePath).toString("utf8"));
   if (
     !isRecord(recorded) ||
     recorded.format !== "portcove-maintenance-hosted-evidence" ||
     recorded.format_version !== 1 ||
     recorded.purpose !== "schedule" ||
     !isRecord(recorded.run) ||
-    recorded.run.id !== run.id ||
-    recorded.run.attempt !== run.run_attempt ||
+    recorded.run.id !== runId ||
+    recorded.run.attempt !== runAttempt ||
     recorded.run.event !== "schedule" ||
-    recorded.run.head_sha !== run.head_sha ||
+    recorded.run.head_sha !== run.head ||
     !isRecord(recorded.outcomes) ||
     recorded.outcomes.collect !== "success" ||
     recorded.outcomes.report !== "success" ||
     !isRecord(recorded.files) ||
     !Array.isArray(recorded.sources)
   )
-    throw new Error("Unbound scheduled cover observation");
-  const generation = `scheduled-artwork-health:${runId}-${runAttempt}@${run.head_sha}#sha256:`;
-  const admissions = (recorded.sources as unknown[]).filter(
-    (row) =>
-      isRecord(row) &&
-      row.source === "cover-artwork-health" &&
-      typeof row.source_revision === "string" &&
-      row.source_revision.startsWith(generation),
-  );
-  const file = recorded.files[receiptEvidencePath];
-  if (!receipt && (file !== undefined || admissions.length))
-    throw new Error("Scheduled cover report omitted referenced observation bytes");
-  if (!receipt) return null;
-  if (!isRecord(file) || file.bytes !== receipt.length || file.sha256 !== hash(receipt))
-    throw new Error("Scheduled cover observation differs from the evidence inventory");
-  if (!admissions.length) return null;
-  const admission = admissions[0];
-  if (
-    admissions.length !== 1 ||
-    !isRecord(admission) ||
-    admission.source_revision !== generation + hash(receipt) ||
-    (admission.coverage !== "complete" && admission.coverage !== "partial")
-  )
-    throw new Error("Scheduled report did not admit the exact cover observation");
-  const report: unknown = JSON.parse(receipt.toString("utf8"));
-  if (
-    !isRecord(report) ||
-    !digest(report.cli_sha256) ||
-    typeof report.observed_at !== "string" ||
-    !Number.isFinite(Date.parse(report.observed_at)) ||
-    Date.parse(report.observed_at) < started ||
-    Date.parse(report.observed_at) > completed
-  )
-    throw new Error("Unbound scheduled cover observation");
+    throw new Error("Unbound scheduled artwork evidence");
+  const files = recorded.files;
+  const sources: readonly unknown[] = recorded.sources;
   const producer = artworkHealthProducer(
     {
       GITHUB_REPOSITORY: repository,
       GITHUB_WORKFLOW_REF: `${repository}/${workflow}@refs/heads/main`,
       GITHUB_EVENT_NAME: "schedule",
-      GITHUB_SHA: run.head_sha,
-      GITHUB_WORKFLOW_SHA: run.head_sha,
-      GITHUB_RUN_ID: String(run.id),
-      GITHUB_RUN_ATTEMPT: String(run.run_attempt),
+      GITHUB_SHA: run.head,
+      GITHUB_WORKFLOW_SHA: run.head,
+      GITHUB_RUN_ID: String(runId),
+      GITHUB_RUN_ATTEMPT: String(runAttempt),
       GITHUB_REF: "refs/heads/main",
     },
-    run.head_sha,
+    run.head,
   );
-  const listings = readAncestorFile(run.head_sha, listingsPath);
-  const producerDirectory: unknown = JSON.parse(listings.toString("utf8"));
-  const projected = projectArtworkHealth(report, {
-    inventory: artworkHealthInventory(producerDirectory),
-    listingsSha256: hash(listings),
-    cliSha256: report.cli_sha256,
-    producer,
-    now: Date.parse(report.observed_at),
-  });
+  const artifactDigest = artifact.digest;
+  let catalog: { producerDirectory: unknown; listingsSha256: string } | undefined;
+  function boundReceipt(kind: keyof typeof artworkSources) {
+    const { source, generation } = artworkSources[kind];
+    const name = `${source}.json`;
+    const file = files[`maintenance-report/${name}`];
+    const boundGeneration = `${generation}:${runId}-${runAttempt}@${producer.revision}#sha256:`;
+    const admissions = sources.filter(
+      (row) =>
+        isRecord(row) &&
+        row.source === source &&
+        typeof row.source_revision === "string" &&
+        row.source_revision.startsWith(boundGeneration),
+    );
+    if (!reportMembers.has(name)) {
+      if (file !== undefined || admissions.length)
+        throw new Error(`Scheduled ${kind} report omitted referenced observation bytes`);
+      return null;
+    }
+    const receipt = reportMembers.read(name);
+    const receiptDigest = hash(receipt);
+    if (!isRecord(file) || file.bytes !== receipt.length || file.sha256 !== receiptDigest)
+      throw new Error(`Scheduled ${kind} observation differs from the evidence inventory`);
+    if (!admissions.length) return null;
+    const admission = admissions[0];
+    if (
+      admissions.length !== 1 ||
+      !isRecord(admission) ||
+      admission.source_revision !== boundGeneration + receiptDigest ||
+      (admission.coverage !== "complete" && admission.coverage !== "partial")
+    )
+      throw new Error(`Scheduled report did not admit the exact ${kind} observation`);
+    const report: unknown = JSON.parse(receipt.toString("utf8"));
+    if (!isRecord(report) || !digest(report.cli_sha256) || typeof report.observed_at !== "string")
+      throw new Error(`Unbound scheduled ${kind} observation`);
+    const at = Date.parse(report.observed_at);
+    if (!Number.isFinite(at) || at < started || at > completed)
+      throw new Error(`Unbound scheduled ${kind} observation`);
+    if (!catalog) {
+      const listings = readAncestorFile(producer.revision, listingsPath);
+      const producerDirectory: unknown = JSON.parse(listings.toString("utf8"));
+      catalog = { producerDirectory, listingsSha256: hash(listings) };
+    }
+    return {
+      report,
+      ...catalog,
+      cliSha256: report.cli_sha256,
+      producer,
+      now: at,
+      artifact: artifactDigest,
+      receiptDigest,
+      coverage: admission.coverage,
+    };
+  }
   return {
-    ...projected,
-    artifact: artifact.digest,
-    producer,
-    producerDirectory,
+    cover() {
+      const context = boundReceipt("cover");
+      if (!context) return null;
+      return {
+        ...projectArtworkHealth(context.report, {
+          ...context,
+          inventory: artworkHealthInventory(context.producerDirectory),
+        }),
+        artifact: context.artifact,
+        producer: context.producer,
+        producerDirectory: context.producerDirectory,
+      };
+    },
+    media() {
+      const context = boundReceipt("media");
+      if (!context) return null;
+      const projected = projectMediaArtworkHealth(context.report, {
+        ...context,
+        inventory: mediaHealthInventory(context.producerDirectory),
+      });
+      if (context.coverage !== (projected.complete ? "complete" : "partial"))
+        throw new Error("Scheduled media coverage differs from the admitted observation");
+      return {
+        ...projected,
+        revision: `${projected.revision}#sha256:${context.receiptDigest}`,
+        artifact: context.artifact,
+        producer: context.producer,
+      };
+    },
   };
+}
+
+/** Consume the narrow proposal only from authenticated scheduled-main custody. */
+export async function readHostedScheduledGameMedia(
+  readAncestorFile: (revision: string, file: string) => Buffer = readReviewedAncestor,
+  options: ArtworkReadOptions = {},
+) {
+  const run = await readRecentArtworkRun(options);
+  if (!run) return null;
+  const artifact = await run.download("maintenance-game-media");
+  if (!artifact) return null;
+  const proposalFile = `proposal/${scheduledGameMediaFile}`;
+  const archive = readReportMembers(
+    artifact.archive,
+    new Set([
+      "status.json",
+      proposalFile,
+      "proposal/artwork-evidence.json",
+      "proposal/catalog-proposal.json",
+      "proposal/listing-media-proposal.json",
+      "proposal/proposal-evidence.json",
+    ]),
+  );
+  if (!archive.has(proposalFile)) return null;
+  const status: unknown = JSON.parse(archive.read("status.json").toString("utf8"));
+  if (
+    !isRecord(status) ||
+    status.format_version !== 1 ||
+    (status.state !== "attempted" && status.state !== "partial") ||
+    !positive(status.attempted) ||
+    !positive(status.selected) ||
+    status.selected > 48 ||
+    status.attempted > status.selected
+  )
+    throw new Error("Scheduled media proposal has no completed artwork assessment");
+  const proposal = readScheduledGameMediaProposal(
+    JSON.parse(archive.read(proposalFile, scheduledGameMediaLimit).toString("utf8")),
+  );
+  if (
+    proposal.selected_ids.length !== status.selected ||
+    new Set([...proposal.additions, ...(proposal.covers ?? [])].map(({ id }) => id)).size >
+      status.attempted
+  )
+    throw new Error("Scheduled media proposal exceeds its assessed workset");
+  const producer: unknown = JSON.parse(readAncestorFile(run.head, listingsPath).toString("utf8"));
+  if (
+    !isRecord(producer) ||
+    !Array.isArray(producer.listings) ||
+    !producer.listings.every(isRecord)
+  )
+    throw new Error("Scheduled media proposal has no canonical producer directory");
+  return {
+    proposal,
+    producerListings: producer.listings,
+    artifact: artifact.digest,
+    started: run.started,
+  };
+}
+
+export async function readHostedCoverHealth(...args: Parameters<typeof readHostedArtworkHealth>) {
+  return (await readHostedArtworkHealth(...args))?.cover() ?? null;
 }
 
 /** Bind an observation to each current exact declaration, including collection
@@ -309,6 +439,12 @@ export function applicableCoverHealth(
           id,
           artwork,
           scope,
+          legacy_scopes: [
+            ...new Set([
+              legacyCoverDeclarationScope(row, artwork),
+              legacyCoverDeclarationScope(originalRow, fact.artwork),
+            ]),
+          ],
           observed_at: fact.observed_at,
           report: evidence.artifact,
           status:

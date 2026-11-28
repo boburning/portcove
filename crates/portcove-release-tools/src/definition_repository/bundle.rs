@@ -116,10 +116,20 @@ pub(super) fn listing_revision(target: &str, raw: &[u8]) -> Result<ListingRevisi
     let revision = document["revision"]
         .as_u64()
         .filter(|n| (1..=9_007_199_254_740_991).contains(n));
-    let listing_count = document["directory"]["listings"]
+    let listings = document["directory"]["listings"]
         .as_array()
-        .map(Vec::len)
-        .filter(|n| *n <= 10000);
+        .filter(|rows| rows.len() <= portcove_listing_carrier::MAX_LISTING_ENTRIES);
+    if listings.is_some_and(|rows| {
+        rows.iter().any(|row| {
+            row["id"]
+                .as_str()
+                .and_then(portcove_listing_carrier::admitted_github_repository_id)
+                .is_some()
+        })
+    }) {
+        return invalid("repository-bound listing cannot appear in the legacy directory");
+    }
+    let listing_count = listings.map(Vec::len);
     let withdrawn_ids = listing_withdrawals(&document)?;
     match (
         document["listing_delivery_schema"].as_u64(),
@@ -254,6 +264,11 @@ pub(super) fn check_legacy_successor(prior: &[u8], proposal: &[u8], compact: &[u
                 tightened = true;
             }
             None if held(row) => {
+                if portcove_listing_carrier::admitted_github_repository_id(id).is_some() {
+                    return invalid(
+                        "repository-bound listing cannot appear in the legacy directory",
+                    );
+                }
                 if row.get("upstream_observation").is_some()
                     || portcove_listing_carrier::legacy_row_projection(current_row(id)?) != *row
                 {

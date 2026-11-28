@@ -1152,7 +1152,7 @@ test("every staged official definition retains reviewed game identity through st
     origin: "definition_selected",
   });
   assert.equal(observed.provenance.length, 1650);
-  assert.equal(observed.reviewed_families, 257);
+  assert.equal(observed.reviewed_families, 258);
   assert.deepEqual(
     observed.groups
       .find((group) => group.id === "game:chameleon-twist")

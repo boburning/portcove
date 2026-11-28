@@ -1,6 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { isRecord } from "./runtime-values.mts";
 import {
   MaintenanceStoreError,
   backup,
@@ -13,8 +14,7 @@ import {
   portableRestoreSql,
   psqlBase,
   queryJson,
-  readBackupManifest,
-  restore,
+  restoreBackupWithManifest,
   restoreVerification,
   runTool,
   sequenceStateQuery,
@@ -56,9 +56,17 @@ export function backupFingerprintResponseLimit(maximum: number, clientLimit = ou
 }
 
 function fingerprintSql(table: DeltaTable, maximum: number) {
-  return `WITH fingerprints AS (
-    SELECT coalesce(jsonb_object_agg(${table.key}, encode(sha256(convert_to(t::text, 'UTF8')), 'hex')), '{}'::jsonb) AS value
-    FROM ${table.table} t
+  // A JSONB object with unique keys occupies the sum of its singleton objects:
+  // comma-space separators replace two braces per additional key. The digest
+  // text always occupies 64 ASCII bytes, so the first pass needs only the keys.
+  return `WITH fingerprints AS MATERIALIZED (
+    SELECT CASE WHEN (
+      SELECT coalesce(sum(octet_length(jsonb_build_object(${table.key}, repeat('0', 64))::text)), 2)
+      FROM ${table.table} t
+    ) <= ${maximum} THEN (
+      SELECT coalesce(jsonb_object_agg(${table.key}, encode(sha256(convert_to(t::text, 'UTF8')), 'hex')), '{}'::jsonb)
+      FROM ${table.table} t
+    ) END AS value
   ) SELECT CASE WHEN octet_length(value::text) <= ${maximum} THEN value ELSE 'null'::jsonb END FROM fingerprints;`;
 }
 
@@ -179,6 +187,11 @@ interface BackupReuseOptions {
   reuseRecent?: boolean;
 }
 
+// PostgreSQL truncates startup database names to NAMEDATALEN - 1 bytes.
+function explicitDatabaseName(name: string | undefined): name is string {
+  return !!name && !/[=/]/u.test(name) && Buffer.byteLength(name) <= 63;
+}
+
 function validateRecoveryDestinations({
   prefixDatabase,
   target,
@@ -186,42 +199,62 @@ function validateRecoveryDestinations({
 }: Omit<BackupReuseOptions, "reservedBytes">) {
   if (existsSync(output)) throw new MaintenanceStoreError("Backup destination already exists");
   for (const environment of [prefixDatabase, target]) {
-    if (environment.PGHOST?.startsWith("/") !== true)
+    if (environment.PGHOST?.startsWith("/") !== true || environment.PGHOST.includes(","))
       throw new MaintenanceStoreError("Recovery scratch databases must use a local Unix socket");
-    if (environment.PGOPTIONS || environment.PGSERVICE)
+    if (
+      !explicitDatabaseName(environment.PGDATABASE) ||
+      !/^[0-9]+$/u.test(environment.PGPORT ?? "5432")
+    )
+      throw new MaintenanceStoreError(
+        "Recovery scratch databases need one explicit database name and port",
+      );
+    if (environment.PGOPTIONS || environment.PGSERVICE || environment.PGHOSTADDR)
       throw new MaintenanceStoreError(
         "Recovery scratch databases must use a direct local connection",
       );
   }
   if (
-    prefixDatabase.PGHOST === target.PGHOST &&
-    prefixDatabase.PGPORT === target.PGPORT &&
+    path.posix.resolve(prefixDatabase.PGHOST!) === path.posix.resolve(target.PGHOST!) &&
+    Number(prefixDatabase.PGPORT ?? "5432") === Number(target.PGPORT ?? "5432") &&
     prefixDatabase.PGDATABASE === target.PGDATABASE
   )
     throw new MaintenanceStoreError("Recovery scratch databases must be distinct");
 }
 
-/** A retry may reuse only a seed restored by this invocation into its own
- * scratch database. No caller-provided manifest or remote cache is trusted. */
+function verifyLocalSeed({
+  previous,
+  prefixDatabase,
+}: Pick<BackupReuseOptions, "previous" | "prefixDatabase">) {
+  const seed = previous ? restoreBackupWithManifest(prefixDatabase, previous) : undefined;
+  const prefixes = previous
+    ? history.map((_, index) =>
+        queryJson(prefixDatabase, `${copySettings}\n${historyPrefix(index)}`),
+      )
+    : [];
+  return { base: seed?.manifest, localTables: seed?.verification.tables, prefixes };
+}
+
+/** Prepare a separated scratch seed before provider admission. Both attempts
+ * reuse the local proof but validate a fresh production snapshot. */
 export function createBackupRecovery(options: Omit<BackupReuseOptions, "reservedBytes">) {
-  // Refuse a known local setup error before the caller acquires provider capacity.
   validateRecoveryDestinations(options);
-  let seed:
-    | {
-        base: ReturnType<typeof readBackupManifest> | undefined;
-        localTables: StoreDigest | undefined;
-      }
-    | undefined;
-  return (reservedBytes: number) =>
-    backupPrepared({ ...options, reservedBytes }, () => {
-      if (!seed) {
-        const previous = options.previous;
-        const base = previous ? readBackupManifest(previous) : undefined;
-        const localTables = previous ? restore(options.prefixDatabase, previous).tables : undefined;
-        seed = { base, localTables };
-      }
-      return seed;
-    });
+  const { source, prefixDatabase } = options;
+  const namedSource =
+    explicitDatabaseName(source.PGDATABASE) && !source.PGSERVICE && !source.PGHOSTADDR;
+  const separate =
+    namedSource &&
+    (source.PGDATABASE !== prefixDatabase.PGDATABASE ||
+      (source.PGHOST?.startsWith("/") === true &&
+        !source.PGHOST.includes(",") &&
+        /^[0-9]+$/u.test(source.PGPORT ?? "") &&
+        prefixDatabase.PGPORT !== undefined &&
+        Number(source.PGPORT) !== Number(prefixDatabase.PGPORT)));
+  // For an ambiguous local API connection, retain the source schema check
+  // before opening the prefix database. A populated source cannot be restored into.
+  let seed = separate ? verifyLocalSeed(options) : undefined;
+  const recover = (reservedBytes: number) =>
+    backupPrepared({ ...options, reservedBytes }, () => (seed ??= verifyLocalSeed(options)));
+  return Object.assign(recover, { hasVerifiedSeed: seed?.base !== undefined });
 }
 
 /** Retry only a measured pre-export deferral, using a fresh ledger admission. */
@@ -240,33 +273,21 @@ export async function backupReusingHistory({ reservedBytes, ...options }: Backup
 
 async function backupPrepared(
   options: BackupReuseOptions,
-  prepareSeed: () => {
-    base: ReturnType<typeof readBackupManifest> | undefined;
-    localTables: StoreDigest | undefined;
-  },
+  prepareSeed: () => ReturnType<typeof verifyLocalSeed>,
 ) {
-  const { source, prefixDatabase, target, previous, output, reservedBytes } = options;
+  const { source, prefixDatabase, target, output, reservedBytes } = options;
   // A destination can appear while admission is pending or between attempts.
   validateRecoveryDestinations(options);
   const status = migrationStatus(source);
   if (status.problems.length || status.pending.length || !status.schema_version)
     throw new MaintenanceStoreError("Back up only a store migrated to this checkout's schema");
 
-  // Reuse the actual local restore proof on a preflight retry; the current
-  // production snapshot is always compared again before copying any rows.
-  const { base, localTables } = prepareSeed();
+  const { base, localTables, prefixes: local } = prepareSeed();
   const work = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-reuse-"));
   try {
     const dump = path.join(work, "store.dump");
     const suffixes = history.map(([name]) => path.join(work, `${name}-suffix.tsv`));
     const prefixes = history.map(([name]) => path.join(work, `${name}-prefix.tsv`));
-    const local = history.map((_, index) =>
-      previous
-        ? (queryJson(prefixDatabase, `${copySettings}\n${historyPrefix(index)}`) as {
-            through: string;
-          })
-        : undefined,
-    );
     const captured = await withExportedSnapshot(source, async (snapshot, query) => {
       await query(copySettings);
       const expected = [...storeTables.map(([table]) => table), activation].sort();
@@ -279,16 +300,29 @@ async function backupPrepared(
         throw new MaintenanceStoreError(
           "Protected table inventory differs from the recovery contract",
         );
+      const tables = JSON.parse(await query(digestQuery())) as StoreDigest;
       const through: string[] = [];
-      for (const [index, prefix] of local.entries()) {
-        if (!prefix || !/^[0-9]+$/u.test(prefix.through)) {
+      for (const [index, [name]] of history.entries()) {
+        const prefix = local[index];
+        if (
+          !isRecord(prefix) ||
+          typeof prefix.through !== "string" ||
+          !/^[0-9]+$/u.test(prefix.through)
+        ) {
           through.push("0");
+          continue;
+        }
+        // The authoritative digest uses the same ordered row text and includes
+        // the history IDs. When the whole table matches the verified local
+        // history, the same snapshot already proves this complete prefix.
+        const remote = tables[schema + "." + name];
+        if (remote && remote.rows === prefix.rows && remote.sha256 === prefix.sha256) {
+          through.push(prefix.through);
           continue;
         }
         const observed: unknown = JSON.parse(await query(historyPrefix(index, prefix.through)));
         through.push(JSON.stringify(observed) === JSON.stringify(prefix) ? prefix.through : "0");
       }
-      const tables = JSON.parse(await query(digestQuery())) as StoreDigest;
       const reusedTables = new Set<string>();
       for (const [table] of storeTables) {
         if (history.some(([name]) => table === `${schema}.${name}`)) continue;

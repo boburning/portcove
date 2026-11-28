@@ -769,7 +769,13 @@ impl ListingDeliveryDocument {
             listings.insert(listing.id.clone(), replacement);
         }
         directory.listings = listings.into_values().collect();
-        catalog.with_projected_listing_document(directory)
+        if self.directory.format_version >= crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT
+        {
+            directory.format_version = directory.format_version.max(self.directory.format_version);
+        }
+        catalog
+            .with_projected_listing_document(directory)
+            .map(|catalog| catalog.with_signed_cover_assignments(&self.directory))
     }
 }
 
@@ -816,11 +822,12 @@ fn verified_edition_bindings_follow_managed_scope_and_directory_version() {
         revision: 1,
         withdrawn_ids: Vec::new(),
         directory: crate::CatalogListingDocument {
-            format_version: 13,
+            format_version: catalog.listing_document().format_version,
             listings: vec![current.clone()],
-        },
+        }
+        .export_format(13)
+        .unwrap(),
     };
-    crate::catalog::listings::strip_verified_sources(&mut delivery.directory.listings[0]);
     // A carrier does not change the field authority of its decoded directory.
     for parse in [
         ListingDeliveryDocument::parse,
@@ -1110,7 +1117,8 @@ impl Library {
         if let Some(floor) = &floor {
             provenance.check_advance(floor)?;
         }
-        if let Some(previous) = AuthenticatedListings::stored(&transaction)?
+        let previous = AuthenticatedListings::stored(&transaction)?;
+        if let Some(previous) = &previous
             && (previous.proof.provenance().anchor_sha256 != provenance.anchor_sha256
                 || candidate.document.revision < previous.document.revision
                 || (candidate.document.revision == previous.document.revision
@@ -1129,7 +1137,7 @@ impl Library {
             baseline_provenance,
             now,
         )?;
-        candidate.document.project(catalog)?;
+        let selected = candidate.document.project(catalog.clone())?;
         provenance.require_fresh()?;
         let proof = serde_json::to_string(&candidate.proof)?;
         let document = std::str::from_utf8(&candidate.bytes)
@@ -1138,6 +1146,26 @@ impl Library {
             // Dropping the transaction rolls it back; nothing was written.
             return Ok(candidate.status());
         }
+        let prior = match previous {
+            Some(previous) if previous.require_current(&transaction, now).is_ok() => {
+                previous.document.project(catalog).ok()
+            }
+            Some(_) => None,
+            None => Some(catalog),
+        };
+        // A corrupt or full local preference projection must not block
+        // independent catalog delivery. Preserve its original rows on error.
+        transaction.execute_batch("SAVEPOINT retain_mod_website_choices")?;
+        if crate::mod_portal_preferences::retain_generated_thunderstore_choices(
+            &transaction,
+            prior.as_ref(),
+            &selected,
+        )
+        .is_err()
+        {
+            transaction.execute_batch("ROLLBACK TO retain_mod_website_choices")?;
+        }
+        transaction.execute_batch("RELEASE retain_mod_website_choices")?;
         let insert = if matches!(candidate.proof, ListingAdmissionProof::Compact(_)) {
             // This optional, descriptive store introduces no library schema
             // dependency. An older reader can still open and renew its separately

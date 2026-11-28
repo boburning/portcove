@@ -43,6 +43,7 @@ jobs:
     outputs:
       audit_continuations: ${{ steps.execute.outputs.audit_continuations }}
       receipt_revision: ${{ steps.execute.outputs.receipt_revision }}
+      receipt_outcome: ${{ steps.execute.outputs.receipt_outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,9 +70,14 @@ jobs:
           HOSTED_INTAKE_MODE: scheduled-receipts
       - name: Retain bounded receipt diagnostics
         if: always()
+        env:
+          RECEIPT_OUTCOME: ${{ steps.execute.outputs.receipt_outcome }}
         run: |
           file=work/hosted-discovery-intake/scheduled-receipts.json
           if [[ -f "$file" && "$(wc -c < "$file")" -le 262144 ]]; then cat "$file"; fi
+          if [[ "$RECEIPT_OUTCOME" == deferred ]]; then
+            echo 'Intake receipt reconciliation deferred. The next scheduled run will retry resource admission.' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   collect:
     needs: reconcile-intake-receipts
@@ -92,6 +98,9 @@ jobs:
       PORTCOVE_MAINTENANCE_PURPOSE: ${{ inputs.purpose || 'schedule' }}
       PORTCOVE_MAINTENANCE_RESOURCE_EVIDENCE: ${{ github.workspace }}/work/maintenance-report/resource.jsonl
     steps:
+      - name: Reserve time for maintenance job output delivery
+        if: github.event_name == 'schedule'
+        run: echo "PORTCOVE_GAME_MEDIA_LATEST_START=$((EPOCHSECONDS + 69 * 60))" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Upstream snapshots are mapped at their producer's commit, which must be local.
@@ -145,6 +154,7 @@ jobs:
           shared-key: upstream-observer-cli
           cache-on-failure: true
       - name: Build the Core CLI that assesses changed ports
+        id: core-cli
         if: github.event_name == 'schedule' || inputs.purpose == 'collect-changed'
         timeout-minutes: 40
         env:
@@ -155,7 +165,7 @@ jobs:
           started=$EPOCHSECONDS
           cargo build --locked -p portcove-cli
           printf 'build-cli\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
-      - name: Verify a bounded window of accepted cover references
+      - name: Verify a bounded window of accepted cover and media references
         if: github.event_name == 'schedule'
         timeout-minutes: 4
         continue-on-error: true
@@ -168,7 +178,8 @@ jobs:
             GITHUB_REF="$GITHUB_REF" GITHUB_WORKFLOW_SHA="$GITHUB_WORKFLOW_SHA" \
             GITHUB_RUN_ID="$GITHUB_RUN_ID" GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
             node scripts/maintenance-artwork-health.mts target/debug/portcove \
-            work/maintenance-report/cover-artwork-health.json
+            work/maintenance-report/cover-artwork-health.json \
+            work/maintenance-report/media-artwork-health.json
       - name: Read current allowance and exercise bounded status admission
         if: inputs.purpose == 'status'
         env:
@@ -208,7 +219,8 @@ jobs:
               --release-health --release-content --publication --delivery --upstream --hosted-intake
               --intake-receipt-revision "${INTAKE_RECEIPT_REVISION:-unavailable}"
               --progress scripts/upstream-progress/sources-v1.json
-              --artwork-health work/maintenance-report/cover-artwork-health.json)
+              --artwork-health work/maintenance-report/cover-artwork-health.json
+              --media-artwork-health work/maintenance-report/media-artwork-health.json)
           else
             unset PORTCOVE_ROADMAP_GH_TOKEN
           fi
@@ -271,9 +283,7 @@ jobs:
             args+=(--input "$baseline")
             previous=$(jq -er '.created_at' "$baseline/manifest.json")
             age=$((EPOCHSECONDS - $(date -u -d "$previous" +%s)))
-            if ((age > 54 * 3600)) && [[ -n "$PORTCOVE_NEON_METER_TOKEN" ]]; then
-              args+=(--recovery-envelope full)
-            elif ((age > 30 * 3600)); then
+            if ((age > 30 * 3600)); then
               args+=(--recovery-envelope catchup)
             fi
           fi
@@ -363,6 +373,7 @@ jobs:
           REPORT_OUTCOME: ${{ steps.report.outcome }}
           BACKUP_OUTCOME: ${{ steps.backup.outputs.artifact && 'captured' || steps.backup.outputs.reused == 'true' && 'reused' || steps.backup.outcome == 'success' && 'deferred' || steps.backup.outcome }}
           COLLECT_COMPLETED: ${{ steps.collect.outputs.completed }}
+          INTAKE_RECEIPT_OUTCOME: ${{ needs.reconcile-intake-receipts.outputs.receipt_outcome }}
           PUBLIC_SUMMARY_OUTCOME: ${{ steps.public-summary.outcome }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
@@ -435,8 +446,9 @@ jobs:
                                     if inventory else None,
               "report_scope": inventory.get("scope"),
               "intake_receipts": (
-                  {"status": "delegated", "job": "reconcile-intake-receipts"}
-                  if os.environ["GITHUB_EVENT_NAME"] == "schedule" and os.environ["COLLECT_COMPLETED"] == "true"
+                  {"status": os.environ["INTAKE_RECEIPT_OUTCOME"] or "unavailable",
+                   "job": "reconcile-intake-receipts"}
+                  if os.environ["GITHUB_EVENT_NAME"] == "schedule"
                   else None
               ),
               "subjects": len(inventory.get("subjects", [])),
@@ -511,8 +523,122 @@ jobs:
           retention-days: 30
 
       - name: Check that collection kept the reconciled intake fence
-        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.collect.outputs.completed == 'true' && needs.reconcile-intake-receipts.result == 'success' }}
+        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.collect.outputs.completed == 'true' && needs.reconcile-intake-receipts.result == 'success' && needs.reconcile-intake-receipts.outputs.receipt_outcome == 'verified' }}
         run: jq -e '.hosted_intake.receipt_fence == "verified"' work/maintenance-evidence/collect.json > /dev/null
+      - name: Admit the game media pass within the remaining job time
+        id: game-media-window
+        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.core-cli.outcome == 'success' }}
+        timeout-minutes: 1
+        run: |
+          if (( EPOCHSECONDS < PORTCOVE_GAME_MEDIA_LATEST_START )); then
+            echo 'admitted=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Game media preparation deferred without attempts. The next schedule retries with its existing checkpoint.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Restore the missing game media checkpoint
+        id: game-media-cache
+        if: ${{ !cancelled() && steps.game-media-window.outputs.admitted == 'true' }}
+        timeout-minutes: 2
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: work/maintenance-game-media-state
+          key: maintenance-game-media-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: maintenance-game-media-main-v1-
+      - name: Restore the game media provider retry clock
+        id: game-media-provider
+        if: ${{ !cancelled() && steps.game-media-cache.outcome == 'success' }}
+        timeout-minutes: 2
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            work/maintenance-game-media-provider/owner.json
+            work/maintenance-game-media-provider/artwork-provider-admission.json
+          key: maintenance-game-media-provider-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: maintenance-game-media-provider-main-v1-
+      - name: Prepare a bounded round of due game media
+        id: game-media
+        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.game-media-provider.outcome == 'success' }}
+        timeout-minutes: 10
+        continue-on-error: true
+        env:
+          IGDB_CREDENTIALS: ${{ secrets.PORTCOVE_IGDB_CREDENTIALS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          base="$GITHUB_WORKSPACE/work"
+          evidence="$base/maintenance-game-media"
+          state="$base/maintenance-game-media-state"
+          mkdir "$evidence"
+          if [[ -z "$IGDB_CREDENTIALS" ]]; then
+            printf '%s\n' '{"format_version":1,"state":"deferred","reason":"provider-credentials-unavailable","attempted":0,"retry":"next-schedule"}' > "$evidence/status.json"
+            exit 0
+          fi
+          scratch=$(mktemp -d)
+          trap 'rm -rf -- "$scratch"' EXIT
+          printf '%s' "$IGDB_CREDENTIALS" > "$scratch/credentials.json"
+          unset IGDB_CREDENTIALS
+          [[ ! -L "$state" ]]
+          if [[ -d "$state" ]]; then
+            mkdir "$scratch/checkpoint"
+            cp -a -- "$state/." "$scratch/checkpoint/"
+          fi
+          env -i PATH="$PATH" HOME="$scratch" TMPDIR="$scratch" \
+            node scripts/generate-catalog.mts --prepare-proposal crates/portcove-core/catalog/catalog.json \
+              --hero-media igdb --credentials-file "$scratch/credentials.json" \
+              --media-checkpoint "$scratch/checkpoint" --media-due-limit 48 --media-image-budget-mib 32 \
+              --media-provider-checkpoint "$base/maintenance-game-media-provider" \
+              --validator-cli "$GITHUB_WORKSPACE/target/debug/portcove" \
+              --output-dir "$evidence/proposal" > "$scratch/result.json"
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import { snapshotGameMediaCheckpoint } from "./scripts/artwork-preparation-progress.mts";
+            const [source, destination, result] = process.argv.slice(1);
+            const { media_due: queue } = JSON.parse(readFileSync(result, "utf8"));
+            if (!queue || !Number.isSafeInteger(queue.selected) || queue.selected > 48)
+              throw new Error("Missing bounded game media outcome");
+            const checkpoint = snapshotGameMediaCheckpoint(source, destination);
+            process.stdout.write(JSON.stringify({ format_version: 1, ...queue, checkpoint }) + "\n");
+          ' "$scratch/checkpoint" "$scratch/next" "$scratch/result.json" > "$evidence/status.json"
+          if [[ -d "$state" ]]; then mv -- "$state" "$scratch/previous"; fi
+          mv -- "$scratch/next" "$state"
+          echo 'checkpoint=true' >> "$GITHUB_OUTPUT"
+      - name: Retain the provider retry clock even if proposal preparation fails
+        if: ${{ !cancelled() && steps.game-media-provider.outcome == 'success' && hashFiles('work/maintenance-game-media-provider/artwork-provider-admission.json') != '' }}
+        timeout-minutes: 1
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            work/maintenance-game-media-provider/owner.json
+            work/maintenance-game-media-provider/artwork-provider-admission.json
+          key: maintenance-game-media-provider-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Retain the scheduled game media proposal and receipt
+        id: game-media-report
+        if: ${{ !cancelled() && steps.game-media.outcome == 'success' }}
+        timeout-minutes: 2
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: maintenance-game-media-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/maintenance-game-media/status.json
+            work/maintenance-game-media/proposal/artwork-evidence.json
+            work/maintenance-game-media/proposal/listing-media-proposal.json
+            work/maintenance-game-media/proposal/game-media-additions.json
+            work/maintenance-game-media/proposal/catalog-proposal.json
+            work/maintenance-game-media/proposal/proposal-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain the due game media checkpoint for the next schedule
+        if: ${{ !cancelled() && steps.game-media.outputs.checkpoint == 'true' && steps.game-media-report.outcome == 'success' }}
+        timeout-minutes: 1
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: work/maintenance-game-media-state
+          key: maintenance-game-media-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
 
   discover:
     needs: collect
@@ -553,6 +679,9 @@ jobs:
           command -v psql || sudo apt-get install -y --no-install-recommends postgresql-client
           mkdir -p work/discovery-worker
       - name: Prepare optional discovery seed from the existing verified recovery
+        # A same-run inspection can defer before another operation releases an
+        # unused reservation. The fresh discovery allowance may fit a seeded
+        # pass while a cold read would still defer.
         continue-on-error: true
         timeout-minutes: 12
         env:

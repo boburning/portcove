@@ -101,11 +101,10 @@ try {
     }
     if (capped) assert.ok(capped.set.length <= 8, `expanded to ${capped.set.length} patterns`);
 
-    assert.deepEqual((await glob("**/*.txt", { cwd: root })).sort(), [
-      "left/nested/two.txt",
-      "left/one.txt",
-      "right/three.txt",
-    ]);
+    assert.deepEqual(
+      (await glob("**/*.txt", { cwd: root })).sort(),
+      ["left/nested/two.txt", "left/one.txt", "right/three.txt"].map(path.normalize),
+    );
     const controller = new AbortController();
     const reason = new Error("controlled traversal cancellation");
     let reads = 0;

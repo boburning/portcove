@@ -2798,6 +2798,50 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     |result| human::external_runtime(result, service.catalog()),
                 )?;
             }
+            ExternalCommand::SelectProjectPreview {
+                project_url,
+                executable,
+                working_directory,
+                arguments,
+            } => {
+                let preview = service
+                    .preview_personal_github_runtime(
+                        &project_url,
+                        &executable,
+                        &working_directory,
+                        &arguments,
+                    )
+                    .await?;
+                render_read_success(mode, "external.select-project-preview", preview, |result| {
+                    human::personal_project_runtime_preview(result, service.catalog())
+                })?;
+            }
+            ExternalCommand::SelectProject {
+                project_url,
+                executable,
+                working_directory,
+                arguments,
+                expected_preview,
+                yes,
+            } => {
+                require_confirmation(
+                    "Save the reviewed registration in this library? You manage its files and updates.",
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let record = service
+                    .register_personal_github_runtime(
+                        &project_url,
+                        &executable,
+                        &working_directory,
+                        &arguments,
+                        &expected_preview,
+                    )
+                    .await?;
+                render_read_success(mode, "external.select-project", record, |record| {
+                    human::external_runtime(record, service.catalog())
+                })?;
+            }
             ExternalCommand::ManagedPreview {
                 port_id,
                 channel,
@@ -4232,6 +4276,8 @@ fn command_name(command: &Commands) -> &'static str {
             ExternalCommand::Preview { .. } => "external.preview",
             ExternalCommand::SelectPreview { .. } => "external.select-preview",
             ExternalCommand::Select { .. } => "external.select",
+            ExternalCommand::SelectProjectPreview { .. } => "external.select-project-preview",
+            ExternalCommand::SelectProject { .. } => "external.select-project",
             ExternalCommand::RemovalPreview { .. } => "external.removal-preview",
             ExternalCommand::Register { .. } => "external.register",
             ExternalCommand::RelinkPreview { .. } => "external.relink-preview",
@@ -5720,7 +5766,7 @@ mod tests {
         assert_eq!(capabilities.port_capability_schema, Some(1));
         assert_eq!(
             capabilities.listing_formats,
-            [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+            [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
         );
         assert_eq!(
             capabilities.listing_delivery_carriers,

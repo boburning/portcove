@@ -404,7 +404,10 @@ it("offers the first setup and reports a refused change as an alert", async () =
   await act(async () => button(host, "Create first setup").click());
   expect(create).toHaveBeenCalledWith("shipwright", 7);
   expect(host.querySelector("[role=alert]")?.textContent).toContain("no active installation");
-  expect(host.querySelector("[role=status]")).toBeNull();
+  const announcedStatuses = [...host.querySelectorAll("[role=status]")]
+    .map((status) => status.textContent?.trim())
+    .filter(Boolean);
+  expect(announcedStatuses).toEqual([]);
 });
 
 it("waits for the current operation before reading and shows nothing until support is known", async () => {
@@ -2218,18 +2221,43 @@ it("keeps the older draft when storage cannot save the recovered addition", asyn
     order: null,
   });
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ provider: "gamebanana" }));
+  const apply = vi.spyOn(desktopApi, "applyModSetupDraft");
   localStorage.setItem(previous, older);
   const write = Storage.prototype.setItem;
+  let storageFull = true;
   vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
-    if (key === current) throw new DOMException("Quota exceeded", "QuotaExceededError");
+    if (key === current && storageFull) {
+      throw new DOMException("Quota exceeded", "QuotaExceededError");
+    }
     write.call(this, key, value);
   });
   try {
     const host = await render(false, undefined, 7, library);
+    const warning = page.getByText("Portcove couldn’t save this draft for later.", {
+      exact: false,
+    });
+    await expect.element(warning).not.toBeInTheDocument();
     await act(async () => button(host, "Recover additions").click());
     expect(localStorage.getItem(current)).toBeNull();
     expect(localStorage.getItem(previous)).toBe(older);
     expect(button(host, "Review changes").disabled).toBe(false);
+    await expect.element(warning).toBeVisible();
+    await expect.element(warning).toHaveAttribute("role", "status");
+
+    storageFull = false;
+    const hd = [...host.querySelectorAll("label")].find((label) => label.textContent === "hd.o2r");
+    const checkbox = hd?.querySelector("[role=checkbox]");
+    if (!(checkbox instanceof HTMLElement)) throw new Error("missing hd.o2r checkbox");
+    await act(async () => {
+      checkbox.focus();
+      checkbox.click();
+    });
+    await expect.element(warning).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(checkbox);
+    expect(localStorage.getItem(current)).toContain("hd.otr");
+    expect(localStorage.getItem(current)).toContain("hd.o2r");
+    expect(localStorage.getItem(previous)).toBe(older);
+    expect(apply).not.toHaveBeenCalled();
   } finally {
     localStorage.removeItem(previous);
     localStorage.removeItem(current);

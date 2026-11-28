@@ -1,3 +1,9 @@
+import {
+  FrameworkForkPaginationChanged,
+  frameworkForkNetworks,
+  frameworkForkRequest,
+  parseFrameworkForkPage,
+} from "./discovery-framework-forks.mts";
 import path from "node:path";
 import { GitHubApiError } from "./github-operation.mts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
@@ -1105,10 +1111,133 @@ async function backfillLeadFamilies(host: DiscoveryCollectionHost) {
 }
 
 /** One collection pass: curated lists, lead searches, then reviewed source collectors. */
+/** Give reviewed fork networks one page per unattended opportunity after release watches. */
+export async function collectFrameworkForkPage(host: DiscoveryCollectionHost) {
+  const now = host.journal.started_at;
+  const progress = (host.leads.framework_forks ??= {});
+  const sweepInterval = 7 * 86400000;
+  const network = [...frameworkForkNetworks]
+    .filter(({ key, repositoryId }) => {
+      const previous = progress[key];
+      return (
+        previous?.repository_id !== repositoryId ||
+        !previous.completed_at ||
+        Date.parse(now) - Date.parse(previous.completed_at) >= sweepInterval
+      );
+    })
+    .sort((a, b) => (progress[a.key]?.turn ?? 0) - (progress[b.key]?.turn ?? 0))[0];
+  if (!network || host.budget.remaining().requests < 1) return;
+
+  const prior = progress[network.key];
+  const turn = 1 + Math.max(0, ...Object.values(progress).map((entry) => entry.turn));
+  const conflicts = { ...(prior?.repository_id === network.repositoryId ? prior.conflicts : {}) };
+  const continuing =
+    prior?.repository_id === network.repositoryId &&
+    prior.next_page &&
+    prior.advanced_at &&
+    Date.parse(now) - Date.parse(prior.advanced_at) < 2 * sweepInterval
+      ? prior
+      : undefined;
+  progress[network.key] = {
+    repository_id: network.repositoryId,
+    turn,
+    conflicts,
+    next_page: continuing?.next_page ?? null,
+    seen: continuing?.seen ?? [],
+    ...(continuing?.advanced_at ? { advanced_at: continuing.advanced_at } : {}),
+    attempted_at: now,
+  };
+  host.persist();
+
+  try {
+    const response = await host.source.sdk.request({
+      method: "GET",
+      url: new URL(
+        frameworkForkRequest(network.repositoryId, continuing?.next_page ?? 1),
+        "https://api.github.com/",
+      ).href,
+    });
+    const page = parseFrameworkForkPage(network, response, continuing);
+    const retainedPaths = new Map(
+      Object.values(host.leads.records).map((lead) => [lead.repository.toLowerCase(), lead.id]),
+    );
+    const eligibleRows = page.rows.filter(({ id, full_name }) => {
+      const retainedId = retainedPaths.get(full_name.toLowerCase());
+      if (retainedId !== undefined && retainedId !== id) {
+        conflicts[String(id)] = { repository: full_name, retained_id: retainedId };
+        return false;
+      }
+      delete conflicts[String(id)];
+      return true;
+    });
+    const name = `framework-forks-${network.key}`;
+    host.save(name, {
+      repository_id: network.repositoryId,
+      rows: page.rows,
+      next_page: page.next_page,
+      enumerated: page.seen.length,
+    });
+    const next = retainLeadResults(
+      host.leads,
+      eligibleRows,
+      now,
+      path.join(host.runDir, `${name}.json`),
+    );
+    for (const { id } of eligibleRows) {
+      const lead = next.records[String(id)]!;
+      lead.framework_forks ??= [];
+      if (!lead.framework_forks.includes(network.key)) lead.framework_forks.push(network.key);
+    }
+    next.framework_forks![network.key] = {
+      repository_id: network.repositoryId,
+      turn,
+      conflicts,
+      next_page: page.next_page,
+      seen: page.seen,
+      attempted_at: now,
+      advanced_at: now,
+      ...(page.next_page === null ? { completed_at: now } : {}),
+    };
+    host.leads = next;
+    if (page.next_page !== null || Object.keys(conflicts).length > 0) {
+      host.journal.notes.push({
+        phase: "framework-forks",
+        repository_id: network.repositoryId,
+        recorded: eligibleRows.length,
+        identity_conflicts: Object.keys(conflicts).length,
+        enumerated: page.seen.length,
+        status: "partial",
+      });
+    }
+  } catch (error) {
+    if (error instanceof FrameworkForkPaginationChanged) {
+      progress[network.key] = {
+        repository_id: network.repositoryId,
+        turn,
+        conflicts,
+        next_page: null,
+        seen: [],
+        attempted_at: now,
+      };
+    }
+    host.journal.notes.push({
+      phase: "framework-forks",
+      repository_id: network.repositoryId,
+      status: "partial",
+      error: errorMessage(error),
+      resume: "Keep positive leads and resume the framework inventory on the next admitted turn",
+    });
+  }
+  host.persist();
+}
+
 export async function collectDiscoveryRun(host: DiscoveryCollectionHost) {
   if (host.journal.collection_done)
     throw new Error("Source collection already completed in this run");
-  if (host.unattended) await collectLeadReleaseHints(host, true);
+  if (host.unattended) {
+    await collectLeadReleaseHints(host, true);
+    await collectFrameworkForkPage(host);
+  }
   try {
     await collectExternalLeadLists(host);
   } catch (error) {

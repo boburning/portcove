@@ -12,7 +12,11 @@
         {
           "id": "sword25-v1-0",
           "title": "Freeware Version",
-          "evidence_urls": ["https://www.scummvm.org/games/#games-sword25:sword25"]
+          "evidence_urls": [
+            "https://www.scummvm.org/games/#games-sword25:sword25",
+            "https://www.baphometsfluch25.de/spiel/faq.htm"
+          ],
+          "system": "pc"
         }
       ]
     },

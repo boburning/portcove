@@ -327,6 +327,9 @@ pub struct IgdbArtwork {
     pub image_sha256: String,
     pub game_slug: String,
     pub match_kind: IgdbArtworkMatch,
+    /// Publisher-observed identity of the implementation repository, under listing format 20.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_github_repository_id: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1393,6 +1396,10 @@ pub struct PortListing {
         deserialize_with = "present_listing_mod_portals"
     )]
     pub mod_portals: Vec<crate::ListingModPortal>,
+    /// Exact official definition to check from this listing. It confers no
+    /// acquisition or runtime ownership and requires listing format 18.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub official_setup_id: Option<String>,
     /// Empty means unknown; it is not an execution compatibility declaration.
     #[serde(default)]
     pub platforms: Vec<Platform>,
@@ -1533,6 +1540,9 @@ pub struct ListingActionAssessment {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortListingStatus {
     pub port_id: String,
+    /// Canonical listing represented by this retained local registration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canonical_port_id: Option<String>,
     pub status: PortStatus,
     pub actions: Vec<ListingActionAssessment>,
     /// Optional inert read model; absence cannot suppress an independently allowed action.
@@ -3017,7 +3027,8 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+            listing_formats: (5..=crate::catalog::listings::OBSERVED_PROJECT_COVER_LISTING_FORMAT)
+                .collect(),
             listing_delivery_carriers: vec![
                 "json-v1".into(),
                 crate::definition_repository::publisher_policy::listing_delivery::COMPACT_CARRIER

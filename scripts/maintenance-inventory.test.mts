@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -291,12 +292,14 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     uses?: string;
     env?: Record<string, string>;
     with?: Record<string, unknown>;
+    "timeout-minutes"?: number;
   };
   type Job = {
     uses?: string;
     if?: string;
     permissions?: unknown;
     secrets?: Record<string, string>;
+    outputs?: Record<string, string>;
     "timeout-minutes"?: number;
     steps: Step[];
   };
@@ -323,6 +326,63 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const { collect, "restore-proof": restoreProof } = workflow.jobs;
+  const media = collect!.steps.find((step) => step.run?.includes("--media-image-budget-mib"))!;
+  assert.match(media.if!, /github.event_name == 'schedule'/u);
+  assert.deepEqual(media.env, { IGDB_CREDENTIALS: "${{ secrets.PORTCOVE_IGDB_CREDENTIALS }}" });
+  assert.match(media.run!, /--media-due-limit 48 --media-image-budget-mib 32/u);
+  assert.match(media.run!, /provider-credentials-unavailable/u);
+  assert.match(media.run!, /env -i [^\n]*\n\s*node scripts\/generate-catalog\.mts/u);
+  const backup = collect!.steps.find(
+    (step) => step.name === "Back up protected state from one production snapshot",
+  )!;
+  assert.match(
+    backup.run!,
+    /if \[\[ -f "\$baseline\/manifest\.json" \]\]; then\s+args\+=\(--input "\$baseline"\)/u,
+  );
+  assert.match(
+    backup.run!,
+    /if \(\(age > 30 \* 3600\)\); then\s+args\+=\(--recovery-envelope catchup\)/u,
+  );
+  assert.doesNotMatch(backup.run!, /--recovery-envelope full/u);
+  const recoveryUpload = collect!.steps.find(
+    (step) => step.name === "Retain the backup for independent restore proof",
+  )!;
+  assert.ok(collect!.steps.indexOf(media) > collect!.steps.indexOf(recoveryUpload));
+  const clock = collect!.steps.find(
+    (step) => step.name === "Reserve time for maintenance job output delivery",
+  )!;
+  const window = collect!.steps.find(
+    (step) => step.name === "Admit the game media pass within the remaining job time",
+  )!;
+  assert.match(clock.run!, /PORTCOVE_GAME_MEDIA_LATEST_START=\$\(\(EPOCHSECONDS \+ 69 \* 60\)\)/u);
+  assert.match(window.run!, /EPOCHSECONDS < PORTCOVE_GAME_MEDIA_LATEST_START/u);
+  assert.match(window.run!, /deferred without attempts/u);
+  const mediaTail = collect!.steps.slice(collect!.steps.indexOf(window));
+  assert.ok(mediaTail.every((step) => step["timeout-minutes"]));
+  assert.ok(
+    69 + mediaTail.reduce((minutes, step) => minutes + step["timeout-minutes"]!, 0) <
+      collect!["timeout-minutes"]!,
+  );
+  assert.match(media.run!, /--media-provider-checkpoint/u);
+  const providerSave = collect!.steps.find(
+    (step) => step.name === "Retain the provider retry clock even if proposal preparation fails",
+  )!;
+  assert.match(providerSave.if!, /artwork-provider-admission\.json/u);
+  assert.doesNotMatch(providerSave.if!, /steps\.game-media\.(outcome|outputs)/u);
+  assert.doesNotMatch(String(providerSave.with?.path), /checkpoint|active\.lock|credentials/u);
+  const mediaArtifact = collect!.steps.find((step) =>
+    String(step.with?.name).startsWith("maintenance-game-media-"),
+  )!;
+  assert.match(mediaArtifact.if!, /steps\.game-media\.outcome == 'success'/u);
+  assert.doesNotMatch(
+    String(mediaArtifact.with?.path),
+    /credentials|maintenance-game-media-state/u,
+  );
+  const mediaSave = collect!.steps.find(
+    (step) => step.name === "Retain the due game media checkpoint for the next schedule",
+  )!;
+  assert.ok(collect!.steps.indexOf(mediaSave) > collect!.steps.indexOf(mediaArtifact));
+  assert.match(mediaSave.if!, /steps\.game-media-report\.outcome == 'success'/u);
   assert.deepEqual(Object.keys(workflow.jobs), [
     "reconcile-intake-receipts",
     "collect",
@@ -344,6 +404,10 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   const discoveryStep = discover.steps.find((step) =>
     step.run?.includes("discovery-worker.mts collect"),
   )!;
+  const seed = discover.steps.find((step) => step.run?.includes("maintenance-recovery-artifact"))!;
+  // An earlier forecast cannot tell whether the seeded pass will fit later.
+  assert.equal(seed.if, undefined);
+  assert.ok(discover.steps.indexOf(seed) < discover.steps.indexOf(discoveryStep));
   assert.equal(discoveryStep.env!.GH_TOKEN, "${{ github.token }}");
   const previewStep = discover.steps.find((step) => step.run?.includes("--discovery-listings"))!;
   assert.match(previewStep.if!, /github.event_name == 'schedule'/u);
@@ -404,6 +468,10 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "read-only receipt job has no reusable permission floor",
   );
   assert.deepEqual(receiptWorker.permissions, { contents: "read", issues: "read" });
+  assert.equal(
+    receiptWorker.outputs?.receipt_outcome,
+    "${{ steps.execute.outputs.receipt_outcome }}",
+  );
   assert.equal(receiptWorker.secrets?.PORTCOVE_ROADMAP_TOKEN, undefined);
   assert.equal(resume.uses, "./.github/workflows/hosted-discovery-intake.yml");
   assert.deepEqual(resume.permissions, worker.jobs.intake.permissions);
@@ -475,13 +543,18 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     collection.run!,
     /--artwork-health work\/maintenance-report\/cover-artwork-health\.json/u,
   );
+  assert.match(
+    collection.run!,
+    /--media-artwork-health work\/maintenance-report\/media-artwork-health\.json/u,
+  );
   const coverHealth = collect!.steps.find(
-    (step) => step.name === "Verify a bounded window of accepted cover references",
+    (step) => step.name === "Verify a bounded window of accepted cover and media references",
   )!;
   assert.equal(coverHealth.if, "github.event_name == 'schedule'");
   assert.equal(coverHealth.env, undefined);
   assert.match(coverHealth.run!, /env -i PATH=/u);
   assert.match(coverHealth.run!, /maintenance-artwork-health\.mts target\/debug\/portcove/u);
+  assert.match(coverHealth.run!, /media-artwork-health\.json/u);
   for (const flag of [
     "--all",
     "--release-health",
@@ -501,11 +574,24 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(render.env, undefined);
   assert.match(render.run!, /--database-env PORTCOVE_MAINTENANCE_LOCAL_URL/u);
 
-  assert.equal(
-    collect!.steps.at(-1)?.name,
-    "Check that collection kept the reconciled intake fence",
+  const fence = collect!.steps.find(
+    (step) => step.name === "Check that collection kept the reconciled intake fence",
+  )!;
+  assert.ok(collect!.steps.indexOf(fence) < collect!.steps.indexOf(media));
+  assert.match(fence.run ?? "", /receipt_fence == "verified"/u);
+  assert.match(
+    fence.if ?? "",
+    /needs\.reconcile-intake-receipts\.outputs\.receipt_outcome == 'verified'/u,
   );
-  assert.match(collect!.steps.at(-1)?.run ?? "", /receipt_fence == "verified"/u);
+  const evidence = collect!.steps.find((step) => step.name === "Record run evidence")!;
+  assert.equal(
+    evidence.env?.INTAKE_RECEIPT_OUTCOME,
+    "${{ needs.reconcile-intake-receipts.outputs.receipt_outcome }}",
+  );
+  assert.match(
+    evidence.run ?? "",
+    /"status": os\.environ\["INTAKE_RECEIPT_OUTCOME"\] or "unavailable"/u,
+  );
   assert.ok(
     collect!.steps.some((step) => step.name === "Retain the backup for independent restore proof"),
   );
@@ -520,7 +606,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   );
   assert.match(workerExecute.env!.HOSTED_INTAKE_MODE!, /inputs.mode/u);
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
-  assert.equal(uploads.length, 3);
+  assert.equal(uploads.length, 4);
   for (const upload of uploads) assert.equal(upload.with!["retention-days"], 30);
 });
 
@@ -925,7 +1011,8 @@ void test(
       store.owner,
       `CREATE ROLE collector_login LOGIN IN ROLE portcove_maintenance_collector;
        CREATE ROLE report_login LOGIN IN ROLE portcove_maintenance_report;
-       CREATE ROLE executor_login LOGIN IN ROLE portcove_maintenance_executor;`,
+       CREATE ROLE executor_login LOGIN NOINHERIT;
+       GRANT portcove_maintenance_executor TO executor_login WITH INHERIT FALSE;`,
     );
     const { cli, responses } = stubCli(fixture.root);
     const sample = path.join(fixture.root, "sample.json");
@@ -994,7 +1081,12 @@ void test(
     );
     assert.match(renderDigestMarkdown(digest), /returns to an earlier result/u);
     assert.throws(() => acknowledgeDigest(collector, digest, "receipt"), /permission denied/u);
+    assert.throws(
+      () => acknowledgeDigest(store.as("report_login"), digest, "receipt"),
+      /permission denied/u,
+    );
     const executor = store.as("executor_login");
+    assert.throws(() => buildDigest(executor), /permission denied/u);
     const receipt = "https://github.com/boburning/portcove/issues/4129#issuecomment-1";
     assert.deepEqual(acknowledgeDigest(executor, digest, receipt), { delivered: 2 });
     assert.deepEqual(acknowledgeDigest(executor, digest, receipt), { delivered: 0 });
@@ -1273,7 +1365,7 @@ void test(
         issues: [
           {
             id: "I1",
-            number: 1,
+            number: 59,
             title: "Ship",
             state: shipState,
             body: "<!-- portcove-catalog-id: 2ship2harkinian -->",
@@ -1322,14 +1414,27 @@ void test(
     const shipWork = (
       withWork.subjects as {
         port_key: string;
-        work: { number: number; state: string; project: { fields: Record<string, string> }[] }[];
+        work: {
+          number: number;
+          state: string;
+          canonical: boolean;
+          project: { fields: Record<string, string> }[];
+        }[];
       }[]
     ).find(({ port_key }) => port_key === "port:2ship2harkinian")!.work;
     assert.deepEqual(
-      shipWork.map(({ number, state, project }) => [number, state, project[0]?.fields.Status]),
-      [[1, "CLOSED", "Ready"]],
+      shipWork.map(({ number, state, canonical, project }) => [
+        number,
+        state,
+        canonical,
+        project[0]?.fields.Status,
+      ]),
+      [[59, "CLOSED", true, "Ready"]],
     );
-    assert.match(renderHtml(withWork), /#1 CLOSED · Ready/u);
+    assert.match(renderHtml(withWork), /#59 \(canonical\) CLOSED · Ready/u);
+    const catalogEntry = withWork.universe?.find(({ key }) => key === "port:2ship2harkinian");
+    assert.equal(catalogEntry?.original_game_id, "the-legend-of-zelda-majoras-mask");
+    assert.deepEqual(catalogEntry?.relations, [{ type: "canonical-work", key: "issue:59" }]);
 
     // Full and incremental assessment agree on identical final inputs.
     await all(direct.owner, ["2ship2harkinian"]);
@@ -5580,5 +5685,262 @@ void test(
       "port:first@first:" + createHash("sha256").update(canonicalJson(earlier)).digest("hex"),
       "port:second@second:" + createHash("sha256").update(canonicalJson(restored)).digest("hex"),
     ]);
+  },
+);
+
+void test("scheduled retained media health shares fixed variants while distinguishing exact roles", async () => {
+  const { mediaHealthInventory, observeMediaArtworkWindow, projectMediaArtworkHealth } =
+    await import("./maintenance-artwork-health.mts");
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const body = "bounded image";
+  const digest = createHash("sha256").update(body).digest("hex");
+  const asset = (role: string, variant: string, kind: string, name: string, sha256 = digest) => ({
+    role,
+    sha256,
+    url: "https://images.igdb.com/igdb/image/upload/t_" + variant + "/" + name + ".png",
+    igdb: { game_id: 8, record_id: 9, image_id: name, kind },
+  });
+  const inventory = mediaHealthInventory({
+    listings: [
+      {
+        id: "ordinary",
+        media: [
+          asset("header", "720p", "artwork", "shared"),
+          asset("key_art", "720p", "artwork", "shared", "a".repeat(64)),
+          asset("logo", "logo_med_2x", "logo", "shared"),
+          asset("screenshot", "720p", "screenshot", "unavailable"),
+          asset("logo", "720p", "logo", "wrongvariant"),
+          { ...asset("logo", "logo_med_2x", "logo", "wronghost"), url: "https://example.invalid/" },
+        ],
+      },
+      {
+        id: "excluded",
+        implementation: {
+          dependencies: [{ kind: "runtime", project_url: "https://github.com/scummvm/scummvm" }],
+        },
+        media: [asset("logo", "logo_med_2x", "logo", "excluded")],
+      },
+    ],
+  });
+  const visited: string[] = [];
+  const inspector = createIgdbInspector(
+    undefined,
+    () => ({ format: "png", validator: "portcove-core", width: 300, height: 200 }),
+    async (url) => {
+      assert.match(url, /^https:\/\/images\.igdb\.com\//u);
+      visited.push(url);
+      if (url.endsWith("/t_logo_med_2x/shared.png")) return new Response(null, { status: 410 });
+      if (url.endsWith("/t_720p/unavailable.png")) return new Response(null, { status: 404 });
+      return new Response(body, { headers: { "content-type": "image/png" } });
+    },
+  );
+  const observed = await observeMediaArtworkWindow(
+    inventory,
+    inspector,
+    new AbortController().signal,
+    0,
+  );
+  assert.equal(visited.length, 3);
+  assert.equal(observed.window.eligible, 3);
+  assert.equal(observed.image_bytes, Buffer.byteLength(body));
+  assert.equal(inspector.providerMetrics.authentication_requests, 0);
+  assert.deepEqual(
+    observed.images.map(({ target, roles }) => [target, roles]),
+    [
+      [
+        "720p/shared",
+        [
+          { role: "header", state: "unchanged" },
+          { role: "key_art", state: "mismatch" },
+        ],
+      ],
+      ["720p/unavailable", [{ role: "screenshot", state: "unavailable" }]],
+      ["logo_med_2x/shared", [{ role: "logo", state: "gone" }]],
+    ],
+  );
+  const producer = { workflow: "fixture", run: "1", attempt: "1", revision: "a".repeat(40) };
+  const context = { inventory, listingsSha256: digest, cliSha256: digest, producer, now: 0 };
+  const receipt = {
+    format: 1,
+    authority: "none",
+    producer,
+    listings_sha256: digest,
+    cli_sha256: digest,
+    observed_at: new Date(0).toISOString(),
+    retry_at: null,
+    ...observed,
+  };
+  const projected = projectMediaArtworkHealth(receipt, context);
+  assert.equal(projected.expected, 3);
+  assert.equal(projected.complete, false);
+  assert.deepEqual(projected.counts, {
+    unchanged: 1,
+    mismatch: 1,
+    gone: 1,
+    unavailable: 1,
+    deferred: 0,
+  });
+  assert.deepEqual(
+    [...projected.facts.keys()],
+    ["artwork:720p/shared", "artwork:logo_med_2x/shared"],
+  );
+  assert.deepEqual(
+    projected.gaps.map(({ subject_key }) => subject_key),
+    ["artwork:720p/unavailable"],
+  );
+  assert.throws(
+    () => projectMediaArtworkHealth({ ...receipt, listings_sha256: "b".repeat(64) }, context),
+    /Unbound media health report/u,
+  );
+  assert.throws(
+    () => projectMediaArtworkHealth({ ...receipt, images: observed.images.toReversed() }, context),
+    /committed image window/u,
+  );
+  assert.throws(
+    () =>
+      projectMediaArtworkHealth(
+        { ...receipt, images: [{ ...observed.images[0], roles: [] }, ...observed.images.slice(1)] },
+        context,
+      ),
+    /committed artwork roles/u,
+  );
+  assert.throws(
+    () => projectMediaArtworkHealth({ ...receipt, image_bytes: 0 }, context),
+    /validated image budget/u,
+  );
+  const logo = {
+    ...observed.images[2],
+    status: "read",
+    content: { sha256: digest, bytes: Buffer.byteLength(body), width: 568, height: 320 },
+    roles: [{ role: "logo", state: "unchanged" }],
+  };
+  const logoReceipt = { ...receipt, image_bytes: 2 * Buffer.byteLength(body) };
+  assert.doesNotThrow(() =>
+    projectMediaArtworkHealth(
+      { ...logoReceipt, images: [...observed.images.slice(0, 2), logo] },
+      context,
+    ),
+  );
+  assert.throws(
+    () =>
+      projectMediaArtworkHealth(
+        {
+          ...logoReceipt,
+          images: [
+            ...observed.images.slice(0, 2),
+            { ...logo, content: { ...logo.content, width: 569 } },
+          ],
+        },
+        context,
+      ),
+    /invalid Core content evidence/u,
+  );
+  assert.doesNotThrow(() =>
+    projectMediaArtworkHealth({ ...receipt, image_bytes: 18 * 1024 * 1024 }, context),
+  );
+  const closed = await observeMediaArtworkWindow(inventory, inspector, AbortSignal.abort(), 0);
+  assert.equal(visited.length, 3);
+  assert.ok(closed.images.every(({ status }) => status === "deferred"));
+  assert.throws(
+    () => projectMediaArtworkHealth({ ...receipt, ...closed }, context),
+    /inconsistent image accounting/u,
+  );
+  assert.doesNotThrow(() =>
+    projectMediaArtworkHealth(
+      { ...receipt, ...closed, image_requests: 0, image_bytes: 0 },
+      context,
+    ),
+  );
+});
+
+void test("scheduled artwork health skips Core validation after the phase deadline", async (context) => {
+  const { createCoreImageValidator } = await import("./inspect-igdb-artwork.mts");
+  const scratch = mkdtempSync(path.join(os.tmpdir(), "portcove-validator-deadline-"));
+  context.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const executable = path.join(scratch, "validator-fixture");
+  writeFileSync(executable, "this fixture must never execute");
+  const validate = createCoreImageValidator(executable, scratch);
+  assert.throws(
+    () => validate(Buffer.from("ignored"), performance.now() - 1),
+    /Core image validation deadline reached/u,
+  );
+  const root = readdirSync(scratch).find((name) => name.startsWith("core-image-validation-"));
+  assert.ok(root);
+  assert.deepEqual(readdirSync(path.join(scratch, root)), [
+    process.platform === "win32" ? "validator.exe" : "validator",
+  ]);
+});
+
+void test(
+  "scheduled media health retains current facts through a provider outage and unchanged replay",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("media-health");
+    migrate(store.owner);
+    const target = "720p/shared";
+    const key = "artwork:" + target;
+    const first = {
+      status: "read",
+      target,
+      image_id: "shared",
+      content: { sha256: "a".repeat(64), width: 400, height: 300, bytes: 10 },
+    };
+    const contentHash = createHash("sha256").update(canonicalJson(first)).digest("hex");
+    const insert = (
+      attempt: number,
+      facts: ReadonlyMap<string, unknown>,
+      previous: ReadonlyMap<string, string>,
+    ) =>
+      runSql(
+        store.owner,
+        collectionSql({
+          mode: "all",
+          revision: "a".repeat(40),
+          cliSha256: "a".repeat(64),
+          apiSchema: 1,
+          runner: "fixture",
+          startedAt: new Date().toISOString(),
+          platform: "linux-x86-64",
+          subjects: [],
+          mediaArtworkHealth: {
+            revision: `scheduled-media-health:${attempt}-1`,
+            complete: facts.size > 0,
+            expected: 1,
+            facts,
+            gaps: facts.size
+              ? []
+              : [{ subject_key: key, code: "unavailable", message: "provider unavailable" }],
+          },
+          latest: { catalog: new Map(), core: new Map(), mediaArtworkHealth: previous },
+        }),
+      );
+    const accepted = new Map([[key, first]]);
+    const previous = new Map([[key, contentHash]]);
+    insert(1, accepted, new Map());
+    insert(2, new Map(), previous);
+    insert(3, accepted, previous);
+    assert.equal(
+      runSql(
+        store.owner,
+        `
+      SELECT count(*) FROM portcove_maintenance.observations o
+      JOIN portcove_maintenance.collection_runs r USING (run_id)
+      WHERE r.source = 'media-artwork-health';
+    `,
+      ).trim(),
+      "1",
+    );
+    assert.equal(
+      runSql(
+        store.owner,
+        `
+      SELECT content_sha256 FROM portcove_maintenance.run_members(
+        portcove_maintenance.latest_run('media-artwork-health')
+      );
+    `,
+      ).trim(),
+      contentHash,
+    );
   },
 );

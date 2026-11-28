@@ -79,65 +79,81 @@ export function draftSize(draft: ModDraft) {
   );
 }
 
+function storedText(value: unknown, limit = 256): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= limit;
+}
+
+function storedDigest(value: unknown): value is string {
+  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+}
+
+function storedAddition(item: ModAddition | null) {
+  return (
+    item &&
+    (item.gameId === undefined || storedText(item.gameId)) &&
+    [item.provider, item.project, item.file, item.name, item.fileName].every((value) =>
+      storedText(value),
+    )
+  );
+}
+
+function storedEdit(item: ModEdit | null) {
+  return (
+    item &&
+    storedText(item.native_id) &&
+    (item.enabled === null || typeof item.enabled === "boolean") &&
+    (item.beforeRemoval === undefined ||
+      (item.enabled === null && typeof item.beforeRemoval === "boolean"))
+  );
+}
+
+function storedLocalSelection(entry: LocalModSelection | null) {
+  if (!entry?.review || !storedText(entry.path, 4096)) return false;
+  const { review } = entry;
+  return (
+    [review.native_id, review.profile_id].every((value) => storedText(value)) &&
+    Number.isSafeInteger(review.expected_revision) &&
+    [review.plan_sha256, review.sha256].every(storedDigest) &&
+    typeof review.needs_code_permission === "boolean"
+  );
+}
+
+function storedReceipt(receipt: ModDraftReceipt | null | undefined) {
+  return (
+    receipt &&
+    Number.isSafeInteger(receipt.revision) &&
+    receipt.revision > 0 &&
+    storedDigest(receipt.digest)
+  );
+}
+
+function storedList<T>(entries: T[], accepts: (entry: T) => unknown, limit = MOD_SETUP_CAPACITY) {
+  return Array.isArray(entries) && entries.length <= limit && entries.every(accepts);
+}
+
+function hasStoredSelections(draft: ModDraft) {
+  return (
+    storedList(draft.additions, storedAddition) &&
+    storedList(draft.packages, storedEdit) &&
+    (draft.order === null ||
+      (Array.isArray(draft.order) && draft.order.every((value) => storedText(value)))) &&
+    (draft.localFiles === undefined ||
+      storedList(
+        draft.localFiles,
+        storedLocalSelection,
+        MOD_SETUP_CAPACITY - draft.additions.length,
+      ))
+  );
+}
+
 function readDraft(key: string): ModDraft {
   try {
     const raw = localStorage.getItem(key);
     if (!raw || raw.length > MAX_STORED_DRAFT_TEXT) return emptyModDraft;
     const draft = JSON.parse(raw) as ModDraft | null;
-    const text = (value: unknown) =>
-      typeof value === "string" && value.length > 0 && value.length <= 256;
-    if (
-      !draft ||
-      !Array.isArray(draft.additions) ||
-      draft.additions.length > MOD_SETUP_CAPACITY ||
-      !draft.additions.every(
-        (item) =>
-          item &&
-          (item.gameId === undefined || text(item.gameId)) &&
-          [item.provider, item.project, item.file, item.name, item.fileName].every(text),
-      ) ||
-      !Array.isArray(draft.packages) ||
-      draft.packages.length > MOD_SETUP_CAPACITY ||
-      !draft.packages.every(
-        (item) =>
-          item &&
-          text(item.native_id) &&
-          (item.enabled === null || typeof item.enabled === "boolean") &&
-          (item.beforeRemoval === undefined ||
-            (item.enabled === null && typeof item.beforeRemoval === "boolean")),
-      ) ||
-      (draft.order !== null && (!Array.isArray(draft.order) || !draft.order.every(text)))
-    )
-      return emptyModDraft;
-    const digest = (value: unknown) => typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
-    if (
-      draft.receipt !== undefined &&
-      (!draft.receipt ||
-        !Number.isSafeInteger(draft.receipt.revision) ||
-        draft.receipt.revision <= 0 ||
-        !digest(draft.receipt.digest))
-    )
-      delete draft.receipt;
-    if (
-      draft.localFiles !== undefined &&
-      (!Array.isArray(draft.localFiles) ||
-        draft.localFiles.length + draft.additions.length > MOD_SETUP_CAPACITY ||
-        !draft.localFiles.every(
-          (entry) =>
-            entry &&
-            typeof entry.path === "string" &&
-            entry.path.length > 0 &&
-            entry.path.length <= 4096 &&
-            entry.review &&
-            text(entry.review.native_id) &&
-            text(entry.review.profile_id) &&
-            Number.isSafeInteger(entry.review.expected_revision) &&
-            digest(entry.review.plan_sha256) &&
-            digest(entry.review.sha256) &&
-            typeof entry.review.needs_code_permission === "boolean",
-        ))
-    )
-      return emptyModDraft;
+    if (!draft || !hasStoredSelections(draft)) return emptyModDraft;
+    // Invalid receipt metadata must not discard otherwise valid held changes.
+    if (!storedReceipt(draft.receipt)) delete draft.receipt;
     return draft;
   } catch {
     return emptyModDraft;
@@ -176,6 +192,7 @@ export function useModDraft(scope: {
   (update: SetStateAction<ModDraft>) => boolean,
   StaleDraft | undefined,
   (draft?: ModDraft) => void,
+  boolean,
 ] {
   const scopeKey =
     scope.setup === undefined
@@ -185,6 +202,7 @@ export function useModDraft(scope: {
   const read = () => ({
     key,
     draft: key && scope.library ? readDraft(key) : emptyModDraft,
+    saveFailed: false,
     stale:
       scopeKey && scope.library && scope.revision
         ? olderDraft(scopeKey, scope.revision)
@@ -214,27 +232,28 @@ export function useModDraft(scope: {
   }, [key, recovered, saved.stale, scopeKey, scope.revision]);
   if (saved.key !== key) {
     setSaved(read());
-    return [emptyModDraft, () => false, undefined, () => {}];
+    return [emptyModDraft, () => false, undefined, () => {}, false];
   }
   const updateDraft = (update: SetStateAction<ModDraft>) => {
     const current = latest.current;
     if (current.key !== key) return false;
     const draft = typeof update === "function" ? update(current.draft) : update;
-    const updated = { ...current, draft };
+    const pending = draftSize(draft);
+    let persisted = false;
+    let saveFailed = false;
+    if (key && scopeKey && scope.library) {
+      try {
+        if (pending) localStorage.setItem(key, JSON.stringify(draft));
+        else localStorage.removeItem(key);
+        persisted = true;
+      } catch {
+        saveFailed = pending > 0;
+      }
+    }
+    const updated = { ...current, draft, saveFailed };
     latest.current = updated;
     setSaved(updated);
-    if (!key || !scopeKey || !scope.library) return false;
-    try {
-      if (draftSize(draft)) {
-        localStorage.setItem(key, JSON.stringify(draft));
-      } else {
-        localStorage.removeItem(key);
-      }
-      return true;
-    } catch {
-      // Keep the current in-memory draft if local writes are unavailable.
-      return false;
-    }
+    return persisted;
   };
   const updateOlder = (draft?: ModDraft) => {
     const current = latest.current;
@@ -250,5 +269,11 @@ export function useModDraft(scope: {
       // The old draft stays available if the store cannot save the change.
     }
   };
-  return [saved.draft, updateDraft, recovered ? undefined : saved.stale, updateOlder];
+  return [
+    saved.draft,
+    updateDraft,
+    recovered ? undefined : saved.stale,
+    updateOlder,
+    saved.saveFailed,
+  ];
 }

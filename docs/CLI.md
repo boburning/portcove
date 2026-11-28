@@ -153,6 +153,15 @@ bounded native launch suggestions without executing files. Registration remains
 explicit and may select an executable outside the download folder after upstream
 setup; retain its working directory and literal arguments.
 
+With no maintained executable hints, an extracted package can suggest a program
+through its root `recomplauncher.json`. Core reads format 1 and takes the first
+exact `start.program` path that matches an inspected native candidate. If the
+manifest declares `repo`, it must agree with the selected GitHub project. For a
+listing bound to a numeric repository ID, the verified release route can identify
+the same project after a rename. If the declaration is unavailable or has no usable
+match, ordinary suggestions remain available. The choice still needs confirmation. Portcove does not use its
+arguments, environment, setup commands, or loader declarations.
+
 GitLab listings use the same candidates, preview, download and pending workflow.
 Use the exact provider-qualified references returned by candidates:
 
@@ -209,6 +218,20 @@ version is only a notice: you can still add the game you set up.
 record. It does not remove handed-off files. Each port has one active managed
 installation or external registration. A separate downloaded setup may coexist
 with an external registration until a reviewed change replaces its launch target.
+
+If a public GitHub port is missing from Discover, use **Add games → Use an
+existing installation → Add a port missing from Discover**. Enter the project's
+main GitHub address and choose the executable you already set up. Review the
+start folder and confirm the registration. The equivalent CLI commands are
+`external select-project-preview PROJECT_URL EXECUTABLE --working-directory FOLDER`
+and `external select-project PROJECT_URL EXECUTABLE --working-directory FOLDER --expected-preview SHA256 --yes`.
+Pass one `--arg` per launch option to both commands when needed.
+
+Portcove sends just the project address to GitHub to verify its public
+repository ID. It keeps your launch details in this library. If the signed
+catalog later adds that exact repository identity, the existing library entry
+picks up its catalog details without moving files or changing its launch
+settings. If a catalog entry already names the project, select it in Discover.
 
 When an upstream update changes the executable or working directory, use
 `external select-relink-preview PORT_ID EXECUTABLE --working-directory DIRECTORY`
@@ -504,7 +527,12 @@ Listing format 11 adds optional inert `collection_covers`: one to four distinct,
 reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
 individual `artwork` mapping. The field grants display only. Local artwork choices
 keep precedence. Exports to formats 5 through 10 omit the collection while retaining
-setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 16. An export without an explicit format carries the current directory format.
+setup, restrictions and identity. \`capabilities.listing_formats\` advertises 5 through 19.
+An export without an explicit format carries the current directory format.
+Repository-bound GitHub listings require format 17 or later. Explicit links to a
+separate official setup require format 18 or later and are omitted from earlier
+exports. Format 19 assigns each listing's automatic cover. A signed row without
+a cover uses the normal fallback. Player artwork choices still take precedence.
 Retained user-selected listings with collections use envelope version 4. Earlier
 retained envelopes remain readable; a collection in an earlier envelope is refused.
 
@@ -1848,6 +1876,11 @@ portcove --library <path> --json library export --output <new-file.json>
 Export reads one consistent SQLite snapshot. The metadata records source
 references, managed version identities, and which versions are active, previous,
 or staged. It also records per-port preferences and successful launches.
+Format 17 carries local mod website choices, hidden source IDs, and exact hidden
+Thunderstore communities. Metadata import and verified recovery restore those
+choices to the same port, including choices whose source is temporarily absent.
+The choices grant no permission to install mods. Earlier exports remain
+importable. To carry current mod source choices, create a new export or bundle.
 
 The metadata lists separate folders for application versions, user data, Source
 Inbox, backups, toolchains, and local artwork. The file contains none of those
@@ -2945,7 +2978,8 @@ install and update files outside Portcove.
 Use **Edit mod websites** in Mods to add a website or hide one of the
 automatic links. Portcove stores these choices for this game in the current
 library. Use **Use automatic websites** to clear your choices and show the
-latest accepted links.
+latest accepted links. A generated Thunderstore website stays hidden when an
+updated catalog supplies the same community through a different source.
 
 To set the same choices from the CLI, get the current
 `mod_portal_preferences.preferences.revision` from `profile setups --json`.
@@ -3023,7 +3057,7 @@ architecture scope. Routine CI uses deterministic provider fixtures.
 ### Installing from GameBanana and Thunderstore
 
 ```text
-portcove --library PATH --json profile provider-browse PORT_ID [--page N] [--provider PROVIDER]
+portcove --library PATH --json profile provider-browse PORT_ID [--page N] [--provider PROVIDER | --portal-source SOURCE_ID]
 portcove --library PATH --json profile provider-project PORT_ID PROJECT_ID [--provider PROVIDER]
 portcove --library PATH --json profile provider-plan PORT_ID PROFILE_ID PROJECT_ID FILE_ID [--provider PROVIDER] > plan.json
 portcove --library PATH --json profile provider-apply PORT_ID PROFILE_ID plan.json --expected-plan SHA256 [--allow-mod-code] --yes
@@ -3066,6 +3100,12 @@ browse URL. `provider-project` shows one mod's files or versions
 with the IDs `provider-plan` takes, refusing a mod from another game. Provider text is
 sanitized presentation data: names, popularity and version labels never establish
 compatibility, and a `stale` result is earlier data from an outage.
+
+Use `--portal-source SOURCE_ID` for an exact GameBanana game or Thunderstore
+community shown in the port's mod websites. Desktop offers the same browse action
+in Mods, including for listings without a setup. It opens projects in the provider's
+website after checking their game or community. The descriptive source does not
+grant package or installation permissions.
 
 `provider-plan` needs a reviewed binding and a current provider observation; cached
 data from an outage never produces a plan. Missing, null, or malformed eligibility

@@ -675,7 +675,7 @@ async function writeFixtureCatalog({
     const release = ownedPortDefinition.release.direct["windows-x86-64"];
     if (!release || !revision || !/^[a-f0-9]{40}$/.test(revision))
       throw new Error("Game settings require a Windows fixture and an exact source revision");
-    ownedPortDefinition.persistent_paths = ["fixture-settings.json"];
+    ownedPortDefinition.persistent_paths = ["fixture-settings.json", "fixture-display.json"];
     ownedPortDefinition.game_settings = {
       format_version: 1,
       releases: [
@@ -708,14 +708,27 @@ async function writeFixtureCatalog({
             },
           ],
         },
+        {
+          id: "display",
+          path: "fixture-display.json",
+          format: "json",
+          maximum_bytes: 4096,
+          settings: [
+            {
+              id: "render-scale",
+              label: "Render scale",
+              key: ["scale"],
+              value: { kind: "integer", minimum: 50, maximum: 200, step: 5, default: 100 },
+            },
+          ],
+        },
       ],
     };
   }
   if (acquisitionWaitPath) {
     refreshPortDefinition.launch_arguments = [
       "--game",
-      "--owned-wait",
-      acquisitionWaitPath,
+      "--wait-for-acquisition-release",
       "--owned-wait-seconds",
       "180",
     ];
@@ -875,7 +888,7 @@ export async function createInstallFixture({
   )
     throw new Error("Acquisition requires its own executable-upgrade fixture selection");
   const acquisitionWaitPath = acquisitionJourney
-    ? path.join(output, "acquisition-game-release.signal")
+    ? path.join(output, "library", "acquisition-game-release.signal")
     : undefined;
   if (sourceJourney && completionJourney)
     throw new Error("Discovery and completion fixtures require separate isolated selections");

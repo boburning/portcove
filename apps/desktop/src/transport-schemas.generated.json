@@ -4363,6 +4363,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -6799,6 +6808,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -11176,6 +11194,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -11767,6 +11794,13 @@
           },
           "name": {
             "type": "string"
+          },
+          "official_setup_id": {
+            "description": "Exact official definition to check from this listing. It confers no\nacquisition or runtime ownership and requires listing format 18.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "original_game": {
             "anyOf": [
@@ -14130,6 +14164,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -14493,6 +14536,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -26206,6 +26258,25 @@
         ],
         "type": "object"
       },
+      "HiddenCommunity": {
+        "additionalProperties": false,
+        "properties": {
+          "community": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "community"
+        ],
+        "type": "object"
+      },
       "InstallRecord": {
         "properties": {
           "artifact": {
@@ -26432,6 +26503,13 @@
             },
             "type": "array"
           },
+          "mod_portal_preferences": {
+            "description": "Local mod source choices and hidden communities, from metadata schema 17.",
+            "items": {
+              "$ref": "#/$defs/LibraryModPortalPreference"
+            },
+            "type": "array"
+          },
           "original_root": {
             "type": "string"
           },
@@ -26513,6 +26591,29 @@
           "path",
           "sha256",
           "size"
+        ],
+        "type": "object"
+      },
+      "LibraryModPortalPreference": {
+        "additionalProperties": false,
+        "description": "A player's portable mod-browsing choices and exact hidden communities.",
+        "properties": {
+          "hidden_communities": {
+            "items": {
+              "$ref": "#/$defs/HiddenCommunity"
+            },
+            "type": "array"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "preferences": {
+            "$ref": "#/$defs/ModPortalPreferences"
+          }
+        },
+        "required": [
+          "port_id",
+          "preferences"
         ],
         "type": "object"
       },
@@ -26678,6 +26779,65 @@
           "width",
           "height",
           "imported_at"
+        ],
+        "type": "object"
+      },
+      "LocalModPage": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "type": "object"
+      },
+      "ModPortalChoices": {
+        "additionalProperties": false,
+        "properties": {
+          "hidden_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "local_page": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LocalModPage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "local_page",
+          "hidden_sources"
+        ],
+        "type": "object"
+      },
+      "ModPortalPreferences": {
+        "properties": {
+          "choices": {
+            "$ref": "#/$defs/ModPortalChoices"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "choices"
         ],
         "type": "object"
       },
@@ -28209,6 +28369,25 @@
         ],
         "type": "object"
       },
+      "HiddenCommunity": {
+        "additionalProperties": false,
+        "properties": {
+          "community": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "community"
+        ],
+        "type": "object"
+      },
       "InstallRecord": {
         "properties": {
           "artifact": {
@@ -28393,6 +28572,29 @@
         ],
         "type": "object"
       },
+      "LibraryModPortalPreference": {
+        "additionalProperties": false,
+        "description": "A player's portable mod-browsing choices and exact hidden communities.",
+        "properties": {
+          "hidden_communities": {
+            "items": {
+              "$ref": "#/$defs/HiddenCommunity"
+            },
+            "type": "array"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "preferences": {
+            "$ref": "#/$defs/ModPortalPreferences"
+          }
+        },
+        "required": [
+          "port_id",
+          "preferences"
+        ],
+        "type": "object"
+      },
       "LibraryPortSettings": {
         "properties": {
           "active_install_id": {
@@ -28536,6 +28738,65 @@
           "width",
           "height",
           "imported_at"
+        ],
+        "type": "object"
+      },
+      "LocalModPage": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "type": "object"
+      },
+      "ModPortalChoices": {
+        "additionalProperties": false,
+        "properties": {
+          "hidden_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "local_page": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LocalModPage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "local_page",
+          "hidden_sources"
+        ],
+        "type": "object"
+      },
+      "ModPortalPreferences": {
+        "properties": {
+          "choices": {
+            "$ref": "#/$defs/ModPortalChoices"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "choices"
         ],
         "type": "object"
       },
@@ -29454,6 +29715,13 @@
         },
         "type": "array"
       },
+      "mod_portal_preferences": {
+        "description": "Local mod source choices and hidden communities, from metadata schema 17.",
+        "items": {
+          "$ref": "#/$defs/LibraryModPortalPreference"
+        },
+        "type": "array"
+      },
       "original_root": {
         "type": "string"
       },
@@ -30189,6 +30457,25 @@
         ],
         "type": "object"
       },
+      "HiddenCommunity": {
+        "additionalProperties": false,
+        "properties": {
+          "community": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "community"
+        ],
+        "type": "object"
+      },
       "InstallRecord": {
         "properties": {
           "artifact": {
@@ -30415,6 +30702,13 @@
             },
             "type": "array"
           },
+          "mod_portal_preferences": {
+            "description": "Local mod source choices and hidden communities, from metadata schema 17.",
+            "items": {
+              "$ref": "#/$defs/LibraryModPortalPreference"
+            },
+            "type": "array"
+          },
           "original_root": {
             "type": "string"
           },
@@ -30475,6 +30769,29 @@
           "application_versions",
           "port_settings",
           "launch_history"
+        ],
+        "type": "object"
+      },
+      "LibraryModPortalPreference": {
+        "additionalProperties": false,
+        "description": "A player's portable mod-browsing choices and exact hidden communities.",
+        "properties": {
+          "hidden_communities": {
+            "items": {
+              "$ref": "#/$defs/HiddenCommunity"
+            },
+            "type": "array"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "preferences": {
+            "$ref": "#/$defs/ModPortalPreferences"
+          }
+        },
+        "required": [
+          "port_id",
+          "preferences"
         ],
         "type": "object"
       },
@@ -30640,6 +30957,65 @@
           "width",
           "height",
           "imported_at"
+        ],
+        "type": "object"
+      },
+      "LocalModPage": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "type": "object"
+      },
+      "ModPortalChoices": {
+        "additionalProperties": false,
+        "properties": {
+          "hidden_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "local_page": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LocalModPage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "local_page",
+          "hidden_sources"
+        ],
+        "type": "object"
+      },
+      "ModPortalPreferences": {
+        "properties": {
+          "choices": {
+            "$ref": "#/$defs/ModPortalChoices"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "choices"
         ],
         "type": "object"
       },
@@ -34199,6 +34575,13 @@
             },
             "type": "array"
           },
+          "canonical_port_id": {
+            "description": "Canonical listing represented by this retained local registration.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "capabilities": {
             "anyOf": [
               {
@@ -37720,7 +38103,8 @@
         "description": "A read-only provider browser Core can run for a portal.",
         "enum": [
           "quaddicted",
-          "mod_db_feed"
+          "mod_db_feed",
+          "provider_catalog"
         ],
         "type": "string"
       },
@@ -38087,7 +38471,8 @@
         "description": "A read-only provider browser Core can run for a portal.",
         "enum": [
           "quaddicted",
-          "mod_db_feed"
+          "mod_db_feed",
+          "provider_catalog"
         ],
         "type": "string"
       },
@@ -41395,6 +41780,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -42317,6 +42711,13 @@
           },
           "name": {
             "type": "string"
+          },
+          "official_setup_id": {
+            "description": "Exact official definition to check from this listing. It confers no\nacquisition or runtime ownership and requires listing format 18.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "original_game": {
             "anyOf": [
@@ -43563,6 +43964,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -63903,6 +64313,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [

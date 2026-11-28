@@ -12,7 +12,11 @@
         {
           "id": "dreamweb-uk-1-1",
           "title": "Freeware Floppy DOS Version (English UK)",
-          "evidence_urls": ["https://www.scummvm.org/games/#games-dreamweb:dreamweb"]
+          "evidence_urls": [
+            "https://www.scummvm.org/games/#games-dreamweb:dreamweb",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/dreamweb/detection_tables.h#L51-L66"
+          ],
+          "system": "dos"
         }
       ]
     },

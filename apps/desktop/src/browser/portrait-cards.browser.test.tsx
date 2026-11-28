@@ -20,6 +20,7 @@ import { initializeLocalization, LocalizationProvider } from "../localization";
 import type { PortStatus, PortDefinition } from "../types";
 import { useGamepadNavigation } from "../gamepad";
 import { captureTargetScreenshot } from "./capture-target";
+import { observeCollectionLayoutReady } from "../../scripts/browser-readiness.mts";
 import { captureParityState } from "../../test/parity-capture";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -254,6 +255,7 @@ it.for([
       };
     });
     document.documentElement.dataset.theme = theme;
+    const heldReadings: Array<{ text: string | null; installationFragments: number }> = [];
     for (const [width, height] of [
       [960, 640],
       [1280, 800],
@@ -261,7 +263,10 @@ it.for([
     ] as const) {
       await page.viewport(width, height);
       const screen = await render(
-        <main style={{ padding: 24, marginInlineStart: 220 }}>
+        <main
+          data-focus-region="workspace"
+          style={{ height: "100dvh", overflow: "auto", padding: 24, marginInlineStart: 220 }}
+        >
           <ArtworkProvider generation={1}>
             <PortBrowser
               view={view}
@@ -288,6 +293,8 @@ it.for([
           </ArtworkProvider>
         </main>,
       );
+      // Let virtual rows finish measuring before revealing the next artwork frame.
+      await expect.poll(observeCollectionLayoutReady).toBe(true);
       const mountedFrames = [...document.querySelectorAll<HTMLElement>(".collection-art")];
       for (const [index, frame] of mountedFrames.entries()) {
         frame.scrollIntoView({ block: "center", behavior: "instant" });
@@ -312,8 +319,22 @@ it.for([
         const identity = document.querySelectorAll<HTMLElement>(".collection-identity").item(4);
         await userEvent.hover(identity);
       }
-      window.scrollTo(0, 0);
+      const workspace = document.querySelector<HTMLElement>('[data-focus-region="workspace"]')!;
+      workspace.scrollTo({ top: 0, behavior: "instant" });
       await document.fonts.ready;
+      if (view === "library" && width === 1600) {
+        const readiness = document.querySelector(
+          '.collection-entry:has([data-detail-game-id="portrait-2"]) .readiness',
+        )!;
+        const label = readiness.lastChild!;
+        const word = document.createRange();
+        word.setStart(label, 0);
+        word.setEnd(label, "Installation".length);
+        heldReadings.push({
+          text: label.textContent,
+          installationFragments: word.getClientRects().length,
+        });
+      }
       // The Library case already hovered its fourth card above. Exercise the
       // Discover hover too before the shared helper measures the neutral grid.
       if (view === "catalog") {
@@ -321,14 +342,24 @@ it.for([
           .elementLocator(document.querySelector<HTMLElement>(".discover-game-identity")!)
           .hover();
       }
-      const { frames, fallback } = await assertPortraitLayout(view, theme, width, height);
+      const { frames, fallback } = await assertPortraitLayout(
+        view,
+        theme,
+        width,
+        height,
+        workspace,
+      );
+      await expect.poll(() => workspace.scrollTop).toBe(0);
       await page.screenshot({
         path: `../../../../outputs/uiux-game-titles/after-${view}-${theme}-${width}-${frames[0]!.width}x${frames[0]!.height}-top.png`,
       });
-      fallback.scrollIntoView({ block: "end" });
-      await page.screenshot({
-        path: `../../../../outputs/uiux-game-titles/after-${view}-${theme}-${width}-bottom.png`,
-      });
+      await captureTargetScreenshot(
+        fallback,
+        `../../../../outputs/uiux-game-titles/after-${view}-${theme}-${width}-bottom.png`,
+        "missing-art-viewport",
+        context,
+        "viewport",
+      );
       await captureTargetScreenshot(
         fallback,
         `../../../../outputs/uiux-game-titles/missing-art-${view}-${theme}-${width}.png`,
@@ -351,6 +382,9 @@ it.for([
       );
       await screen.unmount();
     }
+    expect(heldReadings).toEqual(
+      view === "library" ? [{ text: "Installation needs repair", installationFragments: 1 }] : [],
+    );
   },
 );
 
@@ -654,6 +688,7 @@ async function assertPortraitLayout(
   theme: string,
   width: number,
   height: number,
+  workspace: HTMLElement,
 ) {
   await settlePortraitPointer();
   const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")].map((element) => {
@@ -679,6 +714,7 @@ async function assertPortraitLayout(
     ).toBe(true);
   }
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+  expect(workspace.scrollWidth).toBeLessThanOrEqual(workspace.clientWidth + 1);
   const projectRows = [...document.querySelectorAll<HTMLElement>(".collection-project")];
   expect(projectRows).toHaveLength(5);
   const variants = projectRows;
@@ -693,7 +729,7 @@ async function assertPortraitLayout(
     expect(variant.scrollHeight).toBeLessThanOrEqual(variant.clientHeight + 1);
     identity.blur();
   }
-  window.scrollTo(0, 0);
+  workspace.scrollTo({ top: 0, behavior: "instant" });
   // Keyboard traversal can leave the inherited pointer over a poster. Compare
   // resting rows after the intentional two-pixel hover lift has settled.
   await userEvent.hover(

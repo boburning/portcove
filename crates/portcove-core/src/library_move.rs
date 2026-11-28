@@ -127,7 +127,7 @@ fn start_move(
         ));
     }
     let mut journal = TransferJournal {
-        schema_version: 1,
+        schema_version: TransferJournal::CURRENT_SCHEMA,
         transfer_id: uuid::Uuid::new_v4().to_string(),
         plan,
         phase: TransferPhase::Copying,
@@ -142,6 +142,7 @@ fn continue_move(
     journal: &mut TransferJournal,
     checkpoint: &dyn Fn(TransferPhase) -> Result<()>,
 ) -> Result<LibraryMoveResult> {
+    let include_mod_portal_preferences = journal.includes_mod_portal_preferences();
     ensure_move_activity(source, journal)?;
     let marker = library_authority::authority(source.root())?;
     if let Some(marker) = &marker {
@@ -158,7 +159,11 @@ fn continue_move(
                 "source authority was lost after move publication began",
             ));
         }
-        crate::library_transfer::verify_source_plan(source, &journal.plan)?;
+        crate::library_transfer::verify_source_plan(
+            source,
+            &journal.plan,
+            include_mod_portal_preferences,
+        )?;
         library_authority::write_authority(
             source.root(),
             &authority(journal, AuthorityState::Pending),
@@ -219,7 +224,11 @@ fn continue_move(
     }
     require_pending(destination, journal)?;
     checkpoint(TransferPhase::Copying)?;
-    crate::library_transfer::verify_source_plan(source, &journal.plan)?;
+    crate::library_transfer::verify_source_plan(
+        source,
+        &journal.plan,
+        include_mod_portal_preferences,
+    )?;
     crate::transfer_copy::copy_content(
         &journal.plan.source_root,
         &journal.plan.destination_root,
@@ -231,9 +240,14 @@ fn continue_move(
         &target,
         &journal.plan.metadata,
         &journal.plan.content,
+        include_mod_portal_preferences,
     )?;
     // Reject out-of-band edits to the retained source as well as destination corruption.
-    crate::library_transfer::verify_source_plan(source, &journal.plan)?;
+    crate::library_transfer::verify_source_plan(
+        source,
+        &journal.plan,
+        include_mod_portal_preferences,
+    )?;
     if library_authority::verify_receipt(destination, &journal.transfer_id).is_err() {
         library_authority::write_receipt(destination, &journal.transfer_id)?;
     }
@@ -729,6 +743,46 @@ mod tests {
     #[test]
     fn copying_move_recovers_without_two_writable_libraries() {
         assert_move_boundary_recovery(TransferPhase::Copying);
+    }
+
+    #[test]
+    fn legacy_move_resume_keeps_mod_source_choices_in_the_copied_database() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        let service = fixture(&source);
+        let expected = crate::mod_portal_preferences::record_portability_fixture(service.library());
+        let mut plan = service.plan_library_move(&destination).unwrap();
+        assert_eq!(plan.metadata.mod_portal_preferences, [expected.clone()]);
+        plan.metadata = service
+            .library()
+            .metadata_for_transfer(&plan.source_root, false)
+            .unwrap();
+        assert!(plan.metadata.mod_portal_preferences.is_empty());
+        plan.plan_sha256 = crate::library_transfer::move_fingerprint(&plan).unwrap();
+        TransferJournal {
+            schema_version: 1,
+            transfer_id: uuid::Uuid::new_v4().to_string(),
+            plan,
+            phase: TransferPhase::Copying,
+        }
+        .create()
+        .unwrap();
+        drop(service);
+
+        assert!(
+            PortcoveService::resume_library_move(&source)
+                .unwrap()
+                .completed
+        );
+        let moved = PortcoveService::new(Library::open(&destination).unwrap()).unwrap();
+        assert_eq!(
+            moved
+                .export_library_metadata()
+                .unwrap()
+                .mod_portal_preferences,
+            [expected]
+        );
     }
 
     #[test]

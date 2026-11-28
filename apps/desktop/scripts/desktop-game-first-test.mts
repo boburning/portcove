@@ -89,8 +89,8 @@ export async function readGameFirstRelationships() {
   );
   const expected = value as unknown as GameFirstRelationships;
   assert.equal(expected.audited_port_ids.length, 1649);
-  assert.equal(Object.keys(expected.families).length, 256);
-  assert.equal(Object.keys(expected.project_entries).length, 39);
+  assert.equal(Object.keys(expected.families).length, 257);
+  assert.equal(Object.keys(expected.project_entries).length, 38);
   assert.equal(Object.keys(expected.intentionally_separate).length, 17);
   return { expected, sha256: createHash("sha256").update(bytes).digest("hex") };
 }
@@ -968,7 +968,10 @@ export async function gameFirstScenarios({
             )[0]!;
             const title =
               representative.presentation?.original_game_title?.trim() || representative.name;
-            await expectSearch(title, expected, []);
+            // The frozen Perfect Dark family has both N64 and Xbox 360 implementations.
+            // Its package card can show an edition title, which narrows a search by design.
+            const query = id === "perfect-dark" ? "Perfect Dark" : title;
+            await expectSearch(query, expected, []);
             const selector = `.discover-game[data-detail-return-group="game:${id}"]`;
             assert.equal(
               (await browser.findElements(By.css(selector))).length,

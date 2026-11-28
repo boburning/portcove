@@ -11,7 +11,16 @@
       "format_version": 1,
       "id": "real-bout-fatal-fury",
       "evidence_urls": ["https://github.com/omegakatana92/Real-Bout-Fatal-Fury-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "real-bout-fatal-fury-neo-geo-rbff1",
+          "title": "Real Bout Fatal Fury (Neo Geo, set rbff1)",
+          "system": "neo-geo",
+          "evidence_urls": [
+            "https://github.com/omegakatana92/Real-Bout-Fatal-Fury-Recomp/blob/1aedfffa7cb5c7c586864157d94bb344dc377e47/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "Real Bout Fatal Fury"
   }

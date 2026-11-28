@@ -39,6 +39,7 @@ import {
   queryJson,
   planMigrations,
   portableRestoreSql,
+  readBackupManifest,
   readMigrations,
   restore,
   runSql,
@@ -73,6 +74,64 @@ void test("recovery validates local destinations before admission and rechecks t
   assert.throws(
     () => createBackupRecovery({ ...options, target: prefixDatabase }),
     /must be distinct/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        target: { ...prefixDatabase, PGHOST: "/fixture/.", PGPORT: "5432" },
+      }),
+    /must be distinct/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        prefixDatabase: { ...prefixDatabase, PGHOST: "/fixture,/other" },
+      }),
+    /must use a local Unix socket/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        prefixDatabase: { ...prefixDatabase, PGPORT: "5432,5433" },
+      }),
+    /one explicit database name and port/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        prefixDatabase: { ...prefixDatabase, PGHOSTADDR: "127.0.0.1" },
+      }),
+    /must use a direct local connection/u,
+  );
+  assert.throws(
+    () =>
+      createBackupRecovery({
+        ...options,
+        prefixDatabase: { ...prefixDatabase, PGDATABASE: "x".repeat(64) },
+      }),
+    /one explicit database name and port/u,
+  );
+  const previous = path.join(root, "not-opened-before-admission");
+  assert.doesNotThrow(() =>
+    createBackupRecovery({
+      ...options,
+      previous,
+      source: { ...prefixDatabase, PGDATABASE: "x".repeat(64) },
+    }),
+  );
+  assert.doesNotThrow(() =>
+    createBackupRecovery({
+      ...options,
+      previous,
+      source: { ...prefixDatabase, PGDATABASE: "", PGUSER: "prefix" },
+    }),
+  );
+  assert.doesNotThrow(() =>
+    createBackupRecovery({ ...options, previous, source: { ...prefixDatabase, PGPORT: "5433" } }),
   );
   const recover = createBackupRecovery(options);
   writeFileSync(output, "existing data");
@@ -1086,6 +1145,16 @@ void test(
       });
     const first = take("first").attempt_id;
     assert.ok(first);
+    const checkBreakdown = (
+      admission: ReturnType<typeof take>,
+      expected: ReturnType<typeof take>["unreconciled_by_operation"],
+    ) => {
+      assert.deepEqual(admission.unreconciled_by_operation, expected);
+      assert.equal(
+        admission.unreconciled_bytes,
+        expected.reduce((total, group) => total + group.bytes, 0),
+      );
+    };
     const finish = (ago: string) =>
       runSql(
         owner,
@@ -1095,16 +1164,22 @@ void test(
           WHERE attempt_id = '${first}';`,
       );
     finish("1 hour");
+    const recent = take("recent");
     assert.equal(
-      take("recent").attempt_id,
+      recent.attempt_id,
       null,
       "a recent completion may not be in the counter yet, so it is still charged",
     );
+    checkBreakdown(recent, [
+      { operation: "collect", outcome: "completed", basis: "estimate", attempts: 1, bytes: 3e9 },
+    ]);
     finish("3 hours");
+    const settled = take("settled");
     assert.ok(
-      take("settled").attempt_id,
+      settled.attempt_id,
       "a completion the counter already includes is not charged a second time",
     );
+    checkBreakdown(settled, []);
     runSql(
       owner,
       `UPDATE portcove_maintenance_meta.resource_admissions
@@ -1112,7 +1187,12 @@ void test(
             reserved_bytes = 3000000000, estimate_bytes = NULL
         WHERE attempt_id = '${first}';`,
     );
-    assert.equal(take("uncertain").attempt_id, null, "an uncertain outcome stays fully charged");
+    const uncertain = take("uncertain");
+    assert.equal(uncertain.attempt_id, null, "an uncertain outcome stays fully charged");
+    checkBreakdown(uncertain, [
+      { operation: "collect", outcome: "failed", basis: "reservation", attempts: 1, bytes: 3e9 },
+      { operation: "collect", outcome: "running", basis: "reservation", attempts: 1, bytes: 18e6 },
+    ]);
     // A known pre-export deferral charges only measured metadata. Unknown
     // deferrals and failed exports keep their full reservation.
     runSql(
@@ -1124,13 +1204,33 @@ void test(
     );
     const measured = take("measured-preflight");
     assert.ok(measured.attempt_id);
-    assert.ok(measured.unreconciled_bytes < 3_000_000_000);
+    checkBreakdown(measured, [
+      { operation: "collect", outcome: "running", basis: "reservation", attempts: 1, bytes: 18e6 },
+      { operation: "recovery", outcome: "deferred", basis: "estimate", attempts: 1, bytes: 2e6 },
+    ]);
     runSql(
       owner,
       `UPDATE portcove_maintenance_meta.resource_admissions
         SET estimate_bytes = NULL WHERE attempt_id = '${first}';`,
     );
-    assert.equal(take("unmeasured-preflight").attempt_id, null);
+    const unmeasured = take("unmeasured-preflight");
+    assert.equal(unmeasured.attempt_id, null);
+    checkBreakdown(unmeasured, [
+      { operation: "collect", outcome: "running", basis: "reservation", attempts: 2, bytes: 36e6 },
+      { operation: "recovery", outcome: "deferred", basis: "reservation", attempts: 1, bytes: 3e9 },
+    ]);
+    // Stored operation text can predate the current policy or come from a role
+    // that can insert its own ledger row. Never copy that text into evidence.
+    runSql(
+      owner,
+      `UPDATE portcove_maintenance_meta.resource_admissions
+        SET operation = 'recovery-private-label', estimate_bytes = 2000000
+        WHERE attempt_id = '${first}';`,
+    );
+    checkBreakdown(take("unrecognized-label"), [
+      { operation: "collect", outcome: "running", basis: "reservation", attempts: 2, bytes: 36e6 },
+      { operation: "other", outcome: "deferred", basis: "estimate", attempts: 1, bytes: 2e6 },
+    ]);
 
     // The fixed cutover sample predates the completion, so it never settles.
     const cutover = {
@@ -1163,7 +1263,11 @@ void test(
   { skip: server.skip ?? false, timeout: 240_000 },
   async (context) => {
     const fixture = postgresFixture(context, server.directory!);
-    const source = fixture.start("admitted-source").owner;
+    const evidence = path.join(fixture.root, "resource.jsonl");
+    const source = {
+      ...fixture.start("admitted-source").owner,
+      PORTCOVE_MAINTENANCE_RESOURCE_EVIDENCE: evidence,
+    };
     // Distinct socket paths keep scratch SQL outside the measured source envelope.
     const scratch = postgresFixture(context, server.directory!);
     const prefixDatabase = scratch.start("prefix").owner;
@@ -1209,6 +1313,28 @@ void test(
       );
     }, /Backup destination already exists/u);
     assert.deepEqual(ledger("occupied-backup"), []);
+    const badSeed = path.join(fixture.root, "bad-local-recovery-seed");
+    mkdirSync(badSeed);
+    assert.throws(
+      () => createBackupRecovery({ source, prefixDatabase, target, previous: badSeed, output }),
+      /Backup manifest is missing or malformed/u,
+    );
+    rmSync(badSeed, { recursive: true });
+    const manifest = await backup(source, badSeed);
+    writeFileSync(path.join(badSeed, manifest.dump.file), "corrupt dump");
+    await assert.rejects(async () => {
+      const rejected = createBackupRecovery({
+        source,
+        prefixDatabase,
+        target,
+        previous: badSeed,
+        output,
+      });
+      await retryBackupAdmission((bytes) =>
+        runAdmittedMaintenance(source, reserve("corrupt-local-seed", bytes), rejected),
+      );
+    }, /Backup dump does not match its manifest digest/u);
+    assert.deepEqual(ledger("corrupt-local-seed"), []);
     const result = await retryBackupAdmission((bytes) =>
       runAdmittedMaintenance(source, reserve("real-recovery", bytes), recover, {
         estimate: ({ transfer }) =>
@@ -1234,10 +1360,12 @@ void test(
     assert.ok(rows[1]!.estimate! > 0);
 
     let calls = 0;
+    let received = 0;
     await assert.rejects(
       retryBackupAdmission((bytes) =>
         runAdmittedMaintenance(source, reserve("uncertain", bytes), () => {
           calls++;
+          received = Buffer.byteLength(runSql(source, "SELECT repeat('x', 4096);"));
           throw new Error("uncertain export");
         }),
       ),
@@ -1247,6 +1375,25 @@ void test(
     assert.deepEqual(
       ledger("uncertain").map(({ outcome, estimate }) => ({ outcome, estimate })),
       [{ outcome: "failed", estimate: null }],
+    );
+
+    assert.ok(received >= 4096);
+    const receipts = readFileSync(evidence, "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const uncertainty = receipts.find(({ request }) => request === "uncertain");
+    assert.equal(uncertainty?.captured_command_stdout_bytes, received);
+    assert.equal(uncertainty?.operation_reservation_bytes, ledger("uncertain")[0]!.reserved);
+    assert.equal(uncertainty?.settlement_basis, "full-reservation");
+    assert.equal(uncertainty?.estimate_bytes, null);
+    const recoveryReceipts = receipts.filter(({ request }) => request === "real-recovery");
+    assert.deepEqual(
+      recoveryReceipts.map(({ settlement_basis, estimate_bytes }) => [
+        settlement_basis,
+        estimate_bytes,
+      ]),
+      rows.map(({ estimate }) => ["estimate-eligible", estimate]),
     );
 
     // Leave enough for an ordinary reservation, but not for its measured larger retry.
@@ -1271,6 +1418,53 @@ void test(
         { outcome: "deferred", reserved: 0 },
       ],
     );
+
+    const fit = (request: string, reading = constrained) =>
+      acquireMaintenanceReservation(source, {
+        meter: reading,
+        request,
+        operation: "recovery-catchup",
+        reason: "test",
+        fitSeededRecovery: true,
+      });
+    const seeded = fit("seeded-recovery");
+    assert.ok(seeded.attempt_id);
+    assert.equal(seeded.reservation_basis, "available-seeded-recovery");
+    assert.equal(seeded.operation_reservation_bytes, seeded.available_after_reserves_bytes);
+    assert.ok(seeded.operation_reservation_bytes < 48_000_000);
+    assert.equal(fit("competing-recovery").attempt_id, null);
+    await assert.rejects(
+      runAdmittedMaintenance(source, seeded, (bytes) => {
+        assert.equal(bytes, seeded.operation_reservation_bytes);
+        throw new Error("unknown outcome");
+      }),
+      /unknown outcome/u,
+    );
+    assert.deepEqual(ledger("seeded-recovery"), [
+      { outcome: "failed", reserved: seeded.operation_reservation_bytes, estimate: null },
+    ]);
+    assert.equal(fit("after-unknown").attempt_id, null);
+
+    const thresholds = fixture.start("seeded-threshold").owner;
+    migrate(thresholds);
+    const threshold = (request: string, available: number) =>
+      acquireMaintenanceReservation(thresholds, {
+        meter: { ...meter, transferBytes: ceiling - available },
+        request,
+        operation: "recovery-catchup",
+        reason: "test",
+        fitSeededRecovery: true,
+      });
+    const minimum = threshold("minimum-seeded", 8_000_000);
+    assert.ok(minimum.attempt_id);
+    assert.equal(minimum.operation_reservation_bytes, 8_000_000);
+    runSql(
+      thresholds,
+      "UPDATE portcove_maintenance_meta.resource_admissions SET outcome='completed', estimate_bytes=0, finished_at=clock_timestamp() - interval '3 hours';",
+    );
+    const belowMinimum = threshold("below-minimum-seeded", 7_999_999);
+    assert.equal(belowMinimum.available_after_reserves_bytes, 7_999_999);
+    assert.equal(belowMinimum.attempt_id, null);
   },
 );
 
@@ -1549,6 +1743,30 @@ void test(
     assert.equal(reused.manifest.dump.sha256, result.manifest.dump.sha256);
     assert.equal(reused.transfer.history_copy_bytes, 0);
     assert.deepEqual(restored.tables, storeDigest(source));
+
+    // A separate append-only history can reuse the same IDs and counts but
+    // contain different rows. Build it through the ordinary insert guards.
+    const changedSource = fixture.start("changed-source").owner;
+    migrate(changedSource);
+    runSql(changedSource, seed.replace('{"listing":"example"}', '{"listing":"different"}'));
+    const observations = "portcove_maintenance.observations";
+    const previousHistory = readBackupManifest(previous).tables[observations];
+    const changedTables = storeDigest(changedSource);
+    assert.equal(changedTables[observations]?.rows, previousHistory?.rows);
+    assert.notEqual(changedTables[observations]?.sha256, previousHistory?.sha256);
+    const changedHistoryOutput = path.join(fixture.root, "changed-history");
+    const changedHistory = await backupReusingHistory({
+      source: changedSource,
+      prefixDatabase: fixture.start("changed-prefix").owner,
+      target: fixture.start("changed-scratch").owner,
+      previous,
+      output: changedHistoryOutput,
+      reservedBytes: 5_000_000,
+    });
+    assert.equal(changedHistory.reused, false);
+    assert.ok(changedHistory.transfer.history_copy_bytes > 0);
+    const changedProof = restore(fixture.start("changed-proof").owner, changedHistoryOutput);
+    assert.deepEqual(changedProof.tables, changedTables);
     assert.equal(
       runSql(
         proof,

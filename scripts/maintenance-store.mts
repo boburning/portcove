@@ -770,6 +770,14 @@ export function restore(
   input: string,
   directory = defaultMigrationDirectory,
 ) {
+  return restoreBackupWithManifest(environment, input, directory).verification;
+}
+
+export function restoreBackupWithManifest(
+  environment: NodeJS.ProcessEnv,
+  input: string,
+  directory = defaultMigrationDirectory,
+) {
   const manifest = readBackupManifest(input);
   const dumpPath = path.join(input, manifest.dump.file);
   if (sha256File(dumpPath) !== manifest.dump.sha256)
@@ -836,13 +844,16 @@ export function restore(
     rmSync(work, { recursive: true, force: true });
   }
   return {
-    verified: true,
-    schema_version: manifest.schema_version,
-    manifest_tables_verified: true,
-    target_schema_version: manifest.schema_version + plan.pending.length,
-    migrated: plan.pending.map(({ version }) => version),
-    tables: storeDigest(environment),
-    sequences_verified: manifest.sequences ? true : null,
+    manifest,
+    verification: {
+      verified: true,
+      schema_version: manifest.schema_version,
+      manifest_tables_verified: true,
+      target_schema_version: manifest.schema_version + plan.pending.length,
+      migrated: plan.pending.map(({ version }) => version),
+      tables: storeDigest(environment),
+      sequences_verified: manifest.sequences ? true : null,
+    },
   };
 }
 
@@ -982,7 +993,9 @@ async function runStoreCommand(
     });
     const admit = (reservationBytes?: number) =>
       policy.withMaintenanceAdmission(environment, operation, recover, {
-        ...(reservationBytes === undefined ? {} : { reservationBytes }),
+        ...(reservationBytes === undefined
+          ? { fitSeededRecovery: operation !== "recovery-full" && recover.hasVerifiedSeed }
+          : { reservationBytes }),
         estimate: ({ transfer }) =>
           2_000_000 +
           Math.ceil(

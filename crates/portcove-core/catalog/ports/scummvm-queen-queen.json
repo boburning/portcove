@@ -12,7 +12,11 @@
         {
           "id": "fotaq-floppy",
           "title": "Floppy freeware release",
-          "evidence_urls": ["https://www.scummvm.org/games/#games-queen:queen"]
+          "evidence_urls": [
+            "https://www.scummvm.org/games/#games-queen:queen",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/queen/detection.cpp#L157-L166"
+          ],
+          "system": "dos"
         }
       ]
     },

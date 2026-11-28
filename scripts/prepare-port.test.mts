@@ -23,6 +23,7 @@ import {
   collectPortFacts,
   githubRepository,
   githubReleaseRepository,
+  observeLauncherModPortals,
 } from "./port-upstream-facts.mts";
 import {
   preparePort,
@@ -44,6 +45,7 @@ import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { coreProposalInspector, type ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort, CatalogPort } from "./catalog-authoring.mts";
 import { managedSetupReleaseAdvice } from "./catalog-setup-release-advice.mts";
+import { scheduledDiscoveryReplayReceipt } from "./discovery-admission-receipt.mts";
 
 void test("managed setup release advice reports exact actions without changing evidence", () => {
   const releaseBase = "https://github.com/example/fixture/releases";
@@ -990,6 +992,91 @@ void test("discovery listing batch keeps independent additions and never replace
   }
 });
 
+void test("a first-party game desktop entry can establish source-port scope without a manifest", async (t) => {
+  const f = fixture();
+  t.after(f.clean);
+  const commit = "c".repeat(40);
+  const tree = "d".repeat(40);
+  const good =
+    "[Desktop Entry]\nName=Fixture\nType=Application\nExec=fixture %F\nCategories=Game;ActionGame;\n";
+  for (const [index, scenario] of [
+    { state: "eligible" },
+    { state: "held", text: good.replace("Categories=Game", "Categories=Utility") },
+    { state: "held", text: good.replace("Categories=Game", "Categories=Utility\\;Game") },
+    { state: "held", text: good.replace("fixture %F", "sh -c fixture") },
+    { state: "held", text: good.replace("fixture %F", "fix-ture") },
+    { state: "held", text: `${good}Exec = fixture\n` },
+    { state: "held", text: `${good}Hidden = true\n` },
+    { state: "held", text: `${good}DBusActivatable=true\n` },
+    { state: "restricted", text: good.replace("Name=Fixture", "Name=ScummVM fixture") },
+    { state: "held", path: "tests/fixtures/fixture.desktop" },
+    { state: "held", truncated: true },
+    { state: "held", duplicate: true },
+    { state: "held", incorrectDigest: true },
+    { state: "held", noTopic: true },
+    { state: "held", fork: true },
+  ].entries()) {
+    const path = scenario.path ?? "data/fixture.desktop";
+    const bytes = Buffer.from(scenario.text ?? good);
+    const blob = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+    const entry = { path, type: "blob", mode: "100644", sha: blob };
+    const facts = await collectPortFacts({
+      projectUrl: "https://github.com/example/fixture",
+      expectedRepositoryId: 123,
+      route: "listing",
+      discoveryScope: true,
+      cacheDirectory: join(f.root, `case-${index}`),
+      fetcher: f.fetcher((input) => {
+        const url = new URL(input);
+        if (url.pathname === "/repos/example/fixture")
+          return json({
+            ...metadata,
+            private: false,
+            fork: scenario.fork ?? false,
+            mirror_url: null,
+            topics: scenario.noTopic ? [] : ["source-port"],
+          });
+        assert.ok(url.pathname.startsWith("/repositories/123/"));
+        if (url.pathname.endsWith("/commits"))
+          return json([{ sha: commit, commit: { tree: { sha: tree } } }]);
+        if (url.pathname.endsWith(`/git/trees/${tree}`)) {
+          if (!url.search) return json({ sha: tree, truncated: false, tree: [] });
+          assert.equal(url.search, "?recursive=1");
+          return json({
+            sha: tree,
+            truncated: scenario.truncated ?? false,
+            tree: scenario.duplicate ? [entry, { ...entry, path: "other.desktop" }] : [entry],
+          });
+        }
+        assert.equal(url.pathname, `/repositories/123/contents/${path}`);
+        assert.equal(url.search, `?ref=${commit}`);
+        return json({
+          path,
+          type: "file",
+          encoding: "base64",
+          content: bytes.toString("base64"),
+          size: bytes.length,
+          sha: scenario.incorrectDigest ? "2".repeat(40) : blob,
+        });
+      }),
+    });
+    assert.equal(facts.discovery_scope?.state, scenario.state, `case ${index}`);
+    if (index === 0) {
+      assert.equal(facts.discovery_scope?.state, "eligible");
+      assert.ok("desktop_entry" in facts.discovery_scope);
+      assert.equal(facts.discovery_scope.evidence_path, path);
+      assert.equal(facts.discovery_scope.repository_id, 123);
+      assert.equal(facts.discovery_scope.desktop_entry_blob, blob);
+      assert.deepEqual(facts.discovery_scope.desktop_entry, {
+        format: 1,
+        category: "Game",
+        names_scummvm: false,
+      });
+      assert.doesNotMatch(JSON.stringify(facts.discovery_scope), /fixture %F/u);
+    }
+  }
+});
+
 void test("scheduled discovery scope binds first-party manifest bytes and keeps independent results", async (context) => {
   const f = fixture();
   try {
@@ -1018,6 +1105,10 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
       "launcher-extra-game",
       "launcher-excluded-title",
       "launcher-primary-conflict",
+      "launcher-partial-mods",
+      "launcher-legacy",
+      "launcher-legacy-mixed-inputs",
+      "launcher-legacy-update",
     ].map((name, index) => ({
       id: `github-${80_000 + index}`,
       project_url: `https://github.com/fixture/${name}`,
@@ -1101,25 +1192,41 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
                     format: 1,
                     repo: name === "launcher-foreign" ? "fixture/other" : `fixture/${name}`,
                     ...(name === "launcher-excluded-title" ? { name: "ScummVM example" } : {}),
-                    inputs: [
-                      {
-                        id: "game",
-                        label: "Original game disc image",
-                        ...(name === "launcher-optional" ? { optional: true } : {}),
-                        ...(name === "launcher-nongame" ? { role: "key" } : {}),
-                        formats: [{ type: "file" }],
-                        check: { iso9660: "SLUS_206.51" },
-                      },
-                      ...(name === "launcher-extra-game"
-                        ? [
+                    ...(name === "launcher-legacy" || name === "launcher-legacy-update"
+                      ? {
+                          game: {
+                            kind: "iso",
+                            label: "Original game copy",
+                            check: { iso9660: "SCUS_944.26" },
+                            ...(name === "launcher-legacy-update"
+                              ? { update: { label: "Required update copy", into: "update" } }
+                              : {}),
+                          },
+                        }
+                      : {
+                          inputs: [
                             {
-                              id: "extra",
-                              label: "Other original game",
+                              id: "game",
+                              label: "Original game disc image",
+                              ...(name === "launcher-optional" ? { optional: true } : {}),
+                              ...(name === "launcher-nongame" ? { role: "key" } : {}),
                               formats: [{ type: "file" }],
+                              check: { iso9660: "SLUS_206.51" },
                             },
-                          ]
-                        : []),
-                    ],
+                            ...(name === "launcher-extra-game"
+                              ? [
+                                  {
+                                    id: "extra",
+                                    label: "Other original game",
+                                    formats: [{ type: "file" }],
+                                  },
+                                ]
+                              : []),
+                          ],
+                        }),
+                    ...(name === "launcher-legacy-mixed-inputs"
+                      ? { game: { label: "Second game" } }
+                      : {}),
                     start: {
                       program: [
                         name === "launcher-unsafe"
@@ -1131,6 +1238,12 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
                       args: ["--original", "{input:game}"],
                     },
                     ...(name === "launcher-multigame" ? { games: [{ id: "other" }] } : {}),
+                    mods: {
+                      thunderstore: name === "launcher-partial-mods" ? "../other" : "fixture-mods",
+                      gamebanana: 12345,
+                      loader: "nrm",
+                      data: "PrivateFixtureDirectory",
+                    },
                   }
                 : {
                     game: "Fixture game",
@@ -1187,7 +1300,13 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
       },
     };
     const { report } = await prepareDiscoveryListingAdditions(options);
-    assert.deepEqual(report.changed_records, ["github-80000", "github-80005", "github-80012"]);
+    assert.deepEqual(report.changed_records, [
+      "github-80000",
+      "github-80005",
+      "github-80012",
+      "github-80022",
+      "github-80023",
+    ]);
     assert.deepEqual(
       report.outcomes.map(({ status }) => status),
       [
@@ -1213,9 +1332,13 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
         "held",
         "restricted",
         "held",
+        "prepared",
+        "prepared",
+        "held",
+        "held",
       ],
     );
-    assert.equal(report.automatic_scope_policy, "github-primary-single-game-manifest/2");
+    assert.equal(report.automatic_scope_policy, "github-primary-game-scope/6");
     assert.ok(report.admission);
     assert.deepEqual(report.released_validation, {
       status: "validated",
@@ -1271,8 +1394,86 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
     );
     assert.equal(declared.listing.original_game, undefined);
     assert.equal(declared.integration, undefined);
+    assert.equal(declared.listing.mod_portals, undefined);
+    const partial = checkedAuthoredPort(
+      JSON.parse(readFileSync(report.files.records[3]!.path, "utf8")),
+    );
+    assert.equal(partial.listing.mod_portals, undefined);
+    const legacy = checkedAuthoredPort(
+      JSON.parse(readFileSync(report.files.records[4]!.path, "utf8")),
+    );
+    assert.equal(
+      legacy.original_game_review?.evidence_urls[1],
+      `https://github.com/fixture/launcher-legacy/blob/${sha}/recomplauncher.json`,
+    );
+    assert.equal(legacy.listing.original_game, undefined);
+    assert.equal(legacy.listing.mod_portals, undefined);
+    assert.equal(legacy.integration, undefined);
+    const delivered: unknown = JSON.parse(readFileSync(report.files.listings, "utf8"));
+    assert.ok(isRecord(delivered) && Array.isArray(delivered.listings));
+    assert.equal(delivered.format_version, 17);
+    const projected: unknown = delivered.listings.find(
+      (row: unknown) => isRecord(row) && row.id === declared.listing.id,
+    );
+    assert.ok(isRecord(projected));
+    assert.equal(projected.mod_portals, undefined);
+    assert.doesNotMatch(JSON.stringify(projected), /PrivateFixtureDirectory|--original/u);
 
     refuse = false;
+    let clock = Date.parse("2026-11-26T00:00:00Z");
+    const limitedHandoff = { ...handoff, candidates: [candidates[0], candidates[5]] };
+    const normalFetch = options.facts?.fetcher;
+    assert.ok(normalFetch);
+    const limited = await prepareDiscoveryListingAdditions({
+      ...options,
+      handoff: limitedHandoff,
+      deadline: clock + 1_000,
+      outputDirectory: join(f.root, "deadline-preview"),
+      facts: {
+        ...options.facts,
+        now: () => clock,
+        fetcher: async (...args) => {
+          const response = await normalFetch(...args);
+          const [input] = args;
+          const url =
+            typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+          if (url.includes("/repositories/80000/contents/")) clock += 1_001;
+          return response;
+        },
+      },
+    });
+    assert.deepEqual(
+      limited.report.outcomes.map(({ status }) => status),
+      ["prepared", "deferred"],
+    );
+    const receipt = scheduledDiscoveryReplayReceipt(limited.report, limitedHandoff, {
+      GITHUB_EVENT_NAME: "schedule",
+      GITHUB_REPOSITORY: "boburning/portcove",
+      GITHUB_WORKFLOW_REF:
+        "boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main",
+      GITHUB_WORKFLOW_SHA: sha,
+      GITHUB_SHA: sha,
+      GITHUB_RUN_ID: "42",
+      GITHUB_RUN_ATTEMPT: "1",
+    });
+    assert.ok(receipt);
+    const replayReceipt: unknown = JSON.parse(receipt.toString());
+    assert.ok(isRecord(replayReceipt));
+    const availableLater = await prepareDiscoveryListingAdditions({
+      ...options,
+      handoff: limitedHandoff,
+      outputDirectory: join(f.root, "deadline-cleared"),
+    });
+    assert.deepEqual(availableLater.report.changed_records, ["github-80000", "github-80005"]);
+    assert.notEqual(availableLater.report.admission?.sha256, limited.report.admission?.sha256);
+    const replayLimited = await prepareDiscoveryListingAdditions({
+      ...options,
+      handoff: replayReceipt.handoff,
+      outputDirectory: join(f.root, "deadline-replay"),
+    });
+    assert.deepEqual(replayLimited.report.changed_records, ["github-80000"]);
+    assert.equal(replayLimited.report.admission?.sha256, limited.report.admission?.sha256);
+
     scheduledReader = false;
     const repository = join(f.root, "replay");
     const replayCatalog = join(repository, "crates", "portcove-core", "catalog");
@@ -1335,6 +1536,8 @@ void test("scheduled discovery scope binds first-party manifest bytes and keeps 
       "A\tcrates/portcove-core/catalog/ports/github-80000.json",
       "A\tcrates/portcove-core/catalog/ports/github-80005.json",
       "A\tcrates/portcove-core/catalog/ports/github-80012.json",
+      "A\tcrates/portcove-core/catalog/ports/github-80022.json",
+      "A\tcrates/portcove-core/catalog/ports/github-80023.json",
     ]);
   } finally {
     context.mock.restoreAll();
@@ -2129,7 +2332,7 @@ void test("ordinary onboarding prefers attributable exact-port art and records m
           reason: string;
           mapping: unknown;
           checks: unknown;
-          exceptions: { reason: string }[];
+          exceptions: { kind: string; reason: string }[];
         }[];
       };
       const row = evidence.records[0]!;
@@ -2151,11 +2354,13 @@ void test("ordinary onboarding prefers attributable exact-port art and records m
         assert.equal(images, 0);
         assert.equal(row.reason, "generated-fallback");
         assert.equal(row.mapping, null);
-        assert.ok(
-          row.exceptions.some(
-            ({ reason }) =>
-              reason === (outcome === "ambiguous" ? "identity-not-unique" : "identity-mismatch"),
-          ),
+        const reason = outcome === "ambiguous" ? "identity-not-unique" : "identity-not-found";
+        assert.deepEqual(
+          row.exceptions.map(({ kind, reason }) => ({ kind, reason })),
+          [
+            { kind: "port", reason },
+            { kind: "underlying-game", reason },
+          ],
         );
       }
       // Preparation records facts; it cannot admit or publish artwork or a runtime.
@@ -2227,10 +2432,11 @@ void test("listing inspection binds exact generated bytes and validator identity
     };
     const first = await preparePort(options);
     const receipt = first.report.listing_validation as ListingReceipt;
+    const acceptedFormat = readCatalogSource(catalogRoot).directory.format_version;
     assert.equal(
       receipt.format_version,
-      15,
-      "the merged directory retains typed acquisition restrictions, so it is listing v15",
+      acceptedFormat,
+      "a plain new listing preserves the accepted directory's format",
     );
     const bytes = readFileSync(first.report.files.listings);
     const directory = JSON.parse(bytes.toString()) as {
@@ -4080,4 +4286,251 @@ void test("settings qualification requests complete exact package facts and limi
   } finally {
     f.clean();
   }
+});
+
+void test("first-party mod refresh binds descriptive facts to the accepted public repo and Git blob", async () => {
+  const repository = { id: 91000, slug: "fixture/available-port" };
+  const root = "repositories/91000";
+  const commit = "a".repeat(40);
+  const tree = "b".repeat(40);
+  const path = "recomplauncher.json";
+  const bytes = Buffer.from(
+    JSON.stringify({
+      format: 1,
+      repo: repository.slug,
+      start: { program: ["port.exe"], args: ["private-original"] },
+      inputs: [
+        {
+          id: "game",
+          label: "Fixture Game",
+          formats: [{ type: "file" }],
+          check: { ids: ["SLUS-01212"] },
+        },
+      ],
+      mods: { thunderstore: "fixture-mods", gamebanana: 456, loader: "nrm", data: "private-data" },
+    }),
+  );
+  const blob = createHash("sha1")
+    .update("blob " + bytes.length + "\0")
+    .update(bytes)
+    .digest("hex");
+  const file = { type: "blob", mode: "100644", sha: blob, path };
+  const commitEndpoint = root + "/commits?per_page=1";
+  const treeEndpoint = root + "/git/trees/" + tree;
+  const contentEndpoint = root + "/contents/" + path + "?ref=" + commit;
+  const responses = new Map<string, unknown>([
+    [root, { id: repository.id, full_name: repository.slug, private: false }],
+    [commitEndpoint, [{ sha: commit, commit: { tree: { sha: tree } } }]],
+    [treeEndpoint, { sha: tree, truncated: false, tree: [file] }],
+    [
+      contentEndpoint,
+      {
+        type: "file",
+        path,
+        sha: blob,
+        size: bytes.length,
+        encoding: "base64",
+        content: bytes.toString("base64"),
+      },
+    ],
+  ]);
+  const calls: string[] = [];
+  const read = async (endpoint: string) => {
+    calls.push(endpoint);
+    assert(responses.has(endpoint), endpoint);
+    return { status: "observed" as const, body: responses.get(endpoint) };
+  };
+  const result = await observeLauncherModPortals(repository, read);
+  assert.deepEqual(calls.splice(0), [root, commitEndpoint, treeEndpoint, contentEndpoint]);
+  assert(result.state === "observed");
+  assert.equal(result.repository_id, repository.id);
+  assert.equal(result.commit, commit);
+  assert.equal(result.blob, blob);
+  assert.deepEqual(result.game_input_ids, ["SLUS-01212"]);
+  assert.deepEqual(
+    result.mod_portals.map(({ url }) => url),
+    ["https://thunderstore.io/c/fixture-mods/", "https://gamebanana.com/games/456"],
+  );
+  assert.doesNotMatch(JSON.stringify(result), /private-(?:original|data)|"loader"/u);
+
+  const content = responses.get(contentEndpoint) as Record<string, unknown>;
+  responses.set(contentEndpoint, {
+    ...content,
+    content: Buffer.alloc(bytes.length).toString("base64"),
+  });
+  assert.deepEqual(await observeLauncherModPortals(repository, read), {
+    state: "unavailable",
+    reason: "project-scope-evidence-bytes-unverified",
+  });
+
+  calls.length = 0;
+  responses.set(treeEndpoint, { sha: tree, truncated: false, tree: [] });
+  assert.deepEqual(await observeLauncherModPortals(repository, read), {
+    state: "absent",
+    repository_id: repository.id,
+    commit,
+    tree,
+  });
+  assert.deepEqual(calls, [root, commitEndpoint, treeEndpoint]);
+
+  calls.length = 0;
+  responses.set(treeEndpoint, {
+    sha: tree,
+    truncated: false,
+    tree: [file, { ...file, path: ".recomp.json" }],
+  });
+  assert.deepEqual(await observeLauncherModPortals(repository, read), {
+    state: "held",
+    reason: "multiple-manifest-subjects",
+  });
+  assert.deepEqual(calls, [root, commitEndpoint, treeEndpoint]);
+
+  calls.length = 0;
+  responses.set(root, { id: repository.id + 1, full_name: repository.slug, private: false });
+  assert.deepEqual(await observeLauncherModPortals(repository, read), {
+    state: "held",
+    reason: "repository-binding-unresolved",
+  });
+  assert.deepEqual(calls, [root]);
+
+  const legacy = {
+    format: 1,
+    repo: repository.slug,
+    start: { program: ["port.exe"], args: ["private-original"] },
+    game: { kind: "iso", label: "Original copy", check: { iso9660: "SCUS_944.26" } },
+  };
+  responses.set(root, { id: repository.id, full_name: repository.slug, private: false });
+  function setManifest(value: unknown) {
+    const body = Buffer.from(JSON.stringify(value));
+    const sha = createHash("sha1")
+      .update("blob " + body.length + "\0")
+      .update(body)
+      .digest("hex");
+    responses.set(treeEndpoint, {
+      sha: tree,
+      truncated: false,
+      tree: [{ ...file, sha }],
+    });
+    responses.set(contentEndpoint, {
+      type: "file",
+      path,
+      sha,
+      size: body.length,
+      encoding: "base64",
+      content: body.toString("base64"),
+    });
+  }
+  setManifest(legacy);
+  assert.deepEqual(await observeLauncherModPortals(repository, read), {
+    state: "absent",
+    repository_id: repository.id,
+    commit,
+    tree,
+  });
+  setManifest({ ...legacy, mods: { gamebanana: 456, loader: "nrm", data: "private-data" } });
+  const legacyObservation = await observeLauncherModPortals(repository, read);
+  assert(legacyObservation.state === "observed");
+  assert.deepEqual(legacyObservation.game_input_ids, ["SCUS-94426"]);
+  assert.deepEqual(
+    legacyObservation.mod_portals.map(({ url }) => url),
+    ["https://gamebanana.com/games/456"],
+  );
+  assert.doesNotMatch(JSON.stringify(legacyObservation), /private-(?:original|data)|"loader"/u);
+  const { verifyLauncherModGameScope } = await import("./launcher-mod-game-scope.mts");
+  assert.equal(
+    verifyLauncherModGameScope(legacyObservation, {
+      system: "playstation",
+      codes: new Set(["SCUS-94426"]),
+    }).state,
+    "observed",
+  );
+  assert.equal(
+    verifyLauncherModGameScope(legacyObservation, {
+      system: "playstation",
+      codes: new Set(["SCUS-94427"]),
+    }).state,
+    "held",
+  );
+  const { recordLauncherModAttempt } = await import("./upstream-launcher-mod-progress.mts");
+  const at = Date.parse("2026-11-27T00:00:00Z");
+  const bound = "a".repeat(64);
+  const gameScope = { system: "playstation", codes: new Set(["SCUS-94426"]) } as const;
+  const known = recordLauncherModAttempt(bound, undefined, legacyObservation, at, 60_000);
+  for (const mods of [{ gamebanana: "456" }, { gamebanana: "456", thunderstore: "valid-slug" }]) {
+    setManifest({ ...legacy, mods });
+    const malformed = await observeLauncherModPortals(repository, read);
+    assert.deepEqual(malformed, {
+      state: "unavailable",
+      reason: "legacy-mod-declaration-unresolved",
+      game_input_ids: ["SCUS-94426"],
+    });
+    const unresolved = verifyLauncherModGameScope(malformed, gameScope);
+    const retry = recordLauncherModAttempt(bound, known, unresolved, at + 60_000, 60_000);
+    assert.deepEqual(retry.last_complete, known.last_complete);
+    assert.equal(retry.last_complete?.observed_at, new Date(at).toISOString());
+    assert.equal(retry.next_due_at, new Date(at + 120_000).toISOString());
+  }
+  setManifest({
+    ...legacy,
+    game: { ...legacy.game, check: { iso9660: "SLUS_206.51" } },
+    mods: { gamebanana: "456" },
+  });
+  const conflict = verifyLauncherModGameScope(
+    await observeLauncherModPortals(repository, read),
+    gameScope,
+  );
+  assert.deepEqual(conflict, { state: "held", reason: "game-input-scope-conflict" });
+  assert.equal(
+    recordLauncherModAttempt(bound, known, conflict, at + 60_000, 60_000).last_complete,
+    undefined,
+  );
+
+  const withLegacyGame = (game: unknown) => ({
+    ...legacy,
+    game,
+    mods: { gamebanana: 456 },
+  });
+  const check = { ...legacy.game.check, ids: ["SCUS-94426"] };
+  setManifest(withLegacyGame({ ...legacy.game, check }));
+  const consistent = await observeLauncherModPortals(repository, read);
+  assert(consistent.state === "observed");
+  assert.deepEqual(consistent.game_input_ids, ["SCUS-94426"]);
+  setManifest(withLegacyGame({ ...legacy.game, check: { ...check, ids: ["SLUS-20651"] } }));
+  assert.equal((await observeLauncherModPortals(repository, read)).state, "held");
+
+  setManifest({
+    ...withLegacyGame(legacy.game),
+    inputs: [{ id: "game", label: "Game", formats: [{ type: "file" }], check }],
+  });
+  assert.equal((await observeLauncherModPortals(repository, read)).state, "held");
+
+  for (const kind of ["folder", "iso_or_folder"]) {
+    setManifest(withLegacyGame({ ...legacy.game, kind }));
+    const unscoped = await observeLauncherModPortals(repository, read);
+    assert.deepEqual(unscoped, { state: "held", reason: "legacy-folder-scope-unproven" });
+    assert.equal(
+      recordLauncherModAttempt(bound, known, unscoped, at + 60_000, 60_000).last_complete,
+      undefined,
+    );
+
+    setManifest(withLegacyGame({ ...legacy.game, kind, check }));
+    const scoped = await observeLauncherModPortals(repository, read);
+    assert(scoped.state === "observed");
+    assert.deepEqual(scoped.game_input_ids, ["SCUS-94426"]);
+    assert.equal(verifyLauncherModGameScope(scoped, gameScope).state, "observed");
+  }
+
+  const outage = await observeLauncherModPortals(repository, async (endpoint) =>
+    endpoint === root
+      ? {
+          status: "observed",
+          body: { id: repository.id, full_name: repository.slug, private: false },
+        }
+      : { status: "unavailable", reason: "provider-backoff", retry_after: "2026-11-27T06:00:00Z" },
+  );
+  assert.deepEqual(outage, {
+    state: "unavailable",
+    reason: "provider-backoff",
+    retry_after: "2026-11-27T06:00:00Z",
+  });
 });

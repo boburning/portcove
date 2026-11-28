@@ -116,6 +116,7 @@ import {
   GithubStatusError,
   identityRefusals,
   refusalRecord,
+  reproductionArchiveTransfer,
   withholdRefused,
   withheldSummary,
   parseProviderRelease,
@@ -127,6 +128,7 @@ import {
   reproduceFacts,
   requiredCheckState,
   requiredContexts,
+  completedRuleVersionReview,
   stopConditions,
   stopConditionNames,
   stopIssueBody,
@@ -1541,6 +1543,46 @@ const assess = (history: RunRecord[], fields: Partial<Parameters<typeof stopCond
     ...fields,
   }).conditions.map((condition) => condition.name);
 
+void test("assessment refuses missing rule proof or unreadable history before updating the cursor", () => {
+  const directory = mkdtempSync(join(tmpdir(), "listing-rule-history-"));
+  try {
+    const history = join(directory, "history.json");
+    const run = (versions: string, ...extra: string[]) =>
+      spawnSync(
+        process.execPath,
+        [
+          join(root, "scripts/listing-facts-batch.mts"),
+          "assess",
+          "--history",
+          history,
+          "--run-id",
+          "46084943750",
+          "--versions",
+          versions,
+          ...extra,
+        ],
+        { cwd: root, encoding: "utf8" },
+      );
+    writeFileSync(history, "[]");
+    const unobserved = run("unknown");
+    assert.equal(unobserved.status, 1);
+    assert.match(unobserved.stderr, /did not record the exact listing rule versions/u);
+    assert.equal(readFileSync(history, "utf8"), "[]");
+    writeFileSync(history, "{}");
+    const corrupt = run("facts-26/generator-33/filename-rule-1");
+    assert.equal(corrupt.status, 1);
+    assert.match(corrupt.stderr, /retained listing batch history has unreadable rule versions/u);
+    assert.equal(readFileSync(history, "utf8"), "{}");
+    writeFileSync(history, "[]");
+    const incomplete = run("facts-26/generator-33/filename-rule-1", "--prior-worker-state", "true");
+    assert.equal(incomplete.status, 1);
+    assert.match(incomplete.stderr, /prior listing batch history is missing/u);
+    assert.equal(readFileSync(history, "utf8"), "[]");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 void test("each stop condition is detected and named", () => {
   assert.deepEqual(assess([record()]), []);
   assert.deepEqual(assess([], { gate: "refused" }), ["gate-refused"]);
@@ -1639,6 +1681,84 @@ void test("each stop condition is detected and named", () => {
   const body = stopIssueBody({ name: "gate-refused", detail: "Grouped reason." }, "https://run");
   assert.match(body, /Grouped reason\./u);
   assert.match(body, /close this issue/u);
+});
+
+void test("only a human-completed stop for the exact listed transition records the version review", () => {
+  const versions = "facts-26/generator-33/filename-rule-1";
+  const prior = record({ run_id: "46071452366", versions: "unknown" });
+  const input = {
+    runId: "46084943750",
+    now: "2026-11-28T00:00:00.000Z",
+    summary: summary(),
+    history: [prior],
+    versions,
+    reviewableRuleBatch: true,
+    gate: "ok",
+    paths: "ok",
+    reproduction: "ok",
+    delta: { added: 37, changed: 0, withdrawn: 0 },
+  } as const;
+  const [stop] = stopConditions(input).conditions;
+  assert.ok(stop);
+  assert.equal(stop.name, "rule-version-changed");
+  const body = stopIssueBody(stop, "https://example.com/actions/runs/46084943750");
+  const workflowActor = { login: "github-actions", __typename: "Bot" };
+  const closedAt = "2026-11-28T01:00:00Z";
+  const closure = { createdAt: closedAt, actor: { __typename: "User" } };
+  const issue = {
+    title: "Listing facts batch stopped: rule-version-changed",
+    author: workflowActor,
+    state: "CLOSED",
+    stateReason: "COMPLETED",
+    createdAt: "2026-11-28T00:55:00Z",
+    closedAt,
+    lastEditedAt: null,
+    timelineItems: { nodes: [closure] },
+    body,
+  };
+  assert.equal(completedRuleVersionReview(issue, prior, versions), true);
+  const workflowEdit = { editor: workflowActor, lastEditedAt: "2026-11-28T00:59:59Z" };
+  assert.equal(completedRuleVersionReview({ ...issue, ...workflowEdit }, prior, versions), true);
+  assert.equal(
+    completedRuleVersionReview(issue, { ...prior, run_id: "46071452367" }, versions),
+    false,
+  );
+  assert.equal(completedRuleVersionReview(issue, { ...prior, versions }, versions), false);
+  assert.equal(
+    completedRuleVersionReview(issue, prior, "facts-26/generator-34/filename-rule-1"),
+    false,
+  );
+  for (const invalid of [
+    { state: "OPEN" },
+    { stateReason: "NOT_PLANNED" },
+    { ...workflowEdit, lastEditedAt: closedAt },
+    { ...workflowEdit, lastEditedAt: "2026-11-28T01:00:01Z" },
+    { ...workflowEdit, editor: { __typename: "User" } },
+    { createdAt: closedAt },
+    { closedAt: null },
+    { timelineItems: { nodes: [{ ...closure, actor: { __typename: "Bot" } }] } },
+    { timelineItems: { nodes: [{ ...closure, createdAt: "2026-11-28T00:59:01Z" }] } },
+    { author: { ...workflowActor, login: "someone-else" } },
+    { body: body + "\n" + body },
+    { body: "Prior diagnosis without reviewable outputs." },
+  ]) {
+    assert.equal(completedRuleVersionReview({ ...issue, ...invalid }, prior, versions), false);
+  }
+  assert.deepEqual(stopConditions({ ...input, reviewedRuleVersion: true }).conditions, []);
+  assert.deepEqual(
+    stopConditions({ ...input, reviewedRuleVersion: true, gate: "refused" }).conditions.map(
+      ({ name }) => name,
+    ),
+    ["gate-refused"],
+  );
+  assert.equal(
+    stopConditions({ ...input, gate: "refused" }).conditions.at(-1)?.version_transition,
+    undefined,
+  );
+  assert.equal(
+    stopConditions({ ...input, reviewableRuleBatch: false }).conditions.at(0)?.version_transition,
+    undefined,
+  );
 });
 
 void test("the notify job adds a failed batch and failed jobs, never doubling a derive failure", () => {
@@ -2554,7 +2674,11 @@ void test("only deliver and merge mint the App token, in the facts-batch environ
       );
       // The key reaches the mint step alone; the token only the steps that write.
       for (const other of job.steps.filter((candidate) => candidate !== step)) {
-        assert.doesNotMatch(JSON.stringify(other), /secrets\.|FACTS_BATCH_APP/u, name);
+        assert.doesNotMatch(
+          JSON.stringify(other),
+          /secrets\.|FACTS_BATCH_APP_ID|FACTS_BATCH_APP_PRIVATE_KEY/u,
+          name,
+        );
         if (JSON.stringify(other).includes("steps.app.outputs.token"))
           assert.match(
             JSON.stringify(other.env ?? {}),
@@ -2569,7 +2693,9 @@ void test("only deliver and merge mint the App token, in the facts-batch environ
       );
       assert.ok(firstUse > minted, `${name} uses the token after minting it`);
       // Pushes carry a step-scoped credential, never a persisted one or a URL token.
-      for (const candidate of job.steps.filter((item) => /git push/u.test(item.run ?? ""))) {
+      for (const candidate of job.steps.filter((item) =>
+        /\bgit(?: -c \S+)* push\b/u.test(item.run ?? ""),
+      )) {
         assert.match(
           candidate.run!,
           /GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http\.https:\/\/github\.com\/\.extraheader/u,
@@ -2629,13 +2755,23 @@ void test("only deliver and merge mint the App token, in the facts-batch environ
   );
   // The App token opens the pull request; the state is saved only after.
   const deliver = workflow.jobs.deliver!;
+  const pushed = deliver.steps.find((step) => step.name === "Push the one-commit batch branch")!;
   const opened = deliver.steps.find((step) => /open-pull-request/u.test(step.run ?? ""))!;
+  assert.ok(deliver.steps.indexOf(pushed) < deliver.steps.indexOf(opened));
+  const slugCheck =
+    /\[\[ "\$EXPECTED_APP_SLUG" =~ [^\n]+ && "\$APP_SLUG" == "\$EXPECTED_APP_SLUG" \]\]/u;
+  for (const step of [merge.steps[bound]!, pushed]) {
+    assert.equal(step.env!.EXPECTED_APP_SLUG, "${{ vars.PORTCOVE_FACTS_BATCH_APP_SLUG }}");
+    assert.equal(step.env!.APP_SLUG, "${{ steps.app.outputs['app-slug'] }}");
+    assert.match(step.run!, slugCheck);
+  }
+  assert.ok(pushed.run!.search(slugCheck) < pushed.run!.indexOf("git -c"));
   assert.equal(opened.env!.GITHUB_TOKEN, "${{ steps.app.outputs.token }}");
   // No documentation or code path asks a person to approve, close or reopen a batch.
   assert.doesNotMatch(text, /Approve workflows|approval-required|close and reopen/iu);
 });
 
-void test("the shard plan ships the inspector without debug sections", () => {
+void test("the shard plan removes unused symbols from the transferred inspector copy", () => {
   const workflow = parse(readFileSync(join(root, batchWorkflowPath), "utf8")) as {
     jobs: { prepare: { steps: { run?: string; with?: { name?: string } }[] } };
   };
@@ -2650,7 +2786,7 @@ void test("the shard plan ships the inspector without debug sections", () => {
   const script = steps[build]?.run ?? "";
   assert.match(
     script,
-    /cp target\/debug\/portcove "\$WORK\/cli\/portcove"[\s\S]*?strip --strip-debug "\$WORK\/cli\/portcove"/u,
+    /cp target\/debug\/portcove "\$WORK\/cli\/portcove"[\s\S]*?strip --strip-all "\$WORK\/cli\/portcove"/u,
   );
 });
 
@@ -3471,7 +3607,10 @@ void test("a batch past either released-reader bound is never proposed; it stops
   assert.equal(ready.env!.CAPACITY, "${{ steps.effective.outputs.capacity }}");
   const effective = decide.steps.find((item) => item.id === "effective")!;
   assert.equal(effective.env!.COMBINE_CAPACITY, "${{ needs.combine.outputs.capacity }}");
-  assert.equal(effective.env!.CAPACITY, "${{ steps.rechecked_capacity.outputs.capacity }}");
+  assert.equal(
+    effective.env!.CAPACITY,
+    "${{ steps.rechecked_capacity.outcome == 'success' && steps.rechecked_capacity.outputs.capacity || '' }}",
+  );
   const recheck = decide.steps.find((item) => item.id === "rechecked_capacity")!;
   assert.match(
     recheck.run!,
@@ -3976,6 +4115,13 @@ void test("the decide job withholds refused identities and re-checks the batch b
     /generate-catalog\.mts[\s\S]*--amend[\s\S]*format-patch/u,
   );
   assert.match(steps[index("rechecked_gate")]!.run!, /generate-catalog\.mts --check/u);
+  const strictInspection =
+    /\/cli\/portcove" --technical-details catalog inspect-proposal --repository-authoring\s*\\\s+crates\/portcove-core\/catalog\/catalog\.json/u;
+  assert.match(
+    workflow.jobs.combine!.steps.find((step) => step.id === "gate")!.run!,
+    strictInspection,
+  );
+  assert.match(steps[index("rechecked_gate")]!.run!, strictInspection);
   assert.match(
     steps[index("rechecked_checks")]!.run!,
     /verify --base HEAD~1 --own-run true --reproduce false/u,
@@ -3984,6 +4130,19 @@ void test("the decide job withholds refused identities and re-checks the batch b
     assert.equal(steps[index(id)]!["continue-on-error"], true, id);
   // A failed withhold is an unsound reproduction, and nothing is proposed.
   const assess = steps[index("assess")]!;
+  const buildsCli = workflow.jobs.prepare!.steps.find((step) => step.run?.includes("cargo build"));
+  assert.match(
+    buildsCli!.run!,
+    /listing-facts-batch\.mts versions --cli "\$WORK\/cli\/portcove" > "\$WORK\/plan\/versions\.txt"/u,
+  );
+  assert.match(assess.run!, /cat "\$WORK\/plan-artifact\/plan\/versions\.txt"/u);
+  assert.match(assess.run!, /--read-rule-version-review true/u);
+  assert.match(assess.run!, /--prior-worker-state "\$PRIOR_WORKER_STATE"/u);
+  assert.match(assess.env!.PRIOR_WORKER_STATE!, /needs\.prepare\.outputs\.prior_worker_state/u);
+  assert.match(assess.run!, /--reviewable-rule-batch "\$REVIEWABLE"/u);
+  assert.match(assess.env!.REVIEWABLE!, /steps\.effective\.outputs\.capacity == 'ok'/u);
+  assert.match(assess.env!.REVIEWABLE!, /steps\.effective\.outputs\.checks == 'success'/u);
+  assert.doesNotMatch(assess.run!, /echo unknown/u);
   assert.match(assess.env!.VERIFY!, /steps\.withhold\.outcome == 'failure'/u);
   assert.match(assess.env!.PATHS!, /steps\.effective\.outputs\.paths/u);
   assert.match(assess.env!.GATE!, /steps\.effective\.outputs\.gate/u);
@@ -4127,4 +4286,36 @@ void test("refusals of every reproduced identity for one reason stop the job ins
   assert.equal(systemicRefusal(1, [refusal("a")]), undefined);
   assert.equal(systemicRefusal(3, [refusal("a"), refusal("b")]), undefined);
   assert.equal(systemicRefusal(2, [refusal("a"), refusal("b", "mismatch")]), undefined);
+});
+
+void test("reproduction transfer reports partial and missing shard measurements independently of refusal", () => {
+  const directory = mkdtempSync(join(tmpdir(), "facts-reproduction-transfer-"));
+  try {
+    const write = (name: string, value: unknown) =>
+      writeFileSync(join(directory, name), JSON.stringify(value));
+    const refused = refusalRecord(
+      1,
+      [{ port_id: "fixture-port", reason: "over-budget", detail: "partial archive" }],
+      123,
+    );
+    assert.equal(refused.transient, true);
+    write("refusals-0.json", refused);
+    write("refusals-1.json", refusalRecord(0, [], 0));
+    write("refusals-2.json", refusalRecord(0, []));
+    write("refusals-3.json", refusalRecord(0, [], -1));
+    write("refusals-5.json", refusalRecord(0, [], 999));
+    assert.deepEqual(reproductionArchiveTransfer(directory, 5), {
+      expected_shards: 5,
+      measured_shards: 2,
+      archive_body_bytes: 123,
+    });
+    assert.deepEqual(reproductionArchiveTransfer(join(directory, "absent"), 5), {
+      expected_shards: 5,
+      measured_shards: 0,
+      archive_body_bytes: null,
+    });
+    assert.equal(reproductionArchiveTransfer(directory, 0), undefined);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

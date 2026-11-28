@@ -261,10 +261,13 @@ test("acquisition fixture keeps owned executable bytes across upgrades and gates
   try {
     assert.equal(fixture.completionJourney, false);
     assert.equal(fixture.sourceJourney, null);
+    assert.equal(
+      fixture.acquisitionWaitPath,
+      path.join(output, "library", "acquisition-game-release.signal"),
+    );
     assert.deepEqual(fixture.refreshPort.launch_arguments, [
       "--game",
-      "--owned-wait",
-      path.join(output, "acquisition-game-release.signal"),
+      "--wait-for-acquisition-release",
       "--owned-wait-seconds",
       "180",
     ]);

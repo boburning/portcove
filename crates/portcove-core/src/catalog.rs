@@ -98,6 +98,10 @@ pub struct Catalog {
     listings: Arc<Indexed<crate::CatalogListingDocument>>,
     /// A retained execution-intent envelope, never an operational definition.
     user_selected_listing: bool,
+    /// Signed current-format rows that explicitly have no cover to display.
+    cover_assignments: Arc<HashSet<String>>,
+    /// Local workspace aliases keyed by the retained registration's operation ID.
+    pub(crate) personal_canonical_ports: Arc<BTreeMap<String, String>>,
     retained_definitions: Arc<BTreeMap<String, RetainedDefinition>>,
 }
 
@@ -155,6 +159,69 @@ fn check_repository_summary(port: &PortDefinition) -> Result<()> {
 }
 
 impl Catalog {
+    #[cfg(test)]
+    pub(crate) fn assert_generated_registration(&self, id: &str) -> bool {
+        static GENERATED: std::sync::OnceLock<HashSet<String>> = std::sync::OnceLock::new();
+        let ids = GENERATED.get_or_init(|| {
+            let table: serde_json::Value = serde_json::from_str(include_str!(
+                "../catalog/generated-registration.generated.json"
+            ))
+            .unwrap();
+            table["enrollments"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|row| row["port_id"].as_str().unwrap().to_owned())
+                .collect()
+        });
+        if !ids.contains(id) {
+            return false;
+        }
+        let port = self.port(id).unwrap();
+        assert_eq!(
+            port.adapter,
+            crate::AdapterKind::StagedSourcePortable,
+            "{id}"
+        );
+        assert_eq!(
+            port.release.provider,
+            crate::ReleaseSource::UserPrepared,
+            "{id}"
+        );
+        let presentation = port.presentation.as_ref().unwrap();
+        assert_eq!(
+            presentation.installation_method,
+            crate::InstallationMethod::UserPreparedRuntime,
+            "{id}"
+        );
+        assert_eq!(
+            presentation.saves_and_settings,
+            crate::SavesAndSettingsBehavior::ExternalUserOwned,
+            "{id}"
+        );
+        assert!(!port.platforms.is_empty(), "{id}");
+        assert_eq!(
+            port.release.user_prepared.len(),
+            port.platforms.len(),
+            "{id}"
+        );
+        for platform in &port.platforms {
+            let spec = &port.release.user_prepared[platform];
+            assert_eq!(
+                spec.trust,
+                crate::ExternalRuntimeTrust::UserSelected,
+                "{id}"
+            );
+            assert!(
+                spec.archive_name.is_empty() && spec.archive_sha256.is_empty(),
+                "{id}"
+            );
+            assert_eq!(spec.archive_size, 0, "{id}");
+            assert!(spec.executable.is_empty(), "{id}");
+        }
+        true
+    }
+
     /// Reuse the ordinary validator on one bounded input, without opening a
     /// library, resolving releases, executing a template or establishing trust.
     pub fn inspect_proposal(path: &Path) -> Result<CatalogProposalInspection> {
@@ -433,6 +500,8 @@ impl Catalog {
         let catalog = Self {
             listings: Arc::new(Indexed::new(listings)),
             user_selected_listing: false,
+            cover_assignments: Arc::default(),
+            personal_canonical_ports: Arc::default(),
             document: Arc::new(Indexed::new(document)),
             retained_definitions: Arc::default(),
         };
@@ -1295,7 +1364,8 @@ impl Catalog {
                     .chain(&presentation.companion_cover)
                     .chain(presentation.collection_covers.iter().flatten())
                 {
-                    if artwork.game_id == 0
+                    if artwork.observed_github_repository_id.is_some()
+                        || artwork.game_id == 0
                         || artwork.cover_id == 0
                         || artwork.image_id.is_empty()
                         || artwork.image_id.len() > 128

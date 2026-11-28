@@ -12,7 +12,11 @@
         {
           "id": "gotfree",
           "title": "Freeware Version",
-          "evidence_urls": ["https://www.scummvm.org/games/#games-got:got"]
+          "evidence_urls": [
+            "https://www.scummvm.org/games/#games-got:got",
+            "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/got/detection_tables.h#L48-L55"
+          ],
+          "system": "dos"
         }
       ]
     },

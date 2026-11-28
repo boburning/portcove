@@ -118,7 +118,7 @@ export class ArtworkCache {
   private entries = new Map<string, ArtworkDisplay>();
   private displaySequence = 0;
   private listeners = new Map<string, Set<() => void>>();
-  private pending = new Map<string, Promise<void>>();
+  private pending = new Map<string, { choice: Promise<void>; preview: Promise<void> }>();
   private scheduled: ScheduledArtworkTask[] = [];
   private runningLanes = new Set<string>();
   private exclusiveRunning = false;
@@ -131,6 +131,7 @@ export class ArtworkCache {
   constructor(
     readonly generation: number,
     readonly catalogArtworkKey = "",
+    private readonly minimumChoiceRevisions = new Map<string, number>(),
   ) {}
 
   /** A stable snapshot token for views subscribing to several admitted images. */
@@ -532,7 +533,7 @@ export class ArtworkCache {
     this.drainRemote();
   }
 
-  private async display(
+  private display(
     portId: string,
     slot: ArtworkSlot,
     state: ArtworkState,
@@ -636,9 +637,28 @@ export class ArtworkCache {
       this.drainRemote();
       return;
     }
-    await this.serializeLocalThumbnail(async () => {
+    return this.serializeLocalThumbnail(async () => {
+      if (this.read(portId, slot).state !== state) return;
       await fetchThumbnail(false, 0);
     });
+  }
+
+  private requireChoiceRevision(key: string, revision: number) {
+    const minimum = Math.max(this.minimumChoiceRevisions.get(key) ?? 0, revision);
+    this.minimumChoiceRevisions.set(key, minimum);
+    return minimum;
+  }
+
+  private displayCommittedChoice(
+    portId: string,
+    slot: ArtworkSlot,
+    state: ArtworkState,
+    stillInterested: () => boolean,
+  ) {
+    const revision = this.requireChoiceRevision(this.key(portId, slot), state.choice.revision);
+    // The committed choice is authoritative. A preview can load or fail independently.
+    if (state.choice.revision === revision) void this.display(portId, slot, state, stillInterested);
+    return state;
   }
 
   load(
@@ -651,7 +671,7 @@ export class ArtworkCache {
     const key = this.key(portId, slot);
     const pending = this.pending.get(key);
     if (pending)
-      return pending.then(() => {
+      return pending.preview.then(() => {
         this.refreshQueuedInterest(key, stillInterested, priority);
         if (!this.entries.has(key) && (stillInterested() || this.listeners.has(key)))
           return this.load(portId, slot, refresh, stillInterested, priority);
@@ -660,7 +680,8 @@ export class ArtworkCache {
       this.refreshQueuedInterest(key, stillInterested, priority);
       return Promise.resolve();
     }
-    const result = this.schedule(portId, async () => {
+    let thumbnail: Promise<void> | undefined;
+    const choice = this.schedule(portId, async () => {
       if (!stillInterested() && !this.listeners.has(key)) return;
       this.publish(portId, slot, {
         ...this.read(portId, slot),
@@ -669,12 +690,25 @@ export class ArtworkCache {
       });
       try {
         const state = await desktopApi.artwork(portId, slot, this.generation);
-        if (stillInterested() || this.listeners.has(key))
-          await this.display(portId, slot, state, stillInterested, priority);
-        else {
+        if (!stillInterested() && !this.listeners.has(key)) {
           this.entries.delete(key);
           this.remoteQueued.delete(key);
+          return;
         }
+        if (state.choice.revision < (this.minimumChoiceRevisions.get(key) ?? 0)) {
+          const previous = this.read(portId, slot);
+          this.publish(portId, slot, {
+            ...previous,
+            loading: false,
+            stale: Boolean(previous.state),
+            error:
+              "The latest artwork choice is not available yet. Refresh artwork to read it again.",
+          });
+          return;
+        }
+        if (this.minimumChoiceRevisions.has(key))
+          this.requireChoiceRevision(key, state.choice.revision);
+        thumbnail = this.display(portId, slot, state, stillInterested, priority) ?? undefined;
       } catch (error) {
         const previous = this.read(portId, slot);
         this.publish(portId, slot, {
@@ -685,12 +719,14 @@ export class ArtworkCache {
         });
       }
     });
-    this.pending.set(key, result);
-    void result.then(
+    // The choice scheduler releases the lane before the independent image decode.
+    const preview = choice.then(() => thumbnail);
+    this.pending.set(key, { choice, preview });
+    void choice.then(
       () => this.pending.delete(key),
       () => this.pending.delete(key),
     );
-    return result;
+    return preview;
   }
 
   /**
@@ -718,15 +754,19 @@ export class ArtworkCache {
     stillInterested: () => boolean = () => true,
     committedRevision?: number,
   ): Promise<void> {
-    // A replacement cache may already be reading the choice from before the commit.
-    await this.pending.get(this.key(portId, slot));
     if (!stillInterested()) return;
-    if (
-      committedRevision !== undefined &&
-      (this.read(portId, slot).state?.choice.revision ?? -1) < committedRevision
-    )
-      this.publish(portId, slot, { loading: true });
-    await this.load(portId, slot, true, stillInterested);
+    const key = this.key(portId, slot);
+    if (committedRevision !== undefined) {
+      const displayedRevision = this.read(portId, slot).state?.choice.revision ?? -1;
+      const revision = this.requireChoiceRevision(
+        key,
+        Math.max(displayedRevision, committedRevision),
+      );
+      if (displayedRevision < revision) this.publish(portId, slot, { loading: true });
+    }
+    // Discard any older reply already in flight before asking for fresh state.
+    await this.pending.get(key)?.choice;
+    if (stillInterested()) await this.load(portId, slot, true, stillInterested);
   }
 
   /** Chooses one SteamGridDB image through Core's shared ingestion path. */
@@ -750,8 +790,7 @@ export class ArtworkCache {
         this.generation,
         ...framing,
       );
-      await this.display(portId, slot, state, stillCurrent);
-      return state;
+      return this.displayCommittedChoice(portId, slot, state, stillCurrent);
     });
   }
 
@@ -776,8 +815,7 @@ export class ArtworkCache {
               this.generation,
               ...framing,
             );
-      await this.display(portId, slot, state, stillCurrent);
-      return state;
+      return this.displayCommittedChoice(portId, slot, state, stillCurrent);
     });
   }
   suppress(portId: string, slot: ArtworkSlot, revision: number, stillCurrent: () => boolean) {
@@ -798,8 +836,7 @@ export class ArtworkCache {
       const state = await (
         visibility === "hide" ? desktopApi.suppressArtwork : desktopApi.unhideArtwork
       )(portId, slot, revision, this.generation);
-      await this.display(portId, slot, state, stillCurrent);
-      return state;
+      return this.displayCommittedChoice(portId, slot, state, stillCurrent);
     });
   }
   setBackgroundFraming(
@@ -816,8 +853,7 @@ export class ArtworkCache {
         this.generation,
         framing,
       );
-      await this.display(portId, "detail", state, stillCurrent);
-      return state;
+      return this.displayCommittedChoice(portId, "detail", state, stillCurrent);
     });
   }
 }

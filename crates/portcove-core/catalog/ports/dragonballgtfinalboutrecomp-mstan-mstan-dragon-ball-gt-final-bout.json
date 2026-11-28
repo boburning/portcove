@@ -40,7 +40,17 @@
       "format_version": 1,
       "id": "dragon-ball-gt-final-bout",
       "evidence_urls": ["https://github.com/mstan/DragonBallGTFinalBoutRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dragon-ball-gt-final-bout-playstation",
+          "title": "Dragon Ball GT: Final Bout (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/mstan/DragonBallGTFinalBoutRecomp",
+            "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/dragonballgtfinalboutrecomp-mstan-mstan-dragon-ball-gt-final-bout.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

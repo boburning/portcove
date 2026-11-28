@@ -322,6 +322,14 @@
       "ordinary_families": ["release-contract-tests"]
     },
     {
+      "file": "scripts/catalog-cover-replacement-review.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3512],
+        ["release-check", 4312]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-body-window.test.mts",
       "memberships": [
         ["catalog-full-2", 3508],
@@ -1676,6 +1684,7 @@
             "a finding on a port with deferred targets is visible from the latest scan's gap",
             "published maintenance report reads retained pending-to-eligible history once per candidate",
             "partial CDN windows leave prior good observations intact in the maintenance store",
+            "scheduled media health retains current facts through a provider outage and unchanged replay",
             "upstream observations record coverage, quiet recurrence, attention and failed reads",
             "hosted intake records requests, quiet recurrence, attention, gaps and failed reads",
             "handoffs plan once, stay quiet, clear and abandon only after complete runs, and refuse stale fences",
@@ -1807,6 +1816,7 @@
             "a local runner reads the shared store's leads without a lease and keeps its research",
             "stored collector state is not capped at a fixed size",
             "stored lead records round-trip through PostgreSQL and unchanged rows are not rewritten",
+            "local seed hydration continues beyond its index page and reconciles the tail",
             "the status export reports an unmigrated store instead of failing",
             "the store omits state only for the exact revision, generation and definition a caller holds",
             "status reconciliation distinguishes retained repository evidence from research signals"
@@ -5091,6 +5101,7 @@
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite native-tools",
           "cases": [
+            "Windows acquisition fixture waits for the marker in its assigned library",
             "Windows owned probe explicit mode works in empty isolated cwd and preserves the legacy mode route"
           ],
           "suite": "owned Windows probe fixture"

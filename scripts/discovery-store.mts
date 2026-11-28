@@ -86,6 +86,8 @@ export interface DiscoveryStore {
       sourceRevision: string;
       runner: string;
       known?: DiscoveryKnownRevision;
+      /** The reservation covers the retained grant only. */
+      knownOnly?: boolean;
     },
   ): DiscoveryLeaseGrant;
   commit(
@@ -181,6 +183,7 @@ const seedTables = {
   leads: { table: "discovery_lead_records", key: "lead_id", value: "record" },
 } as const;
 type SeedRowKind = keyof typeof seedTables;
+const seedPageRowLimit = 4096;
 
 /** Local PostgreSQL computes fingerprints from the actual seed values, using
  * the same jsonb serialization as production. The seed is not authoritative:
@@ -203,14 +206,13 @@ function loadSeedRows(
     throw new MaintenanceStoreError("Discovery seed must be an independent local database");
   const { table, key, value } = seedTables[kind];
   const relation = "portcove_maintenance." + table;
-  const orderedKey = kind === "hints" ? `${key} COLLATE "C"` : key;
   const hardLimit = outputLimitBytes - 1; // Leave room for psql's trailing newline.
   const preferred = Math.min(pageBytes, hardLimit);
   const hashes = Object.create(null) as Record<string, string>;
   const rows = Object.create(null) as Record<string, unknown>;
   let after: string | undefined;
   for (;;) {
-    const cursor = after === undefined ? "" : `AND ${orderedKey} > ${sqlLiteral(after)}`;
+    const cursor = after === undefined ? "" : `AND ${key} > ${sqlLiteral(after)}`;
     let output: string;
     try {
       output = runSql(
@@ -222,15 +224,17 @@ function loadSeedRows(
           SELECT ${key}, ${value},
             octet_length(to_json(${key}::text)::text) + octet_length(${value}::text) + 72 AS byte_size
           FROM ${relation} WHERE scope = ${sqlLiteral(scope)} ${cursor}
+          -- Use the primary-key collation so the index can supply a bounded prefix.
+          ORDER BY ${key} LIMIT ${seedPageRowLimit}
         ), sized AS (
           SELECT ${key}, ${value},
-            sum(byte_size + 2) OVER (ORDER BY ${orderedKey}) AS running,
-            row_number() OVER (ORDER BY ${orderedKey}) AS position
+            sum(byte_size + 2) OVER (ORDER BY ${key}) AS running,
+            row_number() OVER (ORDER BY ${key}) AS position
           FROM entries
         ), page AS (
           SELECT coalesce(json_agg(json_build_array(${key}::text, ${value},
             encode(sha256(convert_to(${value}::text, 'UTF8')), 'hex'))
-            ORDER BY ${orderedKey}), '[]')::text AS data
+            ORDER BY ${key}), '[]')::text AS data
           FROM sized WHERE running <= ${preferred} - 2 OR position = 1
         ) SELECT CASE WHEN octet_length(data) <= ${hardLimit} THEN data ELSE 'null' END FROM page;`,
         { timeoutMs: 300_000 },
@@ -474,24 +478,28 @@ export function postgresDiscoveryStore(
   return {
     acquire(lease, options) {
       try {
-        const { known } = options;
+        const { known, knownOnly } = options;
         const planned = pendingPlan?.scope === lease.scope ? pendingPlan : undefined;
+        if (knownOnly && (!known || planned))
+          throw new MaintenanceStoreError(
+            "A retained-only discovery grant requires its exact revision",
+          );
         if (planned) pendingPlan = undefined;
         hydration.delete(lease.scope);
         const args = `${sqlLiteral(lease.scope)}, ${uuid(lease.attempt)}, ${uuid(lease.token)},
           ${options.leaseSeconds}, ${sqlLiteral(options.definition)},
           ${sqlLiteral(options.sourceRevision)}, ${sqlLiteral(options.runner)}`;
-        const output = runSql(
-          environment,
-          planned
-            ? `SELECT portcove_maintenance.discovery_acquire_planned(${args}, ${planned.revision},
-                ${planned.generation}, ${sqlLiteral(planned.definition)}, ${planned.compactBytes})::text;`
-            : known
-              ? `SELECT portcove_maintenance.discovery_acquire_known(${args},
-                 ${known.revision}, ${known.generation}, ${sqlLiteral(known.definition)},
-                 ${uuid(known.attempt)})::text;`
-              : `SELECT portcove_maintenance.discovery_acquire_seeded(${args})::text;`,
-        ).trim();
+        const acquire = planned
+          ? `portcove_maintenance.discovery_acquire_planned(${args}, ${planned.revision},
+              ${planned.generation}, ${sqlLiteral(planned.definition)}, ${planned.compactBytes})`
+          : known
+            ? `portcove_maintenance.discovery_acquire_known(${args}, ${known.revision},
+                ${known.generation}, ${sqlLiteral(known.definition)}, ${uuid(known.attempt)})`
+            : `portcove_maintenance.discovery_acquire_seeded(${args})`;
+        // The existing fence decides whether the grant is unchanged. On a miss,
+        // strip the body in PostgreSQL before it can cross the wire.
+        const grantSql = knownOnly ? `(${acquire} - 'state')` : acquire;
+        const output = runSql(environment, `SELECT ${grantSql}::text;`).trim();
         const grant = JSON.parse(output) as DiscoveryLeaseGrant;
         const revision = Number(grant.revision);
         const generation = Number(grant.generation);
@@ -504,6 +512,11 @@ export function postgresDiscoveryStore(
         let received = Buffer.byteLength(output);
         if (!grant.unchanged) {
           try {
+            if (knownOnly)
+              throw new DiscoveryStoreRefused(
+                "stale-writer",
+                "Retained discovery revision moved; a complete read needs its own admission",
+              );
             const readSeed = planned ? seed : unplannedSeed;
             const incremental = readSeed
               ? readSeededDiscoveryRows(

@@ -439,6 +439,250 @@ void test("scheduled observation keeps the configured cadence, read-only authori
   assert.match(workflow, /retention-days: 7/);
 });
 
+void test("warm collection validates the retained release tail and selected assets once", async () => {
+  const server = fixture();
+  const first = `${root}/releases?per_page=100&page=1`;
+  const tail = `${root}/releases?per_page=100&page=2`;
+  const assets = `${root}/releases/1/assets?per_page=100&page=1`;
+  server.replies.set(first, {
+    body: Array.from({ length: 100 }, (_, index) => release(index + 1)),
+    link: `<${tail}>; rel="next"`,
+  });
+  server.replies.set(tail, { body: [release(101)] });
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+  });
+  const options = {
+    fetch: server.fetch,
+    reuseValidatedPages: true,
+    selectAssetReleases: async () => [1],
+  };
+  const cold = await observeUpstream(scoped, options);
+  assert.equal(cold.observation.consumed.requests, 8);
+  server.requests.length = 0;
+  const warm = await observeUpstream(scoped, { ...options, cache: cold.cache });
+  assert.equal(warm.observation.consumed.requests, 6);
+  assert.equal(warm.observation.facts_sha256, cold.observation.facts_sha256);
+  for (const url of [root, first])
+    assert.equal(server.requests.filter((request) => request.url === url).length, 2);
+  for (const url of [tail, assets])
+    assert.equal(server.requests.filter((request) => request.url === url).length, 1);
+
+  server.replies.get(first).body = Array.from({ length: 100 }, (_, index) => ({
+    ...release(index + 1),
+    provider_only_counter: index + 1,
+  }));
+  server.requests.length = 0;
+  const sameFacts = await observeUpstream(scoped, { ...options, cache: warm.cache });
+  assert.equal(sameFacts.observation.facts_sha256, warm.observation.facts_sha256);
+  assert.notEqual(sameFacts.cache.pages[first]?.sha256, warm.cache.pages[first]?.sha256);
+  assert.equal(sameFacts.cache.pages[first]?.facts_sha256, warm.cache.pages[first]?.facts_sha256);
+  assert.equal(sameFacts.observation.consumed.requests, 6);
+  for (const url of [tail, assets])
+    assert.equal(server.requests.filter((request) => request.url === url).length, 1);
+
+  server.replies.get(tail).body = [release(101, { prerelease: true })];
+  let restart: ObservationFailure["continuation"];
+  await assert.rejects(observeUpstream(scoped, { ...options, cache: warm.cache }), (error) => {
+    assert.ok(error instanceof ObservationFailure);
+    assert.equal(error.rule, "concurrent-change");
+    restart = error.continuation;
+    assert.equal(restart?.phase, "restart");
+    return true;
+  });
+  server.requests.length = 0;
+  const repaired = await observeUpstream(scoped, {
+    ...options,
+    cache: warm.cache,
+    continuation: restart,
+  });
+  assert.equal(repaired.observation.facts.releases.at(-1)?.prerelease, true);
+  for (const url of [tail, assets])
+    assert.equal(server.requests.filter((request) => request.url === url).length, 2);
+});
+
+void test("a changed release frontier reuses assets only for unchanged release headers", async () => {
+  const server = fixture();
+  const first = `${root}/releases?per_page=100&page=1`;
+  const assetsFor = (id: number) => `${root}/releases/${id}/assets?per_page=100&page=1`;
+  server.replies.get(first).body = [release(1), release(2)];
+  server.replies.set(assetsFor(2), { body: [] });
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+  });
+  const options = { fetch: server.fetch, reuseValidatedPages: true };
+  const prior = await observeUpstream(scoped, {
+    ...options,
+    selectAssetReleases: async () => [1, 2],
+  });
+  server.replies.get(first).body = [
+    release(3),
+    release(1),
+    release(2, { tag_name: "v2.1.0", prerelease: true }),
+  ];
+  server.replies.set(assetsFor(3), { body: [] });
+  const expanded = { ...options, cache: prior.cache, selectAssetReleases: async () => [1, 2, 3] };
+  server.requests.length = 0;
+  const refreshed = await observeUpstream(scoped, expanded);
+  assert.deepEqual(
+    refreshed.observation.facts.releases.map(({ id }) => id),
+    [3, 1, 2],
+  );
+  assert.equal(refreshed.observation.facts.releases[2]?.tag_name, "v2.1.0");
+  assert.deepEqual(refreshed.observation.coverage?.asset_release_ids, [1, 2, 3]);
+  assert.equal(server.requests.filter(({ url }) => url === assetsFor(1)).length, 1);
+  for (const url of [first, assetsFor(2), assetsFor(3)])
+    assert.equal(server.requests.filter((request) => request.url === url).length, 2);
+
+  server.replies.get(assetsFor(1)).body = [asset(4)];
+  await assert.rejects(observeUpstream(scoped, expanded), (error) => {
+    assert.ok(error instanceof ObservationFailure);
+    assert.equal(error.rule, "concurrent-change");
+    assert.equal(error.continuation?.phase, "restart");
+    return true;
+  });
+});
+
+void test("a truncated fresh asset page retains its warm collection", async () => {
+  const server = fixture();
+  const headers = `${root}/releases?per_page=100&page=1`;
+  const cachedAssets = `${root}/releases/1/assets?per_page=100&page=1`;
+  const freshAssets = `${root}/releases/2/assets?per_page=100&page=1`;
+  server.replies.get(headers).body = [release(1), release(2)];
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+  });
+  const options = { fetch: server.fetch, reuseValidatedPages: true };
+  const first = await observeUpstream(scoped, { ...options, selectAssetReleases: async () => [1] });
+  server.replies.set(freshAssets, {
+    body: [],
+    link: `<${root}/releases/2/assets?per_page=100&page=2>; rel="next"`,
+  });
+  const expanded = { ...options, cache: first.cache, selectAssetReleases: async () => [1, 2] };
+  let retained: ObservationFailure["continuation"];
+  await assert.rejects(observeUpstream(scoped, expanded), (error) => {
+    assert.ok(error instanceof ObservationFailure);
+    assert.equal(error.rule, "pagination");
+    assert.equal(error.statedCoverage, "partial");
+    retained = error.continuation;
+    assert.equal(retained?.phase, "collect");
+    assert.deepEqual(retained?.tentative_pages, [cachedAssets]);
+    assert.ok(!Object.hasOwn(retained.pages, freshAssets));
+    return true;
+  });
+  server.replies.set(freshAssets, { body: [] });
+  const resumed = await observeUpstream(scoped, { ...expanded, continuation: retained });
+  assert.deepEqual(resumed.observation.coverage?.asset_release_ids, [1, 2]);
+});
+
+void test("a temporary provider outage retains warm validation progress", async () => {
+  const assets = `${root}/releases/1/assets?per_page=100&page=1`;
+  let outage = false;
+  const server = fixture({
+    intercept: (url) =>
+      outage && url === assets ? new Response("Unavailable", { status: 503 }) : null,
+  });
+  const noRetries = validateObserverConfig({
+    ...config,
+    budget: { ...config.budget, retries: 0 },
+  });
+  const options = { fetch: server.fetch, reuseValidatedPages: true };
+  const baseline = await observeUpstream(noRetries, options);
+  outage = true;
+  let retained: ObservationFailure["continuation"];
+  await assert.rejects(
+    observeUpstream(noRetries, { ...options, cache: baseline.cache }),
+    (error) => {
+      assert.ok(error instanceof ObservationFailure);
+      assert.equal(error.rule, "provider-status");
+      assert.equal(error.httpStatus, 503);
+      retained = error.continuation;
+      assert.equal(retained?.phase, "validate");
+      assert.equal(retained?.validation_cursor, 2);
+      assert.deepEqual(retained?.tentative_pages, [assets]);
+      return true;
+    },
+  );
+  outage = false;
+  server.requests.length = 0;
+  const resumed = await observeUpstream(noRetries, {
+    ...options,
+    cache: baseline.cache,
+    continuation: retained,
+  });
+  assert.deepEqual(
+    server.requests.map(({ url }) => url),
+    [assets],
+  );
+  assert.equal(resumed.observation.facts_sha256, baseline.observation.facts_sha256);
+});
+
+void test("warm checksum transport verifies tentative assets after a budget continuation", async () => {
+  const server = checksumFixture(false);
+  const assets = `${root}/releases/1/assets?per_page=100&page=1`;
+  const checksum = `${root}/releases/assets/3`;
+  const options = {
+    fetch: server.fetch,
+    reuseValidatedPages: true,
+    selectChecksumSources: async (observation: ProviderObservation) =>
+      observation.facts.releases.some((item) => item.assets.some((value) => value.id === 3))
+        ? checksumSelection()
+        : [],
+  };
+  const full = await observeUpstream(config, options);
+  let requests = 0;
+  let retained: ObservationFailure["continuation"];
+  await assert.rejects(
+    observeUpstream(config, {
+      ...options,
+      cache: full.cache,
+      admitRequest: () => {
+        if (++requests === 3) throw new ObservationFailure("budget", "fixture boundary");
+      },
+    }),
+    (error) => {
+      assert.ok(error instanceof ObservationFailure);
+      assert.equal(error.rule, "budget");
+      retained = error.continuation;
+      assert.deepEqual(retained?.tentative_pages, [assets]);
+      return true;
+    },
+  );
+  server.replies.get(assets).body = [{ ...asset(), digest: null }];
+  server.requests.length = 0;
+  let restart: ObservationFailure["continuation"];
+  await assert.rejects(
+    observeUpstream(config, { ...options, cache: full.cache, continuation: retained }),
+    (error) => {
+      assert.ok(error instanceof ObservationFailure);
+      assert.equal(error.rule, "concurrent-change");
+      restart = error.continuation;
+      assert.equal(restart?.phase, "restart");
+      return true;
+    },
+  );
+  assert.deepEqual(
+    server.requests.map(({ url }) => url),
+    [assets],
+  );
+  const refreshed = await observeUpstream(config, {
+    ...options,
+    cache: full.cache,
+    continuation: restart,
+  });
+  assert.equal(refreshed.observation.facts.checksum_sidecars, undefined);
+  assert.ok(!server.requests.some(({ url }) => url === checksum));
+});
+
 void test("records exact release and asset facts, conditional cache and changed fixture artifacts", async () => {
   const server = fixture();
   const first = await observeUpstream(config, {
@@ -1074,6 +1318,7 @@ void test("checkpoints preserve the last complete snapshot, deduplicate failures
   assert.equal(failed.notify_exception, true);
   assert.deepEqual(first.checkpoint, original);
   assert.deepEqual(failed.checkpoint.last_complete, first.checkpoint.last_complete);
+  assert.equal(failed.report.attempt_provider_usage?.requests, broken.requests.length);
   assert.equal(
     requiredFixture(failed.report.fallback).facts_sha256,
     requiredFixture(first.report.observation).facts_sha256,
@@ -1104,6 +1349,12 @@ void test("deferred checkpoints honor retry clocks without requests and mismatch
   const first = await advanceObservation(config, null, options);
   const second = await advanceObservation(config, first.checkpoint, options);
   assert.equal(second.report.transition, "deferred");
+  assert.equal(first.report.attempt_provider_usage?.requests, 1);
+  assert.deepEqual(second.report.attempt_provider_usage, {
+    requests: 0,
+    response_bytes: 0,
+    conditional_hits: 0,
+  });
   assert.equal(second.notify_exception, false);
   assert.equal(limited.requests.length, 1);
   clock += 120_000;
@@ -1463,6 +1714,7 @@ void test("collector-only continuation crosses twenty pages without advancing pa
       },
     });
     assert.ok(server.requests.length - before <= 5);
+    assert.equal(result.report.attempt_provider_usage?.requests, server.requests.length - before);
     checkpoint = result.checkpoint;
     if (result.report.transition === "initial-baseline") {
       completed = result;
@@ -1505,6 +1757,8 @@ void test("interruption and cancellation retain completed pages without repeatin
   });
   assert.equal(interrupted.report.observation, null);
   assert.equal(interrupted.report.continuation?.retained_pages, 1);
+  assert.equal(interrupted.report.attempt_provider_usage?.requests, 1);
+  assert.ok(requiredFixture(interrupted.report.attempt_provider_usage).response_bytes > 0);
   const recovered = await advanceObservation(config, interrupted.checkpoint, {
     fetch: server.fetch,
     project,
@@ -2288,12 +2542,20 @@ void test("pure observer hashes load in a clean dependency-free checkout without
 
 void test("push runs observe only to fill schedule gaps and use a reduced request ceiling (#4779)", async () => {
   const { admitObservation, pushCooldownMs } = await import("./observer-push-admission.mts");
-  const { hostedRequestCeiling, hostedRequestLimit, pushRequestLimit } =
-    await import("./observe-catalog-upstreams.mts");
+  const {
+    hostedLauncherModRequestLimit,
+    hostedRequestCeiling,
+    hostedRequestLimit,
+    pushRequestLimit,
+  } = await import("./observe-catalog-upstreams.mts");
   assert.equal(hostedRequestCeiling("schedule"), hostedRequestLimit);
   assert.equal(hostedRequestCeiling("workflow_dispatch"), hostedRequestLimit);
   assert.equal(hostedRequestCeiling("push"), pushRequestLimit);
   assert.ok(pushRequestLimit * 2 <= hostedRequestLimit);
+  assert.equal(hostedLauncherModRequestLimit(hostedRequestCeiling("schedule")), 180);
+  assert.equal(hostedLauncherModRequestLimit(hostedRequestCeiling("push")), 90);
+  assert.equal(hostedLauncherModRequestLimit(256), 25);
+  assert.equal(hostedLauncherModRequestLimit(9), 0);
 
   const now = Date.parse("2026-11-10T03:00:00Z");
   const run = (id: number, event: string, minutesAgo: number, extra: object = {}) => ({
@@ -2305,20 +2567,43 @@ void test("push runs observe only to fill schedule gaps and use a reduced reques
     created_at: new Date(now - minutesAgo * 60000).toISOString(),
     ...extra,
   });
-  const fixture = (runsByEvent: Record<string, object[]>, observed: Record<number, string>) => {
+  const fixture = (
+    runsByEvent: Record<string, ReturnType<typeof run>[]>,
+    observed: Record<number, string>,
+    overrides: { pushTotal?: number; jobTotal?: number; jobs?: object[] } = {},
+  ) => {
     const routes: string[] = [];
     return {
       routes,
       read: async (route: string) => {
         routes.push(route);
-        const event = new URLSearchParams(route.split("?")[1]).get("event");
-        if (event) return { workflow_runs: runsByEvent[event] ?? [] };
+        const params = new URLSearchParams(route.split("?")[1]);
+        const event = params.get("event");
+        if (event) {
+          const created = params.get("created");
+          assert.equal(created, ">=2026-11-10T02:05:00Z");
+          const cutoff = Date.parse(created.slice(2));
+          const matching = (runsByEvent[event] ?? []).filter(
+            (item) => Date.parse(item.created_at) >= cutoff,
+          );
+          return {
+            total_count: (event === "push" ? overrides.pushTotal : undefined) ?? matching.length,
+            workflow_runs: matching.slice(0, Number(params.get("per_page"))),
+          };
+        }
         const id = Number(route.match(/runs\/(\d+)\/jobs/u)?.[1]);
+        const jobs = overrides.jobs ?? [
+          { name: "admit", conclusion: "success" },
+          {
+            name: "observe",
+            run_id: id,
+            status: "completed",
+            conclusion: observed[id] ?? "skipped",
+          },
+        ];
         return {
-          jobs: [
-            { name: "admit", conclusion: "success" },
-            { name: "observe", conclusion: observed[id] ?? "skipped" },
-          ],
+          total_count: overrides.jobTotal ?? jobs.length,
+          jobs,
         };
       },
     };
@@ -2370,18 +2655,53 @@ void test("push runs observe only to fill schedule gaps and use a reduced reques
   const active = fixture({ schedule: [run(15, "schedule", 3, { status: "in_progress" })] }, {});
   assert.equal((await admit("push", active)).observe, false);
   assert.ok(active.routes.every((route) => !route.includes("/jobs")));
-  // A full page still inside the cooldown is incomplete coverage and declines,
-  // even when every listed run skipped observing.
-  const crowded = Array.from({ length: 10 }, (_, i) => run(30 + i, "push", 2 + i * 4));
+  // Busy main branches can still be completely read. Inspect the older
+  // in-window run even after the original ten-row window would have ended.
+  const crowded = Array.from({ length: 16 }, (_, i) => run(30 + i, "push", 2 + i * 3));
   const full = fixture({ push: crowded }, {});
-  assert.deepEqual(await admit("push", full), {
+  assert.deepEqual(await admit("push", full), { observe: true, reason: "no-recent-observation" });
+  assert.equal(full.routes.filter((route) => route.includes("/jobs")).length, 16);
+  assert.deepEqual(await admit("push", fixture({ push: crowded }, { 45: "success" })), {
     observe: false,
-    reason: "push runs exceed one page within the cooldown",
+    reason: "run 45 observed recently",
   });
-  assert.ok(full.routes.every((route) => !route.includes("/jobs")));
-  // A full page reaching past the cooldown is complete for it.
-  const spread = Array.from({ length: 10 }, (_, i) => run(50 + i, "push", 2 + i * 7));
-  assert.equal((await admit("push", fixture({ push: spread }, {}))).observe, true);
+  const capped = Array.from({ length: 31 }, (_, i) => run(100 + i, "push", 1 + i));
+  await assert.rejects(
+    admit("push", fixture({ push: capped }, {})),
+    /cooldown history is incomplete/u,
+  );
+  await assert.rejects(
+    admit("push", fixture({ push: crowded }, {}, { pushTotal: 17 })),
+    /cooldown history is incomplete/u,
+  );
+  await assert.rejects(
+    admit("push", fixture({ push: [run(22, "push", 19)] }, {}, { jobTotal: 3 })),
+  );
+  const job = { name: "observe", run_id: 22, status: "completed", conclusion: "skipped" };
+  for (const jobs of [[], [job, job], [{ ...job, run_id: 99 }], [{ ...job, conclusion: null }]]) {
+    await assert.rejects(
+      admit("push", fixture({ push: [run(22, "push", 19)] }, {}, { jobs })),
+      /observer job is not conclusively accounted for/u,
+    );
+  }
+  await assert.rejects(
+    admit("push", fixture({ push: [run(23, "push", 1), run(23, "push", 1)] }, {})),
+  );
+  await assert.rejects(
+    admit("push", fixture({ push: [run(24, "push", 1)], schedule: [run(24, "schedule", 1)] }, {})),
+  );
+  const combined = fixture(
+    {
+      push: crowded,
+      schedule: crowded.map((_, i) => run(200 + i, "schedule", 2 + i * 3)),
+    },
+    {},
+  );
+  assert.deepEqual(await admit("push", combined), {
+    observe: false,
+    reason: "combined cooldown history exceeds the job read limit",
+  });
+  assert.equal(combined.routes.length, 2);
   // Inconsistent records refuse rather than admit.
   await assert.rejects(admit("push", fixture({ push: [run(16, "schedule", 1)] }, {})));
   await assert.rejects(

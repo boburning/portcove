@@ -198,21 +198,41 @@ function integrationMembershipMatches(
   return value === "in-library" ? member : !member;
 }
 
+type DeclaredPortGroup = "portOptions" | "implementationMethods" | "originalSystems";
+
+function isDeclaredPortGroup(group: Group): group is DeclaredPortGroup {
+  return (
+    group === "portOptions" || group === "implementationMethods" || group === "originalSystems"
+  );
+}
+
+// These predicates describe the entry itself and apply identically to every route.
+function declaredPortMatches(
+  port: CatalogEntry,
+  group: DeclaredPortGroup,
+  value: string,
+  context: CatalogQueryContext,
+): boolean {
+  switch (group) {
+    case "portOptions": {
+      const count = context.groupPortCounts?.get(gameGroupId(port)) ?? 1;
+      return value === "multiple" ? count > 1 : count === 1;
+    }
+    case "implementationMethods":
+      return implementationMethodKinds(port).includes(value);
+    case "originalSystems":
+      return originalSystems(port).includes(canonicalIdentityId(value));
+  }
+}
+
 function matches(
   port: CatalogEntry,
   group: Group,
   value: string,
   context: CatalogQueryContext,
 ): boolean {
+  if (isDeclaredPortGroup(group)) return declaredPortMatches(port, group, value, context);
   switch (group) {
-    case "portOptions":
-      return value === "multiple"
-        ? (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) > 1
-        : (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) === 1;
-    case "implementationMethods":
-      return implementationMethodKinds(port).includes(value);
-    case "originalSystems":
-      return originalSystems(port).includes(canonicalIdentityId(value));
     case "gameFiles":
       return context.gameFiles?.byPort.get(port.id)?.state === value;
     case "updates": {
@@ -299,15 +319,8 @@ function contextMatches(
   value: string,
   context: CatalogQueryContext,
 ): Match {
+  if (isDeclaredPortGroup(group)) return declaredPortMatches(port, group, value, context);
   switch (group) {
-    case "portOptions":
-      return value === "multiple"
-        ? (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) > 1
-        : (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) === 1;
-    case "implementationMethods":
-      return implementationMethodKinds(port).includes(value);
-    case "originalSystems":
-      return originalSystems(port).includes(canonicalIdentityId(value));
     case "platforms":
       return fact.platform === null
         ? undefined
@@ -363,16 +376,9 @@ function listingMatch(
   value: string,
   context: CatalogQueryContext,
 ): Match {
+  if (isDeclaredPortGroup(group)) return declaredPortMatches(port, group, value, context);
   const status = context.library?.statuses.get(port.id);
   switch (group) {
-    case "portOptions":
-      return value === "multiple"
-        ? (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) > 1
-        : (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) === 1;
-    case "implementationMethods":
-      return implementationMethodKinds(port).includes(value);
-    case "originalSystems":
-      return originalSystems(port).includes(canonicalIdentityId(value));
     case "platforms": {
       return listingPlatformMatch(port, value, context, status);
     }

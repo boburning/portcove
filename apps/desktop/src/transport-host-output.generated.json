@@ -10510,6 +10510,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -11367,6 +11376,13 @@
           },
           "name": {
             "type": "string"
+          },
+          "official_setup_id": {
+            "description": "Exact official definition to check from this listing. It confers no\nacquisition or runtime ownership and requires listing format 18.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "original_game": {
             "anyOf": [
@@ -26508,6 +26524,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -29534,6 +29559,13 @@
           "name": {
             "type": "string"
           },
+          "official_setup_id": {
+            "description": "Exact official definition to check from this listing. It confers no\nacquisition or runtime ownership and requires listing format 18.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "original_game": {
             "anyOf": [
               {
@@ -29639,6 +29671,13 @@
               "$ref": "#/$defs/ListingActionAssessment"
             },
             "type": "array"
+          },
+          "canonical_port_id": {
+            "description": "Canonical listing represented by this retained local registration.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "capabilities": {
             "anyOf": [

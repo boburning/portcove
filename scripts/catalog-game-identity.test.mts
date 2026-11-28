@@ -10,7 +10,11 @@ import {
   catalogSemanticReview,
   type ReviewedGameAssignment,
 } from "./catalog-game-identity.mts";
-import { readCatalogSource, type AuthoredPort } from "./catalog-authoring.mts";
+import {
+  readCatalogSource,
+  type AuthoredListing,
+  type AuthoredPort,
+} from "./catalog-authoring.mts";
 
 const game = (id = "original-game") => ({
   format_version: 1 as const,
@@ -39,7 +43,10 @@ const record = (id: string, target: string, known = false): AuthoredPort => ({
 const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
 const hash = (value: Buffer) => createHash("sha256").update(value).digest("hex");
 
-function fixture(t: { after: (callback: () => void) => void }) {
+function fixture(
+  t: { after: (callback: () => void) => void },
+  originalGame: AuthoredListing["original_game"] = game(),
+) {
   const root = mkdtempSync(join(tmpdir(), "portcove-game-identity-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, "ports"));
@@ -51,6 +58,7 @@ function fixture(t: { after: (callback: () => void) => void }) {
     }),
   );
   const managed = record("alpha", "shared-target", true);
+  managed.listing.original_game = originalGame;
   managed.integration = {
     adapter: "native-portable",
     source_profile: "specific-originals",
@@ -107,6 +115,47 @@ void test("audit counts actual ports, exposes partial targets and same-title can
     1,
     "an older operational definition must not mask a corrected listing unnoticed",
   );
+});
+
+void test("directory source bindings survive projection checks across the legacy definition", (t) => {
+  const originalGame = {
+    ...game(),
+    source_editions: [
+      {
+        id: "retail",
+        title: "Original retail",
+        evidence_urls: ["https://example.org/retail"],
+        verified_sources: [
+          {
+            game_id: "source-game",
+            variant_id: "original-retail",
+            representation_id: "original-file",
+          },
+        ],
+      },
+    ],
+  };
+  const { root } = fixture(t, originalGame);
+  const report = catalogGameIdentityReport(root);
+  assert.equal(report.coverage.projection_identity_gaps, 0);
+  assert.deepEqual(report.ports[0]?.original_game, originalGame);
+
+  const fresh = readCatalogSource(root);
+  const staleEdition = fresh.directory.listings[0]!.original_game!.source_editions[0]!;
+  delete staleEdition.verified_sources;
+  writeFileSync(join(root, "listings.json"), json(fresh.directory));
+  assert.deepEqual(catalogGameIdentityReport(root).ports[0]?.projection, {
+    authored_definition: true,
+    authored_listing: true,
+    embedded_definition: true,
+    generated_listing: false,
+  });
+
+  const legacy = fresh.catalog.ports[0]!;
+  assert.ok(legacy.presentation);
+  legacy.presentation.original_game = originalGame;
+  writeFileSync(join(root, "catalog.json"), json(fresh.catalog));
+  assert.equal(catalogGameIdentityReport(root).ports[0]?.projection.embedded_definition, false);
 });
 
 void test("reviewed batch refuses all stale or invalid work before source mutation", (t) => {
@@ -254,6 +303,8 @@ void test("semantic review flags candidate relationships without assigning or me
   a.listing.project_url = "https://github.com/Test/Shared.git/";
   b.listing.project_url = "https://github.com/test/shared";
   d.listing.project_url = "https://github.com/test/shared";
+  for (const member of [a, b, d])
+    member.upstream_lineage!.origin.project_url = member.listing.project_url;
   a.listing.original_game_title = "Regional A";
   b.listing.original_game_title = "Regional B";
   d.listing.original_game_title = "Regional A";
@@ -306,4 +357,70 @@ void test("semantic review flags candidate relationships without assigning or me
   assert.deepEqual(report.missing_authored_metadata.artwork, ["other-route"]);
   assert.deepEqual(records, before);
   assert.deepEqual(catalogSemanticReview([...records].reverse()), report);
+});
+
+void test("semantic review distinguishes immutable repositories from recycled paths", () => {
+  const reviewed = (port: string, address: string, repositoryId: string) => {
+    const member = record(port, port, true);
+    member.listing.project_url = "https://github.com/test/" + address;
+    member.upstream_lineage!.origin = {
+      project_url: member.listing.project_url,
+      repository: { host: "github.com", id: repositoryId },
+    };
+    return member;
+  };
+  const original = reviewed("old-address", "shared", "1021");
+  const relocated = reviewed("new-address", "renamed", "1021");
+  const recycled = reviewed("new-repository", "shared", "2042");
+  const anotherGame = reviewed("different-game", "renamed", "1021");
+  anotherGame.listing.original_game = game("different-game");
+  const legacy = record("unreviewed-path", "unreviewed-path", true);
+  legacy.listing.project_url = original.listing.project_url;
+  delete legacy.upstream_lineage;
+  const opaqueIds = [
+    reviewed("opaque-a-old", "opaque-a-old", "\u00e9"),
+    reviewed("opaque-a-new", "opaque-a-new", "\u00e9"),
+    reviewed("opaque-b-old", "opaque-b-old", "e\u0301"),
+    reviewed("opaque-b-new", "opaque-b-new", "e\u0301"),
+  ];
+  const records = [original, relocated, recycled, anotherGame, legacy, ...opaqueIds];
+  const report = catalogSemanticReview(records);
+  assert.deepEqual(catalogSemanticReview(records.toReversed()), report);
+  assert.deepEqual(report.same_game_immutable_repository, [
+    {
+      game_id: "original-game",
+      host: "github.com",
+      repository_id: "1021",
+      port_ids: ["new-address", "old-address"],
+    },
+    {
+      game_id: "original-game",
+      host: "github.com",
+      repository_id: "e\u0301",
+      port_ids: ["opaque-b-new", "opaque-b-old"],
+    },
+    {
+      game_id: "original-game",
+      host: "github.com",
+      repository_id: "\u00e9",
+      port_ids: ["opaque-a-new", "opaque-a-old"],
+    },
+  ]);
+  assert.deepEqual(report.same_game_repository, [
+    {
+      game_id: "original-game",
+      repository: "test/shared",
+      port_ids: ["new-repository", "old-address", "unreviewed-path"],
+    },
+  ]);
+  assert.deepEqual(report.same_game_reused_github_path, [
+    {
+      game_id: "original-game",
+      repository: "test/shared",
+      reviewed_ports: [
+        { port_id: "new-repository", repository_id: "2042" },
+        { port_id: "old-address", repository_id: "1021" },
+      ],
+    },
+  ]);
 });

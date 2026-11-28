@@ -13,10 +13,13 @@
       "evidence_urls": ["https://github.com/omegakatana92/Darius-Gaiden-Recomp"],
       "source_editions": [
         {
-          "id": "darius-gaiden-extra-arcade-ver-2-7j-nintendo-switch",
-          "title": "Darius Gaiden — Extra arcade Ver 2.7J (Nintendo Switch)",
-          "system": "nintendo-switch",
-          "evidence_urls": ["https://github.com/omegakatana92/Darius-Gaiden-Recomp"]
+          "id": "darius-gaiden-taito-f3-extra-dariusgx-2-7j",
+          "title": "Darius Gaiden (Taito F3, Extra Edition Ver 2.7J)",
+          "system": "taito-f3",
+          "evidence_urls": [
+            "https://github.com/omegakatana92/Darius-Gaiden-Recomp/blob/c20c87a564b38955e3877a99dbf56474cbd3db63/README.md#L9-L16",
+            "https://github.com/omegakatana92/Darius-Gaiden-Recomp/blob/c20c87a564b38955e3877a99dbf56474cbd3db63/README.md#L27-L38"
+          ]
         }
       ]
     },

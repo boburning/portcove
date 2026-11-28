@@ -4,6 +4,9 @@ import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash, releaseTextFact, releaseTextWindow } from "./upstream-observer.mts";
 import type { ProviderObservation, ReleaseTextFact } from "./upstream-observer.mts";
+import { listingDeclarationHash } from "./listing-observation-declaration.mts";
+
+export { listingDeclarationHash };
 
 // A bounded descriptive window, never a complete-history or compatibility claim.
 export const listingObservationPolicy = "provider-listing-window-v2";
@@ -22,7 +25,8 @@ export interface ListingReleaseText {
   /** Per observed release whose text the provider reported, in observation order. */
   releases: ({ id: number } & ReleaseTextFact)[];
 }
-// Reprojection follows actual implementation and schema-inventory changes too.
+// Fingerprint the projection and its platform inventory. Declaration normalization
+// is bound by each listing's resulting declaration hash.
 export const listingProjectionHash = observationHash({
   policy: listingObservationPolicy,
   implementation: createHash("sha256")
@@ -30,20 +34,6 @@ export const listingProjectionHash = observationHash({
     .digest("hex"),
   platforms,
 });
-export function listingDeclarationHash(listing: Record<string, unknown>) {
-  const declaration = { ...listing };
-  delete declaration.upstream_observation;
-  // A first-listed date does not change what the listing declares, so adding it
-  // to every listing must not invalidate retained observations bound to this hash.
-  delete declaration.listed_at;
-  // Funding links are upstream descriptions refreshed independently of releases.
-  delete declaration.funding_urls;
-  // Technique and dependency explanations do not change the observed release scope.
-  delete declaration.implementation;
-  // Mod community navigation is independent of release identity and coverage.
-  delete declaration.mod_portals;
-  return observationHash(declaration);
-}
 /** At most this many assets of one release are observed. */
 export const listingPackageLimit = 32;
 

@@ -1,5 +1,5 @@
 {
-  "format_version": 15,
+  "format_version": 16,
   "listings": [
     {
       "id": "shipwright",
@@ -49,6 +49,15 @@
         ],
         "source_editions": []
       },
+      "mod_portals": [
+        {
+          "id": "reviewed-gamebanana",
+          "site": "community_site",
+          "name": "GameBanana",
+          "url": "https://gamebanana.com/games/16121",
+          "instructions": "Open the community to browse its mods."
+        }
+      ],
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -231,6 +240,34 @@
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
+      ],
+      "media": [
+        {
+          "id": "igdb-screenshot-original-951657",
+          "role": "screenshot",
+          "subject": {
+            "kind": "original",
+            "game_id": "the-legend-of-zelda-majoras-mask",
+            "source_edition_id": "majoras-mask-n64-usa-1-0"
+          },
+          "caption": "Original game screenshot",
+          "url": "https://images.igdb.com/igdb/image/upload/t_720p/sckeax.png",
+          "sha256": "4354f2e76b81ab02f7ccf692ddcfb4d1c971143aebf7c79c3fbc87e99cf4e23b",
+          "width": 960,
+          "height": 720,
+          "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+          "source_url": "https://www.igdb.com/games/the-legend-of-zelda-majora-s-mask",
+          "license": "LicenseRef-IGDB-Terms",
+          "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+          "igdb": {
+            "game_id": 1030,
+            "record_id": 951657,
+            "kind": "screenshot",
+            "image_id": "sckeax",
+            "game_slug": "the-legend-of-zelda-majora-s-mask",
+            "alpha_channel": true
+          }
+        }
       ]
     },
     {
@@ -336,7 +373,24 @@
           "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md",
           "https://github.com/n64hub/super-mario-64-recomp/blob/a3240c9beed89341b29957cea0cea076fe04b6dc/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-64-n64-usa",
+            "title": "Super Mario 64 (Nintendo 64, USA)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/HarbourMasters/Ghostship/blob/deb091c29caff57dd986398087b058f16b11911e/README.md"
+            ]
+          },
+          {
+            "id": "super-mario-64-n64-japan",
+            "title": "Super Mario 64 (Nintendo 64, Japan)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/HarbourMasters/Ghostship/blob/deb091c29caff57dd986398087b058f16b11911e/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -753,6 +807,15 @@
           }
         }
       ],
+      "mod_portals": [
+        {
+          "id": "reviewed-thunderstore",
+          "site": "community_site",
+          "name": "Thunderstore",
+          "url": "https://thunderstore.io/c/zelda-64-recompiled/",
+          "instructions": "Open the community to browse its mods."
+        }
+      ],
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -1038,7 +1101,16 @@
           "https://github.com/ThatGuyMcd/DKR-R/blob/53a78c3e32714957df3e4bad43c1ef7fc82f96dc/README.md",
           "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "diddy-kong-racing-n64-usa",
+            "title": "Diddy Kong Racing (Nintendo 64, USA)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/ThatGuyMcd/DKR-R/blob/53a78c3e32714957df3e4bad43c1ef7fc82f96dc/README.md"
+            ]
+          }
+        ]
       },
       "availability": "unknown"
     },
@@ -1845,10 +1917,47 @@
             "system": "playstation",
             "evidence_urls": [
               "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+            ],
+            "verified_sources": [
+              {
+                "game_id": "tomba-psx",
+                "variant_id": "legacy-accepted",
+                "representation_id": "normalized-track-set"
+              }
             ]
           }
         ]
       },
+      "media": [
+        {
+          "id": "igdb-header-original-257106",
+          "role": "header",
+          "subject": {
+            "kind": "original",
+            "game_id": "tomba",
+            "source_edition_id": "tomba-playstation"
+          },
+          "caption": "Game background",
+          "url": "https://images.igdb.com/igdb/image/upload/t_720p/ar5idu.png",
+          "sha256": "3a252820abb58b74b3c6489bfae12e781a5e86fe6dfd4a1de67cde7ac038f752",
+          "width": 1280,
+          "height": 413,
+          "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+          "source_url": "https://www.igdb.com/games/tomba",
+          "license": "LicenseRef-IGDB-Terms",
+          "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+          "igdb": {
+            "game_id": 4097,
+            "record_id": 257106,
+            "kind": "artwork",
+            "image_id": "ar5idu",
+            "game_slug": "tomba",
+            "alpha_channel": false,
+            "image_type": 2,
+            "image_type_name": "Key art without logo"
+          }
+        }
+      ],
       "platforms": [
         "windows-x86-64"
       ],
@@ -2379,7 +2488,17 @@
         "evidence_urls": [
           "https://github.com/bryanthaboi/gen1recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-red-game-boy",
+            "title": "Pokémon Red (Game Boy)",
+            "system": "game-boy",
+            "evidence_urls": [
+              "https://github.com/bryanthaboi/gen1recomp/blob/53ad85ca5480cb6d52a578e01c24854ae21ae242/README.md#L90-L98",
+              "https://github.com/bryanthaboi/gen1recomp/blob/53ad85ca5480cb6d52a578e01c24854ae21ae242/docs/guides/launch-options.md#L9-L10"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -2409,7 +2528,16 @@
         "evidence_urls": [
           "https://github.com/UNDERdecoded/Gen2Recomped"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-gold-game-boy-color",
+            "title": "Pokémon Gold (Game Boy Color)",
+            "system": "game-boy-color",
+            "evidence_urls": [
+              "https://github.com/UNDERdecoded/Gen2Recomped/blob/42aa3b81312252b472cf9bf5ead4894b931cec2f/README.md#L62-L78"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -2438,7 +2566,16 @@
         "evidence_urls": [
           "https://github.com/UNDERdecoded/Gen2Recomped"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-silver-game-boy-color",
+            "title": "Pokémon Silver (Game Boy Color)",
+            "system": "game-boy-color",
+            "evidence_urls": [
+              "https://github.com/UNDERdecoded/Gen2Recomped/blob/42aa3b81312252b472cf9bf5ead4894b931cec2f/README.md#L62-L78"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -2467,7 +2604,16 @@
         "evidence_urls": [
           "https://github.com/UNDERdecoded/Gen2Recomped"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-crystal-game-boy-color",
+            "title": "Pokémon Crystal (Game Boy Color)",
+            "system": "game-boy-color",
+            "evidence_urls": [
+              "https://github.com/UNDERdecoded/Gen2Recomped/blob/42aa3b81312252b472cf9bf5ead4894b931cec2f/README.md#L62-L78"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -3128,7 +3274,17 @@
         "evidence_urls": [
           "https://github.com/Legend-of-Dragoon-Modding/Severed-Chains"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-dragoon-playstation-north-america",
+            "title": "The Legend of Dragoon (PlayStation, North America)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://legendofdragoon.org/projects/severed-chains/",
+              "https://legendofdragoon.org/guides/setup-severed-chains/"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -3192,7 +3348,16 @@
         "evidence_urls": [
           "https://openpete.com/"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "spyro-the-dragon-playstation-north-america",
+            "title": "Spyro the Dragon (PlayStation, North America)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/tyscorp/openpete/blob/fc8af26ebab4c2d0b73b24feeaf50ac43ef92ac8/docs/src/user/games/spyro-1.md#L1-L21"
+            ]
+          }
+        ]
       },
       "availability": "unknown"
     },
@@ -6399,7 +6564,17 @@
           "https://github.com/sm64pc/sm64ex/blob/d7ca2c04364a6dd0dac58b47151e04e26887e6f0/README.md",
           "https://github.com/sm64-port/sm64-port/blob/2b17d081c9798b31b91dc71f37994b0da28cffc9/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-64-n64-usa",
+            "title": "Super Mario 64 (Nintendo 64, USA)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/Render96/Render96ex/blob/48da5c491c8abfb2f5192b59278c1c269411e533/Makefile",
+              "https://github.com/Render96/Render96ex/blob/48da5c491c8abfb2f5192b59278c1c269411e533/sm64.us.sha1"
+            ]
+          }
+        ]
       },
       "manual_setup": {
         "steps": [
@@ -6716,6 +6891,14 @@
         "source_editions": []
       },
       "original_game_title": "1080° Snowboarding",
+      "artwork": {
+        "game_id": 3328,
+        "cover_id": 605286,
+        "image_id": "cocz1i",
+        "image_sha256": "ae2c75fb8a633f8b3d84e5db80db39307da3768cccbcedf73485bee7b3df70db",
+        "game_slug": "1080-snowboarding",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -6735,6 +6918,14 @@
         "source_editions": []
       },
       "original_game_title": "1944: The Loop Master",
+      "artwork": {
+        "game_id": 6079,
+        "cover_id": 120194,
+        "image_id": "co2kqq",
+        "image_sha256": "579ee10f2150de3901bd31cc14315637d91de1ad1b204b0f68d4ff66621571cb",
+        "game_slug": "1944-the-loop-master",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -7046,6 +7237,14 @@
         "source_editions": []
       },
       "original_game_title": "A2 Racer",
+      "artwork": {
+        "game_id": 92803,
+        "cover_id": 472640,
+        "image_id": "coa4ow",
+        "image_sha256": "175d775cba6f06ab92f3ce8fbbda05ac599b66acc274dc5162a8059bd011bc2b",
+        "game_slug": "a2-racer",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -7065,6 +7264,14 @@
         "source_editions": []
       },
       "original_game_title": "A2 Racer II",
+      "artwork": {
+        "game_id": 80309,
+        "cover_id": 302896,
+        "image_id": "co6hps",
+        "image_sha256": "1ce411ea39cfa386382121801fb9941f9c08042587db85d2e3f30f1a914b256b",
+        "game_slug": "a2-racer-ii",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -7181,6 +7388,14 @@
         ]
       },
       "original_game_title": "Fuzion Frenzy",
+      "artwork": {
+        "game_id": 5842,
+        "cover_id": 106359,
+        "image_id": "co2a2f",
+        "image_sha256": "1f08d230f3ce4dfddbc75effebb45cf866b64ded24a6e29d497dd5dbe52cb840",
+        "game_slug": "fuzion-frenzy",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -7608,6 +7823,14 @@
         "source_editions": []
       },
       "original_game_title": "Ace Combat 04: Shattered Skies",
+      "artwork": {
+        "game_id": 9763,
+        "cover_id": 548238,
+        "image_id": "cobr0u",
+        "image_sha256": "1cbbf9837d2368742175a7195bd6ab8c6693053968308f8efa71244c0fd23e42",
+        "game_slug": "ace-combat-04-shattered-skies",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -7669,9 +7892,72 @@
         "evidence_urls": [
           "https://github.com/aitorcachero/acecombat2-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "ace-combat-2-playstation-europe",
+            "title": "Ace Combat 2 (PlayStation, Europe)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/aitorcachero/acecombat2-recomp/blob/1b564ee360bbf9a29cf018617eda8e4735bba68b/README.md#L54-L67",
+              "https://github.com/aitorcachero/acecombat2-recomp/blob/1b564ee360bbf9a29cf018617eda8e4735bba68b/tools/setup_disc.py#L17-L64"
+            ]
+          },
+          {
+            "id": "ace-combat-2-playstation-spain",
+            "title": "Ace Combat 2 (PlayStation, Spain)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/aitorcachero/acecombat2-recomp/blob/1b564ee360bbf9a29cf018617eda8e4735bba68b/README.md#L54-L67",
+              "https://github.com/aitorcachero/acecombat2-recomp/blob/1b564ee360bbf9a29cf018617eda8e4735bba68b/tools/setup_disc.py#L17-L64"
+            ]
+          },
+          {
+            "id": "ace-combat-2-playstation-usa",
+            "title": "Ace Combat 2 (PlayStation, USA)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/aitorcachero/acecombat2-recomp/blob/1b564ee360bbf9a29cf018617eda8e4735bba68b/README.md#L54-L67",
+              "https://github.com/aitorcachero/acecombat2-recomp/blob/1b564ee360bbf9a29cf018617eda8e4735bba68b/tools/setup_disc.py#L17-L64"
+            ]
+          },
+          {
+            "id": "ace-combat-2-playstation-japan",
+            "title": "Ace Combat 2 (PlayStation, Japan)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/aitorcachero/acecombat2-recomp/blob/1b564ee360bbf9a29cf018617eda8e4735bba68b/README.md#L54-L67",
+              "https://github.com/aitorcachero/acecombat2-recomp/blob/1b564ee360bbf9a29cf018617eda8e4735bba68b/tools/setup_disc.py#L17-L64"
+            ]
+          },
+          {
+            "id": "ace-combat-2-playstation-japan-the-best",
+            "title": "Ace Combat 2 (PlayStation, Japan, The Best)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/aitorcachero/acecombat2-recomp/blob/1b564ee360bbf9a29cf018617eda8e4735bba68b/README.md#L54-L67",
+              "https://github.com/aitorcachero/acecombat2-recomp/blob/1b564ee360bbf9a29cf018617eda8e4735bba68b/tools/setup_disc.py#L17-L64"
+            ]
+          },
+          {
+            "id": "ace-combat-2-playstation-japan-namcollection",
+            "title": "Ace Combat 2 (PlayStation, Japan, NamCollection)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/aitorcachero/acecombat2-recomp/blob/1b564ee360bbf9a29cf018617eda8e4735bba68b/README.md#L54-L67",
+              "https://github.com/aitorcachero/acecombat2-recomp/blob/1b564ee360bbf9a29cf018617eda8e4735bba68b/tools/setup_disc.py#L17-L64"
+            ]
+          }
+        ]
       },
       "original_game_title": "Ace Combat 2",
+      "artwork": {
+        "game_id": 14750,
+        "cover_id": 126199,
+        "image_id": "co2pdj",
+        "image_sha256": "72080945d234d8cea99288607d4adc29ff14b0e57305ff7a4a022155ecee5090",
+        "game_slug": "ace-combat-2",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown"
     },
@@ -8264,7 +8550,34 @@
           }
         ]
       },
-      "original_game_title": "Advance Wars"
+      "original_game_title": "Advance Wars",
+      "media": [
+        {
+          "id": "igdb-screenshot-original-20227",
+          "role": "screenshot",
+          "subject": {
+            "kind": "original",
+            "game_id": "advance-wars",
+            "source_edition_id": "advance-wars-game-boy-advance"
+          },
+          "caption": "Original game screenshot",
+          "url": "https://images.igdb.com/igdb/image/upload/t_720p/xhhyrgwo9z1ebf0qy9gs.png",
+          "sha256": "75da5a0d87cf9d6aedec6244bb747e935bffffaa5499a6cdd609f6b4a54d850a",
+          "width": 1086,
+          "height": 720,
+          "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+          "source_url": "https://www.igdb.com/games/advance-wars",
+          "license": "LicenseRef-IGDB-Terms",
+          "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+          "igdb": {
+            "game_id": 1691,
+            "record_id": 20227,
+            "kind": "screenshot",
+            "image_id": "xhhyrgwo9z1ebf0qy9gs",
+            "game_slug": "advance-wars"
+          }
+        }
+      ]
     },
     {
       "id": "aegis-wing-xbla-pc-recomp-caiuscodes-aegis-wing",
@@ -8638,7 +8951,17 @@
         "evidence_urls": [
           "https://github.com/aitorcachero/final-fantasy-8-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "final-fantasy-viii-playstation-spain",
+            "title": "Final Fantasy VIII (PlayStation, Spain)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/aitorcachero/final-fantasy-8-recomp/blob/6ad35382b00dc81df8c91f72d451a6d68eda7cb0/game.toml#L5-L19",
+              "https://github.com/aitorcachero/final-fantasy-8-recomp/blob/6ad35382b00dc81df8c91f72d451a6d68eda7cb0/catalog_identity.json#L3-L21"
+            ]
+          }
+        ]
       },
       "original_game_title": "Final Fantasy VIII",
       "platforms": [],
@@ -8685,7 +9008,16 @@
         "evidence_urls": [
           "https://github.com/aitorcachero/Snatcher-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "snatcher-sega-cd-ntsc-u-spanish-input",
+            "title": "Snatcher (Sega CD, NTSC-U Spanish input)",
+            "system": "sega-cd",
+            "evidence_urls": [
+              "https://github.com/aitorcachero/Snatcher-Recomp/blob/e5616b8d4d8ae5b1361a849b81dffeadf5d15e23/snatcher-recomp/game.toml"
+            ]
+          }
+        ]
       },
       "original_game_title": "Snatcher",
       "platforms": [],
@@ -10336,7 +10668,17 @@
           "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp#readme",
           "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "devil-dice-playstation-europe",
+            "title": "Devil Dice (PlayStation, Europe SCES-01312)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/blob/9968f8dd9c30c3350ddb3455945679f949003d19/game.toml#L4-L11",
+              "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/blob/9968f8dd9c30c3350ddb3455945679f949003d19/README.md#L15-L25"
+            ]
+          }
+        ]
       },
       "original_game_title": "Devil Dice"
     },
@@ -14287,7 +14629,17 @@
           "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp#readme",
           "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pro-pinball-timeshock-playstation-usa",
+            "title": "Pro Pinball: Timeshock! (PlayStation, USA SLUS-00639)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp/blob/1809737eacd2687d400cf54c5708dc63b52165a1/game.toml#L3-L17",
+              "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp/blob/1809737eacd2687d400cf54c5708dc63b52165a1/README.md#L1-L8"
+            ]
+          }
+        ]
       },
       "original_game_title": "Pro Pinball: Timeshock!"
     },
@@ -14606,7 +14958,17 @@
           "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp#readme",
           "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "resident-evil-3-nemesis-playstation-europe",
+            "title": "Resident Evil 3: Nemesis (PlayStation, Europe SLES-02529)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp/blob/dc88cf8bebe2e62c4b1c22ec75e060481cdc3e55/game.toml#L3-L19",
+              "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp/blob/dc88cf8bebe2e62c4b1c22ec75e060481cdc3e55/README.md#L5-L23"
+            ]
+          }
+        ]
       },
       "original_game_title": "Resident Evil 3: Nemesis"
     },
@@ -19133,7 +19495,34 @@
             ]
           }
         ]
-      }
+      },
+      "media": [
+        {
+          "id": "igdb-screenshot-original-51872",
+          "role": "screenshot",
+          "subject": {
+            "kind": "original",
+            "game_id": "arcanum-of-steamworks-and-magick-obscura",
+            "source_edition_id": "arcanum-of-steamworks-and-magick-obscura-pc"
+          },
+          "caption": "Original game screenshot",
+          "url": "https://images.igdb.com/igdb/image/upload/t_720p/xxm75p7feap3th2ump7m.png",
+          "sha256": "adbfa2cb62dadace5b61bf071c328e80a9f9c4ad6e74805be411ce322a15210b",
+          "width": 960,
+          "height": 720,
+          "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+          "source_url": "https://www.igdb.com/games/arcanum-of-steamworks-and-magick-obscura",
+          "license": "LicenseRef-IGDB-Terms",
+          "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+          "igdb": {
+            "game_id": 255,
+            "record_id": 51872,
+            "kind": "screenshot",
+            "image_id": "xxm75p7feap3th2ump7m",
+            "game_slug": "arcanum-of-steamworks-and-magick-obscura"
+          }
+        }
+      ]
     },
     {
       "id": "arch61s-baroque-decomp-ps2",
@@ -20854,7 +21243,17 @@
           "https://github.com/gemrb/gemrb",
           "https://www.beamdog.com/games/baldurs-gate-2-enhanced/"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "baldur-s-gate-ii-shadows-of-amn-pc",
+            "title": "Baldur's Gate II: Shadows of Amn (original PC edition)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+              "https://gemrb.org/Features.html#status"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -23499,7 +23898,17 @@
           "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md",
           "https://github.com/Blizz127/brave-fencer-musashi-decomp-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "brave-fencer-musashi-playstation",
+            "title": "Brave Fencer Musashi (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/blizz127-brave-fencer-musashi-decomp-port.json"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -23584,7 +23993,17 @@
           "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md",
           "https://github.com/Blizz127/parasite-eve-decomp-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "parasite-eve-playstation",
+            "title": "Parasite Eve (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/blizz127-parasite-eve-decomp-port.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -24654,7 +25073,17 @@
         "evidence_urls": [
           "https://github.com/vasist15-source/BOTWRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-breath-of-the-wild-wii-u",
+            "title": "The Legend of Zelda: Breath of the Wild (Wii U)",
+            "system": "wii-u",
+            "evidence_urls": [
+              "https://github.com/vasist15-source/BOTWRecomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/botwrecomp-vasist15-source-vasist15-source-the-legend-of-zelda-breath-of-the-wild-wii-u.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -28668,9 +29097,19 @@
         "evidence_urls": [
           "https://github.com/cheviman/outrunners-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "outrunners-sega-system-multi-32-orunners",
+            "title": "OutRunners (Sega System Multi 32, World)",
+            "system": "sega-system-multi-32",
+            "evidence_urls": [
+              "https://github.com/cheviman/outrunners-port/blob/3124c0ea124e8600d180a241b8b04615eebbcdd1/README.md#L5-L16",
+              "https://github.com/cheviman/outrunners-decomp/blob/18623db57f18830d1aba6faaa36ffaf91757a87f/README.md#L3-L27"
+            ]
+          }
+        ]
       },
-      "original_game_title": "OutRunners Arcade",
+      "original_game_title": "OutRunners",
       "platforms": [],
       "availability": "unknown"
     },
@@ -28688,7 +29127,17 @@
         "evidence_urls": [
           "https://github.com/cheviman/outrunners-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "outrunners-sega-system-multi-32-orunners",
+            "title": "OutRunners (Sega System Multi 32, World)",
+            "system": "sega-system-multi-32",
+            "evidence_urls": [
+              "https://github.com/cheviman/outrunners-port/blob/3124c0ea124e8600d180a241b8b04615eebbcdd1/README.md#L5-L16",
+              "https://github.com/cheviman/outrunners-decomp/blob/18623db57f18830d1aba6faaa36ffaf91757a87f/README.md#L3-L27"
+            ]
+          }
+        ]
       },
       "original_game_title": "OutRunners",
       "platforms": [],
@@ -28709,11 +29158,12 @@
         ],
         "source_editions": [
           {
-            "id": "teenage-mutant-ninja-turtles-nintendo-switch",
-            "title": "Teenage Mutant Ninja Turtles (Nintendo Switch)",
-            "system": "nintendo-switch",
+            "id": "teenage-mutant-ninja-turtles-konami-arcade-world-4p-vx",
+            "title": "Teenage Mutant Ninja Turtles (Konami arcade, World 4 Players, version X)",
+            "system": "konami-arcade",
             "evidence_urls": [
-              "https://github.com/cheviman/tmnt-port"
+              "https://github.com/cheviman/tmnt-port/blob/aba58859fbc82f214bf3e82c928cd20d12902bc4/README.md#L1-L11",
+              "https://github.com/cheviman/tmnt-port/blob/aba58859fbc82f214bf3e82c928cd20d12902bc4/tools/tmnt_rom.py#L1-L24"
             ]
           }
         ]
@@ -29186,7 +29636,17 @@
           "https://github.com/chrissotraidis/bluewake/blob/edd88f15750211cca7a4596c9c5aa348f124efe3/README.md",
           "https://github.com/chrissotraidis/bluewake"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-the-wind-waker-nintendo-gamecube",
+            "title": "The Legend of Zelda: The Wind Waker (GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/chrissotraidis/bluewake/blob/edd88f15750211cca7a4596c9c5aa348f124efe3/README.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/chrissotraidis-bluewake.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "The Legend of Zelda: The Wind Waker"
     },
@@ -29247,7 +29707,17 @@
           "https://github.com/chrissotraidis/kartpad/blob/5c9af806c02733f238520b405f886ae45b5aa37e/docs/INSTALL_MACOS.md",
           "https://github.com/chrissotraidis/kartpad"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mario-kart-wii-wii",
+            "title": "Mario Kart Wii (Wii)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/chrissotraidis/kartpad/blob/5c9af806c02733f238520b405f886ae45b5aa37e/docs/INSTALL_MACOS.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/chrissotraidis-kartpad.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "Mario Kart Wii"
     },
@@ -31621,7 +32091,16 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa2/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-alpha-2-cps2-sfa2u",
+            "title": "Street Fighter Alpha 2 (CPS-2, USA 960430, sfa2u)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa2/README.md#L242-L244"
+            ]
+          }
+        ]
       }
     },
     {
@@ -38732,7 +39211,17 @@
         "evidence_urls": [
           "https://github.com/ArmDucks/DigimonWorld3-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "digimon-world-2003-playstation-usa",
+            "title": "Digimon World 3 (PlayStation, USA)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/ArmDucks/DigimonWorld3-Recomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/digimonworld3-recomp-mikeravenelle-digimon-world-3.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -39070,7 +39559,17 @@
           "https://github.com/LUUKASR1/disgaea-d2-recomp-windows/blob/v1.0.2/docs/RELEASE-0.2.1.md",
           "https://github.com/Sean13128/disgaea-d2-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "disgaea-d2-a-brighter-darkness-playstation-3",
+            "title": "Disgaea D2: A Brighter Darkness (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/LUUKASR1/disgaea-d2-recomp-windows/blob/v1.0.2/docs/RELEASE-0.2.1.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/disgaea-d2-luukasr1-win-port.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -40191,6 +40690,33 @@
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
+      ],
+      "media": [
+        {
+          "id": "igdb-screenshot-original-423",
+          "role": "screenshot",
+          "subject": {
+            "kind": "original",
+            "game_id": "doom-3-classic",
+            "source_edition_id": "doom-3-classic-pc"
+          },
+          "caption": "Original game screenshot",
+          "url": "https://images.igdb.com/igdb/image/upload/t_720p/dmxckx6xh0pikqhtbqhr.png",
+          "sha256": "ee68e31fd54ad5233022f8ab7133d2e7eeee791cc38a8b511d4a5394b485d80c",
+          "width": 960,
+          "height": 720,
+          "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+          "source_url": "https://www.igdb.com/games/doom-3",
+          "license": "LicenseRef-IGDB-Terms",
+          "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+          "igdb": {
+            "game_id": 280,
+            "record_id": 423,
+            "kind": "screenshot",
+            "image_id": "dmxckx6xh0pikqhtbqhr",
+            "game_slug": "doom-3"
+          }
+        }
       ]
     },
     {
@@ -42277,7 +42803,17 @@
         "evidence_urls": [
           "https://github.com/mstan/DragonBallGTFinalBoutRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dragon-ball-gt-final-bout-playstation",
+            "title": "Dragon Ball GT: Final Bout (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/mstan/DragonBallGTFinalBoutRecomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/dragonballgtfinalboutrecomp-mstan-mstan-dragon-ball-gt-final-bout.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -43889,7 +44425,17 @@
         "evidence_urls": [
           "https://github.com/gascarcella/dw2003recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "digimon-world-2003-playstation",
+            "title": "Digimon World 2003 (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/gascarcella/dw2003recomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/dw2003recomp-gascarcella-digimon-world-2003.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -45432,7 +45978,16 @@
           "https://github.com/elprogramadorloco-arch/jim2-recomp",
           "https://github.com/elprogramadorloco-arch/jim2-recomp/blob/a7a68daab33c4ff3b6fba1250b9babf04f25e61f/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "earthworm-jim-2-playstation-europe",
+            "title": "Earthworm Jim 2 (PlayStation, Europe SLES-00343)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/elprogramadorloco-arch/jim2-recomp/blob/a7a68daab33c4ff3b6fba1250b9babf04f25e61f/README.md#L27-L32"
+            ]
+          }
+        ]
       },
       "original_game_title": "Earthworm Jim 2"
     },
@@ -61156,7 +61711,16 @@
         "evidence_urls": [
           "https://github.com/MenuuTUX/jojo-hftf-native"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "jojo-s-bizarre-adventure-heritage-for-the-future-playstation",
+            "title": "JoJo's Bizarre Adventure (PlayStation, SLUS-01060)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/MenuuTUX/jojo-hftf-native/blob/dc1b886e29fcc7940e330cb19762ae85f8d138e1/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -61196,6 +61760,26 @@
         "image_sha256": "adc19ae58dd58bad970b4941554b27040953945ca97a08edebaf5da20cd8402b",
         "game_slug": "jojos-bizarre-adventure-hd--1",
         "match_kind": "underlying-game"
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "jojo-s-bizarre-adventure-heritage-for-the-future",
+        "evidence_urls": [
+          "https://github.com/UNREALWINS/jojo-hd-recompiled/blob/2ffc68d9ba7bdebdf137d65066313cea630f7ed7/README.md",
+          "https://news.capcomusa.com/lets/browse/jojos-bizarre-adventure-hd-ver-confirmed",
+          "https://github.com/MenuuTUX/jojo-hftf-native/blob/dc1b886e29fcc7940e330cb19762ae85f8d138e1/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "jojo-s-bizarre-adventure-hd-ver-xbox-360",
+            "title": "JoJo's Bizarre Adventure HD Ver. (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/UNREALWINS/jojo-hd-recompiled/blob/2ffc68d9ba7bdebdf137d65066313cea630f7ed7/README.md",
+              "https://news.capcomusa.com/lets/browse/jojos-bizarre-adventure-hd-ver-confirmed"
+            ]
+          }
+        ]
       }
     },
     {
@@ -63476,7 +64060,16 @@
         "evidence_urls": [
           "https://github.com/Voicedrew11/verdite1"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "kings-field-japan-playstation",
+            "title": "King's Field (Japan, SLPS-00017)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Voicedrew11/verdite1/blob/b825f63ae43af2890f907f8d82ce094a55814506/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "King's Field Japan",
       "platforms": [],
@@ -64306,7 +64899,7 @@
     },
     {
       "id": "kula-world-recompiled-zap0xfce2-kula-world",
-      "name": "Kula World — Kula World Recompiled (zap0xfce2)",
+      "name": "Kula World — Kula World Rerolled (zap0xfce2)",
       "original_game_title": "Kula World",
       "artwork": {
         "game_id": 9678,
@@ -64317,14 +64910,14 @@
         "match_kind": "underlying-game"
       },
       "summary": "Upstream reports reaching all ten worlds through Level Select and the ending movie. That does not establish a complete playthrough. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
+      "project_url": "https://github.com/zap0xfce2/Kula-World-Rerolled",
       "listed_at": "2026-10-25",
       "platforms": [
         "linux-x86-64",
         "macos-aarch64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
+      "setup_url": "https://github.com/zap0xfce2/Kula-World-Rerolled",
       "manual_setup": {
         "steps": [
           {
@@ -64333,14 +64926,14 @@
           },
           {
             "title": "Follow upstream setup",
-            "instruction": "Build locally from source using upstream instructions. Keep your own disc available while playing."
+            "instruction": "Follow the upstream release instructions or build from source. Keep your own disc available while playing."
           }
         ],
         "warnings": [
           "Upstream reports reaching all ten worlds through Level Select and the ending movie. That does not establish a complete playthrough.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/zap0xfce2/Kula-World-Recompiled"
+        "help_url": "https://github.com/zap0xfce2/Kula-World-Rerolled"
       },
       "issue_number": 3387,
       "original_game": {
@@ -64359,7 +64952,8 @@
             ]
           }
         ]
-      }
+      },
+      "release_url": "https://github.com/zap0xfce2/Kula-World-Rerolled/releases"
     },
     {
       "id": "kult-hunkstalker",
@@ -68807,7 +69401,17 @@
         "evidence_urls": [
           "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "marvel-ultimate-alliance-2-xbox-360",
+            "title": "Marvel: Ultimate Alliance 2 (Xbox 360, Media ID 39B3E2C9)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/README.md",
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/mua2.manifest.toml"
+            ]
+          }
+        ]
       },
       "original_game_title": "Marvel: Ultimate Alliance 2",
       "platforms": [],
@@ -68827,7 +69431,17 @@
         "evidence_urls": [
           "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "marvel-ultimate-alliance-gold-edition-xbox-360",
+            "title": "Marvel: Ultimate Alliance Gold Edition (Xbox 360, Media ID 5A20A6D4)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/README.md",
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/mua1-gold.manifest.toml"
+            ]
+          }
+        ]
       },
       "original_game_title": "Marvel: Ultimate Alliance — Gold Edition",
       "platforms": [],
@@ -68847,7 +69461,17 @@
         "evidence_urls": [
           "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "marvel-ultimate-alliance-xbox-360",
+            "title": "Marvel: Ultimate Alliance (Xbox 360, Media ID 26848425)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/README.md",
+              "https://github.com/saulob/marvel-ultimate-alliance-bundle-recompiled/blob/9a081ed6cbeb03aa0e227c10e97e504c51efd725/mua1.manifest.toml"
+            ]
+          }
+        ]
       },
       "original_game_title": "Marvel: Ultimate Alliance",
       "platforms": [],
@@ -75912,7 +76536,16 @@
           "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md",
           "https://github.com/n64hub/super-mario-64-recomp/blob/a3240c9beed89341b29957cea0cea076fe04b6dc/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-64-n64-usa",
+            "title": "Super Mario 64 (Nintendo 64, USA)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/n64hub/super-mario-64-recomp/blob/52c6e0f06fbebb63980e12fb712d518c283f9b02/README.md#L118-L123"
+            ]
+          }
+        ]
       }
     },
     {
@@ -80456,7 +81089,17 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Breakers-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "breakers-neo-geo-breakers",
+            "title": "Breakers (Neo Geo, set breakers)",
+            "system": "neo-geo",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Breakers-Recomp/blob/7e8ab9cbaa19582601230bd2201de729275c72fe/README.md",
+              "https://github.com/mamedev/mame/blob/ca48656c92325c821b85984952e96241d60c7aef/src/mame/neogeo/neogeo.cpp#L7755-L7772"
+            ]
+          }
+        ]
       },
       "original_game_title": "Breakers",
       "platforms": [],
@@ -80477,11 +81120,12 @@
         ],
         "source_editions": [
           {
-            "id": "darius-gaiden-extra-arcade-ver-2-7j-nintendo-switch",
-            "title": "Darius Gaiden — Extra arcade Ver 2.7J (Nintendo Switch)",
-            "system": "nintendo-switch",
+            "id": "darius-gaiden-taito-f3-extra-dariusgx-2-7j",
+            "title": "Darius Gaiden (Taito F3, Extra Edition Ver 2.7J)",
+            "system": "taito-f3",
             "evidence_urls": [
-              "https://github.com/omegakatana92/Darius-Gaiden-Recomp"
+              "https://github.com/omegakatana92/Darius-Gaiden-Recomp/blob/c20c87a564b38955e3877a99dbf56474cbd3db63/README.md#L9-L16",
+              "https://github.com/omegakatana92/Darius-Gaiden-Recomp/blob/c20c87a564b38955e3877a99dbf56474cbd3db63/README.md#L27-L38"
             ]
           }
         ]
@@ -80505,11 +81149,12 @@
         ],
         "source_editions": [
           {
-            "id": "darius-gaiden-original-arcade-ver-2-5o-nintendo-switch",
-            "title": "Darius Gaiden — Original arcade Ver 2.5O (Nintendo Switch)",
-            "system": "nintendo-switch",
+            "id": "darius-gaiden-taito-f3-original-dariusg-2-5o",
+            "title": "Darius Gaiden (Taito F3, Original Ver 2.5O)",
+            "system": "taito-f3",
             "evidence_urls": [
-              "https://github.com/omegakatana92/Darius-Gaiden-Recomp"
+              "https://github.com/omegakatana92/Darius-Gaiden-Recomp/blob/c20c87a564b38955e3877a99dbf56474cbd3db63/README.md#L9-L16",
+              "https://github.com/omegakatana92/Darius-Gaiden-Recomp/blob/c20c87a564b38955e3877a99dbf56474cbd3db63/README.md#L27-L38"
             ]
           }
         ]
@@ -80531,7 +81176,16 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Dodonpachi-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dodonpachi-world-arcade-ddonpach",
+            "title": "DoDonPachi (Arcade, World set ddonpach)",
+            "system": "arcade",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Dodonpachi-Recomp/blob/19952a9098e4271013ffdd63d6cf0698decbd42e/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "DoDonPachi",
       "platforms": [],
@@ -80550,7 +81204,17 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Fatal-Fury-3-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "fatal-fury-3-neo-geo-fatfury3",
+            "title": "Fatal Fury 3: Road to the Final Victory (Neo Geo, set fatfury3)",
+            "system": "neo-geo",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Fatal-Fury-3-Recomp/blob/4109f4af33a99214f5842ffc4efa8e36f22582b1/README.md",
+              "https://github.com/mamedev/mame/blob/ca48656c92325c821b85984952e96241d60c7aef/src/mame/neogeo/neogeo.cpp#L5719-L5744"
+            ]
+          }
+        ]
       },
       "original_game_title": "Fatal Fury 3: Road to the Final Victory",
       "platforms": [],
@@ -80643,7 +81307,16 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Metal-Slug-5-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "metal-slug-5-neo-geo-mvs-mslug5",
+            "title": "Metal Slug 5 (Neo Geo MVS, set mslug5)",
+            "system": "neo-geo-mvs",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Metal-Slug-5-Recomp/blob/0b9cbe73a77e6afa300bc3e5e88b12ca19998ed6/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Metal Slug 5",
       "platforms": [],
@@ -80662,7 +81335,17 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/-Power-Instinct-Matrimelee-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "power-instinct-matrimelee-neo-geo-matrim",
+            "title": "Power Instinct Matrimelee (Neo Geo, set matrim)",
+            "system": "neo-geo",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/-Power-Instinct-Matrimelee-Recomp/blob/440687345d7da79c399d856508ccdc738e76c55c/README.md",
+              "https://github.com/mamedev/mame/blob/ca48656c92325c821b85984952e96241d60c7aef/src/mame/neogeo/neogeo.cpp#L9735-L9756"
+            ]
+          }
+        ]
       },
       "original_game_title": "Power Instinct Matrimelee",
       "platforms": [],
@@ -80681,7 +81364,16 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Real-Bout-Fatal-Fury-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "real-bout-fatal-fury-neo-geo-rbff1",
+            "title": "Real Bout Fatal Fury (Neo Geo, set rbff1)",
+            "system": "neo-geo",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Real-Bout-Fatal-Fury-Recomp/blob/1aedfffa7cb5c7c586864157d94bb344dc377e47/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Real Bout Fatal Fury",
       "platforms": [],
@@ -80700,7 +81392,17 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Samurai-Shodown-II-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "samurai-shodown-ii-neo-geo-samsho2",
+            "title": "Samurai Shodown II (Neo Geo, set samsho2)",
+            "system": "neo-geo",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Samurai-Shodown-II-Recomp/blob/875c66da40747ffe2bc0af072dae0114a92600ae/README.md",
+              "https://github.com/mamedev/mame/blob/ca48656c92325c821b85984952e96241d60c7aef/src/mame/neogeo/neogeo.cpp#L5484-L5506"
+            ]
+          }
+        ]
       },
       "original_game_title": "Samurai Shodown II",
       "platforms": [],
@@ -80719,7 +81421,17 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Samurai-Shodown-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "samurai-shodown-neo-geo-mvs-samsho",
+            "title": "Samurai Shodown (Neo Geo MVS, set samsho)",
+            "system": "neo-geo-mvs",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Samurai-Shodown-Recomp/blob/c745e97211a81eefdfb436a1cabd8570d3eae90d/README.md",
+              "https://github.com/mamedev/mame/blob/ca48656c92325c821b85984952e96241d60c7aef/src/mame/neogeo/neogeo.cpp#L4753-L4771"
+            ]
+          }
+        ]
       },
       "original_game_title": "Samurai Shodown",
       "platforms": [],
@@ -80812,7 +81524,16 @@
         "evidence_urls": [
           "https://github.com/omegakatana92/Waku-Waku-7-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "waku-waku-7-neo-geo-wakuwak7",
+            "title": "Waku Waku 7 (Neo Geo, set wakuwak7)",
+            "system": "neo-geo",
+            "evidence_urls": [
+              "https://github.com/omegakatana92/Waku-Waku-7-Recomp/blob/6cbc5ce5be9595840814706b77fc3cd728f62cc1/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Waku Waku 7",
       "platforms": [],
@@ -92003,7 +92724,17 @@
         "evidence_urls": [
           "https://github.com/douglasjv/r4"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "r4-ridge-racer-type-4-playstation",
+            "title": "R4: Ridge Racer Type 4 (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/douglasjv/r4",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/r4-douglasjv-r4-ridge-racer-type-4.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -95132,6 +95863,15 @@
         "warnings": [],
         "help_url": "https://www.kartkrew.org/"
       },
+      "mod_portals": [
+        {
+          "id": "kart-krew-addons",
+          "site": "community_site",
+          "name": "Ring Racers server add-ons",
+          "url": "https://ms.kartkrew.org/",
+          "instructions": "Browse the add-ons listed on Ring Racers servers. Check the add-on's game version before using it."
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "dr-robotniks-ring-racers",
@@ -97747,8 +98487,10 @@
             "id": "mysthous",
             "title": "public domain version (Apple II)",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-adl:hires1"
-            ]
+              "https://www.scummvm.org/games/#games-adl:hires1",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/adl/detection.cpp#L203-L209"
+            ],
+            "system": "apple-ii"
           }
         ]
       },
@@ -97837,8 +98579,10 @@
             "id": "soltys-en-v1-0",
             "title": "English v1.0",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-cge:soltys"
-            ]
+              "https://www.scummvm.org/games/#games-cge:soltys",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/cge/detection.cpp#L71-L76"
+            ],
+            "system": "dos"
           }
         ]
       },
@@ -97927,8 +98671,10 @@
             "id": "sfinx-en-v1-1",
             "title": "English v1.1",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-cge2:sfinx"
-            ]
+              "https://www.scummvm.org/games/#games-cge2:sfinx",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/cge2/detection.cpp#L87-L92"
+            ],
+            "system": "dos"
           }
         ]
       },
@@ -98017,8 +98763,10 @@
             "id": "drascula-1-0",
             "title": "Freeware Version (English)",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-drascula:drascula"
-            ]
+              "https://www.scummvm.org/games/#games-drascula:drascula",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/drascula/detection.cpp#L40-L55"
+            ],
+            "system": "dos"
           }
         ]
       },
@@ -98107,8 +98855,10 @@
             "id": "dreamweb-uk-1-1",
             "title": "Freeware Floppy DOS Version (English UK)",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-dreamweb:dreamweb"
-            ]
+              "https://www.scummvm.org/games/#games-dreamweb:dreamweb",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/dreamweb/detection_tables.h#L51-L66"
+            ],
+            "system": "dos"
           }
         ]
       },
@@ -98197,8 +98947,10 @@
             "id": "gotfree",
             "title": "Freeware Version",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-got:got"
-            ]
+              "https://www.scummvm.org/games/#games-got:got",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/got/detection_tables.h#L48-L55"
+            ],
+            "system": "dos"
           }
         ]
       },
@@ -98289,8 +99041,10 @@
             "id": "griffon-1-0",
             "title": "Freeware Version",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-griffon:griffon"
-            ]
+              "https://www.scummvm.org/games/#games-griffon:griffon",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/griffon/detection.cpp#L29-L43"
+            ],
+            "system": "pc"
           }
         ]
       },
@@ -98379,8 +99133,12 @@
             "id": "lure-1-1",
             "title": "Freeware Version (English)",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-lure:lure"
-            ]
+              "https://www.scummvm.org/games/#games-lure:lure",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/lure/detection.cpp#L49-L63",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/lure/detection.cpp#L101-L115",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/lure/detection.cpp#L247-L248"
+            ],
+            "system": "dos"
           }
         ]
       },
@@ -98469,8 +99227,10 @@
             "id": "nippon-1-0",
             "title": "Freeware DOS Version (English/French/German/Italian)",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-parallaction:nippon"
-            ]
+              "https://www.scummvm.org/games/#games-parallaction:nippon",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/parallaction/detection.cpp#L55-L74"
+            ],
+            "system": "dos"
           }
         ]
       },
@@ -98559,8 +99319,10 @@
             "id": "fotaq-floppy",
             "title": "Floppy freeware release",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-queen:queen"
-            ]
+              "https://www.scummvm.org/games/#games-queen:queen",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/queen/detection.cpp#L157-L166"
+            ],
+            "system": "dos"
           }
         ]
       },
@@ -98671,8 +99433,11 @@
             "id": "bass-floppy-1-3",
             "title": "Floppy freeware release",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sky:sky"
-            ]
+              "https://www.scummvm.org/games/#games-sky:sky",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sky/detection.cpp#L49-L54",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sky/detection.cpp#L193-L213"
+            ],
+            "system": "dos"
           }
         ]
       },
@@ -98800,8 +99565,11 @@
             "id": "atw",
             "title": "SLUDGE engine game. Version v0.1",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:atw"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:atw",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L339-L344",
+              "https://atw.twolofbees.com/index.php?page=01_Downloads"
+            ],
+            "system": "linux"
           }
         ]
       },
@@ -98890,8 +99658,11 @@
             "id": "cubert",
             "title": "SLUDGE engine game. Version Dec 15, 2005",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:cubert"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:cubert",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L346-L351",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L151-L155"
+            ],
+            "system": "pc"
           }
         ]
       },
@@ -98980,8 +99751,11 @@
             "id": "frasse-2-02",
             "title": "SLUDGE engine game. Version v2.02",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:frasse"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:frasse",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L402-L407",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L81-L86"
+            ],
+            "system": "macos"
           }
         ]
       },
@@ -99070,8 +99844,11 @@
             "id": "interview",
             "title": "SLUDGE engine game",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:interview"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:interview",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L423-L428",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L88-L89"
+            ],
+            "system": "pc"
           }
         ]
       },
@@ -99160,8 +99937,11 @@
             "id": "leptonsquest-linux",
             "title": "SLUDGE engine game. Linux version",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:leptonsquest"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:leptonsquest",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L430-L448",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L168-L170"
+            ],
+            "system": "linux"
           }
         ]
       },
@@ -99340,8 +100120,11 @@
             "id": "mandy-1-4",
             "title": "SLUDGE engine game. English, Italian, Polish, Slovak, v1.4",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:mandy"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:mandy",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L486-L491",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L117-L128"
+            ],
+            "system": "pc"
           }
         ]
       },
@@ -99430,8 +100213,11 @@
             "id": "nsc",
             "title": "SLUDGE engine game. Version v1.03",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:nsc"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:nsc",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L493-L498",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L157-L160"
+            ],
+            "system": "pc"
           }
         ]
       },
@@ -99520,8 +100306,11 @@
             "id": "outoforder",
             "title": "SLUDGE engine game. Linux version",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sludge:outoforder"
-            ]
+              "https://www.scummvm.org/games/#games-sludge:outoforder",
+              "https://github.com/scummvm/scummvm-web/blob/70317aad224d65e68dac538170438e6940addcc6/data/en/game_downloads.yaml#L500-L512",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/sludge/detection_tables.h#L71-L79"
+            ],
+            "system": "linux"
           }
         ]
       },
@@ -99880,8 +100669,10 @@
             "id": "sword25-v1-0",
             "title": "Freeware Version",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-sword25:sword25"
-            ]
+              "https://www.scummvm.org/games/#games-sword25:sword25",
+              "https://www.baphometsfluch25.de/spiel/faq.htm"
+            ],
+            "system": "pc"
           }
         ]
       },
@@ -99970,8 +100761,11 @@
             "id": "helga-deep-in-trouble",
             "title": "English or Czech release",
             "evidence_urls": [
-              "https://www.scummvm.org/games/#games-wintermute:helga"
-            ]
+              "https://www.scummvm.org/games/#games-wintermute:helga",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/wintermute/detection_tables.h#L1548-L1556",
+              "https://github.com/scummvm/scummvm/blob/7d2709da5136866589f7602f5f5a7b17de03420e/engines/wintermute/detection_tables.h#L217-L230"
+            ],
+            "system": "pc"
           }
         ]
       },
@@ -100267,7 +101061,17 @@
         "evidence_urls": [
           "https://github.com/aitorcachero/SoE-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "secret-of-evermore-super-nintendo-spanish-pal-input",
+            "title": "Secret of Evermore (Super Nintendo, Spanish PAL input)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/aitorcachero/SoE-Recomp/blob/d2e64d089aa49e4967036ad5c0677b5715742325/README.md",
+              "https://github.com/aitorcachero/SoE-Recomp/blob/d2e64d089aa49e4967036ad5c0677b5715742325/rom_identity.txt"
+            ]
+          }
+        ]
       },
       "original_game_title": "Secret of Evermore",
       "platforms": [],
@@ -108880,7 +109684,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-zero-2-alpha-cps2-sfz2al",
+            "title": "Street Fighter Zero 2 Alpha (CPS-2, Asia 960826, sfz2al)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/README.md#L154-L155",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/recomp.json#L4-L6"
+            ]
+          }
+        ]
       }
     },
     {
@@ -109774,7 +110588,17 @@
         "evidence_urls": [
           "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-64-n64-usa",
+            "title": "Super Mario 64 (Nintendo 64, USA)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/src/pc/rom_checker.cpp#L25-L37",
+              "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/sm64.us.sha1#L1"
+            ]
+          }
+        ]
       },
       "release_url": "https://github.com/coop-deluxe/sm64coopdx/releases/tag/v1.5.1",
       "manual_setup": {
@@ -112681,7 +113505,17 @@
         "evidence_urls": [
           "https://github.com/Alexbeav/syphon_filter_redux"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "syphon-filter-playstation",
+            "title": "Syphon Filter (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Alexbeav/syphon_filter_redux",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/syphon-filter-redux-alexbeav-syphon-filter-redux.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -112753,7 +113587,17 @@
           "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
           "https://github.com/Madxbio97/SF-pc-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "syphon-filter-playstation",
+            "title": "Syphon Filter (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/syphon-filter-sf-pc-port.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "Syphon Filter"
     },
@@ -114414,7 +115258,17 @@
           "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
           "https://github.com/Heromachine/Tenchu-SA-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "tenchu-stealth-assassins-playstation",
+            "title": "Tenchu: Stealth Assassins (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/tenchu-stealth-assassins-tenchu-sa-recomp.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "Tenchu: Stealth Assassins"
     },
@@ -114487,7 +115341,17 @@
         "evidence_urls": [
           "https://github.com/aitorcachero/ark-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "terranigma-super-nintendo-spanish-pal-input",
+            "title": "Terranigma (Super Nintendo, Spanish PAL input)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/aitorcachero/ark-Recomp/blob/a9665209c2a3c3cfd6b6f46b224dafe710134c82/README.md",
+              "https://github.com/aitorcachero/ark-Recomp/blob/a9665209c2a3c3cfd6b6f46b224dafe710134c82/rom_identity.txt"
+            ]
+          }
+        ]
       },
       "original_game_title": "Terranigma",
       "platforms": [],
@@ -122337,7 +123201,17 @@
         "evidence_urls": [
           "https://github.com/jcoker85/TwistedMetal1234Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "twisted-metal-2-playstation",
+            "title": "Twisted Metal 2 (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/jcoker85/TwistedMetal1234Recomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/twistedmetal1234recomp-jcoker85-twisted-metal-2.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -122382,7 +123256,17 @@
         "evidence_urls": [
           "https://github.com/jcoker85/TwistedMetal1234Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "twisted-metal-4-playstation",
+            "title": "Twisted Metal 4 (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/jcoker85/TwistedMetal1234Recomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/twistedmetal1234recomp-jcoker85-twisted-metal-4.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -125519,7 +126403,17 @@
           "https://github.com/JEschete/VS-NativePort/blob/f104d511ca04665edfd6fc74b7216a3220fbe055/README.md",
           "https://github.com/JEschete/VS-NativePort"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "vagrant-story-playstation",
+            "title": "Vagrant Story (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/JEschete/VS-NativePort/blob/f104d511ca04665edfd6fc74b7216a3220fbe055/README.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/vagrant-story-ps1-vs-nativeport.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -125627,7 +126521,17 @@
           "https://github.com/Ed1z19/ValkyrieRecomp/blob/200a7a15c4718740c2a573e44535657f662d004b/README.md",
           "https://github.com/Ed1z19/ValkyrieRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "valkyrie-profile-playstation",
+            "title": "Valkyrie Profile (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Ed1z19/ValkyrieRecomp/blob/200a7a15c4718740c2a573e44535657f662d004b/README.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/valkyrie-profile-valkyrierecomp.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "Valkyrie Profile"
     },
@@ -126532,7 +127436,25 @@
         "evidence_urls": [
           "https://github.com/VirtuaQuest/Arms-Rearmed"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "arms-nintendo-switch-5-4-0",
+            "title": "ARMS (Nintendo Switch base game + update 5.4.0)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/VirtuaQuest/Arms-Rearmed/blob/324cb0c839337490152bf599f75d3df921a0adf1/README.md#L16-L26",
+              "https://github.com/VirtuaQuest/Arms-Rearmed/blob/1f57e98f01e4abebe340ba74da981b8aebde134a/README.md#L16-L27"
+            ]
+          },
+          {
+            "id": "arms-nintendo-switch-5-5-1",
+            "title": "ARMS (Nintendo Switch base game + update 5.5.1)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/VirtuaQuest/Arms-Rearmed/blob/1f57e98f01e4abebe340ba74da981b8aebde134a/README.md#L16-L27"
+            ]
+          }
+        ]
       },
       "original_game_title": "ARMS",
       "platforms": [],
@@ -131168,7 +132090,17 @@
         "evidence_urls": [
           "https://github.com/Comfubar/KnowYourRoleRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wwf-smackdown-2-know-your-role-playstation",
+            "title": "WWF SmackDown! 2: Know Your Role (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Comfubar/KnowYourRoleRecomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/wwf-smackdown-2-know-your-role-recomp.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "WWF SmackDown! 2: Know Your Role"
     },
@@ -132747,7 +133679,17 @@
           "https://github.com/z3xox/Tenkaichi3Decomp/blob/be4c75b367fb859f088cc74126c8067bc6987d29/README.md",
           "https://github.com/z3xox/Tenkaichi3Decomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dragon-ball-z-budokai-tenkaichi-3-playstation-2",
+            "title": "Dragon Ball Z: Budokai Tenkaichi 3 (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/z3xox/Tenkaichi3Decomp/blob/be4c75b367fb859f088cc74126c8067bc6987d29/README.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/z3xox-tenkaichi3decomp.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "Dragon Ball Z: Budokai Tenkaichi 3"
     },
@@ -132996,7 +133938,17 @@
           "https://github.com/snesrev/zelda3/releases/tag/v0.3",
           "https://github.com/snesrev/zelda3"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-a-link-to-the-past-super-nintendo",
+            "title": "The Legend of Zelda: A Link to the Past (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/snesrev/zelda3/releases/tag/v0.3",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/zelda3.json"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"

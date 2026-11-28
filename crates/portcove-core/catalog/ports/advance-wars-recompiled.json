@@ -57,6 +57,44 @@
         }
       ]
     },
-    "original_game_title": "Advance Wars"
-  }
+    "original_game_title": "Advance Wars",
+    "media": [
+      {
+        "id": "igdb-screenshot-original-20227",
+        "role": "screenshot",
+        "subject": {
+          "kind": "original",
+          "game_id": "advance-wars",
+          "source_edition_id": "advance-wars-game-boy-advance"
+        },
+        "caption": "Original game screenshot",
+        "url": "https://images.igdb.com/igdb/image/upload/t_720p/xhhyrgwo9z1ebf0qy9gs.png",
+        "sha256": "75da5a0d87cf9d6aedec6244bb747e935bffffaa5499a6cdd609f6b4a54d850a",
+        "width": 1086,
+        "height": 720,
+        "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+        "source_url": "https://www.igdb.com/games/advance-wars",
+        "license": "LicenseRef-IGDB-Terms",
+        "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+        "igdb": {
+          "game_id": 1691,
+          "record_id": 20227,
+          "kind": "screenshot",
+          "image_id": "xhhyrgwo9z1ebf0qy9gs",
+          "game_slug": "advance-wars"
+        }
+      }
+    ]
+  },
+  "igdb_original_media_v1": [
+    {
+      "original_game_id": "advance-wars",
+      "source_edition_id": "advance-wars-game-boy-advance",
+      "system": "game-boy-advance",
+      "evidence_url": "https://www.nintendo.com/en-gb/Games/Game-Boy-Advance/Advance-Wars-866532.html",
+      "decision": "match",
+      "game_id": 1691,
+      "slug": "advance-wars"
+    }
+  ]
 }

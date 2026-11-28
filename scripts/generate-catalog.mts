@@ -21,23 +21,25 @@ import {
   serializeCurrentCatalog,
   readCatalogSource,
   catalogSourceNames,
+  typedIgdbScene,
 } from "./catalog-authoring.mts";
 import type { CurrentCatalog, NamedRecord } from "./catalog-authoring.mts";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, rmdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   prepareCatalogArtwork,
   prepareCatalogGameMedia,
-  reconcileCatalogArtworkWithdrawals,
   createIgdbInspector,
   createCoreImageValidator,
   readArtworkJson,
   readArtworkInput,
+  gameMediaImageTarget,
+  catalogGameMediaRoles,
 } from "./inspect-igdb-artwork.mts";
-import type { ImageValidator } from "./inspect-igdb-artwork.mts";
+import type { ArtworkCatalog, ImageValidator } from "./inspect-igdb-artwork.mts";
 import {
   prepareCoverArtworkInOperations,
   prepareGameMediaInOperations,
@@ -48,6 +50,10 @@ import {
   managedSetupReleaseAdviceText,
 } from "./catalog-setup-release-advice.mts";
 import { isRecord } from "./runtime-values.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
+import { originalEditionMediaKey } from "./shared-original-media.mts";
+import { previewReviewedOriginalMedia } from "./reviewed-original-media.mts";
+import { isDeepStrictEqual } from "node:util";
 
 interface Difference {
   path: string;
@@ -475,6 +481,10 @@ function validateArtworkProposalArguments(fullProposal: boolean) {
     "--credentials-file",
     "--artwork-ids",
     "--hero-media",
+    "--media-checkpoint",
+    "--media-due-limit",
+    "--media-image-budget-mib",
+    "--media-provider-checkpoint",
   ]);
   const seen = new Set();
   const args = process.argv.slice(2);
@@ -524,20 +534,202 @@ function proposalImageValidator(
         };
 }
 
+function originalSceneScope(game: unknown, subject: Record<string, unknown>) {
+  if (
+    !isRecord(game) ||
+    typeof game.id !== "string" ||
+    game.id !== subject.game_id ||
+    !Array.isArray(game.source_editions)
+  )
+    return undefined;
+  const edition = (game.source_editions as unknown[]).find(
+    (value) => isRecord(value) && value.id === subject.source_edition_id,
+  );
+  return originalEditionMediaKey(game.id, edition);
+}
+
+function splitListingSceneProposal(
+  catalog: ArtworkCatalog,
+  beforePreparation: CurrentCatalog,
+  goneTargets: readonly string[],
+  excluded: ReadonlySet<string>,
+  directoryOnly: ReadonlySet<string>,
+) {
+  const accepted = new Map(authored.directory.listings.map((listing) => [listing.id, listing]));
+  const baseline = new Map(
+    beforePreparation.ports.map(({ id, presentation }) => [id, presentation]),
+  );
+  const staged = new Map<
+    string,
+    { legacy: unknown[]; additions: Record<string, unknown>[]; game: unknown }
+  >();
+  const pending: { port_id: string; asset: Record<string, unknown> }[] = [];
+  const gone = new Set(goneTargets);
+  const withdrawn = (asset: unknown) => {
+    if (!isRecord(asset) || !isRecord(asset.igdb) || typeof asset.igdb.image_id !== "string")
+      return false;
+    const role = catalogGameMediaRoles.find((role) => role === asset.role);
+    return role !== undefined && gone.has(gameMediaImageTarget(role, asset.igdb.image_id));
+  };
+  const ports = catalog.ports.flatMap((port) => {
+    const presentation = port.presentation;
+    const listingOnly = directoryOnly.has(port.id);
+    if (excluded.has(port.id) || !isRecord(presentation) || !Array.isArray(presentation.media))
+      return listingOnly ? [] : [port];
+    const media: unknown[] = presentation.media;
+    const scenes = media.filter(isRecord).filter((asset) => listingOnly || typedIgdbScene(asset));
+    const legacy = listingOnly ? [] : media.filter((asset) => !typedIgdbScene(asset));
+    const listing = accepted.get(port.id);
+    const acceptedMedia: unknown[] = Array.isArray(listing?.media) ? listing.media : [];
+    const acceptedLegacy = acceptedMedia.filter((asset) => !typedIgdbScene(asset));
+    const matchingProject = listing?.project_url === port.project_url;
+    const prior = baseline.get(port.id);
+    const priorMedia = isRecord(prior) ? prior.media : undefined;
+    const canAlign =
+      matchingProject &&
+      (listingOnly ||
+        priorMedia === undefined ||
+        (Array.isArray(priorMedia) &&
+          priorMedia.length > 0 &&
+          isDeepStrictEqual(priorMedia, acceptedLegacy)));
+    const prepared = scenes.filter((asset) => {
+      const subject = isRecord(asset.subject) ? asset.subject : null;
+      if (listing && canAlign && subject) {
+        if (subject.kind === "port" && subject.port_id === port.id) return true;
+        const scope = originalSceneScope(listing.original_game, subject);
+        if (
+          subject.kind === "original" &&
+          scope &&
+          scope === originalSceneScope(presentation.original_game, subject)
+        )
+          return true;
+      }
+      pending.push({ port_id: port.id, asset });
+      return false;
+    });
+    if (
+      canAlign &&
+      (prepared.length ||
+        (legacy.length &&
+          acceptedMedia.some(typedIgdbScene) &&
+          !isDeepStrictEqual(legacy, priorMedia) &&
+          !isDeepStrictEqual(legacy, acceptedLegacy)))
+    )
+      staged.set(port.id, { legacy, additions: prepared, game: presentation.original_game });
+    if (listingOnly) return [];
+    if (!scenes.length) return port;
+    const strictPresentation = { ...presentation };
+    if (legacy.length) strictPresentation.media = legacy;
+    else delete strictPresentation.media;
+    return { ...port, presentation: strictPresentation };
+  });
+  const listings = authored.directory.listings.flatMap((listing) => {
+    if (excluded.has(listing.id)) return [];
+    const stage = staged.get(listing.id);
+    const media: unknown[] = Array.isArray(listing.media) ? listing.media : [];
+    const currentScenes = media.filter(isRecord).filter(typedIgdbScene);
+    const retained = currentScenes.filter((asset) => {
+      if (withdrawn(asset)) return false;
+      if (stage && isRecord(asset.subject) && asset.subject.kind === "original") {
+        const scope = originalSceneScope(listing.original_game, asset.subject);
+        if (!scope || scope !== originalSceneScope(stage.game, asset.subject)) return false;
+      }
+      return !stage?.additions.some(
+        (next) =>
+          next.id === asset.id ||
+          (next.role === "header" &&
+            asset.role === "header" &&
+            isDeepStrictEqual(next.subject, asset.subject)),
+      );
+    });
+    const legacy = stage?.legacy.length
+      ? stage.legacy
+      : media.filter(
+          (asset) =>
+            !typedIgdbScene(asset) &&
+            (!directoryOnly.has(listing.id) || !withdrawn(asset)) &&
+            (!isRecord(asset) || !stage?.additions.some((next) => next.id === asset.id)),
+        );
+    const nextMedia = [...legacy, ...retained, ...(stage?.additions ?? [])];
+    if (!stage && nextMedia.length === media.length) return [];
+    const updated = { ...listing };
+    if (nextMedia.length) updated.media = nextMedia;
+    else delete updated.media;
+    return [updated];
+  });
+  return {
+    catalog: { ...catalog, ports },
+    directory: { format_version: Math.max(13, authored.directory.format_version), listings },
+    pending,
+  };
+}
+
 async function prepareArtworkProposal(fullProposal = false) {
   validateArtworkProposalArguments(fullProposal);
+  const checkpoint = option("--media-checkpoint");
+  const limit = option("--media-due-limit");
+  const imageBudget = option("--media-image-budget-mib");
+  const providerCheckpoint = option("--media-provider-checkpoint");
+  if (checkpoint === null && limit === null && imageBudget === null && providerCheckpoint === null)
+    return prepareArtworkProposalRun(fullProposal);
+  if (
+    !fullProposal ||
+    !checkpoint ||
+    !limit ||
+    !/^[1-9]\d{0,2}$/u.test(limit) ||
+    Number(limit) > 400 ||
+    (imageBudget !== null && (!/^[1-9]\d{0,2}$/u.test(imageBudget) || Number(imageBudget) > 512)) ||
+    option("--hero-media") !== "igdb" ||
+    option("--artwork-ids") !== null ||
+    option("--refresh-artwork") !== null
+  )
+    throw new Error(
+      "Game media maintenance requires --prepare-proposal, --hero-media igdb, --media-checkpoint and --media-due-limit 1 through 400",
+    );
+  const root = resolve(checkpoint);
+  const providerRoot = providerCheckpoint === null ? root : resolve(providerCheckpoint);
+  const progress = await import("./artwork-preparation-progress.mts");
+  progress.openArtworkCheckpoint(root);
+  try {
+    if (providerRoot !== root) progress.openArtworkCheckpoint(providerRoot);
+    try {
+      return await prepareArtworkProposalRun(fullProposal, {
+        root,
+        providerRoot,
+        limit: Number(limit),
+        progress,
+        ...(imageBudget !== null ? { imageBytes: Number(imageBudget) * 1024 * 1024 } : {}),
+      });
+    } finally {
+      if (providerRoot !== root) rmdirSync(join(providerRoot, "active.lock"));
+    }
+  } finally {
+    rmdirSync(join(root, "active.lock"));
+  }
+}
+
+async function prepareArtworkProposalRun(
+  fullProposal: boolean,
+  mediaDue?: {
+    root: string;
+    providerRoot: string;
+    limit: number;
+    imageBytes?: number;
+    progress: typeof import("./artwork-preparation-progress.mts");
+  },
+) {
   const captured = readArtworkInput(
     option(fullProposal ? "--prepare-proposal" : "--prepare-artwork", true),
     fullProposal ? 16 * 1024 * 1024 : 8 * 1024 * 1024,
   );
   const input = captured.document;
   validateCurrentCatalog(input);
+  if (mediaDue && !isDeepStrictEqual(input, current))
+    throw new Error("Game media maintenance requires the current generated operational catalog");
   if (input.ports.some((port) => Object.hasOwn(port, "igdb_regional_cover")))
     throw new Error("IGDB regional cover selections belong in authored port records.");
   const identitiesFile = option("--identities");
   const identities = identitiesFile ? readArtworkJson(identitiesFile, 1024 * 1024) : {};
-  const refreshPortIds = option("--refresh-artwork")?.split(",") ?? [];
-  const selectedPortIds = option("--artwork-ids")?.split(",");
   const outputRoot = resolve(option("--output-dir", true));
   const cli = option("--validator-cli", fullProposal);
   // Refuse existing output rather than replacing an earlier proposal, recovery
@@ -571,16 +763,161 @@ async function prepareArtworkProposal(fullProposal = false) {
   const validateImage = proposalImageValidator(inspectProposal, cli, outputRoot);
   const heroMedia = option("--hero-media");
   if (heroMedia !== null && heroMedia !== "igdb") throw new Error("--hero-media requires igdb.");
-  const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
+  const excludedMedia = new Set(
+    heroMedia || authored.reviewedOriginalMedia.size
+      ? authored.records.filter(usesScummvmEngine).map(({ listing }) => listing.id)
+      : [],
+  );
+  const acceptedMedia = {
+    // A descriptive listing can carry typed media independently of the strict catalog.
+    ports: heroMedia
+      ? authored.directory.listings.map(({ id, name, project_url, original_game, media }) => ({
+          id,
+          name,
+          project_url,
+          presentation: { original_game, media },
+        }))
+      : [],
+  };
+  let mediaPlan:
+    | ReturnType<(typeof import("./artwork-preparation-progress.mts"))["planDueGameMedia"]>
+    | undefined;
+  if (mediaDue) {
+    const validator = beforeChecks?.input.validator_artifact_sha256;
+    if (!validator) throw new Error("Game media maintenance requires a captured Core validator");
+    const { acceptedHeroMediaMatches } = await import("./inspect-igdb-artwork.mts");
+    const inherited = acceptedHeroMediaMatches(acceptedMedia, excludedMedia);
+    const coverPolicy = new Map(
+      authored.records.map((record) => [
+        record.listing.id,
+        [record.igdb_no_shared_cover, record.igdb_regional_cover],
+      ]),
+    );
+    mediaPlan = mediaDue.progress.planDueGameMedia(
+      mediaDue.root,
+      authored.directory.listings
+        .filter(({ id }) => !excludedMedia.has(id))
+        .map((listing) => {
+          const original = listing.original_game;
+          const bindings = original?.source_editions.map((edition) => {
+            const scope = originalEditionMediaKey(original.id, edition);
+            return scope
+              ? {
+                  reviewed: authored.reviewedOriginalMedia.get(scope),
+                  accepted: inherited.get(scope),
+                }
+              : undefined;
+          });
+          const supplied = isRecord(identities) ? identities[listing.id] : undefined;
+          return {
+            id: listing.id,
+            input_sha256: digest({
+              version: "game-media-due/3",
+              validator,
+              id: listing.id,
+              name: listing.name,
+              project_url: listing.project_url,
+              original,
+              media: listing.media,
+              artwork: listing.artwork,
+              collection_covers: listing.collection_covers,
+              cover_scope: coverPolicy.get(listing.id),
+              bindings,
+              supplied,
+            }),
+          };
+        }),
+      mediaDue.limit,
+    );
+  }
+  const selectedPortIds = mediaPlan?.selected ?? option("--artwork-ids")?.split(",");
+  const refreshPortIds = mediaPlan?.selected ?? option("--refresh-artwork")?.split(",") ?? [];
+  // A listing-only subject is selected explicitly in a bounded proposal. It
+  // uses its accepted descriptive identity and can never enter the strict file.
+  const strictIds = new Set(input.ports.map(({ id }) => id));
+  const integrated = new Set(current.ports.map(({ id }) => id));
+  const directoryOnly = new Set(
+    fullProposal
+      ? acceptedMedia.ports
+          .filter(({ id }) => !strictIds.has(id) && !integrated.has(id))
+          .map(({ id }) => id)
+      : [],
+  );
+  const selected = selectedPortIds && new Set(selectedPortIds);
+  const directoryOnlyPorts = selected
+    ? acceptedMedia.ports.filter(({ id }) => selected.has(id) && directoryOnly.has(id))
+    : [];
+  if (
+    selected &&
+    selectedPortIds &&
+    directoryOnlyPorts.length &&
+    (selected.size !== selectedPortIds.length ||
+      selectedPortIds.some((id) => !strictIds.has(id) && !directoryOnly.has(id)) ||
+      refreshPortIds.some((id) => !selected.has(id)))
+  )
+    throw new Error(
+      "Game media worksets require selected catalog identities and matching refresh ids.",
+    );
+  const scheduledCoverTools =
+    mediaDue && mediaPlan && mediaDue.limit <= 48
+      ? await import("./listing-scheduled-cover.mts")
+      : undefined;
+  const coverBudget =
+    scheduledCoverTools && mediaDue ? Math.floor((mediaDue.imageBytes ?? 32 * 1024 * 1024) / 4) : 0;
+  const coverPreparation =
+    scheduledCoverTools && mediaDue && mediaPlan
+      ? await (async () => {
+          const inspector = createIgdbInspector(
+            option("--credentials-file"),
+            validateImage,
+            undefined,
+            {
+              onBackoff: (status) =>
+                mediaDue.progress.retainArtworkProviderBackoff(mediaDue.providerRoot, status),
+              maximumOperationImageBytes: coverBudget,
+              signal: AbortSignal.timeout(45_000),
+            },
+          );
+          mediaDue.progress.restoreArtworkProviderBackoff(mediaDue.providerRoot, inspector);
+          const selected = await scheduledCoverTools.prepareScheduledCovers(
+            authored.records,
+            new Set(mediaPlan.selected),
+            authored.reviewedOriginalMedia,
+            inspector,
+          );
+          return { ...selected, provider: inspector.providerMetrics };
+        })()
+      : undefined;
+  const inspector = createIgdbInspector(
+    option("--credentials-file"),
+    validateImage,
+    undefined,
+    mediaDue && {
+      onBackoff: (status) =>
+        mediaDue.progress.retainArtworkProviderBackoff(mediaDue.providerRoot, status),
+      ...(mediaDue.imageBytes === undefined && !coverPreparation?.provider.image_bytes
+        ? {}
+        : {
+            maximumOperationImageBytes: Math.max(
+              0,
+              (mediaDue.imageBytes ?? 32 * 1024 * 1024) -
+                (coverPreparation?.provider.image_bytes ?? 0),
+            ),
+          }),
+    },
+  );
+  if (mediaDue) mediaDue.progress.restoreArtworkProviderBackoff(mediaDue.providerRoot, inspector);
   const covers = await prepareCoverArtworkInOperations(
     input,
-    selectedPortIds,
-    refreshPortIds,
+    mediaPlan ? [] : selectedPortIds?.filter((id) => !directoryOnly.has(id)),
+    mediaPlan ? [] : refreshPortIds.filter((id) => !directoryOnly.has(id)),
     (ids, refresh, gone) =>
       prepareCatalogArtwork(input, {
         ...inspector,
         acceptedCatalog: acceptedArtwork,
         identities,
+        reviewedOriginalMedia: authored.reviewedOriginalMedia,
+        reviewedOriginalMediaExclusions: excludedMedia,
         refreshPortIds: refresh,
         ...(ids ? { selectedPortIds: ids } : {}),
         ...(gone.length ? { knownGoneImageIds: gone } : {}),
@@ -589,23 +926,53 @@ async function prepareArtworkProposal(fullProposal = false) {
   const gameMedia =
     heroMedia === "igdb"
       ? await prepareGameMediaInOperations(
-          covers.catalog,
+          {
+            ...covers.catalog,
+            ports: [
+              ...covers.catalog.ports,
+              ...directoryOnlyPorts.map(({ presentation: { original_game, media }, ...port }) => ({
+                ...port,
+                presentation: {
+                  original_game,
+                  // Other existing media is read from the accepted directory.
+                  ...(Array.isArray(media) && media.length === 0 ? { media: [] } : {}),
+                },
+              })),
+            ],
+          },
           selectedPortIds,
-          covers.gone_image_ids,
-          (ids, catalog, gone) =>
+          (ids, catalog, gone, cleared, held) =>
             prepareCatalogGameMedia(catalog, {
               inspector,
               identities,
-              knownGoneImageIds: gone,
+              acceptedCatalog: acceptedMedia,
+              reviewedOriginalMedia: authored.reviewedOriginalMedia,
+              excludedPortIds: excludedMedia,
+              explicitClearPortIds: cleared,
+              knownGoneMediaTargets: gone,
+              knownHeldMediaTargets: held,
+              refreshPortIds: ids
+                ? refreshPortIds.filter((id) => ids.includes(id))
+                : refreshPortIds,
               ...(ids ? { selectedPortIds: ids } : {}),
             }),
         )
       : undefined;
-  if (gameMedia) reconcileCatalogArtworkWithdrawals(covers, gameMedia.gone_image_ids);
   const result = { ...covers, catalog: gameMedia?.catalog ?? covers.catalog };
   finishPhase("artwork_preparation");
-  validateCurrentCatalog(result.catalog);
-  const proposalBytes = Buffer.from(`${JSON.stringify(result.catalog, null, 2)}\n`);
+  const sceneProposal =
+    fullProposal && gameMedia
+      ? splitListingSceneProposal(
+          result.catalog,
+          input,
+          gameMedia.gone_media_targets,
+          excludedMedia,
+          directoryOnly,
+        )
+      : null;
+  const proposedCatalog = sceneProposal?.catalog ?? result.catalog;
+  validateCurrentCatalog(proposedCatalog);
+  const proposalBytes = Buffer.from(`${JSON.stringify(proposedCatalog, null, 2)}\n`);
   const proposalChecks =
     inspectProposal && beforeChecks
       ? {
@@ -613,8 +980,16 @@ async function prepareArtworkProposal(fullProposal = false) {
           output: inspectProposal.inspect("output", proposalBytes, true),
         }
       : undefined;
+  const listingProposal = sceneProposal?.directory.listings.length
+    ? Buffer.from(`${JSON.stringify(sceneProposal.directory, null, 2)}\n`)
+    : null;
+  const listingCheck = listingProposal
+    ? inspectProposal?.inspectListings("listing-media", listingProposal)
+    : null;
   finishPhase("output_preparation_and_declarations");
-  const compatibilityReview = fullProposal ? compatibilityFixtureReview(result.catalog) : undefined;
+  const compatibilityReview = fullProposal
+    ? compatibilityFixtureReview(proposedCatalog)
+    : undefined;
   finishPhase("compatibility_review");
   const preparationCosts = {
     clock: "process.hrtime.bigint",
@@ -637,11 +1012,12 @@ async function prepareArtworkProposal(fullProposal = false) {
   };
   const evidence = {
     format_version: 1,
+    ...(coverPreparation ? { scheduled_covers: coverPreparation } : {}),
     input_sha256: digest(input),
     accepted_catalog_sha256: digest(current),
     accepted_artwork_context_sha256: digest(acceptedArtwork),
-    proposed_catalog_sha256: digest(result.catalog),
-    differences: differences(input, result.catalog),
+    proposed_catalog_sha256: digest(proposedCatalog),
+    differences: differences(input, proposedCatalog),
     records: result.records,
     metrics: result.metrics,
     gone_image_ids: result.gone_image_ids,
@@ -649,9 +1025,29 @@ async function prepareArtworkProposal(fullProposal = false) {
     ...(gameMedia
       ? {
           game_media: {
+            accepted_media_context_sha256: digest(acceptedMedia),
+            ...(authored.reviewedOriginalMedia.size
+              ? {
+                  reviewed_original_media: previewReviewedOriginalMedia(
+                    authored.reviewedOriginalMedia,
+                    authored.directory.listings,
+                    excludedMedia,
+                  ),
+                }
+              : {}),
+            ...(listingCheck
+              ? {
+                  validated_listing_proposal: "listing-media-proposal.json",
+                  listing_check: listingCheck,
+                }
+              : {}),
+            ...(sceneProposal?.pending.length ? { unbound_scenes: sceneProposal.pending } : {}),
             records: gameMedia.records,
-            gone_image_ids: gameMedia.gone_image_ids,
-            coverage: sceneCoverage(acceptedArtwork, gameMedia, selectedPortIds),
+            gone_media_targets: gameMedia.gone_media_targets,
+            ...(gameMedia.held_media_targets?.length
+              ? { held_media_targets: gameMedia.held_media_targets }
+              : {}),
+            coverage: sceneCoverage(acceptedMedia, gameMedia, selectedPortIds),
           },
         }
       : {}),
@@ -662,11 +1058,24 @@ async function prepareArtworkProposal(fullProposal = false) {
   writeFileSync(join(outputRoot, "catalog-proposal.json"), proposalBytes, {
     flag: "wx",
   });
-  writeFileSync(
-    join(outputRoot, "artwork-evidence.json"),
-    `${JSON.stringify(evidence, null, 2)}\n`,
-    { flag: "wx" },
-  );
+  if (listingProposal && listingCheck)
+    writeFileSync(join(outputRoot, "listing-media-proposal.json"), listingProposal, { flag: "wx" });
+  if (mediaDue && mediaPlan && gameMedia && mediaDue.limit <= 48) {
+    const { scheduledGameMediaFile, scheduledGameMediaProposal } =
+      await import("./listing-scheduled-game-media.mts");
+    const data = scheduledGameMediaProposal(gameMedia, mediaPlan.selected);
+    if (data.additions.length || coverPreparation?.covers.length)
+      writeFileSync(
+        join(outputRoot, scheduledGameMediaFile),
+        JSON.stringify({
+          ...data,
+          ...(coverPreparation?.covers.length ? { covers: coverPreparation.covers } : {}),
+        }),
+        { flag: "wx" },
+      );
+  }
+  const artworkEvidence = `${JSON.stringify(evidence, null, 2)}\n`;
+  writeFileSync(join(outputRoot, "artwork-evidence.json"), artworkEvidence, { flag: "wx" });
   if (fullProposal) {
     if (!proposalChecks) throw new Error("Proposal checks are unavailable.");
     writeFileSync(
@@ -676,10 +1085,10 @@ async function prepareArtworkProposal(fullProposal = false) {
           format_version: 1,
           accepted_catalog_sha256: digest(current),
           input_catalog_sha256: digest(input),
-          proposed_catalog_sha256: digest(result.catalog),
-          differences: differences(current, result.catalog),
-          proposal_changes: proposalChanges(current, result.catalog),
-          declaration_cases: declarationCases(current, result.catalog, proposalChecks),
+          proposed_catalog_sha256: digest(proposedCatalog),
+          differences: differences(current, proposedCatalog),
+          proposal_changes: proposalChanges(current, proposedCatalog),
+          declaration_cases: declarationCases(current, proposedCatalog, proposalChecks),
           compatibility_fixture_review: compatibilityReview,
           preparation_costs: preparationCosts,
           checks: proposalChecks,
@@ -693,7 +1102,35 @@ async function prepareArtworkProposal(fullProposal = false) {
       { flag: "wx" },
     );
   }
-  process.stdout.write(`${JSON.stringify({ output_dir: outputRoot, metrics: result.metrics })}\n`);
+  const queue =
+    mediaDue && mediaPlan && gameMedia
+      ? (() => {
+          const provider = inspector.batchStatus();
+          mediaDue.progress.retainArtworkProviderBackoff(mediaDue.providerRoot, provider);
+          const attempt = mediaPlan.finish(
+            [...gameMedia.records, ...(coverPreparation?.progress ?? [])],
+            provider.retry_at,
+            `sha256:${createHash("sha256").update(artworkEvidence).digest("hex")}`,
+          );
+          return {
+            due: mediaPlan.due,
+            selected: mediaPlan.selected.length,
+            ...attempt,
+            state: attempt.deferred
+              ? attempt.attempted
+                ? "partial"
+                : "deferred"
+              : attempt.attempted
+                ? "attempted"
+                : mediaPlan.selected.length
+                  ? "unchanged"
+                  : "idle",
+          };
+        })()
+      : undefined;
+  process.stdout.write(
+    `${JSON.stringify({ output_dir: outputRoot, metrics: result.metrics, ...(queue ? { media_due: queue } : {}) })}\n`,
+  );
 }
 
 const arguments_ = process.argv.slice(2);

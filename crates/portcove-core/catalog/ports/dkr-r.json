@@ -52,7 +52,16 @@
         "https://github.com/ThatGuyMcd/DKR-R/blob/53a78c3e32714957df3e4bad43c1ef7fc82f96dc/README.md",
         "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "diddy-kong-racing-n64-usa",
+          "title": "Diddy Kong Racing (Nintendo 64, USA)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/ThatGuyMcd/DKR-R/blob/53a78c3e32714957df3e4bad43c1ef7fc82f96dc/README.md"
+          ]
+        }
+      ]
     }
   },
   "external_registration_v1": true,

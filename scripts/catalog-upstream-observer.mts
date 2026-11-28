@@ -1,3 +1,4 @@
+import { launcherModGameScopes, verifyLauncherModGameScope } from "./launcher-mod-game-scope.mts";
 import {
   projectListingObservation,
   projectGitLabListingObservation,
@@ -28,6 +29,7 @@ import {
   ObservationFailure,
   validateObserverConfig,
   checksumSourcesFromProjections,
+  configuredCandidateObserverConfig,
   boundedProviderRetryTime,
   boundedRetainedRetryClock,
 } from "./upstream-observer.mts";
@@ -39,6 +41,14 @@ import type {
   ProviderObservation,
 } from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
+import type { LauncherModObservation } from "./port-upstream-facts.mts";
+import {
+  type FirstPartyModProgress,
+  launcherModSubjects,
+  recordLauncherModAttempt,
+  selectLauncherModAssessmentWork,
+  validateFirstPartyModProgress,
+} from "./upstream-launcher-mod-progress.mts";
 import {
   observeModProviderRegistry,
   validateModProviderRegistryProgress,
@@ -100,16 +110,23 @@ export function catalogObservationScopeBinding(
   source: ObservableSource,
   policy: CatalogObservationScopePolicy,
 ) {
+  return observationHash(catalogObservationScopeInputs(source, policy));
+}
+
+function catalogObservationScopeInputs(
+  source: ObservableSource,
+  policy: CatalogObservationScopePolicy,
+) {
   const provider = source.provider ?? "github";
   if (listingOnly(source)) {
-    return observationHash({
+    return {
       contract: "normalized-current-catalog-listing-policy-v1",
       source: source.key,
       provider,
       ...(provider === "gitlab" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
       scope: source.scope_sha256,
       stale_after_hours: policy.staleAfterHours,
-    });
+    };
   }
   const definitions = source.ports.map(
     (port) =>
@@ -123,13 +140,13 @@ export function catalogObservationScopeBinding(
     definitions.some(([, hash]) => !/^[a-f0-9]{64}$/u.test(hash))
   )
     throw new Error("Exact Core policy and normalized observation definitions are required");
-  return observationHash({
+  return {
     contract: "normalized-current-catalog-core-policy-v1",
     ...(provider !== "github" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
     policy: policy.policyIdentity,
     scope: source.scope_sha256,
     definitions,
-  });
+  };
 }
 
 function retainedListingClocks(source: ObservableSource, progress: SourceProgress) {
@@ -225,6 +242,7 @@ export interface CatalogObserverCheckpoint {
   provider_retry_at: string | null;
   provider_capacities?: Record<string, ProviderCapacity>;
   mod_provider_registry?: ModProviderRegistryProgress;
+  launcher_mod_sources?: Record<string, FirstPartyModProgress>;
   /** Historical provenance only; never a successful observation/freshness clock. */
   baseline?: {
     id: string;
@@ -409,6 +427,8 @@ export function validateCatalogObserverCheckpoint(
     throw new Error("Invalid catalog observer checkpoint");
   if (value.mod_provider_registry !== undefined)
     validateModProviderRegistryProgress(value.mod_provider_registry, now);
+  if (value.launcher_mod_sources !== undefined)
+    validateFirstPartyModProgress(value.launcher_mod_sources, now);
   if (value.baseline !== undefined) {
     const baseline = value.baseline;
     if (
@@ -596,12 +616,20 @@ export interface CatalogObservationOptions extends Pick<
   excludedSources?: ReadonlySet<string>;
   /** Hard cap on provider requests this operation may admit (#4779). */
   requestLimit?: number;
+  offlinePolicyOnly?: boolean;
   /** Give stale recovery regular turns after appointments and expiring managed work. */
   rotateStaleSources?: boolean;
   prioritizeConfigured?: boolean;
   scheduledPrioritySources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
   modProviderRegistryFetch?: typeof fetch;
+  observeLauncherMods?: (
+    repository: { id: number; slug: string },
+    account: Required<
+      Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
+    >,
+  ) => Promise<LauncherModObservation>;
+  launcherModRequestLimit?: number;
   projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   exportProvider?: (
     source: ObservableSource,
@@ -720,12 +748,12 @@ export async function advanceCatalogObservations(
       : validateCatalogObserverCheckpoint(prior, now());
   const commitCheckpoint = () => {
     if (
-      state.mod_provider_registry &&
+      (state.mod_provider_registry || state.launcher_mod_sources) &&
       Buffer.byteLength(JSON.stringify(state)) > catalogCheckpointByteLimit
     )
       throw new ObservationFailure(
         "checkpoint-size",
-        "Catalog progress and retained mod registry exceed the checkpoint envelope. The last complete checkpoint remains.",
+        "Catalog progress and retained mod observations exceed the checkpoint envelope. The last complete checkpoint remains.",
       );
     return options.commit(structuredClone(state));
   };
@@ -747,7 +775,8 @@ export async function advanceCatalogObservations(
       delete progress.coverage.retry_at;
   }
   const template = validateObserverConfig(options.config);
-  const requestCeiling = options.requestLimit ?? Infinity;
+  const offlinePolicyOnly = options.offlinePolicyOnly === true;
+  const requestCeiling = offlinePolicyOnly ? 0 : (options.requestLimit ?? Infinity);
   const policyIdentity = options.policyIdentity;
   if (!/^[a-f0-9]{64}$/u.test(policyIdentity))
     throw new Error("Exact Core policy input identity is required");
@@ -769,12 +798,13 @@ export async function advanceCatalogObservations(
   };
   if (!Number.isFinite(deadline) || deadline <= now())
     throw new ObservationFailure("budget", "Collector deadline unavailable");
+  const scopePolicy = {
+    policyIdentity,
+    definitionHash: options.definitionHash,
+    staleAfterHours: template.stale_after_hours,
+  };
   const scopeBinding = (source: ObservableSource) =>
-    catalogObservationScopeBinding(source, {
-      policyIdentity,
-      definitionHash: options.definitionHash,
-      staleAfterHours: template.stale_after_hours,
-    });
+    catalogObservationScopeBinding(source, scopePolicy);
   let requests = 0;
   let responseBytes = 0;
   let operationBytes = 0;
@@ -880,6 +910,18 @@ export async function advanceCatalogObservations(
       .filter((source) => {
         if (options.excludedSources?.has(source.key)) return false;
         const progress = state.sources[source.key];
+        if (
+          offlinePolicyOnly &&
+          ((source.provider ?? "github") !== "github" ||
+            listingOnly(source) ||
+            source.ports.some((port) => port.original_source_family) ||
+            !progress?.repository_id ||
+            progress.completed_scope_sha256 === null ||
+            progress.completed_scope_sha256 === scopeBinding(source) ||
+            progress.exception_key !== null ||
+            freshnessExpired(progress))
+        )
+          return false;
         return (
           (scopeDue(source, progress) || source.repository === template.repository) &&
           (!progress?.retry_at || Date.parse(progress.retry_at) <= now())
@@ -936,6 +978,129 @@ export async function advanceCatalogObservations(
     requests++;
     if (remaining !== null) remaining--;
   };
+
+  let launcherModSummary:
+    | {
+        enrolled: number;
+        due: number;
+        attempted: number;
+        complete: number;
+        deferred: number;
+        requests: number;
+      }
+    | undefined;
+  const observeLauncherMods = options.observeLauncherMods;
+  if (observeLauncherMods && !offlinePolicyOnly) {
+    const gameScopes = launcherModGameScopes(
+      catalog,
+      isRecord(catalog) && Array.isArray(catalog.listings) ? catalog.listings : [],
+    );
+    const subjects = launcherModSubjects(sources, state.sources, undefined, gameScopes);
+    const old = state.launcher_mod_sources ?? {};
+    const progress = Object.fromEntries(
+      subjects.flatMap(({ port_id, binding }) =>
+        old[port_id]?.binding === binding ? [[port_id, old[port_id]]] : [],
+      ),
+    ) as Record<string, FirstPartyModProgress>;
+    const due = subjects
+      .filter(
+        ({ port_id }) =>
+          Date.parse(progress[port_id]?.next_due_at ?? "") <= now() || !progress[port_id],
+      )
+      .sort(
+        (a, b) =>
+          (progress[a.port_id]?.last_attempt_at ?? a.listed_at).localeCompare(
+            progress[b.port_id]?.last_attempt_at ?? b.listed_at,
+          ) || a.port_id.localeCompare(b.port_id),
+      );
+    launcherModSummary = {
+      enrolled: subjects.length,
+      due: due.length,
+      attempted: 0,
+      complete: 0,
+      deferred: due.length,
+      requests: 0,
+    };
+    // Reserve a bounded share of the existing opportunity for descriptive
+    // coverage. A complete proof needs at most four admitted GitHub reads.
+    const requestsBeforeLauncher = requests;
+    const launcherAttempts = Math.min(
+      24,
+      Math.floor((options.launcherModRequestLimit ?? Math.floor(capacity() / 20)) / 4),
+      Math.floor(capacity() / 4),
+    );
+    let lastReviewed = "",
+      lastUnresolved = "";
+    for (const [port, row] of Object.entries(progress)) {
+      if (gameScopes.has(port)) {
+        if (row.last_attempt_at > lastReviewed) lastReviewed = row.last_attempt_at;
+      } else if (row.last_attempt_at > lastUnresolved) lastUnresolved = row.last_attempt_at;
+    }
+    const reviewed = due.filter(({ port_id }) => gameScopes.has(port_id));
+    const unresolved = due.filter(({ port_id }) => !gameScopes.has(port_id));
+    for (const subject of selectLauncherModAssessmentWork(
+      reviewed,
+      unresolved,
+      progress,
+      launcherAttempts,
+      lastReviewed,
+      lastUnresolved,
+    )) {
+      if (options.signal?.aborted || capacity() < 4) break;
+      let result: LauncherModObservation;
+      try {
+        result = await observeLauncherMods(
+          { id: subject.repository_id, slug: subject.slug },
+          { admitRequest, observeResponse, consumeResponseBytes },
+        );
+      } catch (cause) {
+        if (!(cause instanceof ObservationFailure)) throw cause;
+        if (cause.retryAt) extendProviderDeferral(cause.retryAt);
+        if (partialProgressRules.includes(cause.rule)) break;
+        result = { state: "unavailable", reason: cause.rule };
+      }
+      launcherModSummary.attempted++;
+      launcherModSummary.deferred--;
+      if (result.state === "observed" || result.state === "absent") {
+        if (result.repository_id !== subject.repository_id)
+          throw new Error("First-party mod observation returned a different repository ID");
+      }
+      const scope = gameScopes.get(subject.port_id);
+      result =
+        !scope && result.state === "observed"
+          ? { state: "held", reason: "game-input-scope-unproven" }
+          : verifyLauncherModGameScope(result, scope);
+      if (result.state === "observed" || result.state === "absent") launcherModSummary.complete++;
+      progress[subject.port_id] = recordLauncherModAttempt(
+        subject.binding,
+        progress[subject.port_id],
+        result,
+        now(),
+        (!scope && result.state !== "unavailable" ? 7 * 24 : template.cadence_hours) * 3600000,
+      );
+    }
+    launcherModSummary.requests = requests - requestsBeforeLauncher;
+    if (observationHash(old) !== observationHash(progress) && !options.signal?.aborted) {
+      validateFirstPartyModProgress(progress, now());
+      if (
+        Buffer.byteLength(JSON.stringify({ ...state, launcher_mod_sources: progress })) <=
+        catalogCheckpointByteLimit
+      ) {
+        state.launcher_mod_sources = progress;
+        await commitCheckpoint();
+      } else {
+        failures.push({
+          source: "launcher-mod-sources",
+          repository: "github.com",
+          rule: "checkpoint-size",
+          details:
+            "First-party mod progress does not fit the catalog checkpoint; prior evidence remains.",
+        });
+        launcherModSummary.deferred = due.length;
+        launcherModSummary.complete = 0;
+      }
+    }
+  }
   let registryProgress: ModProviderRegistryProgress | undefined;
   const registryFits = (progress: ModProviderRegistryProgress) =>
     Buffer.byteLength(JSON.stringify({ ...state, mod_provider_registry: progress })) <=
@@ -1089,6 +1254,7 @@ export async function advanceCatalogObservations(
       previousProgress.freshness_observed_at !== null &&
       now() - Date.parse(previousProgress.freshness_observed_at) <
         template.stale_after_hours * 3600000;
+    if (offlinePolicyOnly && !freshOfflineCandidate) continue;
     if (
       (source.provider ?? "github") === "github" &&
       capacity() < 1 &&
@@ -1410,9 +1576,9 @@ export async function advanceCatalogObservations(
     // the observation itself still states where the next run resumes.
     let retainedCursor: string | null = null;
     try {
-      const legacy = isConfigured(source);
+      const configured = isConfigured(source);
       if (
-        legacy &&
+        configured &&
         progress.repository_id !== null &&
         progress.repository_id !== template.repository_id
       )
@@ -1421,7 +1587,7 @@ export async function advanceCatalogObservations(
           "Retained repository identity conflicts with the reviewed configured source",
         );
       if (progress.repository_id === null) {
-        const identity = legacy
+        const identity = configured
           ? template.repository_id
           : await options.repositoryId(source, {
               admitRequest,
@@ -1436,8 +1602,8 @@ export async function advanceCatalogObservations(
         progress.repository_id = identity;
         await commitCheckpoint();
       }
-      const config: ObserverConfig = legacy
-        ? template
+      const config: ObserverConfig = configured
+        ? configuredCandidateObserverConfig(template)
         : validateObserverConfig({
             ...template,
             format: 2,
@@ -1463,13 +1629,15 @@ export async function advanceCatalogObservations(
               })),
             ),
           });
-      if (
-        progress.current_config &&
-        observationHash(progress.current_config) !== observationHash(config)
-      )
-        progress.retired_configs.push(progress.current_config);
-      progress.current_config = config;
-      await commitCheckpoint();
+      const configHash = observationHash(config);
+      const saveSourceCheckpoint = async (checkpoint: unknown) => {
+        await options.save(config, checkpoint);
+        if (progress.current_config && observationHash(progress.current_config) === configHash)
+          return;
+        if (progress.current_config) progress.retired_configs.push(progress.current_config);
+        progress.current_config = config;
+        await commitCheckpoint();
+      };
       const policies: unknown[] = [];
       const scoped = (observation: ProviderObservation, portId: string) => ({
         ...observation,
@@ -1613,17 +1781,29 @@ export async function advanceCatalogObservations(
         return selection.release_ids;
       };
       const result = await options.withSourceLock(config, async () => {
-        const priorSource = decodeStoredObserverCheckpoint(
+        const retainedSource = decodeStoredObserverCheckpoint(
           await options.load(config),
           deadline,
           now,
         );
+        // The configured config also binds the scheduled artifact consumer.
+        // Start a fresh provider attempt when its committed selection inputs move.
+        const priorSource =
+          configured &&
+          !offlinePolicyOnly &&
+          isRecord(retainedSource) &&
+          retainedSource.continuation &&
+          progress.selection_progress &&
+          progress.selection_progress.binding !== binding
+            ? { ...retainedSource, continuation: undefined }
+            : retainedSource;
         const position = (continuation: unknown) => {
           if (!isRecord(continuation))
             return observationHash({ phase: "collect", cursor: 0, pages: [] });
           return observationHash({
             phase: continuation.phase,
             cursor: continuation.validation_cursor,
+            tentative: continuation.tentative_pages ?? [],
             pages: isRecord(continuation.pages)
               ? Object.entries(continuation.pages).map(([url, page]) => [
                   url,
@@ -1645,7 +1825,8 @@ export async function advanceCatalogObservations(
           ...(options.sleep ? { sleep: options.sleep } : {}),
           now,
           catalogIds,
-          reprojectFreshFacts,
+          reprojectFreshFacts: offlinePolicyOnly ? "only" : reprojectFreshFacts,
+          reuseValidatedPages: true,
           admitRequest: admitSourceRequest,
           observeResponse,
           consumeResponseBytes,
@@ -1656,19 +1837,20 @@ export async function advanceCatalogObservations(
           },
           project: projectAll,
           commitContinuation: async (checkpoint) => {
-            await options.save(config, checkpoint);
+            await saveSourceCheckpoint(checkpoint);
             retainedCursor = continuationCursor(
               isRecord(checkpoint) ? checkpoint.continuation : null,
             );
           },
         });
+        if (offlinePolicyOnly && result.report.transition === "deferred") return result;
         const continuation = result.checkpoint.continuation;
         const readProgress =
           continuation &&
           (Object.keys(continuation.pages).length > 0 || continuation.validation_cursor > 0) &&
           position(continuation) !== previousPosition;
         if (readProgress) coreProgress++;
-        await options.save(config, result.checkpoint);
+        await saveSourceCheckpoint(result.checkpoint);
         retainedCursor = continuationCursor(continuation);
         // Historical projections retain their own facts/definition identities.
         // A changed configuration may have no current observation at all.
@@ -1903,6 +2085,7 @@ export async function advanceCatalogObservations(
         await options.export(source, config, result, result.report.exception ? fallback : policies);
         return result;
       });
+      if (offlinePolicyOnly && result.report.transition === "deferred") continue;
       if (result.report.exception) {
         if (
           result.report.exception.rule === "budget" &&
@@ -1956,6 +2139,7 @@ export async function advanceCatalogObservations(
           result.report.observation?.facts_sha256 === retainedListingCompletion.facts_sha256;
         const changed =
           sameScope &&
+          progress.last_complete_config?.format === config.format &&
           progress.last_complete_facts_sha256 !== result.report.observation?.facts_sha256;
         if (!sameScope && !retainedTiming) {
           progress.last_change_at = new Date(now()).toISOString();
@@ -2076,6 +2260,28 @@ export async function advanceCatalogObservations(
       authority: "catalog-upstream-observation-only",
       generated_at: new Date(now()).toISOString(),
       total_sources: sources.length,
+      scope_binding_inputs: {
+        core_executable_sha256: policyIdentity,
+        listing_stale_after_hours: scopePolicy.staleAfterHours,
+        sources: Object.fromEntries(
+          sources.map((source) => {
+            const input = catalogObservationScopeInputs(source, scopePolicy);
+            return [
+              source.key,
+              {
+                contract: input.contract,
+                provider_proof: input.provider_proof ?? null,
+                source_sha256: input.scope,
+                definitions_sha256:
+                  "definitions" in input ? observationHash(input.definitions) : null,
+                current_sha256: observationHash(input),
+                retained_sha256: state.sources[source.key]?.completed_scope_sha256 ?? null,
+              },
+            ];
+          }),
+        ),
+      },
+      ...(launcherModSummary ? { launcher_mod_sources: launcherModSummary } : {}),
       ...(state.mod_provider_registry
         ? {
             mod_provider_registry: {

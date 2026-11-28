@@ -7,6 +7,7 @@ import type { Perform } from "../features/operations/use-operation-state";
 import { Button } from "./ui/button";
 import { ArrowRight, ChevronDown, FolderInput, FolderSearch, Gamepad2 } from "lucide-react";
 import { Icon } from "./ui";
+import { PersonalUpstreamRegistration } from "./PersonalUpstreamRegistration";
 
 export function AddGames({
   active,
@@ -155,6 +156,12 @@ export function AddGames({
             <Icon glyph={ArrowRight} size="sm" />
           </Button>
         </div>
+        {active && !refreshFailed && mode === "existing" && (
+          <details className="add-existing-choice">
+            <summary className="cursor-pointer">Add a port missing from Discover</summary>
+            <PersonalUpstreamRegistration generation={generation} onAdded={onAdded} />
+          </details>
+        )}
       </section>
       {foldersVisited && (
         <div id="add-games-scan" hidden={mode !== "folders"} className="add-route-panel">

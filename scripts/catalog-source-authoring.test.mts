@@ -21,6 +21,7 @@ import {
   projectGbaArchive,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import { previewReviewedOriginalMedia } from "./reviewed-original-media.mts";
 import {
   compactReviewedFlatPackageLayout,
   projectReviewedFlatPackageLayout,
@@ -49,6 +50,129 @@ const schema2Fixture = fixtureJson(
   readFileSync(join(catalogRoot, "catalog-schema2-migration-fixture.json")),
 );
 const schema3Fixture = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
+
+void test("reviewed original media binds one decision to exact existing and future consumers", () => {
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const row = (id: string, system: string = "dos") => ({
+    format_version: 1,
+    listing: {
+      id,
+      name: id,
+      summary: "Separate port implementation of the same original edition.",
+      project_url: `https://example.org/${id}`,
+      original_game: {
+        format_version: 1,
+        id: "shared-original-fixture",
+        evidence_urls: ["https://example.org/original"],
+        source_editions: [
+          {
+            id: "first-retail",
+            system,
+            title: "First retail edition",
+            evidence_urls: ["https://example.org/edition"],
+          },
+        ],
+      },
+    },
+  });
+  const decision = {
+    original_game_id: "shared-original-fixture",
+    source_edition_id: "first-retail",
+    system: "dos",
+    evidence_url: "https://www.igdb.com/games/accepted-original",
+    decision: "match",
+    game_id: 42,
+    slug: "accepted-original",
+  };
+  const owner = { ...row("owner-port"), igdb_original_media_v1: [decision] };
+  const sibling = row("older-port");
+  const future = row("future-port");
+  const assembled = assembleCatalogRecords(shared, [owner, sibling, future]);
+  assert.deepEqual(
+    previewReviewedOriginalMedia(
+      assembled.reviewedOriginalMedia,
+      assembled.directory.listings,
+      new Set(),
+    ),
+    [{ ...decision, applicable_port_ids: ["future-port", "older-port", "owner-port"] }],
+  );
+  assert.deepEqual(
+    assembled.directory,
+    assembleCatalogRecords(shared, [row("owner-port"), sibling, future]).directory,
+  );
+  assert.deepEqual(assembled.catalog.ports, []);
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...owner,
+        igdb_original_media_v1: [
+          { ...decision, evidence_url: `https://example.org/${"é".repeat(400)}` },
+        ],
+      }),
+    /needs attributable HTTPS evidence/u,
+  );
+  assert.throws(
+    () =>
+      checkedAuthoredPort({ ...row("owner-port", "windows"), igdb_original_media_v1: [decision] }),
+    /exact, unique game, edition and system/u,
+  );
+  assert.throws(
+    () =>
+      assembleCatalogRecords(shared, [owner, { ...sibling, igdb_original_media_v1: [decision] }]),
+    /Multiple reviewed original media decisions/u,
+  );
+  const prior = {
+    id: "old-original-shot",
+    role: "screenshot",
+    subject: {
+      kind: "original",
+      game_id: decision.original_game_id,
+      source_edition_id: decision.source_edition_id,
+    },
+    igdb: { game_id: 15, game_slug: "old-original" },
+  };
+  const donor = { ...owner.listing, media: [prior] };
+  const before = assembleCatalogRecords(shared, [
+    { ...row("owner-port"), listing: donor },
+    sibling,
+  ]);
+  assert.deepEqual(before.directory.listings.find(({ id }) => id === sibling.listing.id)?.media, [
+    prior,
+  ]);
+  const corrected = assembleCatalogRecords(shared, [{ ...owner, listing: donor }, sibling, future]);
+  assert.deepEqual(corrected.directory.listings.find(({ id }) => id === donor.id)?.media, [prior]);
+  assert.ok(
+    corrected.directory.listings
+      .filter(({ id }) => id !== donor.id)
+      .every(({ media }) => media === undefined),
+  );
+  const acceptedMedia = { ...prior, igdb: { game_id: decision.game_id, game_slug: decision.slug } };
+  const matching = assembleCatalogRecords(shared, [
+    { ...owner, listing: { ...donor, media: [acceptedMedia] } },
+    sibling,
+  ]);
+  assert.deepEqual(matching.directory.listings.find(({ id }) => id === sibling.listing.id)?.media, [
+    acceptedMedia,
+  ]);
+  const staleAlias = { ...prior, igdb: { ...prior.igdb, game_id: decision.game_id } };
+  const unresolvedAlias = assembleCatalogRecords(shared, [
+    { ...owner, listing: { ...donor, media: [staleAlias] } },
+    sibling,
+  ]);
+  assert.equal(
+    unresolvedAlias.directory.listings.find(({ id }) => id === sibling.listing.id)?.media,
+    undefined,
+  );
+  const { decision: _match, game_id: _game, slug: _slug, ...scope } = decision;
+  const excluded = assembleCatalogRecords(shared, [
+    { ...owner, listing: donor, igdb_original_media_v1: [{ ...scope, decision: "exclude" }] },
+    sibling,
+  ]);
+  assert.equal(
+    excluded.directory.listings.find(({ id }) => id === sibling.listing.id)?.media,
+    undefined,
+  );
+});
 
 void test("reviewed mod websites promote the directory without an operational definition", () => {
   const link = {
@@ -94,6 +218,113 @@ void test("reviewed mod websites promote the directory without an operational de
       () =>
         checkedAuthoredPort({ format_version: 1, listing: { ...listing, mod_portals: portals } }),
       /mod portal/u,
+    );
+  }
+});
+
+void test("exact reviewed provider coordinates generate only descriptive listing links", () => {
+  const original = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", "shipwright.json"))),
+    "shipwright",
+  );
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const record = (id: string, changes: Partial<AuthoredPort> = {}) => ({
+    ...original,
+    listing: { ...original.listing, id },
+    ...changes,
+  });
+  const site = "community_site" as const;
+  const authored = {
+    id: "explicit",
+    site,
+    name: "Reviewed community",
+    url: "https://www.gamebanana.com/games/52",
+    instructions: "Open the community.",
+  };
+  const records = [
+    record("new-review-fixture"),
+    record("excluded-fixture", { no_observed_mod_portals: true }),
+    record("explicit-fixture", {
+      listing: { ...original.listing, id: "explicit-fixture", mod_portals: [authored] },
+    }),
+  ];
+  const portals = new Map(
+    records.map((record) => {
+      const result = assembleCatalogRecords(shared, [record]);
+      assert.deepEqual(result.catalog.ports, [projectAuthoredPort(record)]);
+      const listing = requiredFixture(result.directory.listings[0]);
+      if (listing.mod_portals) assert.equal(result.directory.format_version, 16);
+      return [listing.id, listing.mod_portals];
+    }),
+  );
+  assert.deepEqual(portals.get("new-review-fixture"), [
+    {
+      id: "reviewed-gamebanana",
+      site,
+      name: "GameBanana",
+      url: "https://gamebanana.com/games/16121",
+      instructions: "Open the community to browse its mods.",
+    },
+  ]);
+  assert.equal(portals.get("excluded-fixture"), undefined);
+  assert.deepEqual(portals.get("explicit-fixture"), [authored]);
+  assert.equal(original.listing.mod_portals, undefined);
+});
+
+void test("automatic GitHub identities require repository-bound listing format 17", () => {
+  const listing = {
+    id: "github-123",
+    name: "Discovery fixture",
+    summary: "A newly admitted upstream project.",
+    project_url: "https://github.com/example/fixture",
+    release_url: "https://github.com/example/fixture/releases",
+  };
+  const authored = checkedAuthoredPort({ format_version: 1, listing });
+  const result = assembleCatalogRecords(
+    {
+      schema_version: 3,
+      source_catalog: {
+        identities: [],
+        contracts: [],
+        validators: [],
+        evidence: [],
+        qualification: [],
+      },
+    },
+    [authored],
+  );
+  assert.equal(result.directory.format_version, 17);
+  assert.equal(result.directory.listings[0]?.id, listing.id);
+  assert.deepEqual(result.catalog.ports, []);
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        format_version: 1,
+        listing: { ...listing, release_url: "https://github.com/elsewhere/fixture/releases" },
+      }),
+    /repository-bound listing/u,
+  );
+  const oversized = `https://github.com/example/${"a".repeat(101)}`;
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        format_version: 1,
+        listing: { ...listing, project_url: oversized, release_url: `${oversized}/releases` },
+      }),
+    /repository-bound listing/u,
+  );
+  for (const [project_url, release_url] of [
+    ["https://github.com/example/game.GIT", "https://github.com/example/game.git/releases"],
+    ["https://github.com/example/Kart", "https://github.com/example/kart/releases"],
+    ["https://github.com/example/kart", "https://github.com/example/Kart/releases"],
+  ]) {
+    assert.throws(
+      () =>
+        checkedAuthoredPort({
+          format_version: 1,
+          listing: { ...listing, project_url, release_url },
+        }),
+      /repository-bound listing/u,
     );
   }
 });
@@ -752,6 +983,7 @@ void test("authoring split preserves unknown metadata and ordered operational ar
 void test("typed IGDB scenes project to listing format 13 without changing strict media", () => {
   const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
   const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  authored.no_observed_mod_portals = true;
   const { ports: _ports, ...shared } = catalog;
   const typed = { id: "igdb", role: "screenshot", igdb: { kind: "screenshot" } };
   const legacy = { id: "legacy", role: "header" };
@@ -769,6 +1001,7 @@ void test("typed IGDB scenes project to listing format 13 without changing stric
 void test("verified source identities belong only in the format 14 listing", () => {
   const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
   const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  authored.no_observed_mod_portals = true;
   const { ports: _ports, ...shared } = catalog;
   const binding = {
     game_id: "source-game",
@@ -1041,6 +1274,119 @@ void test("descriptive media projects to format 3 and explicit empty strict medi
   assert.deepEqual(authoringRecordFromPort(removed.catalog.ports[0]).listing.media, []);
 });
 
+void test("an accepted original screenshot follows the exact edition into existing and future listings", () => {
+  const { authored } = readCatalogSource(catalogRoot);
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const donor = authored.find(({ listing }) => listing.id === "zelda64-recomp")!;
+  const recipient = authored.find(({ listing }) => listing.id === "2ship2harkinian")!;
+  const future = {
+    format_version: 1,
+    listing: {
+      id: "future-port-for-media-fixture",
+      name: "Future port fixture",
+      project_url: "https://example.com/future-port-for-media-fixture",
+      summary: "An independent listing for the same original edition.",
+      original_game: recipient.listing.original_game,
+    },
+  };
+  const excluded = {
+    ...future,
+    listing: { ...future.listing, id: "excluded-media-fixture", media: [] },
+  };
+  const otherEdition = {
+    ...future,
+    listing: {
+      ...future.listing,
+      id: "other-edition-media-fixture",
+      original_game: {
+        ...future.listing.original_game!,
+        source_editions: [
+          {
+            id: "other-edition-fixture",
+            title: "An independent source edition",
+            evidence_urls: ["https://example.com/other-edition"],
+          },
+        ],
+      },
+    },
+  };
+  const records = [recipient, future, excluded, otherEdition];
+  const baseline = assembleCatalogRecords(shared, records);
+  const withDonor = assembleCatalogRecords(shared, [donor, ...records]);
+  const listings = new Map(withDonor.directory.listings.map((item) => [item.id, item]));
+  assert.deepEqual(listings.get(recipient.listing.id)?.media, donor.listing.media);
+  assert.deepEqual(listings.get(future.listing.id)?.media, donor.listing.media);
+  assert.deepEqual(listings.get(excluded.listing.id)?.media, []);
+  assert.equal(listings.get(otherEdition.listing.id)?.media, undefined);
+  assert.deepEqual(
+    withDonor.catalog.ports.find(({ id }) => id === recipient.listing.id),
+    baseline.catalog.ports.find(({ id }) => id === recipient.listing.id),
+  );
+  assert.equal(
+    baseline.directory.listings.find(({ id }) => id === recipient.listing.id)?.media,
+    undefined,
+  );
+  const originalAsset = requiredFixture(fixtureRecords(donor.listing.media)[0]);
+  const conflictingAsset = { ...originalAsset, sha256: "f".repeat(64) };
+  const competingDonor = {
+    ...future,
+    listing: {
+      ...future.listing,
+      id: "conflicting-media-fixture",
+      media: [conflictingAsset],
+    },
+  };
+  const conflict = assembleCatalogRecords(shared, [donor, competingDonor, ...records]);
+  assert.equal(
+    conflict.directory.listings.find(({ id }) => id === recipient.listing.id)?.media,
+    undefined,
+  );
+  assert.deepEqual(
+    conflict.directory.listings.find(({ id }) => id === competingDonor.listing.id)?.media,
+    [conflictingAsset],
+  );
+
+  const bothEditions = {
+    ...future,
+    listing: {
+      ...future.listing,
+      original_game: {
+        ...future.listing.original_game!,
+        source_editions: [
+          ...future.listing.original_game!.source_editions,
+          ...otherEdition.listing.original_game.source_editions,
+        ],
+      },
+    },
+  };
+  const competingEdition = {
+    ...otherEdition,
+    listing: {
+      ...otherEdition.listing,
+      media: [
+        {
+          ...conflictingAsset,
+          subject: {
+            ...fixtureRecord(originalAsset.subject),
+            source_edition_id: "other-edition-fixture",
+          },
+        },
+      ],
+    },
+  };
+  for (const donors of [
+    [donor, competingEdition],
+    [donor, competingDonor, competingEdition],
+  ]) {
+    const crossEditionConflict = assembleCatalogRecords(shared, [...donors, bothEditions]);
+    assert.equal(
+      crossEditionConflict.directory.listings.find(({ id }) => id === bothEditions.listing.id)
+        ?.media,
+      undefined,
+    );
+  }
+});
+
 void test("optional recommendation observations round-trip as inert presentation without changing the operational route", () => {
   const source = readCatalogSource(catalogRoot);
   const original = source.catalog.ports.find((port) => port.id === "fragglet-sdl-sopwith")!;
@@ -1065,7 +1411,7 @@ void test("optional recommendation observations round-trip as inert presentation
 void test("reference guides select strict new formats and retain actions and warnings", () => {
   const source = readCatalogSource(catalogRoot);
   assert.equal(source.catalog.schema_version, 3);
-  assert.equal(source.directory.format_version, 15);
+  assert.ok(source.directory.format_version >= 6, "listing guide references require format 6");
   const syphon = source.directory.listings.find(
     (listing) => listing.id === "syphon-filter-sf-pc-port",
   );
@@ -2003,6 +2349,7 @@ void test("implementation descriptions project without changing source, route or
   assert.deepEqual(projected.platforms, before.platforms);
   assert.deepEqual(record.listing.original_game, without.listing.original_game);
   const implementationOnly = structuredClone(record);
+  implementationOnly.no_observed_mod_portals = true;
   delete implementationOnly.listing.media;
   const { ports: _ports, ...shared } = source.catalog;
   assert.equal(assembleCatalogRecords(shared, [implementationOnly]).directory.format_version, 12);

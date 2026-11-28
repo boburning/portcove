@@ -84,11 +84,13 @@ fn workspace_snapshot_holds_acquisition_for_a_pending_setup_port() {
                 })
         })
         .unwrap();
+    let mut retained_listing = service.catalog.listing(&port.id).unwrap().clone();
+    retained_listing.mod_portals.clear();
     let record = crate::PendingSetupRecord {
         format_version: 1,
         id: uuid::Uuid::new_v4().to_string(),
         port_id: port.id.clone(),
-        listing: service.catalog.listing(&port.id).unwrap().clone(),
+        listing: retained_listing,
         path: temporary.path().join("pending"),
         state: crate::PendingSetupState::Downloaded,
         artifact: crate::CatalogDownloadCandidate {

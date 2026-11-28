@@ -140,6 +140,7 @@ import {
   listingProviderIdentity,
   projectListingObservation,
   withoutListingReleaseText,
+  withReleaseText,
 } from "./listing-upstream-observation.mts";
 import { withholdRefused } from "./listing-facts-batch.mts";
 import { accumulatedObservations } from "./listing-facts-observations.mts";
@@ -531,6 +532,11 @@ void test("an unseen identity enrolls from worker facts alone and validates like
   const assembled = assembleCatalogRecords(shared, [...records, listing()], derived.table);
   const port = assembled.catalog.ports.find((candidate) => candidate.id === unseen);
   assert.ok(port, "generated route is an operational definition");
+  assert.equal(port.summary, "Register a copy you prepared from the upstream project.");
+  assert.equal(
+    assembled.directory.listings.find(({ id }) => id === unseen)!.summary,
+    listing().listing.summary,
+  );
   assert.equal(port.adapter, "staged-source-portable");
   assert.deepEqual(port.platforms, ["windows-x86-64"]);
   const release = port.release as {
@@ -1755,6 +1761,15 @@ void test("a sharded run plans, inspects each shard and combines to the unsharde
   assert.deepEqual(combined.state, whole.state);
   assert.equal(combined.settled, whole.settled);
   assert.deepEqual(combined.ineligible, whole.ineligible);
+  assert.equal(combined.archive_body_bytes, undefined);
+  const measuredPlan = { ...plan, archive_body_bytes: 0 };
+  const measuredShards = results.map(({ only, result }, index) => ({
+    only,
+    result: { ...result, archive_body_bytes: index + 1 },
+  }));
+  assert.equal(combineShards(measuredPlan, measuredShards).archive_body_bytes, 36);
+  assert.equal(combineShards(measuredPlan, measuredShards.slice(1)).archive_body_bytes, undefined);
+  assert.equal(combineShards({ ...measuredPlan, needs: [] }, []).archive_body_bytes, 0);
   assert.throws(() => combineShards(plan, [results[0]!, { ...results[0]! }]), /is in two shards/u);
 });
 
@@ -5780,12 +5795,16 @@ void test("a release whose title or first body line states a prerelease is never
   });
   assert.equal(remark.observation.tag, "v3.0");
   assert.equal(remark.observed_releases.find((r) => r.release_id === 2)!.statement, null);
-  // Unobserved text is UNKNOWN optional evidence, not a statement: it is
-  // recorded as such, queued for review, and the release is never offered on
-  // unread text.
-  const unobserved = await run(null);
-  assert.equal(unobserved.observation.tag, "v3.0");
-  assert.equal(unobserved.observed_releases.find((r) => r.release_id === 2)!.text, "unobserved");
+  // Older facts can include inspected bytes with unobserved release text.
+  const unobserved = structuredClone(remark);
+  Object.assign(
+    unobserved.observed_releases.find((r) => r.release_id === 2)!,
+    {
+      text: "unobserved",
+      title: null,
+      statement: null,
+    },
+  );
   assert.equal(reasonOf(decide(listing(id), unobserved)), "release-text-unobserved");
   const generation = generateRegistrations([listing(id)], table(unobserved));
   assert.deepEqual(registrationQueues(generation).release_text_unobserved, [id]);
@@ -6197,7 +6216,10 @@ void test("every archive answering 404 is upstream-unavailable; one 404 is that 
   const original = globalThis.fetch;
   const work = await mkdtemp(join(tmpdir(), "portcove-404-"));
   try {
-    const inspect = cliInspector("/nonexistent/portcove", work);
+    const received: number[] = [];
+    const inspect = cliInspector("/nonexistent/portcove", work, {
+      recordArchiveBodyBytes: (bytes) => received.push(bytes),
+    });
     const asset = {
       id: 11,
       name: windowsZip,
@@ -6220,6 +6242,18 @@ void test("every archive answering 404 is upstream-unavailable; one 404 is that 
         return true;
       });
     }
+    assert.deepEqual(received, [0, 0, 0, 0]);
+    globalThis.fetch = async () => new Response("partial");
+    await assert.rejects(
+      inspect(asset, "windows-x86-64"),
+      (error: unknown) => error instanceof InspectionError && error.refusal === "digest-mismatch",
+    );
+    assert.equal(received.at(-1), 7, "a failed archive still records its received body");
+    await assert.rejects(
+      inspect({ ...asset, size: 4 }, "windows-x86-64"),
+      (error: unknown) => error instanceof InspectionError && error.refusal === "size-exceeded",
+    );
+    assert.equal(received.at(-1), 7, "received bytes can exceed the provider size");
   } finally {
     globalThis.fetch = original;
     await rm(work, { recursive: true, force: true });
@@ -11261,10 +11295,9 @@ const HAND_CHECK_DECISIONS = [
   ["Game-v1.0-win64.zip", "Arc and Alphabet 1.0", "fit"],
   ["Game-v1.0-win64.zip", "Release 1.0", "fit"],
 ];
-// Re-pinned for generator 32: only each enrollment's recorded
-// `generator_version` and facts digest changed.
+// Re-pinned for generator 33: only each enrollment's recorded generator version changed.
 const HAND_CHECK_ENROLLMENTS_SHA256 =
-  "e1ec132da7e3596e93b4fcf02fecc7731855904752ba5beec84820eb837328ac";
+  "9a6ced44bc22ff78b2ed365731ef0e18cfbdd6a2283814ecc405857b13e51c6d";
 
 void test("a relieved name joins integer_as_version under the same condition as an equal name", () => {
   const relieved = { id: "zz-lantern", name: "Lantern: Echoes of Night" };
@@ -11400,12 +11433,13 @@ void test("youkaicountry-yknytt: releases titled as betas are withheld once thei
   const id = "youkaicountry-yknytt";
   const record = listing(id);
   const repository = `fixture-owner/${id}`;
-  const observation = textObservation(repository, [
+  const releases = [
     { id: 1, tag: "0.7.0", at: "2026-08-01T00:00:00Z", title: "v0.7.0 beta" },
     { id: 2, tag: "0.7.1", at: "2026-09-01T00:00:00Z", title: "v0.7.1 beta" },
     { id: 3, tag: "0.7.2", at: "2026-10-01T00:00:00Z", title: "v0.7.2 beta" },
     { id: 4, tag: "0.7.3", at: "2026-11-01T00:00:00Z", title: "v0.7.3 beta" },
-  ]);
+  ];
+  const observation = textObservation(repository, releases);
   // The text travels beside (never inside) the Core-shaped observation.
   const policy = projectListingObservation(record.listing, observation, 12);
   assert.equal(
@@ -11419,26 +11453,52 @@ void test("youkaicountry-yknytt: releases titled as betas are withheld once thei
   });
   const facts = observed.table.entries[0]!;
   assert.equal(facts.ineligible?.reason, "no-stable-release");
-  // An older handoff without release text: the same releases are recorded
-  // unobserved and the fit never offers them on unread text.
+  // An old handoff without release text defers archive inspection.
+  const inspected: string[] = [];
   const unread = await derive([record], throughHandoff(record, observation, false), undefined, {
     classify: anyNameClassifier,
+    inspect: inspector({}, inspected),
   });
-  const unreadFacts = unread.table.entries[0]!;
-  assert.equal(unreadFacts.observation.tag, "0.7.3");
-  assert.ok(unreadFacts.observed_releases.every((release) => release.text === "unobserved"));
-  assert.equal(reasonOf(decide(record, unreadFacts)), "release-text-unobserved");
-  assert.match(gateOn(record, unreadFacts), /own text nobody read/u);
+  assert.deepEqual(inspected, []);
+  assert.deepEqual(unread.needs, []);
+  assert.deepEqual(unread.table.entries, []);
+  assert.equal(unread.report[0]?.outcome, "unknown");
+  assert.equal(unread.report[0]?.reason, "release-text-unobserved");
   // Text of other facts is never attached.
   const stale = textObservation(repository, [
     { id: 4, tag: "0.7.3", at: "2026-11-01T00:00:00Z", title: "v0.7.3" },
   ]);
-  const report = throughHandoff(record, observation) as {
-    listings: { upstream_observation: Record<string, unknown> }[];
+  const report = {
+    listings: [
+      {
+        id,
+        upstream_observation: withReleaseText(policy.listing_update.upstream_observation, {
+          ...policy.listing_release_text,
+          facts_sha256: stale.facts_sha256,
+        }),
+      },
+    ],
   };
-  report.listings[0]!.upstream_observation.facts_sha256 = stale.facts_sha256;
   const mismatched = await derive([record], report, undefined, { classify: anyNameClassifier });
-  assert.ok(mismatched.table.entries[0]!.observed_releases.every((r) => r.text === "unobserved"));
+  assert.deepEqual(mismatched.needs, []);
+  assert.equal(mismatched.report[0]?.reason, "release-text-unobserved");
+
+  // Observed text wakes the same candidate without a version or asset change.
+  const stable = textObservation(
+    repository,
+    releases.map((release) => (release.id === 4 ? { ...release, title: "v0.7.3" } : release)),
+  );
+  const rechecked = await derive([record], throughHandoff(record, stable), unread.table, {
+    classify: anyNameClassifier,
+    state: unread.state,
+    inspect: inspector({}, inspected),
+  });
+  assert.equal(inspected.length, 1);
+  assert.equal(rechecked.table.entries[0]?.observation.tag, "0.7.3");
+  assert.equal(
+    rechecked.table.entries[0]?.observed_releases.find((r) => r.release_id === 4)?.text,
+    "observed",
+  );
 });
 
 void test("Faxanadu: newer releases skipped by their words alone are hand-checked, never silently replaced (#1422 3a)", async () => {

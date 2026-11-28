@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
+import { controlledAct } from "../../test/controlled-react-act";
 import { desktopApi } from "../api";
 import { BootstrapRecovery } from "../App";
 import type { LibraryRecoveryBundle, LibraryRecoveryBundlePlan, OperationEvent } from "../types";
@@ -49,8 +50,9 @@ async function openCreationReview(
   surface: ReactNode = (
     <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />
   ),
+  reviewedPlan = plan,
 ) {
-  const review = vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockResolvedValue(plan);
+  const review = vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockResolvedValue(reviewedPlan);
   await render(surface);
   const trigger = page.getByRole("button", { name: "Create recovery bundle", exact: true });
   await trigger.click();
@@ -62,6 +64,93 @@ async function openCreationReview(
   expect(review).toHaveBeenCalledExactlyOnceWith(destination, 7);
   return { dialog, trigger };
 }
+
+const longReview = {
+  ...plan,
+  source_root: `E:/${"Player data/Installed versions/Library exports/".repeat(10)}library`,
+};
+
+it.each([1280, 320])(
+  "keeps recovery actions in view beside scrollable details at %ipx",
+  async (width) => {
+    const create = vi.spyOn(desktopApi, "createLibraryRecoveryBundle");
+    await page.viewport(width, 500);
+    const { dialog } = await openCreationReview(undefined, longReview);
+    const review = dialog.getByRole("region", { name: "Creation review" });
+    const heading = review.getByRole("heading", { name: "Review what Portcove will copy" });
+    await expect.element(heading).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    expect(create).not.toHaveBeenCalled();
+    await expect.element(review.getByText(longReview.source_root)).toBeVisible();
+    const action = dialog.getByRole("button", { name: "Copy and verify" }).element();
+    const close = dialog.getByRole("button", { name: "Close", exact: true }).element();
+    const detailRegion = dialog.getByRole("region", { name: "Recovery details" });
+    const details = detailRegion.element() as HTMLElement;
+    expect(details.scrollHeight).toBeGreaterThan(details.clientHeight);
+    expect(details.scrollWidth).toBeLessThanOrEqual(details.clientWidth);
+    const detailsBottom = details.getBoundingClientRect().bottom;
+    const headingBounds = heading.element().getBoundingClientRect();
+    expect(headingBounds.top).toBeGreaterThanOrEqual(details.getBoundingClientRect().top);
+    expect(headingBounds.bottom).toBeLessThanOrEqual(detailsBottom);
+    const title = dialog.getByRole("heading", { name: "Create recovery bundle" }).element();
+    const titleBounds = title.getBoundingClientRect();
+    expect(titleBounds.top).toBeGreaterThanOrEqual(dialog.element().getBoundingClientRect().top);
+    expect(titleBounds.bottom).toBeLessThanOrEqual(details.getBoundingClientRect().top);
+    const panelBottom = dialog.element().getBoundingClientRect().bottom;
+    expect(close.getBoundingClientRect().top).toBeGreaterThanOrEqual(detailsBottom);
+    expect(action.getBoundingClientRect().top).toBeGreaterThanOrEqual(detailsBottom);
+    expect(close.getBoundingClientRect().bottom).toBeLessThanOrEqual(panelBottom);
+    expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(panelBottom);
+    await page.screenshot({
+      path: `../../../../outputs/recovery-review/actions-${width}x500.png`,
+      element: dialog,
+    });
+    expect(details.tabIndex).toBe(0);
+    details.focus();
+    await expect.element(detailRegion).toHaveFocus();
+    await userEvent.keyboard("{PageDown}");
+    await expect.poll(() => details.scrollTop).toBeGreaterThan(0);
+    expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(500);
+    expect(title.getBoundingClientRect().top).toBe(titleBounds.top);
+  },
+);
+
+it("keeps the player's new focus when a pending recovery review completes", async () => {
+  let finish!: (result: LibraryRecoveryBundlePlan) => void;
+  const pending = new Promise<LibraryRecoveryBundlePlan>((resolve) => {
+    finish = resolve;
+  });
+  vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockReturnValue(pending);
+  await render(
+    <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />,
+  );
+  await page.getByRole("button", { name: "Create recovery bundle", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Create recovery bundle" });
+  await dialog.getByRole("textbox", { name: "New bundle folder" }).fill(destination);
+  await dialog.getByRole("button", { name: "Review bundle creation" }).click();
+  await expect.element(dialog.getByText("Checking library coverage…")).toBeVisible();
+  const details = dialog.getByRole("region", { name: "Recovery details" });
+  (details.element() as HTMLElement).focus();
+  await expect.element(details).toHaveFocus();
+  await controlledAct(async () => {
+    finish(plan);
+    await pending;
+  });
+  await expect
+    .element(dialog.getByRole("heading", { name: "Review what Portcove will copy" }))
+    .toBeVisible();
+  await expect.element(details).toHaveFocus();
+});
+
+it("keeps recovery actions reachable through whole-dialog scrolling in a short window", async () => {
+  await page.viewport(320, 300);
+  const { dialog } = await openCreationReview(undefined, longReview);
+  const action = dialog.getByRole("button", { name: "Copy and verify" }).element();
+  const panel = dialog.element();
+  expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight);
+  action.scrollIntoView();
+  expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(300);
+});
 
 it("reviews coverage before copying and shows the verified bundle after publishing", async () => {
   const create = vi.spyOn(desktopApi, "createLibraryRecoveryBundle").mockResolvedValue(bundle);
@@ -143,6 +232,7 @@ it.each([
 );
 
 it("waits for the copy worker to stop and offers continuation from its exact staging folder", async () => {
+  await page.viewport(320, 500);
   const staging = "D:/backups/.portcove-recovery-bundle-stage";
   let stopCopy!: () => void;
   const pending = new Promise<LibraryRecoveryBundle>((_resolve, reject) => {
@@ -159,7 +249,7 @@ it("waits for the copy worker to stop and offers continuation from its exact sta
     operation_id: "copy-operation",
     parent_operation_id: null,
     target: null,
-    sequence: 1,
+    sequence: 2,
     timestamp_ms: 1,
     phase: "Copying recovery data",
     completed: 4096,
@@ -170,6 +260,7 @@ it("waits for the copy worker to stop and offers continuation from its exact sta
     .spyOn(desktopApi, "createLibraryRecoveryBundle")
     .mockImplementation((_destination, _plan, _generation, report) => {
       report?.(progress);
+      report?.({ ...progress, sequence: 1, completed: 1024 });
       return pending;
     });
   const cancel = vi.spyOn(desktopApi, "cancelOperation").mockResolvedValue({
@@ -193,9 +284,9 @@ it("waits for the copy worker to stop and offers continuation from its exact sta
   const { dialog } = await openCreationReview(<Workspace />);
   try {
     await dialog.getByRole("button", { name: "Copy and verify", exact: true }).click();
-    await expect
-      .element(dialog.getByRole("progressbar", { name: "Recovery data copied" }))
-      .toBeVisible();
+    const progressBar = dialog.getByRole("progressbar", { name: "Recovery data copied" });
+    await expect.element(progressBar).toBeVisible();
+    await expect.element(progressBar).toHaveAttribute("value", "4096");
     await dialog.getByRole("button", { name: "Hide details", exact: true }).click();
     await expect.element(dialog).not.toBeInTheDocument();
     await expect
@@ -207,6 +298,8 @@ it("waits for the copy worker to stop and offers continuation from its exact sta
       .toBeVisible();
     await page.getByRole("button", { name: "View recovery bundle operation", exact: true }).click();
     const cancelButton = dialog.getByRole("button", { name: "Cancel copy", exact: true });
+    await expect.element(cancelButton).toBeVisible();
+    expect(cancelButton.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(500);
     await cancelButton.click();
     expect(cancel).toHaveBeenCalledExactlyOnceWith("copy-operation");
     await expect.element(cancelButton).toBeDisabled();
@@ -308,6 +401,7 @@ it.for([
 });
 
 it("explains an occupied restore destination and keeps the verified bundle for a fresh review", async () => {
+  await page.viewport(320, 500);
   const occupied = "D:/occupied";
   const message = "import requires a new or empty library; existing data was retained";
   const summary =
@@ -367,6 +461,16 @@ it("explains an occupied restore destination and keeps the verified bundle for a
   await expect.element(alert).not.toBeInTheDocument();
   await check.click();
   await expect.element(dialog.getByRole("region", { name: "Restore review" })).toBeVisible();
+  const heading = dialog.getByRole("heading", { name: "Review the restore destination" });
+  await expect.element(heading).toHaveFocus();
+  const details = dialog.getByRole("region", { name: "Recovery details" }).element();
+  const headingBounds = heading.element().getBoundingClientRect();
+  expect(headingBounds.top).toBeGreaterThanOrEqual(details.getBoundingClientRect().top);
+  expect(headingBounds.bottom).toBeLessThanOrEqual(details.getBoundingClientRect().bottom);
+  await page.screenshot({
+    path: "../../../../outputs/recovery-review/restore-320x500.png",
+    element: dialog,
+  });
   expect(review.mock.calls).toEqual([
     [destination, occupied, 7],
     [destination, restoreDestination, 7],

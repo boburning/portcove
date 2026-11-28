@@ -73,6 +73,8 @@ struct CreationIntent {
     bundle_id: Uuid,
     plan: LibraryRecoveryBundlePlan,
     created_at: i64,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    include_mod_portal_preferences: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -154,7 +156,9 @@ impl PortcoveService {
                 let (review, metadata, content) = prepare(
                     &service,
                     &intent.plan.destination_root,
-                    Creation::Continuing,
+                    Creation::Continuing {
+                        include_mod_portal_preferences: intent.include_mod_portal_preferences,
+                    },
                 )?;
                 require_same_plan(&review, &intent.plan.plan_sha256)?;
                 publish_creation(
@@ -340,6 +344,7 @@ fn start_creation(
         bundle_id: Uuid::new_v4(),
         plan,
         created_at: metadata.exported_at,
+        include_mod_portal_preferences: true,
     };
     let stage = staging_path(&intent.plan.destination_root, intent.bundle_id)?;
     create_private_directory(&stage)?;
@@ -417,7 +422,13 @@ fn publish_creation(
     verify_payload(&payload, &manifest)?;
     // The source lease protects against Portcove writers. Recheck the complete
     // source before publication to detect changes outside that coordination.
-    let (review, _, _) = prepare(service, &intent.plan.destination_root, Creation::Continuing)?;
+    let (review, _, _) = prepare(
+        service,
+        &intent.plan.destination_root,
+        Creation::Continuing {
+            include_mod_portal_preferences: intent.include_mod_portal_preferences,
+        },
+    )?;
     require_same_plan(&review, &intent.plan.plan_sha256)?;
     crate::transfer_copy::refuse_sensitive_content(
         &intent.plan.source_root,
@@ -983,6 +994,7 @@ mod tests {
             bundle_id: Uuid::new_v4(),
             plan,
             created_at: 1,
+            include_mod_portal_preferences: true,
         };
         let stage = staging_path(&intent.plan.destination_root, intent.bundle_id).unwrap();
         let disk_full =
@@ -1515,6 +1527,9 @@ mod tests {
         let workspace = tempfile::tempdir().unwrap();
         let source = workspace.path().join("library");
         let destination = workspace.path().join("bundle");
+        let expected = crate::mod_portal_preferences::record_portability_fixture(
+            &Library::open(&source).unwrap(),
+        );
         let (source_id, plan) = plan_fixture(&source, &destination);
         let interrupted = start_creation(
             &source,
@@ -1571,6 +1586,59 @@ mod tests {
             fs::read(restored.destination_root.join("user/progress.bin")).unwrap(),
             b"saved progress"
         );
+        let service = PortcoveService::new(Library::open(&restore).unwrap()).unwrap();
+        let recovered = service.export_library_metadata().unwrap();
+        assert_eq!(recovered.schema_version, 17);
+        assert_eq!(recovered.mod_portal_preferences, [expected.clone()]);
+        let mut directory = service.catalog().listing_document().clone();
+        directory.format_version = directory.format_version.max(16);
+        let listing = directory
+            .listings
+            .iter_mut()
+            .find(|listing| listing.id == expected.port_id)
+            .unwrap();
+        let new_source = "obs-ts-789-12345678-1111-2222-3333-123456789abc";
+        listing.mod_portals = vec![crate::ListingModPortal {
+            id: new_source.into(),
+            site: crate::ModPortalSite::CommunitySite,
+            name: "Thunderstore".into(),
+            url: "https://thunderstore.io/c/fixture-dormant/".into(),
+            instructions: "See the current community.".into(),
+        }];
+        let selected = service
+            .catalog()
+            .clone()
+            .with_projected_listing_document(directory)
+            .unwrap();
+        let mut database = service.library().connection().unwrap();
+        let transaction = database.transaction().unwrap();
+        crate::mod_portal_preferences::retain_generated_thunderstore_choices(
+            &transaction,
+            None,
+            &selected,
+        )
+        .unwrap();
+        transaction.commit().unwrap();
+        let updated = service.export_library_metadata().unwrap();
+        let entry = &updated.mod_portal_preferences[0];
+        assert_eq!(entry.preferences.revision, 8);
+        assert_eq!(entry.preferences.choices.hidden_sources, [new_source]);
+        assert_eq!(
+            entry.preferences.choices.local_page,
+            expected.preferences.choices.local_page
+        );
+        assert_eq!(entry.hidden_communities[1].source, new_source);
+        service
+            .set_mod_portal_preferences(&expected.port_id, 8, crate::ModPortalChoices::default())
+            .unwrap();
+        let reset = service.export_library_metadata().unwrap();
+        let entry = &reset.mod_portal_preferences[0];
+        assert_eq!(entry.preferences.revision, 9);
+        assert_eq!(
+            entry.preferences.choices,
+            crate::ModPortalChoices::default()
+        );
+        assert!(entry.hidden_communities.is_empty());
         assert_eq!(
             Library::open(&source).unwrap().identity().unwrap(),
             source_id
@@ -1585,6 +1653,55 @@ mod tests {
         let error = PortcoveService::inspect_library_recovery_bundle(&destination).unwrap_err();
         assert_eq!(error.failure.mutation_state, MutationState::NoChanges);
         assert!(PortcoveService::plan_library_recovery_restore(&destination, &restore).is_err());
+    }
+
+    #[test]
+    fn legacy_bundle_creation_resumes_without_rebinding_its_reviewed_metadata() {
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let library = Library::open(&source).unwrap();
+        let expected = crate::mod_portal_preferences::record_portability_fixture(&library);
+        let service = PortcoveService::new(library).unwrap();
+        let (plan, metadata, _) = prepare(
+            &service,
+            &destination,
+            Creation::Continuing {
+                include_mod_portal_preferences: false,
+            },
+        )
+        .unwrap();
+        assert!(metadata.mod_portal_preferences.is_empty());
+        let intent = CreationIntent {
+            format_version: FORMAT,
+            bundle_id: Uuid::new_v4(),
+            plan,
+            created_at: metadata.exported_at,
+            include_mod_portal_preferences: false,
+        };
+        let stage = staging_path(&intent.plan.destination_root, intent.bundle_id).unwrap();
+        create_private_directory(&stage).unwrap();
+        write_authenticated(
+            &stage.join(JOURNAL_FILE),
+            &stage,
+            JOURNAL_DOMAIN,
+            &intent,
+            MAX_JOURNAL_BYTES,
+        )
+        .unwrap();
+        drop(service);
+
+        let bundle = PortcoveService::resume_library_recovery_bundle(&stage).unwrap();
+        let (_, payload) = read_metadata(&bundle.path.join(METADATA_FILE)).unwrap();
+        assert!(payload.mod_portal_preferences.is_empty());
+        let unchanged = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
+        assert_eq!(
+            unchanged
+                .export_library_metadata()
+                .unwrap()
+                .mod_portal_preferences,
+            [expected]
+        );
     }
 
     #[test]

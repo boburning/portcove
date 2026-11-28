@@ -5,14 +5,23 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.d.ts";
-import { validArtworkCollection, validArtworkMapping } from "./catalog-cover-mapping.mts";
+import {
+  imagePattern,
+  positiveId,
+  validArtworkCollection,
+  validArtworkMapping,
+} from "./catalog-cover-mapping.mts";
 import {
   createCoreImageValidator,
   hashCoreImageValidatorFile,
   createIgdbInspector,
   isConfirmedIgdbImageGone,
+  gameMediaDimensionsFit,
+  gameMediaImageTarget,
+  gameMediaRoles,
 } from "./inspect-igdb-artwork.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
+import { usesScummvmEngine } from "./catalog-route-holds.mts";
 import { isRecord } from "./runtime-values.mts";
 import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
 
@@ -26,6 +35,9 @@ const maxReportBytes = 256 * 1024;
 const imagesPerPass = 64;
 const maxImageBytes = 64 * 1024 * 1024;
 const wallMs = 150_000;
+const mediaImagesPerPass = 8;
+const mediaImageBytes = 16 * 1024 * 1024;
+const mediaWallMs = 30_000;
 const dayMs = 24 * 60 * 60 * 1000;
 
 export function artworkHealthProducer(environment: NodeJS.ProcessEnv, revision: string) {
@@ -98,12 +110,75 @@ export function artworkHealthInventory(document: unknown) {
 
 type Inventory = ReturnType<typeof artworkHealthInventory>;
 
-export function artworkHealthWindow(inventory: Inventory, now: number) {
-  const ids = [...inventory.images.keys()].sort();
-  // Stable UTC-day rotation. A full cycle samples every image in a stable inventory.
-  const windows = Math.max(1, Math.ceil(ids.length / imagesPerPass));
+function rotateWindow(keys: string[], perPass: number, now: number) {
+  // Stable UTC-day rotation across a stable inventory.
+  const windows = Math.max(1, Math.ceil(keys.length / perPass));
   const index = Math.floor(now / dayMs) % windows;
-  return { index, windows, ids: ids.slice(index * imagesPerPass, (index + 1) * imagesPerPass) };
+  return { index, windows, ids: keys.sort().slice(index * perPass, (index + 1) * perPass) };
+}
+
+export function artworkHealthWindow(inventory: Inventory, now: number) {
+  return rotateWindow([...inventory.images.keys()], imagesPerPass, now);
+}
+
+type MediaRole = keyof typeof gameMediaRoles;
+type MediaTarget = {
+  imageId: string;
+  role: MediaRole;
+  acceptedDigests: Map<MediaRole, Set<string>>;
+};
+
+function mediaHealthReference(asset: unknown) {
+  if (
+    !isRecord(asset) ||
+    typeof asset.role !== "string" ||
+    !Object.hasOwn(gameMediaRoles, asset.role) ||
+    !isRecord(asset.igdb) ||
+    !positiveId(asset.igdb.game_id) ||
+    !positiveId(asset.igdb.record_id) ||
+    typeof asset.igdb.image_id !== "string" ||
+    !imagePattern.test(asset.igdb.image_id) ||
+    !validDigest(asset.sha256)
+  )
+    return;
+  const role = asset.role as MediaRole;
+  const imageId = asset.igdb.image_id;
+  const { variant, kind } = gameMediaRoles[role];
+  if (
+    asset.igdb.kind !== kind ||
+    asset.url !== "https://images.igdb.com/igdb/image/upload/t_" + variant + "/" + imageId + ".png"
+  )
+    return;
+  return { key: gameMediaImageTarget(role, imageId), imageId, role, sha256: asset.sha256 };
+}
+
+export function mediaHealthInventory(document: unknown) {
+  if (!isRecord(document) || !Array.isArray(document.listings))
+    throw new Error("Media health needs the committed listing inventory");
+  const targets = new Map<string, MediaTarget>();
+  for (const row of document.listings as unknown[]) {
+    if (
+      !isRecord(row) ||
+      !Array.isArray(row.media) ||
+      usesScummvmEngine({ listing: { implementation: row.implementation } })
+    )
+      continue;
+    for (const asset of row.media as unknown[]) {
+      const reference = mediaHealthReference(asset);
+      if (!reference) continue;
+      const { key, imageId, role, sha256 } = reference;
+      const target = targets.get(key) ?? {
+        imageId,
+        role,
+        acceptedDigests: new Map<MediaRole, Set<string>>(),
+      };
+      const digests = target.acceptedDigests.get(role) ?? new Set();
+      digests.add(sha256);
+      target.acceptedDigests.set(role, digests);
+      targets.set(key, target);
+    }
+  }
+  return targets;
 }
 
 type Content = { sha256: string; bytes: number; width: number; height: number };
@@ -112,36 +187,103 @@ type ImageRecord = { image_id: string } & (
   | { status: "gone" | "unavailable" | "deferred" }
 );
 
-export async function observeArtworkWindow(
-  selected: readonly string[],
-  inspector: Pick<
-    ReturnType<typeof createIgdbInspector>,
-    "inspectImage" | "providerMetrics" | "batchStatus"
-  >,
+type ImageInspector = Pick<
+  ReturnType<typeof createIgdbInspector>,
+  "providerMetrics" | "batchStatus"
+>;
+
+async function observeImageWindow<T>(
+  selected: readonly T[],
+  inspector: ImageInspector,
   signal: AbortSignal,
+  byteBudget: number,
+  targetId: (target: T) => string,
+  read: (target: T, remaining: number) => Promise<Content>,
+  variant?: (target: T) => (typeof gameMediaRoles)[MediaRole]["variant"],
 ) {
   const observations: ImageRecord[] = [];
-  for (const imageId of selected) {
-    const remaining = maxImageBytes - inspector.providerMetrics.image_bytes;
+  for (const target of selected) {
+    const image_id = targetId(target);
+    const remaining = byteBudget - inspector.providerMetrics.image_bytes;
     if (remaining <= 0 || signal.aborted || inspector.batchStatus().image_retry_at) {
-      observations.push({ image_id: imageId, status: "deferred" });
+      observations.push({ image_id, status: "deferred" });
       continue;
     }
     try {
-      const { sha256, bytes, width, height } = await inspector.inspectImage(imageId, remaining);
-      observations.push({
-        image_id: imageId,
-        status: "read",
-        content: { sha256, bytes, width, height },
-      });
+      const { sha256, bytes, width, height } = await read(target, remaining);
+      observations.push({ image_id, status: "read", content: { sha256, bytes, width, height } });
     } catch (error) {
       observations.push({
-        image_id: imageId,
-        status: isConfirmedIgdbImageGone(error, imageId) ? "gone" : "unavailable",
+        image_id,
+        status: isConfirmedIgdbImageGone(error, image_id, variant?.(target))
+          ? "gone"
+          : "unavailable",
       });
     }
   }
   return observations;
+}
+
+export async function observeArtworkWindow(
+  selected: readonly string[],
+  inspector: ImageInspector & Pick<ReturnType<typeof createIgdbInspector>, "inspectImage">,
+  signal: AbortSignal,
+  byteBudget = maxImageBytes,
+) {
+  return observeImageWindow(
+    selected,
+    inspector,
+    signal,
+    byteBudget,
+    (id) => id,
+    (id, remaining) => inspector.inspectImage(id, remaining),
+  );
+}
+
+export async function observeMediaArtworkWindow(
+  inventory: ReturnType<typeof mediaHealthInventory>,
+  inspector: ImageInspector & Pick<ReturnType<typeof createIgdbInspector>, "inspectMediaImage">,
+  signal: AbortSignal,
+  now: number,
+) {
+  const window = rotateWindow([...inventory.keys()], mediaImagesPerPass, now);
+  const targets = window.ids.map((key) => inventory.get(key)!);
+  const observed = await observeImageWindow(
+    targets,
+    inspector,
+    signal,
+    mediaImageBytes,
+    (target) => target.imageId,
+    (target, remaining) => inspector.inspectMediaImage(target.imageId, target.role, remaining),
+    (target) => gameMediaRoles[target.role].variant,
+  );
+  return {
+    window: { index: window.index, windows: window.windows, eligible: inventory.size },
+    image_requests: inspector.providerMetrics.image_requests,
+    image_bytes: inspector.providerMetrics.image_bytes,
+    images: observed.map((record, index) => ({
+      ...record,
+      target: window.ids[index]!,
+      roles: mediaRoleHealth(targets[index]!, record),
+    })),
+  };
+}
+
+function mediaRoleHealth(
+  target: MediaTarget,
+  record: ImageRecord,
+): { role: MediaRole; state: Exclude<ImageRecord["status"], "read"> | "unchanged" | "mismatch" }[] {
+  return [...target.acceptedDigests]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([role, digests]) => ({
+      role,
+      state:
+        record.status === "read"
+          ? digests.size === 1 && digests.has(record.content.sha256)
+            ? "unchanged"
+            : "mismatch"
+          : record.status,
+    }));
 }
 
 function committedInventory(revision: string) {
@@ -149,10 +291,8 @@ function committedInventory(revision: string) {
     timeout: 10_000,
     maxBuffer: listingDirectoryTextMaximum,
   });
-  return {
-    sha256: digest(bytes),
-    inventory: artworkHealthInventory(JSON.parse(bytes.toString("utf8"))),
-  };
+  const document: unknown = JSON.parse(bytes.toString("utf8"));
+  return { sha256: digest(bytes), inventory: artworkHealthInventory(document), document };
 }
 
 function payloadOf(value: unknown): Content | null {
@@ -276,25 +416,191 @@ export async function readScheduledArtworkHealth(
   return { ...verified, revision: verified.revision + "#sha256:" + digest(bytes) };
 }
 
+export function projectMediaArtworkHealth(
+  report: unknown,
+  context: {
+    inventory: ReturnType<typeof mediaHealthInventory>;
+    listingsSha256: string;
+    cliSha256: string;
+    producer: ReturnType<typeof artworkHealthProducer>;
+    now: number;
+  },
+) {
+  const { inventory, producer, now } = context;
+  if (
+    !isRecord(report) ||
+    report.format !== 1 ||
+    report.authority !== "none" ||
+    report.listings_sha256 !== context.listingsSha256 ||
+    report.cli_sha256 !== context.cliSha256 ||
+    !isRecord(report.producer) ||
+    Object.entries(producer).some(
+      ([key, value]) => !isRecord(report.producer) || report.producer[key] !== value,
+    ) ||
+    typeof report.observed_at !== "string" ||
+    !isRecord(report.window) ||
+    !Array.isArray(report.images)
+  )
+    throw new Error("Unbound media health report");
+  const at = Date.parse(report.observed_at);
+  if (!Number.isFinite(at) || at > now || now - at > 2 * 60 * 60 * 1000)
+    throw new Error("Media health clock differs from its scheduled run");
+  const selected = rotateWindow([...inventory.keys()], mediaImagesPerPass, at);
+  const { image_requests, image_bytes, retry_at } = report;
+  if (
+    report.window.index !== selected.index ||
+    report.window.windows !== selected.windows ||
+    report.window.eligible !== inventory.size ||
+    report.images.length !== selected.ids.length ||
+    typeof image_requests !== "number" ||
+    !Number.isSafeInteger(image_requests) ||
+    image_requests < 0 ||
+    image_requests > selected.ids.length ||
+    typeof image_bytes !== "number" ||
+    !Number.isSafeInteger(image_bytes) ||
+    image_bytes < 0 ||
+    (retry_at !== null &&
+      (typeof retry_at !== "string" ||
+        !Number.isFinite(Date.parse(retry_at)) ||
+        Date.parse(retry_at) < at))
+  )
+    throw new Error("Media health report did not account for the selected window");
+
+  let validatedBytes = 0;
+  let attempted = 0;
+  let unavailable = 0;
+  const facts = new Map<string, unknown>();
+  const gaps: { subject_key: string; code: string; message: string }[] = [];
+  const counts = { unchanged: 0, mismatch: 0, gone: 0, unavailable: 0, deferred: 0 };
+  for (const [index, row] of (report.images as unknown[]).entries()) {
+    const target = selected.ids[index]!;
+    const reference = inventory.get(target)!;
+    const image_id = reference.imageId;
+    if (!isRecord(row) || row.target !== target || row.image_id !== image_id)
+      throw new Error("Media health report differs from the committed image window");
+    const { status } = row;
+    const content = payloadOf(row.content);
+    let result: ImageRecord;
+    if (
+      status === "read" &&
+      content &&
+      gameMediaDimensionsFit(reference.role, content.width, content.height)
+    ) {
+      validatedBytes += content.bytes;
+      result = { image_id, status, content };
+    } else if (
+      (status === "gone" || status === "unavailable" || status === "deferred") &&
+      !Object.hasOwn(row, "content")
+    ) {
+      result = { image_id, status };
+    } else throw new Error("Media health result has invalid Core content evidence");
+    const roles = mediaRoleHealth(reference, result);
+    if (
+      !Array.isArray(row.roles) ||
+      row.roles.length !== roles.length ||
+      roles.some(({ role, state }, roleIndex) => {
+        const value: unknown = (row.roles as unknown[])[roleIndex];
+        return !isRecord(value) || value.role !== role || value.state !== state;
+      })
+    )
+      throw new Error("Media health report differs from the committed artwork roles");
+    for (const { state } of roles) counts[state]++;
+    if (status === "read" || status === "gone") attempted++;
+    if (status === "unavailable") unavailable++;
+    const key = "artwork:" + target;
+    if (status === "unavailable" || status === "deferred") {
+      gaps.push({ subject_key: key, code: status, message: "No admitted media observation" });
+      continue;
+    }
+    facts.set(key, { target, ...result });
+  }
+  if (
+    validatedBytes > mediaImageBytes ||
+    validatedBytes > image_bytes ||
+    image_requests < attempted ||
+    image_requests > attempted + unavailable ||
+    (image_requests === attempted && image_bytes !== validatedBytes)
+  )
+    throw new Error(
+      "Media health report has inconsistent image accounting or exceeds the validated image budget",
+    );
+
+  return {
+    revision: `scheduled-media-health:${producer.run}-${producer.attempt}@${producer.revision}`,
+    expected: inventory.size,
+    counts,
+    image_requests,
+    image_bytes,
+    retry_at,
+    facts,
+    gaps,
+    complete: selected.ids.length === inventory.size && gaps.length === 0,
+  };
+}
+
+export async function readScheduledMediaArtworkHealth(
+  file: string,
+  revision: string,
+  cliSha256: string,
+  committedListings: Buffer,
+) {
+  const producer = artworkHealthProducer(process.env, revision);
+  const bytes = await readControllerToolFile(file, maxReportBytes);
+  const report: unknown = JSON.parse(bytes.toString("utf8"));
+  const document: unknown = JSON.parse(committedListings.toString("utf8"));
+  const verified = projectMediaArtworkHealth(report, {
+    inventory: mediaHealthInventory(document),
+    listingsSha256: digest(committedListings),
+    cliSha256,
+    producer,
+    now: Date.now(),
+  });
+  return { ...verified, revision: verified.revision + "#sha256:" + digest(bytes) };
+}
+
 async function main(args: string[]) {
-  const [cli, output] = args;
-  if (!cli || !output || args.length !== 2)
-    throw new Error("Expected Core CLI and new receipt path");
+  const [cli, output, mediaOutput] = args;
+  if (
+    !cli ||
+    !output ||
+    args.length > 3 ||
+    (mediaOutput && path.resolve(mediaOutput) === path.resolve(output))
+  )
+    throw new Error("Expected Core CLI and distinct new receipt paths");
   const revision = execFileSync("git", ["rev-parse", "HEAD"], {
     timeout: 10_000,
     encoding: "utf8",
   }).trim();
   const producer = artworkHealthProducer(process.env, revision);
-  const { sha256, inventory } = committedInventory(revision);
+  const { sha256, inventory, document } = committedInventory(revision);
+  const mediaInventory = mediaOutput ? mediaHealthInventory(document) : undefined;
+  const hasMedia = (mediaInventory?.size ?? 0) > 0;
   const cliSha256 = hashCoreImageValidatorFile(path.resolve(cli));
   const startedAt = Date.now();
   const scratch = mkdtempSync(path.join(tmpdir(), "portcove-artwork-health-"));
   try {
     const validate = createCoreImageValidator(cli, scratch, cliSha256);
-    const signal = AbortSignal.timeout(wallMs);
-    const inspector = createIgdbInspector(undefined, validate, fetch, { signal });
+    const operationStart = performance.now();
+    const operationDeadline = operationStart + wallMs;
+    const coverBudget = hasMedia ? wallMs - mediaWallMs : wallMs;
+    const coverDeadline = operationStart + coverBudget;
+    const operationSignal = AbortSignal.timeout(wallMs);
+    const signal = hasMedia
+      ? AbortSignal.any([operationSignal, AbortSignal.timeout(coverBudget)])
+      : operationSignal;
+    const inspector = createIgdbInspector(
+      undefined,
+      (bytes) => validate(bytes, coverDeadline),
+      fetch,
+      { signal },
+    );
     const window = artworkHealthWindow(inventory, startedAt);
-    const observations = await observeArtworkWindow(window.ids, inspector, signal);
+    const observations = await observeArtworkWindow(
+      window.ids,
+      inspector,
+      signal,
+      hasMedia ? maxImageBytes - mediaImageBytes : maxImageBytes,
+    );
     const report = {
       format: 1,
       authority: "none",
@@ -315,6 +621,41 @@ async function main(args: string[]) {
     if (Buffer.byteLength(bytes) > maxReportBytes)
       throw new Error("Cover health report exceeds its bound");
     writeFileSync(output, bytes, { flag: "wx", mode: 0o600 });
+    if (mediaOutput && mediaInventory) {
+      const providerRetry = inspector.batchStatus().image_retry_at;
+      const mediaDeadline = Math.min(operationDeadline, performance.now() + mediaWallMs);
+      const mediaSignal = providerRetry
+        ? AbortSignal.abort()
+        : AbortSignal.any([operationSignal, AbortSignal.timeout(mediaWallMs)]);
+      const mediaInspector = createIgdbInspector(
+        undefined,
+        (bytes) => validate(bytes, mediaDeadline),
+        fetch,
+        {
+          signal: mediaSignal,
+        },
+      );
+      const assessment = await observeMediaArtworkWindow(
+        mediaInventory,
+        mediaInspector,
+        mediaSignal,
+        startedAt,
+      );
+      const mediaReport = {
+        format: 1,
+        authority: "none",
+        producer,
+        listings_sha256: sha256,
+        cli_sha256: cliSha256,
+        observed_at: report.observed_at,
+        retry_at: providerRetry ?? mediaInspector.batchStatus().image_retry_at,
+        ...assessment,
+      };
+      const mediaBytes = JSON.stringify(mediaReport) + "\n";
+      if (Buffer.byteLength(mediaBytes) > maxReportBytes)
+        throw new Error("Media health report exceeds its bound");
+      writeFileSync(mediaOutput, mediaBytes, { flag: "wx", mode: 0o600 });
+    }
     console.log(
       JSON.stringify({
         rows: summary.rows,

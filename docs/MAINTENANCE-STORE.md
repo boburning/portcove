@@ -111,6 +111,9 @@ the hint document on the server. For cold hosted reads, the discovery job can re
 verified recovery artifact. It restores the seed in a separate local PostgreSQL
 instance without production credentials and reads bounded primary-key pages
 containing actual restored hint and lead payloads with their fingerprints.
+An earlier resource inspection can defer before another operation settles.
+Keep the seed available for discovery's own allowance check in that case, since
+the seeded read can fit while the cold read still exceeds the available bytes.
 After fenced compact acquisition, the
 production database compares those fingerprints and returns changed/new rows
 and removed keys. The current continuation always comes from production.
@@ -124,10 +127,14 @@ measured size; a moved or oversized plan defers rather than falling back to an
 unadmitted complete read. If no usable plan exists, the complete-read admission
 remains the fallback. For the revision-fenced initial discovery read, the
 measured response envelope plus acknowledgement and protocol headroom replaces
-the 16 MB bootstrap estimate. The provider ceiling and recovery reserve do not
-change. Later passes retain complete-read admission; other operation estimates
-remain conservative defaults until their readers prove equivalent bounds.
-Admission evidence identifies the reservation basis. Discovery pass
+the 16 MB bootstrap estimate. A later pass can use the exact committed revision
+it holds in memory and reserve for grant and commit acknowledgements. The
+existing acquire fence checks the revision, generation, definition and
+committing attempt. On a mismatch PostgreSQL omits the state from the response,
+the worker releases the attempt it acquired, and the next run needs separate
+complete-read or measured-seed admission. The provider ceiling and recovery
+reserve do not change. Other operation estimates retain conservative defaults.
+Admission evidence identifies the reservation basis. Full-read discovery
 admission uses the larger of the measured previous receive payload and the
 current cold-read estimate, plus acknowledgement and protocol headroom, rather
 than counting the same acquire twice. The provider ceiling is unchanged.
@@ -1366,7 +1373,11 @@ The intake workflow reads back the authenticated bot receipt and records its
 comment URL and exact body digest against the original planned operation. The
 daily inventory reuses its one verified native queue read to reconcile before
 refreshing handoff conditions. Failed or partial intake reads retain the original
-plan. A receipt transaction failure records an intake-specific gap. Other source
+plan. The scheduled workflow records a resource deferral separately from a
+verified receipt read or a failure. A deferred read supplies no revision fence
+or audit tickets and retries at the next scheduled opportunity. Its resource
+admission evidence records the limiting condition and provider reset, when
+available. A receipt transaction failure records an intake-specific gap. Other source
 collections, reporting, backup and restore continue, and the receipt outcome is
 checked after the report and backup are retained. An owner can use the intake workflow's `receipts` mode after an
 interruption. These paths make no new intake or Project mutation. They require
@@ -1634,11 +1645,19 @@ before requesting provider admission and again when each attempt starts.
 A manual recovery request can reuse a verified backup under 20 hours
 old after matching protected table digests and sequence values. PostgreSQL compares ordered content hashes and row counts for the
 retained prefix of each large append-only table under one exported snapshot.
-When a prefix matches, only newer rows cross the network. A mismatch requires
+If the full-table digest and row count match the verified local history, that
+digest also proves the complete prefix. Only changed history needs a separate
+prefix query. When a prefix matches, only newer rows cross the network. A mismatch requires
 that table's full payload to fit the admission. The schedule requests a larger
-envelope when the retained recovery point is more than 30 hours old. Beyond 54
-hours, a live meter can admit a full recovery envelope. Incomplete GitHub
-inventory never implies that the prior backup is missing. The export compares
+catch-up envelope when a verified recovery point is more than 30 hours old,
+regardless of age beyond that threshold. If an initial attempt has verified the
+seed locally but the live allowance cannot fit the requested envelope, admission
+can use the remaining bytes after outstanding charges and reserves. The remaining
+allowance must be at least 8 MB for preflight and protocol overhead. If the same-snapshot preflight finds
+that the export requires more capacity, recovery requests one newly admitted
+attempt sized to the measured estimate. Recovery without a verified seed
+starts with the full envelope. Incomplete GitHub inventory never implies that
+the prior backup is missing. The export compares
 all other protected tables with the actual restored local seed under the same
 production snapshot. Identical complete tables are copied locally; changed or
 unavailable tables are exported normally. The transfer ceiling excludes only
@@ -1700,12 +1719,24 @@ and leaves exact unattributed transfer unknown.
 
 `resource.jsonl` in the existing evidence artifact records sample, operation,
 remaining bytes, unreconciled charges, future recovery provision, retry condition
-and outcome. The GitHub summary reports deferred work and the dated recovery point.
+and outcome. A settlement line also records the reservation, captured command
+stdout bytes and whether the operation is eligible for estimate-based settlement.
+The stdout count includes output captured before a failure. Use the Neon counter
+for provider transfer, and the recovery receipt for export file measurements.
+A command interrupted before settlement can leave only its admission line. Its
+reservation still applies. The GitHub summary reports deferred work and the dated
+recovery point.
 The hosted receipt records the collection ledger's completion criterion separately
 from the command outcome. It counts failed sources and Core gaps even when the
 command returned successfully. Individual source coverage remains in the inventory.
 A coalesced request records reuse, and a missing or invalid result records unknown
 ledger completion.
+Admission evidence groups outstanding charges by operation, recorded outcome and
+charge basis. Unrecognized operation labels share one `other` group. The group
+totals sum to `unreconciled_bytes`. An estimate still
+within the provider settlement window and a full reservation for an unknown
+outcome both reduce allowance. These groups report ledger charges. The provider
+meter reports actual aggregate transfer separately.
 Publication and player routes keep their existing static signed catalog inputs.
 No paid fallback is used.
 
@@ -1721,8 +1752,11 @@ or receipt. Retained-artifact reports and restore checks remain available offlin
 A repeated deferral stays visible as the age of the last verified recovery point
 and with its remaining allowance. If a recovery's preflight finds that the conservative export estimate exceeds
 its admitted reservation, the same invocation can make one newly admitted
-attempt sized to that estimate. It reuses the verified local seed but replans
-against a new production snapshot. The normal provider meter, recovery reserve
+attempt sized to that estimate. When the scratch connection is demonstrably
+separate from the source, recovery verifies and restores its seed and computes the
+local history prefixes before reserving provider capacity. An unreadable or corrupt
+seed fails here without creating a provider reservation. An admitted retry reuses
+the local proof and replans against a new production snapshot. The normal provider meter, recovery reserve
 and hard ceiling still apply; a denied initial admission or denied retry defers
 work. Normal collection failure does not grant permission for a full export.
 

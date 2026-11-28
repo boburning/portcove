@@ -363,8 +363,17 @@ history pointer cannot trigger a new bootstrap.
 The owner must resolve these before history bootstrap. Each failure below
 stops publication in the prepare job's context check, before any role key is
 used. The last good publication stays served, but publication stays stopped
-until the cause is repaired. The compact listing cutover does not depend on
-them.
+until the cause is repaired. Compact listings and the signed cover checkpoint
+can use the retained full repository. The signer authenticates its retained
+policy, checks that the current cover matches the latest signed reference, and
+validates the exact successor. Cover replacement review verifies the same
+retained references. If segmented history is active, the signer also requires
+its authenticated store and predecessor.
+The first cover checkpoint requires separate owner activation, authenticated
+compact listings, and released-reader proof of the exact staged target. It can
+start with empty withdrawal history. Any recorded withdrawal still requires
+its own accepted evidence. A later publication binds the prior checkpoint and
+preserves every accepted decision.
 
 1. **Unbounded chain.** Each publication adds one inventory segment and one
    parent checkpoint. Verification walks both chains under one shared bound of
@@ -385,19 +394,49 @@ them.
 
 Portcove is pre-beta. Under the owner policy of November 23, 2026 (#1422), the
 compact carrier `policy/official/catalog.listings.compact.json`
-(`gzip-base64-json-v1`, listing format 15) is the only listing target that
-changes. **Preview 14 (`0.1.0-preview.14`) is the minimum supported preview
-for live listing updates**: it is the first release whose reader selects the
-compact carrier, and later previews read it too. The publisher states it as
-`minimumLiveListingReader` in `scripts/listing-observation-delivery.mts` and
-in each preparation report. It is raised when a later reader generation
-replaces the compact carrier.
+(`gzip-base64-json-v1`) is the only listing target that changes.
+Preview 14 (`0.1.0-preview.14`) introduced the compact carrier and remains the
+minimum for format 15. **Preview 20 (`0.1.0-preview.20`) is the minimum for
+formats 16 and 17.** The publisher reports the active format's minimum in each
+preparation report. It is raised when a later reader generation replaces the
+compact carrier.
 
-Format 16 adds descriptive mod website links. Authoring and local rehearsal
-can validate it before cutover. The live publisher holds format 15 until
-`liveListingReaderFloors` records the first supported released preview for
-format 16 and the official reader probe verifies the candidate format. Older
-compact readers keep their last accepted directory if they reject a successor.
+Format 16 adds descriptive mod website links. Format 17 binds GitHub listing
+identity and acquisition observations to a stable numeric repository ID.
+Format 18 allows an explicit link from a listing to a separate official
+definition for the same original game. The link initiates the existing
+availability check. The official definition and policy retain authority for
+each operation. Live format 18 awaits a supported released reader.
+The live publisher checks the protected release against `liveListingReaderFloors`
+and runs the official binary to verify the candidate format before activation.
+When an older compact reader rejects a successor, it can select its last
+accepted directory while the stored provenance remains current. After that
+provenance expires it uses its bundled directory until the application updates.
+
+Format 19 makes each listing's assigned cover authoritative. The publisher
+must resolve shared cover defaults and applicable exclusions before selecting
+this format. A capable reader uses fallback when no cover was assigned and
+continues to honor player choices. Older formats keep the exact-edition
+reader fallback. If a signed directory omits a bundled entry, Core keeps its
+legacy behavior and materializes any automatic cover when exporting format 19.
+Preview 21 is the earliest eligible release for format 19.
+The publisher still requires an official binary that advertises format 19
+and validates the actual candidate. Live publication remains on the existing
+format until the cover cutover is verified.
+
+Format 20 records the numeric GitHub repository for a scheduled implementation
+cover. The maintenance producer requires an exact provider project name and
+website match, then checks the repository ID. The publisher verifies that ID
+and the image bytes again before assigning a cover. The signed assignment stays
+with that implementation. Regular authored and original-edition covers use
+their existing authority. Pending downloads and external registrations read an
+observed cover from the current directory. Their legacy stored records omit it
+so a withdrawn cover cannot return through setup recovery and older clients can
+still open those records. The first format-20 publication requires a separate
+owner activation, an active signed cover checkpoint, and an official released
+reader that advertises format 20 and passes the exact staged projection.
+Preview 22 is the earliest eligible release. The actual capable release must
+still be verified before activation.
 
 With a qualified format-16 reader, the publisher can add a browser link to a
 listed Thunderstore community. The registry must explicitly refer to the same
@@ -512,7 +551,8 @@ remote-tracking ref:
   Sigstore trusted root, read anonymously with `gh attestation trusted-root`.
 - The single regular archive member is unpacked privately. Its capability
   report, run in a private directory with no credentials, must name the
-  `gzip-base64-json-v1` carrier, listing format 15 and the release version.
+  `gzip-base64-json-v1` carrier, the candidate listing format and the release
+  version. The protected release must meet that format's reader floor.
 
 If the Preview pointer changes between preparation and publication, that
 recheck fails the push and nothing from the run is published. Freshness then
@@ -559,18 +599,23 @@ policy still publish. The report records `listing_publication_stopped` with a
 `Catalog publish` emits an `::error::` annotation and a step summary with those
 figures and fails the run, so a person resolves it. The stop codes are:
 
-| Code                         | Cause                                                                      |
-| ---------------------------- | -------------------------------------------------------------------------- |
-| `decoded_bound`              | The decoded compact document exceeds 32 MiB                                |
-| `transport_bound`            | The encoded compact target exceeds 8 MiB                                   |
-| `listing_count`              | Delivered listings exceed 10,000 (`compactListingCountMaximum`)            |
-| `record_bound`               | A delivered listing serializes above 1 MiB (`compactListingRecordMaximum`) |
-| `withdrawal_count`           | Withdrawals exceed 10,000                                                  |
-| `withdrawal_input`           | The committed withdrawal record is invalid (see the next section)          |
-| `missing_without_withdrawal` | A published listing left `listings.json` without a committed withdrawal    |
-| `conflicting_observations`   | Two observer candidates claim the same listing                             |
-| `core_refusal`               | Core refused the final staged publication with an input-refusal envelope   |
+| Code                         | Cause                                                                         |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| `decoded_bound`              | The decoded compact document exceeds 32 MiB                                   |
+| `transport_bound`            | The encoded compact target exceeds 8 MiB                                      |
+| `listing_count`              | Delivered listings exceed 10,000 (`compactListingCountMaximum`)               |
+| `record_bound`               | A delivered listing serializes above 1 MiB (`compactListingRecordMaximum`)    |
+| `withdrawal_count`           | Withdrawals exceed 10,000                                                     |
+| `withdrawal_input`           | The committed withdrawal record is invalid (see the next section)             |
+| `missing_without_withdrawal` | A published listing left `listings.json` without a committed withdrawal       |
+| `conflicting_observations`   | Two observer candidates claim the same listing                                |
+| `cover_evidence_unavailable` | Evidence for a cover withdrawal is missing or its historical scope is unknown |
+| `core_refusal`               | Core refused the final staged publication with an input-refusal envelope      |
 
+If an older withdrawal blocks a cover from returning, recover the exact old
+mapping from a verified observation or signed listing. The current publication
+keeps its prior listing and withdrawal until the publisher can match that
+mapping to the current cover.
 Everything else fails preparation as before and publishes nothing: canonical
 inputs (`listings.json`, `catalog.json`, the withdrawal record) changing during
 the run; a Core crash, timeout, output overflow or non-refusal error; Core

@@ -1,9 +1,13 @@
 import {
   assertPreparedArtwork,
+  catalogGameMediaRoles,
+  gameMediaImageTarget,
   reconcileCatalogArtworkWithdrawals,
+  withholdChangedHeroProposals,
 } from "./inspect-igdb-artwork.mts";
 import { hashPattern, imagePattern, matchesString, positiveId } from "./catalog-cover-mapping.mts";
 import { isRecord } from "./runtime-values.mts";
+import { originalEditionMediaKey } from "./shared-original-media.mts";
 import type { CatalogMediaSubject } from "../apps/desktop/src/transport-types.generated.d.ts";
 import type {
   ArtworkCatalog,
@@ -101,36 +105,53 @@ type GameMediaPreparation = Awaited<ReturnType<typeof prepareCatalogGameMedia>>;
 export async function prepareGameMediaInOperations(
   catalog: ArtworkCatalog,
   selectedPortIds: readonly string[] | undefined,
-  knownGoneImageIds: string[],
   operation: (
     ids: readonly string[] | undefined,
     catalog: ArtworkCatalog,
     gone: string[],
+    cleared: ReadonlySet<string>,
+    held: string[],
   ) => Promise<GameMediaPreparation>,
 ): Promise<GameMediaPreparation> {
   const ids = selectedPortIds ?? catalog.ports.map((port) => port.id);
+  const cleared = new Set(
+    catalog.ports.flatMap(({ id, presentation }) =>
+      Array.isArray(presentation?.media) && !presentation.media.length ? [id] : [],
+    ),
+  );
   if (ids.length <= ARTWORK_OPERATION_PORTS)
-    return operation(selectedPortIds, catalog, knownGoneImageIds);
-  let media: GameMediaPreparation = { catalog, records: [], gone_image_ids: knownGoneImageIds };
+    return operation(selectedPortIds, catalog, [], cleared, []);
+  let media: GameMediaPreparation = { catalog, records: [], gone_media_targets: [] };
   for (let start = 0; start < ids.length; start += ARTWORK_OPERATION_PORTS) {
     const next = await operation(
       ids.slice(start, start + ARTWORK_OPERATION_PORTS),
       media.catalog,
-      media.gone_image_ids,
+      media.gone_media_targets,
+      cleared,
+      media.held_media_targets ?? [],
     );
     media = { ...next, records: [...media.records, ...next.records] };
   }
   // As within one operation, a selected image a later operation found Gone is
   // relabelled on every earlier record; the catalog already dropped it.
-  const gone = new Set(media.gone_image_ids);
+  const gone = new Set(media.gone_media_targets);
   for (const record of media.records)
-    if (record.image_id && gone.has(record.image_id))
+    if (
+      record.reason !== "retained-image-withdrawn" &&
+      record.image_id &&
+      gone.has(gameMediaImageTarget(record.role, record.image_id))
+    )
       record.reason = "selected-image-gone-later-in-batch";
+  withholdChangedHeroProposals(
+    catalog,
+    media.catalog,
+    media.records,
+    new Set(media.held_media_targets),
+  );
   return media;
 }
 
-const sceneRoles = ["header", "screenshot"] as const;
-type SceneRole = (typeof sceneRoles)[number];
+type SceneRole = (typeof catalogGameMediaRoles)[number];
 
 function scopeKey(subject: CatalogMediaSubject, role: SceneRole) {
   return JSON.stringify(
@@ -153,7 +174,27 @@ function sceneSubject(portId: string, value: unknown): CatalogMediaSubject | und
 }
 
 function sceneRole(value: unknown): value is SceneRole {
-  return value === "header" || value === "screenshot";
+  return catalogGameMediaRoles.some((role) => role === value);
+}
+
+function providerScope(
+  port: ArtworkPort | undefined,
+  subject: CatalogMediaSubject,
+  role: SceneRole,
+  accepted?: ArtworkPort,
+): string {
+  const local = scopeKey(subject, role);
+  if (subject.kind === "port") return local;
+  const original = port?.presentation?.original_game;
+  const edition =
+    isRecord(original) && original.id === subject.game_id && Array.isArray(original.source_editions)
+      ? (original.source_editions as unknown[]).find(
+          (item) => isRecord(item) && item.id === subject.source_edition_id,
+        )
+      : undefined;
+  const key = originalEditionMediaKey(subject.game_id, edition);
+  if (!key && accepted && accepted !== port) return providerScope(accepted, subject, role);
+  return JSON.stringify([key ? "edition" : "local", key ?? port?.id, local]);
 }
 
 /** Inventory reviewed catalog rows and bounded provider observations independently of publication. */
@@ -164,18 +205,17 @@ export function sceneCoverage(
 ) {
   const selected = selectedPortIds && new Set(selectedPortIds);
   const proposedPorts = new Map(preparation.catalog.ports.map((port) => [port.id, port]));
-  const acceptedPorts = new Set(accepted.ports.map(({ id }) => id));
+  const acceptedById = new Map(accepted.ports.map((port) => [port.id, port]));
   const ports = [
     ...accepted.ports,
-    ...preparation.catalog.ports.filter(({ id }) => !acceptedPorts.has(id)),
+    ...preparation.catalog.ports.filter(({ id }) => !acceptedById.has(id)),
   ];
-  const gone = new Set(preparation.gone_image_ids);
+  const gone = new Set(preparation.gone_media_targets);
   type Observation = GameMediaPreparation["records"][number];
   const byPort = new Map<string, Observation[]>();
   const providerGames = new Map<string, Set<number>>();
-  const recordGame = (subject: CatalogMediaSubject, role: SceneRole, gameId: unknown) => {
+  const recordGame = (key: string, gameId: unknown) => {
     if (!positiveId(gameId)) return;
-    const key = scopeKey(subject, role);
     const ids = providerGames.get(key) ?? new Set<number>();
     ids.add(gameId);
     providerGames.set(key, ids);
@@ -185,7 +225,15 @@ export function sceneCoverage(
     const observations = byPort.get(observation.port_id) ?? [];
     observations.push(observation);
     byPort.set(observation.port_id, observations);
-    recordGame(observation.subject, observation.role, observation.provider_game_id);
+    recordGame(
+      providerScope(
+        proposedPorts.get(observation.port_id),
+        observation.subject,
+        observation.role,
+        acceptedById.get(observation.port_id),
+      ),
+      observation.provider_game_id,
+    );
   }
   const inventory = (catalog: ArtworkCatalog) =>
     new Map(
@@ -194,21 +242,23 @@ export function sceneCoverage(
         const media: unknown = port.presentation?.media;
         if (Array.isArray(media))
           for (const asset of media) {
-            if (!isRecord(asset) || !sceneRole(asset.role) || !isRecord(asset.igdb)) continue;
+            if (!isRecord(asset) || !sceneRole(asset.role)) continue;
             const subject = sceneSubject(port.id, asset.subject);
-            if (
-              !subject ||
-              !matchesString(imagePattern, asset.igdb.image_id) ||
-              !matchesString(hashPattern, asset.sha256)
-            )
-              continue;
+            if (!subject || !matchesString(hashPattern, asset.sha256)) continue;
+            const igdb = isRecord(asset.igdb) ? asset.igdb : undefined;
+            const imageId =
+              igdb && matchesString(imagePattern, igdb.image_id) ? igdb.image_id : null;
+            const catalogId = typeof asset.id === "string" ? asset.id : null;
+            if (!imageId && (asset.igdb != null || !catalogId)) continue;
             assets.push({
               subject,
               role: asset.role,
               scope: scopeKey(subject, asset.role),
-              imageId: asset.igdb.image_id,
+              providerScope: providerScope(port, subject, asset.role),
+              imageId,
+              catalogId,
               sha256: asset.sha256,
-              gameId: asset.igdb.game_id,
+              gameId: igdb?.game_id,
             });
           }
         return [port.id, assets] as const;
@@ -218,7 +268,8 @@ export function sceneCoverage(
   const proposedMedia = inventory(preparation.catalog);
   for (const entries of [...acceptedMedia.values(), ...proposedMedia.values()]) {
     for (const entry of entries) {
-      if (!gone.has(entry.imageId)) recordGame(entry.subject, entry.role, entry.gameId);
+      if (!entry.imageId || !gone.has(gameMediaImageTarget(entry.role, entry.imageId)))
+        recordGame(entry.providerScope, entry.gameId);
     }
   }
   return ports
@@ -251,37 +302,47 @@ export function sceneCoverage(
         add(asset.subject);
       for (const observation of observations) add(observation.subject);
       return [...subjects.values()].flatMap((subject) =>
-        sceneRoles.map((role) => {
+        catalogGameMediaRoles.map((role) => {
+          const withdrawnImage = (id: string) => gone.has(gameMediaImageTarget(role, id));
           const key = scopeKey(subject, role);
+          const exactScope = providerScope(proposedPorts.get(port.id), subject, role, port);
           const currentImages = (acceptedMedia.get(port.id) ?? []).filter(
-            (asset) => asset.scope === key,
+            (asset) => asset.scope === key && asset.providerScope === exactScope,
           );
           const proposedImages = (proposedMedia.get(port.id) ?? []).filter(
-            (asset) => asset.scope === key,
+            (asset) => asset.scope === key && asset.providerScope === exactScope,
           );
-          const admitted = currentImages.filter(({ imageId }) => !gone.has(imageId));
+          const admitted = currentImages.filter(
+            ({ imageId }) => !imageId || !withdrawnImage(imageId),
+          );
           const proposed = proposedImages.filter(
-            ({ imageId, sha256 }) =>
-              !gone.has(imageId) &&
-              !admitted.some((asset) => asset.imageId === imageId && asset.sha256 === sha256),
+            ({ imageId, catalogId, sha256 }) =>
+              (!imageId || !withdrawnImage(imageId)) &&
+              !admitted.some(
+                (asset) =>
+                  asset.sha256 === sha256 &&
+                  (imageId
+                    ? asset.imageId === imageId
+                    : asset.imageId === null && asset.catalogId === catalogId),
+              ),
           );
           const observed = observations.filter(
             (item) => item.role === role && scopeKey(item.subject, role) === key,
           );
           const withdrawn = [
             ...new Set([
-              ...currentImages
-                .filter(({ imageId }) => gone.has(imageId))
-                .map(({ imageId }) => imageId),
+              ...currentImages.flatMap(({ imageId }) =>
+                imageId && withdrawnImage(imageId) ? [imageId] : [],
+              ),
               ...observed.flatMap(({ image_id }) =>
-                image_id && gone.has(image_id) ? [image_id] : [],
+                image_id && withdrawnImage(image_id) ? [image_id] : [],
               ),
               ...observed.flatMap(({ withdrawn_image_ids }) =>
-                (withdrawn_image_ids ?? []).filter((id) => gone.has(id)),
+                (withdrawn_image_ids ?? []).filter(withdrawnImage),
               ),
             ]),
           ];
-          const knownGames = providerGames.get(key) ?? new Set<number>();
+          const knownGames = providerGames.get(exactScope) ?? new Set<number>();
           const reasons = [...new Set(observed.map(({ reason }) => reason))].sort();
           if (!reasons.length)
             reasons.push(
@@ -290,17 +351,19 @@ export function sceneCoverage(
                 : "outside-proposal-input",
             );
           const state =
-            knownGames.size > 1
-              ? "conflicting"
-              : admitted.length
-                ? "admitted"
-                : proposed.length
-                  ? "proposed"
-                  : withdrawn.length
-                    ? "withdrawn"
-                    : reasons.length === 1 && reasons[0] === "provider-role-empty"
-                      ? "missing"
-                      : "unknown";
+            !admitted.length && !proposed.length && reasons.includes("identity-excluded-by-review")
+              ? "excluded"
+              : knownGames.size > 1 || reasons.includes("identity-ambiguous")
+                ? "conflicting"
+                : admitted.length
+                  ? "admitted"
+                  : proposed.length
+                    ? "proposed"
+                    : withdrawn.length
+                      ? "withdrawn"
+                      : reasons.length === 1 && reasons[0] === "provider-role-empty"
+                        ? "missing"
+                        : "unknown";
           return {
             port_id: port.id,
             subject,
@@ -308,8 +371,18 @@ export function sceneCoverage(
             provider: "igdb",
             provider_game_ids: [...knownGames].sort((a, b) => a - b),
             state,
-            admitted_image_ids: [...new Set(admitted.map(({ imageId }) => imageId))].sort(),
-            proposed_image_ids: [...new Set(proposed.map(({ imageId }) => imageId))].sort(),
+            admitted_image_ids: [
+              ...new Set(admitted.flatMap(({ imageId }) => (imageId ? [imageId] : []))),
+            ].sort(),
+            proposed_image_ids: [
+              ...new Set(proposed.flatMap(({ imageId }) => (imageId ? [imageId] : []))),
+            ].sort(),
+            admitted_catalog_asset_ids: [
+              ...new Set(admitted.flatMap(({ catalogId }) => (catalogId ? [catalogId] : []))),
+            ].sort(),
+            proposed_catalog_asset_ids: [
+              ...new Set(proposed.flatMap(({ catalogId }) => (catalogId ? [catalogId] : []))),
+            ].sort(),
             withdrawn_image_ids: withdrawn.sort(),
             reasons,
           };

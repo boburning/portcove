@@ -149,6 +149,7 @@ import {
   type OwnedPreparationSettlement,
 } from "./desktop-preparation-recovery-test.mts";
 import {
+  activitySectionTab,
   revealDetailSection,
   assertCompactReview,
   assertPrimaryReviewAction,
@@ -362,11 +363,7 @@ async function selectActivitySection(
   browser: WebDriver,
   label: "Game updates" | "Tasks" | "History",
 ) {
-  const button = await browser.findElement(
-    By.xpath(
-      `//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="${label}"]]`,
-    ),
-  );
+  const button = await browser.findElement(activitySectionTab(label));
   await clickVisible(browser, button);
   await browser.wait(async () => (await button.getAttribute("aria-selected")) === "true", 5000);
 }

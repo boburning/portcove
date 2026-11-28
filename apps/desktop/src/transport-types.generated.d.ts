@@ -994,7 +994,7 @@ export type OutputListingStatuses = PortListingStatus[];
 /**
  * A read-only provider browser Core can run for a portal.
  */
-export type ExternalModBrowser = "quaddicted" | "mod_db_feed";
+export type ExternalModBrowser = "quaddicted" | "mod_db_feed" | "provider_catalog";
 /**
  * The site family a portal belongs to, for its link label.
  */
@@ -2596,6 +2596,10 @@ export interface IgdbArtwork {
   image_id: string;
   image_sha256: string;
   match_kind: IgdbArtworkMatch;
+  /**
+   * Publisher-observed identity of the implementation repository, under listing format 20.
+   */
+  observed_github_repository_id?: number | null;
 }
 export interface OutputArtworkThumbnail {
   asset_sha256: string;
@@ -3996,6 +4000,11 @@ export interface PortListing {
    */
   mod_portals?: ListingModPortal[];
   name: string;
+  /**
+   * Exact official definition to check from this listing. It confers no
+   * acquisition or runtime ownership and requires listing format 18.
+   */
+  official_setup_id?: string | null;
   original_game?: OriginalGameIdentity | null;
   original_game_title?: string | null;
   /**
@@ -5644,6 +5653,10 @@ export interface LibraryMetadata {
    * so an older reader refuses the export instead of silently dropping them.
    */
   library_memberships?: LibraryMembership[];
+  /**
+   * Local mod source choices and hidden communities, from metadata schema 17.
+   */
+  mod_portal_preferences?: LibraryModPortalPreference[];
   original_root: string;
   port_settings: LibraryPortSettings[];
   portability_authority?: PortabilityAuthority | null;
@@ -5722,6 +5735,31 @@ export interface LibraryMembership {
 export interface LibraryMembershipSource {
   profile_id: string;
   sha256: string;
+}
+/**
+ * A player's portable mod-browsing choices and exact hidden communities.
+ */
+export interface LibraryModPortalPreference {
+  hidden_communities?: HiddenCommunity[];
+  port_id: string;
+  preferences: ModPortalPreferences;
+}
+export interface HiddenCommunity {
+  community: string | null;
+  source: string;
+}
+export interface ModPortalPreferences {
+  choices: ModPortalChoices;
+  revision: number;
+  [k: string]: unknown;
+}
+export interface ModPortalChoices {
+  hidden_sources: string[];
+  local_page: LocalModPage | null;
+}
+export interface LocalModPage {
+  name: string;
+  url: string;
 }
 export interface LibraryPortSettings {
   active_install_id: string | null;
@@ -6021,6 +6059,10 @@ export interface ListingDeliveryStatus {
 export interface PortListingStatus {
   actions: ListingActionAssessment[];
   /**
+   * Canonical listing represented by this retained local registration.
+   */
+  canonical_port_id?: string | null;
+  /**
    * Optional inert read model; absence cannot suppress an independently allowed action.
    */
   capabilities?: PortCapabilityReport | null;
@@ -6288,19 +6330,6 @@ export interface AutomaticModPortal {
   name: string;
   source: string;
   [k: string]: unknown;
-}
-export interface ModPortalPreferences {
-  choices: ModPortalChoices;
-  revision: number;
-  [k: string]: unknown;
-}
-export interface ModPortalChoices {
-  hidden_sources: string[];
-  local_page: LocalModPage | null;
-}
-export interface LocalModPage {
-  name: string;
-  url: string;
 }
 export interface OutputModSetupDraftPreview {
   conflicts: AssetConflict[];

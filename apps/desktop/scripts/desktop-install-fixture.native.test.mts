@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { after as afterAll, before as beforeAll, describe, test } from "node:test";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
+import { createInstallFixture } from "./desktop-install-fixture.mts";
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
 void describe("owned Windows probe fixture", { timeout: 240_000 }, () => {
@@ -40,6 +41,64 @@ void describe("owned Windows probe fixture", { timeout: 240_000 }, () => {
       if (probeOutput) await rm(probeOutput, { recursive: true, force: true });
     },
     { timeout: 30_000 },
+  );
+
+  void test(
+    "Windows acquisition fixture waits for the marker in its assigned library",
+    {
+      timeout: 30_000,
+      skip:
+        process.platform !== "win32" &&
+        "platform: win32; requires the compiled Windows probe fixture; route: ci.yml/windows_storage (native helper contracts)",
+    },
+    async () => {
+      const output = await mkdtemp(path.join(tmpdir(), "portcove-acquisition-probe-"));
+      const tool = probeTool;
+      assert.ok(tool);
+      try {
+        const fixture = await createInstallFixture({
+          root,
+          output,
+          acquisitionJourney: true,
+          preparationTool: tool,
+        });
+        try {
+          const marker = fixture.acquisitionWaitPath;
+          assert.ok(marker);
+          const library = path.join(output, "library");
+          assert.equal(marker, path.join(library, "acquisition-game-release.signal"));
+          await mkdir(library);
+          await writeFile(path.join(output, path.basename(marker)), "outside the assigned library");
+          const args = fixture.refreshPort.launch_arguments;
+          assert.deepEqual(args, [
+            "--game",
+            "--wait-for-acquisition-release",
+            "--owned-wait-seconds",
+            "180",
+          ]);
+          const observeRelease = () =>
+            spawnCommand(tool, args.slice(0, -1).concat("1"), {
+              cwd: output,
+              env: { ...process.env, PORTCOVE_LIBRARY: library },
+              encoding: "utf8",
+              windowsHide: true,
+              timeout: 5_000,
+            });
+          const unreleased = observeRelease();
+          assert.equal(unreleased.error, undefined);
+          assert.equal(unreleased.status, 8, unreleased.stderr);
+          await writeFile(marker, "release owned game");
+          const released = observeRelease();
+          assert.equal(released.error, undefined);
+          assert.equal(released.status, 0, released.stderr);
+          assert.match(released.stdout, /owned game launched/u);
+        } finally {
+          await fixture.close();
+        }
+      } finally {
+        await rm(output, { recursive: true, force: true });
+      }
+    },
   );
 
   void test(

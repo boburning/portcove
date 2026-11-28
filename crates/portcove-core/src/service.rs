@@ -379,6 +379,7 @@ pub struct PortcoveService {
     catalog: Catalog,
     catalog_provenance: crate::CatalogProvenance,
     artwork_snapshot_reads: bool,
+    personal_registration: bool,
     pub(crate) remote_artwork: crate::artwork::RemoteArtworkRead,
     pub(crate) library: Library,
     releases: Arc<dyn ReleaseProvider>,
@@ -479,6 +480,7 @@ impl PortcoveService {
             catalog,
             catalog_provenance,
             artwork_snapshot_reads: false,
+            personal_registration: false,
             remote_artwork: Default::default(),
             library,
             releases,
@@ -557,6 +559,7 @@ impl PortcoveService {
             catalog,
             catalog_provenance,
             artwork_snapshot_reads: false,
+            personal_registration: false,
             remote_artwork: Default::default(),
             library,
             releases,
@@ -598,6 +601,7 @@ impl PortcoveService {
             catalog,
             catalog_provenance,
             artwork_snapshot_reads: false,
+            personal_registration: false,
             remote_artwork: Default::default(),
             library,
             releases,
@@ -619,6 +623,7 @@ impl PortcoveService {
             catalog,
             catalog_provenance,
             artwork_snapshot_reads: false,
+            personal_registration: false,
             remote_artwork: Default::default(),
             library,
             releases,
@@ -1684,6 +1689,10 @@ impl PortcoveService {
     ) -> Result<(InstallPlan, crate::ScopedResolvedRelease)> {
         let port = self.catalog.port(port_id)?;
         let status = self.status(port_id)?;
+        if first_managed_install(&status) {
+            let connection = self.library.connection()?;
+            Library::require_no_associated_personal_runtime(&connection, &self.catalog, port_id)?;
+        }
         self.require_definition_operation(
             &self.catalog,
             port,
@@ -4443,6 +4452,12 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
+        if first_managed_install(&status) {
+            let connection = self.library.connection()?;
+            let snapshot = connection.unchecked_transaction()?;
+            Library::require_no_associated_personal_runtime_from_current(&snapshot, &port.id)?;
+            snapshot.commit()?;
+        }
         crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
         if let Some(expected) = intent.explicit_package_proof_sha256.as_deref()
             && resolution.explicit_package_proof_sha256()?.as_deref() != Some(expected)
@@ -6122,6 +6137,8 @@ impl PortcoveService {
                 true,
             ),
         )?;
+        let connection = self.library.connection()?;
+        Library::require_no_associated_personal_runtime(&connection, &self.catalog, port_id)?;
         self.inspect_external_runtime_preview(port, spec, requested_root, checkpoint)
     }
 

@@ -204,6 +204,64 @@ fn pending_catalog_record_formats_preserve_legacy_and_refuse_missing_or_foreign_
 }
 
 #[tokio::test]
+async fn a_pending_download_never_serializes_directory_observed_covers() {
+    let (_temporary, mut service, request) = fixture();
+    let mut directory = service.catalog.listing_document().clone();
+    directory.format_version = crate::catalog::listings::OBSERVED_PROJECT_COVER_LISTING_FORMAT;
+    let artwork = serde_json::from_value(json!({
+        "game_id":17, "cover_id":31, "image_id":"projectcover",
+        "image_sha256":"a".repeat(64), "game_slug":"project", "match_kind":"port",
+        "observed_github_repository_id":42
+    }))
+    .unwrap();
+    directory.listings[0].artwork = Some(artwork);
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(directory)
+        .unwrap();
+    let github = GithubFixture::new(archive(), None, None);
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    let encoded = service
+        .library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT record_json FROM catalog_downloads WHERE port_id=?1",
+            [&request.port_id],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap();
+    assert!(super::stage::tests::released_reader_accepts(&encoded));
+    let mut decoded: PendingSetupRecord = serde_json::from_str(&encoded).unwrap();
+    assert_eq!(decoded.id, pending.id);
+    assert_eq!(decoded.format_version, 1);
+    assert!(decoded.listing.artwork.is_none());
+    assert!(!encoded.contains("observed_github_repository_id"));
+    validate_record(&decoded).unwrap();
+
+    decoded.listing.artwork = service
+        .catalog
+        .listing(&request.port_id)
+        .unwrap()
+        .artwork
+        .clone();
+    assert!(validate_record(&decoded).is_err());
+}
+
+#[tokio::test]
 async fn catalog_default_candidates_use_recommendation_and_explicit_choices_win() {
     let (_temporary, mut service, request) = fixture();
     assert_eq!(
@@ -335,6 +393,157 @@ async fn downloaded_win32_game_is_distinguished_from_converter_without_running_e
         .unwrap();
     assert!(ambiguous.complete);
     assert!(ambiguous.recommended_executable.is_none());
+}
+
+#[tokio::test]
+async fn extracted_package_manifest_suggests_a_native_program_for_an_unknown_listing() {
+    let (temporary, mut service, mut request) = fixture();
+    let mut document = service.catalog.listing_document().clone();
+    document.format_version = crate::catalog::listings::REPOSITORY_BOUND_LISTING_FORMAT;
+    request.port_id = "github-123".into();
+    document.listings[0].id = request.port_id.clone();
+    document.listings[0].project_url = "https://github.com/owner/game/".into();
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(document)
+        .unwrap();
+    let probe_root = temporary.path().join("manifest-native-fixture");
+    fs::create_dir(&probe_root).unwrap();
+    let probe = fs::read(crate::test_fixture::build_probe(&probe_root)).unwrap();
+    let first = if cfg!(windows) {
+        "bin/FirstPlayer.exe"
+    } else {
+        "bin/FirstPlayer"
+    };
+    let second = if cfg!(windows) {
+        "bin/SecondPlayer.exe"
+    } else {
+        "bin/SecondPlayer"
+    };
+    let fallback = if cfg!(windows) {
+        "bin/Game.exe"
+    } else {
+        "bin/Game"
+    };
+    let manifest = |format, repo, programs: &[&str]| {
+        serde_json::to_vec(&json!({
+            "format": format, "repo": repo,
+            "start": {"program": programs, "args": ["--upstream-only"]},
+        }))
+        .unwrap()
+    };
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let native = zip::write::SimpleFileOptions::default().unix_permissions(0o755);
+    for path in [first, second, fallback] {
+        zip.start_file(path, native).unwrap();
+        zip.write_all(&probe).unwrap();
+    }
+    zip.start_file(
+        "recomplauncher.json",
+        zip::write::SimpleFileOptions::default(),
+    )
+    .unwrap();
+    zip.write_all(&manifest(1, "new-owner/renamed-game", &[first, second]))
+        .unwrap();
+    let github = GithubFixture::for_api_repository(
+        "repositories/123",
+        zip.finish().unwrap().into_inner(),
+        None,
+        None,
+    );
+    github.assets.lock().unwrap()[0]["browser_download_url"] =
+        json!("https://github.com/new-owner/renamed-game/releases/download/v1.0/game.zip");
+    *github.repository_identity.lock().unwrap() =
+        Some(json!({"id":123,"full_name":"new-owner/renamed-game"}));
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        pending.listing.project_url,
+        "https://github.com/owner/game/"
+    );
+    assert_eq!(
+        pending.artifact.release_url,
+        "https://github.com/new-owner/renamed-game/releases/tag/v1.0"
+    );
+    let inspect = || {
+        service
+            .discover_setup_launch_targets(&request.port_id, &pending.id)
+            .unwrap()
+    };
+    let declared = inspect();
+    assert!(declared.complete);
+    assert!(declared.explanation.contains("The setup manifest names"));
+    assert_eq!(
+        declared.recommended_executable,
+        Some(pending.path.join(first))
+    );
+    assert!(service.catalog.port(&request.port_id).is_err());
+    let path = pending.path.join("recomplauncher.json");
+    let mut padded = manifest(1, "owner/game", &[first]);
+    padded.resize(64 * 1024, b' ');
+    fs::write(&path, &padded).unwrap();
+    assert_eq!(
+        inspect().recommended_executable,
+        Some(pending.path.join(first))
+    );
+    padded.push(b' ');
+    for invalid in [
+        manifest(2, "owner/game", &[first]),
+        manifest(1, "different/game", &[first]),
+        manifest(1, "owner/game", &["../FirstPlayer", first]),
+        manifest(1, "owner/game", &["bin/NoLongerPresent"]),
+        br#"{"format":1,"start":{}}"#.to_vec(),
+        padded,
+    ] {
+        fs::write(&path, invalid).unwrap();
+        let resolved = inspect();
+        assert!(resolved.complete);
+        assert_eq!(
+            resolved.recommended_executable,
+            Some(pending.path.join(fallback))
+        );
+    }
+    fs::remove_file(&path).unwrap();
+    assert_eq!(
+        inspect().recommended_executable,
+        Some(pending.path.join(fallback))
+    );
+    fs::write(&path, manifest(1, "OWNER/Game", &[second, first])).unwrap();
+    let changed = inspect();
+    let chosen = changed.recommended_executable.unwrap();
+    assert_eq!(chosen, pending.path.join(second));
+    let working = chosen.parent().unwrap();
+    assert!(service.library.all_installs().unwrap().is_empty());
+    let preview = service
+        .preview_user_selected_runtime(&request.port_id, &chosen, working, &[])
+        .unwrap();
+    let consent = service
+        .authorize_user_selected_runtime(
+            &request.port_id,
+            &chosen,
+            working,
+            &[],
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let registered = service
+        .register_user_selected_runtime(&request.port_id, &chosen, working, &[], &consent.token)
+        .unwrap();
+    assert_eq!(registered.executable, chosen);
+    assert!(registered.user_selected.unwrap().arguments.is_empty());
+    assert!(service.library.all_installs().unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -808,6 +1017,12 @@ async fn assert_embedded_download_holds(
         let (_temporary, mut service, mut request) = fixture();
         service.catalog = Catalog::embedded().unwrap();
         request.port_id = id.into();
+        let expected_provider = expected_provider.or_else(|| {
+            service
+                .catalog
+                .assert_generated_registration(id)
+                .then_some(crate::ReleaseSource::UserPrepared)
+        });
         assert_eq!(
             service
                 .catalog
@@ -1161,6 +1376,7 @@ async fn newly_restricted_listing_invalidates_an_earlier_download_review_without
 
 struct GithubFixture {
     provider: GithubReleaseProvider,
+    repository_identity: Arc<Mutex<Option<Value>>>,
     assets: Arc<Mutex<Vec<Value>>>,
     releases: Arc<Mutex<Vec<Value>>>,
     release_assets: Arc<Mutex<HashMap<u64, Vec<Value>>>>,
@@ -1189,7 +1405,8 @@ impl GithubFixture {
         digest: Option<String>,
         sidecar: Option<String>,
     ) -> Self {
-        let release_path = format!("/{api_repository}/releases");
+        let repository_path = format!("/{api_repository}");
+        let release_path = format!("{repository_path}/releases");
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         listener.set_nonblocking(true).unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
@@ -1202,6 +1419,7 @@ impl GithubFixture {
             );
         }
         let assets = Arc::new(Mutex::new(inventory));
+        let repository_identity = Arc::new(Mutex::new(None::<Value>));
         let releases = Arc::new(Mutex::new(vec![
             json!({"id":7,"tag_name":"v1.0","draft":false,"prerelease":false,"published_at":null,"assets":[]}),
         ]));
@@ -1212,6 +1430,7 @@ impl GithubFixture {
         let (thread_assets, thread_stopped, thread_requests) =
             (assets.clone(), stopped.clone(), requests.clone());
         let (thread_releases, thread_release_assets) = (releases.clone(), release_assets.clone());
+        let thread_identity = repository_identity.clone();
         let worker = thread::spawn(move || {
             while !thread_stopped.load(Ordering::SeqCst) {
                 let mut stream = match listener.accept() {
@@ -1264,7 +1483,9 @@ impl GithubFixture {
                 };
                 // Deliberately omit embedded assets: the dedicated, paginated
                 // endpoint is the complete checksum authority, including sidecars.
-                let body = if path.contains("/assets?") {
+                let body = if path == repository_path {
+                    serde_json::to_vec(&*thread_identity.lock().unwrap()).unwrap()
+                } else if path.contains("/assets?") {
                     let release_id: u64 = url.path().rsplit('/').nth(1).unwrap().parse().unwrap();
                     let inventory = thread_release_assets
                         .lock()
@@ -1318,6 +1539,7 @@ impl GithubFixture {
         });
         Self {
             provider: GithubReleaseProvider::with_api_root(origin).unwrap(),
+            repository_identity,
             assets,
             releases,
             release_assets,
@@ -1489,6 +1711,13 @@ async fn discovery_completeness_requires_the_end_of_each_selected_asset_inventor
 async fn download_without_published_digest_retains_honest_provenance_and_non_owning_handoff() {
     let (_temporary, mut service, request) = fixture();
     let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
+    listing.original_game = Catalog::embedded()
+        .unwrap()
+        .listing("chameleon-twist-recompiled")
+        .unwrap()
+        .original_game
+        .clone();
+    listing.official_setup_id = Some("chameleon-twist-jp-recompiled".into());
     listing.mod_portals.push(crate::ListingModPortal {
         id: "community".into(),
         site: crate::ModPortalSite::CommunitySite,
@@ -1499,7 +1728,7 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     service.catalog = service
         .catalog
         .with_listing_document(crate::CatalogListingDocument {
-            format_version: 16,
+            format_version: 18,
             listings: vec![listing],
         })
         .unwrap();
@@ -1551,6 +1780,13 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     assert!(stored.get("format_version").is_none(), "{stored}");
     assert!(stored.get("progress").is_none(), "{stored}");
     assert!(stored["listing"].get("mod_portals").is_none(), "{stored}");
+    assert!(
+        stored["listing"].get("official_setup_id").is_none(),
+        "{stored}"
+    );
+    let mut invalid = pending.clone();
+    invalid.listing.official_setup_id = Some("chameleon-twist-jp-recompiled".into());
+    assert!(validate_record(&invalid).is_err());
     assert_eq!(
         pending.stage_kind(),
         Some(crate::PendingSetupStageKind::ArtifactObtained)
@@ -1565,7 +1801,39 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     assert!(service.require_no_pending_setup(&pending.port_id).is_err());
     let reopened = PortcoveService::new(service.library.clone()).unwrap();
     assert!(reopened.catalog.listing(&pending.port_id).is_err());
-    assert!(reopened.preview_mod_handoff(&pending.port_id).is_err());
+    let handoff = reopened.preview_mod_handoff(&pending.port_id).unwrap();
+    assert!(handoff.external_mod_portals.is_empty());
+    let local_page = crate::LocalModPage {
+        name: "My mod website".into(),
+        url: "https://example.org/my-mods".into(),
+    };
+    let saved = reopened
+        .set_mod_portal_preferences(
+            &pending.port_id,
+            0,
+            crate::ModPortalChoices {
+                local_page: Some(local_page.clone()),
+                hidden_sources: vec![],
+            },
+        )
+        .unwrap();
+    assert!(saved.mod_portal_preferences.automatic_sources.is_empty());
+    let resumed = PortcoveService::new(service.library.clone()).unwrap();
+    let handoff = resumed.preview_mod_handoff(&pending.port_id).unwrap();
+    assert!(!handoff.supported);
+    let [portal] = handoff.external_mod_portals.as_slice() else {
+        panic!("the pending setup should show only the player's mod website");
+    };
+    assert_eq!(portal.url, local_page.url);
+    assert!(!portal.browse_available);
+    let reset = resumed
+        .set_mod_portal_preferences(
+            &pending.port_id,
+            saved.mod_portal_preferences.preferences.revision,
+            crate::ModPortalChoices::default(),
+        )
+        .unwrap();
+    assert!(reset.external_mod_portals.is_empty());
     let snapshot = reopened.workspace_snapshot(10).unwrap();
     assert_eq!(
         snapshot.pending_setups.as_slice(),
@@ -1594,6 +1862,7 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
         .forget_pending_setup(&pending.port_id, &pending.id)
         .unwrap();
     assert!(reopened.pending_setups().unwrap().is_empty());
+    assert!(reopened.preview_mod_handoff(&pending.port_id).is_err());
     assert_eq!(
         fs::read(pending.path.join("player-save.dat")).unwrap(),
         b"my save"
@@ -2640,6 +2909,12 @@ async fn assert_embedded_resolved_frontend_download(
     let (_temporary, mut service, mut request) = fixture();
     service.catalog = Catalog::embedded().unwrap();
     request.port_id = id.into();
+    let expected_adapter = expected_adapter.or_else(|| {
+        service
+            .catalog
+            .assert_generated_registration(id)
+            .then_some(crate::AdapterKind::StagedSourcePortable)
+    });
     assert_eq!(
         service.catalog.port(id).ok().map(|port| port.adapter),
         expected_adapter
@@ -3552,22 +3827,35 @@ fn shared_browse_observation(listing: &mut PortListing, status: &str, age_hours:
 
 #[tokio::test]
 async fn admitted_github_listing_browses_and_acquires_only_from_its_numeric_repository() {
-    for with_sidecar in [false, true] {
+    for (with_sidecar, renamed) in [(false, false), (true, false), (false, true), (true, true)] {
         let (_temporary, mut service, mut request) = fixture();
         let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
         listing.id = "github-123".into();
         request.port_id = listing.id.clone();
         shared_browse_observation(&mut listing, "complete", 0);
+        let format_version = crate::catalog::listings::REPOSITORY_BOUND_LISTING_FORMAT;
+        assert!(
+            service
+                .catalog
+                .clone()
+                .with_listing_document(crate::CatalogListingDocument {
+                    format_version,
+                    listings: vec![listing.clone()],
+                })
+                .is_err(),
+            "an observation from repository 42 must not belong to the listing for repository 123"
+        );
+        listing.upstream_observation = None;
         service.catalog = service
             .catalog
             .with_listing_document(crate::CatalogListingDocument {
-                format_version: 15,
+                format_version,
                 listings: vec![listing],
             })
             .unwrap();
 
-        // The observation claims repository 42. The only available release API
-        // is repository 123. A name-based request would reach an unrelated route.
+        // The only available release API is repository 123. A name-based
+        // request would reach an unrelated route.
         let bytes = archive();
         let expected = crate::signed_catalog::digest(&bytes);
         let github = GithubFixture::for_api_repository(
@@ -3576,6 +3864,29 @@ async fn admitted_github_listing_browses_and_acquires_only_from_its_numeric_repo
             None,
             with_sidecar.then(|| format!("{expected}  game.zip\n")),
         );
+        if renamed {
+            for asset in github.assets.lock().unwrap().iter_mut() {
+                let name = asset["name"].as_str().unwrap();
+                asset["browser_download_url"] = json!(format!(
+                    "https://github.com/new-owner/renamed-game/releases/download/v1.0/{name}"
+                ));
+            }
+            *github.repository_identity.lock().unwrap() =
+                Some(json!({"id":42,"full_name":"new-owner/renamed-game"}));
+            assert!(
+                service
+                    .catalog_download_options_with_provider(
+                        &request.port_id,
+                        None,
+                        None,
+                        Some(&github.provider),
+                    )
+                    .await
+                    .is_err()
+            );
+            *github.repository_identity.lock().unwrap() =
+                Some(json!({"id":123,"full_name":"new-owner/renamed-game"}));
+        }
         let options = service
             .catalog_download_options_with_provider(
                 &request.port_id,
@@ -3588,6 +3899,81 @@ async fn admitted_github_listing_browses_and_acquires_only_from_its_numeric_repo
         assert!(options.allowed);
         assert_eq!(options.candidates.len(), 1 + usize::from(with_sidecar));
         assert!(options.candidates[0].sha256.is_none());
+        if renamed {
+            assert_eq!(
+                options.candidates[0].release_url,
+                "https://github.com/new-owner/renamed-game/releases/tag/v1.0"
+            );
+            let provider = CatalogDownloadProvider::Github(github.provider.clone());
+            let notes = service
+                .catalog_download_release_notes_inner(
+                    &request.port_id,
+                    &request.release_id,
+                    &request.asset_id,
+                    &options.candidates[0].release_url,
+                    Some(&provider),
+                )
+                .await
+                .unwrap();
+            assert_eq!(notes, options.candidates[0].release_url);
+
+            let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
+            shared_browse_observation(&mut listing, "complete", 0);
+            let observation = listing.upstream_observation.as_mut().unwrap();
+            observation.repository_id = Some(123);
+            observation.repository = "Owner/Game".into();
+            observation.releases[0].release_url =
+                "https://github.com/Owner/Game/releases/tag/v1.0".into();
+            observation.releases[0].assets[0].url =
+                "https://github.com/Owner/Game/releases/download/v1.0/game.zip".into();
+            service.catalog = service
+                .catalog
+                .with_listing_document(crate::CatalogListingDocument {
+                    format_version,
+                    listings: vec![listing],
+                })
+                .unwrap();
+            let before = github.requests.load(Ordering::SeqCst);
+            let observed = service
+                .catalog_download_options_with_provider(
+                    &request.port_id,
+                    None,
+                    None,
+                    Some(&github.provider),
+                )
+                .await
+                .unwrap();
+            assert_eq!(github.requests.load(Ordering::SeqCst), before);
+            assert_eq!(
+                observed.candidates[0].release_url,
+                "https://github.com/Owner/Game/releases/tag/v1.0"
+            );
+            assert_eq!(
+                service
+                    .catalog_download_release_notes_inner(
+                        &request.port_id,
+                        &request.release_id,
+                        &request.asset_id,
+                        &observed.candidates[0].release_url,
+                        Some(&provider),
+                    )
+                    .await
+                    .unwrap(),
+                notes
+            );
+            assert!(
+                service
+                    .catalog_download_release_notes_inner(
+                        &request.port_id,
+                        &request.release_id,
+                        &request.asset_id,
+                        "https://github.com/Owner/Game/releases/tag/V1.0",
+                        Some(&provider),
+                    )
+                    .await
+                    .is_err()
+            );
+        }
 
         let preview = service
             .catalog_download_preview_with_provider(&request, &github.provider)
