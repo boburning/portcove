@@ -123,7 +123,9 @@ export async function retireObserverConfigurations(
   checkpoint: CatalogObserverCheckpoint,
   deadline: number,
   now = Date.now,
+  standaloneConfig?: ObserverConfig,
 ) {
+  const standaloneHash = standaloneConfig ? observationHash(standaloneConfig) : null;
   const cleanupDeferred: string[] = [];
   const directory = (config: ObserverConfig) =>
     path.join(root, "work/upstream-observer", observationHash(config));
@@ -139,6 +141,15 @@ export async function retireObserverConfigurations(
         continue;
       const checkpointFile = path.join(directory(retired), "checkpoint.json");
       try {
+        // The scheduled scope no longer references the standalone checkpoint.
+        // Forget that dependency without modifying the standalone files.
+        if (digest === standaloneHash) {
+          progress.retired_configs = progress.retired_configs.filter(
+            (config) => observationHash(config) !== digest,
+          );
+          await atomicJson(statePath, checkpoint);
+          continue;
+        }
         await withCheckpointLock(checkpointFile, async () => {
           validateObserverCheckpoint(
             decodeStoredObserverCheckpoint(
@@ -692,7 +703,7 @@ export async function runCatalogUpstreams(
             : "complete-current-consumer-projections; managed eligibility remains Core-only",
         };
         if (configured)
-          await atomicJson(path.join(directory(config), "report.json"), {
+          await atomicJson(path.join(root, "work/upstream-observer-configured/report.json"), {
             ...observation.report,
             execution: report.execution,
           });
@@ -722,6 +733,7 @@ export async function runCatalogUpstreams(
       result.checkpoint,
       operationDeadline,
       now,
+      config,
     );
     let summary: unknown = omitOversizedBindingInputs(
       {

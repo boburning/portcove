@@ -656,10 +656,22 @@ export async function consumeConfiguredObserver(c: SourceContext) {
     ).data,
   );
   if (!Array.isArray(runs.workflow_runs)) throw new Error("Missing scheduled observer runs");
-  const run = runs.workflow_runs
+  const recent = runs.workflow_runs
+    .slice(0, 5)
     .map(rec)
-    .find((r) => r.status === "completed" && r.conclusion === "success");
-  if (!run) throw new Error("No successful scheduled observer in bounded recent window");
+    .filter((run) => run.status === "completed" && run.conclusion === "success");
+  for (const run of recent) {
+    const collected = await readConfiguredObserverRun(c, expected, run);
+    if (collected) return collected;
+  }
+  throw new Error("No fresh complete scheduled observer artifact in bounded recent window");
+}
+
+async function readConfiguredObserverRun(
+  c: SourceContext,
+  expected: ReturnType<typeof validateObserverConfig>,
+  run: Record<string, unknown>,
+) {
   const artifacts: Record<string, unknown>[] = [];
   const artifactIds = new Set<number>();
   const first = `repos/boburning/portcove/actions/runs/${String(run.id)}/artifacts?per_page=100`;
@@ -692,8 +704,9 @@ export async function consumeConfiguredObserver(c: SourceContext) {
       a.name === `configured-upstream-observation-${String(run.id)}-${String(run.run_attempt)}` &&
       !a.expired,
   );
-  if (!artifact || Number(artifact.size_in_bytes) > 2 * 1024 * 1024)
-    throw new Error("Missing/oversized observer artifact");
+  if (!artifact) return null;
+  if (Number(artifact.size_in_bytes) > 2 * 1024 * 1024)
+    throw new Error("Oversized observer artifact");
   const response = await c.http.request("GET", str(artifact.archive_download_url), undefined, true);
   if (response.status !== 200) throw new Error("Observer artifact unavailable");
   const got = readDiscoveryReport(
@@ -701,23 +714,14 @@ export async function consumeConfiguredObserver(c: SourceContext) {
     typeof artifact.digest === "string" ? artifact.digest : undefined,
   );
   const report = rec(got.report);
-  const execution = rec(report.execution),
-    observation = rec(report.observation),
-    scope = rec(report.configured_scope);
-  const config =
-    observation.format === expected.format ? expected : configuredCandidateObserverConfig(expected);
-  const configHash = observationHash(config);
+  const execution = rec(report.execution);
+  const scope = rec(report.configured_scope);
+  const config = [expected, configuredCandidateObserverConfig(expected)].find(
+    (candidate) => observationHash(candidate) === report.config_sha256,
+  );
   if (
     report.format !== 1 ||
-    report.config_sha256 !== configHash ||
-    observation.config_sha256 !== configHash ||
-    observation.format !== config.format ||
-    observation.port_id !== expected.port_id ||
-    observation.authority !== "provider-observation-only" ||
-    (config.format === 2 &&
-      (!isRecord(observation.coverage) ||
-        observation.coverage.kind !== "channel-candidate-assets" ||
-        observation.coverage.complete_release_headers !== true)) ||
+    !config ||
     scope.repository_id !== expected.repository_id ||
     scope.repository !== expected.repository ||
     scope.port_id !== expected.port_id ||
@@ -725,7 +729,42 @@ export async function consumeConfiguredObserver(c: SourceContext) {
     execution.run_id !== String(run.id) ||
     execution.run_attempt !== String(run.run_attempt) ||
     execution.kind !== "schedule" ||
-    execution.source_commit !== run.head_sha ||
+    execution.source_commit !== run.head_sha
+  )
+    throw new Error("Observer report binding, freshness or facts mismatch");
+  // A scoped bootstrap can exhaust its turn before producing a complete result.
+  // Look for an older fresh report under its own exact artifact and execution.
+  if (
+    isRecord(report.exception) &&
+    report.exception.rule === "budget" &&
+    isRecord(report.exception.coverage) &&
+    report.exception.coverage.kind === "partial"
+  )
+    return null;
+  const observation = rec(report.observation);
+  const facts = rec(observation.facts);
+  const coverage = observation.coverage;
+  const assetReleaseIds = isRecord(coverage) ? coverage.asset_release_ids : undefined;
+  const releaseIds = new Set(
+    Array.isArray(facts.releases)
+      ? facts.releases.flatMap((release: unknown) => (isRecord(release) ? [release.id] : []))
+      : [],
+  );
+  if (
+    observation.config_sha256 !== report.config_sha256 ||
+    observation.format !== config.format ||
+    observation.port_id !== expected.port_id ||
+    observation.authority !== "provider-observation-only" ||
+    (config.format === 2 &&
+      (!isRecord(coverage) ||
+        coverage.kind !== "channel-candidate-assets" ||
+        coverage.complete_release_headers !== true ||
+        !Array.isArray(facts.releases) ||
+        !Array.isArray(assetReleaseIds) ||
+        new Set(assetReleaseIds).size !== assetReleaseIds.length ||
+        !assetReleaseIds.every(
+          (id: unknown) => Number.isSafeInteger(id) && Number(id) > 0 && releaseIds.has(id),
+        ))) ||
     report.stale !== false ||
     report.exception !== null ||
     typeof report.last_complete_at !== "string" ||

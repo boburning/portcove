@@ -1614,13 +1614,15 @@ export async function advanceCatalogObservations(
               })),
             ),
           });
-      if (
-        progress.current_config &&
-        observationHash(progress.current_config) !== observationHash(config)
-      )
-        progress.retired_configs.push(progress.current_config);
-      progress.current_config = config;
-      await commitCheckpoint();
+      const configHash = observationHash(config);
+      const saveSourceCheckpoint = async (checkpoint: unknown) => {
+        await options.save(config, checkpoint);
+        if (progress.current_config && observationHash(progress.current_config) === configHash)
+          return;
+        if (progress.current_config) progress.retired_configs.push(progress.current_config);
+        progress.current_config = config;
+        await commitCheckpoint();
+      };
       const policies: unknown[] = [];
       const scoped = (observation: ProviderObservation, portId: string) => ({
         ...observation,
@@ -1764,11 +1766,21 @@ export async function advanceCatalogObservations(
         return selection.release_ids;
       };
       const result = await options.withSourceLock(config, async () => {
-        const priorSource = decodeStoredObserverCheckpoint(
+        const retainedSource = decodeStoredObserverCheckpoint(
           await options.load(config),
           deadline,
           now,
         );
+        // The configured config also binds the scheduled artifact consumer.
+        // Start a fresh provider attempt when its committed selection inputs move.
+        const priorSource =
+          configured &&
+          isRecord(retainedSource) &&
+          retainedSource.continuation &&
+          progress.selection_progress &&
+          progress.selection_progress.binding !== binding
+            ? { ...retainedSource, continuation: undefined }
+            : retainedSource;
         const position = (continuation: unknown) => {
           if (!isRecord(continuation))
             return observationHash({ phase: "collect", cursor: 0, pages: [] });
@@ -1807,7 +1819,7 @@ export async function advanceCatalogObservations(
           },
           project: projectAll,
           commitContinuation: async (checkpoint) => {
-            await options.save(config, checkpoint);
+            await saveSourceCheckpoint(checkpoint);
             retainedCursor = continuationCursor(
               isRecord(checkpoint) ? checkpoint.continuation : null,
             );
@@ -1819,7 +1831,7 @@ export async function advanceCatalogObservations(
           (Object.keys(continuation.pages).length > 0 || continuation.validation_cursor > 0) &&
           position(continuation) !== previousPosition;
         if (readProgress) coreProgress++;
-        await options.save(config, result.checkpoint);
+        await saveSourceCheckpoint(result.checkpoint);
         retainedCursor = continuationCursor(continuation);
         // Historical projections retain their own facts/definition identities.
         // A changed configuration may have no current observation at all.

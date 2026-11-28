@@ -574,12 +574,15 @@ runtime, and byte limits. Sources that run out of capacity keep their durable
 place for a later batch.
 
 The `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
-one `report.json` at the configured template's path. Daily discovery accepts
+one `report.json` staged apart from the standalone report and checkpoint. Daily discovery accepts
 historical full-asset reports and current Core-scoped reports only when the
 report and observation both match the corresponding committed configuration.
 The scoped collector stores a separately bound checkpoint. It preserves the
 prior full collection and its original freshness until a scoped collection
-finishes. Catalog reports
+finishes. The scheduled observer leaves the standalone checkpoint available
+after rollover. Daily discovery can use an earlier fresh, bound scheduled
+report while a new batch has no artifact or records a budget continuation.
+Catalog reports
 use a separate, uniquely owned handoff directory for each invocation, exported as
 `catalog-upstream-observations-RUN-ATTEMPT`. It contains inert observations and
 per-port Core policies for #246's existing supplied-observation → bounded-candidate

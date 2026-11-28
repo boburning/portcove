@@ -645,9 +645,17 @@ void test("daily discovery binds full and Core-scoped configured reports to sche
     status: "completed",
     conclusion: "success",
   };
+  const nextRun = {
+    ...run,
+    id: run.id + 1,
+    html_url: "https://github.com/boburning/portcove/actions/runs/124",
+  };
   const facts = { repository: { id: template.repository_id }, releases: [] };
   const factsHash = observationHash(facts);
   let bytes = Buffer.alloc(0);
+  let nextArtifact: Buffer | null | undefined;
+  const nextDownloadUrl =
+    "https://api.github.com/repos/boburning/portcove/actions/artifacts/10/zip";
   const downloadUrl = "https://api.github.com/repos/boburning/portcove/actions/artifacts/9/zip";
   const budget = new DiscoveryBudget("ordinary");
   const sdk = await createGitHubClient(
@@ -656,7 +664,25 @@ void test("daily discovery binds full and Core-scoped configured reports to sche
         const pathname = new URL(typeof url === "string" || url instanceof URL ? url : url.url)
           .pathname;
         if (pathname.endsWith("/workflows/354075266/runs"))
-          return Response.json({ workflow_runs: [run] });
+          return Response.json({
+            workflow_runs: nextArtifact === undefined ? [run] : [nextRun, run],
+          });
+        if (pathname.endsWith("/runs/124/artifacts")) {
+          return Response.json({
+            total_count: nextArtifact ? 1 : 0,
+            artifacts: nextArtifact
+              ? [
+                  {
+                    id: 10,
+                    name: "configured-upstream-observation-124-1",
+                    archive_download_url: nextDownloadUrl,
+                    size_in_bytes: nextArtifact.length,
+                    digest: `sha256:${createHash("sha256").update(nextArtifact).digest("hex")}`,
+                  },
+                ]
+              : [],
+          });
+        }
         assert.ok(pathname.endsWith("/runs/123/artifacts"));
         return Response.json({
           total_count: 1,
@@ -680,12 +706,14 @@ void test("daily discovery binds full and Core-scoped configured reports to sche
     http: {
       request: async (method: string, url: string) => {
         assert.equal(method, "GET");
-        assert.equal(url, downloadUrl);
+        assert.ok(url === downloadUrl || url === nextDownloadUrl);
+        const available = url === nextDownloadUrl ? nextArtifact : bytes;
+        assert.ok(available);
         return {
           requests: 1,
-          bytes: bytes.length,
+          bytes: available.length,
           status: 200,
-          text: bytes.toString("base64"),
+          text: available.toString("base64"),
           headers: {},
         };
       },
@@ -717,7 +745,13 @@ void test("daily discovery binds full and Core-scoped configured reports to sche
         facts,
         facts_sha256: factsHash,
         ...(config.format === 2
-          ? { coverage: { kind: "channel-candidate-assets", complete_release_headers: true } }
+          ? {
+              coverage: {
+                kind: "channel-candidate-assets",
+                complete_release_headers: true,
+                asset_release_ids: [] as number[],
+              },
+            }
           : {}),
       },
     };
@@ -738,7 +772,26 @@ void test("daily discovery binds full and Core-scoped configured reports to sche
   partial.observation.coverage!.complete_release_headers = false;
   bytes = zip(JSON.stringify(partial));
   await assert.rejects(consumeConfiguredObserver(source), /binding, freshness or facts mismatch/);
+  const foreignAssets = report(scoped);
+  foreignAssets.observation.coverage!.asset_release_ids = [42];
+  bytes = zip(JSON.stringify(foreignAssets));
+  await assert.rejects(consumeConfiguredObserver(source), /binding, freshness or facts mismatch/);
   assert.equal(saves, 2);
+  bytes = zip(JSON.stringify(report(template)));
+  const pending = report(scoped);
+  nextArtifact = zip(
+    JSON.stringify({
+      ...pending,
+      execution: { ...pending.execution, run_id: String(nextRun.id) },
+      exception: { rule: "budget", coverage: { kind: "partial" } },
+      observation: null,
+    }),
+  );
+  assert.equal((await consumeConfiguredObserver(source)).evidence, run.html_url);
+
+  nextArtifact = null;
+  assert.equal((await consumeConfiguredObserver(source)).evidence, run.html_url);
+  assert.equal(saves, 4);
 });
 
 void test("observer ZIP validates digest, structure, declared expansion and actual inflation cap", () => {

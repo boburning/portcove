@@ -2995,7 +2995,96 @@ void test("measured quiet activity defers inside freshness and catalog changes r
   assert.equal(reset.mean_change_interval_ms, null);
 });
 
-void test("configured artifact retains its report path while using Core-selected coverage", async (t) => {
+void test("configured coverage rolls forward only after saving its scoped checkpoint", async (t) => {
+  const h = harness();
+  const baseline = await advanceCatalogObservations(h.input, null, h.options);
+  const source = catalogObservationSources(h.input).sources.find(
+    (candidate) => candidate.repository === "owner/shared",
+  )!;
+  const legacy = validateObserverConfig({
+    ...h.options.config,
+    port_id: "stable-port",
+    repository: source.repository,
+    repository_id: 7,
+  });
+  const full = await advanceObservation(legacy, null, {
+    now: h.options.now!,
+    fetch: h.options.fetch!,
+    project: (observation) => h.options.project(legacy.port_id, legacy.repository_id, observation),
+  });
+  assert.equal(full.report.exception, null);
+  const oldHash = observationHash(legacy);
+  const scoped = configuredCandidateObserverConfig(legacy);
+  const scopedHash = observationHash(scoped);
+  h.states.set(oldHash, structuredClone(full.checkpoint));
+  const progress = baseline.checkpoint.sources[source.key]!;
+  progress.current_config = legacy;
+  progress.last_complete_config = legacy;
+  progress.completed_at = full.report.last_complete_at;
+  progress.freshness_observed_at = full.report.freshness_observed_at;
+  progress.last_complete_facts_sha256 = full.report.observation!.facts_sha256;
+  h.advanceClock(7 * 3600000);
+  const options: CatalogObservationOptions = {
+    ...h.options,
+    config: legacy,
+    excludedSources: new Set(
+      catalogObservationSources(h.input)
+        .sources.filter(({ key }) => key !== source.key)
+        .map(({ key }) => key),
+    ),
+    commit: async (checkpoint) => {
+      const current = checkpoint.sources[source.key]?.current_config;
+      if (current) assert.ok(h.states.has(observationHash(current)));
+    },
+  };
+  const blocked = await advanceCatalogObservations(h.input, baseline.checkpoint, {
+    ...options,
+    withSourceLock: async () => {
+      throw new Error("fixture lock unavailable");
+    },
+  });
+  assert.deepEqual(blocked.checkpoint.sources[source.key]!.current_config, legacy);
+  assert.equal(h.states.has(scopedHash), false);
+
+  const partial = await advanceCatalogObservations(h.input, blocked.checkpoint, {
+    ...options,
+    requestLimit: 1,
+  });
+  const retained = partial.checkpoint.sources[source.key]!;
+  assert.deepEqual(retained.current_config, scoped);
+  assert.deepEqual(retained.last_complete_config, legacy);
+  assert.equal(retained.freshness_observed_at, full.report.freshness_observed_at);
+  assert.ok(retained.retired_configs.some((config) => observationHash(config) === oldHash));
+
+  h.tick();
+  const completed = await advanceCatalogObservations(h.input, partial.checkpoint, options);
+  const current = completed.checkpoint.sources[source.key]!;
+  assert.deepEqual(current.last_complete_config, scoped);
+  assert.notEqual(current.freshness_observed_at, full.report.freshness_observed_at);
+  assert.equal(current.change_intervals, retained.change_intervals);
+  assert.deepEqual(h.states.get(oldHash), full.checkpoint);
+
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "configured-standalone-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const standalone = path.join(root, "work/upstream-observer", oldHash, "checkpoint.json");
+  await mkdir(path.dirname(standalone), { recursive: true });
+  await writeFile(standalone, JSON.stringify(full.checkpoint));
+  const statePath = path.join(root, "work/upstream-observer/catalog/checkpoint.json");
+  await retireObserverConfigurations(
+    root,
+    statePath,
+    completed.checkpoint,
+    Infinity,
+    h.options.now,
+    legacy,
+  );
+  assert.deepEqual(JSON.parse(await readFile(standalone, "utf8")), full.checkpoint);
+  assert.ok(!current.retired_configs.some((config) => observationHash(config) === oldHash));
+});
+
+void test("configured artifact is staged separately and uses Core-selected coverage", async (t) => {
   const work = fileURLToPath(new URL("../work/", import.meta.url));
   await mkdir(work, { recursive: true });
   const root = await mkdtemp(path.join(work, "catalog-legacy-test-"));
@@ -3033,11 +3122,12 @@ void test("configured artifact retains its report path while using Core-selected
       h.options.project(source.port_id, source.repository_id, observation),
   });
   assert.equal(result.notify_exception, false);
+  await assert.rejects(
+    readFile(path.join(root, "work/upstream-observer", observationHash(legacy), "report.json")),
+    { code: "ENOENT" },
+  );
   const legacyReport = JSON.parse(
-    await readFile(
-      path.join(root, "work/upstream-observer", observationHash(legacy), "report.json"),
-      "utf8",
-    ),
+    await readFile(path.join(root, "work/upstream-observer-configured/report.json"), "utf8"),
   ) as Record<string, unknown>;
   const scoped = configuredCandidateObserverConfig(legacy);
   assert.equal(legacyReport.config_sha256, observationHash(scoped));
