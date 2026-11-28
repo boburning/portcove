@@ -232,6 +232,65 @@ function releaseObservationListingHash(listing: Record<string, unknown>) {
   return listingDeclarationHash(withoutArtwork(listing));
 }
 
+/** An added descriptive edition does not change recurring release collection.
+ * Keep all other listing facts and every previously accepted edition in scope. */
+function addsDescriptiveSourceEditions(prior: unknown, current: unknown) {
+  if (!isRecord(prior) || !isRecord(current)) return false;
+  const { source_editions: priorEditions, ...priorGame } = prior;
+  const { source_editions: currentEditions, ...currentGame } = current;
+  if (
+    prior.format_version !== 1 ||
+    typeof prior.id !== "string" ||
+    !Array.isArray(priorEditions) ||
+    !Array.isArray(currentEditions) ||
+    currentEditions.length <= priorEditions.length ||
+    !isDeepStrictEqual(priorGame, currentGame)
+  )
+    return false;
+
+  const existing = new Map<string, unknown>();
+  for (const edition of priorEditions) {
+    if (!isRecord(edition) || typeof edition.id !== "string" || existing.has(edition.id))
+      return false;
+    existing.set(edition.id, edition);
+  }
+  const descriptiveEdition = new Set([
+    "id",
+    "title",
+    "system",
+    "evidence_urls",
+    "verified_sources",
+  ]);
+  const seen = new Set<string>();
+  for (const edition of currentEditions) {
+    if (!isRecord(edition) || typeof edition.id !== "string" || seen.has(edition.id)) return false;
+    seen.add(edition.id);
+    if (existing.has(edition.id)) {
+      if (!isDeepStrictEqual(existing.get(edition.id), edition)) return false;
+      existing.delete(edition.id);
+    } else if (
+      !Object.keys(edition).every((key) => descriptiveEdition.has(key)) ||
+      (edition.verified_sources !== undefined &&
+        (!Array.isArray(edition.verified_sources) || edition.verified_sources.length > 0))
+    )
+      return false;
+  }
+  return existing.size === 0;
+}
+
+function matchesReleaseObservationListing(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+) {
+  const beforeHash = releaseObservationListingHash(before);
+  return (
+    beforeHash === releaseObservationListingHash(after) ||
+    (addsDescriptiveSourceEditions(before.original_game, after.original_game) &&
+      beforeHash ===
+        releaseObservationListingHash({ ...after, original_game: before.original_game }))
+  );
+}
+
 function matchesAdmittedRepository(listingId: string, observation: Record<string, unknown>) {
   const repositoryId = admittedGithubRepositoryId(listingId);
   return (
@@ -247,6 +306,25 @@ function releaseObservationPortHash(port: Record<string, unknown> | undefined) {
   if (Object.keys(presentation).length) comparable.presentation = presentation;
   else delete comparable.presentation;
   return observationHash(comparable);
+}
+
+function matchesReleaseObservationPort(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown> | undefined,
+) {
+  const beforeHash = releaseObservationPortHash(before);
+  if (beforeHash === releaseObservationPortHash(after)) return true;
+  if (!before || !after || !isRecord(before.presentation) || !isRecord(after.presentation))
+    return false;
+  const priorGame = before.presentation.original_game;
+  return (
+    addsDescriptiveSourceEditions(priorGame, after.presentation.original_game) &&
+    beforeHash ===
+      releaseObservationPortHash({
+        ...after,
+        presentation: { ...after.presentation, original_game: priorGame },
+      })
+  );
 }
 
 /** Use validated checkpoint policies only when producer AND current canonical
@@ -288,10 +366,8 @@ export function completedListingCandidates(
       if (
         !canonicalListing ||
         !port.listing ||
-        releaseObservationListingHash(port.listing) !==
-          releaseObservationListingHash(canonicalListing) ||
-        releaseObservationPortHash(originalPorts.get(port.id)) !==
-          releaseObservationPortHash(currentPorts.get(port.id))
+        !matchesReleaseObservationListing(port.listing, canonicalListing) ||
+        !matchesReleaseObservationPort(originalPorts.get(port.id), currentPorts.get(port.id))
       )
         continue;
       const policies = progress.last_complete_policies.filter(
@@ -301,8 +377,7 @@ export function completedListingCandidates(
       if (
         !policy ||
         !isRecord(policy.listing_update) ||
-        releaseObservationListingHash(policy.listing_update) !==
-          releaseObservationListingHash(canonicalListing) ||
+        !matchesReleaseObservationListing(policy.listing_update, canonicalListing) ||
         !isRecord(policy.listing_update.upstream_observation)
       )
         continue;
@@ -482,7 +557,7 @@ export function projectListingDelivery(
     const current = typeof candidate.id === "string" ? declarations.get(candidate.id) : undefined;
     if (
       !current ||
-      releaseObservationListingHash(candidate) !== releaseObservationListingHash(current) ||
+      !matchesReleaseObservationListing(candidate, current) ||
       !isRecord(candidate.upstream_observation) ||
       !matchesAdmittedRepository(String(current.id), candidate.upstream_observation)
     )
@@ -532,7 +607,7 @@ export function projectListingDelivery(
       const old = previousListings.get(listing.id);
       const prior =
         old &&
-        releaseObservationListingHash(old) === releaseObservationListingHash(listing) &&
+        matchesReleaseObservationListing(old, listing) &&
         isRecord(old.upstream_observation) &&
         matchesAdmittedRepository(String(listing.id), old.upstream_observation)
           ? old.upstream_observation
