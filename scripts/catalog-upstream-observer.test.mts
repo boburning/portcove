@@ -5291,6 +5291,85 @@ void test("GitLab provider failures export a descriptive failure candidate witho
   assert.equal(state.last_complete_facts_sha256, null);
 });
 
+void test("an older healthy mod registry projection can refresh once without bypassing retry-after", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: [{ id: "other-port", project_url: "https://github.com/owner/other" }],
+  };
+  const label = "example-port";
+  const thunderstore = { listed: true, wikiUrl: "https://github.com/Example/Port" };
+  const body = {
+    schemaVersion: "0.3.0",
+    games: { [label]: { label, uuid: "da521cd3-560c-45df-8f43-000000000000", thunderstore } },
+    communities: { [label]: thunderstore },
+  };
+  const now = h.options.now!;
+  const retryDelay = 120_000;
+  let fail = false;
+  let requests = 0;
+  h.options.modProviderRegistryFetch = async () => {
+    requests++;
+    return fail
+      ? new Response(null, { status: 429, headers: { "retry-after": "120" } })
+      : Response.json(body);
+  };
+  const observe = (prior: CatalogObserverCheckpoint | null) =>
+    advanceCatalogObservations(input, prior, h.options);
+
+  const first = await observe(null);
+  const legacy = structuredClone(first.checkpoint);
+  const prior = legacy.mod_provider_registry;
+  assert.ok(prior?.last_complete);
+  delete prior.last_complete.projection_version;
+  for (const community of prior.last_complete.communities) delete community.github_document;
+  prior.last_complete.communities_sha256 = observationHash(prior.last_complete.communities);
+  assert.ok(Date.parse(prior.next_due_at) > now());
+  const saved = validateCatalogObserverCheckpoint(JSON.parse(JSON.stringify(legacy)), now());
+
+  const exhausted = await advanceCatalogObservations(input, saved, {
+    ...h.options,
+    requestLimit: 4,
+    launcherModRequestLimit: 4,
+    observeLauncherMods: async (repository, account) => {
+      for (let read = 0; read < 4; read++) account.admitRequest();
+      return {
+        state: "absent",
+        repository_id: repository.id,
+        commit: "a".repeat(40),
+        tree: "b".repeat(40),
+      };
+    },
+  });
+  assert.equal(exhausted.report.launcher_mod_sources?.requests, 4);
+  assert.equal(requests, 1);
+  assert.deepEqual(exhausted.checkpoint.mod_provider_registry, prior);
+
+  fail = true;
+  const limited = await observe(saved);
+  assert.equal(requests, 2);
+  assert.equal(limited.checkpoint.mod_provider_registry?.exception, "rate-limit");
+  assert.equal(
+    limited.checkpoint.mod_provider_registry?.next_due_at,
+    new Date(now() + retryDelay).toISOString(),
+  );
+  assert.deepEqual(limited.checkpoint.mod_provider_registry?.last_complete, prior.last_complete);
+  await observe(limited.checkpoint);
+  assert.equal(requests, 2);
+
+  fail = false;
+  h.advanceClock(retryDelay);
+  const refreshed = await observe(limited.checkpoint);
+  assert.equal(requests, 3);
+  assert.equal(refreshed.checkpoint.mod_provider_registry?.last_complete?.projection_version, 1);
+  assert.deepEqual(
+    refreshed.checkpoint.mod_provider_registry?.last_complete?.communities[0]?.github_document,
+    { repository: "Example/Port", path: null, ref: null },
+  );
+  await observe(refreshed.checkpoint);
+  assert.equal(requests, 3);
+});
+
 void test("the mod-provider registry keeps exact discovery evidence across observer restart and incomplete reads", async () => {
   const h = harness();
   const { upstreamFacts } = await import("./maintenance-upstream.mts");
