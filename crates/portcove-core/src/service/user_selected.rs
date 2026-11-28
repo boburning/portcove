@@ -1121,9 +1121,8 @@ mod tests {
                     .is_empty()
             );
         }
-        let relink = service
-            .library
-            .begin_activity(
+        let (relink, _operation) = service
+            .begin_cancellable_activity(
                 crate::ActivityOperation::RelinkExternal,
                 crate::ActivityTargetKind::Port,
                 Some(LOCAL),
@@ -1133,6 +1132,20 @@ mod tests {
             .unwrap();
         assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
         service.finish_activity(relink, Ok(())).unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+
+        let (_, interrupted_remove) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::RemoveExternal,
+                crate::ActivityTargetKind::Port,
+                Some(LOCAL),
+            )
+            .unwrap();
+        PortcoveService::defer_new_personal_aliases(&connection, Some(&base), service.catalog())
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+        drop(interrupted_remove);
+        service.recover_pending_operations().unwrap();
         assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
 
         connection

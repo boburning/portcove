@@ -256,6 +256,7 @@ impl PortcoveService {
                 OR EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id IN (?1, ?2))
                 OR EXISTS(SELECT 1 FROM activity_history
                     WHERE target_id IN (?1, ?2) AND target_kind='port' AND status='running'
+                        AND cancellation_phase IS NOT NULL
                         AND operation IN ('register_external', 'relink_external', 'remove_external'))",
             [personal_id, canonical_id],
             |row| row.get(0),
@@ -348,7 +349,14 @@ impl PortcoveService {
 
     pub(super) fn retry_personal_aliases(&self, port_id: Option<&str>) -> Result<()> {
         let mut connection = self.library.connection()?;
-        if !Self::has_deferred_personal_aliases(&connection)? {
+        if !Self::has_deferred_personal_aliases(&connection)?
+            || !connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM deferred_personal_catalog_aliases
+                    WHERE ?1 IS NULL OR personal_id=?1 OR canonical_id=?1)",
+                [port_id],
+                |row| row.get::<_, bool>(0),
+            )?
+        {
             return Ok(());
         }
         let transaction =

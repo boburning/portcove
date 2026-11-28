@@ -6346,13 +6346,14 @@ impl PortcoveService {
         port_id: &str,
         authorization_token: &str,
     ) -> Result<ExternalRuntimeRecord> {
-        let activity = self.library.begin_activity(
+        let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::RemoveExternal,
             ActivityTargetKind::Port,
             Some(port_id),
         )?;
         let result = (|| {
             let _lock = self.library.try_lock_port(port_id, "remove-external")?;
+            operation.checkpoint()?;
             let (record, _) = self
                 .library
                 .external_runtime_with_port(port_id)?
@@ -6366,6 +6367,7 @@ impl PortcoveService {
                 port_id,
                 &fingerprint,
             )?;
+            operation.begin_publication()?;
             self.library.remove_external_runtime(&record)?;
             Ok(record)
         })();
