@@ -1259,6 +1259,56 @@ void test(
 );
 
 void test(
+  "retains captured transfer evidence when the admission ledger update fails",
+  { skip: server.skip ?? false, timeout: 60_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const evidence = path.join(fixture.root, "resource.jsonl");
+    const source = {
+      ...fixture.start("settlement-failure").owner,
+      PORTCOVE_MAINTENANCE_RESOURCE_EVIDENCE: evidence,
+    };
+    migrate(source);
+    const admission = acquireMaintenanceReservation(source, {
+      meter: testMeter(0),
+      request: "settlement-failure",
+      operation: "recovery",
+      reason: "test",
+    });
+    assert.ok(admission.attempt_id);
+    runSql(
+      source,
+      `CREATE FUNCTION public.reject_fixture_settlement() RETURNS trigger
+      LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'fixture rejects settlement'; END; $$;
+      CREATE TRIGGER reject_fixture_settlement BEFORE UPDATE
+      ON portcove_maintenance_meta.resource_admissions
+      FOR EACH ROW EXECUTE FUNCTION public.reject_fixture_settlement();`,
+    );
+    let received = 0;
+    await assert.rejects(
+      runAdmittedMaintenance(source, admission, () => {
+        received = Buffer.byteLength(runSql(source, "SELECT repeat('x', 4096);"));
+      }),
+      /fixture rejects settlement/u,
+    );
+    assert.ok(received >= 4096);
+    const retained = JSON.parse(readFileSync(evidence, "utf8")) as Record<string, unknown>;
+    assert.equal(retained.attempt_id, admission.attempt_id);
+    assert.equal(retained.captured_command_stdout_bytes, received);
+    assert.equal(retained.operation_reservation_bytes, admission.operation_reservation_bytes);
+    assert.equal(retained.settlement_basis, "unknown");
+    assert.deepEqual(
+      queryJson(
+        source,
+        `SELECT json_build_object('outcome', outcome, 'estimate', estimate_bytes, 'reserved', reserved_bytes)
+         FROM portcove_maintenance_meta.resource_admissions WHERE request_key = 'settlement-failure';`,
+      ),
+      { outcome: "running", estimate: null, reserved: admission.operation_reservation_bytes },
+    );
+  },
+);
+
+void test(
   "recovery retries reserve and settle real ledger attempts without retrying uncertain transfers",
   { skip: server.skip ?? false, timeout: 240_000 },
   async (context) => {

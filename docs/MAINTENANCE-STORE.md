@@ -1727,6 +1727,9 @@ and outcome. A settlement line also records the reservation, captured command
 stdout bytes and whether the operation is eligible for estimate-based settlement.
 The stdout count includes output captured before a failure. Use the Neon counter
 for provider transfer, and the recovery receipt for export file measurements.
+A failed ledger update still records the captured stdout in the run evidence
+with an unknown settlement basis. It is a lower bound on command output. The
+durable ledger and provider samples determine the actual charge.
 A command interrupted before settlement can leave only its admission line. Its
 reservation still applies. The GitHub summary reports deferred work and the dated
 recovery point.
