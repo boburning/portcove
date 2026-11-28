@@ -960,7 +960,9 @@ mod tests {
         } else {
             listing_only(&mut service);
         }
-        assert!(service.catalog.port(id).is_err());
+        if embedded_download_hold.is_none() || !service.catalog.assert_generated_registration(id) {
+            assert!(service.catalog.port(id).is_err());
+        }
         eprintln!(
             "listing route {id}: embedded contract ready {:?}",
             started.elapsed()

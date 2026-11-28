@@ -355,7 +355,9 @@ mod tests {
         let catalog = crate::Catalog::embedded().unwrap();
         let id = "crusader-no-remorse-sebsebseb1982-sdl-port";
         let listing = catalog.listing(id).unwrap();
-        assert!(catalog.port(id).is_err(), "display only");
+        if !catalog.assert_generated_registration(id) {
+            assert!(catalog.port(id).is_err(), "display only");
+        }
         for version in ["1.41.2", "1.47.0", "1.49.0"] {
             let mut assets = [
                 asset(1, &format!("crusader-{version}-windows-x64.zip")),

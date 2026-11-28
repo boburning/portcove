@@ -130,7 +130,7 @@ import { bodyFirstLine, compareRange, statementText, withoutTags } from "./relea
 export { bodyFirstLine, compareRange, statementText, withoutTags };
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 32;
+export const GENERATOR_VERSION = 33;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
 export const FACTS_PARSER_VERSION = 26;

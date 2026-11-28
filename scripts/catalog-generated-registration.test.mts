@@ -532,6 +532,11 @@ void test("an unseen identity enrolls from worker facts alone and validates like
   const assembled = assembleCatalogRecords(shared, [...records, listing()], derived.table);
   const port = assembled.catalog.ports.find((candidate) => candidate.id === unseen);
   assert.ok(port, "generated route is an operational definition");
+  assert.equal(port.summary, "Register a copy you prepared from the upstream project.");
+  assert.equal(
+    assembled.directory.listings.find(({ id }) => id === unseen)!.summary,
+    listing().listing.summary,
+  );
   assert.equal(port.adapter, "staged-source-portable");
   assert.deepEqual(port.platforms, ["windows-x86-64"]);
   const release = port.release as {
@@ -11290,10 +11295,9 @@ const HAND_CHECK_DECISIONS = [
   ["Game-v1.0-win64.zip", "Arc and Alphabet 1.0", "fit"],
   ["Game-v1.0-win64.zip", "Release 1.0", "fit"],
 ];
-// Re-pinned for generator 32: only each enrollment's recorded
-// `generator_version` and facts digest changed.
+// Re-pinned for generator 33: only each enrollment's recorded generator version changed.
 const HAND_CHECK_ENROLLMENTS_SHA256 =
-  "e1ec132da7e3596e93b4fcf02fecc7731855904752ba5beec84820eb837328ac";
+  "9a6ced44bc22ff78b2ed365731ef0e18cfbdd6a2283814ecc405857b13e51c6d";
 
 void test("a relieved name joins integer_as_version under the same condition as an equal name", () => {
   const relieved = { id: "zz-lantern", name: "Lantern: Echoes of Night" };

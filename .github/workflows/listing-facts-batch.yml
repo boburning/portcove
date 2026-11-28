@@ -610,7 +610,12 @@ jobs:
         id: gate
         timeout-minutes: 10
         # Compared with the previous commit: the main tip this batch starts from.
-        run: GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check
+        run: |
+          set -euo pipefail
+          GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check
+          chmod +x "$WORK/cli/portcove"
+          "$WORK/cli/portcove" --technical-details catalog inspect-proposal --repository-authoring \
+            crates/portcove-core/catalog/catalog.json > /dev/null
       # Released readers refuse a catalog or listing directory past Core's
       # bounds: a batch over 85% of either is never proposed (`catalog-capacity`).
       - name: Check the batch against the catalog capacity guards
@@ -808,7 +813,12 @@ jobs:
         if: steps.regenerate.outcome == 'success'
         continue-on-error: true
         timeout-minutes: 10
-        run: GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check
+        run: |
+          set -euo pipefail
+          GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check
+          chmod +x "$WORK/plan-artifact/cli/portcove"
+          "$WORK/plan-artifact/cli/portcove" --technical-details catalog inspect-proposal --repository-authoring \
+            crates/portcove-core/catalog/catalog.json > /dev/null
       - name: Check the withheld batch against the catalog capacity guards
         id: rechecked_capacity
         if: steps.regenerate.outcome == 'success'

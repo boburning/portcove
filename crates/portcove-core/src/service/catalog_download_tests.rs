@@ -959,6 +959,12 @@ async fn assert_embedded_download_holds(
         let (_temporary, mut service, mut request) = fixture();
         service.catalog = Catalog::embedded().unwrap();
         request.port_id = id.into();
+        let expected_provider = expected_provider.or_else(|| {
+            service
+                .catalog
+                .assert_generated_registration(id)
+                .then_some(crate::ReleaseSource::UserPrepared)
+        });
         assert_eq!(
             service
                 .catalog
@@ -2845,6 +2851,12 @@ async fn assert_embedded_resolved_frontend_download(
     let (_temporary, mut service, mut request) = fixture();
     service.catalog = Catalog::embedded().unwrap();
     request.port_id = id.into();
+    let expected_adapter = expected_adapter.or_else(|| {
+        service
+            .catalog
+            .assert_generated_registration(id)
+            .then_some(crate::AdapterKind::StagedSourcePortable)
+    });
     assert_eq!(
         service.catalog.port(id).ok().map(|port| port.adapter),
         expected_adapter
