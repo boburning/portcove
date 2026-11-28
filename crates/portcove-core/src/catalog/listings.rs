@@ -2,7 +2,7 @@
 //! original validator and are never synthesized from an incomplete listing.
 use super::*;
 use crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT;
-use crate::catalog_media::IGDB_SCENE_LISTING_FORMAT;
+use crate::catalog_media::{IGDB_SCENE_LISTING_FORMAT, LANDSCAPE_COVER_LISTING_FORMAT};
 use crate::{CatalogListingDocument, IgdbArtwork, ListingAvailability, Platform, PortListing};
 use std::{collections::BTreeMap, sync::LazyLock};
 
@@ -30,6 +30,9 @@ pub(crate) const MOD_PORTAL_LISTING_FORMAT: u32 = 16;
 pub(crate) const REPOSITORY_BOUND_LISTING_FORMAT: u32 = 17;
 pub(crate) const OFFICIAL_SETUP_LISTING_FORMAT: u32 = 18;
 pub(crate) const ASSIGNED_COVER_LISTING_FORMAT: u32 = 19;
+pub(crate) const OBSERVED_PROJECT_COVER_LISTING_FORMAT: u32 = 20;
+pub(crate) const MAX_LISTING_FORMAT: u32 = LANDSCAPE_COVER_LISTING_FORMAT;
+const MAX_OBSERVED_REPOSITORY_ID: u64 = 9_007_199_254_740_991;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -99,6 +102,13 @@ fn has_extended_media(listing: &PortListing) -> bool {
         > 1
 }
 
+fn has_landscape_cover(listing: &PortListing) -> bool {
+    listing
+        .media
+        .iter()
+        .any(|asset| asset.role == crate::CatalogMediaRole::LandscapeCover)
+}
+
 fn has_typed_igdb_scene(listing: &PortListing) -> bool {
     listing
         .media
@@ -142,6 +152,30 @@ pub(crate) fn strip_verified_sources(listing: &mut PortListing) {
     }
 }
 
+pub(crate) fn has_observed_project_cover(listing: &PortListing) -> bool {
+    listing
+        .artwork
+        .iter()
+        .chain(listing.collection_covers.iter().flatten())
+        .any(|cover| cover.observed_github_repository_id.is_some())
+}
+
+/// These fields come from the current directory. A legacy setup cannot
+/// authenticate a generated cover after the catalog withdraws or replaces it.
+pub(crate) fn strip_directory_only_retained_fields(listing: &mut PortListing) {
+    listing.mod_portals.clear();
+    listing.official_setup_id = None;
+    listing.media.retain(|asset| !asset.is_directory_only());
+    strip_verified_sources(listing);
+    if listing
+        .artwork
+        .as_ref()
+        .is_some_and(|cover| cover.observed_github_repository_id.is_some())
+    {
+        listing.artwork = None;
+    }
+}
+
 pub(crate) fn inherit_verified_sources(
     original: &mut crate::OriginalGameIdentity,
     previous: &crate::OriginalGameIdentity,
@@ -162,7 +196,7 @@ pub(crate) fn inherit_verified_sources(
     }
 }
 
-fn retain_directory_scenes(port: &PortDefinition, listing: &PortListing) -> bool {
+fn retain_directory_media(port: &PortDefinition, listing: &PortListing) -> bool {
     port.project_url == listing.project_url
         && port
             .presentation
@@ -173,7 +207,7 @@ fn retain_directory_scenes(port: &PortDefinition, listing: &PortListing) -> bool
                     && listing
                         .media
                         .iter()
-                        .filter(|asset| !asset.is_typed_igdb_scene())
+                        .filter(|asset| !asset.is_directory_only())
                         .eq(strict)
             })
 }
@@ -189,13 +223,27 @@ pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=ASSIGNED_COVER_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=MAX_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 19",
+                "listing export supports formats 5 through 21",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < LANDSCAPE_COVER_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                listing
+                    .media
+                    .retain(|asset| asset.role != crate::CatalogMediaRole::LandscapeCover);
+            }
+        }
+        if format_version < OBSERVED_PROJECT_COVER_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                if let Some(artwork) = &mut listing.artwork {
+                    artwork.observed_github_repository_id = None;
+                }
+            }
+        }
         if format_version < OFFICIAL_SETUP_LISTING_FORMAT {
             for listing in &mut document.listings {
                 listing.official_setup_id = None;
@@ -264,6 +312,14 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self.listings.iter().any(has_landscape_cover) {
+            self.format_version = self.format_version.max(LANDSCAPE_COVER_LISTING_FORMAT);
+        }
+        if self.listings.iter().any(has_observed_project_cover) {
+            self.format_version = self
+                .format_version
+                .max(OBSERVED_PROJECT_COVER_LISTING_FORMAT);
+        }
         if self
             .listings
             .iter()
@@ -427,11 +483,45 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=ASSIGNED_COVER_LISTING_FORMAT) {
+        if !matches!(self.format_version, 1..=MAX_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        for listing in &self.listings {
+            if let Some(artwork) = &listing.artwork
+                && let Some(repository_id) = artwork.observed_github_repository_id
+            {
+                if self.format_version < OBSERVED_PROJECT_COVER_LISTING_FORMAT {
+                    return Err(PortcoveError::unsupported(
+                        "observed project covers require listing format 20",
+                    ));
+                }
+                if artwork.match_kind != crate::IgdbArtworkMatch::Port
+                    || !(1..=MAX_OBSERVED_REPOSITORY_ID).contains(&repository_id)
+                    || crate::release::catalog_download_repository(&listing.project_url).is_err()
+                    || listing
+                        .admitted_github_repository_id()
+                        .is_some_and(|admitted| admitted != repository_id)
+                    || listing
+                        .observed_github_repository_id()
+                        .is_some_and(|observed| observed != repository_id)
+                {
+                    return Err(PortcoveError::usage(
+                        "observed project cover has an invalid repository binding",
+                    ));
+                }
+            }
+            if listing.collection_covers.as_ref().is_some_and(|covers| {
+                covers
+                    .iter()
+                    .any(|cover| cover.observed_github_repository_id.is_some())
+            }) {
+                return Err(PortcoveError::usage(
+                    "observed project covers cannot be used in a collection",
+                ));
+            }
         }
         if self.format_version < OFFICIAL_SETUP_LISTING_FORMAT
             && self
@@ -490,6 +580,13 @@ impl CatalogListingDocument {
         {
             return Err(PortcoveError::usage(
                 "verified source edition bindings require listing format 14",
+            ));
+        }
+        if self.format_version < LANDSCAPE_COVER_LISTING_FORMAT
+            && self.listings.iter().any(has_landscape_cover)
+        {
+            return Err(PortcoveError::unsupported(
+                "landscape covers require listing format 21",
             ));
         }
         if self.format_version < IGDB_SCENE_LISTING_FORMAT
@@ -632,6 +729,14 @@ fn valid_listed_at(value: &str) -> bool {
         return false;
     };
     time::Date::from_calendar_date(year as i32, month, day as u8).is_ok()
+}
+
+pub(crate) fn valid_listing_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 128
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
 fn valid_text(value: &str, limit: usize) -> bool {
@@ -808,6 +913,23 @@ impl PortListing {
         } else {
             None
         }
+    }
+
+    pub(crate) fn private_github_project(repository_id: u64, full_name: &str) -> Result<Self> {
+        Ok(serde_json::from_value(serde_json::json!({
+            "id": format!("github-{repository_id}"),
+            "name": full_name,
+            "summary": "Public upstream project selected for this library.",
+            "project_url": format!("https://github.com/{full_name}"),
+        }))?)
+    }
+
+    fn private_github_repository_id(&self) -> Option<u64> {
+        let id = self.admitted_github_repository_id()?;
+        // Older registration envelopes use an exact, generated listing for a
+        // personal selection. Ordinary retained catalog listings are different.
+        let address = crate::release::catalog_download_repository(&self.project_url).ok()?;
+        (Self::private_github_project(id, &address).ok().as_ref() == Some(self)).then_some(id)
     }
 
     fn validate_observation_metadata(&self) -> Result<()> {
@@ -1002,12 +1124,7 @@ impl PortListing {
             self.original_game.as_ref(),
             &self.media,
         )?;
-        if self.id.is_empty()
-            || self.id.len() > 128
-            || !self
-                .id
-                .bytes()
-                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        if !valid_listing_id(&self.id)
             || !valid_text(&self.name, 512)
             || !valid_text(&self.summary, 4096)
             || !valid_url(&self.project_url)
@@ -1217,6 +1334,11 @@ impl Catalog {
             for (entry, current) in exported.listings.iter_mut().zip(self.listings()) {
                 if entry.artwork.is_none() {
                     entry.artwork = self.automatic_cover(current).cloned();
+                    if exported.format_version < OBSERVED_PROJECT_COVER_LISTING_FORMAT
+                        && let Some(artwork) = &mut entry.artwork
+                    {
+                        artwork.observed_github_repository_id = None;
+                    }
                 }
             }
         }
@@ -1301,20 +1423,21 @@ impl Catalog {
                 }
             }
         }
-        for listing in document
-            .listings
-            .iter_mut()
-            .filter(|listing| has_typed_igdb_scene(listing))
-        {
+        for listing in document.listings.iter_mut().filter(|listing| {
+            listing
+                .media
+                .iter()
+                .any(crate::CatalogMediaAsset::is_directory_only)
+        }) {
             if let Ok(port) = self.port(&listing.id) {
-                let same_authority = retain_directory_scenes(port, listing);
+                let same_authority = retain_directory_media(port, listing);
                 let original = port
                     .presentation
                     .as_ref()
                     .and_then(|presentation| presentation.original_game.as_ref())
                     .or(listing.original_game.as_ref());
                 listing.media.retain(|asset| {
-                    !asset.is_typed_igdb_scene()
+                    !asset.is_directory_only()
                         || (same_authority
                             && crate::catalog_media::validate_catalog_media(
                                 &port.id,
@@ -1385,15 +1508,15 @@ impl Catalog {
                     .presentation
                     .as_ref()
                     .and_then(|value| value.media.as_ref());
-                // The authored directory owns typed IGDB backgrounds and screenshots.
+                // The signed directory supplies current directory-only media.
                 // A corrected strict identity or explicit replacement still wins.
-                let can_append_typed_media = retain_directory_scenes(port, listing);
+                let can_append_typed_media = retain_directory_media(port, listing);
                 let mut media = strict_media.cloned().unwrap_or_else(|| {
                     // A corrected strict identity cannot inherit another edition's images.
                     listing
                         .media
                         .iter()
-                        .filter(|asset| !asset.is_typed_igdb_scene())
+                        .filter(|asset| !asset.is_directory_only())
                         .filter(|asset| {
                             crate::catalog_media::validate_catalog_media(
                                 &port.id,
@@ -1411,7 +1534,7 @@ impl Catalog {
                             .media
                             .iter()
                             .filter(|asset| {
-                                asset.is_typed_igdb_scene()
+                                asset.is_directory_only()
                                     && crate::catalog_media::validate_catalog_media(
                                         &port.id,
                                         original_game.as_ref(),
@@ -1508,6 +1631,31 @@ impl Catalog {
             ));
         }
         Ok(())
+    }
+
+    pub(crate) fn canonical_for_private_github_listing(
+        &self,
+        retained: &PortListing,
+    ) -> Option<&PortListing> {
+        let repository_id = retained.private_github_repository_id()?;
+        self.canonical_for_personal_github_key(&retained.id, repository_id)
+    }
+
+    pub(crate) fn canonical_for_personal_github_key(
+        &self,
+        personal_id: &str,
+        repository_id: u64,
+    ) -> Option<&PortListing> {
+        if self.listing(personal_id).is_ok() {
+            // Same-key admission already resolves directly and needs no association.
+            return None;
+        }
+        let mut matches = self
+            .listings()
+            .iter()
+            .filter(|listing| listing.observed_github_repository_id() == Some(repository_id));
+        let candidate = matches.next()?;
+        matches.next().is_none().then_some(candidate)
     }
 
     /// Durable launch intent retains only the descriptive project and an explicit
@@ -2179,13 +2327,49 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":ASSIGNED_COVER_LISTING_FORMAT + 1,"listings":[listing()]}),
+            json!({"format_version":MAX_LISTING_FORMAT + 1,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
         ] {
             assert!(CatalogListingDocument::from_json(&document.to_string()).is_err());
         }
+    }
+
+    #[test]
+    fn observed_implementation_cover_requires_exact_repository_and_capable_reader() {
+        let mut row = listing();
+        row["id"] = json!("github-890");
+        row["project_url"] = json!("https://github.com/example/project");
+        row["release_url"] = json!("https://github.com/example/project/releases");
+        row["artwork"] = json!({
+            "game_id": 17, "cover_id": 31, "image_id": "projectcover",
+            "image_sha256": "a".repeat(64), "game_slug": "project",
+            "match_kind": "port", "observed_github_repository_id": 890
+        });
+        let read = |format, row| {
+            CatalogListingDocument::from_json(
+                &json!({"format_version":format,"listings":[row]}).to_string(),
+            )
+        };
+        assert!(read(ASSIGNED_COVER_LISTING_FORMAT, row.clone()).is_err());
+        let accepted = read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, row.clone()).unwrap();
+        let old_export = accepted
+            .export_format(ASSIGNED_COVER_LISTING_FORMAT)
+            .unwrap();
+        let cover = old_export.listings[0].artwork.as_ref().unwrap();
+        assert_eq!(cover.image_id, "projectcover");
+        assert_eq!(cover.observed_github_repository_id, None);
+
+        row["artwork"]["observed_github_repository_id"] = json!(891);
+        assert!(read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, row.clone()).is_err());
+        let mut legacy = row.clone();
+        legacy["id"] = json!("legacy-project");
+        legacy["artwork"]["observed_github_repository_id"] = json!(MAX_OBSERVED_REPOSITORY_ID + 1);
+        assert!(read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, legacy).is_err());
+        row["artwork"]["observed_github_repository_id"] = json!(890);
+        row["artwork"]["match_kind"] = json!("underlying-game");
+        assert!(read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, row).is_err());
     }
 
     #[test]
@@ -2774,6 +2958,36 @@ mod observation_metadata_tests {
         }
     }
     #[test]
+    fn signed_landscape_cover_has_its_own_reader_gate() {
+        let mut row = listing();
+        row["media"] = json!([{
+            "id": "reviewed-wide-art",
+            "role": "landscape_cover",
+            "subject": {"kind": "port", "port_id": "observed-project"},
+            "caption": "Project landscape cover",
+            "url": "https://raw.githubusercontent.com/example/game/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/wide.png",
+            "sha256": "b".repeat(64),
+            "width": 960,
+            "height": 540,
+            "attribution": "Example project",
+            "source_url": "https://github.com/example/game",
+            "license": "CC-BY-4.0",
+            "rights_url": "https://creativecommons.org/licenses/by/4.0/",
+        }]);
+        assert!(parse(&row, OBSERVED_PROJECT_COVER_LISTING_FORMAT).is_err());
+        let accepted = parse(&row, LANDSCAPE_COVER_LISTING_FORMAT).unwrap();
+        assert_eq!(
+            accepted.listings[0].media[0].role,
+            crate::CatalogMediaRole::LandscapeCover
+        );
+        let legacy = accepted
+            .export_format(OBSERVED_PROJECT_COVER_LISTING_FORMAT)
+            .unwrap();
+        assert!(legacy.listings[0].media.is_empty());
+        assert_eq!(legacy.listings[0].id, accepted.listings[0].id);
+    }
+
+    #[test]
     fn combined_advice_and_gitlab_observations_keep_independent_reader_gates() {
         let mut value = listing();
         value["project_url"] = "https://gitlab.com/example/game".into();
@@ -2792,7 +3006,7 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
-        let unsupported_format = ASSIGNED_COVER_LISTING_FORMAT + 1;
+        let unsupported_format = MAX_LISTING_FORMAT + 1;
         let mut future = document;
         future.format_version = unsupported_format;
         future.promote_projected_format();

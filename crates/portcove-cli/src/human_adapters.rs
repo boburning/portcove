@@ -270,7 +270,9 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
     };
     let source = match state.resolved_source {
         ArtworkResolvedSource::LocalImport { .. } => "Local import",
-        ArtworkResolvedSource::IgdbCover { .. } => "Catalog artwork",
+        ArtworkResolvedSource::IgdbCover { .. } | ArtworkResolvedSource::CatalogMedia { .. } => {
+            "Catalog artwork"
+        }
         ArtworkResolvedSource::GeneratedFallback => "Generated fallback",
     };
     let mut output = format!(

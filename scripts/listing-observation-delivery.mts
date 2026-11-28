@@ -1,3 +1,4 @@
+import { landscapeCoverListingFormat } from "./shared-original-media.mts";
 /** Canonical listings and completed observer facts -> the compact signed
  * descriptive listing target, the sole live listing carrier (#1422). The legacy
  * format-11 target stays named with its last signed bytes for older previews
@@ -47,9 +48,15 @@ import {
   retainArtworkProviderBackoff,
 } from "./artwork-preparation-progress.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
-import { projectScheduledCovers } from "./listing-scheduled-cover.mts";
+import {
+  listingGithubRepositoryId,
+  observedProjectCoverRepositoryId,
+  projectScheduledCovers,
+  readScheduledCoverRepositories,
+} from "./listing-scheduled-cover.mts";
 import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.d.ts";
 import {
+  coverBackedMediaMatches,
   indexSharedCoverRows,
   projectExactSharedCovers,
   retainSharedCoverDefaults,
@@ -105,7 +112,8 @@ import {
 export { listingDeliveryTarget, ListingPublicationStop };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const legacyListingFormat = 11;
-const latestListingFormat = 19;
+const observedProjectCoverFormat = 20;
+const latestListingFormat = landscapeCoverListingFormat;
 /** Rehearse optional portal bytes through the same final acceptance as the base. */
 export async function stageModPortalProjection<T, R>(
   baseline: T,
@@ -227,6 +235,65 @@ function releaseObservationListingHash(listing: Record<string, unknown>) {
   return listingDeclarationHash(withoutArtwork(listing));
 }
 
+/** An added descriptive edition does not change recurring release collection.
+ * Keep all other listing facts and every previously accepted edition in scope. */
+function addsDescriptiveSourceEditions(prior: unknown, current: unknown) {
+  if (!isRecord(prior) || !isRecord(current)) return false;
+  const { source_editions: priorEditions, ...priorGame } = prior;
+  const { source_editions: currentEditions, ...currentGame } = current;
+  if (
+    prior.format_version !== 1 ||
+    typeof prior.id !== "string" ||
+    !Array.isArray(priorEditions) ||
+    !Array.isArray(currentEditions) ||
+    currentEditions.length <= priorEditions.length ||
+    !isDeepStrictEqual(priorGame, currentGame)
+  )
+    return false;
+
+  const existing = new Map<string, unknown>();
+  for (const edition of priorEditions) {
+    if (!isRecord(edition) || typeof edition.id !== "string" || existing.has(edition.id))
+      return false;
+    existing.set(edition.id, edition);
+  }
+  const descriptiveEdition = new Set([
+    "id",
+    "title",
+    "system",
+    "evidence_urls",
+    "verified_sources",
+  ]);
+  const seen = new Set<string>();
+  for (const edition of currentEditions) {
+    if (!isRecord(edition) || typeof edition.id !== "string" || seen.has(edition.id)) return false;
+    seen.add(edition.id);
+    if (existing.has(edition.id)) {
+      if (!isDeepStrictEqual(existing.get(edition.id), edition)) return false;
+      existing.delete(edition.id);
+    } else if (
+      !Object.keys(edition).every((key) => descriptiveEdition.has(key)) ||
+      (edition.verified_sources !== undefined &&
+        (!Array.isArray(edition.verified_sources) || edition.verified_sources.length > 0))
+    )
+      return false;
+  }
+  return existing.size === 0;
+}
+
+function matchesReleaseObservationListing(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+) {
+  const beforeHash = releaseObservationListingHash(before);
+  return (
+    beforeHash === releaseObservationListingHash(after) ||
+    (addsDescriptiveSourceEditions(before.original_game, after.original_game) &&
+      beforeHash ===
+        releaseObservationListingHash({ ...after, original_game: before.original_game }))
+  );
+}
+
 function matchesAdmittedRepository(listingId: string, observation: Record<string, unknown>) {
   const repositoryId = admittedGithubRepositoryId(listingId);
   return (
@@ -242,6 +309,25 @@ function releaseObservationPortHash(port: Record<string, unknown> | undefined) {
   if (Object.keys(presentation).length) comparable.presentation = presentation;
   else delete comparable.presentation;
   return observationHash(comparable);
+}
+
+function matchesReleaseObservationPort(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown> | undefined,
+) {
+  const beforeHash = releaseObservationPortHash(before);
+  if (beforeHash === releaseObservationPortHash(after)) return true;
+  if (!before || !after || !isRecord(before.presentation) || !isRecord(after.presentation))
+    return false;
+  const priorGame = before.presentation.original_game;
+  return (
+    addsDescriptiveSourceEditions(priorGame, after.presentation.original_game) &&
+    beforeHash ===
+      releaseObservationPortHash({
+        ...after,
+        presentation: { ...after.presentation, original_game: priorGame },
+      })
+  );
 }
 
 /** Use validated checkpoint policies only when producer AND current canonical
@@ -283,10 +369,8 @@ export function completedListingCandidates(
       if (
         !canonicalListing ||
         !port.listing ||
-        releaseObservationListingHash(port.listing) !==
-          releaseObservationListingHash(canonicalListing) ||
-        releaseObservationPortHash(originalPorts.get(port.id)) !==
-          releaseObservationPortHash(currentPorts.get(port.id))
+        !matchesReleaseObservationListing(port.listing, canonicalListing) ||
+        !matchesReleaseObservationPort(originalPorts.get(port.id), currentPorts.get(port.id))
       )
         continue;
       const policies = progress.last_complete_policies.filter(
@@ -296,8 +380,7 @@ export function completedListingCandidates(
       if (
         !policy ||
         !isRecord(policy.listing_update) ||
-        releaseObservationListingHash(policy.listing_update) !==
-          releaseObservationListingHash(canonicalListing) ||
+        !matchesReleaseObservationListing(policy.listing_update, canonicalListing) ||
         !isRecord(policy.listing_update.upstream_observation)
       )
         continue;
@@ -355,11 +438,12 @@ function retainFreshObservation(
   );
 }
 
-function compactDirectoryFormat(canonical: Directory, previous: Delivery | null) {
+function compactDirectoryFormat(canonical: Directory, previous: Delivery | null, floor = 0) {
   return Math.max(
     legacyListingFormat,
     canonical.format_version,
     previous?.directory.format_version ?? 0,
+    floor,
   );
 }
 
@@ -425,6 +509,7 @@ export function projectListingDelivery(
     firstPartyModDefaults?: ReturnType<typeof firstPartyListingModDefaults>;
     gameMediaDefaults?: ReturnType<typeof scheduledGameMediaDefaults>;
     scheduledCovers?: ReadonlyMap<string, IgdbArtwork>;
+    listingFormatFloor?: number;
   } = {},
 ) {
   const {
@@ -440,12 +525,13 @@ export function projectListingDelivery(
     firstPartyModDefaults,
     gameMediaDefaults,
     scheduledCovers,
+    listingFormatFloor,
   } = options;
   const raw = directory(canonical);
   const previousDocument = previous
     ? delivery(parseCatalogSource(previous.toString("utf8")))
     : null;
-  const format = compactDirectoryFormat(raw, previousDocument);
+  const format = compactDirectoryFormat(raw, previousDocument, listingFormatFloor);
   const baseline = directory(compatible ?? raw);
   const identities = new Set(raw.listings.map((listing) => listing.id));
   if (
@@ -474,7 +560,7 @@ export function projectListingDelivery(
     const current = typeof candidate.id === "string" ? declarations.get(candidate.id) : undefined;
     if (
       !current ||
-      releaseObservationListingHash(candidate) !== releaseObservationListingHash(current) ||
+      !matchesReleaseObservationListing(candidate, current) ||
       !isRecord(candidate.upstream_observation) ||
       !matchesAdmittedRepository(String(current.id), candidate.upstream_observation)
     )
@@ -521,13 +607,10 @@ export function projectListingDelivery(
       const defaultCover =
         sharedCoverDefaults?.proposals.get(String(listing.id)) ??
         scheduledCovers?.get(String(listing.id));
-      if (defaultCover && !declaration.artwork && !declaration.collection_covers)
-        result.artwork = defaultCover;
       const old = previousListings.get(listing.id);
-      coverCheckpoint?.assertHistoricalCoverVisibility(result, declaration, old);
       const prior =
         old &&
-        releaseObservationListingHash(old) === releaseObservationListingHash(listing) &&
+        matchesReleaseObservationListing(old, listing) &&
         isRecord(old.upstream_observation) &&
         matchesAdmittedRepository(String(listing.id), old.upstream_observation)
           ? old.upstream_observation
@@ -549,6 +632,18 @@ export function projectListingDelivery(
         result.upstream_observation = structuredClone(proposed);
       if (result.upstream_observation !== undefined)
         result.upstream_observation = omitUnknownAssetDigests(result.upstream_observation);
+      if (defaultCover && !declaration.artwork && !declaration.collection_covers) {
+        const coverRepository = observedProjectCoverRepositoryId(defaultCover);
+        const listingRepository = listingGithubRepositoryId(result);
+        if (
+          defaultCover.match_kind === "underlying-game" ||
+          (coverRepository !== undefined &&
+            format >= observedProjectCoverFormat &&
+            (listingRepository === undefined || listingRepository === coverRepository))
+        )
+          result.artwork = defaultCover;
+      }
+      coverCheckpoint?.assertHistoricalCoverVisibility(result, declaration, old);
       if (prior) retained++;
       if (
         result.upstream_observation !== undefined &&
@@ -587,6 +682,7 @@ export function projectListingDelivery(
             ? [...(result.media as unknown[])]
             : [];
           for (const asset of additions) {
+            if (asset.role === "landscape_cover" && format < landscapeCoverListingFormat) continue;
             const expanded = [...media, asset];
             if (
               Buffer.byteLength(JSON.stringify({ ...result, media: expanded })) <=
@@ -1011,6 +1107,8 @@ const liveListingReaderFloors = new Map([
   [16, repositoryBoundListingReader],
   [17, repositoryBoundListingReader],
   [19, "0.1.0-preview.21"],
+  [observedProjectCoverFormat, "0.1.0-preview.22"],
+  [landscapeCoverListingFormat, "0.1.0-preview.22"],
 ]);
 
 type ListingPriorInputs = {
@@ -1158,6 +1256,8 @@ export async function prepareObservationBundle(options: {
   observe?: boolean;
   /** Explicit protected first activation; subsequent renewals follow signed state. */
   activateCoverCheckpoint?: boolean;
+  activateProjectCovers?: boolean;
+  activateLandscapeCovers?: boolean;
   coverApproval?: ReturnType<typeof protectedCoverApproval>;
   priorHistory?: string;
   readArtworkHealth?: typeof readHostedArtworkHealth;
@@ -1204,6 +1304,15 @@ export async function prepareObservationBundle(options: {
   const priorCompact = Object.hasOwn(priorTargets, compactListingDeliveryTarget);
   const priorCoverDigest = priorTargets[artworkCheckpointTarget];
   const coverEnabled = priorCoverDigest !== undefined || options.activateCoverCheckpoint === true;
+  if (
+    options.activateProjectCovers &&
+    (!automatic || !priorCompact || !priorCoverDigest || options.activateCoverCheckpoint)
+  )
+    throw new Error("Project cover activation requires the existing signed cover checkpoint.");
+  if (options.activateLandscapeCovers && (!automatic || !priorCompact))
+    throw new Error(
+      "Landscape cover activation requires the authenticated compact listing and official released reader.",
+    );
   const segmentedHistory = Object.hasOwn(
     priorTargets,
     "policy/official/catalog.history-checkpoint.json",
@@ -1341,7 +1450,16 @@ export async function prepareObservationBundle(options: {
   }
   const legacyDocument = delivery(parseCatalogSource(legacyWire.toString("utf8")));
   const previousDocument = delivery(parseCatalogSource(previous.toString("utf8")));
-  const format = compactDirectoryFormat(canonical, priorCompact ? previousDocument : null);
+  const listingFormatFloor = options.activateLandscapeCovers
+    ? landscapeCoverListingFormat
+    : options.activateProjectCovers
+      ? observedProjectCoverFormat
+      : 0;
+  const format = compactDirectoryFormat(
+    canonical,
+    priorCompact ? previousDocument : null,
+    listingFormatFloor,
+  );
 
   // Released-reader gate: the compact carrier is first published, or raised to
   // a newer format, only after the current released preview is verified to read
@@ -1648,12 +1766,25 @@ export async function prepareObservationBundle(options: {
       if (!isRecord(current) || !Array.isArray(current.ports) || !current.ports.every(isRecord))
         throw new Error("Scheduled game media requires the maintained operational catalog");
       const strict = new Map(current.ports.map((row) => [row.id, row]));
+      const coverMediaMatches = coverBackedMediaMatches(
+        source.authored,
+        source.reviewedOriginalMedia,
+        indexSharedCoverRows(prior),
+      );
       const coverInputs = {
         authored: source.authored,
         reviewed: source.reviewedOriginalMedia,
         previous: indexSharedCoverRows(prior),
         shared: sharedCoverDefaults?.proposals ?? new Map<string, IgdbArtwork>(),
         denied: deniedScheduledCovers,
+        observedRepositoryIds: new Map(
+          candidates.flatMap((row) => {
+            const repository = listingGithubRepositoryId(row);
+            return typeof row.id === "string" && repository !== undefined
+              ? [[row.id, repository] as const]
+              : [];
+          }),
+        ),
         held: heldCoverImages,
         ambiguous: new Set(
           sharedCoverDefaults?.outcomes
@@ -1672,7 +1803,7 @@ export async function prepareObservationBundle(options: {
         source.reviewedOriginalMedia,
         excluded,
         undefined,
-        { strict },
+        { strict, coverMediaMatches },
       );
       if (options.observe !== false && !options.deferMediaObserver) {
         const receipt = await (
@@ -1696,14 +1827,18 @@ export async function prepareObservationBundle(options: {
                 source.reviewedOriginalMedia,
                 excluded,
                 receipt,
-                { strict },
+                { strict, coverMediaMatches },
               )
             : undefined;
           const nextAssets =
             eligible &&
             canonical.listings.flatMap((row) => {
               const retained = new Set(mediaDefaults!(row).map(({ id }) => id));
-              return eligible(row).filter(({ id }) => !retained.has(id));
+              return eligible(row).filter(
+                ({ id, role }) =>
+                  !retained.has(id) &&
+                  (role !== "landscape_cover" || format >= landscapeCoverListingFormat),
+              );
             });
           const deadline = performance.now() + 60_000;
           const validateImage = createCoreImageValidator(options.cli, workspace);
@@ -1758,6 +1893,13 @@ export async function prepareObservationBundle(options: {
                       }
                     : {}),
                   inspect: (id) => coverInspector.inspectImage(id),
+                  ...(format >= observedProjectCoverFormat
+                    ? {
+                        inspectRepository: readScheduledCoverRepositories(
+                          coverInspector.signal ?? AbortSignal.timeout(20_000),
+                        ),
+                      }
+                    : {}),
                 });
                 scheduledCovers = covers.preserved;
                 proposedCovers = covers.proposals;
@@ -1776,7 +1918,7 @@ export async function prepareObservationBundle(options: {
             source.reviewedOriginalMedia,
             excluded,
             undefined,
-            { strict, withdrawn: observation.withdrawn },
+            { strict, withdrawn: observation.withdrawn, coverMediaMatches },
           );
           if (receipt && observation.proposal?.additions.length) {
             proposedMedia = scheduledGameMediaDefaults(
@@ -1785,7 +1927,7 @@ export async function prepareObservationBundle(options: {
               source.reviewedOriginalMedia,
               excluded,
               { ...receipt, proposal: observation.proposal },
-              { strict, withdrawn: observation.withdrawn },
+              { strict, withdrawn: observation.withdrawn, coverMediaMatches },
             );
             mediaReceipt = receipt.artifact;
           }
@@ -1816,6 +1958,7 @@ export async function prepareObservationBundle(options: {
     publishedAbove(
       projectListingDelivery(canonical, observations, previous, {
         revisionFloor: legacyDocument.revision,
+        listingFormatFloor,
         compatible,
         now,
         withdrawals,
@@ -2227,6 +2370,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       "official-released-reader": { type: "boolean", default: false },
       withdrawals: { type: "string" },
       "activate-cover-checkpoint": { type: "boolean", default: false },
+      "activate-project-covers": { type: "boolean", default: false },
+      "activate-landscape-covers": { type: "boolean", default: false },
       "prior-history": { type: "string" },
     },
   });
@@ -2267,6 +2412,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           : {}),
         officialReleasedReader: values["official-released-reader"],
         activateCoverCheckpoint: values["activate-cover-checkpoint"],
+        activateProjectCovers: values["activate-project-covers"],
+        activateLandscapeCovers: values["activate-landscape-covers"],
         ...(coverApproval ? { coverApproval } : {}),
         ...(values["prior-history"] ? { priorHistory: path.resolve(values["prior-history"]) } : {}),
         ...(values.withdrawals ? { withdrawals: path.resolve(values.withdrawals) } : {}),

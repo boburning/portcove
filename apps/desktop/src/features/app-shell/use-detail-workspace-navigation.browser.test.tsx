@@ -15,6 +15,7 @@ let root: Root | undefined;
 let selectedId: string | undefined;
 let select: Dispatch<SetStateAction<string | undefined>>;
 let setAvailablePortIds: Dispatch<SetStateAction<ReadonlySet<string> | undefined>>;
+let setLocalPortForCanonical: Dispatch<SetStateAction<ReadonlyMap<string, string> | undefined>>;
 let navigation: ReturnType<typeof useDetailWorkspaceNavigation>;
 let workspace: RefObject<HTMLElement | null>;
 
@@ -23,10 +24,12 @@ function Fixture() {
   const [available, setAvailable] = useState<ReadonlySet<string> | undefined>(
     new Set(["port-a", "port-b"]),
   );
+  const [aliases, setAliases] = useState<ReadonlyMap<string, string>>();
   selectedId = selection;
   select = setSelection;
   setAvailablePortIds = setAvailable;
-  navigation = useDetailWorkspaceNavigation(workspace, setSelection, available);
+  setLocalPortForCanonical = setAliases;
+  navigation = useDetailWorkspaceNavigation(workspace, setSelection, available, aliases);
   return null;
 }
 
@@ -57,6 +60,18 @@ afterEach(async () => {
 });
 
 describe("detail workspace navigation", () => {
+  it("preserves an open detail when a canonical entry resolves to a local registration", async () => {
+    await act(async () => navigation.open("port-a"));
+    expect(selectedId).toBe("port-a");
+    await act(async () => {
+      setLocalPortForCanonical(new Map([["port-a", "port-b"]]));
+      setAvailablePortIds(new Set(["port-b"]));
+    });
+    expect(selectedId).toBe("port-b");
+    await act(async () => navigation.open("port-a"));
+    expect(selectedId).toBe("port-b");
+  });
+
   it("switches implementations without losing the original group return and browsing scroll", async () => {
     const main = workspace.current!;
     main.style.cssText = "height:100px;overflow:auto";

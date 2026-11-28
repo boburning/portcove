@@ -109,9 +109,6 @@ export function ProtectionSummary({
         )}
         {matches && protection && (
           <>
-            <p>
-              {current ? t("protection.latestInformation") : t("protection.lastLoadedInformation")}
-            </p>
             {protection.problem && (
               <div role="status">
                 <p>{t("protection.installationProblem")}</p>

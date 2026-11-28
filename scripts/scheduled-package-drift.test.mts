@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { access, readFile, writeFile } from "node:fs/promises";
 import { test } from "node:test";
 import { derivationInputs, derivationInputsDigest } from "./package-shape-baselines.mts";
 import {
@@ -512,6 +513,108 @@ void test("generated comparisons retain priority in the existing shared archive 
   assert.deepEqual(driftNotices(report, layoutListings, source), []);
 });
 
+void test("exact shared assets download once while Core inspects each target", async () => {
+  const [generatedTarget, layout] = collectWithLayout();
+  assert.ok(generatedTarget && layout);
+  const generated = {
+    ...generatedTarget,
+    asset: {
+      ...generatedTarget.asset,
+      size: 7,
+      sha256: createHash("sha256").update("archive").digest("hex"),
+    },
+  };
+  const sibling = {
+    ...layout,
+    repositoryId: generated.repositoryId,
+    releaseId: generated.releaseId,
+    assetId: generated.assetId,
+    asset: generated.asset,
+  };
+  const otherAsset = { ...sibling, portId: "other", assetId: sibling.assetId + 1 };
+  const downloads: string[] = [];
+  const result = await scanDriftTargets([generated, sibling, otherAsset], new Map(), now + 1, {
+    now: () => now,
+    download: async (_asset, archive) => {
+      downloads.push(archive);
+      await writeFile(archive, "archive", { flag: "wx" });
+    },
+    inspect: async (archive, target) => {
+      assert.equal(await readFile(archive, "utf8"), "archive");
+      if (target === generated) throw new Error("One target does not inspect successfully");
+      assert.equal(archive, downloads[target === sibling ? 0 : 1]);
+      return inspectionFromResponse(coreResponse(target, comparedLayout), target);
+    },
+  });
+  assert.equal(downloads.length, 2);
+  assert.equal(result.attempted_bytes, 2 * generated.asset.size);
+  assert.deepEqual(result.unassessed, [{ target: generated, reason: "core-inspection-failed" }]);
+  assert.deepEqual(
+    result.observations.map(({ target }) => target),
+    [otherAsset, sibling].sort((a, b) => a.portId.localeCompare(b.portId)),
+  );
+  for (const archive of downloads) await assert.rejects(access(archive), { code: "ENOENT" });
+});
+
+void test("bytes with the wrong digest cannot supply another target's inspection", async () => {
+  const [first] = collectWithLayout();
+  assert.ok(first);
+  const target = {
+    ...first,
+    asset: {
+      ...first.asset,
+      size: 8,
+      sha256: createHash("sha256").update("complete").digest("hex"),
+    },
+  };
+  const sibling = { ...target, portId: "sibling" };
+  let attempts = 0;
+  const result = await scanDriftTargets([target, sibling], new Map(), now + 1, {
+    now: () => now,
+    download: async (_asset, archive) => {
+      await writeFile(archive, ++attempts === 1 ? "wrongzip" : "complete", { flag: "wx" });
+    },
+    inspect: async (archive, selected) => {
+      assert.equal(await readFile(archive, "utf8"), "complete");
+      return inspectionFromResponse(coreResponse(selected, { status: "compatible" }), selected);
+    },
+  });
+  assert.equal(attempts, 2);
+  assert.equal(result.attempted_bytes, 2 * target.asset.size);
+  assert.deepEqual(result.unassessed, [{ target, reason: "download-failed" }]);
+  assert.deepEqual(
+    result.observations.map(({ target }) => target),
+    [sibling],
+  );
+});
+
+void test("a shared archive verified too late resumes as budget-deferred work", async () => {
+  const [generated] = collectWithLayout();
+  assert.ok(generated);
+  const first = { ...generated, portId: "before" };
+  const next = { ...generated, portId: "next" };
+  let clock = now;
+  let inspections = 0;
+  const result = await scanDriftTargets([first, next], new Map(), now + 1, {
+    now: () => clock,
+    download: async (_asset, archive) => {
+      await writeFile(archive, "unused", { flag: "wx" });
+      clock = now + 1;
+    },
+    inspect: async (_archive, selected) => {
+      inspections++;
+      return inspectionFromResponse(coreResponse(selected, { status: "compatible" }), selected);
+    },
+  });
+  assert.equal(inspections, 0);
+  assert.deepEqual(result.unassessed, [
+    { target: first, reason: "inspection-budget" },
+    { target: next, reason: "inspection-budget" },
+  ]);
+  assert.equal(result.attempted_bytes, first.asset.size);
+  assert.deepEqual(result.continuation, { generated: "next/windows-x86-64/stable" });
+});
+
 void test("both drift queues continue after inspector bytes change", async () => {
   const [generated, layout] = collectWithLayout();
   assert.ok(generated && layout);
@@ -519,6 +622,7 @@ void test("both drift queues continue after inspector bytes change", async () =>
   const make = (base: DriftTarget, portId: string, size: number) => ({
     ...base,
     portId,
+    assetId: base.assetId + portId.charCodeAt(0),
     asset: { ...base.asset, size: size * mib },
   });
   const targets = [
@@ -567,7 +671,11 @@ void test("both drift queues continue after inspector bytes change", async () =>
 void test("drift continuation survives missing routes and leaves failed archives retryable", async () => {
   const [generated] = collect([observation()]);
   assert.ok(generated);
-  const targets = ["a", "c", "e", "z"].map((portId) => ({ ...generated, portId }));
+  const targets = ["a", "c", "e", "z"].map((portId) => ({
+    ...generated,
+    portId,
+    assetId: generated.assetId + portId.charCodeAt(0),
+  }));
   targets[3]!.asset = { ...generated.asset, size: 1024 * 1024 * 1024 };
   let clock = now;
   let attempted: string[] = [];
@@ -628,9 +736,9 @@ void test("a handoff that omits both deferred routes preserves their positions",
     reviewed_layout: "y/windows-x86-64/stable",
   };
   const a = { ...generated, portId: "a" };
-  const b = { ...generated, portId: "b" };
-  const x = { ...layout, portId: "x" };
-  const y = { ...layout, portId: "y" };
+  const b = { ...generated, portId: "b", assetId: generated.assetId + 3 };
+  const x = { ...layout, portId: "x", assetId: layout.assetId + 1 };
+  const y = { ...layout, portId: "y", assetId: layout.assetId + 2 };
   const dependencies = {
     now: () => now,
     download: async () => {},
@@ -673,6 +781,7 @@ void test("an unfit leading layout advances to another within-limit route", asyn
     ...["y", "z"].map((portId) => ({
       ...generated,
       portId,
+      assetId: generated.assetId + portId.charCodeAt(0),
       asset: { ...generated.asset, size: 768 * mib },
     })),
     ...(

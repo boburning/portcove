@@ -453,6 +453,29 @@ fn cancellation_before_final_acceptance_discards_observations() {
 }
 
 #[test]
+fn artwork_projection_is_discarded_when_the_original_changes_during_retrieval() {
+    let (_temporary, service, record) = fixture();
+    let reached_projection = std::cell::Cell::new(false);
+    let result = service.with_registered_artwork_source(
+        &record.profile_id,
+        |report| {
+            assert_eq!(report.health, SourceHealth::Current);
+            let file = std::fs::OpenOptions::new()
+                .write(true)
+                .open(&record.path)
+                .unwrap();
+            file.set_times(std::fs::FileTimes::new().set_modified(std::time::UNIX_EPOCH))
+                .unwrap();
+            reached_projection.set(true);
+            "prepared thumbnail"
+        },
+        || Ok(()),
+    );
+    assert!(reached_projection.get());
+    assert!(result.is_err());
+}
+
+#[test]
 fn changed_open_input_prevents_accepting_previously_observed_rows() {
     let (_temporary, service, record) = fixture();
     let result = service.inspect_registered_sources_bounded_before_accept(

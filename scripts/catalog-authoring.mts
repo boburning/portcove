@@ -57,7 +57,13 @@ import type {
 import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineage.mts";
 import type { UpstreamLineage } from "./upstream-lineage.mts";
 import { usesScummvmEngine } from "./catalog-route-holds.mts";
-import { sharedOriginalMedia, typedIgdbScene } from "./shared-original-media.mts";
+import {
+  directoryOnlyMedia,
+  landscapeCoverListingFormat,
+  landscapeCoverMedia,
+  sharedOriginalMedia,
+  typedIgdbScene,
+} from "./shared-original-media.mts";
 import {
   checkReviewedOriginalMedia,
   indexAuthoredOriginalMedia,
@@ -745,6 +751,14 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     (!validArtworkCollection(listing.collection_covers) || listing.artwork != null)
   )
     throw new Error("Invalid authored cover collection.");
+  const covers = [
+    listing.artwork,
+    ...(Array.isArray(listing.collection_covers) ? listing.collection_covers : []),
+  ];
+  if (
+    covers.some((cover) => isRecord(cover) && Object.hasOwn(cover, "observed_github_repository_id"))
+  )
+    throw new Error("Authored artwork cannot attest a scheduled repository observation.");
   if (value.igdb_no_shared_cover !== undefined && value.igdb_no_shared_cover !== true)
     throw new Error("An authored shared cover exclusion must be true.");
   if (value.no_observed_mod_portals !== undefined && value.no_observed_mod_portals !== true)
@@ -985,6 +999,14 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     throw new Error("Integration must be a strict object.");
   const integration = projectExternalRegistration(value as AuthoredPort).integration;
   if (integration !== undefined) {
+    const reviewedLayouts = integration.reviewed_package_layouts;
+    if (
+      integration.adapter !== "native-portable" &&
+      isRecord(reviewedLayouts) &&
+      Object.keys(reviewedLayouts).length > 0
+    ) {
+      throw new Error(`${listing.id} reviewed package layouts require native-portable.`);
+    }
     if (
       integration.upstream_active_reviewed !== undefined &&
       (typeof integration.upstream_active_reviewed !== "boolean" ||
@@ -1138,8 +1160,8 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
       integration.presentation = presentation;
     } else if (Object.hasOwn(record.listing, field)) {
       const value = record.listing[field];
-      if (field === "media" && Array.isArray(value) && value.some(typedIgdbScene)) {
-        const legacy = value.filter((asset) => !typedIgdbScene(asset));
+      if (field === "media" && Array.isArray(value) && value.some(directoryOnlyMedia)) {
+        const legacy = value.filter((asset) => !directoryOnlyMedia(asset));
         // An absent legacy array allows directory media. An authored empty
         // array continues to clear directory media on the strict route.
         if (legacy.length === 0) continue;
@@ -1313,12 +1335,14 @@ export function assembleCatalogRecords(
                               ? 2
                               : 1;
   const format_version = listings.some(
-    (listing) => admittedGithubRepositoryId(listing.id) !== undefined,
+    ({ media }) => Array.isArray(media) && media.some(landscapeCoverMedia),
   )
-    ? 17
-    : listings.some((listing) => listing.mod_portals?.length)
-      ? 16
-      : precedingFormat;
+    ? landscapeCoverListingFormat
+    : listings.some((listing) => admittedGithubRepositoryId(listing.id) !== undefined)
+      ? 17
+      : listings.some((listing) => listing.mod_portals?.length)
+        ? 16
+        : precedingFormat;
   return {
     records,
     /** The checked authored records before generated registration routes were added. */

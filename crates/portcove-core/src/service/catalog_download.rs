@@ -326,8 +326,14 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     };
     if record.format_version != expected_format
         || crate::catalog::listings::has_verified_source_editions(&record.listing)
+        || record
+            .listing
+            .media
+            .iter()
+            .any(crate::CatalogMediaAsset::is_directory_only)
         || !record.listing.mod_portals.is_empty()
         || record.listing.official_setup_id.is_some()
+        || crate::catalog::listings::has_observed_project_cover(&record.listing)
     {
         return Err(PortcoveError::unsupported(
             "pending setup record format does not match its provider or listing fields",
@@ -700,6 +706,10 @@ impl PortcoveService {
         }
         self.require_no_pending_setup(port_id)?;
         let state = self.library.status(port_id, ReleaseChannel::Stable)?;
+        if state.external_runtime.is_none() {
+            let connection = self.library.connection()?;
+            Library::require_no_associated_personal_runtime(&connection, &self.catalog, port_id)?;
+        }
         if state
             .external_runtime
             .as_ref()
@@ -1311,11 +1321,7 @@ impl PortcoveService {
             }
             self.require_download_destination(stage.path())?;
             let mut listing = self.catalog.listing(&request.port_id)?.clone();
-            // The current directory supplies these links, including any withdrawal.
-            listing.mod_portals.clear();
-            listing.official_setup_id = None;
-            listing.media.retain(|asset| !asset.is_typed_igdb_scene());
-            crate::catalog::listings::strip_verified_sources(&mut listing);
+            crate::catalog::listings::strip_directory_only_retained_fields(&mut listing);
             let mut record = PendingSetupRecord {
                 format_version: if preview.artifact.release_id.github_id().is_some() {
                     1
@@ -1470,6 +1476,19 @@ impl PortcoveService {
         let json = encoded_download_record(record)?;
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        // A download can prepare a replacement for an existing user-selected
+        // registration with this exact key. Only prevent a new second entry.
+        let has_existing_registration: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)",
+            [&record.port_id],
+            |row| row.get(0),
+        )?;
+        if !has_existing_registration {
+            Library::require_no_associated_personal_runtime_from_current(
+                &transaction,
+                &record.port_id,
+            )?;
+        }
         let occupied: bool = transaction.query_row(
             "SELECT EXISTS(SELECT 1 FROM installs WHERE port_id=?1)
             OR EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
@@ -1751,6 +1770,7 @@ impl PortcoveService {
         }
         // The destination and any retained private staging are deliberately not
         // traversed or deleted by this bookkeeping operation.
+        self.retry_personal_aliases_after_operation(Some(port_id));
         Ok(())
     }
 

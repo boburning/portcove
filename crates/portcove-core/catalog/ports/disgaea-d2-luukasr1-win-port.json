@@ -47,7 +47,17 @@
         "https://github.com/LUUKASR1/disgaea-d2-recomp-windows/blob/v1.0.2/docs/RELEASE-0.2.1.md",
         "https://github.com/Sean13128/disgaea-d2-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "disgaea-d2-a-brighter-darkness-playstation-3",
+          "title": "Disgaea D2: A Brighter Darkness (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/LUUKASR1/disgaea-d2-recomp-windows/blob/v1.0.2/docs/RELEASE-0.2.1.md",
+            "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/disgaea-d2-luukasr1-win-port.json"
+          ]
+        }
+      ]
     }
   }
 }

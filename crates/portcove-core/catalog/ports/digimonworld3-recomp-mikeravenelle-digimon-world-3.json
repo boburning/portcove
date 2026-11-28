@@ -40,7 +40,17 @@
       "format_version": 1,
       "id": "digimon-world-2003",
       "evidence_urls": ["https://github.com/ArmDucks/DigimonWorld3-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "digimon-world-2003-playstation-usa",
+          "title": "Digimon World 3 (PlayStation, USA)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/ArmDucks/DigimonWorld3-Recomp",
+            "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/digimonworld3-recomp-mikeravenelle-digimon-world-3.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

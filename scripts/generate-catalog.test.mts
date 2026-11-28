@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
-import { readCatalogSource } from "./catalog-authoring.mts";
+import { checkedAuthoredPort, readCatalogSource } from "./catalog-authoring.mts";
 import { sceneCoverage } from "./artwork-operations.mts";
 import {
   checkShapeTable,
@@ -147,6 +147,37 @@ void test("full preparation requires an explicit validator and preserves prior o
     "retained interruption evidence",
   );
   assert.deepEqual(readFileSync(input), before);
+});
+
+void test("authored reviewed layouts require the native portable adapter", () => {
+  const authoredPort = (id: string) =>
+    checkedAuthoredPort(
+      fixtureJson(readFileSync(join(catalogRoot, "ports", `${id}.json`), "utf8")),
+    );
+  const staged = authoredPort("infinite-undiscovery-doc-haz");
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...staged,
+        integration: {
+          ...staged.integration,
+          reviewed_package_layouts: {
+            "windows-x86-64": {
+              directories: ["licenses"],
+              executables: ["infiniteundiscoveryrecomp.exe"],
+            },
+          },
+        },
+      }),
+    /infinite-undiscovery-doc-haz.*reviewed package layouts require native-portable/u,
+  );
+  assert.doesNotThrow(() =>
+    checkedAuthoredPort({
+      ...staged,
+      integration: { ...staged.integration, reviewed_package_layouts: {} },
+    }),
+  );
+  assert.doesNotThrow(() => authoredPort("alistert-openjazz"));
 });
 
 void test("current versioned authoring deterministically owns the embedded catalog", () => {
@@ -683,12 +714,13 @@ void test("the scene workset distinguishes catalog, provider, and unobserved sco
   };
   const rows = sceneCoverage(accepted, preparation);
   const main = rows.filter((row) => row.port_id === "main-port");
-  assert.equal(main.length, 16);
+  assert.equal(main.length, 20);
   const portRoles = Object.fromEntries(
     main.filter(({ subject }) => subject.kind === "port").map((row) => [row.role, row]),
   );
   assert.equal(portRoles.header?.state, "missing");
   assert.equal(portRoles.key_art?.state, "unknown");
+  assert.equal(portRoles.landscape_cover?.state, "unknown");
   assert.equal(portRoles.screenshot?.state, "withdrawn");
   assert.deepEqual(portRoles.screenshot?.withdrawn_image_ids, ["goneshot"]);
   assert.equal(portRoles.logo?.state, "admitted");

@@ -53,6 +53,34 @@ function mappedThumbnail(revision = 0): DesktopArtworkThumbnail {
 }
 
 describe("disposable artwork display cache", () => {
+  it("loads a Core-selected landscape cover and refuses a stale image after catalog refresh", async () => {
+    const first = { ...catalogImage("wide"), role: "landscape_cover" as const, width: 2 };
+    const next = { ...first, sha256: "d".repeat(64) };
+    const state = (asset: CatalogMediaAsset): ArtworkState => ({
+      ...artworkState("sample", "landscape", 4),
+      availability: "available",
+      resolved_source: { kind: "catalog_media", asset },
+    });
+    vi.spyOn(desktopApi, "artwork")
+      .mockResolvedValueOnce(state(first))
+      .mockResolvedValueOnce(state(next));
+    const thumbnail = vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: first.sha256,
+      choice_revision: 4,
+      png_base64: "iVBORw==",
+    });
+    const cache = new ArtworkCache(7);
+    await cache.load("sample", "landscape");
+    await vi.waitFor(() => expect(cache.read("sample", "landscape").image).toBeDefined());
+    expect(thumbnail).toHaveBeenCalledWith("sample", "landscape", 4, 7);
+
+    await cache.load("sample", "landscape", true);
+    await vi.waitFor(() =>
+      expect(cache.read("sample", "landscape").error).toMatch(/preview changed/u),
+    );
+    expect(cache.read("sample", "landscape").image).toBeUndefined();
+  });
+
   it("binds catalog previews to admitted image identity and shares the bounded visibility queue", async () => {
     const pending: ((thumbnail: DesktopArtworkThumbnail) => void)[] = [];
     const read = vi.spyOn(desktopApi, "catalogMediaThumbnail").mockImplementation(

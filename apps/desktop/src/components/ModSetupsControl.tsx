@@ -336,7 +336,7 @@ function BoundModSetupsControl({
   }, []);
   const sources = view?.providers?.length ? view.providers : view?.provider ? [view.provider] : [];
   const setup = view ? currentModSetup(view) : undefined;
-  const [draft, setDraft, olderDraft, updateOlder] = useModDraft({
+  const [draft, setDraft, olderDraft, updateOlder, draftSaveFailed] = useModDraft({
     library: libraryRoot,
     port: portId,
     setup: setup?.selected?.profile.id,
@@ -429,6 +429,7 @@ function BoundModSetupsControl({
       : undefined;
   if (localReview && !applicableReview) setLocalReview(undefined);
   const changing = locked || Boolean(applicableReview);
+  const warnAboutUnsavedDraft = draftSaveFailed && !waitingForAppliedSetup && !draft.receipt;
   const hasAvailableCleanSetup = setups.some(
     (entry) =>
       setupRuntimeAvailable(entry) &&
@@ -978,6 +979,9 @@ function BoundModSetupsControl({
         }}
       />
       {waitingForAppliedSetup && !error && <p>{t("mods.workspace.readingAppliedSetup")}</p>}
+      <Notice intent="warning" className={warnAboutUnsavedDraft ? "mb-0" : "sr-only"}>
+        <p role="status">{warnAboutUnsavedDraft ? t("mods.workspace.draftSaveFailed") : ""}</p>
+      </Notice>
       <div
         ref={inventoryArea}
         hidden={waitingForAppliedSetup}

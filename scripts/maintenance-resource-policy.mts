@@ -663,7 +663,8 @@ export async function runAdmittedMaintenance<T>(
     executor?: boolean;
   } = {},
 ): Promise<T> {
-  if (!admission.attempt_id) throw new MaintenanceResourceDeferred(admission.reason);
+  const attemptId = admission.attempt_id;
+  if (!attemptId) throw new MaintenanceResourceDeferred(admission.reason);
   const { operation, request, revision, meter, trigger: reason } = admission;
   const executor = operation === "intake" || options.executor === true;
   let outcome = "failed";
@@ -676,6 +677,51 @@ export async function runAdmittedMaintenance<T>(
       Date.parse(admission.started_at!) + admissionTimeout,
       Date.parse(meter.resetAt) - 60_000,
     ),
+  };
+  const settle = () => {
+    const transfer = {
+      operation,
+      request,
+      revision,
+      reason,
+      outcome,
+      attempt_id: attemptId,
+      estimate_bytes: estimate ?? null,
+      operation_reservation_bytes: admission.operation_reservation_bytes,
+      captured_command_stdout_bytes: measurement.payloadBytes,
+    };
+    try {
+      runSql(
+        environment,
+        `UPDATE portcove_maintenance_meta.resource_admissions
+        SET outcome = ${sqlLiteral(outcome)}, finished_at = clock_timestamp(), estimate_bytes = ${estimate ?? "NULL"}
+        WHERE attempt_id = ${sqlLiteral(attemptId)}::uuid AND outcome = 'running';`,
+        { executor },
+      );
+    } catch (settlementError) {
+      try {
+        recordEvidence(environment, {
+          ...transfer,
+          settlement_basis: "unknown",
+          method: "ledger update unavailable; captured command bytes are a lower bound",
+        });
+      } catch (evidenceError) {
+        throw new AggregateError(
+          [settlementError, evidenceError],
+          "Maintenance ledger settlement and transfer evidence both failed",
+        );
+      }
+      throw settlementError;
+    }
+    recordEvidence(environment, {
+      ...transfer,
+      settlement_basis:
+        estimate === undefined || outcome === "failed" ? "full-reservation" : "estimate-eligible",
+      method:
+        estimate === undefined
+          ? "reservation; command bytes unknown"
+          : "conservative logical payload with protocol allowance",
+    });
   };
   try {
     const value = await maintenanceTransfer.run(measurement, () =>
@@ -697,30 +743,7 @@ export async function runAdmittedMaintenance<T>(
     }
     throw error;
   } finally {
-    runSql(
-      environment,
-      `UPDATE portcove_maintenance_meta.resource_admissions
-      SET outcome = ${sqlLiteral(outcome)}, finished_at = clock_timestamp(), estimate_bytes = ${estimate ?? "NULL"}
-      WHERE attempt_id = ${sqlLiteral(admission.attempt_id)}::uuid AND outcome = 'running';`,
-      { executor },
-    );
-    recordEvidence(environment, {
-      operation,
-      request,
-      revision,
-      reason,
-      outcome,
-      attempt_id: admission.attempt_id,
-      estimate_bytes: estimate ?? null,
-      operation_reservation_bytes: admission.operation_reservation_bytes,
-      captured_command_stdout_bytes: measurement.payloadBytes,
-      settlement_basis:
-        estimate === undefined || outcome === "failed" ? "full-reservation" : "estimate-eligible",
-      method:
-        estimate === undefined
-          ? "reservation; command bytes unknown"
-          : "conservative logical payload with protocol allowance",
-    });
+    settle();
   }
 }
 

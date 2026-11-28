@@ -1,3 +1,4 @@
+import type { AuthoredListing, AuthoredPort } from "./catalog-authoring.mts";
 import {
   record as fixtureRecord,
   records as fixtureRecords,
@@ -1018,6 +1019,18 @@ void test("the history bootstrap flag is reachable only from the manual dispatch
         type: "boolean",
         default: false,
       },
+      activate_project_covers: {
+        description:
+          "Owner activation only - enable format 20 project cover observations for a capable released reader",
+        type: "boolean",
+        default: false,
+      },
+      activate_landscape_covers: {
+        description:
+          "Owner activation only - enable projected landscape covers after official reader qualification",
+        type: "boolean",
+        default: false,
+      },
       cover_replacement_packet: {
         description: "Exact independently reviewed cover replacement packet JSON",
         type: "string",
@@ -1218,6 +1231,10 @@ void test("compact listing activation selects the released reader and rechecks i
   assert.deepEqual(observe.env, {
     ACTIVATE_COVER_CHECKPOINT:
       "${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_cover_checkpoint == true }}",
+    ACTIVATE_PROJECT_COVERS:
+      "${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_project_covers == true }}",
+    ACTIVATE_LANDSCAPE_COVERS:
+      "${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_landscape_covers == true }}",
     PORTCOVE_COVER_REVIEW_PACKET:
       "${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_packet || '' }}",
     PORTCOVE_COVER_REVIEW_SHA256:
@@ -1870,6 +1887,91 @@ void test("signed projection keeps release observations through authored artwork
   }
 });
 
+void test("descriptive edition enrollment preserves independent release observations", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const edition = {
+    id: "retail",
+    title: "Retail edition",
+    system: "super-nintendo",
+    evidence_urls: ["https://example.com/retail"],
+  };
+  const original = {
+    format_version: 1,
+    id: "fixture-game",
+    evidence_urls: ["https://example.com/game"],
+    source_editions: [],
+  };
+  const before = { ...fixtureListing, original_game: original };
+  const after = { ...before, original_game: { ...original, source_editions: [edition] } };
+  const candidate = fixturePolicy(before).listing_update;
+  const now = Date.parse("2026-11-10T00:01:00Z");
+  const directory = (listing: Record<string, unknown>) => ({
+    format_version: 16,
+    listings: [listing],
+  });
+  const view = (bytes: Buffer) =>
+    requiredFixture(
+      fixtureRecords(
+        fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings,
+      )[0],
+    );
+  const prior = projectListingDelivery(directory(before), [candidate], null, { now });
+  const observed = requiredFixture(view(prior.bytes).upstream_observation);
+  const fromSigned = projectListingDelivery(directory(after), [], prior.bytes, { now });
+  const fromCompleted = projectListingDelivery(directory(after), [candidate], null, { now });
+  for (const result of [fromSigned, fromCompleted])
+    assert.deepEqual(view(result.bytes), { ...after, upstream_observation: observed });
+
+  const another = { ...edition, id: "second-edition" };
+  const amendments = [
+    { ...after, original_game: { ...after.original_game, id: "different-game" } },
+    { ...after, project_url: "https://github.com/owner/another" },
+    { ...after, download_block_reason: "An upstream package is restricted." },
+    { ...after, download_asset_hints: { "linux-x86-64": ["linux"] } },
+    {
+      ...after,
+      original_game: {
+        ...original,
+        source_editions: [
+          {
+            ...edition,
+            verified_sources: [{ game_id: "game", variant_id: "v", representation_id: "file" }],
+          },
+        ],
+      },
+    },
+    { ...after, original_game: { ...original, source_editions: [edition, edition] } },
+  ];
+  for (const changed of amendments)
+    assert.deepEqual(
+      view(projectListingDelivery(directory(changed), [candidate], prior.bytes, { now }).bytes),
+      changed,
+    );
+
+  const replaced = {
+    ...after,
+    original_game: { ...original, source_editions: [{ ...edition, system: "windows" }, another] },
+  };
+  assert.deepEqual(
+    view(
+      projectListingDelivery(
+        directory(replaced),
+        [fixturePolicy(after).listing_update],
+        fromSigned.bytes,
+        { now },
+      ).bytes,
+    ),
+    replaced,
+  );
+  const added = { ...after, original_game: { ...original, source_editions: [edition, another] } };
+  assert.deepEqual(
+    view(projectListingDelivery(directory(added), [], fromSigned.bytes, { now }).bytes),
+    { ...added, upstream_observation: observed },
+  );
+});
+
 void test("scheduled media projects the exact edition, retains signed defaults, and respects later exclusions", async () => {
   const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
   const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
@@ -1880,7 +1982,7 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
     scheduledGameMediaProposal,
   } = await import("./listing-scheduled-game-media.mts");
   const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
-  const original_game = {
+  const original_game: NonNullable<AuthoredListing["original_game"]> = {
     format_version: 1,
     id: "sample-game",
     evidence_urls: ["https://example.org/game"],
@@ -1893,7 +1995,11 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
       },
     ],
   };
-  const donor = { ...fixtureListing, original_game };
+  const donor = {
+    ...fixtureListing,
+    availability: "unknown",
+    original_game,
+  } satisfies AuthoredListing;
   const peer = { ...donor, id: "exact-peer", project_url: "https://github.com/team/exact-peer" };
   const distinct = {
     ...peer,
@@ -1987,6 +2093,159 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
   assert.equal(defaults(donor)[0]!.edition_neutral, undefined);
   assert.deepEqual(defaults(distinct), []);
   assert.deepEqual(defaults(hidden), []);
+
+  const landscape = {
+    ...asset,
+    id: "igdb-landscape-cover-original-91",
+    role: "landscape_cover" as const,
+    caption: "Landscape cover",
+    url: "https://images.igdb.com/igdb/image/upload/t_720p/wide.png",
+    igdb: {
+      ...asset.igdb,
+      kind: "artwork" as const,
+      image_id: "wide",
+      record_id: 91,
+      image_type: 4,
+      image_type_name: "Key Art With Logo",
+    },
+  };
+  const withLandscape = {
+    ...emitted,
+    additions: [...emitted.additions, { id: donor.id, asset: landscape }],
+  };
+  for (const invalid of [
+    { ...landscape, width: 200 },
+    { ...landscape, igdb: { ...landscape.igdb, image_type_name: "Key Art Without Logo" } },
+  ]) {
+    assert.throws(() =>
+      readScheduledGameMediaProposal({
+        ...emitted,
+        additions: [{ id: donor.id, asset: invalid }],
+      }),
+    );
+  }
+  const landscapeDefaults = scheduledGameMediaDefaults(
+    canonical.listings,
+    [],
+    reviewed,
+    new Set(),
+    {
+      proposal: readScheduledGameMediaProposal(withLandscape),
+      producerListings,
+    },
+  );
+  const projectedRoles = (format: number) => {
+    const result = projectListingDelivery(canonical, [], null, {
+      listingFormatFloor: format,
+      compatible: { ...canonical, format_version: format },
+      gameMediaDefaults: landscapeDefaults,
+    });
+    const rows = (
+      JSON.parse(result.bytes.toString()) as {
+        directory: { listings: { id: string; media?: { role: string }[] }[] };
+      }
+    ).directory.listings;
+    return rows
+      .find(({ id }) => id === peer.id)
+      ?.media?.map(({ role }) => role)
+      .sort();
+  };
+  assert.deepEqual(projectedRoles(20), ["logo"]);
+  assert.deepEqual(projectedRoles(21), ["landscape_cover", "logo"]);
+
+  const { coverBackedMediaMatches, indexSharedCoverRows } =
+    await import("./shared-cover-projection.mts");
+  const coverDonor = {
+    ...donor,
+    artwork: {
+      match_kind: "underlying-game" as const,
+      game_id: 80,
+      game_slug: "sample-game",
+      cover_id: 55,
+      image_id: "samplecover",
+      image_sha256: "e".repeat(64),
+    },
+  };
+  const authoredCovers: AuthoredPort[] = [
+    { format_version: 1, listing: coverDonor },
+    { format_version: 1, listing: peer },
+    { format_version: 1, listing: distinct },
+    { format_version: 1, listing: hidden, igdb_no_shared_cover: true },
+  ];
+  const tentative = coverBackedMediaMatches(authoredCovers, new Map());
+  const matches = coverBackedMediaMatches(
+    authoredCovers,
+    new Map(),
+    indexSharedCoverRows([coverDonor, peer]),
+  );
+  assert.deepEqual(
+    [...matches].map(([id, value]) => [id, { ...value, confirmedBySignedCover: false }]),
+    [...tentative],
+  );
+  assert.ok([...matches.values()].every(({ confirmedBySignedCover }) => confirmedBySignedCover));
+  assert.deepEqual([...matches.keys()], [donor.id, peer.id]);
+  const replaced = {
+    ...coverDonor,
+    artwork: { ...coverDonor.artwork, image_sha256: "f".repeat(64) },
+  };
+  const withoutSignedCover = coverBackedMediaMatches(
+    authoredCovers,
+    new Map(),
+    indexSharedCoverRows([replaced]),
+  );
+  assert.equal(withoutSignedCover.get(peer.id)?.confirmedBySignedCover, false);
+  const conflictingDonor = { ...peer, artwork: { ...coverDonor.artwork, game_id: 81 } };
+  const conflictingMatches = coverBackedMediaMatches(
+    [authoredCovers[0]!, { format_version: 1, listing: conflictingDonor }],
+    new Map(),
+    indexSharedCoverRows([coverDonor, peer]),
+  );
+  assert.equal(conflictingMatches.get(peer.id)?.claim, null);
+  const coverBacked = scheduledGameMediaDefaults(
+    [coverDonor, peer, distinct, hidden],
+    [],
+    new Map(),
+    new Set(),
+    { proposal: readScheduledGameMediaProposal(withLandscape), producerListings },
+    { coverMediaMatches: matches },
+  );
+  assert.deepEqual(
+    coverBacked(peer)
+      .map(({ role }) => role)
+      .sort(),
+    ["landscape_cover", "logo"],
+  );
+  assert.deepEqual(coverBacked(distinct), []);
+  assert.deepEqual(coverBacked({ ...peer, id: "other-consumer" }), []);
+  const afterCoverChange = scheduledGameMediaDefaults(
+    [coverDonor, peer],
+    [{ ...peer, media: coverBacked(peer) }],
+    new Map(),
+    new Set(),
+    { proposal: readScheduledGameMediaProposal(withLandscape), producerListings },
+    { coverMediaMatches: withoutSignedCover },
+  );
+  assert.deepEqual(afterCoverChange(peer), coverBacked(peer));
+  assert.deepEqual(afterCoverChange(coverDonor), []);
+  const newAssetsWithoutSignedCover = scheduledGameMediaDefaults(
+    [coverDonor, peer],
+    [],
+    new Map(),
+    new Set(),
+    { proposal: readScheduledGameMediaProposal(withLandscape), producerListings },
+    { coverMediaMatches: withoutSignedCover },
+  );
+  assert.deepEqual(newAssetsWithoutSignedCover(peer), []);
+
+  const deniedByConflict = scheduledGameMediaDefaults(
+    [coverDonor, conflictingDonor],
+    [],
+    new Map(),
+    new Set(),
+    { proposal: readScheduledGameMediaProposal(withLandscape), producerListings },
+    { coverMediaMatches: conflictingMatches },
+  );
+  assert.deepEqual(deniedByConflict(peer), []);
   const competing = {
     ...incoming,
     proposal: {
@@ -2130,6 +2389,210 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
         ],
       }),
     /Invalid scheduled media proposal/u,
+  );
+});
+
+void test("scheduled project covers require the exact upstream website and stay with that listing", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { prepareScheduledCovers, projectScheduledCovers } =
+    await import("./listing-scheduled-cover.mts");
+  const { readScheduledGameMediaProposal } = await import("./listing-scheduled-game-media.mts");
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const project = {
+    ...fixtureListing,
+    id: "art-project",
+    name: "Art Project",
+    availability: "unknown" as const,
+  };
+  const other = {
+    ...project,
+    id: "art-other",
+    project_url: "https://github.com/test/another-project",
+  };
+  const authored = [project, other].map((listing) => ({ format_version: 1 as const, listing }));
+  const image = {
+    sha256: "a".repeat(64),
+    bytes: 4,
+    width: 240,
+    height: 360,
+    format: "jpeg" as const,
+    validator: "portcove-core" as const,
+  };
+  let inspections = 0;
+  const observation = await prepareScheduledCovers(
+    authored,
+    new Set([project.id, other.id]),
+    new Map(),
+    {
+      inspectGame: async () => [
+        {
+          id: 70,
+          name: project.name,
+          slug: "art-project",
+          websites: [{ url: project.project_url }],
+          cover: { id: 71, image_id: "projectcover" },
+        },
+      ],
+      inspectImage: async () => {
+        inspections++;
+        return image;
+      },
+    },
+    async () => 12345,
+  );
+  assert.equal(inspections, 1);
+  assert.deepEqual(
+    observation.progress.map(({ port_id, reason }) => [port_id, reason]),
+    [
+      [project.id, "role-selected"],
+      [other.id, "identity-mismatch"],
+    ],
+  );
+  const cover = observation.covers[0]!;
+  assert.equal(observation.covers.length, 1);
+  assert.equal(cover.artwork.match_kind, "port");
+  const proposal = readScheduledGameMediaProposal({
+    format_version: 1,
+    selected_ids: [project.id, other.id],
+    additions: [],
+    covers: [cover],
+  });
+  assert.ok(proposal.covers);
+  const options = {
+    authored,
+    reviewed: new Map(),
+    previous: new Map(),
+    source: new Map([
+      [project.id, project],
+      [other.id, other],
+    ]),
+    incoming: proposal.covers,
+    shared: new Map(),
+    denied: new Set<string>(),
+    inspectRepository: async () => 12345,
+    now: Date.now(),
+  };
+  const fresh = await projectScheduledCovers({ ...options, inspect: async () => image });
+  const acceptedArtwork = { ...cover.artwork, observed_github_repository_id: 12345 };
+  assert.deepEqual([...fresh.proposals], [[project.id, acceptedArtwork]]);
+  const canonical = { format_version: 15, listings: [project, other] };
+  const listing19 = projectListingDelivery(canonical, [], null, {
+    compatible: { ...canonical, format_version: 19 },
+    listingFormatFloor: 19,
+    scheduledCovers: fresh.proposals,
+  });
+  const projectedArt = (bytes: Buffer) =>
+    fixtureRecords(
+      fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings,
+    ).find((row) => row.id === project.id)?.artwork;
+  assert.equal(projectedArt(listing19.bytes), undefined);
+  const listing20 = projectListingDelivery(canonical, [], null, {
+    compatible: { ...canonical, format_version: 20 },
+    listingFormatFloor: 20,
+    scheduledCovers: fresh.proposals,
+  });
+  assert.deepEqual(projectedArt(listing20.bytes), acceptedArtwork);
+  const currentlyReused = projectListingDelivery(
+    canonical,
+    [fixturePolicy(project, { id: 12346, name: "owner/game" }).listing_update],
+    listing20.bytes,
+    {
+      compatible: { ...canonical, format_version: 20 },
+      scheduledCovers: fresh.proposals,
+    },
+  );
+  assert.equal(projectedArt(currentlyReused.bytes), undefined);
+  const alreadySigned = new Map([[project.id, { ...project, artwork: acceptedArtwork }]]);
+  const outage = await projectScheduledCovers({
+    ...options,
+    previous: alreadySigned,
+    incoming: [],
+    inspect: async () => {
+      throw Error("provider outage");
+    },
+  });
+  assert.deepEqual([...outage.proposals], [[project.id, acceptedArtwork]]);
+  const reused = await projectScheduledCovers({
+    ...options,
+    previous: alreadySigned,
+    observedRepositoryIds: new Map([[project.id, 12346]]),
+    inspectRepository: async () => 12346,
+    inspect: async () => assert.fail("a reused GitHub URL must not inherit the previous cover"),
+  });
+  assert.equal(reused.proposals.size, 0);
+  const removedByMaintainer = await projectScheduledCovers({
+    ...options,
+    previous: new Map([[project.id, { ...project, artwork: cover.artwork }]]),
+    incoming: [],
+    inspect: async () => assert.fail("removed authored artwork has no scheduled provenance"),
+  });
+  assert.equal(removedByMaintainer.proposals.size, 0);
+  const moved = await projectScheduledCovers({
+    ...options,
+    authored: [{ ...authored[0]!, listing: { ...project, project_url: other.project_url } }],
+    previous: alreadySigned,
+    inspect: async () => assert.fail("the superseded project URL must not apply"),
+  });
+  assert.equal(moved.proposals.size, 0);
+  const gone = createIgdbInspector(
+    null,
+    () => assert.fail("withdrawn cover cannot decode"),
+    async () => new Response(null, { status: 410 }),
+  );
+  const withdrawn = await projectScheduledCovers({
+    ...options,
+    previous: alreadySigned,
+    incoming: [],
+    inspect: (id) => gone.inspectImage(id),
+  });
+  const publishedWithout = projectListingDelivery(canonical, [], listing20.bytes, {
+    compatible: { ...canonical, format_version: 20 },
+    scheduledCovers: withdrawn.proposals,
+  }).bytes;
+  const checkpoint = withdrawn.preservedCheckpoint.finish(publishedWithout)!;
+  assert.ok(checkpoint);
+  const renamed = { ...project, name: "Renamed project", project_url: other.project_url };
+  const recovery = {
+    ...options,
+    authored: [{ ...authored[0]!, listing: renamed }],
+    source: new Map([[project.id, renamed]]),
+    incoming: [
+      {
+        ...cover,
+        project: {
+          name: renamed.name,
+          project_url: renamed.project_url,
+          github_repository_id: 12345,
+        },
+      },
+    ],
+    priorCheckpoint: { bytes: checkpoint, listing: publishedWithout },
+    receiptDigest: `sha256:${"f".repeat(64)}`,
+    now: options.now + 2,
+    inspect: async () => image,
+  };
+  const staleRename = await projectScheduledCovers({ ...recovery, receiptStarted: options.now });
+  assert.equal(staleRename.proposals.size, 0);
+  const freshRename = await projectScheduledCovers({
+    ...recovery,
+    receiptStarted: options.now + 1,
+  });
+  assert.deepEqual([...freshRename.proposals], [[project.id, acceptedArtwork]]);
+  const wrongProducer = await projectScheduledCovers({
+    ...options,
+    source: new Map([[project.id, { ...project, name: "Different project" }]]),
+    inspect: async () => assert.fail("the producer must bind the same project declaration"),
+  });
+  assert.equal(wrongProducer.proposals.size, 0);
+  assert.throws(
+    () =>
+      readScheduledGameMediaProposal({
+        ...proposal,
+        covers: [{ id: project.id, artwork: cover.artwork }],
+      }),
+    /Invalid scheduled cover proposal/u,
   );
 });
 
@@ -2906,7 +3369,7 @@ void test("format 15 restrictions require the released reader and never reach ol
   assert.deepEqual(decoded.directory.listings[0]!.restrictions, restrictions);
 
   assert.throws(
-    () => projectListingDelivery({ format_version: 20, listings: [current] }, [], null, { now: 0 }),
+    () => projectListingDelivery({ format_version: 22, listings: [current] }, [], null, { now: 0 }),
     /supported bounded canonical directory/u,
   );
 });
@@ -3298,6 +3761,46 @@ void test("completed source observations stay bound to current canonical provide
     catalog: { ports: [], listings: [fixtureListing] },
   };
   assert.equal(completedListingCandidates(input, { ports: [] }, canonical).length, 1);
+  const original = {
+    format_version: 1,
+    id: "original-game",
+    evidence_urls: [],
+    source_editions: [],
+  };
+  const listingWithOriginal = { ...fixtureListing, original_game: original };
+  const earlierPolicy = fixturePolicy(listingWithOriginal);
+  const earlierInput = {
+    ...input,
+    catalog: { ports: [], listings: [listingWithOriginal] },
+    checkpoint: checkpoint({
+      [keyOf("owner/game")]: progress("owner/game", [], {
+        repository_id: 42,
+        last_complete_facts_sha256: earlierPolicy.facts_sha256,
+        last_complete_policies: [earlierPolicy],
+      }),
+    }),
+  };
+  const laterListing = {
+    ...listingWithOriginal,
+    original_game: {
+      ...original,
+      source_editions: [
+        { id: "retail", title: "Original retail", system: "super-nintendo", evidence_urls: [] },
+      ],
+    },
+  };
+  assert.deepEqual(
+    completedListingCandidates(
+      earlierInput,
+      { ports: [] },
+      {
+        ...canonical,
+        listings: [laterListing],
+      },
+    ),
+    [earlierPolicy.listing_update],
+  );
+
   const moved = { ...fixtureListing, project_url: "https://github.com/new/game" };
   assert.equal(
     completedListingCandidates(input, { ports: [] }, { format_version: 12, listings: [moved] })
@@ -3326,6 +3829,36 @@ void test("completed source observations stay bound to current canonical provide
     release: { repository: "owner/game" },
   };
   const managedInput = { ...input, catalog: { ...input.catalog, ports: [managed] } };
+  const editionManagedInput = {
+    ...earlierInput,
+    catalog: {
+      ...earlierInput.catalog,
+      ports: [{ ...managed, presentation: { original_game: original } }],
+    },
+  };
+  const editionManagedPort = {
+    ...managed,
+    presentation: { original_game: laterListing.original_game },
+  };
+  const editionDirectory = { ...canonical, listings: [laterListing] };
+  assert.deepEqual(
+    completedListingCandidates(
+      editionManagedInput,
+      { ports: [editionManagedPort] },
+      editionDirectory,
+    ),
+    [earlierPolicy.listing_update],
+  );
+  assert.deepEqual(
+    completedListingCandidates(
+      editionManagedInput,
+      { ports: [{ ...editionManagedPort, release: { repository: "other/game" } }] },
+      editionDirectory,
+    ),
+    [],
+    "descriptive edition enrollment does not authorize a change in the managed release source",
+  );
+
   const artwork = {
     game_id: 70,
     cover_id: 71,

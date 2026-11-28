@@ -538,10 +538,12 @@ fn listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority() {
     let core = portcove_core::Library::open(&library).unwrap();
     let before = core.review_definition_authority().unwrap();
     let capabilities = json_stdout(&portcove(&library, &["--json", "capabilities"]));
-    // Format 15 carries typed acquisition restrictions; signed delivery stays older.
+    // The reader range is independent of the format currently published.
     assert_eq!(
         capabilities["data"]["listing_formats"],
-        serde_json::json!([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+        serde_json::json!([
+            5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
+        ])
     );
     let commands = capabilities["data"]["commands"].as_array().unwrap();
     assert!(

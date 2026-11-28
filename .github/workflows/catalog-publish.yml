@@ -41,6 +41,15 @@ on:
         description: Owner activation only - admit the first cover checkpoint with authenticated compact listings and released reader support
         type: boolean
         default: false
+      activate_project_covers:
+        description: Owner activation only - enable format 20 project cover observations for a capable released reader
+        type: boolean
+        default: false
+
+      activate_landscape_covers:
+        description: Owner activation only - enable projected landscape covers after official reader qualification
+        type: boolean
+        default: false
 
       cover_replacement_packet:
         description: Exact independently reviewed cover replacement packet JSON
@@ -224,6 +233,8 @@ jobs:
         if: steps.decide.outputs.publish == 'true'
         env:
           ACTIVATE_COVER_CHECKPOINT: ${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_cover_checkpoint == true }}
+          ACTIVATE_PROJECT_COVERS: ${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_project_covers == true }}
+          ACTIVATE_LANDSCAPE_COVERS: ${{ github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == github.repository_owner && inputs.activate_landscape_covers == true }}
           PORTCOVE_COVER_REVIEW_PACKET: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_packet || '' }}
           PORTCOVE_COVER_REVIEW_SHA256: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_sha256 || '' }}
           PORTCOVE_COVER_REVIEW_PREIMAGES: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_preimages || '' }}
@@ -240,6 +251,8 @@ jobs:
           cover_options=()
           if [ -d site/catalog-history ]; then cover_options+=(--prior-history "$PWD/site/catalog-history"); fi
           if [ "$ACTIVATE_COVER_CHECKPOINT" = true ]; then cover_options+=(--activate-cover-checkpoint); fi
+          if [ "$ACTIVATE_PROJECT_COVERS" = true ]; then cover_options+=(--activate-project-covers); fi
+          if [ "$ACTIVATE_LANDSCAPE_COVERS" = true ]; then cover_options+=(--activate-landscape-covers); fi
           node scripts/listing-observation-delivery.mts \
             --bundle release/catalog-publication/bundle \
             --canonical crates/portcove-core/catalog/listings.json \

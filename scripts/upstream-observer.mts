@@ -152,6 +152,8 @@ export interface ObservationContinuation {
   first_validated_at: string | null;
   validation_order_sha256: string | null;
   selected_asset_release_ids?: number[];
+  /** Collection inputs from the last complete read that still need current verification. */
+  tentative_pages?: string[];
   /** Operation-owned transport progress; never integrity or eligibility authority. */
   asset_redirects?: Record<string, string[]>;
   consumed: { requests: number; response_bytes: number; conditional_hits: number };
@@ -165,6 +167,8 @@ export interface ObserverGitHubScope {
 export interface ObserveOptions {
   cache?: unknown;
   continuation?: unknown;
+  /** Use matching cached pages as input to complete current provider validation. */
+  reuseValidatedPages?: boolean;
   onCheckpoint?: (continuation: ObservationContinuation) => void | Promise<void>;
   signal?: AbortSignal;
   selectAssetReleases?: (headers: ProviderObservation) => Promise<readonly number[]>;
@@ -440,6 +444,22 @@ export function observerGitHubRateLimit(error: GitHubApiError, now: number): Obs
 export function validateObserverConfig(config: unknown): ObserverConfig {
   assertObserverConfig(config);
   return config;
+}
+
+/** Bind the configured artifact's scoped collection to the committed template.
+ * Keep the template itself unchanged so its retained checkpoint graph still restores.
+ */
+export function configuredCandidateObserverConfig(template: ObserverConfig): ObserverConfig {
+  if (template.format === 2) return template;
+  return validateObserverConfig({
+    ...template,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: observationHash({
+      kind: "configured-core-candidate-assets-v1",
+      template: observationHash(template),
+    }),
+  });
 }
 
 function textFact(value: unknown, label: string, maximum = 1024) {
@@ -1209,6 +1229,7 @@ export function validateObservationContinuation(
         ? ["selected_asset_release_ids"]
         : []),
       ...(isRecord(value) && Object.hasOwn(value, "asset_redirects") ? ["asset_redirects"] : []),
+      ...(isRecord(value) && Object.hasOwn(value, "tentative_pages") ? ["tentative_pages"] : []),
     ],
     "observation continuation",
   );
@@ -1299,6 +1320,22 @@ export function validateObservationContinuation(
       "continued page escaped its configured collection",
     );
     validatedPage(page, address, config, value.pages);
+  }
+  if (value.tentative_pages !== undefined) {
+    const pageAddresses = new Set(Object.keys(value.pages));
+    requireFact(
+      Array.isArray(value.tentative_pages) &&
+        value.tentative_pages.length <= pageAddresses.size &&
+        new Set(value.tentative_pages).size === value.tentative_pages.length &&
+        value.tentative_pages.every(
+          (url: unknown) =>
+            typeof url === "string" &&
+            pageAddresses.has(url) &&
+            /\/releases(?:\/\d+\/assets)?\?per_page=100&page=\d+$/u.test(url),
+        ),
+      "invalid-checkpoint",
+      "Tentative collection pages are outside their retained proof",
+    );
   }
   if (value.asset_redirects !== undefined) {
     requireFact(
@@ -1595,6 +1632,7 @@ export async function observeUpstream(
           consumed: { requests: 0, response_bytes: 0, conditional_hits: 0 },
         };
   const pages = continuation.pages;
+  const tentativePages = new Set(continuation.tentative_pages);
   const previouslyConsumed = { ...continuation.consumed };
   const consumed = { requests: 0, response_bytes: 0, conditional_hits: 0 };
   const requestOrder: {
@@ -1605,12 +1643,17 @@ export async function observeUpstream(
     value: CachedPage;
   }[] = [];
 
-  const retain = async () => {
+  const recordProgress = () => {
+    if (tentativePages.size) continuation.tentative_pages = [...tentativePages];
+    else delete continuation.tentative_pages;
     continuation.consumed = {
       requests: previouslyConsumed.requests + consumed.requests,
       response_bytes: previouslyConsumed.response_bytes + consumed.response_bytes,
       conditional_hits: previouslyConsumed.conditional_hits + consumed.conditional_hits,
     };
+  };
+  const retain = async () => {
+    recordProgress();
     await options.onCheckpoint?.(structuredClone(continuation));
   };
 
@@ -2024,11 +2067,16 @@ export async function observeUpstream(
     pathname: string,
     page: number | null,
     normalize: (value: unknown) => unknown,
-    deferCheckpoint = false,
+    { deferCheckpoint = false, useCompletePage = false } = {},
   ) {
     const url = `${apiRoot}${pathname}${page === null ? "" : `?per_page=100&page=${page}`}`;
     const replay = Object.hasOwn(pages, url);
-    const result = await request(pathname, page, replay ? pages[url] : null, replay);
+    const result = await request(
+      pathname,
+      page,
+      replay ? pages[url] : null,
+      replay || useCompletePage,
+    );
     normalize(result.value.body);
     result.value = compactPage(result.value, result.url, config, pages);
     // A truncated nonterminal page retains progress; malformed, escaping or
@@ -2040,15 +2088,45 @@ export async function observeUpstream(
     )
       throw partialObservationFailure("pagination", "nonterminal page is incomplete");
     pages[result.url] = result.value;
+    if (useCompletePage && !replay) tentativePages.add(result.url);
     requestOrder.push({ pathname, page, normalize, ...result });
     if (!replay && !deferCheckpoint) await retain();
     return result.value;
   }
 
+  async function revalidate(entry: (typeof requestOrder)[number]) {
+    try {
+      const current = await request(entry.pathname, entry.page, entry.value);
+      requireFact(
+        observationHash(entry.normalize(current.value.body)) ===
+          observationHash(entry.normalize(entry.value.body)) &&
+          current.value.link === entry.value.link,
+        "concurrent-change",
+        `provider collection changed during observation: ${entry.pathname}`,
+      );
+      entry.value = compactPage(current.value, current.url, config, pages);
+      pages[entry.url] = entry.value;
+      tentativePages.delete(entry.url);
+    } catch (error) {
+      if (
+        error instanceof ObservationFailure &&
+        error.rule === "provider-status" &&
+        (error.httpStatus === 404 || error.httpStatus === 410) &&
+        tentativePages.has(entry.url)
+      )
+        error.restartContinuation = true;
+      throw error;
+    }
+  }
+
+  const canReuseCompletePages = options.reuseValidatedPages === true && !retained;
+  let matchingReleaseFront = false;
   async function collection(
     pathname: string,
+    kind: "release-headers" | "release-assets",
     normalizeItem: (value: unknown) => unknown,
     normalizeRows: (rows: unknown[], url: string) => unknown[] = (rows) => rows,
+    reuseAssetPages = false,
   ): Promise<unknown[]> {
     const all = [];
     const ids = new Set();
@@ -2076,8 +2154,24 @@ export async function observeUpstream(
             url,
           );
         },
-        true,
+        {
+          deferCheckpoint: true,
+          useCompletePage:
+            Object.hasOwn(completePages, url) &&
+            (kind === "release-assets" ? reuseAssetPages : matchingReleaseFront && page > 1),
+        },
       );
+      if (kind === "release-headers" && page === 1 && canReuseCompletePages) {
+        const previous = completePages[url];
+        // A changed frontier needs the ordinary release-header collection pass.
+        // Raw metadata outside the kept facts can change independently.
+        matchingReleaseFront =
+          isRecord(previous) &&
+          previous.link === response.link &&
+          (previous.sha256 === response.sha256 ||
+            (typeof previous.facts_sha256 === "string" &&
+              previous.facts_sha256 === response.facts_sha256));
+      }
       let more: boolean;
       try {
         requireFact(
@@ -2095,6 +2189,7 @@ export async function observeUpstream(
       } catch (error) {
         if (fresh) {
           delete pages[url];
+          tentativePages.delete(url);
           requestOrder.pop();
         }
         throw error;
@@ -2116,11 +2211,33 @@ export async function observeUpstream(
     const headers = releaseListFacts(
       await collection(
         `${repositoryPath}/releases`,
+        "release-headers",
         (row) => row,
         (rows, url) => releaseListFacts(rows, keep && textPage(url)),
       ),
       keep,
     );
+    const retainedReleaseIdentities = new Map<number, string>();
+    if (canReuseCompletePages && !matchingReleaseFront) {
+      for (const [url, page] of Object.entries(completePages)) {
+        if (new URL(url).pathname !== `${repositoryPath}/releases`) continue;
+        const prior = validatedPage(page, url, config, completePages);
+        requireFact(
+          Array.isArray(prior.body),
+          "invalid-checkpoint",
+          "retained release rows differ",
+        );
+        for (const row of prior.body as unknown[]) {
+          const fact = releaseFact(row);
+          requireFact(
+            !retainedReleaseIdentities.has(fact.id),
+            "invalid-checkpoint",
+            "retained release identities repeat",
+          );
+          retainedReleaseIdentities.set(fact.id, observationHash(fact));
+        }
+      }
+    }
     let selectedAssets: Set<number> | null = null;
     const releases: ProviderObservation["facts"]["releases"] = headers.map((header) => ({
       ...header,
@@ -2194,8 +2311,17 @@ export async function observeUpstream(
           continue;
         const normalizeAsset = (asset: unknown) =>
           collectedAssetFact(asset, config, release.tag_name);
+        const retainedIdentity = retainedReleaseIdentities.get(release.id);
         const assets = (
-          await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
+          await collection(
+            `${repositoryPath}/releases/${release.id}/assets`,
+            "release-assets",
+            normalizeAsset,
+            undefined,
+            matchingReleaseFront ||
+              (retainedIdentity !== undefined &&
+                retainedIdentity === observationHash(releaseFact(release))),
+          )
         ).map(normalizeAsset);
         for (const asset of assets) {
           if (assetIds.has(asset.id)) {
@@ -2233,6 +2359,7 @@ export async function observeUpstream(
           prior[url] = page;
           priorContexts.set(url, pages);
           delete pages[url];
+          tentativePages.delete(url);
         }
       }
       await retain();
@@ -2260,6 +2387,15 @@ export async function observeUpstream(
       continuation.last_validated_at = null;
       continuation.validation_order_sha256 = null;
       await retain();
+    }
+    // Checksum transport needs current response identities before following an
+    // exact asset reference. Keep the normal final validation pass as well.
+    if (requestedChecksums.length && continuation.phase === "collect") {
+      for (const entry of requestOrder) {
+        if (!tentativePages.has(entry.url)) continue;
+        await revalidate(entry);
+        await retain();
+      }
     }
     const checksumPaths = new Set<string>();
     for (const source of requestedChecksums) {
@@ -2323,15 +2459,7 @@ export async function observeUpstream(
     );
     for (let index = continuation.validation_cursor; index < requestOrder.length; index++) {
       const entry = requestOrder[index]!;
-      const current = await request(entry.pathname, entry.page, entry.value);
-      requireFact(
-        observationHash(entry.normalize(current.value.body)) ===
-          observationHash(entry.normalize(entry.value.body)) &&
-          current.value.link === entry.value.link,
-        "concurrent-change",
-        `provider collection changed during observation: ${entry.pathname}`,
-      );
-      pages[entry.url] = compactPage(current.value, current.url, config, pages);
+      await revalidate(entry);
       const validationClock = now();
       requireFact(
         validationClock >= started &&
@@ -2389,18 +2517,20 @@ export async function observeUpstream(
     };
   } catch (error) {
     if (error instanceof ObservationFailure) {
-      if (error.rule === "concurrent-change" || error.restartContinuation) {
+      if (
+        error.rule === "concurrent-change" ||
+        error.restartContinuation ||
+        (tentativePages.size > 0 &&
+          error.statedCoverage !== "partial" &&
+          ["core-selection", "invalid-metadata", "pagination"].includes(error.rule))
+      ) {
         continuation.phase = "restart";
         continuation.validation_cursor = 0;
         continuation.last_validated_at = null;
         continuation.first_validated_at = null;
         continuation.validation_order_sha256 = null;
       }
-      continuation.consumed = {
-        requests: previouslyConsumed.requests + consumed.requests,
-        response_bytes: previouslyConsumed.response_bytes + consumed.response_bytes,
-        conditional_hits: previouslyConsumed.conditional_hits + consumed.conditional_hits,
-      };
+      recordProgress();
       error.continuation = structuredClone(continuation);
     }
     throw error;

@@ -23898,7 +23898,17 @@
           "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md",
           "https://github.com/Blizz127/brave-fencer-musashi-decomp-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "brave-fencer-musashi-playstation",
+            "title": "Brave Fencer Musashi (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/blizz127-brave-fencer-musashi-decomp-port.json"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -23983,7 +23993,17 @@
           "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md",
           "https://github.com/Blizz127/parasite-eve-decomp-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "parasite-eve-playstation",
+            "title": "Parasite Eve (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/blizz127-parasite-eve-decomp-port.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -25053,7 +25073,17 @@
         "evidence_urls": [
           "https://github.com/vasist15-source/BOTWRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-breath-of-the-wild-wii-u",
+            "title": "The Legend of Zelda: Breath of the Wild (Wii U)",
+            "system": "wii-u",
+            "evidence_urls": [
+              "https://github.com/vasist15-source/BOTWRecomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/botwrecomp-vasist15-source-vasist15-source-the-legend-of-zelda-breath-of-the-wild-wii-u.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -29606,7 +29636,17 @@
           "https://github.com/chrissotraidis/bluewake/blob/edd88f15750211cca7a4596c9c5aa348f124efe3/README.md",
           "https://github.com/chrissotraidis/bluewake"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-the-wind-waker-nintendo-gamecube",
+            "title": "The Legend of Zelda: The Wind Waker (GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/chrissotraidis/bluewake/blob/edd88f15750211cca7a4596c9c5aa348f124efe3/README.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/chrissotraidis-bluewake.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "The Legend of Zelda: The Wind Waker"
     },
@@ -29667,7 +29707,17 @@
           "https://github.com/chrissotraidis/kartpad/blob/5c9af806c02733f238520b405f886ae45b5aa37e/docs/INSTALL_MACOS.md",
           "https://github.com/chrissotraidis/kartpad"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mario-kart-wii-wii",
+            "title": "Mario Kart Wii (Wii)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/chrissotraidis/kartpad/blob/5c9af806c02733f238520b405f886ae45b5aa37e/docs/INSTALL_MACOS.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/chrissotraidis-kartpad.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "Mario Kart Wii"
     },
@@ -33395,6 +33445,39 @@
     {
       "id": "crazy-lunch-opengromada",
       "project_url": "https://github.com/siohaza/OpenGromada",
+      "release_url": "https://github.com/siohaza/OpenGromada/releases",
+      "download_block_reason": "OpenGromada shares one release feed across several games. Use upstream setup until a package for this game is identified.",
+      "restrictions": [
+        {
+          "id": "game-specific-package-unconfirmed",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "OpenGromada shares one release feed across several games. Use upstream setup until a package for this game is identified.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7393
+        },
+        {
+          "id": "alien-shooter-release-scope",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "0.1.0",
+              "0.1.1"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "OpenGromada 0.1.0 and 0.1.1 ship the Alien Shooter build. Follow the project's setup instructions for this game.",
+          "tracking_issue": 7393
+        }
+      ],
       "name": "Crazy Lunch / OpenGromada (siohaza)",
       "summary": "Reverse engineered engine powering various Sigma Games titles",
       "issue_number": 7393,
@@ -39161,7 +39244,17 @@
         "evidence_urls": [
           "https://github.com/ArmDucks/DigimonWorld3-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "digimon-world-2003-playstation-usa",
+            "title": "Digimon World 3 (PlayStation, USA)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/ArmDucks/DigimonWorld3-Recomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/digimonworld3-recomp-mikeravenelle-digimon-world-3.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -39499,7 +39592,17 @@
           "https://github.com/LUUKASR1/disgaea-d2-recomp-windows/blob/v1.0.2/docs/RELEASE-0.2.1.md",
           "https://github.com/Sean13128/disgaea-d2-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "disgaea-d2-a-brighter-darkness-playstation-3",
+            "title": "Disgaea D2: A Brighter Darkness (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/LUUKASR1/disgaea-d2-recomp-windows/blob/v1.0.2/docs/RELEASE-0.2.1.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/disgaea-d2-luukasr1-win-port.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -42733,7 +42836,17 @@
         "evidence_urls": [
           "https://github.com/mstan/DragonBallGTFinalBoutRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dragon-ball-gt-final-bout-playstation",
+            "title": "Dragon Ball GT: Final Bout (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/mstan/DragonBallGTFinalBoutRecomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/dragonballgtfinalboutrecomp-mstan-mstan-dragon-ball-gt-final-bout.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -44345,7 +44458,17 @@
         "evidence_urls": [
           "https://github.com/gascarcella/dw2003recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "digimon-world-2003-playstation",
+            "title": "Digimon World 2003 (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/gascarcella/dw2003recomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/dw2003recomp-gascarcella-digimon-world-2003.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -66518,6 +66641,39 @@
     {
       "id": "locoland-steamland-opengromada",
       "project_url": "https://github.com/siohaza/OpenGromada",
+      "release_url": "https://github.com/siohaza/OpenGromada/releases",
+      "download_block_reason": "OpenGromada shares one release feed across several games. Use upstream setup until a package for this game is identified.",
+      "restrictions": [
+        {
+          "id": "game-specific-package-unconfirmed",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "OpenGromada shares one release feed across several games. Use upstream setup until a package for this game is identified.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7396
+        },
+        {
+          "id": "alien-shooter-release-scope",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "0.1.0",
+              "0.1.1"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "OpenGromada 0.1.0 and 0.1.1 ship the Alien Shooter build. Follow the project's setup instructions for this game.",
+          "tracking_issue": 7396
+        }
+      ],
       "name": "Locoland (Steamland) / OpenGromada (siohaza)",
       "summary": "Reverse engineered engine powering various Sigma Games titles",
       "issue_number": 7396,
@@ -92634,7 +92790,17 @@
         "evidence_urls": [
           "https://github.com/douglasjv/r4"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "r4-ridge-racer-type-4-playstation",
+            "title": "R4: Ridge Racer Type 4 (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/douglasjv/r4",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/r4-douglasjv-r4-ridge-racer-type-4.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -103316,6 +103482,15 @@
       "summary": "SafeHouse is a launcher and PC port project for all the Sly Cooper games.",
       "issue_number": 8271,
       "listed_at": "2026-11-24",
+      "mod_portals": [
+        {
+          "id": "safehouse-modding",
+          "site": "community_site",
+          "name": "SafeHouse modding guide",
+          "url": "https://github.com/FridiNaTor1/SafeHouse/blob/main/docs/MODDING.md",
+          "instructions": "Follow the section for this game. SafeHouse manages the installation and uses its own Mods folder."
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "sly-2-band-of-thieves",
@@ -103392,6 +103567,15 @@
       "summary": "SafeHouse is a launcher and PC port project for all the Sly Cooper games.",
       "issue_number": 8270,
       "listed_at": "2026-11-24",
+      "mod_portals": [
+        {
+          "id": "safehouse-modding",
+          "site": "community_site",
+          "name": "SafeHouse modding guide",
+          "url": "https://github.com/FridiNaTor1/SafeHouse/blob/main/docs/MODDING.md",
+          "instructions": "Follow the section for this game. SafeHouse manages the installation and uses its own Mods folder."
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "sly-cooper-and-the-thievius-raccoonus",
@@ -113405,7 +113589,17 @@
         "evidence_urls": [
           "https://github.com/Alexbeav/syphon_filter_redux"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "syphon-filter-playstation",
+            "title": "Syphon Filter (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Alexbeav/syphon_filter_redux",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/syphon-filter-redux-alexbeav-syphon-filter-redux.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -113477,7 +113671,17 @@
           "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
           "https://github.com/Madxbio97/SF-pc-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "syphon-filter-playstation",
+            "title": "Syphon Filter (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/syphon-filter-sf-pc-port.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "Syphon Filter"
     },
@@ -115138,7 +115342,17 @@
           "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
           "https://github.com/Heromachine/Tenchu-SA-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "tenchu-stealth-assassins-playstation",
+            "title": "Tenchu: Stealth Assassins (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/tenchu-stealth-assassins-tenchu-sa-recomp.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "Tenchu: Stealth Assassins"
     },
@@ -119036,6 +119250,39 @@
     {
       "id": "theseus-return-of-the-hero-opengromada",
       "project_url": "https://github.com/siohaza/OpenGromada",
+      "release_url": "https://github.com/siohaza/OpenGromada/releases",
+      "download_block_reason": "OpenGromada shares one release feed across several games. Use upstream setup until a package for this game is identified.",
+      "restrictions": [
+        {
+          "id": "game-specific-package-unconfirmed",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "OpenGromada shares one release feed across several games. Use upstream setup until a package for this game is identified.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7394
+        },
+        {
+          "id": "alien-shooter-release-scope",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "0.1.0",
+              "0.1.1"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "OpenGromada 0.1.0 and 0.1.1 ship the Alien Shooter build. Follow the project's setup instructions for this game.",
+          "tracking_issue": 7394
+        }
+      ],
       "name": "Theseus: Return of the Hero / OpenGromada (siohaza)",
       "summary": "Reverse engineered engine powering various Sigma Games titles",
       "issue_number": 7394,
@@ -123071,7 +123318,17 @@
         "evidence_urls": [
           "https://github.com/jcoker85/TwistedMetal1234Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "twisted-metal-2-playstation",
+            "title": "Twisted Metal 2 (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/jcoker85/TwistedMetal1234Recomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/twistedmetal1234recomp-jcoker85-twisted-metal-2.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -123116,7 +123373,17 @@
         "evidence_urls": [
           "https://github.com/jcoker85/TwistedMetal1234Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "twisted-metal-4-playstation",
+            "title": "Twisted Metal 4 (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/jcoker85/TwistedMetal1234Recomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/twistedmetal1234recomp-jcoker85-twisted-metal-4.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -126253,7 +126520,17 @@
           "https://github.com/JEschete/VS-NativePort/blob/f104d511ca04665edfd6fc74b7216a3220fbe055/README.md",
           "https://github.com/JEschete/VS-NativePort"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "vagrant-story-playstation",
+            "title": "Vagrant Story (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/JEschete/VS-NativePort/blob/f104d511ca04665edfd6fc74b7216a3220fbe055/README.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/vagrant-story-ps1-vs-nativeport.json"
+            ]
+          }
+        ]
       }
     },
     {
@@ -126361,7 +126638,17 @@
           "https://github.com/Ed1z19/ValkyrieRecomp/blob/200a7a15c4718740c2a573e44535657f662d004b/README.md",
           "https://github.com/Ed1z19/ValkyrieRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "valkyrie-profile-playstation",
+            "title": "Valkyrie Profile (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Ed1z19/ValkyrieRecomp/blob/200a7a15c4718740c2a573e44535657f662d004b/README.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/valkyrie-profile-valkyrierecomp.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "Valkyrie Profile"
     },
@@ -131920,7 +132207,17 @@
         "evidence_urls": [
           "https://github.com/Comfubar/KnowYourRoleRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wwf-smackdown-2-know-your-role-playstation",
+            "title": "WWF SmackDown! 2: Know Your Role (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Comfubar/KnowYourRoleRecomp",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/wwf-smackdown-2-know-your-role-recomp.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "WWF SmackDown! 2: Know Your Role"
     },
@@ -133499,7 +133796,17 @@
           "https://github.com/z3xox/Tenkaichi3Decomp/blob/be4c75b367fb859f088cc74126c8067bc6987d29/README.md",
           "https://github.com/z3xox/Tenkaichi3Decomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dragon-ball-z-budokai-tenkaichi-3-playstation-2",
+            "title": "Dragon Ball Z: Budokai Tenkaichi 3 (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/z3xox/Tenkaichi3Decomp/blob/be4c75b367fb859f088cc74126c8067bc6987d29/README.md",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/z3xox-tenkaichi3decomp.json"
+            ]
+          }
+        ]
       },
       "original_game_title": "Dragon Ball Z: Budokai Tenkaichi 3"
     },
@@ -133748,7 +134055,17 @@
           "https://github.com/snesrev/zelda3/releases/tag/v0.3",
           "https://github.com/snesrev/zelda3"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-a-link-to-the-past-super-nintendo",
+            "title": "The Legend of Zelda: A Link to the Past (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/snesrev/zelda3/releases/tag/v0.3",
+              "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/zelda3.json"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -134071,6 +134388,39 @@
     {
       "id": "zombie-shooter-opengromada",
       "project_url": "https://github.com/siohaza/OpenGromada",
+      "release_url": "https://github.com/siohaza/OpenGromada/releases",
+      "download_block_reason": "OpenGromada shares one release feed across several games. Use upstream setup until a package for this game is identified.",
+      "restrictions": [
+        {
+          "id": "game-specific-package-unconfirmed",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "OpenGromada shares one release feed across several games. Use upstream setup until a package for this game is identified.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7392
+        },
+        {
+          "id": "alien-shooter-release-scope",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "0.1.0",
+              "0.1.1"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "OpenGromada 0.1.0 and 0.1.1 ship the Alien Shooter build. Follow the project's setup instructions for this game.",
+          "tracking_issue": 7392
+        }
+      ],
       "name": "Zombie Shooter / OpenGromada (siohaza)",
       "summary": "Reverse engineered engine powering various Sigma Games titles",
       "issue_number": 7392,

@@ -585,6 +585,7 @@ impl PortcoveService {
         self.recover_catalog_downloads()?;
         self.recover_cancellations()?;
         self.recover_lifecycle_operations()?;
+        self.retry_personal_aliases_after_operation(None);
         Ok(())
     }
 
@@ -1157,6 +1158,12 @@ impl PortcoveService {
         let recorded =
             self.library
                 .finish_activity_report(&activity.id, status, message, failure.as_ref());
+        if recorded.is_ok()
+            && activity.target_kind == ActivityTargetKind::Port
+            && let Some(port_id) = activity.target_id.as_deref()
+        {
+            self.retry_personal_aliases_after_operation(Some(port_id));
+        }
         crate::runtime_diagnostics::observe_activity(
             &activity,
             status,
@@ -1226,7 +1233,7 @@ impl PortcoveService {
 
     // Execution retains the original status checks, then verifies its rollback
     // target once under the operation lock instead of discarding that assessment.
-    fn status_without_rollback_assessment(&self, port_id: &str) -> Result<PortStatus> {
+    pub(crate) fn status_without_rollback_assessment(&self, port_id: &str) -> Result<PortStatus> {
         let status_catalog = match self.catalog_for_installed_fallback(port_id) {
             Ok(catalog) => catalog,
             Err(error) if error.code == crate::ErrorCode::NotFound => {
@@ -1689,6 +1696,10 @@ impl PortcoveService {
     ) -> Result<(InstallPlan, crate::ScopedResolvedRelease)> {
         let port = self.catalog.port(port_id)?;
         let status = self.status(port_id)?;
+        if first_managed_install(&status) {
+            let connection = self.library.connection()?;
+            Library::require_no_associated_personal_runtime(&connection, &self.catalog, port_id)?;
+        }
         self.require_definition_operation(
             &self.catalog,
             port,
@@ -4448,6 +4459,12 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
+        if first_managed_install(&status) {
+            let connection = self.library.connection()?;
+            let snapshot = connection.unchecked_transaction()?;
+            Library::require_no_associated_personal_runtime_from_current(&snapshot, &port.id)?;
+            snapshot.commit()?;
+        }
         crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
         if let Some(expected) = intent.explicit_package_proof_sha256.as_deref()
             && resolution.explicit_package_proof_sha256()?.as_deref() != Some(expected)
@@ -6127,6 +6144,8 @@ impl PortcoveService {
                 true,
             ),
         )?;
+        let connection = self.library.connection()?;
+        Library::require_no_associated_personal_runtime(&connection, &self.catalog, port_id)?;
         self.inspect_external_runtime_preview(port, spec, requested_root, checkpoint)
     }
 
@@ -6327,13 +6346,14 @@ impl PortcoveService {
         port_id: &str,
         authorization_token: &str,
     ) -> Result<ExternalRuntimeRecord> {
-        let activity = self.library.begin_activity(
+        let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::RemoveExternal,
             ActivityTargetKind::Port,
             Some(port_id),
         )?;
         let result = (|| {
             let _lock = self.library.try_lock_port(port_id, "remove-external")?;
+            operation.checkpoint()?;
             let (record, _) = self
                 .library
                 .external_runtime_with_port(port_id)?
@@ -6347,6 +6367,7 @@ impl PortcoveService {
                 port_id,
                 &fingerprint,
             )?;
+            operation.begin_publication()?;
             self.library.remove_external_runtime(&record)?;
             Ok(record)
         })();

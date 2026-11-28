@@ -1146,12 +1146,14 @@ impl Library {
             // Dropping the transaction rolls it back; nothing was written.
             return Ok(candidate.status());
         }
-        let prior = match previous {
+        let (prior, historical_prior) = match previous {
             Some(previous) if previous.require_current(&transaction, now).is_ok() => {
-                previous.document.project(catalog).ok()
+                (previous.document.project(catalog).ok(), None)
             }
-            Some(_) => None,
-            None => Some(catalog),
+            // Historical bytes can show that this pair was already presented.
+            // The new authenticated candidate still controls the association.
+            Some(previous) => (None, previous.document.project(catalog).ok()),
+            None => (Some(catalog), None),
         };
         // A corrupt or full local preference projection must not block
         // independent catalog delivery. Preserve its original rows on error.
@@ -1166,6 +1168,11 @@ impl Library {
             transaction.execute_batch("ROLLBACK TO retain_mod_website_choices")?;
         }
         transaction.execute_batch("RELEASE retain_mod_website_choices")?;
+        PortcoveService::defer_new_personal_aliases(
+            &transaction,
+            prior.as_ref().or(historical_prior.as_ref()),
+            &selected,
+        )?;
         let insert = if matches!(candidate.proof, ListingAdmissionProof::Compact(_)) {
             // This optional, descriptive store introduces no library schema
             // dependency. An older reader can still open and renew its separately

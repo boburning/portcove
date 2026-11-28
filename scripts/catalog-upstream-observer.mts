@@ -36,6 +36,7 @@ import {
   ObservationFailure,
   validateObserverConfig,
   checksumSourcesFromProjections,
+  configuredCandidateObserverConfig,
   boundedProviderRetryTime,
   boundedRetainedRetryClock,
 } from "./upstream-observer.mts";
@@ -49,6 +50,7 @@ import type {
 import { advanceObservation } from "./observe-configured-upstream.mts";
 import type {
   LauncherModObservation,
+  LauncherModRepository,
   ReciprocalThunderstoreObservation,
 } from "./port-upstream-facts.mts";
 import {
@@ -628,6 +630,7 @@ export interface CatalogObservationOptions extends Pick<
   excludedSources?: ReadonlySet<string>;
   /** Hard cap on provider requests this operation may admit (#4779). */
   requestLimit?: number;
+  offlinePolicyOnly?: boolean;
   /** Give stale recovery regular turns after appointments and expiring managed work. */
   rotateStaleSources?: boolean;
   prioritizeConfigured?: boolean;
@@ -635,7 +638,7 @@ export interface CatalogObservationOptions extends Pick<
   providerFetch?: typeof fetch;
   modProviderRegistryFetch?: typeof fetch;
   observeLauncherMods?: (
-    repository: { id: number; slug: string },
+    repository: LauncherModRepository,
     account: Required<
       Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
     >,
@@ -661,7 +664,7 @@ export interface CatalogObservationOptions extends Pick<
   withSourceLock: <T>(config: ObserverConfig, operation: () => Promise<T>) => Promise<T>;
   load: (config: ObserverConfig) => Promise<unknown>;
   save: (config: ObserverConfig, checkpoint: unknown) => Promise<void>;
-  commit: (checkpoint: CatalogObserverCheckpoint) => Promise<void>;
+  commit: (contents: string) => Promise<void>;
   observeN64Runtime?: boolean;
   readN64BuildStepLog?: (
     repository: string,
@@ -724,13 +727,16 @@ export function orderHostedObservationTurns<T extends ObservationTurn>(
     turn.freshnessObservedAt === null
       ? -Infinity
       : Date.parse(turn.freshnessObservedAt) + freshness.freshnessMs;
-  const protectedTurns: T[] = [];
+  const appointments: T[] = [];
+  const expiringManaged: T[] = [];
   const ordinaryManaged: T[] = [];
   const recovery: T[] = [];
   const remaining: T[] = [];
   for (const turn of byRole) {
-    if (turn.appointment || (turn.managed && expiry(turn) <= freshness.deadline)) {
-      protectedTurns.push(turn);
+    if (turn.appointment) {
+      appointments.push(turn);
+    } else if (turn.managed && expiry(turn) <= freshness.deadline) {
+      expiringManaged.push(turn);
     } else if (turn.managed) {
       ordinaryManaged.push(turn);
     } else if (expiry(turn) <= freshness.now) {
@@ -740,14 +746,14 @@ export function orderHostedObservationTurns<T extends ObservationTurn>(
     }
   }
 
-  // Preserve the first recovery turn, then keep one in every four ordinary
-  // turns while both groups have work. Every turn uses the existing shared
-  // quantum. Oldest attempt within recovery keeps failed sources rotating.
-  const ordered = protectedTurns;
+  // Give the first expiring managed source an early turn. The remaining urgent
+  // sources keep their managed priority without displacing every recovery turn.
+  const ordered = appointments.concat(expiringManaged.slice(0, 1));
+  const managed = expiringManaged.slice(1).concat(ordinaryManaged);
   let recovered = 0;
-  for (let index = 0; index < ordinaryManaged.length; index++) {
+  for (let index = 0; index < managed.length; index++) {
     if (index % 3 === 0 && recovered < recovery.length) ordered.push(recovery[recovered++]!);
-    ordered.push(ordinaryManaged[index]!);
+    ordered.push(managed[index]!);
   }
   return ordered.concat(recovery.slice(recovered), remaining);
 }
@@ -765,15 +771,14 @@ export async function advanceCatalogObservations(
       ? newCatalogObserverCheckpoint()
       : validateCatalogObserverCheckpoint(prior, now());
   const commitCheckpoint = () => {
-    if (
-      (state.mod_provider_registry || state.launcher_mod_sources || state.reciprocal_mod_sources) &&
-      Buffer.byteLength(JSON.stringify(state)) > catalogCheckpointByteLimit
-    )
+    // The immutable JSON text is both the budgeted snapshot and the write input.
+    const contents = JSON.stringify(state);
+    if (Buffer.byteLength(contents) > catalogCheckpointByteLimit)
       throw new ObservationFailure(
         "checkpoint-size",
         "Catalog progress and retained mod observations exceed the checkpoint envelope. The last complete checkpoint remains.",
       );
-    return options.commit(structuredClone(state));
+    return options.commit(contents);
   };
   if (state.provider_retry_at && Date.parse(state.provider_retry_at) <= now())
     state.provider_retry_at = null;
@@ -793,7 +798,8 @@ export async function advanceCatalogObservations(
       delete progress.coverage.retry_at;
   }
   const template = validateObserverConfig(options.config);
-  const requestCeiling = options.requestLimit ?? Infinity;
+  const offlinePolicyOnly = options.offlinePolicyOnly === true;
+  const requestCeiling = offlinePolicyOnly ? 0 : (options.requestLimit ?? Infinity);
   const policyIdentity = options.policyIdentity;
   if (!/^[a-f0-9]{64}$/u.test(policyIdentity))
     throw new Error("Exact Core policy input identity is required");
@@ -927,6 +933,18 @@ export async function advanceCatalogObservations(
       .filter((source) => {
         if (options.excludedSources?.has(source.key)) return false;
         const progress = state.sources[source.key];
+        if (
+          offlinePolicyOnly &&
+          ((source.provider ?? "github") !== "github" ||
+            listingOnly(source) ||
+            source.ports.some((port) => port.original_source_family) ||
+            !progress?.repository_id ||
+            progress.completed_scope_sha256 === null ||
+            progress.completed_scope_sha256 === scopeBinding(source) ||
+            progress.exception_key !== null ||
+            freshnessExpired(progress))
+        )
+          return false;
         return (
           (scopeDue(source, progress) || source.repository === template.repository) &&
           (!progress?.retry_at || Date.parse(progress.retry_at) <= now())
@@ -995,7 +1013,7 @@ export async function advanceCatalogObservations(
       }
     | undefined;
   const observeLauncherMods = options.observeLauncherMods;
-  if (observeLauncherMods) {
+  if (observeLauncherMods && !offlinePolicyOnly) {
     const gameScopes = launcherModGameScopes(
       catalog,
       isRecord(catalog) && Array.isArray(catalog.listings) ? catalog.listings : [],
@@ -1054,8 +1072,13 @@ export async function advanceCatalogObservations(
       if (options.signal?.aborted || capacity() < 4) break;
       let result: LauncherModObservation;
       try {
+        const retained = progress[subject.port_id]?.last_complete?.result;
         result = await observeLauncherMods(
-          { id: subject.repository_id, slug: subject.slug },
+          {
+            id: subject.repository_id,
+            slug: subject.slug,
+            ...(retained?.state === "absent" ? { priorAbsence: retained } : {}),
+          },
           { admitRequest, observeResponse, consumeResponseBytes },
         );
       } catch (cause) {
@@ -1347,6 +1370,7 @@ export async function advanceCatalogObservations(
       previousProgress.freshness_observed_at !== null &&
       now() - Date.parse(previousProgress.freshness_observed_at) <
         template.stale_after_hours * 3600000;
+    if (offlinePolicyOnly && !freshOfflineCandidate) continue;
     if (
       (source.provider ?? "github") === "github" &&
       capacity() < 1 &&
@@ -1668,9 +1692,9 @@ export async function advanceCatalogObservations(
     // the observation itself still states where the next run resumes.
     let retainedCursor: string | null = null;
     try {
-      const legacy = isConfigured(source);
+      const configured = isConfigured(source);
       if (
-        legacy &&
+        configured &&
         progress.repository_id !== null &&
         progress.repository_id !== template.repository_id
       )
@@ -1679,7 +1703,7 @@ export async function advanceCatalogObservations(
           "Retained repository identity conflicts with the reviewed configured source",
         );
       if (progress.repository_id === null) {
-        const identity = legacy
+        const identity = configured
           ? template.repository_id
           : await options.repositoryId(source, {
               admitRequest,
@@ -1694,8 +1718,8 @@ export async function advanceCatalogObservations(
         progress.repository_id = identity;
         await commitCheckpoint();
       }
-      const config: ObserverConfig = legacy
-        ? template
+      const config: ObserverConfig = configured
+        ? configuredCandidateObserverConfig(template)
         : validateObserverConfig({
             ...template,
             format: 2,
@@ -1721,13 +1745,15 @@ export async function advanceCatalogObservations(
               })),
             ),
           });
-      if (
-        progress.current_config &&
-        observationHash(progress.current_config) !== observationHash(config)
-      )
-        progress.retired_configs.push(progress.current_config);
-      progress.current_config = config;
-      await commitCheckpoint();
+      const configHash = observationHash(config);
+      const saveSourceCheckpoint = async (checkpoint: unknown) => {
+        await options.save(config, checkpoint);
+        if (progress.current_config && observationHash(progress.current_config) === configHash)
+          return;
+        if (progress.current_config) progress.retired_configs.push(progress.current_config);
+        progress.current_config = config;
+        await commitCheckpoint();
+      };
       const policies: unknown[] = [];
       const scoped = (observation: ProviderObservation, portId: string) => ({
         ...observation,
@@ -1871,17 +1897,29 @@ export async function advanceCatalogObservations(
         return selection.release_ids;
       };
       const result = await options.withSourceLock(config, async () => {
-        const priorSource = decodeStoredObserverCheckpoint(
+        const retainedSource = decodeStoredObserverCheckpoint(
           await options.load(config),
           deadline,
           now,
         );
+        // The configured config also binds the scheduled artifact consumer.
+        // Start a fresh provider attempt when its committed selection inputs move.
+        const priorSource =
+          configured &&
+          !offlinePolicyOnly &&
+          isRecord(retainedSource) &&
+          retainedSource.continuation &&
+          progress.selection_progress &&
+          progress.selection_progress.binding !== binding
+            ? { ...retainedSource, continuation: undefined }
+            : retainedSource;
         const position = (continuation: unknown) => {
           if (!isRecord(continuation))
             return observationHash({ phase: "collect", cursor: 0, pages: [] });
           return observationHash({
             phase: continuation.phase,
             cursor: continuation.validation_cursor,
+            tentative: continuation.tentative_pages ?? [],
             pages: isRecord(continuation.pages)
               ? Object.entries(continuation.pages).map(([url, page]) => [
                   url,
@@ -1903,7 +1941,8 @@ export async function advanceCatalogObservations(
           ...(options.sleep ? { sleep: options.sleep } : {}),
           now,
           catalogIds,
-          reprojectFreshFacts,
+          reprojectFreshFacts: offlinePolicyOnly ? "only" : reprojectFreshFacts,
+          reuseValidatedPages: true,
           admitRequest: admitSourceRequest,
           observeResponse,
           consumeResponseBytes,
@@ -1914,19 +1953,20 @@ export async function advanceCatalogObservations(
           },
           project: projectAll,
           commitContinuation: async (checkpoint) => {
-            await options.save(config, checkpoint);
+            await saveSourceCheckpoint(checkpoint);
             retainedCursor = continuationCursor(
               isRecord(checkpoint) ? checkpoint.continuation : null,
             );
           },
         });
+        if (offlinePolicyOnly && result.report.transition === "deferred") return result;
         const continuation = result.checkpoint.continuation;
         const readProgress =
           continuation &&
           (Object.keys(continuation.pages).length > 0 || continuation.validation_cursor > 0) &&
           position(continuation) !== previousPosition;
         if (readProgress) coreProgress++;
-        await options.save(config, result.checkpoint);
+        await saveSourceCheckpoint(result.checkpoint);
         retainedCursor = continuationCursor(continuation);
         // Historical projections retain their own facts/definition identities.
         // A changed configuration may have no current observation at all.
@@ -2161,6 +2201,7 @@ export async function advanceCatalogObservations(
         await options.export(source, config, result, result.report.exception ? fallback : policies);
         return result;
       });
+      if (offlinePolicyOnly && result.report.transition === "deferred") continue;
       if (result.report.exception) {
         if (
           result.report.exception.rule === "budget" &&
@@ -2214,6 +2255,7 @@ export async function advanceCatalogObservations(
           result.report.observation?.facts_sha256 === retainedListingCompletion.facts_sha256;
         const changed =
           sameScope &&
+          progress.last_complete_config?.format === config.format &&
           progress.last_complete_facts_sha256 !== result.report.observation?.facts_sha256;
         if (!sameScope && !retainedTiming) {
           progress.last_change_at = new Date(now()).toISOString();

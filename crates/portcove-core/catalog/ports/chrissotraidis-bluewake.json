@@ -53,7 +53,17 @@
         "https://github.com/chrissotraidis/bluewake/blob/edd88f15750211cca7a4596c9c5aa348f124efe3/README.md",
         "https://github.com/chrissotraidis/bluewake"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-the-wind-waker-nintendo-gamecube",
+          "title": "The Legend of Zelda: The Wind Waker (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/chrissotraidis/bluewake/blob/edd88f15750211cca7a4596c9c5aa348f124efe3/README.md",
+            "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/chrissotraidis-bluewake.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "The Legend of Zelda: The Wind Waker"
   }

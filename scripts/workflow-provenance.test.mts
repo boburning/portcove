@@ -41,6 +41,7 @@ import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   chmodSync,
+  existsSync,
   realpathSync,
   mkdtempSync,
   mkdirSync,
@@ -1964,6 +1965,100 @@ void test("duplicate provenance entries refuse before decoding a second payload"
   assert.throws(() => parseProvenanceArchive(duplicate), /must contain one JSON record/);
 });
 
+void test("published Windows recovery has one fixed disposable installed route", async () => {
+  const { recoveryPreviewVersion } = await import("./hosted-installed-windows-recovery.mts");
+  assert.equal(recoveryPreviewVersion("nightly-0.1.0-preview.21"), "0.1.0-preview.21");
+  for (const tag of [
+    "latest",
+    "v1.0.0",
+    "nightly-0.1.0-preview.0",
+    "../nightly-0.1.0-preview.21",
+  ]) {
+    assert.throws(() => recoveryPreviewVersion(tag), /exact published Portcove Preview tag/u);
+  }
+  const workflow: unknown = parseYaml(
+    readFileSync(
+      new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const job = record(record(record(workflow).jobs).windows_installed_library_recovery);
+  assert.equal(job["runs-on"], "windows-2022");
+  assert.equal(
+    job.if,
+    "${{ inputs.operation == 'windows-installed-library-recovery' && inputs.runner == 'windows-2022' && " +
+      "!inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
+  );
+  assert.deepEqual(job.permissions, { contents: "read", attestations: "read" });
+  const steps = job.steps;
+  assert.ok(Array.isArray(steps));
+  const execute = record(
+    required(
+      steps.find(
+        (step) => record(step).run === "node scripts/hosted-installed-windows-recovery.mts",
+      ),
+    ),
+  );
+  assert.equal(
+    record(execute.env).PORTCOVE_INSTALLED_RECOVERY_TAG,
+    "${{ inputs.recovery_preview_tag }}",
+  );
+  const evidence = record(required(steps.find((step) => record(step).if === "always()")));
+  assert.match(text(evidence.run), /node scripts\/native-backup-evidence\.mts emit/u);
+  assert.doesNotMatch(JSON.stringify(job), /upload-artifact|actions\/cache|rust-cache|secrets\./u);
+});
+
+void test("published Windows recovery requires bound restore and actual restart files", async (t) => {
+  const { verifyPublishedRecoveryObservation } =
+    await import("./hosted-installed-windows-recovery.mts");
+  const { fileIdentity } = await import("./development-evidence.mts");
+  const directory = mkdtempSync(path.join(tmpdir(), "portcove-published-recovery-test-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const scenario = "native-library-recovery-bundle";
+  const revision = "a".repeat(40);
+  const write = (leaf: string, value: unknown) => {
+    const target = path.join(directory, leaf);
+    writeFileSync(target, JSON.stringify(value));
+    return target;
+  };
+  const result = write("native-recovery-bundle-result.json", {
+    source: path.join(directory, "library"),
+    destination: path.join(directory, "restored-library"),
+    initial: { id: "source-library", generation: 1 },
+    afterRestore: { id: "source-library", generation: 4 },
+    opened: { id: "restored-library", generation: 5 },
+  });
+  const restart = write("restored-library-explicitly-opened-restart.json", {
+    exited: { exited_at: "2026-11-28T00:00:00.000Z", observed_processes: 2 },
+  });
+  const inputs = {
+    app: { path: "installed-app", sha256: "b".repeat(64), bytes: 22 },
+    "preparation-cli": { path: "released-cli", sha256: "c".repeat(64), bytes: 25 },
+    "preparation-tool": { path: "owned-probe", sha256: "d".repeat(64), bytes: 30 },
+  };
+  const observation = {
+    revision,
+    outcome: "passed",
+    executable: inputs.app,
+    selected_scenarios: [scenario],
+    checks: [{ scenario, outcome: "passed" }],
+    restart_cycles: 1,
+    execution_binding: {
+      product_artifacts: Object.entries(inputs).map(([role, identity]) => ({ role, ...identity })),
+    },
+    artifacts: await Promise.all([fileIdentity(result), fileIdentity(restart)]),
+  };
+  write("evidence.json", observation);
+  const verified = await verifyPublishedRecoveryObservation(directory, revision, inputs);
+  assert.equal(verified.restart.path, restart);
+  write("restored-library-explicitly-opened-restart.json", {});
+  await assert.rejects(() => verifyPublishedRecoveryObservation(directory, revision, inputs));
+  write("restored-library-explicitly-opened-restart.json", {
+    exited: { exited_at: "2026-11-28T00:00:01.000Z", observed_processes: 3 },
+  });
+  await assert.rejects(() => verifyPublishedRecoveryObservation(directory, revision, inputs));
+});
+
 void test("Linux continuity publishes an outside-checkout store and lossless bounded private-free reports", async (t) => {
   const workflow: unknown = parseYaml(
     readFileSync(
@@ -1972,7 +2067,14 @@ void test("Linux continuity publishes an outside-checkout store and lossless bou
     ),
   );
   const job = record(record(record(workflow).jobs).linux_preparation_continuity);
-  assert.equal(job["runs-on"], "ubuntu-22.04");
+  assert.equal(job["runs-on"], "${{ inputs.runner }}");
+  assert.equal(
+    job.if,
+    "${{ ((inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-22.04') || " +
+      "(inputs.operation == 'linux-library-recovery' && inputs.runner == 'ubuntu-24.04')) && " +
+      "!inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}",
+  );
+  assert.equal(record(job.env).PORTCOVE_LINUX_NATIVE_RUNNER, "${{ inputs.runner }}");
   assert.equal(job["timeout-minutes"], 75);
   assert.ok(!Object.hasOwn(record(job.env), "PORTCOVE_RETAINED_EVIDENCE_DIR"));
   assert.ok(Array.isArray(job.steps));
@@ -1993,6 +2095,17 @@ void test("Linux continuity publishes an outside-checkout store and lossless bou
     "--prefer-archive-mirror",
     "--install-timeout-seconds=1200",
   ]);
+  const prerequisiteRun = text(prerequisiteStep.run);
+  const recoveryEngineGuard = required(
+    prerequisiteRun.match(
+      /if \[\[ "\$PORTCOVE_LINUX_NATIVE_OPERATION" == linux-library-recovery \]\] &&\n[\s\S]*?\nfi/u,
+    )?.[0],
+  );
+  assert.match(recoveryEngineGuard, /pkg-config --atleast-version=2\.52\.6 webkit2gtk-4\.1/u);
+  assert.match(recoveryEngineGuard, /\n  exit 1\nfi$/u);
+  assert.ok(
+    prerequisiteRun.indexOf(recoveryEngineGuard) < prerequisiteRun.indexOf("cargo install"),
+  );
   const prerequisitePlan = prerequisiteOperations(
     String.raw`
 plan_desktop_prerequisites ubuntu 22.04 "$@"
@@ -2015,6 +2128,44 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
     ),
   );
   assert.equal(observationStep["timeout-minutes"], 10);
+  assert.equal(observationStep.if, "inputs.operation == 'linux-preparation-continuity'");
+  const recoveryStep = record(
+    required(
+      steps.find(
+        (value) =>
+          record(value).name === "Observe exact library recovery with a private Secret Service",
+      ),
+    ),
+  );
+  assert.equal(recoveryStep.if, "inputs.operation == 'linux-library-recovery'");
+  assert.match(text(recoveryStep.run), /desktop-linux-x11\.mts.*recovery-config\.json/u);
+  const namespaceStep = (name: string) =>
+    record(required(steps.find((value) => record(value).name === name)));
+  const grant = namespaceStep(
+    "Grant user namespaces only to this disposable qualification interpreter",
+  );
+  const admit = namespaceStep(
+    "Admit the actual recovery namespace before building the application",
+  );
+  const withdraw = namespaceStep("Withdraw only the quiescent qualification profile");
+  assert.equal(grant.if, recoveryStep.if);
+  assert.equal(admit.if, recoveryStep.if);
+  assert.equal(grant.id, "namespace_profile");
+  assert.equal(grant.run, "node scripts/desktop-linux-namespace-profile.mts --prepare");
+  assert.equal(
+    admit.run,
+    "node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts",
+  );
+  assert.equal(withdraw.if, "${{ always() && steps.namespace_profile.outcome == 'success' }}");
+  assert.equal(
+    withdraw.run,
+    '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup',
+  );
+  const stepIndices = steps
+    .map(record)
+    .map(({ name }) => name)
+    .filter((name) => [grant.name, admit.name, recoveryStep.name, withdraw.name].includes(name));
+  assert.deepEqual(stepIndices, [grant.name, admit.name, recoveryStep.name, withdraw.name]);
   const nodeSetup = record(
     required(steps.find((value) => text(record(value).uses).startsWith("actions/setup-node@"))),
   );
@@ -2031,6 +2182,7 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
   const environmentProgram = extract(
     "Retain the exact ordinary hosted environment before preparation",
   );
+  const selectionProgram = extract("Prepare exact private-X11 selections");
   const collector = extract("Retain bounded Linux reports and images in ordinary job logs");
   assert.ok(!JSON.stringify(job).includes("actions/upload-artifact"));
   const temporary = mkdtempSync(path.join(tmpdir(), "portcove-linux-evidence-"));
@@ -2047,6 +2199,7 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
     RUNNER_TEMP: runnerTemporary,
     GITHUB_ENV: environmentFile,
     GITHUB_SHA: "a".repeat(40),
+    PORTCOVE_LINUX_NATIVE_RUNNER: "ubuntu-24.04",
   };
   const stubbedEnvironment = [
     "import cp from 'node:child_process';",
@@ -2078,16 +2231,68 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
   );
   assert.ok(path.relative(checkout, retained).startsWith(".." + path.sep));
   const root = path.join(checkout, "work/linux-preparation-continuity");
-  assert.equal(
-    record(JSON.parse(readFileSync(path.join(root, "host.json"), "utf8"))).retained_evidence,
-    retained,
+  const host = record(JSON.parse(readFileSync(path.join(root, "host.json"), "utf8")));
+  assert.equal(host.retained_evidence, retained);
+  assert.equal(host.runner, "ubuntu-24.04");
+  const selection = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      "import fs from 'node:fs';\nfs.realpathSync = (file) => file;\n" +
+        "await import('data:text/javascript,' + encodeURIComponent(" +
+        JSON.stringify(selectionProgram) +
+        "));",
+    ],
+    {
+      cwd: checkout,
+      env: {
+        ...environment,
+        CARGO_TARGET_DIR: path.join(checkout, "mock-target"),
+        PORTCOVE_LINUX_NATIVE_OPERATION: "linux-library-recovery",
+      },
+      encoding: "utf8",
+      timeout: 15_000,
+    },
   );
+  assert.equal(selection.status, 0, selection.stderr);
+  assert.ok(!existsSync(path.join(root, "cancellation-config.json")));
+  assert.ok(!existsSync(path.join(root, "interruption-config.json")));
+  const recoveryConfig = record(
+    JSON.parse(readFileSync(path.join(root, "recovery-config.json"), "utf8")),
+  );
+  assert.ok(Array.isArray(recoveryConfig.harness_args));
+  const recoveryArgs = recoveryConfig.harness_args.map(text);
+  assert.deepEqual(recoveryArgs.slice(-6), [
+    "--preparation-tool",
+    path.join(runnerTemporary, "slice3-native-owned-probe"),
+    "--output",
+    path.join(root, "recovery"),
+    "--scenario",
+    "native-library-recovery-bundle",
+  ]);
+  const { parseDesktopHarnessOptions, resolveDesktopHarnessSelection } =
+    await import("./desktop-execution-plan.mts");
+  const parsedRecoveryArgs = parseDesktopHarnessOptions(recoveryArgs).values;
+  if (["win32", "linux"].includes(process.platform)) {
+    assert.deepEqual(resolveDesktopHarnessSelection(parsedRecoveryArgs).selected_scenarios, [
+      "native-library-recovery-bundle",
+    ]);
+  } else {
+    assert.throws(
+      () => resolveDesktopHarnessSelection(parsedRecoveryArgs),
+      /requires one standalone Windows or Linux scenario/u,
+    );
+  }
   const fixture: Record<string, string> = {
     "driver-help.txt": "exact driver inventory\n",
     "cancellation/report.json": '{"result":"cancelled"}\n',
     "cancellation/screenshot.png": "unit fixture image bytes",
     "interruption/report.json": '{"result":"recovered"}\n',
+    "recovery/report.json": '{"result":"restored"}\n',
     "private-x11-abc123/preflight.json": '{"identity":"owned"}\n',
+    "private-x11-abc123/recovery-keyring-readiness.json": '{"locked":false}\n',
+    "private-x11-abc123/recovery-keyring.abcdef01/data/private.json": "private keyring bytes",
     "private-x11-abc123/outer-join.json": '{"closed":true}\n',
     "cancellation/library/private.json": "private library bytes",
     "private-x11-abc123/xdg_config_home/private.json": "private profile bytes",
@@ -2099,6 +2304,15 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(file, bytes);
   }
+  const namespaceReports = {
+    "linux-namespace-preflight/namespace.strace": "owned preflight trace",
+    "linux-namespace-profile/cleanup.json": '{"profile_removed":true}\n',
+  };
+  for (const [name, bytes] of Object.entries(namespaceReports)) {
+    const file = path.join(path.dirname(root), name);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, bytes);
+  }
   mkdirSync(path.join(checkout, "scripts"));
   for (const file of ["native-backup-evidence.mts", "runtime-values.mts"])
     writeFileSync(
@@ -2107,6 +2321,7 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
     );
   const collected = spawnSync(process.execPath, ["--input-type=module", "--eval", collector], {
     cwd: checkout,
+    env: { ...process.env, PORTCOVE_LINUX_NATIVE_OPERATION: "linux-library-recovery" },
     encoding: "utf8",
     timeout: 15_000,
   });
@@ -2127,8 +2342,13 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
       "driver-help.txt",
       "host.json",
       "interruption/report.json",
+      "linux-namespace-preflight/namespace.strace",
+      "linux-namespace-profile/cleanup.json",
       "private-x11-abc123/outer-join.json",
       "private-x11-abc123/preflight.json",
+      "private-x11-abc123/recovery-keyring-readiness.json",
+      "recovery-config.json",
+      "recovery/report.json",
     ],
   );
   for (const value of inventory) {
@@ -2136,7 +2356,9 @@ printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
     const bytes = readFileSync(
       path.join(decoded, "desktop-verify/slice3/native", text(entry.retained)),
     );
-    assert.deepEqual(bytes, readFileSync(path.join(root, text(entry.original))));
+    const original = text(entry.original);
+    const originalRoot = original.startsWith("linux-namespace-") ? path.dirname(root) : root;
+    assert.deepEqual(bytes, readFileSync(path.join(originalRoot, original)));
     assert.equal(entry.sha256, createHash("sha256").update(bytes).digest("hex"));
     assert.equal(entry.bytes, bytes.length);
   }

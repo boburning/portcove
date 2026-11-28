@@ -39,6 +39,7 @@ import { desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
 
 const source = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("../", import.meta.url));
+const recoveryKeyring = path.join(root, "scripts/desktop-linux-recovery-keyring.sh");
 const scope =
   "Linux GTK/WebKit on ext4 with private authenticated virtual X11; no WSLg, physical display/controller or universal Linux qualification";
 type NativeLaunch = Awaited<ReturnType<typeof launchLinuxNativeSession>>;
@@ -149,13 +150,32 @@ export function linuxX11ExecutionBudgets(config: Pick<X11Configuration, "stage" 
     command: inputCapture + namespaceCapture + outer + inputVerification + 60_000,
   };
 }
+
+export function recoveryKeyringInputs(
+  config: Pick<X11Configuration, "stage" | "harness_args">,
+): string[] {
+  if (
+    config.stage === "harness" &&
+    resolveDesktopHarnessSelection(
+      parseDesktopHarnessOptions(config.harness_args).values,
+    ).selected_scenarios.includes("native-library-recovery-bundle")
+  ) {
+    return ["/usr/bin/bash", recoveryKeyring, "/usr/bin/gnome-keyring-daemon", "/usr/bin/gdbus"];
+  }
+  return [];
+}
+
 export async function readLinuxX11Configuration(file: string) {
   const value: unknown = JSON.parse(await readFile(file, "utf8"));
   const config = configuration(value);
   const identities = await Promise.all(
-    [config.xvfb, config.xkbcomp, "/usr/bin/unshare", "/usr/bin/dbus-run-session"].map((file) =>
-      fileIdentity(file),
-    ),
+    [
+      config.xvfb,
+      config.xkbcomp,
+      "/usr/bin/unshare",
+      "/usr/bin/dbus-run-session",
+      ...recoveryKeyringInputs(config),
+    ].map((file) => fileIdentity(file)),
   );
   assert.equal(
     await realpath(config.output_root),
@@ -370,6 +390,9 @@ async function virtualDisplay(config: X11Configuration, runtime: string) {
         "/usr/bin/dbus-run-session",
         [
           "--",
+          ...(recoveryKeyringInputs(config).length
+            ? ["/usr/bin/bash", recoveryKeyring, runtime]
+            : []),
           process.execPath,
           path.join(root, "scripts/desktop-test-cli.mts"),
           ...config.harness_args,
@@ -505,6 +528,7 @@ export async function runLinuxX11(file: string) {
       source,
       path.join(root, "apps/desktop/scripts/desktop-linux-native-session.mts"),
       path.join(root, "apps/desktop/scripts/native-linux-init.mts"),
+      ...recoveryKeyringInputs(config),
       ...(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG
         ? [
             path.join(root, "scripts/desktop-linux-media.mts"),

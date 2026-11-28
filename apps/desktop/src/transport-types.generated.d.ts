@@ -374,10 +374,27 @@ export type ArtworkResolvedSource =
       [k: string]: unknown;
     }
   | {
+      asset: CatalogMediaAsset;
+      kind: "catalog_media";
+      [k: string]: unknown;
+    }
+  | {
       kind: "generated_fallback";
       [k: string]: unknown;
     };
 export type IgdbArtworkMatch = "port" | "underlying-game";
+export type IgdbGameImageKind = "logo" | "artwork" | "screenshot";
+export type CatalogMediaRole = "header" | "screenshot" | "logo" | "key_art" | "landscape_cover";
+export type CatalogMediaSubject =
+  | {
+      kind: "port";
+      port_id: string;
+    }
+  | {
+      game_id: string;
+      kind: "original";
+      source_edition_id: string;
+    };
 /**
  * The version change an automatic snapshot protects.
  */
@@ -536,18 +553,6 @@ export type ModSourceKind =
  */
 export type ModPortalSite = ("nexus_mods" | "mod_io" | "mod_db") | "community_site";
 export type QuakeEngine = "vk_quake" | "ironwail";
-export type IgdbGameImageKind = "logo" | "artwork" | "screenshot";
-export type CatalogMediaRole = "header" | "screenshot" | "logo" | "key_art";
-export type CatalogMediaSubject =
-  | {
-      kind: "port";
-      port_id: string;
-    }
-  | {
-      game_id: string;
-      kind: "original";
-      source_edition_id: string;
-    };
 export type CartridgeBuildRecipe =
   | "yoshis-cookie-nes-cycle-v1.1.0"
   | "dr-mario-nes-cycle-v1.3.0-usa"
@@ -2596,6 +2601,44 @@ export interface IgdbArtwork {
   image_id: string;
   image_sha256: string;
   match_kind: IgdbArtworkMatch;
+  /**
+   * Publisher-observed identity of the implementation repository, under listing format 20.
+   */
+  observed_github_repository_id?: number | null;
+}
+export interface CatalogMediaAsset {
+  attribution: string;
+  caption: string;
+  /**
+   * Reviewed applicability across offered original editions, for any media role.
+   * Absence never implies that an offered edition is the selected edition.
+   */
+  edition_neutral?: boolean | null;
+  height: number;
+  id: string;
+  igdb?: IgdbGameImage | null;
+  license: string;
+  rights_url: string;
+  role: CatalogMediaRole;
+  sha256: string;
+  source_url: string;
+  subject: CatalogMediaSubject;
+  url: string;
+  width: number;
+}
+/**
+ * A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are
+ * public descriptive IDs, never API credentials or installation authority.
+ */
+export interface IgdbGameImage {
+  alpha_channel?: boolean | null;
+  game_id: number;
+  game_slug: string;
+  image_id: string;
+  image_type?: number | null;
+  image_type_name?: string | null;
+  kind: IgdbGameImageKind;
+  record_id: number;
 }
 export interface OutputArtworkThumbnail {
   asset_sha256: string;
@@ -3273,40 +3316,6 @@ export interface PortPresentation {
   source_requirements: SourceRequirementPresentation[];
   variant_label?: string | null;
   [k: string]: unknown;
-}
-export interface CatalogMediaAsset {
-  attribution: string;
-  caption: string;
-  /**
-   * Reviewed applicability across offered original editions, for any media role.
-   * Absence never implies that an offered edition is the selected edition.
-   */
-  edition_neutral?: boolean | null;
-  height: number;
-  id: string;
-  igdb?: IgdbGameImage | null;
-  license: string;
-  rights_url: string;
-  role: CatalogMediaRole;
-  sha256: string;
-  source_url: string;
-  subject: CatalogMediaSubject;
-  url: string;
-  width: number;
-}
-/**
- * A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are
- * public descriptive IDs, never API credentials or installation authority.
- */
-export interface IgdbGameImage {
-  alpha_channel?: boolean | null;
-  game_id: number;
-  game_slug: string;
-  image_id: string;
-  image_type?: number | null;
-  image_type_name?: string | null;
-  kind: IgdbGameImageKind;
-  record_id: number;
 }
 /**
  * Reviewed descriptive identity only; port, installation and source authority remain separate.
@@ -6054,6 +6063,10 @@ export interface ListingDeliveryStatus {
 }
 export interface PortListingStatus {
   actions: ListingActionAssessment[];
+  /**
+   * Canonical listing represented by this retained local registration.
+   */
+  canonical_port_id?: string | null;
   /**
    * Optional inert read model; absence cannot suppress an independently allowed action.
    */

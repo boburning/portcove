@@ -715,6 +715,108 @@ fn listing_only_artwork_uses_current_presentation_and_preserves_local_choices() 
 }
 
 #[test]
+fn signed_landscape_cover_refresh_preserves_player_choice_until_reset() {
+    let _budget = shared_cover_budget();
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service =
+        PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+    let id = "landscape-listing-fixture";
+    let slot = ArtworkSlot::Landscape;
+    let catalog = |bytes: &[u8]| {
+        let digest = crate::signed_catalog::digest(bytes);
+        let document = crate::CatalogListingDocument::from_json(
+            &serde_json::json!({
+                "format_version": crate::catalog_media::LANDSCAPE_COVER_LISTING_FORMAT,
+                "listings": [{
+                    "id": id,
+                    "name": "Landscape listing fixture",
+                    "summary": "Listing-only artwork.",
+                    "project_url": "https://github.com/example/game",
+                    "media": [{
+                        "id": "wide-cover",
+                        "role": "landscape_cover",
+                        "subject": {"kind": "port", "port_id": id},
+                        "caption": "Landscape cover",
+                        "url": "https://raw.githubusercontent.com/example/game/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/wide.png",
+                        "sha256": digest,
+                        "width": 8,
+                        "height": 4,
+                        "attribution": "Example",
+                        "source_url": "https://github.com/example/game",
+                        "license": "CC0-1.0",
+                        "rights_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+                    }],
+                }],
+            })
+            .to_string(),
+        )
+        .unwrap();
+        crate::Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+            .unwrap()
+            .with_listing_document(document)
+            .unwrap()
+    };
+    let wide = temporary.path().join("wide.png");
+    image::RgbImage::from_pixel(8, 4, image::Rgb([10, 20, 30]))
+        .save(&wide)
+        .unwrap();
+    let bytes = fs::read(&wide).unwrap();
+    let digest = crate::signed_catalog::digest(&bytes);
+    service.replace_catalog_for_test(catalog(&bytes));
+    let initial = service.artwork(id, slot).unwrap();
+    assert!(matches!(
+        initial.resolved_source,
+        ArtworkResolvedSource::CatalogMedia { asset } if asset.sha256 == digest
+    ));
+    let cache = service.library().root().join("artwork-cache");
+    fs::create_dir_all(&cache).unwrap();
+    fs::write(cache.join(format!("{digest}.image")), &bytes).unwrap();
+    let thumbnail = service.artwork_thumbnail(id, slot, 0).unwrap();
+    assert_eq!(thumbnail.asset_sha256, digest);
+    assert!(!thumbnail.png.is_empty());
+
+    let selected = service.import_artwork(id, slot, &wide, 0).unwrap();
+    image::RgbImage::from_pixel(8, 4, image::Rgb([70, 80, 90]))
+        .save(&wide)
+        .unwrap();
+    let refreshed = fs::read(&wide).unwrap();
+    let refreshed_digest = crate::signed_catalog::digest(&refreshed);
+    service.replace_catalog_for_test(catalog(&refreshed));
+    assert_eq!(service.artwork(id, slot).unwrap().choice, selected.choice);
+    assert!(matches!(
+        service.artwork(id, slot).unwrap().resolved_source,
+        ArtworkResolvedSource::LocalImport { .. }
+    ));
+
+    let reset = service
+        .reset_artwork(id, slot, selected.choice.revision)
+        .unwrap();
+    assert!(matches!(
+        reset.resolved_source,
+        ArtworkResolvedSource::CatalogMedia { asset } if asset.sha256 == refreshed_digest
+    ));
+    fs::write(cache.join(format!("{refreshed_digest}.image")), refreshed).unwrap();
+    let thumbnail = service
+        .artwork_thumbnail(id, slot, reset.choice.revision)
+        .unwrap();
+    assert_eq!(thumbnail.choice_revision, reset.choice.revision);
+    assert_eq!(thumbnail.asset_sha256, refreshed_digest);
+
+    let hidden = service
+        .suppress_artwork(id, slot, reset.choice.revision)
+        .unwrap();
+    assert_eq!(
+        hidden.resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    assert!(
+        service
+            .artwork_thumbnail(id, slot, hidden.choice.revision)
+            .is_err()
+    );
+}
+
+#[test]
 fn registered_listing_artwork_survives_directory_removal_and_restart() {
     let temporary = tempfile::tempdir().unwrap();
     let library_root = temporary.path().join("library");

@@ -584,6 +584,16 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     /needs\.reconcile-intake-receipts\.outputs\.receipt_outcome == 'verified'/u,
   );
   const evidence = collect!.steps.find((step) => step.name === "Record run evidence")!;
+  const migration = collect!.steps.find(
+    (step) => step.name === "Prepare the production resource ledger",
+  )!;
+  assert.match(migration.run!, /if \[\[ "\$rc" == 75 \]\]; then echo 'deferred=true'/u);
+  assert.equal(
+    evidence.env?.MIGRATION_OUTCOME,
+    "${{ steps.migrate.outputs.deferred == 'true' && 'deferred' || steps.migrate.outcome }}",
+  );
+  assert.match(evidence.run!, /receipt = load\(evidence_dir \/ "migrate\.json"\)/u);
+  assert.match(evidence.run!, /"migration": migration/u);
   assert.equal(
     evidence.env?.INTAKE_RECEIPT_OUTCOME,
     "${{ needs.reconcile-intake-receipts.outputs.receipt_outcome }}",
@@ -1473,6 +1483,22 @@ void test(
         ports,
         environment: store.owner,
         runner: "fixture",
+        releaseHealth: async () => ({
+          revision: "hosted-health:shared-by-port",
+          report: {
+            format_version: 1,
+            authority:
+              "upstream-monitoring-only; no acquisition, artifact, lineage or publication authority",
+            inventory: {
+              total_ports: 2,
+              fresh_complete_port_ids: ["2ship2harkinian"],
+              fresh_partial_port_ids: [],
+              stale_port_ids: ["not-a-catalog-port"],
+              unmonitored_port_ids: [],
+            },
+            known_conditions: [],
+          },
+        }),
       });
     };
     // Identical Core results on alternating hosts: no spurious transitions or notifications.
@@ -1500,6 +1526,22 @@ void test(
       ["port:not-a-catalog-port@linux-x86-64", "assessed"],
       ["port:not-a-catalog-port@windows-x86-64", "assessed"],
     ]);
+    const [shipLinux, shipWindows, otherLinux, otherWindows] = inventory.subjects as {
+      identity: unknown;
+      release_health: unknown;
+      latest_health_gap: string | null;
+      removed: boolean | null;
+    }[];
+    assert.deepEqual(shipLinux!.identity, shipWindows!.identity);
+    assert.ok(shipLinux!.release_health);
+    assert.deepEqual(shipLinux!.release_health, shipWindows!.release_health);
+    assert.equal(shipLinux!.latest_health_gap, null);
+    assert.equal(shipWindows!.latest_health_gap, null);
+    assert.equal(otherLinux!.release_health, null);
+    assert.equal(otherWindows!.release_health, null);
+    assert.equal(otherLinux!.latest_health_gap, "stale");
+    assert.equal(otherWindows!.latest_health_gap, otherLinux!.latest_health_gap);
+    assert.equal(otherLinux!.removed, otherWindows!.removed);
   },
 );
 
@@ -1758,6 +1800,11 @@ void test(
       renderHtml(afterHealthFailure),
       /latest read failed: unavailable; previous read: stale/u,
     );
+    await collectWith(health(5));
+    const resumedHealth = (
+      buildReport(store.owner).subjects as { port_key: string; latest_health_gap: string | null }[]
+    ).find(({ port_key }) => port_key === "port:2ship2harkinian");
+    assert.equal(resumedHealth?.latest_health_gap, null, "the latest complete run has no port gap");
 
     // A failed publication-bundle inspection is a failed run; the last facts stay current.
     const bundleFailure = await collect({
@@ -4247,6 +4294,16 @@ void test(
       /reprioritizes native Linux packaging/u,
     );
     assert.match(renderHtml(report1), /Holds and deferrals/u);
+
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("manual") }));
+    await run();
+    const changed = buildReport(store.owner).reconsiderations?.find(
+      ({ kind, status }) => kind === "intentional_deferral" && status === "pending",
+    );
+    assert.deepEqual(
+      changed?.technical_changes?.map(({ subject_key }) => subject_key),
+      ["port:2ship2harkinian@linux-x86-64"],
+    );
 
     // A failed owner read resolves nothing.
     issuesFail = true;

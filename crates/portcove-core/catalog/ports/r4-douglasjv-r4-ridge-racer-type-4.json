@@ -40,7 +40,17 @@
       "format_version": 1,
       "id": "r4-ridge-racer-type-4",
       "evidence_urls": ["https://github.com/douglasjv/r4"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "r4-ridge-racer-type-4-playstation",
+          "title": "R4: Ridge Racer Type 4 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/douglasjv/r4",
+            "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/r4-douglasjv-r4-ridge-racer-type-4.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

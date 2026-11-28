@@ -15,13 +15,19 @@ on:
             linux-namespace-preflight,
             linux-package-boundary,
             linux-preparation-continuity,
+            linux-library-recovery,
             bootstrap,
             selected,
             compiled,
             qualification-history,
             candidate-consumer,
             slice3-windows-recovery,
+            windows-installed-library-recovery,
           ]
+      recovery_preview_tag:
+        description: Exact immutable Preview tag for the Windows installed recovery operation.
+        type: string
+        default: ""
       execution_binding:
         description: Exact independently reviewed source/controller/inventory/selected-plan JSON.
         type: string
@@ -276,11 +282,13 @@ jobs:
           retention-days: 14
 
   linux_preparation_continuity:
-    if: ${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-22.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
-    runs-on: ubuntu-22.04
+    if: ${{ ((inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-22.04') || (inputs.operation == 'linux-library-recovery' && inputs.runner == 'ubuntu-24.04')) && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 75
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
+      PORTCOVE_LINUX_NATIVE_OPERATION: ${{ inputs.operation }}
+      PORTCOVE_LINUX_NATIVE_RUNNER: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -310,7 +318,7 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_ENV, 'PORTCOVE_RETAINED_EVIDENCE_DIR=' + retained + '\n');
           fs.mkdirSync('work/linux-preparation-continuity', { recursive: true });
           fs.writeFileSync('work/linux-preparation-continuity/host.json', JSON.stringify({
-            revision, runner: 'ubuntu-22.04', platform: process.platform,
+            revision, runner: process.env.PORTCOVE_LINUX_NATIVE_RUNNER, platform: process.platform,
             architecture: process.arch, kernel: read('uname', ['-r']),
             retained_evidence: retained,
             image_os: process.env.ImageOS, image_version: process.env.ImageVersion,
@@ -319,10 +327,27 @@ jobs:
             scope: 'Ordinary hosted Linux development fixture; no minimum OS, installed package or physical device claim',
           }, null, 2) + '\n', { flag: 'wx' });
           NODE
+      - name: Prepare bounded recovery namespace diagnostics
+        if: inputs.operation == 'linux-library-recovery'
+        run: command -v strace || sudo -n apt-get install --no-install-recommends -y strace
+      - name: Grant user namespaces only to this disposable qualification interpreter
+        id: namespace_profile
+        if: inputs.operation == 'linux-library-recovery'
+        run: node scripts/desktop-linux-namespace-profile.mts --prepare
+      - name: Admit the actual recovery namespace before building the application
+        if: inputs.operation == 'linux-library-recovery'
+        timeout-minutes: 3
+        run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
       - name: Install the existing disposable Linux prerequisites
         timeout-minutes: 30
         run: |
           ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver --prefer-archive-mirror --install-timeout-seconds=1200
+          if [[ "$PORTCOVE_LINUX_NATIVE_OPERATION" == linux-library-recovery ]] &&
+              ! pkg-config --atleast-version=2.52.6 webkit2gtk-4.1; then
+            printf 'Linux recovery needs WebKitGTK 2.52.6 or later. Found %s.\n' \
+              "$(pkg-config --modversion webkit2gtk-4.1)" >&2
+            exit 1
+          fi
           version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
           cargo install tauri-driver --locked --version "$version" \
             --root "$RUNNER_TEMP/slice3-native-driver" \
@@ -334,6 +359,13 @@ jobs:
           dpkg-query --show --showformat='${Package} ${Version} ${Architecture}\n' \
             libwebkit2gtk-4.1-0 webkit2gtk-driver xvfb x11-xkb-utils \
             > work/linux-preparation-continuity/native-packages.txt
+      - name: Install the private recovery Secret Service prerequisite
+        if: inputs.operation == 'linux-library-recovery'
+        timeout-minutes: 5
+        run: |
+          sudo apt-get install --yes gnome-keyring
+          dpkg-query --show --showformat='${Package} ${Version} ${Architecture}\n' gnome-keyring \
+            >> work/linux-preparation-continuity/native-packages.txt
       - run: pnpm install --frozen-lockfile
       - name: Build fresh ordinary application, CLI and owned probe
         run: |
@@ -345,17 +377,21 @@ jobs:
           rustc --edition=2024 --crate-name portcove_host_tool_fixture \
             crates/portcove-core/src/testdata/host_tool_probe.rs.txt \
             -o "$RUNNER_TEMP/slice3-native-owned-probe"
-      - name: Prepare the two exact private-X11 selections
+      - name: Prepare exact private-X11 selections
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import path from 'node:path';
           const output = path.resolve('work/linux-preparation-continuity');
           fs.mkdirSync(output, { recursive: true });
-          for (const [name, scenario] of [
-            ['cancellation', 'native-preparation-cancellation'],
-            ['interruption', 'native-linux-interrupted-preparation'],
-          ]) {
+          const recovery = process.env.PORTCOVE_LINUX_NATIVE_OPERATION === 'linux-library-recovery';
+          const scenarios = recovery
+            ? [['recovery', 'native-library-recovery-bundle']]
+            : [
+                ['cancellation', 'native-preparation-cancellation'],
+                ['interruption', 'native-linux-interrupted-preparation'],
+              ];
+          for (const [name, scenario] of scenarios) {
             const config = {
               format_version: 1, stage: 'harness',
               xvfb: fs.realpathSync('/usr/bin/Xvfb'),
@@ -374,10 +410,19 @@ jobs:
           }
           NODE
       - name: Observe reload, actual cancellation and forced namespace recovery
+        if: inputs.operation == 'linux-preparation-continuity'
         timeout-minutes: 10
         run: |
           node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-preparation-continuity/cancellation-config.json"
           node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-preparation-continuity/interruption-config.json"
+      - name: Observe exact library recovery with a private Secret Service
+        if: inputs.operation == 'linux-library-recovery'
+        timeout-minutes: 15
+        run: |
+          node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-preparation-continuity/recovery-config.json"
+      - name: Withdraw only the quiescent qualification profile
+        if: ${{ always() && steps.namespace_profile.outcome == 'success' }}
+        run: '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup'
       - name: Retain bounded Linux reports and images in ordinary job logs
         if: always()
         run: |
@@ -395,24 +440,35 @@ jobs:
           fs.mkdirSync(native, { recursive: true, mode: 0o700 });
           const directories = [root];
           for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-            if (entry.name === 'cancellation' || entry.name === 'interruption' || /^private-x11-[a-zA-Z0-9]+$/.test(entry.name)) {
+            if (['cancellation', 'interruption', 'recovery'].includes(entry.name) || /^private-x11-[a-zA-Z0-9]+$/.test(entry.name)) {
               assert.ok(entry.isDirectory() && !entry.isSymbolicLink(), 'Report root must be an owned directory');
               directories.push(path.join(root, entry.name));
+            }
+          }
+          if (process.env.PORTCOVE_LINUX_NATIVE_OPERATION === 'linux-library-recovery') {
+            for (const name of ['linux-namespace-preflight', 'linux-namespace-profile']) {
+              const directory = path.resolve('work', name);
+              const entry = fs.lstatSync(directory, { throwIfNoEntry: false });
+              if (!entry) continue;
+              assert.ok(entry.isDirectory() && !entry.isSymbolicLink(), 'Namespace report root must be an owned directory');
+              directories.push(directory);
             }
           }
           const inventory = [];
           for (const directory of directories.sort()) {
             for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-              if (!/\.(json|jsonl|log|png|txt)$/.test(entry.name)) continue;
+              if (!/\.(json|jsonl|log|png|txt)$/.test(entry.name) &&
+                  !(directory === path.resolve('work/linux-namespace-preflight') && entry.name === 'namespace.strace')) continue;
               assert.ok(entry.isFile() && !entry.isSymbolicLink(), 'Report must be a regular file');
               assert.ok(inventory.length < 126, 'Report inventory exceeds the existing codec bound');
               const source = path.join(directory, entry.name);
               assert.ok(fs.statSync(source).size <= 12 * 1024 * 1024, 'Report exceeds the existing codec bound');
               const bytes = fs.readFileSync(source);
-              const extension = path.extname(entry.name) === '.txt' ? '.log' : path.extname(entry.name);
+              const extension = /\.(txt|strace)$/.test(entry.name) ? '.log' : path.extname(entry.name);
               const name = String(inventory.length).padStart(3, '0') + extension;
               fs.writeFileSync(path.join(native, name), bytes, { flag: 'wx' });
-              inventory.push({ original: path.relative(root, source), retained: name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
+              const original = directory === root ? entry.name : path.join(path.basename(directory), entry.name);
+              inventory.push({ original, retained: name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
             }
           }
           fs.writeFileSync(path.join(encoded, 'collection.json'), JSON.stringify({
@@ -1340,3 +1396,53 @@ jobs:
       - name: Retain bounded lossless reports and images for decoded connector retrieval
         if: always()
         run: node controller/scripts/native-backup-evidence.mts emit-hosted hosted-evidence
+
+  windows_installed_library_recovery:
+    if: ${{ inputs.operation == 'windows-installed-library-recovery' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/installed-windows-recovery-evidence
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+      - name: Prepare the held prerequisite evidence directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Path $env:PORTCOVE_OUTPUT_DIR
+      - uses: ./.github/actions/prepare-hosted-webview
+      - name: Admit the interactive hosted desktop and prepare the pinned drivers
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not [Environment]::UserInteractive -or [Diagnostics.Process]::GetCurrentProcess().SessionId -le 0) {
+            throw 'An interactive hosted desktop is required.'
+          }
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/bootstrap-quality-tools.ps1 -Profile native-drivers
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install the attested Preview and exercise recovery while registered
+        timeout-minutes: 25
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_INSTALLED_RECOVERY_TAG: ${{ inputs.recovery_preview_tag }}
+        run: node scripts/hosted-installed-windows-recovery.mts
+      - name: Retain bounded installation identity and recovery observations in job logs
+        if: always()
+        shell: pwsh
+        run: |
+          node scripts/native-backup-evidence.mts emit "$env:PORTCOVE_OUTPUT_DIR"
+          if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }

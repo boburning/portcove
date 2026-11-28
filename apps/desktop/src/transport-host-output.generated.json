@@ -10312,7 +10312,8 @@
           "header",
           "screenshot",
           "logo",
-          "key_art"
+          "key_art",
+          "landscape_cover"
         ],
         "type": "string"
       },
@@ -10510,6 +10511,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -25070,7 +25080,8 @@
           "header",
           "screenshot",
           "logo",
-          "key_art"
+          "key_art",
+          "landscape_cover"
         ],
         "type": "string"
       },
@@ -26515,6 +26526,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -29653,6 +29673,13 @@
               "$ref": "#/$defs/ListingActionAssessment"
             },
             "type": "array"
+          },
+          "canonical_port_id": {
+            "description": "Canonical listing represented by this retained local registration.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "capabilities": {
             "anyOf": [

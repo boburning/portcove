@@ -145,17 +145,13 @@ export function browseStatusSummary(
   return { showReadiness: state.tone !== "ready" || !update, update };
 }
 
-/** File-state copy only. Paths and review-eligibility booleans cannot prove connected inputs. */
-export function gameFilesPresentation(
-  port: Pick<
-    PortDefinition,
-    "source_profile" | "bios_source_profile" | "presentation" | "optional_game_source"
-  >,
-  status: PortStatus | undefined,
-) {
-  const readiness = status?.readiness;
+type GameFilesPort = Pick<
+  PortDefinition,
+  "source_profile" | "bios_source_profile" | "presentation" | "optional_game_source"
+>;
+
+function gameSourceInput(port: GameFilesPort, readiness: PortStatus["readiness"]) {
   const sourceBlocked = readiness?.blockers.some((blocker) => SOURCE_BLOCKERS.includes(blocker));
-  const biosBlocked = readiness?.blockers.some((blocker) => BIOS_BLOCKERS.includes(blocker));
   // An optional source that is not registered is simply absent: it neither requires nor
   // needs checking. A registered one, even if changed or unreadable, is judged as usual.
   const optionalSourceAbsent =
@@ -168,6 +164,12 @@ export function gameFilesPresentation(
     readiness?.required_source_extension ||
     (!optionalSourceAbsent && (readiness?.source_assessment || readiness?.source)),
   );
+  return { source: optionalSourceAbsent ? null : readiness?.source, sourceBlocked, sourceRequired };
+}
+
+function gameFileInputs(port: GameFilesPort, readiness: PortStatus["readiness"]) {
+  const { source, sourceBlocked, sourceRequired } = gameSourceInput(port, readiness);
+  const biosBlocked = readiness?.blockers.some((blocker) => BIOS_BLOCKERS.includes(blocker));
   const biosRequired = Boolean(
     biosBlocked || port.bios_source_profile || readiness?.bios_assessment || readiness?.bios,
   );
@@ -175,6 +177,21 @@ export function gameFilesPresentation(
     ...(sourceRequired ? [readiness?.source_assessment] : []),
     ...(biosRequired ? [readiness?.bios_assessment] : []),
   ];
+  return {
+    source,
+    sourceBlocked,
+    biosBlocked,
+    biosRequired,
+    requiresFiles: sourceRequired || biosRequired,
+    assessments,
+  };
+}
+
+/** File-state copy only. Paths and review-eligibility booleans cannot prove connected inputs. */
+export function gameFilesPresentation(port: GameFilesPort, status: PortStatus | undefined) {
+  const readiness = status?.readiness;
+  const { source, sourceBlocked, biosBlocked, biosRequired, requiresFiles, assessments } =
+    gameFileInputs(port, readiness);
   if (
     readiness?.blockers.some(
       (blocker) => blocker === "missing_source" || blocker === "missing_bios",
@@ -196,7 +213,7 @@ export function gameFilesPresentation(
     port.optional_game_source &&
     !sourceBlocked &&
     !biosRequired &&
-    (readiness?.source === "changed" || readiness?.source === "unreadable")
+    (source === "changed" || source === "unreadable")
   )
     return {
       title: "Saved disc image changed",
@@ -206,9 +223,7 @@ export function gameFilesPresentation(
   if (
     sourceBlocked ||
     biosBlocked ||
-    [optionalSourceAbsent ? null : readiness?.source, readiness?.bios].some(
-      (value) => value != null && value !== "current",
-    )
+    [source, readiness?.bios].some((value) => value != null && value !== "current")
   )
     return {
       title: "Files need checking",
@@ -229,19 +244,19 @@ export function gameFilesPresentation(
       description:
         "Recorded input checks are current for this installation’s supported file contract.",
     };
-  if (port.optional_game_source && !sourceRequired && !biosRequired)
+  if (port.optional_game_source && !requiresFiles)
     return {
       title: "Game files are optional",
       description:
         "You can choose a disc image for Portcove to unpack, or keep using your own files. Play does not need one. If you choose one, Portcove replaces the unpacked game folder with the image’s files and does not keep files you added to it by hand.",
     };
-  if (!sourceRequired && !biosRequired && port.presentation?.source_requirements?.length === 0)
+  if (!requiresFiles && port.presentation?.source_requirements?.length === 0)
     return {
       title: "No files to add in Portcove",
       description:
         "This route has no file inputs to add here. The game or upstream setup may still require original files; follow its project instructions.",
     };
-  if (sourceRequired || biosRequired)
+  if (requiresFiles)
     return {
       title: "Files need checking",
       description:

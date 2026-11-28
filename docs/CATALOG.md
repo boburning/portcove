@@ -2973,7 +2973,7 @@ least its operations and scope, and every permit must already be reviewed in
 the embedded definition. It cannot drop an exclusion or add a reviewed fallback. Embedded catalog changes reach players
 with an application release. Independent delivery remains with #246.
 
-An integration may also record `reviewed_package_layouts`, one bounded fingerprint
+A `native-portable` integration may also record `reviewed_package_layouts`, one bounded fingerprint
 per platform, so a release that matches the selector but changes shape is held
 without a maintainer edit. The fingerprint lists the lowercase top-level directory
 names and the package-relative path of every program or script (`.exe`, `.appimage`,
@@ -7640,6 +7640,15 @@ an original release.
 This choice applies only to the gallery. Exact port media and the Cover and
 text fallbacks remain available. Offered editions and similar ID strings do not
 establish a selected source edition.
+
+Landscape covers use the separate `landscape_cover` role in listing format 21.
+The scheduled observer reuses the existing artwork inventory. It requires an
+IGDB Key Art With Logo record and a verified image wider than it is tall.
+The publisher rechecks positive proposals and preserves signed defaults during
+temporary provider failures. Earlier formats omit this role. First activation
+uses the protected catalog publication path, which checks that the official
+released reader accepts format 21. Local choices, hide, and reset use the
+existing Landscape artwork controls.
 
 Catalog generation can reuse an accepted IGDB asset for an original game in
 other listings that offer that exact game and source edition. The generated view

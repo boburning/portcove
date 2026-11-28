@@ -13,6 +13,7 @@ use crate::{
 };
 
 pub(crate) const IGDB_SCENE_LISTING_FORMAT: u32 = 13;
+pub(crate) const LANDSCAPE_COVER_LISTING_FORMAT: u32 = 21;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -21,6 +22,7 @@ pub enum CatalogMediaRole {
     Screenshot,
     Logo,
     KeyArt,
+    LandscapeCover,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
@@ -87,6 +89,10 @@ pub struct CatalogMediaAsset {
 impl CatalogMediaAsset {
     /// New scene records live in the descriptive directory, with a versioned
     /// reader requirement independent of the operational catalog schema.
+    pub(crate) fn is_directory_only(&self) -> bool {
+        self.role == CatalogMediaRole::LandscapeCover || self.is_typed_igdb_scene()
+    }
+
     pub(crate) fn is_typed_igdb_scene(&self) -> bool {
         self.igdb.is_some()
             && matches!(
@@ -102,7 +108,12 @@ pub fn validate_catalog_media(
     media: &[CatalogMediaAsset],
 ) -> Result<()> {
     let mut ids = HashSet::new();
-    if media.len() > 14
+    let landscape_covers = media
+        .iter()
+        .filter(|asset| asset.role == CatalogMediaRole::LandscapeCover)
+        .count();
+    if landscape_covers > 2
+        || media.len() - landscape_covers > 14
         || media
             .iter()
             .filter(|asset| asset.role == CatalogMediaRole::Header)
@@ -120,7 +131,7 @@ pub fn validate_catalog_media(
             > 8
     {
         return Err(PortcoveError::usage(
-            "catalog media permits two headers, two key-art images, two game logos and eight screenshots",
+            "catalog media permits two headers, two key-art images, two game logos, two landscape covers and eight screenshots",
         ));
     }
     let mut candidates = HashSet::new();
@@ -150,6 +161,7 @@ pub fn validate_catalog_media(
         crate::artwork_store::validate_hash(&asset.sha256)?;
         if asset.width == 0
             || asset.height == 0
+            || (asset.role == CatalogMediaRole::LandscapeCover && asset.width <= asset.height)
             || asset.width > 8192
             || asset.height > 8192
             || u64::from(asset.width) * u64::from(asset.height) > crate::artwork_image::MAX_PIXELS
@@ -181,8 +193,8 @@ pub fn validate_catalog_media(
                 "catalog media needs bounded dimensions, descriptive credit and reviewed rights evidence",
             ));
         }
-        fetch_url(&asset.url)?;
-        validate_igdb_media(asset)?;
+        let url = fetch_url(&asset.url)?;
+        validate_igdb_media(asset, &url)?;
         let matches = match &asset.subject {
             CatalogMediaSubject::Port {
                 port_id: image_port,
@@ -219,12 +231,16 @@ fn normalized_artwork_type(name: &str) -> Option<String> {
     )
 }
 
-fn validate_igdb_media(asset: &CatalogMediaAsset) -> Result<()> {
+fn validate_igdb_media(asset: &CatalogMediaAsset, url: &reqwest::Url) -> Result<()> {
     let Some(image) = &asset.igdb else {
         return if matches!(
             asset.role,
-            CatalogMediaRole::Header | CatalogMediaRole::Screenshot
-        ) {
+            CatalogMediaRole::Header
+                | CatalogMediaRole::Screenshot
+                | CatalogMediaRole::LandscapeCover
+        ) && (asset.role != CatalogMediaRole::LandscapeCover
+            || url.host_str() != Some("images.igdb.com"))
+        {
             Ok(())
         } else {
             Err(PortcoveError::usage(
@@ -243,6 +259,11 @@ fn validate_igdb_media(asset: &CatalogMediaAsset) -> Result<()> {
                 artwork_type.as_deref(),
                 Some("keyart" | "keyartwithlogo" | "keyartwithoutlogo")
             ) =>
+        {
+            "720p"
+        }
+        (CatalogMediaRole::LandscapeCover, IgdbGameImageKind::Artwork)
+            if artwork_type.as_deref() == Some("keyartwithlogo") =>
         {
             "720p"
         }
@@ -415,6 +436,7 @@ fn thumbnail_with_fetch(
     let (role, width, height) = match asset.role {
         CatalogMediaRole::Logo => ("logo", 568, 320),
         CatalogMediaRole::KeyArt => ("key-art", 960, 640),
+        CatalogMediaRole::LandscapeCover => ("landscape-cover", 960, 640),
         CatalogMediaRole::Header => ("header", 1280, 720),
         CatalogMediaRole::Screenshot => ("screenshot", 960, 540),
     };
@@ -629,6 +651,30 @@ mod tests {
         }
         image.igdb.as_mut().unwrap().image_type_name = None;
         assert!(validate_catalog_media("example", None, &[image]).is_err());
+    }
+
+    #[test]
+    fn landscape_cover_requires_wide_art_and_role_specific_igdb_evidence() {
+        let mut image = logo();
+        image.role = CatalogMediaRole::LandscapeCover;
+        image.url = image.url.replace("logo_med_2x", "720p");
+        let metadata = image.igdb.as_mut().unwrap();
+        metadata.kind = IgdbGameImageKind::Artwork;
+        metadata.image_type = Some(3);
+        metadata.image_type_name = Some("Key Art With Logo".into());
+        let validate = |asset| validate_catalog_media("example", None, &[asset]);
+        assert!(validate(image.clone()).is_ok());
+
+        let mut portrait = image.clone();
+        portrait.width = portrait.height;
+        assert!(validate(portrait).is_err());
+
+        let mut background = image.clone();
+        background.igdb.as_mut().unwrap().image_type_name = Some("Key Art Without Logo".into());
+        assert!(validate(background).is_err());
+
+        image.igdb = None;
+        assert!(validate(image).is_err());
     }
 
     #[test]

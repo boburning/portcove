@@ -100,10 +100,7 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // Implementation explanations are directory-only too. Keep earlier strict
         // retained-listing readers compatible without changing their launch contract.
         listing.implementation = None;
-        listing.mod_portals.clear();
-        listing.official_setup_id = None;
-        listing.media.retain(|asset| !asset.is_typed_igdb_scene());
-        crate::catalog::listings::strip_verified_sources(&mut listing);
+        crate::catalog::listings::strip_directory_only_retained_fields(&mut listing);
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
             format_version: if listing.collection_covers.is_some() {
@@ -166,10 +163,11 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
                 .listing
                 .media
                 .iter()
-                .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+                .any(crate::CatalogMediaAsset::is_directory_only)
             || crate::catalog::listings::has_verified_source_editions(&retained.listing)
             || !retained.listing.mod_portals.is_empty()
             || retained.listing.official_setup_id.is_some()
+            || crate::catalog::listings::has_observed_project_cover(&retained.listing)
             || retained.listing.id != port_id
         {
             return Err(PortcoveError::verification(
@@ -2196,17 +2194,20 @@ impl Library {
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let now = Self::now();
-        let changed = transaction.execute(
-            "UPDATE launch_sessions
-             SET outcome=?2, exit_code=?3, message=?4, updated_at=?5, finished_at=?5
-             WHERE id=?1 AND outcome IS NULL",
-            params![id, outcome.to_string(), exit_code, message, now],
-        )?;
-        if changed != 1 {
+        let port_id: Option<String> = transaction
+            .query_row(
+                "UPDATE launch_sessions
+                 SET outcome=?2, exit_code=?3, message=?4, updated_at=?5, finished_at=?5
+                 WHERE id=?1 AND outcome IS NULL RETURNING port_id",
+                params![id, outcome.to_string(), exit_code, message, now],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(port_id) = port_id else {
             return Err(PortcoveError::state(format!(
                 "active launch session {id} was not found"
             )));
-        }
+        };
         let activity_status = match outcome {
             LaunchSessionOutcome::Succeeded => ActivityStatus::Succeeded,
             LaunchSessionOutcome::Failed => ActivityStatus::Failed,
@@ -2224,6 +2225,15 @@ impl Library {
                 ));
             }
             crate::ghostship_data_store::finish_consumption(&transaction, seal)?;
+        }
+        if let Err(error) =
+            crate::PortcoveService::settle_deferred_personal_aliases(&transaction, Some(&port_id))
+        {
+            tracing::warn!(
+                component = "catalog",
+                error_code = crate::runtime_diagnostics::code_label(error.code),
+                "Retry of a deferred personal catalog association after launch failed",
+            );
         }
         transaction.execute(
             "DELETE FROM launch_sessions
@@ -3033,7 +3043,7 @@ impl Library {
         Self::external_runtime_with_port_bounded_from(&connection, port_id, budget)
     }
 
-    fn external_runtime_with_port_bounded_from(
+    pub(crate) fn external_runtime_with_port_bounded_from(
         connection: &Connection,
         port_id: &str,
         budget: &mut u64,
@@ -3082,6 +3092,74 @@ impl Library {
         Ok(Some((record, catalog)))
     }
 
+    pub(crate) fn has_personal_registration_candidates_from(
+        connection: &Connection,
+    ) -> Result<bool> {
+        Ok(connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations
+                WHERE port_id GLOB 'github-[0-9]*')",
+            [],
+            |row| row.get(0),
+        )?)
+    }
+
+    pub(crate) fn personal_runtime_for_canonical_from(
+        connection: &Connection,
+        catalog: &Catalog,
+        port_id: &str,
+        budget: &mut u64,
+    ) -> Result<Option<String>> {
+        let Some(repository_id) = catalog
+            .listing(port_id)
+            .ok()
+            .and_then(crate::PortListing::observed_github_repository_id)
+        else {
+            return Ok(None);
+        };
+        let personal_id = format!("github-{repository_id}");
+        if personal_id == port_id {
+            return Ok(None);
+        }
+        let Some((record, retained)) =
+            Self::external_runtime_with_port_bounded_from(connection, &personal_id, budget)?
+        else {
+            return Ok(None);
+        };
+        let same_port = record.user_selected.is_some()
+            && catalog
+                .canonical_for_private_github_listing(retained.listing(&personal_id)?)
+                .is_some_and(|canonical| canonical.id == port_id);
+        Ok(same_port.then_some(personal_id))
+    }
+
+    pub(crate) fn require_no_associated_personal_runtime(
+        connection: &Connection,
+        catalog: &Catalog,
+        port_id: &str,
+    ) -> Result<()> {
+        let mut budget = MAX_RETAINED_REGISTRATION_BYTES;
+        if let Some(personal_id) =
+            Self::personal_runtime_for_canonical_from(connection, catalog, port_id, &mut budget)?
+        {
+            return Err(PortcoveError::conflict(
+                "This port already has a personal registration. Use it or remove the registration before selecting another installation.",
+            )
+            .detail("existing_port_id", personal_id));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn require_no_associated_personal_runtime_from_current(
+        connection: &Connection,
+        port_id: &str,
+    ) -> Result<()> {
+        if Self::has_personal_registration_candidates_from(connection)? {
+            let (catalog, _) = crate::catalog_store::load_catalog_from(connection, Self::now())?;
+            Self::require_no_associated_personal_runtime(connection, &catalog, port_id)?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn register_external_runtime(
         &self,
         record: &ExternalRuntimeRecord,
@@ -3125,6 +3203,11 @@ impl Library {
             let (catalog, _) = crate::catalog_store::load_catalog_from(&transaction, Self::now())?;
             catalog.require_personal_project_unlisted(retained_listing)?;
             Self::require_no_legacy_personal_project_registration(&transaction, retained_listing)?;
+        } else if pending.is_none() {
+            Self::require_no_associated_personal_runtime_from_current(
+                &transaction,
+                &record.port_id,
+            )?;
         }
         let existing: bool = transaction.query_row(
             "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)
@@ -3573,10 +3656,10 @@ impl Library {
             for row in rows {
                 let (port_id, setting, from, outcome) = row?;
                 metrics.settings_row_count += 1;
-                if let (Some(from), Some(outcome)) = (from, outcome) {
-                    if let Some(outcome) = crate::carried_files::decode_outcome(&outcome) {
-                        carry_outcomes.insert(port_id.clone(), (from, outcome));
-                    }
+                if let (Some(from), Some(outcome)) = (from, outcome)
+                    && let Some(outcome) = crate::carried_files::decode_outcome(&outcome)
+                {
+                    carry_outcomes.insert(port_id.clone(), (from, outcome));
                 }
                 settings.insert(port_id, setting);
             }
@@ -4178,6 +4261,45 @@ mod tests {
         let mut invalid: serde_json::Value = serde_json::from_str(&content).unwrap();
         invalid["listing"]["mod_portals"] = links;
         assert!(decode_external_catalog(&invalid.to_string(), id).is_err());
+    }
+
+    #[test]
+    fn a_retained_selection_leaves_observed_covers_to_the_signed_directory() {
+        let id = "observed-cover-project";
+        let artwork = serde_json::json!({
+            "game_id":17, "cover_id":31, "image_id":"projectcover",
+            "image_sha256":"a".repeat(64), "game_slug":"project", "match_kind":"port",
+            "observed_github_repository_id":42
+        });
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":id, "name":"Observed project", "summary":"External registration fixture.",
+            "project_url":"https://github.com/owner/game", "artwork":artwork
+        }))
+        .unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing.clone()).unwrap();
+        assert_eq!(
+            catalog.listing_document().format_version,
+            crate::catalog::listings::OBSERVED_PROJECT_COVER_LISTING_FORMAT
+        );
+        let content = encode_external_catalog(&catalog, id).unwrap();
+        let decoded = decode_external_catalog(&content, id).unwrap();
+        assert!(decoded.listing(id).unwrap().artwork.is_none());
+        assert!(!content.contains("observed_github_repository_id"));
+
+        let mut invalid: serde_json::Value = serde_json::from_str(&content).unwrap();
+        invalid["listing"]["artwork"] = artwork;
+        assert!(decode_external_catalog(&invalid.to_string(), id).is_err());
+
+        let mut authored = listing;
+        authored
+            .artwork
+            .as_mut()
+            .unwrap()
+            .observed_github_repository_id = None;
+        let catalog = Catalog::for_user_selected_listing(authored.clone()).unwrap();
+        let kept = encode_external_catalog(&catalog, id).unwrap();
+        let decoded = decode_external_catalog(&kept, id).unwrap();
+        assert_eq!(decoded.listing(id).unwrap().artwork, authored.artwork);
     }
 
     #[test]

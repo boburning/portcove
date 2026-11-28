@@ -100,6 +100,8 @@ pub struct Catalog {
     user_selected_listing: bool,
     /// Signed current-format rows that explicitly have no cover to display.
     cover_assignments: Arc<HashSet<String>>,
+    /// Local workspace aliases keyed by the retained registration's operation ID.
+    pub(crate) personal_canonical_ports: Arc<BTreeMap<String, String>>,
     retained_definitions: Arc<BTreeMap<String, RetainedDefinition>>,
 }
 
@@ -499,6 +501,7 @@ impl Catalog {
             listings: Arc::new(Indexed::new(listings)),
             user_selected_listing: false,
             cover_assignments: Arc::default(),
+            personal_canonical_ports: Arc::default(),
             document: Arc::new(Indexed::new(document)),
             retained_definitions: Arc::default(),
         };
@@ -1271,10 +1274,10 @@ impl Catalog {
                 let media = presentation.media.as_deref().unwrap_or_default();
                 if media
                     .iter()
-                    .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+                    .any(crate::CatalogMediaAsset::is_directory_only)
                 {
                     return Err(PortcoveError::unsupported(
-                        "IGDB backgrounds and screenshots belong in listing format 13",
+                        "IGDB backgrounds, IGDB screenshots and landscape covers belong in the listing directory",
                     ));
                 }
                 crate::catalog_media::validate_catalog_media(
@@ -1361,7 +1364,8 @@ impl Catalog {
                     .chain(&presentation.companion_cover)
                     .chain(presentation.collection_covers.iter().flatten())
                 {
-                    if artwork.game_id == 0
+                    if artwork.observed_github_repository_id.is_some()
+                        || artwork.game_id == 0
                         || artwork.cover_id == 0
                         || artwork.image_id.is_empty()
                         || artwork.image_id.len() > 128

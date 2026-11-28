@@ -538,8 +538,12 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
   `index.html` to a new directory, renamed into place when complete. The report
   lists each source's latest run, coverage and revision, and each subject's
   current Core assessment, history and latest observations, and whether the
-  latest Core run assessed it, recorded a gap or did not include it. Unsupported sources
-  and published delivery are shown as unknown with their reasons.
+  latest Core run assessed it, recorded a gap or did not include it. The report
+  query returns shared port facts once per port and keeps platform-specific
+  assessments and Core observations separate. The same port facts also supply
+  the route coverage calculation for assessed ports. The report builder uses
+  that single database snapshot to produce the existing JSON and HTML.
+  Unsupported sources and published delivery are shown as unknown with their reasons.
   - The subjects table searches every column: each word must appear somewhere
     in the row, including linked work, upstream, offering, qualification,
     attention and next action. Filters narrow it by host platform, Core
@@ -1723,6 +1727,9 @@ and outcome. A settlement line also records the reservation, captured command
 stdout bytes and whether the operation is eligible for estimate-based settlement.
 The stdout count includes output captured before a failure. Use the Neon counter
 for provider transfer, and the recovery receipt for export file measurements.
+A failed ledger update still records the captured stdout in the run evidence
+with an unknown settlement basis. It is a lower bound on command output. The
+durable ledger and provider samples determine the actual charge.
 A command interrupted before settlement can leave only its admission line. Its
 reservation still applies. The GitHub summary reports deferred work and the dated
 recovery point.

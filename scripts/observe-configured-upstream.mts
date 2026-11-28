@@ -76,7 +76,7 @@ interface Checkpoint {
 }
 export interface AdvanceOptions extends Omit<ObserveOptions, "cache" | "onAttemptUsage"> {
   project: (observation: Observation) => unknown;
-  reprojectFreshFacts?: boolean;
+  reprojectFreshFacts?: boolean | "only";
   catalogIds?: string[];
   commitContinuation?: (checkpoint: unknown) => void | Promise<void>;
   execution?: {
@@ -310,7 +310,11 @@ export async function advanceObservation(
   if (!retryClock || now() >= retryClock) {
     try {
       let result: Awaited<ReturnType<typeof observeUpstream>> | null = null;
-      if (options.reprojectFreshFacts && next.last_complete) {
+      if (
+        options.reprojectFreshFacts &&
+        next.last_complete &&
+        (options.reprojectFreshFacts !== "only" || (!next.continuation && !next.exception))
+      ) {
         const retained = reusableProviderObservation(
           config,
           next.last_complete.observation,
@@ -346,61 +350,63 @@ export async function advanceObservation(
             };
         }
       }
-      result ??= await observeUpstream(config, {
-        ...options,
-        cache: next.last_complete?.cache,
-        continuation: next.continuation,
-        onAttemptUsage: (usage) => {
-          attemptProviderUsage = usage;
-        },
-        onCheckpoint: async (continuation) => {
-          next.continuation = structuredClone(continuation);
-          await options.onCheckpoint?.(structuredClone(continuation));
-          await options.commitContinuation?.(structuredClone(next));
-        },
-      });
-      attemptProviderUsage ??= result.observation.batch_consumed ?? null;
-      failedPolicyInput = result.observation;
-      if (options.signal?.aborted)
-        throw new ObservationFailure("cancelled", "Observation cancelled before Core projection");
-      const projection = await options.project(result.observation);
-      if (options.signal?.aborted)
-        throw new ObservationFailure(
-          "cancelled",
-          "Observation cancelled before committing Core projection",
-        );
-      if (
-        !isRecord(projection) ||
-        projection.format !== 1 ||
-        projection.port_id !== config.port_id ||
-        projection.repository_id !== config.repository_id ||
-        projection.facts_sha256 !== result.observation.facts_sha256 ||
-        !Array.isArray(projection.projections)
-      )
-        throw new ObservationFailure(
-          "core-binding",
-          "core policy output is not bound to the exact observed facts",
-        );
-      requireCompleteCoreCoverage(projection);
-      transition = !next.last_complete
-        ? "initial-baseline"
-        : next.last_complete.observation.facts_sha256 === result.observation.facts_sha256
-          ? "unchanged"
-          : "changed";
-      next.last_complete = {
-        ...result,
-        projection: {
-          ...retainedCoreProjection(projection),
-          port_id: config.port_id,
-          repository_id: config.repository_id,
-          facts_sha256: result.observation.facts_sha256,
-        },
-      };
-      next.first_complete_at ??= result.observation.completed_at;
-      next.completed_runs++;
-      next.exception = null;
-      delete next.continuation;
-      failedPolicyInput = null;
+      if (result || options.reprojectFreshFacts !== "only") {
+        result ??= await observeUpstream(config, {
+          ...options,
+          cache: next.last_complete?.cache,
+          continuation: next.continuation,
+          onAttemptUsage: (usage) => {
+            attemptProviderUsage = usage;
+          },
+          onCheckpoint: async (continuation) => {
+            next.continuation = structuredClone(continuation);
+            await options.onCheckpoint?.(structuredClone(continuation));
+            await options.commitContinuation?.(structuredClone(next));
+          },
+        });
+        attemptProviderUsage ??= result.observation.batch_consumed ?? null;
+        failedPolicyInput = result.observation;
+        if (options.signal?.aborted)
+          throw new ObservationFailure("cancelled", "Observation cancelled before Core projection");
+        const projection = await options.project(result.observation);
+        if (options.signal?.aborted)
+          throw new ObservationFailure(
+            "cancelled",
+            "Observation cancelled before committing Core projection",
+          );
+        if (
+          !isRecord(projection) ||
+          projection.format !== 1 ||
+          projection.port_id !== config.port_id ||
+          projection.repository_id !== config.repository_id ||
+          projection.facts_sha256 !== result.observation.facts_sha256 ||
+          !Array.isArray(projection.projections)
+        )
+          throw new ObservationFailure(
+            "core-binding",
+            "core policy output is not bound to the exact observed facts",
+          );
+        requireCompleteCoreCoverage(projection);
+        transition = !next.last_complete
+          ? "initial-baseline"
+          : next.last_complete.observation.facts_sha256 === result.observation.facts_sha256
+            ? "unchanged"
+            : "changed";
+        next.last_complete = {
+          ...result,
+          projection: {
+            ...retainedCoreProjection(projection),
+            port_id: config.port_id,
+            repository_id: config.repository_id,
+            facts_sha256: result.observation.facts_sha256,
+          },
+        };
+        next.first_complete_at ??= result.observation.completed_at;
+        next.completed_runs++;
+        next.exception = null;
+        delete next.continuation;
+        failedPolicyInput = null;
+      }
     } catch (error) {
       if (error instanceof ObservationFailure && error.continuation)
         next.continuation = error.continuation;
@@ -540,10 +546,15 @@ export async function boundedJson(
 }
 
 export async function atomicJson(filename: string, value: unknown) {
+  const contents = JSON.stringify(value);
+  if (contents === undefined) throw new Error("observer checkpoint exceeds its byte budget");
+  await atomicJsonText(filename, contents);
+}
+
+export async function atomicJsonText(filename: string, contents: string) {
   await assertOwnedUnlinkedPath(repositoryRoot, filename, "observer output");
   const temporary = `${filename}.${randomUUID()}.next`;
-  const contents = JSON.stringify(value);
-  if (contents === undefined || Buffer.byteLength(contents) > checkpointLimit)
+  if (Buffer.byteLength(contents) > checkpointLimit)
     throw new Error("observer checkpoint exceeds its byte budget");
   await mkdir(path.dirname(filename), { recursive: true });
   try {

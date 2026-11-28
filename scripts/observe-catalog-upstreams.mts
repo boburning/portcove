@@ -26,6 +26,7 @@ import { isRecord } from "./runtime-values.mts";
 import { advanceCatalogObservations } from "./catalog-upstream-observer.mts";
 import {
   atomicJson,
+  atomicJsonText,
   boundedJson,
   projectObservation,
   projectProviderObservation,
@@ -109,7 +110,7 @@ function repositoryMetadataReader(
             /^\/repos\/[^/]+\/[^/]+\/git\/(?:ref\/tags\/[^/]+|tags\/[a-f0-9]{40})$/u.test(
               url.pathname,
             ) ||
-            ((/^\/repos\/[^/]+\/[^/]+\/contents\/(?:docs\/supportedHashes\.json|src\/main\/main\.cpp|lib\/N64ModernRuntime|librecomp\/src\/recomp\.cpp)$/u.test(
+            ((/^\/repos\/[^/]+\/[^/]+\/contents\/(?:docs\/supportedHashes\.json|src\/main(?:\/main)?\.cpp|lib\/N64ModernRuntime|librecomp\/src\/recomp\.cpp)$/u.test(
               url.pathname,
             ) ||
               url.pathname === "/repos/N64Recomp/N64ModernRuntime/contents/thirdparty/xxHash" ||
@@ -132,7 +133,9 @@ export async function retireObserverConfigurations(
   checkpoint: CatalogObserverCheckpoint,
   deadline: number,
   now = Date.now,
+  standaloneConfig?: ObserverConfig,
 ) {
+  const standaloneHash = standaloneConfig ? observationHash(standaloneConfig) : null;
   const cleanupDeferred: string[] = [];
   const directory = (config: ObserverConfig) =>
     path.join(root, "work/upstream-observer", observationHash(config));
@@ -148,6 +151,15 @@ export async function retireObserverConfigurations(
         continue;
       const checkpointFile = path.join(directory(retired), "checkpoint.json");
       try {
+        // The scheduled scope no longer references the standalone checkpoint.
+        // Forget that dependency without modifying the standalone files.
+        if (digest === standaloneHash) {
+          progress.retired_configs = progress.retired_configs.filter(
+            (config) => observationHash(config) !== digest,
+          );
+          await atomicJson(statePath, checkpoint);
+          continue;
+        }
         await withCheckpointLock(checkpointFile, async () => {
           validateObserverCheckpoint(
             decodeStoredObserverCheckpoint(
@@ -236,6 +248,7 @@ export async function runCatalogUpstreams(
     deadline?: number;
     excludedSources?: ReadonlySet<string>;
     requestLimit?: number;
+    offlinePolicyOnly?: boolean;
     rotateStaleSources?: boolean;
     prioritizeConfigured?: boolean;
     scheduledPrioritySources?: ReadonlySet<string>;
@@ -397,12 +410,14 @@ export async function runCatalogUpstreams(
     await assertCoreEntry();
     const prior = await boundedJson(statePath, 32 * 1024 * 1024, true);
     const beforePosition = catalogProgressPosition(prior);
+    let controllerProgressWrites = 0;
     const result = await advanceCatalogObservations(catalog, prior, {
       config,
       now,
       deadline: operationDeadline,
       ...(runtime.excludedSources ? { excludedSources: runtime.excludedSources } : {}),
       ...(runtime.requestLimit === undefined ? {} : { requestLimit: runtime.requestLimit }),
+      offlinePolicyOnly: runtime.offlinePolicyOnly === true,
       rotateStaleSources: runtime.rotateStaleSources === true,
       prioritizeConfigured: runtime.prioritizeConfigured === true,
       ...(runtime.scheduledPrioritySources
@@ -445,7 +460,10 @@ export async function runCatalogUpstreams(
           acceptedProgress = true;
         sourcePositions.set(key, acceptedObservationPosition(checkpoint));
       },
-      commit: (checkpoint) => atomicJson(statePath, checkpoint),
+      commit: async (contents) => {
+        await atomicJsonText(statePath, contents);
+        controllerProgressWrites++;
+      },
       repositoryId: async (source, transport) => {
         const equivalent = observedHealthRepositoryIdentity(health, source.repository);
         if (equivalent !== null) return equivalent;
@@ -679,13 +697,12 @@ export async function runCatalogUpstreams(
         return policy;
       },
       export: async (source, sourceConfig, observation, policies) => {
-        const legacy =
-          sourceConfig.format === 1 &&
+        const configured =
           sourceConfig.port_id === config.port_id &&
-          sourceConfig.repository === config.repository;
+          sourceConfig.repository === config.repository &&
+          sourceConfig.repository_id === config.repository_id;
         const filename = path.join(handoffDirectory, `${observationHash(sourceConfig)}.json`);
-        // The legacy report retains the full configured inventory. In the
-        // catalog handoff it would repeat the same large list for each source.
+        // Only the configured report carries the full list of unmonitored ports.
         const { unmonitored_port_ids: _inventory, ...sourceReport } = observation.report;
         const report = {
           ...sourceReport,
@@ -720,8 +737,8 @@ export async function runCatalogUpstreams(
             ? "last-complete-historical-fallback; current state unknown"
             : "complete-current-consumer-projections; managed eligibility remains Core-only",
         };
-        if (legacy)
-          await atomicJson(path.join(directory(sourceConfig), "report.json"), {
+        if (configured)
+          await atomicJson(path.join(root, "work/upstream-observer-configured/report.json"), {
             ...observation.report,
             execution: report.execution,
           });
@@ -751,6 +768,7 @@ export async function runCatalogUpstreams(
       result.checkpoint,
       operationDeadline,
       now,
+      config,
     );
     let summary: unknown = omitOversizedBindingInputs(
       {
@@ -788,6 +806,7 @@ export async function runCatalogUpstreams(
       summary,
       handoff_directory: handoffDirectory,
       handoff_exhausted: handoffExhausted,
+      controller_progress_writes: controllerProgressWrites,
       made_progress:
         acceptedProgress ||
         (result.report.launcher_mod_sources?.attempted ?? 0) > 0 ||
@@ -886,6 +905,7 @@ export async function runCatalogOpportunity(
   try {
     const { modProviderRegistryFetch, ...batchRuntime } = runtime;
     let prioritizeConfigured = true;
+    let offlinePolicyCompleted = 0;
     const maxRequests =
       runtime.requestCeiling ?? hostedRequestCeiling(process.env.GITHUB_EVENT_NAME);
     let launcherRequestsRemaining = hostedLauncherModRequestLimit(maxRequests);
@@ -911,6 +931,7 @@ export async function runCatalogOpportunity(
           handoff,
           excludedSources: excluded,
           requestLimit,
+          offlinePolicyOnly: requestLimit === 0,
           rotateStaleSources: true,
           prioritizeConfigured,
           handoffByteLimit: hostedHandoffByteLimit,
@@ -923,9 +944,12 @@ export async function runCatalogOpportunity(
       {
         deadline: runtime.deadline,
         maxRequests,
+        finishOffline: true,
         now,
         ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
-        onBatch: (batch) => {
+        onBatch: (batch, allowance) => {
+          const offlinePolicyOnly = allowance === 0;
+          if (offlinePolicyOnly) offlinePolicyCompleted = batch.report.completed_source_keys.length;
           for (const failure of batch.report.failures) {
             const evidence = JSON.stringify({
               format: 1,
@@ -945,12 +969,14 @@ export async function runCatalogOpportunity(
             JSON.stringify({
               format: 1,
               kind: "catalog-observation-batch",
+              offline_policy_only: offlinePolicyOnly,
               launcher_mod_sources: batch.report.launcher_mod_sources,
               reciprocal_mod_sources: batch.report.reciprocal_mod_sources,
               requests: batch.report.requests,
               response_bytes: batch.report.response_bytes_charged,
               completed: batch.report.completed_source_keys.length,
               pending: batch.report.pending_source_keys.length,
+              controller_progress_writes: batch.controller_progress_writes,
               made_progress: batch.made_progress,
               handoff_exhausted: batch.handoff_exhausted,
             }),
@@ -971,6 +997,7 @@ export async function runCatalogOpportunity(
       {
         ...result.report,
         bounded_batches: result.batches,
+        offline_policy_completed_sources: offlinePolicyCompleted,
         artifact_bytes: handoff.bytes,
         artifact_byte_limit: artifactByteLimit,
       },
@@ -984,6 +1011,7 @@ export async function runCatalogOpportunity(
           "partial diagnostic export; full obligations remain in current checkpoint and catalog",
         checkpoint_sha256: observationHash(result.checkpoint),
         bounded_batches: result.batches,
+        offline_policy_completed_sources: offlinePolicyCompleted,
         total_sources: result.report.total_sources,
         pending_sources: result.report.pending_source_keys.length,
         failure_events: result.report.failures.length,

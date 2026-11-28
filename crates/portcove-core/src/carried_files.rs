@@ -68,8 +68,8 @@ pub(crate) fn decode_outcome(text: &str) -> Option<CarriedFileOutcome> {
     {
         return None;
     }
-    if let Some(counts) = &outcome.counts {
-        if [
+    if let Some(counts) = &outcome.counts
+        && [
             (counts.carried, outcome.carried.len()),
             (counts.removed, outcome.removed.len()),
             (counts.kept_separately, outcome.kept_separately.len()),
@@ -81,9 +81,8 @@ pub(crate) fn decode_outcome(text: &str) -> Option<CarriedFileOutcome> {
         ]
         .iter()
         .any(|(count, examples)| *count < *examples as u64)
-        {
-            return None;
-        }
+    {
+        return None;
     }
     Some(outcome)
 }

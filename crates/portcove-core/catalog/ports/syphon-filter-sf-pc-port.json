@@ -67,7 +67,17 @@
         "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
         "https://github.com/Madxbio97/SF-pc-port"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "syphon-filter-playstation",
+          "title": "Syphon Filter (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
+            "https://github.com/boburning/portcove/blob/c377dc9dcbba77936992a566be586d7059b26922/crates/portcove-core/catalog/ports/syphon-filter-sf-pc-port.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Syphon Filter"
   }

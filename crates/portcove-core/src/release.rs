@@ -247,20 +247,18 @@ pub(crate) struct ReleaseSelectionCacheKey {
 
 impl ReleaseSelectionCacheKey {
     pub(crate) fn new(port: &PortDefinition, channel: ReleaseChannel, platform: Platform) -> Self {
-        let appimage = native_appimage(port, platform);
+        let (native_appimage, native_appimage_two_part) = match native_appimage(port, platform) {
+            None => (false, false),
+            Some(NativeAppImage::Exact(_)) => (true, false),
+            Some(NativeAppImage::Versioned { allow_two_part, .. }) => (true, allow_two_part),
+        };
         Self {
             adapter: port.adapter,
             n64_runtime_at_executable_parent: port.n64_runtime_at_executable_parent,
             partitioned_archive: port.archive_data_compatibility_v1.is_some(),
             requires_tar_xz: port.release.requires_tar_xz(platform),
-            native_appimage: appimage.is_some(),
-            native_appimage_two_part: matches!(
-                appimage,
-                Some(NativeAppImage::Versioned {
-                    allow_two_part: true,
-                    ..
-                })
-            ),
+            native_appimage,
+            native_appimage_two_part,
             restricted_native_archive: crate::native_external_profile::openmohaa::requires_zip(
                 port, platform,
             )
@@ -6021,6 +6019,69 @@ mod tests {
         );
     }
 
+    fn differing_cache_key_fields(
+        left: &ReleaseSelectionCacheKey,
+        right: &ReleaseSelectionCacheKey,
+    ) -> Vec<&'static str> {
+        macro_rules! compare_fields {
+            ($($field:ident),+ $(,)?) => {{
+                let ReleaseSelectionCacheKey { $($field),+ } = left;
+                [
+                    $(
+                        ($field != &right.$field).then_some(stringify!($field)),
+                    )+
+                ]
+                .into_iter()
+                .flatten()
+                .collect()
+            }};
+        }
+        compare_fields!(
+            adapter,
+            n64_runtime_at_executable_parent,
+            partitioned_archive,
+            requires_tar_xz,
+            native_appimage,
+            native_appimage_two_part,
+            restricted_native_archive,
+            repository,
+            channel,
+            platform,
+            rolling_tag,
+            asset_hints,
+            other_stream_tag_prefixes,
+            accepted_uploaders,
+            scope_binding,
+            acquisition_policy,
+        )
+    }
+
+    fn cache_key_hash(key: &ReleaseSelectionCacheKey) -> u64 {
+        use std::hash::{DefaultHasher, Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        key.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    #[test]
+    fn release_selection_cache_key_keeps_reviewed_appimage_modes() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let openloco = catalog.port("openloco-openloco").unwrap();
+        let corsixth = catalog.port("corsixth-corsixth").unwrap();
+        for (port, platform, expected) in [
+            (openloco, Platform::WindowsX86_64, (false, false)),
+            (openloco, Platform::LinuxX86_64, (true, true)),
+            (corsixth, Platform::LinuxX86_64, (true, false)),
+        ] {
+            let key = ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, platform);
+            assert_eq!(
+                (key.native_appimage, key.native_appimage_two_part),
+                expected
+            );
+        }
+    }
+
     #[test]
     fn release_selection_cache_key_preserves_exact_selector_identity() {
         let catalog = crate::Catalog::embedded().unwrap();
@@ -6036,13 +6097,18 @@ mod tests {
 
         let mut different_id = first.clone();
         different_id.id = "another-port-id".into();
+        let alternate = ReleaseSelectionCacheKey::new(
+            &different_id,
+            ReleaseChannel::Rolling,
+            Platform::WindowsX86_64,
+        );
         assert_eq!(
-            ReleaseSelectionCacheKey::new(
-                &different_id,
-                ReleaseChannel::Rolling,
-                Platform::WindowsX86_64,
-            ),
-            baseline
+            alternate,
+            baseline,
+            "unequal fields: {:?}; hashes agree: {}; baseline == alternate: {}",
+            differing_cache_key_fields(&alternate, &baseline),
+            cache_key_hash(&alternate) == cache_key_hash(&baseline),
+            baseline == alternate,
         );
 
         let mut reordered = first.clone();

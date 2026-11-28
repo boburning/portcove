@@ -2278,6 +2278,30 @@ that private virtual display; WSLg, physical display/controller and other Linux
 routes remain separate. Missing or unsupported prerequisites are reported; no
 provisioning or fallback qualification is implied.
 
+The standalone Linux `native-library-recovery-bundle` uses a fresh real
+GNOME Keyring in the same private D-Bus session as the harness and application.
+The wrapper records the unlocked default collection before running the
+library-recovery flow. It keeps the store and its generated password private
+and uses the pinned harness Node executable with Bash, GNOME Keyring and
+gdbus. The public hosted `linux-library-recovery` operation uses Ubuntu 24.04
+with WebKitGTK 2.52.6 or later. It uses the same disposable interpreter profile,
+namespace preflight and quiescent withdrawal as the Linux package-boundary
+operation. It retains those receipts, keyring readiness, recovery observations,
+process exits and images. The keyring files stay in the private session.
+
+For a published Windows package, dispatch **Native design compatibility** with
+`operation=windows-installed-library-recovery`, `runner=windows-2022` and an
+exact immutable Preview `recovery_preview_tag`. The disposable hosted runner
+refuses an existing Portcove registration. It verifies the release attestation
+against the annotated tag, installer, CLI and checksum manifest before the
+normal per-user NSIS install. The existing recovery scenario runs while that
+registration is present. It checks the installed executable and registration
+again after the scenario's explicit restore activation and app restart. The
+runner retains the package and registration identities, native reports and
+screenshots in bounded job logs. Decode the retained evidence with
+`node scripts/native-backup-evidence.mts recover LOG OUTPUT`. The disposable
+runner owns the installation lifecycle.
+
 An ordinary Linux appearance restart retains its captured driver until the
 existing stop action and that exact child's exit have completed. A failed join
 keeps the reference for owned cleanup and refuses the replacement launch. The
@@ -2375,8 +2399,10 @@ claim, and a ready fixture alone does not satisfy the strict media refusal.
 ## Native desktop smoke tests
 
 Run `just desktop-verify --scenario native-library-recovery-bundle --require-clean`
-on Windows to check verified bundle creation, inspection, restore and explicit
-activation in isolated libraries. The scenario also checks source changes after
+on Windows or Linux x86-64 to check verified bundle creation, inspection, restore
+and explicit activation in isolated libraries. On Linux, use a graphical session
+with the production credential store available and the owned GTK folder-picker
+prerequisites. The scenario also checks source changes after
 creation review, overlapping destinations, and a tampered copy. It records the
 verified receipt, saves, installation and backup identities, and the selected
 library across restart.

@@ -49,6 +49,71 @@ export function indexSharedCoverRows(rows: readonly unknown[]) {
   return live;
 }
 
+type CoverMediaClaim = { game_id: number; slug: string };
+export type CoverMediaMatch = {
+  scope: string;
+  claim: CoverMediaClaim | null;
+  confirmedBySignedCover: boolean;
+};
+
+/** A maintained single edition can reuse an accepted cover's provider identity.
+ * The publisher supplies authenticated predecessor rows. Preparation can only
+ * propose from authored declarations and grants no publication authority. */
+export function coverBackedMediaMatches(
+  authored: readonly AuthoredPort[],
+  reviewed: ReadonlyMap<string, ReviewedOriginalMediaDecision>,
+  live?: ReadonlyMap<string, Record<string, unknown>>,
+): ReadonlyMap<string, CoverMediaMatch> {
+  const subjects = authored.flatMap((record) => {
+    const scope = sharedCoverScope(record);
+    return scope ? [{ listing: record.listing, scope }] : [];
+  });
+  const claims = new Map<string, CoverMediaClaim | null>();
+  const confirmed = new Set<string>();
+  for (const { listing, scope } of subjects) {
+    const artwork = listing.artwork;
+    if (
+      !validArtworkMapping(artwork) ||
+      artwork.match_kind !== "underlying-game" ||
+      !permitsReviewedOriginalMedia(reviewed.get(scope.key), artwork.game_id, artwork.game_slug)
+    )
+      continue;
+    const claim = { game_id: artwork.game_id, slug: artwork.game_slug };
+    const prior = claims.get(scope.key);
+    if (prior === undefined) claims.set(scope.key, claim);
+    else if (prior && (prior.game_id !== claim.game_id || prior.slug !== claim.slug))
+      claims.set(scope.key, null);
+    const signed = live?.get(listing.id);
+    if (
+      signed &&
+      signed.project_url === listing.project_url &&
+      matchesSharedCoverScope(signed.original_game, scope) &&
+      validArtworkMapping(signed.artwork) &&
+      signed.artwork.match_kind === "underlying-game" &&
+      signed.artwork.game_slug === artwork.game_slug &&
+      coverIdentity(signed.artwork) === coverIdentity(artwork)
+    )
+      confirmed.add(scope.key);
+  }
+  return new Map<string, CoverMediaMatch>(
+    subjects.flatMap(({ listing, scope }) => {
+      const claim = claims.get(scope.key);
+      return claim !== undefined && reviewed.get(scope.key)?.decision !== "exclude"
+        ? [
+            [
+              listing.id,
+              {
+                scope: scope.key,
+                claim,
+                confirmedBySignedCover: claim !== null && confirmed.has(scope.key),
+              },
+            ],
+          ]
+        : [];
+    }),
+  );
+}
+
 /** Choose descriptive defaults from an already authenticated listing selection.
  * The caller owns target verification and publication. */
 export function projectExactSharedCovers({

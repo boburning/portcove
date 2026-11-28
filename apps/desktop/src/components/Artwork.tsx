@@ -881,12 +881,12 @@ function ArtworkSlotControl({
             : "Hidden for this port. Show artwork to use the default again."}
         </p>
       )}
-      {slot === "logo" && display.image && (
+      {(slot === "logo" || slot === "landscape") && display.image && (
         <div className="bg-pc-subtle my-4 grid min-h-20 place-items-center rounded-pc-sm p-3">
           <img
             key={display.image}
             src={display.image}
-            alt="Selected logo preview"
+            alt={slot === "logo" ? "Selected logo preview" : "Landscape cover preview"}
             className="max-h-28 max-w-full object-contain"
             onError={() => display.onImageError?.()}
           />
@@ -1236,6 +1236,7 @@ export function ArtworkSource({
     | "local_import"
     | "igdb_cover"
     | "igdb_cover_collection"
+    | "catalog_media"
     | "generated_fallback"
     | undefined;
   collectionCovers?: readonly IgdbArtwork[] | undefined;
@@ -1266,6 +1267,27 @@ export function ArtworkSource({
         )}
         <dt>Author and license</dt>
         <dd>See each linked source.</dd>
+      </dl>
+    );
+  }
+  if (state?.resolved_source.kind === "catalog_media") {
+    const { asset } = state.resolved_source;
+    return (
+      <dl>
+        <dt>Source</dt>
+        <dd>
+          <ExternalLink href={asset.source_url}>{asset.caption}</ExternalLink>
+        </dd>
+        <dt>Author and license</dt>
+        <dd>
+          {asset.attribution} · <ExternalLink href={asset.rights_url}>{asset.license}</ExternalLink>
+        </dd>
+        {renderedSource === "generated_fallback" && (
+          <>
+            <dt>Displayed artwork</dt>
+            <dd>The catalog image is unavailable.</dd>
+          </>
+        )}
       </dl>
     );
   }
