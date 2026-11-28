@@ -661,17 +661,24 @@ export function reproductionParallelism(entries: number, shards: number) {
 
 /** Assign related inspection work together. Reproduction keeps its independent identity shards. */
 export function inspectionShards(needs: readonly InspectionNeed[]): string[][] {
-  const byRelease = new Map<string, { ids: string[]; bytes: number }>();
+  type Group = { ids: string[]; bytes: number };
+  const byRelease = new Map<string, Group>();
+  const groups: Group[] = [];
+  // A large shared feed can still use several runners. Keep each group near
+  // the ordinary matrix load so later consumers also have time to run.
+  const groupLimit = Math.max(4, 2 * Math.ceil(needs.length / matrixJobLimit));
   for (const need of needs.toSorted((a, b) => compareCodePoints(a.port_id, b.port_id))) {
     const key = `${need.repository_id}/${need.release_id}`;
-    const current = byRelease.get(key) ?? { ids: [], bytes: 0 };
+    let current = byRelease.get(key);
+    if (!current || current.ids.length >= groupLimit) {
+      current = { ids: [], bytes: 0 };
+      groups.push(current);
+      byRelease.set(key, current);
+    }
     current.ids.push(need.port_id);
     current.bytes += need.bytes;
-    byRelease.set(key, current);
   }
-  const groups = [...byRelease.values()].sort(
-    (a, b) => b.bytes - a.bytes || compareCodePoints(a.ids[0]!, b.ids[0]!),
-  );
+  groups.sort((a, b) => b.bytes - a.bytes || compareCodePoints(a.ids[0]!, b.ids[0]!));
   const shards = Array.from({ length: Math.min(matrixJobLimit, groups.length) }, () => ({
     ids: [] as string[],
     bytes: 0,
