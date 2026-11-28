@@ -370,10 +370,10 @@ struct LandscapeSourceBinding {
     registration: String,
 }
 
-fn select_landscape_cover<'a>(
-    port: &'a crate::PortListing,
+fn select_landscape_cover(
+    port: &crate::PortListing,
     verified_edition: impl FnOnce() -> Option<crate::VerifiedOriginalEdition>,
-) -> Option<&'a CatalogMediaAsset> {
+) -> Option<&CatalogMediaAsset> {
     let covers = || {
         port.media
             .iter()

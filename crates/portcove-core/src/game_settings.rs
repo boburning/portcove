@@ -59,6 +59,13 @@ impl ShippedDefault {
 #[derive(Clone, Copy)]
 pub(crate) enum PlayerSettings<'a> {
     Present(&'a [u8]),
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "live activation freezes recorded deletions separately"
+        )
+    )]
     RecordedDeletion,
     Unobserved,
 }
