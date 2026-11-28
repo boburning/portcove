@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual, parseArgs } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import { compareVersions } from "./app-release.mts";
+import { heldPackageWindowReview } from "./restriction-recheck.mts";
 import {
   admittedGithubRepositoryId,
   parseCatalogSource,
@@ -2300,6 +2301,20 @@ export async function prepareObservationBundle(options: {
         }
       : {}),
     observer_revision: observerRevision,
+    ...(!priorUnverified && projected.changed
+      ? {
+          held_package_review: {
+            baseline_revision: previousDocument.revision,
+            ...heldPackageWindowReview({
+              canonicalListings: canonical.listings,
+              canonicalPorts: current.ports,
+              previous: previousDocument.directory.listings,
+              proposed: delivered.directory.listings,
+              now,
+            }),
+          },
+        }
+      : {}),
     canonical_sha256: hash(canonicalBytes),
     catalog_sha256: hash(catalogBytes),
     canonical_records: projected.canonical_records,

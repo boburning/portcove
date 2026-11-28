@@ -573,6 +573,59 @@ function compactPrior(root: string, listings: Row[]) {
   };
 }
 
+void test("prepared publication records a review prompt for a held package change", async (t) => {
+  t.mock.method(Date, "now", () => Date.parse("2026-11-10T10:15:00Z"));
+  const fixture = fixtureWorkspace(t);
+  const enrichment = enrichmentFixture();
+  const listing = enrichment.rows[0]!;
+  const observed = enrichment.policies[0]!.listing_update.upstream_observation;
+  const held = { ...listing, download_block_reason: reason, restrictions: [restriction] };
+  Object.assign(listing, held);
+  Object.assign(enrichment.policies[0]!.listing_update, held);
+  const priorWindow = structuredClone(observed);
+  priorWindow.observed_at = "2026-11-09T19:00:00Z";
+  const release = (priorWindow.releases as { assets: { size: number }[] }[])[0]!;
+  release.assets[0]!.size--;
+  const canonicalFile = fixture.write("held-listed.json", {
+    ...canonical,
+    listings: [...canonical.listings, ...enrichment.rows],
+  });
+  const { prior } = compactPrior(fixture.root, [
+    ...canonical.listings,
+    { ...held, upstream_observation: priorWindow },
+    enrichment.rows[1]!,
+  ]);
+  const output = path.join(fixture.root, "held-out");
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: canonicalFile,
+    catalog: fixture.catalog,
+    prior,
+    output,
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    readObservation: () => Promise.resolve(enrichment.validInput),
+  });
+  assert.deepEqual(
+    report.held_package_review?.changes.map(({ port_id, changed_releases }) => ({
+      port_id,
+      changed_releases,
+    })),
+    [{ port_id: held.id, changed_releases: ["v1.0"] }],
+    JSON.stringify(report),
+  );
+  const delivered = document(
+    decodeRetainedCompactListing(
+      readFileSync(path.join(output, "bundle", compactListingDeliveryTarget)),
+    ),
+  );
+  assert.deepEqual(delivered.directory.listings.find(({ id }) => id === held.id)?.restrictions, [
+    restriction,
+  ]);
+});
+
 /** Delegates to the stub CLI, except that publication inspection of a
  * candidate carrying the refused observation field behaves as `behavior`. */
 function misbehavingCli(file: string, stub: string, behavior: string) {

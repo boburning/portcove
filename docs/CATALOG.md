@@ -610,6 +610,14 @@ managed holds in the canonical form below. It narrowed, cleared and reworded
 nothing. Each narrowing is a later data change under the rights-basis decision
 authority.
 
+The catalog publication receipt includes package-change review prompts for held
+listings and managed routes. It compares the authenticated previous catalog with
+the validated proposal. A signal requires a newer, fresh observation for the
+same stable upstream identity and complete release assets in both windows.
+Repacked releases and newly observed releases are review evidence. A release
+that drops out of the bounded window is recorded as out of window. The owning
+catalog review decides the hold's disposition.
+
 `reconsider_when` is never evaluated by Core. Run
 `node scripts/restriction-recheck.mts` for a read-only report of each hold's
 authored conditions. It reads committed catalog source, an optional listing
