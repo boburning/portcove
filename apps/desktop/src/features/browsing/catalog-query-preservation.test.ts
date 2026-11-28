@@ -1,6 +1,6 @@
 import { expect, it } from "vite-plus/test";
 import { portDefinition, portStatus } from "../../test-fixtures";
-import type { CatalogBrowsingContext, CatalogBrowsingSnapshot } from "../../types";
+import type { CatalogBrowsingContext, CatalogBrowsingSnapshot, PortListing } from "../../types";
 import { catalogEntries, type CatalogEntry } from "./catalog-entry";
 import { evaluateCatalogQuery, type CatalogQueryContext } from "./catalog-query";
 
@@ -142,11 +142,13 @@ it("preserves first integration identity and interleaved input order with confli
 it("presents one entry for a Core-associated registration and keeps unrelated choices visible", () => {
   const canonical = { ...portDefinition(), id: "canonical" };
   const other = { ...portDefinition(), id: "different-implementation", name: canonical.name };
-  const local = {
+  const local: PortListing = {
     id: "github-12345",
     name: canonical.name,
     summary: canonical.summary,
-    project_url: canonical.project_url!,
+    project_url: canonical.project_url,
+    platforms: [],
+    availability: "unknown",
   };
   const directory = { format_version: 19, listings: [{ ...local, id: canonical.id }, local] };
   const status = {
