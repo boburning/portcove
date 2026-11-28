@@ -536,6 +536,35 @@
       ]
     },
     {
+      "port_id": "super-bomberman-recomp",
+      "platform": "windows-x86-64",
+      "version": "v0.1.1",
+      "sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a",
+      "derivation_inputs_sha256": "36b5b766fa225bf44c2e02d5121ca11c14063f55a3efe1d23bf5c90ac16057ce",
+      "size": 1245795,
+      "asset_name": "BombermanRecomp-windows-x64-v0.1.1.zip",
+      "reviewed_by": "applicability:super-bomberman-recomp-game-source",
+      "shape_version": 2,
+      "shape": {
+        "programs": [
+          "bomberman_headless.exe",
+          "bombermanrecomp.exe"
+        ],
+        "top_directories": [],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      },
+      "player_candidates": [
+        {
+          "path": "bombermanrecomp.exe",
+          "machine": "pe-x86-64",
+          "sha256": "f0b6e6271c2035c12c05de7fa068d1fe3fcf22df84038940f65ab7025adb4150"
+        }
+      ]
+    },
+    {
       "port_id": "super-mario-world-recomp",
       "platform": "windows-x86-64",
       "version": "v0.12.0",
@@ -1218,5 +1247,5 @@
       ]
     }
   ],
-  "entries_sha256": "8b1166370f0cc2ce8dcebe97110702aee040b465517695032a346c729496ccb9"
+  "entries_sha256": "9cb8cb993dd2c8feb0b43ef61fe99712db0063026c54e80a5c2710f09034e660"
 }
