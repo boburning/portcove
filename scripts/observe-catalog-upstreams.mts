@@ -651,13 +651,12 @@ export async function runCatalogUpstreams(
         return policy;
       },
       export: async (source, sourceConfig, observation, policies) => {
-        const legacy =
-          sourceConfig.format === 1 &&
+        const configured =
           sourceConfig.port_id === config.port_id &&
-          sourceConfig.repository === config.repository;
+          sourceConfig.repository === config.repository &&
+          sourceConfig.repository_id === config.repository_id;
         const filename = path.join(handoffDirectory, `${observationHash(sourceConfig)}.json`);
-        // The legacy report retains the full configured inventory. In the
-        // catalog handoff it would repeat the same large list for each source.
+        // Only the configured report carries the full list of unmonitored ports.
         const { unmonitored_port_ids: _inventory, ...sourceReport } = observation.report;
         const report = {
           ...sourceReport,
@@ -692,8 +691,8 @@ export async function runCatalogUpstreams(
             ? "last-complete-historical-fallback; current state unknown"
             : "complete-current-consumer-projections; managed eligibility remains Core-only",
         };
-        if (legacy)
-          await atomicJson(path.join(directory(sourceConfig), "report.json"), {
+        if (configured)
+          await atomicJson(path.join(directory(config), "report.json"), {
             ...observation.report,
             execution: report.execution,
           });

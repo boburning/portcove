@@ -9,7 +9,11 @@ import { GitHubApiError } from "./github-operation.mts";
 import type { Octokit } from "@octokit/core";
 import type { DiscoveryMetadataResponse } from "./discovery-primary-progress.mts";
 import { readFileSync } from "node:fs";
-import { observationHash } from "./upstream-observer.mts";
+import {
+  configuredCandidateObserverConfig,
+  observationHash,
+  validateObserverConfig,
+} from "./upstream-observer.mts";
 import { releaseFingerprint } from "./discovery-checkpoint.mts";
 import type { DiscoveryCheckpoint } from "./discovery-checkpoint.mts";
 import { readDiscoveryReport } from "./discovery-artifact.mts";
@@ -640,7 +644,7 @@ export async function collectDiscoverySources(
   return result;
 }
 export async function consumeConfiguredObserver(c: SourceContext) {
-  const expected = rec(
+  const expected = validateObserverConfig(
     JSON.parse(readFileSync(new URL("../release/upstream-observer.json", import.meta.url), "utf8")),
   );
   const runs = rec(
@@ -700,9 +704,20 @@ export async function consumeConfiguredObserver(c: SourceContext) {
   const execution = rec(report.execution),
     observation = rec(report.observation),
     scope = rec(report.configured_scope);
+  const config =
+    observation.format === expected.format ? expected : configuredCandidateObserverConfig(expected);
+  const configHash = observationHash(config);
   if (
     report.format !== 1 ||
-    report.config_sha256 !== observationHash(expected) ||
+    report.config_sha256 !== configHash ||
+    observation.config_sha256 !== configHash ||
+    observation.format !== config.format ||
+    observation.port_id !== expected.port_id ||
+    observation.authority !== "provider-observation-only" ||
+    (config.format === 2 &&
+      (!isRecord(observation.coverage) ||
+        observation.coverage.kind !== "channel-candidate-assets" ||
+        observation.coverage.complete_release_headers !== true)) ||
     scope.repository_id !== expected.repository_id ||
     scope.repository !== expected.repository ||
     scope.port_id !== expected.port_id ||

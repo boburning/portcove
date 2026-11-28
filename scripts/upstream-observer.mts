@@ -442,6 +442,22 @@ export function validateObserverConfig(config: unknown): ObserverConfig {
   return config;
 }
 
+/** Bind the configured artifact's scoped collection to the committed template.
+ * Keep the template itself unchanged so its retained checkpoint graph still restores.
+ */
+export function configuredCandidateObserverConfig(template: ObserverConfig): ObserverConfig {
+  if (template.format === 2) return template;
+  return validateObserverConfig({
+    ...template,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: observationHash({
+      kind: "configured-core-candidate-assets-v1",
+      template: observationHash(template),
+    }),
+  });
+}
+
 function textFact(value: unknown, label: string, maximum = 1024) {
   const hasControlCharacter =
     typeof value === "string" &&

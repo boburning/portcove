@@ -11,6 +11,12 @@ import {
 import { boundedDiscoveryRequest, discoveryReadCeiling } from "./discovery-http.mts";
 import { boundedDiscoveryInput } from "./daily-discovery-session.mts";
 import { readDiscoveryReport } from "./discovery-artifact.mts";
+import { consumeConfiguredObserver } from "./daily-discovery-sources.mts";
+import {
+  configuredCandidateObserverConfig,
+  observationHash,
+  validateObserverConfig,
+} from "./upstream-observer.mts";
 import { deflateRawSync, crc32 } from "node:zlib";
 import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
@@ -626,6 +632,115 @@ function zip(text: string, declaredSize?: number) {
   end.writeUInt32LE(before.length, 16);
   return Buffer.concat([before, central, name, end]);
 }
+void test("daily discovery binds full and Core-scoped configured reports to scheduled evidence", async () => {
+  const template = validateObserverConfig(
+    JSON.parse(readFileSync(new URL("../release/upstream-observer.json", import.meta.url), "utf8")),
+  );
+  const scoped = configuredCandidateObserverConfig(template);
+  const run = {
+    id: 123,
+    run_attempt: 1,
+    head_sha: "a".repeat(40),
+    html_url: "https://github.com/boburning/portcove/actions/runs/123",
+    status: "completed",
+    conclusion: "success",
+  };
+  const facts = { repository: { id: template.repository_id }, releases: [] };
+  const factsHash = observationHash(facts);
+  let bytes = Buffer.alloc(0);
+  const downloadUrl = "https://api.github.com/repos/boburning/portcove/actions/artifacts/9/zip";
+  const budget = new DiscoveryBudget("ordinary");
+  const sdk = await createGitHubClient(
+    discoveryGitHubScope(budget, "fixture-token", {
+      fetch: async (url) => {
+        const pathname = new URL(typeof url === "string" || url instanceof URL ? url : url.url)
+          .pathname;
+        if (pathname.endsWith("/workflows/354075266/runs"))
+          return Response.json({ workflow_runs: [run] });
+        assert.ok(pathname.endsWith("/runs/123/artifacts"));
+        return Response.json({
+          total_count: 1,
+          artifacts: [
+            {
+              id: 9,
+              name: "configured-upstream-observation-123-1",
+              archive_download_url: downloadUrl,
+              size_in_bytes: bytes.length,
+              digest: `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
+            },
+          ],
+        });
+      },
+    }),
+  );
+  let saves = 0;
+  const source = {
+    sdk,
+    budget,
+    http: {
+      request: async (method: string, url: string) => {
+        assert.equal(method, "GET");
+        assert.equal(url, downloadUrl);
+        return {
+          requests: 1,
+          bytes: bytes.length,
+          status: 200,
+          text: bytes.toString("base64"),
+          headers: {},
+        };
+      },
+    },
+    save: () => {
+      saves++;
+    },
+  };
+  const report = (config: typeof template) => {
+    const configHash = observationHash(config);
+    return {
+      format: 1,
+      config_sha256: configHash,
+      configured_scope: template,
+      execution: {
+        run_id: String(run.id),
+        run_attempt: String(run.run_attempt),
+        kind: "schedule",
+        source_commit: run.head_sha,
+      },
+      stale: false,
+      exception: null,
+      last_complete_at: new Date().toISOString(),
+      observation: {
+        format: config.format,
+        config_sha256: configHash,
+        port_id: template.port_id,
+        authority: "provider-observation-only",
+        facts,
+        facts_sha256: factsHash,
+        ...(config.format === 2
+          ? { coverage: { kind: "channel-candidate-assets", complete_release_headers: true } }
+          : {}),
+      },
+    };
+  };
+  for (const config of [template, scoped]) {
+    bytes = zip(JSON.stringify(report(config)));
+    const consumed = await consumeConfiguredObserver(source);
+    assert.deepEqual(consumed.records, [
+      { key: `repo:${template.repository_id}`, fingerprint: factsHash },
+    ]);
+  }
+  const mismatch = report(scoped);
+  mismatch.observation.config_sha256 = observationHash(template);
+  bytes = zip(JSON.stringify(mismatch));
+  await assert.rejects(consumeConfiguredObserver(source), /binding, freshness or facts mismatch/);
+
+  const partial = report(scoped);
+  partial.observation.coverage!.complete_release_headers = false;
+  bytes = zip(JSON.stringify(partial));
+  await assert.rejects(consumeConfiguredObserver(source), /binding, freshness or facts mismatch/);
+  assert.equal(saves, 2);
+});
+
 void test("observer ZIP validates digest, structure, declared expansion and actual inflation cap", () => {
   const bytes = zip('{"ok":true}');
   assert.deepEqual(

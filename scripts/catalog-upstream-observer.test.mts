@@ -42,6 +42,7 @@ import type {
   CatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
 import {
+  configuredCandidateObserverConfig,
   observationHash,
   reusableProviderObservation,
   validateObserverConfig,
@@ -2994,7 +2995,7 @@ void test("measured quiet activity defers inside freshness and catalog changes r
   assert.equal(reset.mean_change_interval_ms, null);
 });
 
-void test("legacy artifact retains its original report shape while shared ports get separate catalog policies", async (t) => {
+void test("configured artifact retains its report path while using Core-selected coverage", async (t) => {
   const work = fileURLToPath(new URL("../work/", import.meta.url));
   await mkdir(work, { recursive: true });
   const root = await mkdtemp(path.join(work, "catalog-legacy-test-"));
@@ -3038,12 +3039,18 @@ void test("legacy artifact retains its original report shape while shared ports 
       "utf8",
     ),
   ) as Record<string, unknown>;
-  assert.equal(legacyReport.config_sha256, observationHash(legacy));
+  const scoped = configuredCandidateObserverConfig(legacy);
+  assert.equal(legacyReport.config_sha256, observationHash(scoped));
+  assert.ok(isRecord(legacyReport.observation));
+  assert.equal(legacyReport.observation.format, 2);
+  assert.equal(legacyReport.observation.config_sha256, observationHash(scoped));
+  assert.ok(isRecord(legacyReport.observation.coverage));
+  assert.equal(legacyReport.observation.coverage.complete_release_headers, true);
   assert.equal(Object.hasOwn(legacyReport, "catalog_policies"), false);
   assert.equal(Object.hasOwn(legacyReport, "source_port_ids"), false);
   assert.deepEqual(legacyReport.unmonitored_port_ids, ["rolling-port"]);
   const handoff = JSON.parse(
-    await readFile(path.join(result.handoff_directory, `${observationHash(legacy)}.json`), "utf8"),
+    await readFile(path.join(result.handoff_directory, `${observationHash(scoped)}.json`), "utf8"),
   ) as Record<string, unknown>;
   assert.ok(Array.isArray(handoff.catalog_policies) && handoff.catalog_policies.length === 2);
   assert.equal(Object.hasOwn(handoff, "unmonitored_port_ids"), false);

@@ -29,6 +29,7 @@ import {
   ObservationFailure,
   validateObserverConfig,
   checksumSourcesFromProjections,
+  configuredCandidateObserverConfig,
   boundedProviderRetryTime,
   boundedRetainedRetryClock,
 } from "./upstream-observer.mts";
@@ -1560,9 +1561,9 @@ export async function advanceCatalogObservations(
     // the observation itself still states where the next run resumes.
     let retainedCursor: string | null = null;
     try {
-      const legacy = isConfigured(source);
+      const configured = isConfigured(source);
       if (
-        legacy &&
+        configured &&
         progress.repository_id !== null &&
         progress.repository_id !== template.repository_id
       )
@@ -1571,7 +1572,7 @@ export async function advanceCatalogObservations(
           "Retained repository identity conflicts with the reviewed configured source",
         );
       if (progress.repository_id === null) {
-        const identity = legacy
+        const identity = configured
           ? template.repository_id
           : await options.repositoryId(source, {
               admitRequest,
@@ -1586,8 +1587,8 @@ export async function advanceCatalogObservations(
         progress.repository_id = identity;
         await commitCheckpoint();
       }
-      const config: ObserverConfig = legacy
-        ? template
+      const config: ObserverConfig = configured
+        ? configuredCandidateObserverConfig(template)
         : validateObserverConfig({
             ...template,
             format: 2,
@@ -2106,6 +2107,7 @@ export async function advanceCatalogObservations(
           result.report.observation?.facts_sha256 === retainedListingCompletion.facts_sha256;
         const changed =
           sameScope &&
+          progress.last_complete_config?.format === config.format &&
           progress.last_complete_facts_sha256 !== result.report.observation?.facts_sha256;
         if (!sameScope && !retainedTiming) {
           progress.last_change_at = new Date(now()).toISOString();
