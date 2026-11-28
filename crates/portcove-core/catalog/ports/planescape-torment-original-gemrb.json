@@ -62,7 +62,17 @@
       "format_version": 1,
       "id": "planescape-torment",
       "evidence_urls": ["https://gemrb.org/Install.html", "https://github.com/gemrb/gemrb"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "planescape-torment-pc-original",
+          "title": "Planescape: Torment (original PC edition)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+            "https://gemrb.org/Features.html#status"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

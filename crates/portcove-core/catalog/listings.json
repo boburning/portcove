@@ -21328,7 +21328,17 @@
           "https://gemrb.org/Install.html",
           "https://github.com/gemrb/gemrb"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "baldur-s-gate-pc-original",
+            "title": "Baldur’s Gate (original PC edition)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+              "https://gemrb.org/Features.html#status"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -24142,7 +24152,16 @@
           "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#nblood",
           "https://github.com/ZDoom/Raze"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "blood-pc-1-21",
+            "title": "Blood 1.21 (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#nblood"
+            ]
+          }
+        ]
       }
     },
     {
@@ -43823,7 +43842,17 @@
           "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
           "https://github.com/ZDoom/Raze"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "duke-nukem-3d-pc-atomic-edition",
+            "title": "Duke Nukem 3D: Atomic Edition (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/duke3d/src/grpscan.cpp"
+            ]
+          }
+        ]
       }
     },
     {
@@ -43964,7 +43993,16 @@
           "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
           "https://github.com/polaco1782/v64recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "duke-nukem-64-nintendo-64",
+            "title": "Duke Nukem 64 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem"
+            ]
+          }
+        ]
       }
     },
     {
@@ -58775,7 +58813,17 @@
           "https://gemrb.org/Install.html",
           "https://github.com/gemrb/gemrb"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "icewind-dale-ii-pc-original",
+            "title": "Icewind Dale II (original PC edition)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+              "https://gemrb.org/Features.html#status"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -58850,7 +58898,35 @@
           "https://gemrb.org/Install.html",
           "https://github.com/gemrb/gemrb"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "icewind-dale-pc-original",
+            "title": "Icewind Dale (original PC edition)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+              "https://gemrb.org/Features.html#status"
+            ]
+          },
+          {
+            "id": "icewind-dale-pc-heart-of-winter",
+            "title": "Icewind Dale: Heart of Winter (PC expansion)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+              "https://gemrb.org/Features.html#status"
+            ]
+          },
+          {
+            "id": "icewind-dale-pc-trials-of-the-luremaster",
+            "title": "Icewind Dale: Trials of the Luremaster (PC expansion)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+              "https://gemrb.org/Features.html#status"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -64638,7 +64714,17 @@
         "evidence_urls": [
           "https://github.com/nxporting/nxport"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "kirby-and-the-forgotten-land-nintendo-switch",
+            "title": "Kirby and the Forgotten Land (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://www.nintendo.com/us/store/products/kirby-and-the-forgotten-land-switch/",
+              "https://github.com/nxporting/nxport/blob/22032911cc82e9a573eb700e8e16cbd891af86c0/README.md#how-do-i-get-set-up"
+            ]
+          }
+        ]
       }
     },
     {
@@ -69066,7 +69152,17 @@
         "evidence_urls": [
           "https://github.com/nxporting/nxport"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mario-kart-8-deluxe-nintendo-switch",
+            "title": "Mario Kart 8 Deluxe (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://mariokart8deluxe.nintendo.com/",
+              "https://github.com/nxporting/nxport/blob/22032911cc82e9a573eb700e8e16cbd891af86c0/README.md#how-do-i-get-set-up"
+            ]
+          }
+        ]
       }
     },
     {
@@ -77278,7 +77374,26 @@
           "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
           "https://github.com/ZDoom/Raze"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "nam-pc",
+            "title": "NAM (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/duke3d/src/grpscan.cpp"
+            ]
+          },
+          {
+            "id": "nam-pc-napalm",
+            "title": "NAPALM (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/duke3d/src/grpscan.cpp"
+            ]
+          }
+        ]
       }
     },
     {
@@ -86970,7 +87085,17 @@
           "https://gemrb.org/Install.html",
           "https://github.com/gemrb/gemrb"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "planescape-torment-pc-original",
+            "title": "Planescape: Torment (original PC edition)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+              "https://gemrb.org/Features.html#status"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -89817,7 +89942,35 @@
           "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
           "https://github.com/ZDoom/Raze"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "powerslave-exhumed-dos-ms-dos-powerslave-retail",
+            "title": "PowerSlave (DOS retail)",
+            "system": "ms-dos",
+            "evidence_urls": [
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/exhumed/src/grpscan.cpp"
+            ]
+          },
+          {
+            "id": "powerslave-exhumed-dos-ms-dos-exhumed-retail",
+            "title": "Exhumed (DOS retail)",
+            "system": "ms-dos",
+            "evidence_urls": [
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/exhumed/src/grpscan.cpp"
+            ]
+          },
+          {
+            "id": "powerslave-exhumed-dos-ms-dos-powerslave-demo",
+            "title": "PowerSlave (DOS demo)",
+            "system": "ms-dos",
+            "evidence_urls": [
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/exhumed/src/grpscan.cpp"
+            ]
+          }
+        ]
       }
     },
     {
@@ -94867,7 +95020,17 @@
           "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
           "https://github.com/ZDoom/Raze"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "redneck-rampage-pc",
+            "title": "Redneck Rampage (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/rr/src/grpscan.cpp"
+            ]
+          }
+        ]
       }
     },
     {
@@ -95006,7 +95169,17 @@
         "evidence_urls": [
           "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "redneck-rampage-rides-again-pc",
+            "title": "Redneck Rampage: Rides Again (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/rr/src/grpscan.cpp"
+            ]
+          }
+        ]
       }
     },
     {
@@ -111427,7 +111600,17 @@
         "evidence_urls": [
           "https://github.com/nxporting/nxport"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-bros-wonder-nintendo-switch",
+            "title": "Super Mario Bros. Wonder (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://www.nintendo.com/us/store/products/super-mario-bros-wonder-118640/",
+              "https://github.com/nxporting/nxport/blob/22032911cc82e9a573eb700e8e16cbd891af86c0/README.md#how-do-i-get-set-up"
+            ]
+          }
+        ]
       }
     },
     {
@@ -111731,7 +111914,17 @@
         "evidence_urls": [
           "https://github.com/nxporting/nxport"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-odyssey-nintendo-switch",
+            "title": "Super Mario Odyssey (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://www.nintendo.com/us/store/products/super-mario-odyssey-switch/",
+              "https://github.com/nxporting/nxport/blob/22032911cc82e9a573eb700e8e16cbd891af86c0/README.md#how-do-i-get-set-up"
+            ]
+          }
+        ]
       }
     },
     {
@@ -117549,7 +117742,17 @@
         "evidence_urls": [
           "https://github.com/nxporting/nxport"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-breath-of-the-wild-nintendo-switch",
+            "title": "The Legend of Zelda: Breath of the Wild (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://www.nintendo.com/us/store/products/the-legend-of-zelda-breath-of-the-wild-us/",
+              "https://github.com/nxporting/nxport/blob/22032911cc82e9a573eb700e8e16cbd891af86c0/README.md#how-do-i-get-set-up"
+            ]
+          }
+        ]
       }
     },
     {
@@ -117920,7 +118123,17 @@
         "evidence_urls": [
           "https://github.com/nxporting/nxport"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-tears-of-the-kingdom-nintendo-switch",
+            "title": "The Legend of Zelda: Tears of the Kingdom (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://www.nintendo.com/us/store/products/the-legend-of-zelda-tears-of-the-kingdom-switch/",
+              "https://github.com/nxporting/nxport/blob/22032911cc82e9a573eb700e8e16cbd891af86c0/README.md#how-do-i-get-set-up"
+            ]
+          }
+        ]
       }
     },
     {
@@ -131762,7 +131975,17 @@
           "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
           "https://github.com/ZDoom/Raze"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "world-war-ii-gi-pc",
+            "title": "World War II GI (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+              "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/duke3d/src/grpscan.cpp"
+            ]
+          }
+        ]
       }
     },
     {

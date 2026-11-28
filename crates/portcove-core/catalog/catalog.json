@@ -56081,7 +56081,17 @@
             "https://gemrb.org/Install.html",
             "https://github.com/gemrb/gemrb"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "baldur-s-gate-pc-original",
+              "title": "Baldur’s Gate (original PC edition)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+                "https://gemrb.org/Features.html#status"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -67519,7 +67529,17 @@
             "https://gemrb.org/Install.html",
             "https://github.com/gemrb/gemrb"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "icewind-dale-ii-pc-original",
+              "title": "Icewind Dale II (original PC edition)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+                "https://gemrb.org/Features.html#status"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -67649,7 +67669,35 @@
             "https://gemrb.org/Install.html",
             "https://github.com/gemrb/gemrb"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "icewind-dale-pc-original",
+              "title": "Icewind Dale (original PC edition)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+                "https://gemrb.org/Features.html#status"
+              ]
+            },
+            {
+              "id": "icewind-dale-pc-heart-of-winter",
+              "title": "Icewind Dale: Heart of Winter (PC expansion)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+                "https://gemrb.org/Features.html#status"
+              ]
+            },
+            {
+              "id": "icewind-dale-pc-trials-of-the-luremaster",
+              "title": "Icewind Dale: Trials of the Luremaster (PC expansion)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+                "https://gemrb.org/Features.html#status"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -74208,7 +74256,17 @@
             "https://gemrb.org/Install.html",
             "https://github.com/gemrb/gemrb"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "planescape-torment-pc-original",
+              "title": "Planescape: Torment (original PC edition)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+                "https://gemrb.org/Features.html#status"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [

@@ -43,7 +43,17 @@
       "format_version": 1,
       "id": "the-legend-of-zelda-breath-of-the-wild",
       "evidence_urls": ["https://github.com/nxporting/nxport"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-breath-of-the-wild-nintendo-switch",
+          "title": "The Legend of Zelda: Breath of the Wild (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://www.nintendo.com/us/store/products/the-legend-of-zelda-breath-of-the-wild-us/",
+            "https://github.com/nxporting/nxport/blob/22032911cc82e9a573eb700e8e16cbd891af86c0/README.md#how-do-i-get-set-up"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
