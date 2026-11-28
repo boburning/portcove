@@ -581,7 +581,7 @@ fn migration_is_behavior_preserving() {
         .map(|listing| listing.id.clone())
         .collect();
     assert_eq!(managed.len(), 5, "managed holds");
-    assert_eq!(listed.len(), 152, "listing restrictions");
+    assert_eq!(listed.len(), 156, "listing restrictions");
     for listing in catalog.listings() {
         // Every row is typed; none relies on reader normalization.
         assert_eq!(
