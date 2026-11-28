@@ -234,7 +234,17 @@ async fn a_pending_download_never_serializes_directory_observed_covers() {
         )
         .await
         .unwrap();
-    let encoded = serde_json::to_string(&service.pending_setups().unwrap()[0]).unwrap();
+    let encoded = service
+        .library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT record_json FROM catalog_downloads WHERE port_id=?1",
+            [&request.port_id],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap();
+    assert!(super::stage::tests::released_reader_accepts(&encoded));
     let mut decoded: PendingSetupRecord = serde_json::from_str(&encoded).unwrap();
     assert_eq!(decoded.id, pending.id);
     assert_eq!(decoded.format_version, 1);
