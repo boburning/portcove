@@ -121,6 +121,13 @@ pub(crate) fn assess_package_name(
             None,
         );
     }
+    if suggestion.role == ArtifactRole::DevTool && has(&["sdk", "devkit"]) && !exact_hint {
+        return finish(
+            Auxiliary,
+            "This package is labeled as a development kit. Choose the upstream game package to play.",
+            None,
+        );
+    }
     // Generic managed/platform hints must not turn a debug build into the
     // recommended release. A reviewed debug player needs its whole filename.
     if suggestion.role.is_supporting() || (!exact_hint && suggestion.debug_build) {
@@ -1019,6 +1026,37 @@ mod tests {
         );
         assert_eq!(assessments[0].suitability, "incompatible");
         assert_eq!(recommended, Some(4_u64.into()));
+    }
+
+    #[test]
+    fn development_kits_do_not_become_default_game_downloads() {
+        let releases = [
+            asset(1, "a-game-release.zip"),
+            asset(2, "another-game-release.zip"),
+            asset(3, "engine-SDK-0.9.1-linux-amd64.zip"),
+            asset(4, "engine-devkit-0.9.1-win-amd64.zip"),
+        ];
+        let linux = Platform::LinuxX86_64;
+        for hints in [vec![], vec!["linux-amd64".into(), ".zip".into()]] {
+            let (assessments, recommendation) = recommend_packages(&releases, linux, &hints, true);
+            assert_eq!(recommendation, None);
+            assert_eq!(assessments[2].suitability, "auxiliary");
+        }
+        let windows = Platform::WindowsX86_64;
+        let (assessments, recommendation) =
+            recommend_packages(&releases, windows, &["a-game-release.zip".into()], true);
+        assert_eq!(recommendation, Some(1_u64.into()));
+        assert_eq!(assessments[3].suitability, "auxiliary");
+        assert_eq!(
+            recommend_packages(
+                &releases,
+                linux,
+                &["engine-SDK-0.9.1-linux-amd64.zip".into()],
+                true,
+            )
+            .1,
+            Some(3_u64.into())
+        );
     }
 
     #[test]
