@@ -95,9 +95,11 @@ it.each(["pending", "failed"] as const)(
         readState={{ status: state, hasInventory: true }}
       />,
     );
-    await expect
-      .element(page.getByText("Last loaded backup information", { exact: true }))
-      .toBeVisible();
+    const status = page.getByRole("status");
+    await expect.element(status).toBeVisible();
+    expect(status.element().textContent).toContain(
+      state === "pending" ? "Checking backup information" : "We couldn’t load backup information",
+    );
     await expect.element(page.getByText(/Last known completed backup:/)).toBeVisible();
     expect(document.body.textContent).not.toContain("Latest completed backup:");
     expect(document.body.textContent).not.toContain("No completed backup recorded.");

@@ -63,9 +63,7 @@ describe("player-data protection summary", () => {
     "labels retained facts as last loaded after a %s read",
     (state) => {
       const html = render(snapshot(), state);
-      expect(html).toContain("Last loaded backup information");
       expect(html).toContain("No completed backup was listed when backup history was last loaded.");
-      expect(html).not.toContain("Latest backup information");
       expect(html).not.toContain("No completed backup recorded.");
     },
   );

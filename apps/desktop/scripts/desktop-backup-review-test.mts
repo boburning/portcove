@@ -148,8 +148,16 @@ export async function backupReviewScenario({
       assert.equal(protection.port_id, port.id);
       assert.ok(protection.installations.some((item) => item.install_id === install.id));
       const complete = currentInventory.state === "healthy" && !currentInventory.problems.length;
-      const expectedSummary = ["Latest backup information"];
-      if (!complete) expectedSummary.push("We couldn’t confirm");
+      const expectedSummary = [
+        protection.latest_completed_backup
+          ? complete
+            ? "Latest completed backup:"
+            : "Last known completed backup:"
+          : complete
+            ? "No completed backup recorded."
+            : "We couldn’t confirm a completed backup because the history is incomplete.",
+      ];
+      if (!complete) expectedSummary.push("We couldn’t confirm your latest completed backup");
       // Each installation has an exact role/version heading.
       const expectedHeadings = protection.installations
         .map(
