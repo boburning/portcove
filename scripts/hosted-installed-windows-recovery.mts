@@ -12,7 +12,10 @@ import { isRecord } from "./runtime-values.mts";
 import { cachedDesktopDrivers } from "./tool-cache.mts";
 
 const repository = "boburning/portcove";
-const scenario = "native-library-recovery-bundle";
+const recoveryScenario = "native-library-recovery-bundle";
+const organizationScenario = "native-library-organization-restart";
+type InstalledScenario = typeof recoveryScenario | typeof organizationScenario;
+type ProductInputs = Record<"app" | "preparation-cli" | "preparation-tool", FileIdentity>;
 const root = fileURLToPath(new URL("../", import.meta.url));
 const packageLimit = 128 * 1024 * 1024;
 const resultLeaf = "native-recovery-bundle-result.json";
@@ -24,10 +27,17 @@ export function recoveryPreviewVersion(tag: string) {
   return matched[1]!;
 }
 
-export async function verifyPublishedRecoveryObservation(
+export function publishedWindowsScenario(operation: string) {
+  if (operation === "windows-installed-library-recovery") return recoveryScenario;
+  if (operation === "windows-installed-library-organization") return organizationScenario;
+  throw new Error("Supply one fixed Windows installed observation operation");
+}
+
+async function installedObservation(
   native: string,
   revision: string,
-  inputs: Record<"app" | "preparation-cli" | "preparation-tool", FileIdentity>,
+  inputs: ProductInputs,
+  scenario: InstalledScenario,
 ) {
   const json = async (leaf: string): Promise<unknown> =>
     JSON.parse(await readFile(path.join(native, leaf), "utf8"));
@@ -53,6 +63,40 @@ export async function verifyPublishedRecoveryObservation(
     assert.equal(match.sha256, expected.sha256);
     assert.equal(match.bytes, expected.bytes);
   }
+  assert.ok(Array.isArray(observation.artifacts));
+  const artifacts: readonly unknown[] = observation.artifacts;
+  const boundFile = async (leaf: string) => {
+    const expected = await fileIdentity(path.join(native, leaf));
+    assert.deepEqual(
+      artifacts.filter((entry) => isRecord(entry) && entry.path === expected.path),
+      [expected],
+    );
+    return expected;
+  };
+  const boundRestart = async (leaf: string) => {
+    const restart = await json(leaf);
+    assert.ok(isRecord(restart) && isRecord(restart.exited));
+    assert.ok(typeof restart.exited.exited_at === "string");
+    assert.ok(
+      typeof restart.exited.observed_processes === "number" &&
+        restart.exited.observed_processes > 1,
+    );
+    return boundFile(leaf);
+  };
+  return { json, boundFile, boundRestart };
+}
+
+export async function verifyPublishedRecoveryObservation(
+  native: string,
+  revision: string,
+  inputs: ProductInputs,
+) {
+  const { json, boundFile, boundRestart } = await installedObservation(
+    native,
+    revision,
+    inputs,
+    recoveryScenario,
+  );
 
   const result = await json(resultLeaf);
   assert.ok(
@@ -72,22 +116,46 @@ export async function verifyPublishedRecoveryObservation(
       typeof result.afterRestore.generation === "number" &&
       result.opened.generation > result.afterRestore.generation,
   );
-  const restart = await json(restartLeaf);
-  assert.ok(isRecord(restart) && isRecord(restart.exited));
-  assert.ok(typeof restart.exited.exited_at === "string");
-  assert.ok(
-    typeof restart.exited.observed_processes === "number" && restart.exited.observed_processes > 1,
-  );
+  return { result: await boundFile(resultLeaf), restart: await boundRestart(restartLeaf) };
+}
 
-  const resultIdentity = await fileIdentity(path.join(native, resultLeaf));
-  const restartIdentity = await fileIdentity(path.join(native, restartLeaf));
-  assert.ok(Array.isArray(observation.artifacts));
-  const artifacts: readonly unknown[] = observation.artifacts;
-  for (const expected of [resultIdentity, restartIdentity]) {
-    const matches = artifacts.filter((entry) => isRecord(entry) && entry.path === expected.path);
-    assert.deepEqual(matches, [expected]);
-  }
-  return { result: resultIdentity, restart: restartIdentity };
+export async function verifyPublishedOrganizationObservation(
+  native: string,
+  revision: string,
+  inputs: ProductInputs,
+) {
+  const { json, boundFile, boundRestart } = await installedObservation(
+    native,
+    revision,
+    inputs,
+    organizationScenario,
+  );
+  const leaf = "library-organization-result.json";
+  const result = await json(leaf);
+  assert.ok(isRecord(result) && result.port_id === "opengoal-jak1");
+  assert.ok(typeof result.collection_id === "string" && result.collection_id.length > 0);
+  assert.equal(result.host_restart_preserved_preferences, true);
+  assert.equal(result.installed_versions_sources_backups_preserved, true);
+  const { initial, persisted, final } = result;
+  assert.ok(isRecord(initial) && isRecord(persisted) && isRecord(final));
+  assert.ok(Array.isArray(initial.saved_game_ids) && Array.isArray(persisted.saved_game_ids));
+  const favorite = "game-jak-and-daxter-the-precursor-legacy";
+  const previousFavorites: readonly unknown[] = initial.saved_game_ids;
+  const savedFavorites: readonly unknown[] = persisted.saved_game_ids;
+  assert.ok(!previousFavorites.includes(favorite));
+  assert.deepEqual(new Set(savedFavorites), new Set([...previousFavorites, favorite]));
+  assert.equal(savedFavorites.length, previousFavorites.length + 1);
+  assert.deepEqual(final.saved_game_ids, initial.saved_game_ids);
+  assert.ok(isRecord(initial.collections) && isRecord(persisted.collections));
+  assert.equal(initial.collections[result.collection_id], undefined);
+  const collection = persisted.collections[result.collection_id];
+  assert.ok(isRecord(collection));
+  assert.deepEqual(collection.port_ids, [result.port_id]);
+  assert.deepEqual(final.collections, initial.collections);
+  return {
+    result: await boundFile(leaf),
+    restart: await boundRestart("native-organization-persisted-restart.json"),
+  };
 }
 
 function command(
@@ -136,7 +204,7 @@ function registry(environment: NodeJS.ProcessEnv): unknown {
   );
 }
 
-async function run(tag: string, version: string, temporary: string) {
+async function run(tag: string, version: string, temporary: string, scenario: InstalledScenario) {
   const installation = path.join(temporary, "installed");
   const output = path.join(root, "work", "installed-windows-recovery-evidence");
   const native = path.join(output, "desktop-verify", "installed", "native");
@@ -304,18 +372,34 @@ async function run(tag: string, version: string, temporary: string) {
       },
     );
     if (result.error) throw result.error;
-    assert.equal(result.status, 0, "Installed recovery scenario failed");
-    const recoveryEvidence = await verifyPublishedRecoveryObservation(native, currentRevision, {
+    assert.equal(result.status, 0, `Installed scenario failed: ${scenario}`);
+    const inputs = {
       app: executable,
       "preparation-cli": cliIdentity,
       "preparation-tool": await fileIdentity(probe),
-    });
+    };
+    const evidence =
+      scenario === recoveryScenario
+        ? {
+            recovery_evidence: await verifyPublishedRecoveryObservation(
+              native,
+              currentRevision,
+              inputs,
+            ),
+          }
+        : {
+            organization_evidence: await verifyPublishedOrganizationObservation(
+              native,
+              currentRevision,
+              inputs,
+            ),
+          };
     assert.deepEqual(await fileIdentity(application), executable);
     assert.deepEqual(registry(childEnvironment), registration);
     await retain("installed-after.json", {
       registration,
       executable,
-      recovery_evidence: recoveryEvidence,
+      ...evidence,
       outcome: "passed",
     });
     return 0;
@@ -334,12 +418,13 @@ if (invoked !== null && invoked === (await realpath(fileURLToPath(import.meta.ur
   assert.equal(process.env.GITHUB_EVENT_NAME, "workflow_dispatch");
   const tag = process.env.PORTCOVE_INSTALLED_RECOVERY_TAG ?? "";
   const version = recoveryPreviewVersion(tag);
+  const scenario = publishedWindowsScenario(process.env.PORTCOVE_INSTALLED_WINDOWS_OPERATION ?? "");
   const runnerTemp = process.env.RUNNER_TEMP ?? "";
   assert.ok(
     path.isAbsolute(runnerTemp) && !/\s/u.test(runnerTemp),
     "Require isolated runner storage",
   );
   process.exitCode = await resourceEntrypoint("browser", () =>
-    run(tag, version, path.join(runnerTemp, "portcove-published-recovery")),
+    run(tag, version, path.join(runnerTemp, "portcove-published-recovery"), scenario),
   );
 }

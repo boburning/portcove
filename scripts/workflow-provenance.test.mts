@@ -1965,8 +1965,18 @@ void test("duplicate provenance entries refuse before decoding a second payload"
   assert.throws(() => parseProvenanceArchive(duplicate), /must contain one JSON record/);
 });
 
-void test("published Windows recovery has one fixed disposable installed route", async () => {
-  const { recoveryPreviewVersion } = await import("./hosted-installed-windows-recovery.mts");
+void test("published Windows observation admits only the two fixed disposable installed routes", async () => {
+  const { publishedWindowsScenario, recoveryPreviewVersion } =
+    await import("./hosted-installed-windows-recovery.mts");
+  assert.equal(
+    publishedWindowsScenario("windows-installed-library-recovery"),
+    "native-library-recovery-bundle",
+  );
+  assert.equal(
+    publishedWindowsScenario("windows-installed-library-organization"),
+    "native-library-organization-restart",
+  );
+  assert.throws(() => publishedWindowsScenario("native-library-organization-restart"), /fixed/u);
   assert.equal(recoveryPreviewVersion("nightly-0.1.0-preview.21"), "0.1.0-preview.21");
   for (const tag of [
     "latest",
@@ -1983,10 +1993,14 @@ void test("published Windows recovery has one fixed disposable installed route",
     ),
   );
   const job = record(record(record(workflow).jobs).windows_installed_library_recovery);
+  const dispatch = record(record(record(workflow).on).workflow_dispatch);
+  const operation = record(record(dispatch.inputs).operation);
+  assert.ok(Array.isArray(operation.options));
+  assert.ok(operation.options.includes("windows-installed-library-organization"));
   assert.equal(job["runs-on"], "windows-2022");
   assert.equal(
     job.if,
-    "${{ inputs.operation == 'windows-installed-library-recovery' && inputs.runner == 'windows-2022' && " +
+    "${{ (inputs.operation == 'windows-installed-library-recovery' || inputs.operation == 'windows-installed-library-organization') && inputs.runner == 'windows-2022' && " +
       "!inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
   );
   assert.deepEqual(job.permissions, { contents: "read", attestations: "read" });
@@ -2003,13 +2017,14 @@ void test("published Windows recovery has one fixed disposable installed route",
     record(execute.env).PORTCOVE_INSTALLED_RECOVERY_TAG,
     "${{ inputs.recovery_preview_tag }}",
   );
+  assert.equal(record(execute.env).PORTCOVE_INSTALLED_WINDOWS_OPERATION, "${{ inputs.operation }}");
   const evidence = record(required(steps.find((step) => record(step).if === "always()")));
   assert.match(text(evidence.run), /node scripts\/native-backup-evidence\.mts emit/u);
   assert.doesNotMatch(JSON.stringify(job), /upload-artifact|actions\/cache|rust-cache|secrets\./u);
 });
 
-void test("published Windows recovery requires bound restore and actual restart files", async (t) => {
-  const { verifyPublishedRecoveryObservation } =
+void test("published Windows observations require their own bound results and actual restart files", async (t) => {
+  const { verifyPublishedOrganizationObservation, verifyPublishedRecoveryObservation } =
     await import("./hosted-installed-windows-recovery.mts");
   const { fileIdentity } = await import("./development-evidence.mts");
   const directory = mkdtempSync(path.join(tmpdir(), "portcove-published-recovery-test-"));
@@ -2057,6 +2072,42 @@ void test("published Windows recovery requires bound restore and actual restart 
     exited: { exited_at: "2026-11-28T00:00:01.000Z", observed_processes: 3 },
   });
   await assert.rejects(() => verifyPublishedRecoveryObservation(directory, revision, inputs));
+
+  const organization = "native-library-organization-restart";
+  const initial = { saved_game_ids: [], collections: {} };
+  const organizationResult = {
+    port_id: "opengoal-jak1",
+    collection_id: "collection-1",
+    initial,
+    persisted: {
+      saved_game_ids: ["game-jak-and-daxter-the-precursor-legacy"],
+      collections: { "collection-1": { port_ids: ["opengoal-jak1"] } },
+    },
+    final: initial,
+    host_restart_preserved_preferences: true,
+    installed_versions_sources_backups_preserved: true,
+  };
+  const organizationArtifacts = [
+    write("library-organization-result.json", organizationResult),
+    write("native-organization-persisted-restart.json", {
+      exited: { exited_at: "2026-11-28T00:00:00.000Z", observed_processes: 2 },
+    }),
+  ];
+  const bindOrganization = async () =>
+    write("evidence.json", {
+      ...observation,
+      selected_scenarios: [organization],
+      checks: [{ scenario: organization, outcome: "passed" }],
+      artifacts: await Promise.all(organizationArtifacts.map((artifact) => fileIdentity(artifact))),
+    });
+  await bindOrganization();
+  const accepted = await verifyPublishedOrganizationObservation(directory, revision, inputs);
+  assert.equal(accepted.result.path, organizationArtifacts[0]);
+  assert.equal(accepted.restart.path, organizationArtifacts[1]);
+  await assert.rejects(() => verifyPublishedRecoveryObservation(directory, revision, inputs));
+  write("library-organization-result.json", { ...organizationResult, persisted: initial });
+  await bindOrganization();
+  await assert.rejects(() => verifyPublishedOrganizationObservation(directory, revision, inputs));
 });
 
 void test("Linux continuity publishes an outside-checkout store and lossless bounded private-free reports", async (t) => {
