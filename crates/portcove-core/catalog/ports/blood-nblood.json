@@ -54,7 +54,16 @@
         "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#nblood",
         "https://github.com/ZDoom/Raze"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "blood-pc-1-21",
+          "title": "Blood 1.21 (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#nblood"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -45,7 +45,17 @@
       "format_version": 1,
       "id": "super-mario-odyssey",
       "evidence_urls": ["https://github.com/nxporting/nxport"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-mario-odyssey-nintendo-switch",
+          "title": "Super Mario Odyssey (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://www.nintendo.com/us/store/products/super-mario-odyssey-switch/",
+            "https://github.com/nxporting/nxport/blob/22032911cc82e9a573eb700e8e16cbd891af86c0/README.md#how-do-i-get-set-up"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -46,7 +46,17 @@
         "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
         "https://github.com/ZDoom/Raze"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "duke-nukem-3d-pc-atomic-edition",
+          "title": "Duke Nukem 3D: Atomic Edition (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+            "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/duke3d/src/grpscan.cpp"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

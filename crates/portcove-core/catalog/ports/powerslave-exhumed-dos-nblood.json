@@ -56,7 +56,35 @@
         "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
         "https://github.com/ZDoom/Raze"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "powerslave-exhumed-dos-ms-dos-powerslave-retail",
+          "title": "PowerSlave (DOS retail)",
+          "system": "ms-dos",
+          "evidence_urls": [
+            "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
+            "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/exhumed/src/grpscan.cpp"
+          ]
+        },
+        {
+          "id": "powerslave-exhumed-dos-ms-dos-exhumed-retail",
+          "title": "Exhumed (DOS retail)",
+          "system": "ms-dos",
+          "evidence_urls": [
+            "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
+            "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/exhumed/src/grpscan.cpp"
+          ]
+        },
+        {
+          "id": "powerslave-exhumed-dos-ms-dos-powerslave-demo",
+          "title": "PowerSlave (DOS demo)",
+          "system": "ms-dos",
+          "evidence_urls": [
+            "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
+            "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/source/exhumed/src/grpscan.cpp"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
