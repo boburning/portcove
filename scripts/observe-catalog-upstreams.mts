@@ -51,7 +51,10 @@ import {
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import { isUpstreamBuildMetadataUrl } from "./upstream-github-build-output.mts";
 import { listingDirectoryTextMaximum } from "./listing-directory-carrier.mts";
-import { observeLauncherModPortals } from "./port-upstream-facts.mts";
+import {
+  observeLauncherModPortals,
+  observeReciprocalThunderstoreDocument,
+} from "./port-upstream-facts.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
 
@@ -65,10 +68,16 @@ export function omitOversizedBindingInputs<T extends { scope_binding_inputs: unk
 }
 
 function launcherModMetadataUrl(url: URL) {
-  if (url.origin !== "https://api.github.com") return false;
+  if (url.origin !== "https://api.github.com" || url.username || url.password) return false;
   const endpoint = url.pathname + url.search;
-  return /^\/repositories\/[1-9][0-9]*(?:\/commits\?per_page=1|\/git\/trees\/[a-f0-9]{40}|\/contents\/recomplauncher\.json\?ref=[a-f0-9]{40})?$/u.test(
-    endpoint,
+  return (
+    /^\/repositories\/[1-9][0-9]*(?:\/commits\?per_page=1|\/git\/trees\/[a-f0-9]{40}|\/contents\/recomplauncher\.json\?ref=[a-f0-9]{40})?$/u.test(
+      endpoint,
+    ) ||
+    (/^\?ref=[a-f0-9]{40}$/u.test(url.search) &&
+      /^\/repositories\/[1-9][0-9]*\/(?:readme|contents\/(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*\.md)$/iu.test(
+        url.pathname,
+      ))
   );
 }
 
@@ -232,6 +241,7 @@ export async function runCatalogUpstreams(
     modProviderRegistryFetch?: typeof fetch;
     observeFirstPartyModLinks?: boolean;
     launcherModRequestLimit?: number;
+    reciprocalModRequestLimit?: number;
     inspectCatalog?: typeof inspectCatalogDefinitions;
     repositoryMetadata?: (repository: string) => Promise<GitHubMetadataResponse>;
     log?: (value: string) => void;
@@ -301,6 +311,36 @@ export async function runCatalogUpstreams(
     observationToken,
     runtime.observer?.signal,
   );
+  const readBoundModMetadata =
+    (
+      slug: string,
+      account: Required<
+        Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
+      >,
+    ) =>
+    async (endpoint: string) => {
+      account.admitRequest();
+      try {
+        const response = await launcherModMetadata(slug, endpoint);
+        account.observeResponse(
+          new Response(null, { headers: Object.fromEntries(response.headers) }),
+        );
+        account.consumeResponseBytes(response.bodyBytes ?? null);
+        return response.status === 200 && response.bodyBytes !== undefined
+          ? ({ status: "observed", body: response.body } as const)
+          : ({ status: "unavailable", reason: "provider-response-unavailable" } as const);
+      } catch (error) {
+        if (!(error instanceof GitHubApiError)) throw error;
+        account.consumeResponseBytes(error.responseBytes);
+        if (error.code === "rate_limited") throw observerGitHubRateLimit(error, now());
+        if (error.code === "cancelled")
+          throw new ObservationFailure("cancelled", "First-party mod metadata read cancelled");
+        return {
+          status: "unavailable",
+          reason: error.status === 404 ? "provider-not-found" : "provider-transport",
+        } as const;
+      }
+    };
   let stepLogCredential: ReturnType<typeof localDeveloperCredential> | undefined;
   let health: unknown = null;
   try {
@@ -387,6 +427,9 @@ export async function runCatalogUpstreams(
       ...(runtime.launcherModRequestLimit === undefined
         ? {}
         : { launcherModRequestLimit: runtime.launcherModRequestLimit }),
+      ...(runtime.reciprocalModRequestLimit === undefined
+        ? {}
+        : { reciprocalModRequestLimit: runtime.reciprocalModRequestLimit }),
       ...(runtime.modProviderRegistryFetch
         ? { modProviderRegistryFetch: runtime.modProviderRegistryFetch }
         : {}),
@@ -515,29 +558,14 @@ export async function runCatalogUpstreams(
       ...(runtime.observeFirstPartyModLinks
         ? {
             observeLauncherMods: (repository, account) =>
-              observeLauncherModPortals(repository, async (endpoint) => {
-                account.admitRequest();
-                try {
-                  const response = await launcherModMetadata(repository.slug, endpoint);
-                  account.observeResponse(
-                    new Response(null, { headers: Object.fromEntries(response.headers) }),
-                  );
-                  account.consumeResponseBytes(response.bodyBytes ?? null);
-                  return response.status === 200 && response.bodyBytes !== undefined
-                    ? { status: "observed", body: response.body }
-                    : { status: "unavailable", reason: "provider-response-unavailable" };
-                } catch (error) {
-                  if (!(error instanceof GitHubApiError)) throw error;
-                  account.consumeResponseBytes(error.responseBytes);
-                  if (error.code === "rate_limited") throw observerGitHubRateLimit(error, now());
-                  if (error.code === "cancelled")
-                    throw new ObservationFailure(
-                      "cancelled",
-                      "First-party mod metadata read cancelled",
-                    );
-                  return { status: "unavailable", reason: "provider-transport" };
-                }
-              }),
+              observeLauncherModPortals(repository, readBoundModMetadata(repository.slug, account)),
+            observeReciprocalMods: (subject, account) =>
+              observeReciprocalThunderstoreDocument(
+                { id: subject.repository_id, slug: subject.slug },
+                subject.document,
+                subject.community,
+                readBoundModMetadata(subject.slug, account),
+              ),
           }
         : {}),
       readOriginalRecognition: async (repository, endpoint, account) => {
@@ -782,6 +810,7 @@ export async function runCatalogUpstreams(
       made_progress:
         acceptedProgress ||
         (result.report.launcher_mod_sources?.attempted ?? 0) > 0 ||
+        (result.report.reciprocal_mod_sources?.attempted ?? 0) > 0 ||
         catalogPositionAdvanced(beforePosition, catalogProgressPosition(result.checkpoint)),
     };
   });
@@ -880,6 +909,7 @@ export async function runCatalogOpportunity(
     const maxRequests =
       runtime.requestCeiling ?? hostedRequestCeiling(process.env.GITHUB_EVENT_NAME);
     let launcherRequestsRemaining = hostedLauncherModRequestLimit(maxRequests);
+    let reciprocalRequestsRemaining = Math.min(maxRequests, 12);
     const result = await continueCatalogBatches(
       async (excluded, requestLimit) => {
         await assertInputs();
@@ -891,6 +921,7 @@ export async function runCatalogOpportunity(
             launcherRequestsRemaining,
             hostedLauncherModRequestLimit(config.budget.requests),
           ),
+          reciprocalModRequestLimit: Math.min(reciprocalRequestsRemaining, requestLimit),
           observer: {
             ...runtime.observer,
             githubScope,
@@ -933,12 +964,14 @@ export async function runCatalogOpportunity(
             (runtime.log ?? console.log)(evidence);
           }
           launcherRequestsRemaining -= batch.report.launcher_mod_sources?.requests ?? 0;
+          reciprocalRequestsRemaining -= batch.report.reciprocal_mod_sources?.requests ?? 0;
           (runtime.log ?? console.log)(
             JSON.stringify({
               format: 1,
               kind: "catalog-observation-batch",
               offline_policy_only: offlinePolicyOnly,
               launcher_mod_sources: batch.report.launcher_mod_sources,
+              reciprocal_mod_sources: batch.report.reciprocal_mod_sources,
               requests: batch.report.requests,
               response_bytes: batch.report.response_bytes_charged,
               completed: batch.report.completed_source_keys.length,

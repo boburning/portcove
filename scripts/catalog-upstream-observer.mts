@@ -1,5 +1,12 @@
 import { launcherModGameScopes, verifyLauncherModGameScope } from "./launcher-mod-game-scope.mts";
 import {
+  reciprocalModSubjects,
+  recordReciprocalModAttempt,
+  validateReciprocalModProgress,
+  type ReciprocalModProgress,
+  type ReciprocalModSubject,
+} from "./reciprocal-mod-progress.mts";
+import {
   projectListingObservation,
   projectGitLabListingObservation,
   listingProviderIdentity,
@@ -41,7 +48,11 @@ import type {
   ProviderObservation,
 } from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
-import type { LauncherModObservation, LauncherModRepository } from "./port-upstream-facts.mts";
+import type {
+  LauncherModObservation,
+  LauncherModRepository,
+  ReciprocalThunderstoreObservation,
+} from "./port-upstream-facts.mts";
 import {
   type FirstPartyModProgress,
   launcherModSubjects,
@@ -242,6 +253,7 @@ export interface CatalogObserverCheckpoint {
   provider_retry_at: string | null;
   provider_capacities?: Record<string, ProviderCapacity>;
   mod_provider_registry?: ModProviderRegistryProgress;
+  reciprocal_mod_sources?: Record<string, ReciprocalModProgress>;
   launcher_mod_sources?: Record<string, FirstPartyModProgress>;
   /** Historical provenance only; never a successful observation/freshness clock. */
   baseline?: {
@@ -429,6 +441,8 @@ export function validateCatalogObserverCheckpoint(
     validateModProviderRegistryProgress(value.mod_provider_registry, now);
   if (value.launcher_mod_sources !== undefined)
     validateFirstPartyModProgress(value.launcher_mod_sources, now);
+  if (value.reciprocal_mod_sources !== undefined)
+    validateReciprocalModProgress(value.reciprocal_mod_sources, now);
   if (value.baseline !== undefined) {
     const baseline = value.baseline;
     if (
@@ -629,6 +643,13 @@ export interface CatalogObservationOptions extends Pick<
       Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
     >,
   ) => Promise<LauncherModObservation>;
+  observeReciprocalMods?: (
+    subject: ReciprocalModSubject,
+    account: Required<
+      Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
+    >,
+  ) => Promise<ReciprocalThunderstoreObservation>;
+  reciprocalModRequestLimit?: number;
   launcherModRequestLimit?: number;
   projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   exportProvider?: (
@@ -1169,6 +1190,94 @@ export async function advanceCatalogObservations(
         rule: "checkpoint-size",
         details: "A registry retry deadline would exceed the checkpoint envelope.",
       });
+    }
+  }
+  let reciprocalModSummary:
+    | {
+        enrolled: number;
+        ambiguous: number;
+        attempted: number;
+        observed: number;
+        deferred: number;
+        requests: number;
+      }
+    | undefined;
+  if (options.observeReciprocalMods && !offlinePolicyOnly) {
+    const registry = registryProgress ?? state.mod_provider_registry;
+    const { subjects, ambiguous } = reciprocalModSubjects(sources, state.sources, registry);
+    const old = state.reciprocal_mod_sources ?? {};
+    const progress: Record<string, ReciprocalModProgress> = Object.fromEntries(
+      subjects.flatMap(({ port_id, binding }) =>
+        old[port_id]?.binding === binding ? [[port_id, old[port_id]]] : [],
+      ),
+    );
+    const due = subjects
+      .filter(
+        ({ port_id }) => !progress[port_id] || Date.parse(progress[port_id].next_due_at) <= now(),
+      )
+      .sort(
+        (a, b) =>
+          (progress[a.port_id]?.last_attempt_at ?? "").localeCompare(
+            progress[b.port_id]?.last_attempt_at ?? "",
+          ) || a.port_id.localeCompare(b.port_id),
+      );
+    reciprocalModSummary = {
+      enrolled: subjects.length,
+      ambiguous,
+      attempted: 0,
+      observed: 0,
+      deferred: due.length,
+      requests: 0,
+    };
+    const requestsBefore = requests;
+    // A reciprocal proof takes three GitHub reads. Its small, independent
+    // allowance leaves the release and launcher manifest lanes their turns.
+    const opportunities = Math.min(4, Math.floor((options.reciprocalModRequestLimit ?? 12) / 3));
+    for (const subject of due.slice(0, opportunities)) {
+      if (options.signal?.aborted || capacity() < 3 || deadline - now() < 1000) break;
+      let result;
+      try {
+        result = await options.observeReciprocalMods(subject, {
+          admitRequest,
+          observeResponse,
+          consumeResponseBytes,
+        });
+      } catch (cause) {
+        if (!(cause instanceof ObservationFailure)) throw cause;
+        if (cause.retryAt) extendProviderDeferral(cause.retryAt);
+        if (partialProgressRules.includes(cause.rule)) break;
+        result = { state: "unavailable", reason: cause.rule } as const;
+      }
+      reciprocalModSummary.attempted++;
+      reciprocalModSummary.deferred--;
+      if (result.state === "observed") reciprocalModSummary.observed++;
+      progress[subject.port_id] = recordReciprocalModAttempt(
+        subject,
+        result,
+        progress[subject.port_id],
+        now(),
+        result.state === "unavailable" ? template.cadence_hours : 7 * 24,
+      );
+    }
+    reciprocalModSummary.requests = requests - requestsBefore;
+    if (observationHash(old) !== observationHash(progress) && !options.signal?.aborted) {
+      validateReciprocalModProgress(progress, now());
+      if (
+        Buffer.byteLength(JSON.stringify({ ...state, reciprocal_mod_sources: progress })) <=
+        catalogCheckpointByteLimit
+      ) {
+        state.reciprocal_mod_sources = progress;
+        await commitCheckpoint();
+      } else {
+        failures.push({
+          source: "reciprocal-mod-sources",
+          repository: "github.com",
+          rule: "checkpoint-size",
+          details: "Reciprocal mod progress does not fit the checkpoint. Prior evidence remains.",
+        });
+        reciprocalModSummary.deferred = due.length;
+        reciprocalModSummary.observed = 0;
+      }
     }
   }
   const projectBound = async (
@@ -2289,6 +2398,7 @@ export async function advanceCatalogObservations(
         ),
       },
       ...(launcherModSummary ? { launcher_mod_sources: launcherModSummary } : {}),
+      ...(reciprocalModSummary ? { reciprocal_mod_sources: reciprocalModSummary } : {}),
       ...(state.mod_provider_registry
         ? {
             mod_provider_registry: {

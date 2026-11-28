@@ -1,5 +1,10 @@
 import { upstreamFacts } from "./maintenance-upstream.mts";
 import { createHash } from "node:crypto";
+import { observeReciprocalThunderstoreDocument } from "./port-upstream-facts.mts";
+import {
+  observeModProviderRegistry,
+  validateModProviderRegistryProgress,
+} from "./upstream-mod-provider-registry.mts";
 import { inputEvidenceKey, readOriginalSourceProgress } from "./upstream-original-recognition.mts";
 import {
   n64AuthoringScope,
@@ -5973,6 +5978,322 @@ void test("a non-quota GitLab 403 is a failed rejection that notifies and is not
     assert.ok(g.requests() > before);
     assert.equal(next.notify_exception, false, "the same exception notifies only once");
   }
+});
+
+void test("retains only bounded GitHub document pointers from the provider registry", async () => {
+  const now = Date.parse("2026-11-28T00:00:00Z");
+  const urls = {
+    root: "https://github.com/SomeOwner/Port?tab=readme-ov-file#creating-mods",
+    document: "https://github.com/SomeOwner/OtherPort/blob/main/docs/Mods.md",
+    wiki: "https://github.com/SomeOwner/OtherPort/wiki/Getting-Started",
+    credentials: "https://example.org@github.com/SomeOwner/Port",
+    lookalike: "https://github.com.example.org/SomeOwner/Port",
+    encoded: "https://github.com/SomeOwner/Port/blob/main/docs/mods%2Fguide.md",
+    gamebanana: "https://gamebanana.com/games/16121/",
+  };
+  const communities = Object.fromEntries(
+    Object.entries(urls).map(([label, wikiUrl]) => [label, { wikiUrl, listed: true }]),
+  );
+  const games = Object.fromEntries(
+    Object.entries(communities).map(([label, thunderstore], index) => [
+      label,
+      {
+        label,
+        uuid: `da521cd3-560c-45df-8f43-${String(index).padStart(12, "0")}`,
+        thunderstore,
+      },
+    ]),
+  );
+  const result = await observeModProviderRegistry(undefined, {
+    now: () => now,
+    timeout: 1_000,
+    cadenceMs: 60_000,
+    staleAfterMs: 120_000,
+    responseBytes: 4_096,
+    fetch: async () => Response.json({ schemaVersion: "0.3.0", games, communities }),
+  });
+  validateModProviderRegistryProgress(result.progress, now);
+  const checkpoint = result.progress.last_complete;
+  assert.ok(checkpoint);
+  assert.deepEqual(
+    checkpoint.communities.flatMap(({ community, github_document }) =>
+      github_document ? [[community, github_document]] : [],
+    ),
+    [
+      ["document", { repository: "SomeOwner/OtherPort", ref: "main", path: "docs/Mods.md" }],
+      ["root", { repository: "SomeOwner/Port", ref: null, path: null }],
+    ],
+  );
+  assert.equal(
+    checkpoint.communities.find(({ community }) => community === "gamebanana")?.gamebanana_game,
+    16121,
+  );
+
+  const legacy = structuredClone(result.progress);
+  assert.ok(legacy.last_complete);
+  for (const community of legacy.last_complete.communities) delete community.github_document;
+  legacy.last_complete.communities_sha256 = observationHash(legacy.last_complete.communities);
+  validateModProviderRegistryProgress(legacy, now);
+
+  const injected = structuredClone(result.progress);
+  assert.ok(injected.last_complete);
+  const root = injected.last_complete.communities.find(({ community }) => community === "root");
+  assert.ok(root);
+  root.github_document = { repository: "SomeOwner/Port", ref: "main", path: "docs/../Mods.md" };
+  injected.last_complete.communities_sha256 = observationHash(injected.last_complete.communities);
+  assert.throws(() => validateModProviderRegistryProgress(injected, now), /community/u);
+});
+
+void test("binds a reciprocal link to the exact public repository, commit and document", async () => {
+  const repository = { slug: "SomeOwner/SomePort", id: 18 };
+  const document = { repository: repository.slug, path: null, ref: null };
+  const commit = "a".repeat(40);
+  const root = "repositories/18";
+  const project = { id: repository.id, private: false, full_name: repository.slug };
+  const link = "[Official mods](https://thunderstore.io/c/some-port/)";
+  const readDocument = (
+    text: string,
+    options: { name?: string; badDigest?: boolean; failure?: string } = {},
+  ) => {
+    const requests: string[] = [];
+    const read = async (endpoint: string) => {
+      requests.push(endpoint);
+      if (endpoint === root)
+        return {
+          status: "observed",
+          body: { ...project, full_name: options.name ?? project.full_name },
+        } as const;
+      if (endpoint === `${root}/commits?per_page=1`)
+        return { status: "observed", body: [{ sha: commit }] } as const;
+      assert.equal(endpoint, `${root}/readme?ref=${commit}`);
+      if (options.failure) return { status: "unavailable", reason: options.failure } as const;
+      const bytes = Buffer.from(text);
+      const sha = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+      return {
+        status: "observed",
+        body: {
+          type: "file",
+          path: "README.md",
+          encoding: "base64",
+          size: bytes.length,
+          content: bytes.toString("base64"),
+          sha: options.badDigest ? "b".repeat(40) : sha,
+        },
+      } as const;
+    };
+    return { read, requests };
+  };
+
+  const positive = readDocument(link);
+  const found = await observeReciprocalThunderstoreDocument(
+    repository,
+    document,
+    "some-port",
+    positive.read,
+  );
+  assert.equal(found.state, "observed");
+  if (found.state === "observed") {
+    assert.equal(found.commit, commit);
+    assert.equal(found.repository_id, repository.id);
+    assert.equal(found.sha256, createHash("sha256").update(link).digest("hex"));
+  }
+  assert.deepEqual(positive.requests, [
+    root,
+    `${root}/commits?per_page=1`,
+    `${root}/readme?ref=${commit}`,
+  ]);
+  const inlineCode = readDocument("Find " + link + " for `our-game`.");
+  assert.equal(
+    (
+      await observeReciprocalThunderstoreDocument(
+        repository,
+        document,
+        "some-port",
+        inlineCode.read,
+      )
+    ).state,
+    "observed",
+  );
+  for (const text of [
+    "<https://thunderstore.io/c/some-port>",
+    "<https://THUNDERSTORE.IO/c/some-port/>",
+    "Official mods are on https://thunderstore.io/c/some-port/.",
+    "[Mods][site]\n\n[site]: https://thunderstore.io/c/some-port/",
+  ]) {
+    const result = await observeReciprocalThunderstoreDocument(
+      repository,
+      document,
+      "some-port",
+      readDocument(text).read,
+    );
+    assert.equal(result.state, "observed", text);
+  }
+
+  for (const rejected of [
+    readDocument(`${link}\n[Other game](https://thunderstore.io/c/different/)`),
+    readDocument(`${link}\n<https://thunderstore.io/c/different/>`),
+    readDocument(`${link}\n<https://THUNDERSTORE.IO/c/different/>`),
+    readDocument(`<!-- ${link} -->`),
+    readDocument("```md\n" + link + "\n```"),
+    readDocument("`" + link + "`"),
+    readDocument(`> ${link}`),
+    readDocument(`> Example\n${link}`),
+    readDocument(`<pre>\n${link}\n</pre>`),
+    readDocument(`<div>\n${link}\n</div>`),
+    readDocument(`<![CDATA[\n${link}\n]]>`),
+    readDocument(`Inline <code>${link}</code>`),
+    readDocument(`Inline <code>Outer <code>inner</code> ${link}</code>`),
+    readDocument("- ```markdown\n  " + link + "\n  ```\n"),
+    readDocument("https://example.org/?link=https://thunderstore.io/c/some-port/"),
+    readDocument("[See https://thunderstore.io/c/some-port/ ](https://example.org/)"),
+    readDocument(link, { name: "SomeoneElse/Replacement" }),
+  ]) {
+    const result = await observeReciprocalThunderstoreDocument(
+      repository,
+      document,
+      "some-port",
+      rejected.read,
+    );
+    assert.equal(result.state, "held");
+  }
+  for (const failure of [
+    readDocument(link, { failure: "provider-quota" }),
+    readDocument(link, { badDigest: true }),
+    readDocument(link + " ".repeat(65_536)),
+  ]) {
+    const result = await observeReciprocalThunderstoreDocument(
+      repository,
+      document,
+      "some-port",
+      failure.read,
+    );
+    assert.equal(result.state, "unavailable");
+  }
+  const deleted = readDocument(link, { failure: "provider-not-found" });
+  assert.deepEqual(
+    await observeReciprocalThunderstoreDocument(repository, document, "some-port", deleted.read),
+    { state: "held", reason: "project-document-removed" },
+  );
+});
+
+void test("reciprocal mod work continues from a bounded checkpoint without a game input contract", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: [{ id: "other-port", project_url: "https://github.com/owner/other" }],
+  };
+  const first = await advanceCatalogObservations(input, null, h.options);
+  const now = h.options.now!();
+  const communities = [
+    {
+      community: "other",
+      game_uuid: "65f499f1-ea2e-46aa-9b5c-a9d26a2d3706",
+      listed: true,
+      gamebanana_game: null,
+      github_document: { repository: "owner/other", path: null, ref: null },
+    },
+  ];
+  first.checkpoint.mod_provider_registry = {
+    next_due_at: new Date(now + 3600_000).toISOString(),
+    exception: null,
+    last_complete: {
+      format: 1,
+      source: "https://thunderstore.io/api/experimental/schema/ecosystem-json-data/latest/",
+      schema: "0.3.0",
+      observed_at: new Date(now).toISOString(),
+      expires_at: new Date(now + 3600_000 * 24 * 30).toISOString(),
+      response_sha256: "a".repeat(64),
+      communities_sha256: observationHash(communities),
+      communities,
+    },
+  };
+  const proof = {
+    state: "observed" as const,
+    repository_id: 8,
+    commit: "b".repeat(40),
+    path: "README.md",
+    blob: "c".repeat(40),
+    sha256: "d".repeat(64),
+    community: "other",
+  };
+  let calls = 0;
+  h.options.observeReciprocalMods = async (subject, account) => {
+    calls++;
+    assert.equal(subject.repository_id, 8);
+    assert.equal(subject.community, "other");
+    for (let request = 0; request < 3; request++) {
+      account.admitRequest();
+      account.observeResponse(new Response());
+      account.consumeResponseBytes(20);
+    }
+    return calls === 1 ? proof : { state: "unavailable", reason: "provider-outage" };
+  };
+  h.options.reciprocalModRequestLimit = 2;
+  const deferred = await advanceCatalogObservations(input, first.checkpoint, h.options);
+  assert.deepEqual(deferred.report.reciprocal_mod_sources, {
+    enrolled: 1,
+    ambiguous: 0,
+    attempted: 0,
+    observed: 0,
+    deferred: 1,
+    requests: 0,
+  });
+
+  h.options.reciprocalModRequestLimit = 3;
+  const observed = await advanceCatalogObservations(input, deferred.checkpoint, h.options);
+  assert.equal(observed.report.reciprocal_mod_sources?.requests, 3);
+  const accepted = observed.checkpoint.reciprocal_mod_sources?.["other-port"]?.last_success;
+  assert.deepEqual(accepted?.proof, proof);
+  const replay = await advanceCatalogObservations(input, observed.checkpoint, h.options);
+  assert.equal(replay.report.reciprocal_mod_sources?.attempted, 0);
+
+  h.advanceClock(8 * 24 * 3600_000);
+  const unavailable = await advanceCatalogObservations(input, replay.checkpoint, h.options);
+  assert.equal(
+    unavailable.checkpoint.reciprocal_mod_sources?.["other-port"]?.outcome,
+    "unavailable",
+  );
+  assert.deepEqual(
+    unavailable.checkpoint.reciprocal_mod_sources?.["other-port"]?.last_success,
+    accepted,
+  );
+  assert.equal(calls, 2);
+
+  const snapshot = unavailable.checkpoint.mod_provider_registry!.last_complete!;
+  snapshot.communities[0]!.listed = false;
+  snapshot.communities_sha256 = observationHash(snapshot.communities);
+  const offline = await advanceCatalogObservations(input, unavailable.checkpoint, {
+    ...h.options,
+    offlinePolicyOnly: true,
+    requestLimit: 0,
+  });
+  assert.equal(offline.report.requests, 0);
+  assert.equal(offline.report.reciprocal_mod_sources, undefined);
+  assert.deepEqual(
+    offline.checkpoint.reciprocal_mod_sources,
+    unavailable.checkpoint.reciprocal_mod_sources,
+  );
+  assert.equal(calls, 2);
+  const withdrawn = await advanceCatalogObservations(input, offline.checkpoint, h.options);
+  assert.equal(withdrawn.report.reciprocal_mod_sources?.enrolled, 0);
+  assert.deepEqual(withdrawn.checkpoint.reciprocal_mod_sources, {});
+  assert.equal(calls, 2);
+
+  const ambiguousSnapshot = withdrawn.checkpoint.mod_provider_registry!.last_complete!;
+  const candidate = { ...ambiguousSnapshot.communities[0]!, listed: true };
+  ambiguousSnapshot.communities = [
+    candidate,
+    {
+      ...candidate,
+      community: "other-two",
+      game_uuid: "b6b98dfe-9207-4fbe-ba65-5f13e81dbe12",
+    },
+  ];
+  ambiguousSnapshot.communities_sha256 = observationHash(ambiguousSnapshot.communities);
+  const ambiguous = await advanceCatalogObservations(input, withdrawn.checkpoint, h.options);
+  assert.equal(ambiguous.report.reciprocal_mod_sources?.ambiguous, 1);
+  assert.equal(ambiguous.report.reciprocal_mod_sources?.enrolled, 0);
+  assert.equal(calls, 2);
 });
 
 void test("first-party mod observation shares the opportunity budget and retains last success on outage", async () => {

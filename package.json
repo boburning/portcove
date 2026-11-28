@@ -27,7 +27,8 @@
     "verify:frontend": "vp run frontend:verify"
   },
   "dependencies": {
-    "@octokit/core": "7.0.8"
+    "@octokit/core": "7.0.8",
+    "markdown-it": "15.0.3"
   },
   "devDependencies": {
     "@octokit/plugin-paginate-rest": "16.0.0",

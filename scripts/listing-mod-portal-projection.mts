@@ -9,6 +9,10 @@ import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { catalogObservationSources } from "./catalog-upstream-observer.mts";
 import {
+  reciprocalModSubjects,
+  validateReciprocalModProgress,
+} from "./reciprocal-mod-progress.mts";
+import {
   launcherModScopes,
   launcherModSubjectBinding,
   launcherModSubjects,
@@ -44,6 +48,50 @@ function communityPortal(community: RegistryCommunity): Portal {
 
 function listingPortals(listing: Record<string, unknown>): unknown[] {
   return Array.isArray(listing.mod_portals) ? listing.mod_portals : [];
+}
+
+const reciprocalInstructions = "The upstream project links to this Thunderstore community.";
+
+export function isReciprocalModPortal(portal: Portal): boolean {
+  return portal.name === "Thunderstore" && portal.instructions === reciprocalInstructions;
+}
+
+function reciprocalPortal(repositoryId: number, community: string): Portal {
+  return {
+    id: launcherModPortalId({ name: "Thunderstore" }, repositoryId),
+    site: "community_site",
+    url: `https://thunderstore.io/c/${community}/`,
+    name: "Thunderstore",
+    instructions: reciprocalInstructions,
+  };
+}
+
+function retainedReciprocalPortal(
+  listing: Record<string, unknown>,
+  previous: Record<string, unknown> | undefined,
+): Portal | undefined {
+  if (!previous || previous.id !== listing.id || previous.project_url !== listing.project_url)
+    return;
+  const observation = previous.upstream_observation;
+  if (!isRecord(observation) || observation.provider !== "github") return;
+  const repositoryId = observation.repository_id;
+  if (typeof repositoryId !== "number" || !Number.isSafeInteger(repositoryId) || repositoryId <= 0)
+    return;
+  const prior = listingPortals(previous).flatMap((portal) => {
+    if (
+      !isRecord(portal) ||
+      typeof portal.url !== "string" ||
+      portal.instructions !== reciprocalInstructions
+    )
+      return [];
+    const community = /^https:\/\/thunderstore\.io\/c\/([a-z0-9]+(?:[-_][a-z0-9]+)*)\/$/u.exec(
+      portal.url,
+    )?.[1];
+    if (!community || community.length > 128) return [];
+    const normalized = reciprocalPortal(repositoryId, community);
+    return observationHash(portal) === observationHash(normalized) ? [normalized] : [];
+  });
+  if (prior.length === 1) return prior[0];
 }
 
 function isGenerated(portal: unknown): boolean {
@@ -271,7 +319,7 @@ export function firstPartyListingModDefaults(
   const raw = state?.launcher_mod_sources;
   if (raw !== undefined) validateFirstPartyModProgress(raw, now);
   const progress = raw as Record<string, FirstPartyModProgress> | undefined;
-  return (
+  const direct = (
     listing: Record<string, unknown>,
     previous: Record<string, unknown> | undefined,
   ): Portal[] => {
@@ -371,5 +419,67 @@ export function firstPartyListingModDefaults(
       retained.push(portal);
     }
     return retained.slice(0, 8 - authored.length);
+  };
+  const registry = state?.mod_provider_registry;
+  if (registry !== undefined) validateModProviderRegistryProgress(registry, now);
+  const registryProgress = registry as ModProviderRegistryProgress | undefined;
+  const reciprocalProgress = state?.reciprocal_mod_sources;
+  if (reciprocalProgress !== undefined) validateReciprocalModProgress(reciprocalProgress, now);
+  const reciprocalSubjects = new Map(
+    reciprocalModSubjects(sources, ids, registryProgress).subjects.map((entry) => [
+      entry.port_id,
+      entry,
+    ]),
+  );
+  return (listing: Record<string, unknown>, previous: Record<string, unknown> | undefined) => {
+    const generated = direct(listing, previous);
+    if (
+      typeof listing.id !== "string" ||
+      excluded.has(listing.id) ||
+      bindings.get(listing.id)?.has("thunderstore") ||
+      generated.some(({ name }) => name === "Thunderstore")
+    )
+      return generated;
+    const authored = listingPortals(withoutLauncherAdmissionSeeds(listing));
+    if (
+      authored.length + generated.length >= 8 ||
+      authored.some(
+        (portal) =>
+          isRecord(portal) &&
+          typeof portal.url === "string" &&
+          URL.parse(portal.url)?.hostname === "thunderstore.io",
+      )
+    )
+      return generated;
+
+    const retained = retainedReciprocalPortal(listing, previous);
+    if (!state) return retained ? [...generated, retained] : generated;
+    const subject = reciprocalSubjects.get(listing.id);
+    const entry = reciprocalProgress?.[listing.id];
+    const proof = entry?.last_success?.proof;
+    if (
+      !subject ||
+      !entry ||
+      entry.binding !== subject.binding ||
+      !proof ||
+      proof.repository_id !== subject.repository_id ||
+      proof.community !== subject.community ||
+      (subject.document.path === null
+        ? !/^README\.md$/iu.test(proof.path)
+        : subject.document.path !== proof.path)
+    )
+      return generated;
+    const next = reciprocalPortal(subject.repository_id, subject.community);
+    const registryExpires = registryProgress?.last_complete?.expires_at;
+    if (
+      (entry.outcome === "observed" &&
+        Date.parse(entry.next_due_at) > now &&
+        registryProgress?.exception === null &&
+        registryExpires !== undefined &&
+        Date.parse(registryExpires) > now) ||
+      (retained && observationHash(retained) === observationHash(next))
+    )
+      return [...generated, next];
+    return generated;
   };
 }
