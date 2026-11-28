@@ -1,0 +1,4 @@
+{
+  "shipwright": [{ "provider": "gamebanana", "game_id": 16121 }],
+  "zelda64-recomp": [{ "provider": "thunderstore", "community": "zelda-64-recompiled" }]
+}

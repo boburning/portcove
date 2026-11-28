@@ -2461,10 +2461,14 @@ An indexed definition can carry one exact GameBanana game ID and one
 Thunderstore community under `mod_provider_bindings`. The port must already
 have a reviewed mod loader. Indexed Libultraship and N64 recomp bindings
 require template versions 6 and 8 respectively. Legacy signed catalog
-envelopes cannot appoint a binding. An omitted field keeps the compiled scopes.
+envelopes cannot appoint a binding. Before an indexed scope is adopted, an
+omitted field keeps the historical scopes recorded in
+`crates/portcove-core/catalog/legacy-mod-provider-bindings.json`. That file
+records the exact scopes used by older libraries and recipes. Author new or
+updated scopes through `mod_provider_bindings`.
 An explicit empty list withdraws the provider choices. The library records
 which ports have adopted explicit scopes. If that selection expires, is
-revoked or is replaced by another port, its compiled provider is held until
+revoked or is replaced by another port, its historical provider is held until
 a fresh authenticated definition appoints an exact scope. Shared profile writes
 require library schema 69 or newer. Recipes carrying an explicit scope use
 format 4.
@@ -2476,7 +2480,7 @@ files for inspection. Core offers file review where the port definition and
 host platform have a compatible loader. A plan still checks the exact retained
 runtime and acquired bytes. A plan or installed reference for a new scope carries its
 exact binding. A historical reference with no binding resolves only to its
-original compiled scope. Install, update and recipe replay refuse a changed
+original recorded scope. Install, update and recipe replay refuse a changed
 scope.
 
 Keep newly authored scopes out of public projections until the matching

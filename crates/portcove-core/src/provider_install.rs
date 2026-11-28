@@ -46,22 +46,6 @@ const ACTION: &str = "install_provider_package";
 /// explicitly allows that code.
 const ACTION_WITH_CODE: &str = "install_provider_package_with_code";
 
-/// Reviewed operational binding between a port and the provider's game identity.
-/// Names and popularity never authorize compatibility; only this binding does.
-/// Thunderstore communities are bound in `thunderstore`.
-const GAMEBANANA_BINDINGS: &[(&str, u64)] = &[("shipwright", 16121)];
-
-pub(crate) fn gamebanana_game(port_id: &str) -> Option<u64> {
-    #[cfg(test)]
-    if port_id == "starship" {
-        return Some(777);
-    }
-    GAMEBANANA_BINDINGS
-        .iter()
-        .find(|(port, _)| *port == port_id)
-        .map(|(_, game)| *game)
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PlanMember {
     pub file_name: String,

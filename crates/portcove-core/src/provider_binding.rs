@@ -1,3 +1,5 @@
+use std::{collections::BTreeMap, sync::OnceLock};
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -5,6 +7,7 @@ use crate::{AdapterKind, PortDefinition, PortcoveError, Result};
 
 pub(crate) const LIBULTRASHIP_BINDING_CAPABILITY: u32 = 6;
 pub(crate) const N64_RECOMP_BINDING_CAPABILITY: u32 = 8;
+const LEGACY_BINDINGS: &str = include_str!("../catalog/legacy-mod-provider-bindings.json");
 
 /// Exact provider-side scope from a reviewed definition.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
@@ -45,19 +48,30 @@ impl ModProviderBinding {
     }
 }
 
+/// The scopes used before provider references stored their coordinates. A
+/// current reviewed definition can replace or withdraw an offered scope. It
+/// cannot reinterpret references written under these historical defaults.
 pub(crate) fn legacy_binding(port_id: &str, provider: &str) -> Option<ModProviderBinding> {
-    match provider {
-        crate::gamebanana::PROVIDER => crate::provider_install::gamebanana_game(port_id)
-            .map(|game_id| ModProviderBinding::Gamebanana { game_id }),
-        crate::thunderstore::PROVIDER => {
-            crate::thunderstore::thunderstore_community(port_id).map(|community| {
-                ModProviderBinding::Thunderstore {
-                    community: community.to_owned(),
-                }
-            })
-        }
-        _ => None,
+    #[cfg(test)]
+    if port_id == "starship" {
+        return match provider {
+            crate::gamebanana::PROVIDER => Some(ModProviderBinding::Gamebanana { game_id: 777 }),
+            crate::thunderstore::PROVIDER => Some(ModProviderBinding::Thunderstore {
+                community: "starship-test".into(),
+            }),
+            _ => None,
+        };
     }
+    static BINDINGS: OnceLock<BTreeMap<String, Vec<ModProviderBinding>>> = OnceLock::new();
+    BINDINGS
+        .get_or_init(|| {
+            serde_json::from_str(LEGACY_BINDINGS)
+                .expect("bundled historical mod provider bindings must be valid")
+        })
+        .get(port_id)?
+        .iter()
+        .find(|binding| binding.provider() == provider)
+        .cloned()
 }
 
 pub(crate) fn default_binding(port: &PortDefinition) -> Option<ModProviderBinding> {
@@ -196,12 +210,26 @@ mod tests {
     #[test]
     fn bundled_provider_scopes_preserve_historical_package_identity() {
         let catalog = crate::Catalog::embedded().unwrap();
-        for (id, provider) in [
-            ("shipwright", crate::gamebanana::PROVIDER),
-            ("zelda64-recomp", crate::thunderstore::PROVIDER),
+        let history: BTreeMap<String, Vec<ModProviderBinding>> =
+            serde_json::from_str(LEGACY_BINDINGS).unwrap();
+        assert_eq!(history.len(), 2);
+        for (id, expected) in [
+            (
+                "shipwright",
+                ModProviderBinding::Gamebanana { game_id: 16121 },
+            ),
+            (
+                "zelda64-recomp",
+                ModProviderBinding::Thunderstore {
+                    community: "zelda-64-recompiled".into(),
+                },
+            ),
         ] {
+            let provider = expected.provider();
             let port = catalog.port(id).unwrap();
             let prior = legacy_binding(id, provider).unwrap();
+            assert_eq!(prior, expected);
+            assert_eq!(history[id].as_slice(), std::slice::from_ref(&expected));
             assert_eq!(
                 configured_bindings(port),
                 Some(std::slice::from_ref(&prior))
@@ -218,6 +246,8 @@ mod tests {
                 },
             ));
         }
+        assert!(legacy_binding("shipwright", crate::thunderstore::PROVIDER).is_none());
+        assert!(legacy_binding("new-provider-fixture", crate::gamebanana::PROVIDER).is_none());
     }
 
     #[test]
