@@ -829,7 +829,7 @@ function useWorkspace(props: WorkspaceProps) {
   const collectionId = organizationViews.library.startsWith("collection:")
     ? organizationViews.library.slice("collection:".length)
     : "";
-  const collection =
+  const selectedCollection =
     ui.view === "library" && collectionId
       ? organization.snapshot?.collections[collectionId]
       : undefined;
@@ -1083,7 +1083,7 @@ function useWorkspace(props: WorkspaceProps) {
         portCount={model.entries.length}
         libraryCount={data.catalog ? model.libraryCount : undefined}
         headingRef={pageHeading}
-        collectionHeading={collection?.name}
+        collectionHeading={selectedCollection?.name}
         collectionAction={
           ui.view === "library" &&
           collectionId && (
