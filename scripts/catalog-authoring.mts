@@ -745,6 +745,14 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     (!validArtworkCollection(listing.collection_covers) || listing.artwork != null)
   )
     throw new Error("Invalid authored cover collection.");
+  const covers = [
+    listing.artwork,
+    ...(Array.isArray(listing.collection_covers) ? listing.collection_covers : []),
+  ];
+  if (
+    covers.some((cover) => isRecord(cover) && Object.hasOwn(cover, "observed_github_repository_id"))
+  )
+    throw new Error("Authored artwork cannot attest a scheduled repository observation.");
   if (value.igdb_no_shared_cover !== undefined && value.igdb_no_shared_cover !== true)
     throw new Error("An authored shared cover exclusion must be true.");
   if (value.no_observed_mod_portals !== undefined && value.no_observed_mod_portals !== true)

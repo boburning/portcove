@@ -198,7 +198,19 @@ export function readScheduledGameMediaProposal(value: unknown): Proposal {
           typeof cover.id === "string" &&
           selected.has(cover.id) &&
           validArtworkMapping(cover.artwork) &&
-          cover.artwork.match_kind === "underlying-game",
+          Object.keys(cover.artwork).length === 6 &&
+          (cover.artwork.match_kind === "underlying-game"
+            ? Object.keys(cover).length === 2
+            : Object.keys(cover).length === 3 &&
+              isRecord(cover.project) &&
+              Object.keys(cover.project).length === 3 &&
+              positiveId(cover.project.github_repository_id) &&
+              typeof cover.project.name === "string" &&
+              cover.project.name.length > 0 &&
+              cover.project.name.length <= 255 &&
+              typeof cover.project.project_url === "string" &&
+              cover.project.project_url.startsWith("https://") &&
+              cover.project.project_url.length <= 2048),
       ) ||
       new Set(value.covers.map((cover: ScheduledCover) => cover.id)).size !== value.covers.length
     )

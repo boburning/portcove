@@ -4363,6 +4363,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -6799,6 +6808,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -11176,6 +11194,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -14137,6 +14164,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -14500,6 +14536,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -41735,6 +41780,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -43910,6 +43964,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -64250,6 +64313,15 @@
           },
           "match_kind": {
             "$ref": "#/$defs/IgdbArtworkMatch"
+          },
+          "observed_github_repository_id": {
+            "description": "Publisher-observed identity of the implementation repository, under listing format 20.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [

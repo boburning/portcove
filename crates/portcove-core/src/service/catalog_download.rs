@@ -328,6 +328,7 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
         || crate::catalog::listings::has_verified_source_editions(&record.listing)
         || !record.listing.mod_portals.is_empty()
         || record.listing.official_setup_id.is_some()
+        || crate::catalog::listings::has_observed_project_cover(&record.listing)
     {
         return Err(PortcoveError::unsupported(
             "pending setup record format does not match its provider or listing fields",
@@ -1315,11 +1316,7 @@ impl PortcoveService {
             }
             self.require_download_destination(stage.path())?;
             let mut listing = self.catalog.listing(&request.port_id)?.clone();
-            // The current directory supplies these links, including any withdrawal.
-            listing.mod_portals.clear();
-            listing.official_setup_id = None;
-            listing.media.retain(|asset| !asset.is_typed_igdb_scene());
-            crate::catalog::listings::strip_verified_sources(&mut listing);
+            crate::catalog::listings::strip_directory_only_retained_fields(&mut listing);
             let mut record = PendingSetupRecord {
                 format_version: if preview.artifact.release_id.github_id().is_some() {
                     1

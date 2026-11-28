@@ -327,6 +327,9 @@ pub struct IgdbArtwork {
     pub image_sha256: String,
     pub game_slug: String,
     pub match_kind: IgdbArtworkMatch,
+    /// Publisher-observed identity of the implementation repository, under listing format 20.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_github_repository_id: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -3024,7 +3027,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: (5..=crate::catalog::listings::ASSIGNED_COVER_LISTING_FORMAT)
+            listing_formats: (5..=crate::catalog::listings::OBSERVED_PROJECT_COVER_LISTING_FORMAT)
                 .collect(),
             listing_delivery_carriers: vec![
                 "json-v1".into(),

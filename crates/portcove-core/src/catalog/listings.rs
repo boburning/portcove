@@ -30,6 +30,8 @@ pub(crate) const MOD_PORTAL_LISTING_FORMAT: u32 = 16;
 pub(crate) const REPOSITORY_BOUND_LISTING_FORMAT: u32 = 17;
 pub(crate) const OFFICIAL_SETUP_LISTING_FORMAT: u32 = 18;
 pub(crate) const ASSIGNED_COVER_LISTING_FORMAT: u32 = 19;
+pub(crate) const OBSERVED_PROJECT_COVER_LISTING_FORMAT: u32 = 20;
+const MAX_OBSERVED_REPOSITORY_ID: u64 = 9_007_199_254_740_991;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -142,6 +144,30 @@ pub(crate) fn strip_verified_sources(listing: &mut PortListing) {
     }
 }
 
+pub(crate) fn has_observed_project_cover(listing: &PortListing) -> bool {
+    listing
+        .artwork
+        .iter()
+        .chain(listing.collection_covers.iter().flatten())
+        .any(|cover| cover.observed_github_repository_id.is_some())
+}
+
+/// These fields come from the current directory. A legacy setup cannot
+/// authenticate a generated cover after the catalog withdraws or replaces it.
+pub(crate) fn strip_directory_only_retained_fields(listing: &mut PortListing) {
+    listing.mod_portals.clear();
+    listing.official_setup_id = None;
+    listing.media.retain(|asset| !asset.is_typed_igdb_scene());
+    strip_verified_sources(listing);
+    if listing
+        .artwork
+        .as_ref()
+        .is_some_and(|cover| cover.observed_github_repository_id.is_some())
+    {
+        listing.artwork = None;
+    }
+}
+
 pub(crate) fn inherit_verified_sources(
     original: &mut crate::OriginalGameIdentity,
     previous: &crate::OriginalGameIdentity,
@@ -189,13 +215,20 @@ pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=ASSIGNED_COVER_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=OBSERVED_PROJECT_COVER_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 19",
+                "listing export supports formats 5 through 20",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < OBSERVED_PROJECT_COVER_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                if let Some(artwork) = &mut listing.artwork {
+                    artwork.observed_github_repository_id = None;
+                }
+            }
+        }
         if format_version < OFFICIAL_SETUP_LISTING_FORMAT {
             for listing in &mut document.listings {
                 listing.official_setup_id = None;
@@ -264,6 +297,11 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self.listings.iter().any(has_observed_project_cover) {
+            self.format_version = self
+                .format_version
+                .max(OBSERVED_PROJECT_COVER_LISTING_FORMAT);
+        }
         if self
             .listings
             .iter()
@@ -427,11 +465,48 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=ASSIGNED_COVER_LISTING_FORMAT) {
+        if !matches!(
+            self.format_version,
+            1..=OBSERVED_PROJECT_COVER_LISTING_FORMAT
+        ) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        for listing in &self.listings {
+            if let Some(artwork) = &listing.artwork
+                && let Some(repository_id) = artwork.observed_github_repository_id
+            {
+                if self.format_version < OBSERVED_PROJECT_COVER_LISTING_FORMAT {
+                    return Err(PortcoveError::unsupported(
+                        "observed project covers require listing format 20",
+                    ));
+                }
+                if artwork.match_kind != crate::IgdbArtworkMatch::Port
+                    || !(1..=MAX_OBSERVED_REPOSITORY_ID).contains(&repository_id)
+                    || crate::release::catalog_download_repository(&listing.project_url).is_err()
+                    || listing
+                        .admitted_github_repository_id()
+                        .is_some_and(|admitted| admitted != repository_id)
+                    || listing
+                        .observed_github_repository_id()
+                        .is_some_and(|observed| observed != repository_id)
+                {
+                    return Err(PortcoveError::usage(
+                        "observed project cover has an invalid repository binding",
+                    ));
+                }
+            }
+            if listing.collection_covers.as_ref().is_some_and(|covers| {
+                covers
+                    .iter()
+                    .any(|cover| cover.observed_github_repository_id.is_some())
+            }) {
+                return Err(PortcoveError::usage(
+                    "observed project covers cannot be used in a collection",
+                ));
+            }
         }
         if self.format_version < OFFICIAL_SETUP_LISTING_FORMAT
             && self
@@ -1234,6 +1309,11 @@ impl Catalog {
             for (entry, current) in exported.listings.iter_mut().zip(self.listings()) {
                 if entry.artwork.is_none() {
                     entry.artwork = self.automatic_cover(current).cloned();
+                    if exported.format_version < OBSERVED_PROJECT_COVER_LISTING_FORMAT
+                        && let Some(artwork) = &mut entry.artwork
+                    {
+                        artwork.observed_github_repository_id = None;
+                    }
                 }
             }
         }
@@ -2213,13 +2293,49 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":ASSIGNED_COVER_LISTING_FORMAT + 1,"listings":[listing()]}),
+            json!({"format_version":OBSERVED_PROJECT_COVER_LISTING_FORMAT + 1,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
         ] {
             assert!(CatalogListingDocument::from_json(&document.to_string()).is_err());
         }
+    }
+
+    #[test]
+    fn observed_implementation_cover_requires_exact_repository_and_capable_reader() {
+        let mut row = listing();
+        row["id"] = json!("github-890");
+        row["project_url"] = json!("https://github.com/example/project");
+        row["release_url"] = json!("https://github.com/example/project/releases");
+        row["artwork"] = json!({
+            "game_id": 17, "cover_id": 31, "image_id": "projectcover",
+            "image_sha256": "a".repeat(64), "game_slug": "project",
+            "match_kind": "port", "observed_github_repository_id": 890
+        });
+        let read = |format, row| {
+            CatalogListingDocument::from_json(
+                &json!({"format_version":format,"listings":[row]}).to_string(),
+            )
+        };
+        assert!(read(ASSIGNED_COVER_LISTING_FORMAT, row.clone()).is_err());
+        let accepted = read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, row.clone()).unwrap();
+        let old_export = accepted
+            .export_format(ASSIGNED_COVER_LISTING_FORMAT)
+            .unwrap();
+        let cover = old_export.listings[0].artwork.as_ref().unwrap();
+        assert_eq!(cover.image_id, "projectcover");
+        assert_eq!(cover.observed_github_repository_id, None);
+
+        row["artwork"]["observed_github_repository_id"] = json!(891);
+        assert!(read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, row.clone()).is_err());
+        let mut legacy = row.clone();
+        legacy["id"] = json!("legacy-project");
+        legacy["artwork"]["observed_github_repository_id"] = json!(MAX_OBSERVED_REPOSITORY_ID + 1);
+        assert!(read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, legacy).is_err());
+        row["artwork"]["observed_github_repository_id"] = json!(890);
+        row["artwork"]["match_kind"] = json!("underlying-game");
+        assert!(read(OBSERVED_PROJECT_COVER_LISTING_FORMAT, row).is_err());
     }
 
     #[test]
@@ -2826,7 +2942,7 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         assert!(parse(&value, REPOSITORY_BOUND_LISTING_FORMAT).is_ok());
-        let unsupported_format = ASSIGNED_COVER_LISTING_FORMAT + 1;
+        let unsupported_format = OBSERVED_PROJECT_COVER_LISTING_FORMAT + 1;
         let mut future = document;
         future.format_version = unsupported_format;
         future.promote_projected_format();

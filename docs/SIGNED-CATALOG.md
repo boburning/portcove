@@ -424,6 +424,20 @@ The publisher still requires an official binary that advertises format 19
 and validates the actual candidate. Live publication remains on the existing
 format until the cover cutover is verified.
 
+Format 20 records the numeric GitHub repository for a scheduled implementation
+cover. The maintenance producer requires an exact provider project name and
+website match, then checks the repository ID. The publisher verifies that ID
+and the image bytes again before assigning a cover. The signed assignment stays
+with that implementation. Regular authored and original-edition covers use
+their existing authority. Pending downloads and external registrations read an
+observed cover from the current directory. Their legacy stored records omit it
+so a withdrawn cover cannot return through setup recovery and older clients can
+still open those records. The first format-20 publication requires a separate
+owner activation, an active signed cover checkpoint, and an official released
+reader that advertises format 20 and passes the exact staged projection.
+Preview 22 is the earliest eligible release. The actual capable release must
+still be verified before activation.
+
 With a qualified format-16 reader, the publisher can add a browser link to a
 listed Thunderstore community. The registry must explicitly refer to the same
 numeric GameBanana ID already reviewed for that exact port. An unavailable

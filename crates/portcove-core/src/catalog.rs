@@ -1364,7 +1364,8 @@ impl Catalog {
                     .chain(&presentation.companion_cover)
                     .chain(presentation.collection_covers.iter().flatten())
                 {
-                    if artwork.game_id == 0
+                    if artwork.observed_github_repository_id.is_some()
+                        || artwork.game_id == 0
                         || artwork.cover_id == 0
                         || artwork.image_id.is_empty()
                         || artwork.image_id.len() > 128
