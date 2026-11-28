@@ -5262,10 +5262,9 @@ mod tests {
         let source = temporary.path().join("fixture.sfc");
         fs::write(&source, original).unwrap();
         let server = Server::new();
-        let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+        let provider = Arc::new(Provider(Mutex::new(server.release_with_reviewed_layout(
             "v0.2.1",
             1,
-            "",
             "MegaManX2SNESRecomp.exe",
         ))));
         let mut service = build_service(library.clone(), provider.clone());
