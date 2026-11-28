@@ -643,7 +643,7 @@ export interface CatalogObservationOptions extends Pick<
   withSourceLock: <T>(config: ObserverConfig, operation: () => Promise<T>) => Promise<T>;
   load: (config: ObserverConfig) => Promise<unknown>;
   save: (config: ObserverConfig, checkpoint: unknown) => Promise<void>;
-  commit: (checkpoint: CatalogObserverCheckpoint) => Promise<void>;
+  commit: (contents: string) => Promise<void>;
   observeN64Runtime?: boolean;
   readN64BuildStepLog?: (
     repository: string,
@@ -747,15 +747,14 @@ export async function advanceCatalogObservations(
       ? newCatalogObserverCheckpoint()
       : validateCatalogObserverCheckpoint(prior, now());
   const commitCheckpoint = () => {
-    if (
-      (state.mod_provider_registry || state.launcher_mod_sources) &&
-      Buffer.byteLength(JSON.stringify(state)) > catalogCheckpointByteLimit
-    )
+    // The immutable JSON text is both the budgeted snapshot and the write input.
+    const contents = JSON.stringify(state);
+    if (Buffer.byteLength(contents) > catalogCheckpointByteLimit)
       throw new ObservationFailure(
         "checkpoint-size",
         "Catalog progress and retained mod observations exceed the checkpoint envelope. The last complete checkpoint remains.",
       );
-    return options.commit(structuredClone(state));
+    return options.commit(contents);
   };
   if (state.provider_retry_at && Date.parse(state.provider_retry_at) <= now())
     state.provider_retry_at = null;

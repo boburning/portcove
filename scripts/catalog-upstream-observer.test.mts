@@ -107,8 +107,8 @@ function harness(requests = 256) {
     save: async (config, value) => {
       states.set(observationHash(config), structuredClone(value));
     },
-    commit: async (value) => {
-      snapshots.push(structuredClone(value));
+    commit: async (contents) => {
+      snapshots.push(JSON.parse(contents) as CatalogObserverCheckpoint);
     },
     withSourceLock: async (_config, operation) => operation(),
     repositoryId: async (source, transport) => {
@@ -3032,7 +3032,8 @@ void test("configured coverage rolls forward only after saving its scoped checkp
         .sources.filter(({ key }) => key !== source.key)
         .map(({ key }) => key),
     ),
-    commit: async (checkpoint) => {
+    commit: async (contents) => {
+      const checkpoint = JSON.parse(contents) as CatalogObserverCheckpoint;
       const current = checkpoint.sources[source.key]?.current_config;
       if (current) assert.ok(h.states.has(observationHash(current)));
     },
@@ -4234,6 +4235,10 @@ void test("hosted opportunity preserves one aggregate handoff and refuses change
   const result = await runCatalogOpportunity(["--cli", cli], runtime);
   assert.ok(result.batches > 1);
   assert.equal(result.report.pending_source_keys.length, 0);
+  assert.equal(
+    await readFile(path.join(root, "work/upstream-observer/catalog/checkpoint.json"), "utf8"),
+    JSON.stringify(result.checkpoint),
+  );
   const files = await readdir(result.handoff_directory);
   assert.equal(files.length, 3);
   const actualBytes = (
@@ -5351,8 +5356,8 @@ void test("the mod-provider registry keeps exact discovery evidence across obser
   await advanceCatalogObservations(h.input, restarted.checkpoint, {
     ...h.options,
     signal: controller.signal,
-    commit: async (checkpoint) => {
-      beforeSource ??= structuredClone(checkpoint);
+    commit: async (contents) => {
+      beforeSource ??= JSON.parse(contents) as CatalogObserverCheckpoint;
     },
     withSourceLock: async () => {
       controller.abort();
