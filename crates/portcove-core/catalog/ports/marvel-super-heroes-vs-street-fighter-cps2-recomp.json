@@ -12,6 +12,32 @@
     "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mshvsf/README.md",
     "issue_number": 7378,
     "recommended_download_channel": "beta",
+    "restrictions": [
+      {
+        "id": "upstream-overlay-test-builds",
+        "effect": "hold",
+        "operations": ["download"],
+        "scope": {
+          "releases": [
+            "test-2026-11-19-windows",
+            "test-2026-11-19-windows-2",
+            "test-2026-11-19-windows-3",
+            "test-2026-11-22-windows",
+            "test-2026-11-22-windows-2",
+            "test-2026-11-22-windows-3",
+            "test-2026-11-26-windows",
+            "test-2026-11-26-windows-2",
+            "test-2026-11-27-windows",
+            "test-2026-11-27-windows-2",
+            "test-2026-11-27-windows-3"
+          ]
+        },
+        "reason": "no-useful-route",
+        "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+        "reconsider_when": ["reviewed-successor-release"],
+        "tracking_issue": 7378
+      }
+    ],
     "download_asset_hints": {
       "windows-x86-64": ["CPS2Recomp-windows-x64.zip"],
       "linux-x86-64": ["CPS2Recomp-linux-x86_64.tar.gz"],

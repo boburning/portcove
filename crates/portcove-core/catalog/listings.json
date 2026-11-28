@@ -31729,6 +31729,37 @@
       ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 2769
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -31821,6 +31852,37 @@
       ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 2770
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -31913,6 +31975,37 @@
       ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 2764
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -32005,6 +32098,37 @@
       ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 2762
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -32097,6 +32221,37 @@
       ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 2763
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -32188,6 +32343,37 @@
       ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 2780
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -32280,6 +32466,37 @@
       ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 2765
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -32372,6 +32589,37 @@
       ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 2782
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -32464,6 +32712,37 @@
       ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 2766
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -32556,6 +32835,37 @@
       ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 2767
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -32648,6 +32958,37 @@
       ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 2768
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -32721,6 +33062,37 @@
       ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 2781
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -34422,6 +34794,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/cybots/README.md",
       "issue_number": 7380,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7380
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -35177,6 +35580,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dstlk/README.md",
       "issue_number": 7377,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7377
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -39432,6 +39866,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dimahoo/README.md",
       "issue_number": 7388,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7388
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -49119,6 +49584,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ffight/README.md",
       "issue_number": 7385,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7385
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -51950,6 +52446,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ghouls/README.md",
       "issue_number": 7386,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7386
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -52076,6 +52603,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/gigawing/README.md",
       "issue_number": 7387,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7387
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -58607,6 +59165,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/hsf2/README.md",
       "issue_number": 7371,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7371
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -69754,6 +70343,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mshvsf/README.md",
       "issue_number": 7378,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7378
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -69962,6 +70582,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mvsc/README.md",
       "issue_number": 7376,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7376
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -79804,6 +80455,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/nwarr/README.md",
       "issue_number": 7379,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7379
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -83259,12 +83941,13 @@
       "original_game_title": "Spider-Man",
       "summary": "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/GTTeancum/SpideyPS1recomp",
+      "release_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases",
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/GTTeancum/SpideyPS1recomp",
+      "setup_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases/tag/sm1-v1.2",
       "manual_setup": {
         "steps": [
           {
@@ -83273,14 +83956,14 @@
           },
           {
             "title": "Follow upstream setup",
-            "instruction": "Use this game’s v1.0 runtime ZIP and extract your own disc during setup. The package uses the shared C# runtime."
+            "instruction": "Choose the Windows x64 ZIP from the Spider-Man release. Extract it to a fresh writable folder and keep mods and licenses beside SpiderMan.exe. Choose your own USA PlayStation disc image in the upstream setup."
           }
         ],
         "warnings": [
           "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/GTTeancum/SpideyPS1recomp"
+        "help_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases/tag/sm1-v1.2"
       },
       "issue_number": 3358,
       "original_game": {
@@ -83299,7 +83982,49 @@
             ]
           }
         ]
-      }
+      },
+      "download_block_reason": "OpenSpideyPS1 publishes separate games in the same release feed. Choose this game's reviewed ZIP or use the upstream setup instructions.",
+      "restrictions": [
+        {
+          "id": "shared-repository-package-scope",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "OpenSpideyPS1 publishes separate games in the same release feed. Choose this game's reviewed ZIP or use the upstream setup instructions.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 3358
+        },
+        {
+          "id": "reviewed-game-specific-archives",
+          "effect": "permit",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "artifacts": [
+              {
+                "version": "sm1-v1.2",
+                "sha256": "a43e4e6ae4d97d49888e09981e9cf389217be171b8fdf50d855ca21f3c679c18",
+                "asset_name": "Spider-Man-1.2-Windows-x64.zip"
+              },
+              {
+                "version": "sm1-v1.1",
+                "sha256": "a7ed8752b40c0e36a88cca64162e71939344239f6bc7e4be6d3136f3f3fa96b7",
+                "asset_name": "Spider-Man-1.1-Windows-x64.zip"
+              },
+              {
+                "version": "sm1-v1.0",
+                "sha256": "790948e00cdd40a7611ef98eef14635c26a8894ee7ba504041ce8d0f3fb8ee33",
+                "asset_name": "Spider-Man-1.0-Windows-x64.zip"
+              }
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "openspideyps1-gtteancum-spider-man-2-enter-electro",
@@ -83307,27 +84032,28 @@
       "original_game_title": "Spider-Man 2: Enter Electro",
       "summary": "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/GTTeancum/SpideyPS1recomp",
+      "release_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/GTTeancum/SpideyPS1recomp",
+      "setup_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases/tag/sm2-v1.2",
       "manual_setup": {
         "steps": [
           {
             "title": "Check the required game files",
-            "instruction": "Use your own USA BIN/CUE or ISO for the selected game. This guide does not specify the exact supported serial number or revision; check that game’s project requirements before setup."
+            "instruction": "For Enter Electro 1.2, use your own USA Rev 1 PlayStation disc image. Check the upstream release instructions for other versions."
           },
           {
             "title": "Follow upstream setup",
-            "instruction": "Use this game’s v1.0 runtime ZIP and extract your own disc during setup. The package uses the shared C# runtime."
+            "instruction": "Choose the Windows x64 ZIP from the Spider-Man 2: Enter Electro release. Extract it to a fresh writable folder and keep mods and licenses beside SpiderMan2.exe. Choose your own supported disc image in the upstream setup."
           }
         ],
         "warnings": [
           "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/GTTeancum/SpideyPS1recomp"
+        "help_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases/tag/sm2-v1.2"
       },
       "issue_number": 3359,
       "listed_at": "2026-10-25",
@@ -83355,7 +84081,49 @@
             ]
           }
         ]
-      }
+      },
+      "download_block_reason": "OpenSpideyPS1 publishes separate games in the same release feed. Choose this game's reviewed ZIP or use the upstream setup instructions.",
+      "restrictions": [
+        {
+          "id": "shared-repository-package-scope",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "OpenSpideyPS1 publishes separate games in the same release feed. Choose this game's reviewed ZIP or use the upstream setup instructions.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 3359
+        },
+        {
+          "id": "reviewed-game-specific-archives",
+          "effect": "permit",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "artifacts": [
+              {
+                "version": "sm2-v1.2",
+                "sha256": "e6ef4965abe8a377c2b114836a3762e0492a4ccc8c7bcab080343b98ccd9e9ef",
+                "asset_name": "Spider-Man-2-1.2-Windows-x64.zip"
+              },
+              {
+                "version": "sm2-v1.1",
+                "sha256": "3c69a7701e467b15b5b6f2fa6f0aef1abc2b478075de8e2cec0b99e97f4f700c",
+                "asset_name": "Spider-Man-2-1.1-Windows-x64.zip"
+              },
+              {
+                "version": "sm2-v1.0",
+                "sha256": "6de898c7e567c12716fb92848ed9eb125474b3105637eaad975fd5df0f90bf87",
+                "asset_name": "Spider-Man-2-1.0-Windows-x64.zip"
+              }
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "opentennis-fizl0-hot-shots-tennis",
@@ -90604,6 +91372,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/progear/README.md",
       "issue_number": 7389,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7389
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -109654,6 +110453,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa3/README.md",
       "issue_number": 7373,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7373
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -109898,6 +110728,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2ce/README.md",
       "issue_number": 7381,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7381
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -109979,6 +110840,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2hf/README.md",
       "issue_number": 7384,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7384
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -110060,6 +110952,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2/README.md",
       "issue_number": 7382,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7382
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -110314,6 +111237,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/README.md",
       "issue_number": 7374,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7374
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -112794,6 +113748,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2/README.md",
       "issue_number": 7370,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7370
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -112894,6 +113879,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2t/README.md",
       "issue_number": 7372,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7372
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -118734,6 +119750,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/punisher/README.md",
       "issue_number": 7383,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7383
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
@@ -133174,6 +134221,37 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmcota/README.md",
       "issue_number": 7375,
       "recommended_download_channel": "beta",
+      "download_block_reason": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+      "restrictions": [
+        {
+          "id": "upstream-overlay-test-builds",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "releases": [
+              "test-2026-11-19-windows",
+              "test-2026-11-19-windows-2",
+              "test-2026-11-19-windows-3",
+              "test-2026-11-22-windows",
+              "test-2026-11-22-windows-2",
+              "test-2026-11-22-windows-3",
+              "test-2026-11-26-windows",
+              "test-2026-11-26-windows-2",
+              "test-2026-11-27-windows",
+              "test-2026-11-27-windows-2",
+              "test-2026-11-27-windows-3"
+            ]
+          },
+          "reason": "no-useful-route",
+          "explanation": "This CPS-2 Recomp test build needs an existing copy. Choose a full collection release for a new setup.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 7375
+        }
+      ],
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
