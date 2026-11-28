@@ -509,6 +509,12 @@ it("refuses empty numeric input before review and isolates an unavailable file",
     Reflect.apply(setter, input, [""]);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
+  const focusedWithError = vi.fn(() => ({
+    invalid: input.getAttribute("aria-invalid"),
+    describedBy: input.getAttribute("aria-describedby"),
+    message: document.getElementById(`${input.id}-error`)?.textContent,
+  }));
+  input.addEventListener("focus", focusedWithError, { once: true });
   await click("Review changes");
   const error = host.querySelector("[role=alert]");
   expect(error?.textContent).toContain("whole number");
@@ -516,6 +522,11 @@ it("refuses empty numeric input before review and isolates an unavailable file",
   expect(input.getAttribute("aria-invalid")).toBe("true");
   expect(document.getElementById(`${input.id}-error`)).toBe(error);
   expect(document.activeElement).toBe(input);
+  expect(focusedWithError).toHaveReturnedWith({
+    invalid: "true",
+    describedBy: `${input.id}-error ${rangeId}`,
+    message: error?.textContent,
+  });
   expect(review).not.toHaveBeenCalled();
   expect(apply).not.toHaveBeenCalled();
 });
