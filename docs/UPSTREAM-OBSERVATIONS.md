@@ -108,8 +108,11 @@ scheduled configured source uses format 2 with the same Core selection and
 complete header validation as other catalog sources. The standalone format-1
 route and its retained checkpoints remain readable.
 
-The format-2 configuration binds `asset_scope: core-channel-candidates` and a
-`policy_input_sha256` to the maintained selection inputs. A changed Core candidate
+Format 2 binds `asset_scope: core-channel-candidates`. Catalog sources bind
+their maintained selection inputs in `policy_input_sha256`. The configured
+report derives its configuration hash from the committed template and selection
+mode. Its continuation separately binds current catalog and Core inputs and
+restarts partial collection when they change. A changed Core candidate
 set during continuation resets the validation cursor and discards irrelevant
 asset pages from the active scope. Retained conditional representations may save
 bytes but cannot establish current coverage. This interface adds no artifact
