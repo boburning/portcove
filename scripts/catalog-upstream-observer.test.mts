@@ -3905,6 +3905,34 @@ void test("accepted checkpoint advancement ignores request counts, clocks, clear
     false,
   );
   assert.equal(advanced(a, position({ continuation: { pages: { a: {}, b: {} } } })), true);
+  const preflight = {
+    phase: "collect",
+    started_at: "2026-11-27T00:00:00Z",
+    pages: { a: {}, b: {} },
+    validation_cursor: 0,
+    tentative_pages: ["a", "b"],
+  };
+  const preflightStart = position({ continuation: preflight });
+  assert.equal(
+    advanced(preflightStart, position({ continuation: { ...preflight, tentative_pages: ["b"] } })),
+    true,
+  );
+  assert.equal(
+    advanced(
+      preflightStart,
+      position({ continuation: { ...preflight, tentative_pages: [], phase: "restart" } }),
+    ),
+    false,
+  );
+  assert.equal(
+    advanced(
+      preflightStart,
+      position({
+        continuation: { ...preflight, tentative_pages: [], started_at: "2026-11-27T00:01:00Z" },
+      }),
+    ),
+    false,
+  );
   // Changed last-good facts advance only without a stated incomplete coverage.
   const facts = (sha: string, kind?: string) =>
     position({
