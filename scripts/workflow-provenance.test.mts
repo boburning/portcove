@@ -1965,6 +1965,49 @@ void test("duplicate provenance entries refuse before decoding a second payload"
   assert.throws(() => parseProvenanceArchive(duplicate), /must contain one JSON record/);
 });
 
+void test("published Windows recovery has one fixed disposable installed route", async () => {
+  const { recoveryPreviewVersion } = await import("./hosted-published-windows-recovery.mts");
+  assert.equal(recoveryPreviewVersion("nightly-0.1.0-preview.21"), "0.1.0-preview.21");
+  for (const tag of [
+    "latest",
+    "v1.0.0",
+    "nightly-0.1.0-preview.0",
+    "../nightly-0.1.0-preview.21",
+  ]) {
+    assert.throws(() => recoveryPreviewVersion(tag), /exact published Portcove Preview tag/u);
+  }
+  const workflow: unknown = parseYaml(
+    readFileSync(
+      new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const job = record(record(record(workflow).jobs).windows_published_library_recovery);
+  assert.equal(job["runs-on"], "windows-2022");
+  assert.equal(
+    job.if,
+    "${{ inputs.operation == 'windows-published-library-recovery' && inputs.runner == 'windows-2022' && " +
+      "!inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
+  );
+  assert.deepEqual(job.permissions, { contents: "read", attestations: "read" });
+  const steps = job.steps;
+  assert.ok(Array.isArray(steps));
+  const execute = record(
+    required(
+      steps.find(
+        (step) => record(step).run === "node scripts/hosted-published-windows-recovery.mts",
+      ),
+    ),
+  );
+  assert.equal(
+    record(execute.env).PORTCOVE_PUBLISHED_RECOVERY_TAG,
+    "${{ inputs.recovery_release_tag }}",
+  );
+  const evidence = record(required(steps.find((step) => record(step).if === "always()")));
+  assert.match(text(record(evidence.with).path), /native\/\*\.png/u);
+  assert.doesNotMatch(text(record(evidence.with).path), /\*\*|installed|RUNNER_TEMP/u);
+});
+
 void test("Linux continuity publishes an outside-checkout store and lossless bounded private-free reports", async (t) => {
   const workflow: unknown = parseYaml(
     readFileSync(
