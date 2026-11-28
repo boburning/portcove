@@ -2833,7 +2833,7 @@ void test("N64 release source checks the alternate layout only after an exact 40
     { .game_id = u8"fixture.original", .rom_hash = 0x1234567812345678ULL,
       .mod_game_id = "fixture-native" }
   };`;
-  let preferredResult: unknown = new GitHubApiError("request_failed", "file absent", {
+  let preferredResult: unknown = new GitHubApiError("operation_failed", "file absent", {
     status: 404,
   });
   let alternation = n64RuntimeFixtureBlob("src/main.cpp", game);
@@ -2888,7 +2888,9 @@ void test("N64 release source checks the alternate layout only after an exact 40
     /metadata is incomplete/u,
   );
   for (const failure of [
-    new GitHubApiError("request_failed", "access denied", { status: 403 }),
+    new GitHubApiError("operation_failed", "access denied", { status: 403 }),
+    new GitHubApiError("response_limit", "response exceeded its allowance", { status: 404 }),
+    new GitHubApiError("cancelled", "request cancelled", { status: 404 }),
     n64RuntimeFixtureBlob("src/main/main.cpp", "int main() { return 0; }"),
   ]) {
     paths.length = 0;

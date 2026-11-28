@@ -120,7 +120,12 @@ async function readN64ReleaseDeclaration(read: ReadGitHub) {
   } catch (error) {
     // Only a missing conventional source file permits the alternate layout.
     // A failed provider read or invalid declaration retains the original result.
-    if (!(error instanceof GitHubApiError) || error.status !== 404) throw error;
+    if (
+      !(error instanceof GitHubApiError) ||
+      error.code !== "operation_failed" ||
+      error.status !== 404
+    )
+      throw error;
     path = n64AlternateGameTablePath;
     contents = await read(path);
   }
