@@ -82818,12 +82818,13 @@
       "original_game_title": "Spider-Man",
       "summary": "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/GTTeancum/SpideyPS1recomp",
+      "release_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases",
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/GTTeancum/SpideyPS1recomp",
+      "setup_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases/tag/sm1-v1.2",
       "manual_setup": {
         "steps": [
           {
@@ -82832,14 +82833,14 @@
           },
           {
             "title": "Follow upstream setup",
-            "instruction": "Use this game’s v1.0 runtime ZIP and extract your own disc during setup. The package uses the shared C# runtime."
+            "instruction": "Choose the Windows x64 ZIP from the Spider-Man release. Extract it to a fresh writable folder and keep mods and licenses beside SpiderMan.exe. Choose your own USA PlayStation disc image in the upstream setup."
           }
         ],
         "warnings": [
           "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/GTTeancum/SpideyPS1recomp"
+        "help_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases/tag/sm1-v1.2"
       },
       "issue_number": 3358,
       "original_game": {
@@ -82858,7 +82859,49 @@
             ]
           }
         ]
-      }
+      },
+      "download_block_reason": "OpenSpideyPS1 publishes separate games in the same release feed. Choose this game's reviewed ZIP or use the upstream setup instructions.",
+      "restrictions": [
+        {
+          "id": "shared-repository-package-scope",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "OpenSpideyPS1 publishes separate games in the same release feed. Choose this game's reviewed ZIP or use the upstream setup instructions.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 3358
+        },
+        {
+          "id": "reviewed-game-specific-archives",
+          "effect": "permit",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "artifacts": [
+              {
+                "version": "sm1-v1.2",
+                "sha256": "a43e4e6ae4d97d49888e09981e9cf389217be171b8fdf50d855ca21f3c679c18",
+                "asset_name": "Spider-Man-1.2-Windows-x64.zip"
+              },
+              {
+                "version": "sm1-v1.1",
+                "sha256": "a7ed8752b40c0e36a88cca64162e71939344239f6bc7e4be6d3136f3f3fa96b7",
+                "asset_name": "Spider-Man-1.1-Windows-x64.zip"
+              },
+              {
+                "version": "sm1-v1.0",
+                "sha256": "790948e00cdd40a7611ef98eef14635c26a8894ee7ba504041ce8d0f3fb8ee33",
+                "asset_name": "Spider-Man-1.0-Windows-x64.zip"
+              }
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "openspideyps1-gtteancum-spider-man-2-enter-electro",
@@ -82866,27 +82909,28 @@
       "original_game_title": "Spider-Man 2: Enter Electro",
       "summary": "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/GTTeancum/SpideyPS1recomp",
+      "release_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/GTTeancum/SpideyPS1recomp",
+      "setup_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases/tag/sm2-v1.2",
       "manual_setup": {
         "steps": [
           {
             "title": "Check the required game files",
-            "instruction": "Use your own USA BIN/CUE or ISO for the selected game. This guide does not specify the exact supported serial number or revision; check that game’s project requirements before setup."
+            "instruction": "For Enter Electro 1.2, use your own USA Rev 1 PlayStation disc image. Check the upstream release instructions for other versions."
           },
           {
             "title": "Follow upstream setup",
-            "instruction": "Use this game’s v1.0 runtime ZIP and extract your own disc during setup. The package uses the shared C# runtime."
+            "instruction": "Choose the Windows x64 ZIP from the Spider-Man 2: Enter Electro release. Extract it to a fresh writable folder and keep mods and licenses beside SpiderMan2.exe. Choose your own supported disc image in the upstream setup."
           }
         ],
         "warnings": [
           "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/GTTeancum/SpideyPS1recomp"
+        "help_url": "https://github.com/GTTeancum/SpideyPS1recomp/releases/tag/sm2-v1.2"
       },
       "issue_number": 3359,
       "listed_at": "2026-10-25",
@@ -82914,7 +82958,49 @@
             ]
           }
         ]
-      }
+      },
+      "download_block_reason": "OpenSpideyPS1 publishes separate games in the same release feed. Choose this game's reviewed ZIP or use the upstream setup instructions.",
+      "restrictions": [
+        {
+          "id": "shared-repository-package-scope",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "OpenSpideyPS1 publishes separate games in the same release feed. Choose this game's reviewed ZIP or use the upstream setup instructions.",
+          "reconsider_when": [
+            "reviewed-successor-release"
+          ],
+          "tracking_issue": 3359
+        },
+        {
+          "id": "reviewed-game-specific-archives",
+          "effect": "permit",
+          "operations": [
+            "download"
+          ],
+          "scope": {
+            "artifacts": [
+              {
+                "version": "sm2-v1.2",
+                "sha256": "e6ef4965abe8a377c2b114836a3762e0492a4ccc8c7bcab080343b98ccd9e9ef",
+                "asset_name": "Spider-Man-2-1.2-Windows-x64.zip"
+              },
+              {
+                "version": "sm2-v1.1",
+                "sha256": "3c69a7701e467b15b5b6f2fa6f0aef1abc2b478075de8e2cec0b99e97f4f700c",
+                "asset_name": "Spider-Man-2-1.1-Windows-x64.zip"
+              },
+              {
+                "version": "sm2-v1.0",
+                "sha256": "6de898c7e567c12716fb92848ed9eb125474b3105637eaad975fd5df0f90bf87",
+                "asset_name": "Spider-Man-2-1.0-Windows-x64.zip"
+              }
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "opentennis-fizl0-hot-shots-tennis",
