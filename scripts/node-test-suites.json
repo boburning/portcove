@@ -5101,6 +5101,7 @@
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite native-tools",
           "cases": [
+            "Windows acquisition fixture waits for the marker in its assigned library",
             "Windows owned probe explicit mode works in empty isolated cwd and preserves the legacy mode route"
           ],
           "suite": "owned Windows probe fixture"

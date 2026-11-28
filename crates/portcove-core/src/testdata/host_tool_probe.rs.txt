@@ -109,12 +109,19 @@ fn main() {
         }
         Some("--game") if args.iter().any(|argument| argument == "--extract") => owned_preparation(&args),
         Some("--game") => {
-            if let Some(pair) = args.windows(2).find(|pair| pair[0] == "--owned-wait") {
+            let release_marker = if args.iter().any(|argument| argument == "--wait-for-acquisition-release") {
+                let library = env::var_os("PORTCOVE_LIBRARY").expect("owned acquisition requires its isolated library");
+                Some(std::path::PathBuf::from(library).join("acquisition-game-release.signal"))
+            } else {
+                args.windows(2).find(|pair| pair[0] == "--owned-wait")
+                    .map(|pair| std::path::PathBuf::from(&pair[1]))
+            };
+            if let Some(release_marker) = release_marker {
                 let seconds = args.windows(2).find(|pair| pair[0] == "--owned-wait-seconds")
                     .map(|pair| pair[1].parse::<u64>().unwrap()).unwrap_or(10);
                 assert!((1..=180).contains(&seconds), "owned fixture wait budget must remain finite");
                 let deadline = std::time::Instant::now() + Duration::from_secs(seconds);
-                while !std::path::Path::new(&pair[1]).exists() {
+                while !release_marker.exists() {
                     if std::time::Instant::now() >= deadline { std::process::exit(8); }
                     thread::sleep(Duration::from_millis(20));
                 }
