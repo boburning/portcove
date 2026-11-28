@@ -440,6 +440,10 @@ export async function selectedSetupCompletionScenario({
     };
     try {
       generation = await selectedSetupGeneration(invoke);
+      assert.doesNotThrow(() => {
+        const cliPort = object(core(["catalog", "show", port.id]));
+        assert.equal(cliPort.id, port.id);
+      }, "The preparation CLI must load the selected-setup fixture catalog. Use the CLI built by desktop-verify for this scenario.");
       originalWindow = await browser.manage().window().getRect();
       await browser.manage().window().setRect({ width: 960, height: 640 });
       zoomAttempted = true;
