@@ -2915,6 +2915,20 @@ const reportQuery = (
   ), core_gap AS (
     SELECT cl.platform, g ->> 'subject_key' AS subject_key, g ->> 'code' AS code, g ->> 'message' AS message
       FROM core_latest cl CROSS JOIN LATERAL jsonb_array_elements(cl.gaps) g
+  ), latest_gap_runs AS (
+    SELECT DISTINCT ON (source) source, gaps
+      FROM portcove_maintenance.collection_runs
+      WHERE source IN ('hosted-intake', 'release-health', 'release-content', 'upstream-observations')
+        AND coverage NOT IN ('in_progress', 'failed')
+      ORDER BY source, acquisition DESC
+  ), report_gaps AS (
+    -- Match the first gap per subject in the latest eligible run, retaining array order.
+    SELECT DISTINCT ON (r.source, gap.value ->> 'subject_key')
+           r.source, gap.value ->> 'subject_key' AS subject_key, gap.value
+      FROM latest_gap_runs r
+      CROSS JOIN LATERAL jsonb_array_elements(r.gaps) WITH ORDINALITY AS gap(value, position)
+      WHERE gap.value ->> 'subject_key' IS NOT NULL
+      ORDER BY r.source, gap.value ->> 'subject_key', gap.position
   ), assessed AS (
     SELECT c.*, split_part(c.subject_key, '@', 1) AS port_key, split_part(c.subject_key, '@', 2) AS platform
       FROM portcove_maintenance.subject_current c
@@ -2967,12 +2981,7 @@ const reportQuery = (
 SELECT json_build_object(
   'handoffs', ${openHandoffsSql},
   'hosted_intake', (SELECT coalesce(json_agg(json_build_object('subject_key', h.subject_key, 'facts', h.payload,
-        'latest_gap', (SELECT g ->> 'code' FROM (
-            SELECT gaps FROM portcove_maintenance.collection_runs
-              WHERE source = 'hosted-intake' AND coverage NOT IN ('in_progress', 'failed')
-              ORDER BY acquisition DESC LIMIT 1) hr
-           CROSS JOIN LATERAL jsonb_array_elements(hr.gaps) g
-           WHERE g ->> 'subject_key' = h.subject_key LIMIT 1),
+        'latest_gap', hg.value ->> 'code',
         'issues', (SELECT coalesce(json_agg(json_build_object('number', (i.payload ->> 'number')::integer,
                      'state', i.payload ->> 'state', 'status', i.payload -> 'project' -> 0 -> 'fields' ->> 'Status')
                      ORDER BY (i.payload ->> 'number')::integer), '[]')
@@ -2981,7 +2990,9 @@ SELECT json_build_object(
                        SELECT (s ->> 'linked_issue')::bigint FROM jsonb_array_elements(h.payload -> 'slots') s
                         WHERE jsonb_typeof(s -> 'linked_issue') = 'number')))
         ORDER BY (h.payload ->> 'request_comment')::bigint), '[]')
-      FROM latest_hosted h WHERE h.payload <> portcove_maintenance.absent_payload()),
+      FROM latest_hosted h
+      LEFT JOIN report_gaps hg ON hg.source = 'hosted-intake' AND hg.subject_key = h.subject_key
+      WHERE h.payload <> portcove_maintenance.absent_payload()),
   'publication', (SELECT coalesce(json_agg(json_build_object('definition', p.subject_key, 'facts', p.payload)
         ORDER BY p.subject_key), '[]')
       FROM (SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
@@ -3128,30 +3139,15 @@ SELECT json_build_object(
         lc.payload = portcove_maintenance.absent_payload() AS removed,
         (SELECT CASE WHEN h.payload = portcove_maintenance.absent_payload() THEN NULL ELSE h.payload END
            FROM latest_health h WHERE h.subject_key = p.port_key) AS release_health,
-        (SELECT g ->> 'code' FROM (
-            SELECT gaps FROM portcove_maintenance.collection_runs
-              WHERE source = 'release-health' AND coverage NOT IN ('in_progress', 'failed')
-              ORDER BY acquisition DESC LIMIT 1) hr
-           CROSS JOIN LATERAL jsonb_array_elements(hr.gaps) g
-           WHERE g ->> 'subject_key' = p.port_key LIMIT 1) AS latest_health_gap,
+        health_gap.value ->> 'code' AS latest_health_gap,
         (SELECT CASE WHEN rc.payload = portcove_maintenance.absent_payload() THEN NULL ELSE rc.payload END
            FROM latest_content rc WHERE rc.subject_key = p.port_key) AS release_content,
-        (SELECT g FROM (
-            SELECT gaps FROM portcove_maintenance.collection_runs
-              WHERE source = 'release-content' AND coverage NOT IN ('in_progress', 'failed')
-              ORDER BY acquisition DESC LIMIT 1) cr
-           CROSS JOIN LATERAL jsonb_array_elements(cr.gaps) g
-           WHERE g ->> 'subject_key' = p.port_key LIMIT 1) AS latest_content_gap,
+        content_gap.value AS latest_content_gap,
         u.payload AS upstream,
         u.payload = portcove_maintenance.absent_payload() AS upstream_absent,
         t.payload AS target_routes,
         t.payload = portcove_maintenance.absent_payload() AS target_routes_absent,
-        (SELECT g FROM (
-            SELECT gaps FROM portcove_maintenance.collection_runs
-              WHERE source = 'upstream-observations' AND coverage NOT IN ('in_progress', 'failed')
-              ORDER BY acquisition DESC LIMIT 1) ur
-           CROSS JOIN LATERAL jsonb_array_elements(ur.gaps) g
-           WHERE g ->> 'subject_key' = p.port_key LIMIT 1) AS latest_upstream_gap,
+        upstream_gap.value AS latest_upstream_gap,
         json_build_object(
           'name', lc.payload -> 'authored_record' -> 'listing' ->> 'name',
           'game', lc.payload -> 'authored_record' -> 'listing' ->> 'original_game_title',
@@ -3171,6 +3167,12 @@ SELECT json_build_object(
         LEFT JOIN latest_catalog lc ON lc.subject_key = p.port_key
         LEFT JOIN latest_upstream u ON u.subject_key = p.port_key
         LEFT JOIN latest_targets t ON t.subject_key = p.port_key
+        LEFT JOIN report_gaps health_gap
+          ON health_gap.source = 'release-health' AND health_gap.subject_key = p.port_key
+        LEFT JOIN report_gaps content_gap
+          ON content_gap.source = 'release-content' AND content_gap.subject_key = p.port_key
+        LEFT JOIN report_gaps upstream_gap
+          ON upstream_gap.source = 'upstream-observations' AND upstream_gap.subject_key = p.port_key
         LEFT JOIN port_work w ON w.port_key = p.port_key) f)
 );`;
 
