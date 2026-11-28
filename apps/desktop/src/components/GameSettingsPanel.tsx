@@ -315,6 +315,21 @@ function parseChange(setting: GameSettingView, draft: DraftValue): GameSettingCh
   return { action: "set", value };
 }
 
+function fieldErrorLabel(t: TFunction<"gameSettings">, error: FieldError) {
+  switch (error) {
+    case "tooLarge":
+      return t("editor.error.tooLarge");
+    case "whole":
+      return t("editor.error.whole");
+    case "number":
+      return t("editor.error.number");
+    case "range":
+      return t("editor.error.range");
+    case "choose":
+      return t("editor.error.choose");
+  }
+}
+
 function SettingEditor({
   setting,
   draft,
@@ -329,6 +344,10 @@ function SettingEditor({
   const { t } = useAppTranslation("gameSettings");
   const id = useId();
   const type = setting.value_type;
+  const range = type.kind === "number" || type.kind === "integer" ? type : undefined;
+  const descriptionIds: string[] = [];
+  if (error) descriptionIds.push(`${id}-error`);
+  if (range) descriptionIds.push(`${id}-range`);
   const input =
     draft?.action === "set" ? draft.input : currentInput(setting, draft?.action === "reset");
   const update = (input: string) =>
@@ -337,7 +356,7 @@ function SettingEditor({
     id,
     name: setting.id,
     "aria-invalid": error !== undefined,
-    "aria-describedby": error ? `${id}-error` : undefined,
+    "aria-describedby": descriptionIds.join(" ") || undefined,
   };
   return (
     <div className="grid gap-2">
@@ -379,26 +398,18 @@ function SettingEditor({
       {setting.value == null && !draft && (
         <p className="m-0 text-xs text-pc-muted-foreground">{t("editor.defaultShown")}</p>
       )}
-      {(type.kind === "number" || type.kind === "integer") && (
-        <p className="m-0 text-xs text-pc-muted-foreground">
-          {t(type.kind === "integer" ? "editor.rangeWhole" : "editor.rangeNumber", {
-            minimum: type.minimum,
-            maximum: type.maximum,
-            step: type.step,
+      {range && (
+        <p id={`${id}-range`} className="m-0 text-xs text-pc-muted-foreground">
+          {t(range.kind === "integer" ? "editor.rangeWhole" : "editor.rangeNumber", {
+            minimum: range.minimum,
+            maximum: range.maximum,
+            step: range.step,
           })}
         </p>
       )}
       {error && (
         <p id={`${id}-error`} role="alert">
-          {error === "tooLarge"
-            ? t("editor.error.tooLarge")
-            : error === "whole"
-              ? t("editor.error.whole")
-              : error === "number"
-                ? t("editor.error.number")
-                : error === "range"
-                  ? t("editor.error.range")
-                  : t("editor.error.choose")}
+          {fieldErrorLabel(t, error)}
         </p>
       )}
       <div className="flex flex-wrap gap-2">

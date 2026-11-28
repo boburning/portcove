@@ -498,6 +498,11 @@ it("refuses empty numeric input before review and isolates an unavailable file",
   expect(host.textContent).toContain("not readable yet");
   const input = host.querySelector("input");
   if (!(input instanceof HTMLInputElement)) throw new Error("Missing numeric input");
+  const rangeId = `${input.id}-range`;
+  expect(input.getAttribute("aria-describedby")).toBe(rangeId);
+  expect(document.getElementById(rangeId)?.textContent).toBe(
+    "Whole numbers from 0 to 100, in steps of 1.",
+  );
   await act(async () => {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
     if (!setter) throw new Error("Missing native input setter");
@@ -505,7 +510,12 @@ it("refuses empty numeric input before review and isolates an unavailable file",
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
   await click("Review changes");
-  expect(host.querySelector("[role=alert]")?.textContent).toContain("whole number");
+  const error = host.querySelector("[role=alert]");
+  expect(error?.textContent).toContain("whole number");
+  expect(input.getAttribute("aria-describedby")).toBe(`${input.id}-error ${rangeId}`);
+  expect(input.getAttribute("aria-invalid")).toBe("true");
+  expect(document.getElementById(`${input.id}-error`)).toBe(error);
+  expect(document.activeElement).toBe(input);
   expect(review).not.toHaveBeenCalled();
   expect(apply).not.toHaveBeenCalled();
 });
