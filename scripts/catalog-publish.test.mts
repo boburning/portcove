@@ -1878,6 +1878,91 @@ void test("signed projection keeps release observations through authored artwork
   }
 });
 
+void test("descriptive edition enrollment preserves independent release observations", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const edition = {
+    id: "retail",
+    title: "Retail edition",
+    system: "super-nintendo",
+    evidence_urls: ["https://example.com/retail"],
+  };
+  const original = {
+    format_version: 1,
+    id: "fixture-game",
+    evidence_urls: ["https://example.com/game"],
+    source_editions: [],
+  };
+  const before = { ...fixtureListing, original_game: original };
+  const after = { ...before, original_game: { ...original, source_editions: [edition] } };
+  const candidate = fixturePolicy(before).listing_update;
+  const now = Date.parse("2026-11-10T00:01:00Z");
+  const directory = (listing: Record<string, unknown>) => ({
+    format_version: 16,
+    listings: [listing],
+  });
+  const view = (bytes: Buffer) =>
+    requiredFixture(
+      fixtureRecords(
+        fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings,
+      )[0],
+    );
+  const prior = projectListingDelivery(directory(before), [candidate], null, { now });
+  const observed = requiredFixture(view(prior.bytes).upstream_observation);
+  const fromSigned = projectListingDelivery(directory(after), [], prior.bytes, { now });
+  const fromCompleted = projectListingDelivery(directory(after), [candidate], null, { now });
+  for (const result of [fromSigned, fromCompleted])
+    assert.deepEqual(view(result.bytes), { ...after, upstream_observation: observed });
+
+  const another = { ...edition, id: "second-edition" };
+  const amendments = [
+    { ...after, original_game: { ...after.original_game, id: "different-game" } },
+    { ...after, project_url: "https://github.com/owner/another" },
+    { ...after, download_block_reason: "An upstream package is restricted." },
+    { ...after, download_asset_hints: { "linux-x86-64": ["linux"] } },
+    {
+      ...after,
+      original_game: {
+        ...original,
+        source_editions: [
+          {
+            ...edition,
+            verified_sources: [{ game_id: "game", variant_id: "v", representation_id: "file" }],
+          },
+        ],
+      },
+    },
+    { ...after, original_game: { ...original, source_editions: [edition, edition] } },
+  ];
+  for (const changed of amendments)
+    assert.deepEqual(
+      view(projectListingDelivery(directory(changed), [candidate], prior.bytes, { now }).bytes),
+      changed,
+    );
+
+  const replaced = {
+    ...after,
+    original_game: { ...original, source_editions: [{ ...edition, system: "windows" }, another] },
+  };
+  assert.deepEqual(
+    view(
+      projectListingDelivery(
+        directory(replaced),
+        [fixturePolicy(after).listing_update],
+        fromSigned.bytes,
+        { now },
+      ).bytes,
+    ),
+    replaced,
+  );
+  const added = { ...after, original_game: { ...original, source_editions: [edition, another] } };
+  assert.deepEqual(
+    view(projectListingDelivery(directory(added), [], fromSigned.bytes, { now }).bytes),
+    { ...added, upstream_observation: observed },
+  );
+});
+
 void test("scheduled media projects the exact edition, retains signed defaults, and respects later exclusions", async () => {
   const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
   const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
@@ -3510,6 +3595,46 @@ void test("completed source observations stay bound to current canonical provide
     catalog: { ports: [], listings: [fixtureListing] },
   };
   assert.equal(completedListingCandidates(input, { ports: [] }, canonical).length, 1);
+  const original = {
+    format_version: 1,
+    id: "original-game",
+    evidence_urls: [],
+    source_editions: [],
+  };
+  const listingWithOriginal = { ...fixtureListing, original_game: original };
+  const earlierPolicy = fixturePolicy(listingWithOriginal);
+  const earlierInput = {
+    ...input,
+    catalog: { ports: [], listings: [listingWithOriginal] },
+    checkpoint: checkpoint({
+      [keyOf("owner/game")]: progress("owner/game", [], {
+        repository_id: 42,
+        last_complete_facts_sha256: earlierPolicy.facts_sha256,
+        last_complete_policies: [earlierPolicy],
+      }),
+    }),
+  };
+  const laterListing = {
+    ...listingWithOriginal,
+    original_game: {
+      ...original,
+      source_editions: [
+        { id: "retail", title: "Original retail", system: "super-nintendo", evidence_urls: [] },
+      ],
+    },
+  };
+  assert.deepEqual(
+    completedListingCandidates(
+      earlierInput,
+      { ports: [] },
+      {
+        ...canonical,
+        listings: [laterListing],
+      },
+    ),
+    [earlierPolicy.listing_update],
+  );
+
   const moved = { ...fixtureListing, project_url: "https://github.com/new/game" };
   assert.equal(
     completedListingCandidates(input, { ports: [] }, { format_version: 12, listings: [moved] })
@@ -3538,6 +3663,36 @@ void test("completed source observations stay bound to current canonical provide
     release: { repository: "owner/game" },
   };
   const managedInput = { ...input, catalog: { ...input.catalog, ports: [managed] } };
+  const editionManagedInput = {
+    ...earlierInput,
+    catalog: {
+      ...earlierInput.catalog,
+      ports: [{ ...managed, presentation: { original_game: original } }],
+    },
+  };
+  const editionManagedPort = {
+    ...managed,
+    presentation: { original_game: laterListing.original_game },
+  };
+  const editionDirectory = { ...canonical, listings: [laterListing] };
+  assert.deepEqual(
+    completedListingCandidates(
+      editionManagedInput,
+      { ports: [editionManagedPort] },
+      editionDirectory,
+    ),
+    [earlierPolicy.listing_update],
+  );
+  assert.deepEqual(
+    completedListingCandidates(
+      editionManagedInput,
+      { ports: [{ ...editionManagedPort, release: { repository: "other/game" } }] },
+      editionDirectory,
+    ),
+    [],
+    "descriptive edition enrollment does not authorize a change in the managed release source",
+  );
+
   const artwork = {
     game_id: 70,
     cover_id: 71,
