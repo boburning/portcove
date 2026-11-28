@@ -2149,7 +2149,12 @@ void test("scheduled project covers require the exact upstream website and stay 
   const { readScheduledGameMediaProposal } = await import("./listing-scheduled-game-media.mts");
   const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
   const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
-  const project = { ...fixtureListing, id: "art-project", name: "Art Project" };
+  const project = {
+    ...fixtureListing,
+    id: "art-project",
+    name: "Art Project",
+    availability: "unknown" as const,
+  };
   const other = {
     ...project,
     id: "art-other",
@@ -2203,6 +2208,7 @@ void test("scheduled project covers require the exact upstream website and stay 
     additions: [],
     covers: [cover],
   });
+  assert.ok(proposal.covers);
   const options = {
     authored,
     reviewed: new Map(),
@@ -2227,9 +2233,9 @@ void test("scheduled project covers require the exact upstream website and stay 
     scheduledCovers: fresh.proposals,
   });
   const projectedArt = (bytes: Buffer) =>
-    JSON.parse(bytes.toString()).directory.listings.find(
-      (row: { id: string }) => row.id === project.id,
-    )?.artwork;
+    fixtureRecords(
+      fixtureRecord(fixtureRecord(JSON.parse(bytes.toString())).directory).listings,
+    ).find((row) => row.id === project.id)?.artwork;
   assert.equal(projectedArt(listing19.bytes), undefined);
   const listing20 = projectListingDelivery(canonical, [], null, {
     compatible: { ...canonical, format_version: 20 },
