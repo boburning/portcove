@@ -131,16 +131,28 @@ void test("binds a reciprocal link to the exact public repository, commit and do
     `${root}/commits?per_page=1`,
     `${root}/readme?ref=${commit}`,
   ]);
+  const inlineCode = readDocument("Find " + link + " for `our-game`.");
+  assert.equal(
+    (
+      await observeReciprocalThunderstoreDocument(
+        repository,
+        document,
+        "some-port",
+        inlineCode.read,
+      )
+    ).state,
+    "observed",
+  );
 
   for (const rejected of [
     readDocument(`${link}\n[Other game](https://thunderstore.io/c/different/)`),
-    readDocument("https://example.org/?link=https://thunderstore.io/c/some-port/"),
     readDocument(`<!-- ${link} -->`),
     readDocument("```md\n" + link + "\n```"),
     readDocument("`" + link + "`"),
     readDocument(`> ${link}`),
     readDocument(`<pre>\n${link}\n</pre>`),
-    readDocument("[See https://thunderstore.io/c/some-port/ ](https://example.org/)"),
+    readDocument(`<div>\n${link}\n</div>`),
+    readDocument("- ```markdown\n  " + link + "\n  ```\n"),
     readDocument(link, { name: "SomeoneElse/Replacement" }),
   ]) {
     const result = await observeReciprocalThunderstoreDocument(
@@ -152,6 +164,8 @@ void test("binds a reciprocal link to the exact public repository, commit and do
     assert.equal(result.state, "held");
   }
   for (const failure of [
+    readDocument("https://example.org/?link=https://thunderstore.io/c/some-port/"),
+    readDocument("[See https://thunderstore.io/c/some-port/ ](https://example.org/)"),
     readDocument(link, { failure: "provider-quota" }),
     readDocument(link, { badDigest: true }),
     readDocument(link + " ".repeat(65_536)),

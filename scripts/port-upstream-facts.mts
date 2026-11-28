@@ -393,16 +393,30 @@ export async function observeReciprocalThunderstoreDocument(
     text
       .replace(/<!--[\s\S]*?(?:-->|$)/gu, "\n")
       .replace(/<(pre|code|script|style|blockquote)(?:\s[^>]*)?>[\s\S]*?(?:<\/\1\s*>|$)/giu, "\n"),
-  );
+  ).replace(/(?<!`)(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/gu, " ");
   const links = new Set<string>();
+  let htmlBlock = false;
+  let unsupportedLink = false;
   for (const line of prose.split("\n")) {
-    if (/^(?: {4}|\t)|[<>`]/u.test(line)) continue;
-    for (const match of line.matchAll(
-      /(?<![!\\])\[[^[\]\n]+\]\(https:\/\/thunderstore\.io\/c\/([a-z0-9]+(?:[-_][a-z0-9]+)*)\/?\)/gu,
-    )) {
+    if (!line.trim()) htmlBlock = false;
+    const html = /^\s*<\/?[A-Za-z][A-Za-z0-9-]*(?:[\s/>]|$)/u.test(line);
+    if (html) htmlBlock = true;
+    // Only ordinary unindented Markdown is supported. A link in a list
+    // continuation could be a code example underneath a nested fence.
+    if (htmlBlock || /^[\s>]/u.test(line)) continue;
+    const matches = Array.from(
+      line.matchAll(
+        /(?<![!\\])\[[^[\]\n]+\]\(https:\/\/thunderstore\.io\/c\/([a-z0-9]+(?:[-_][a-z0-9]+)*)\/?\)/gu,
+      ),
+    );
+    for (const match of matches) {
       if (match[1]) links.add(match[1]);
     }
+    if (!matches.length && line.includes(`https://thunderstore.io/c/${community}/`))
+      unsupportedLink = true;
   }
+  if (!links.size && unsupportedLink)
+    return { state: "unavailable", reason: "project-document-link-form-unverified" };
   if (links.size !== 1 || !links.has(community))
     return { state: "held", reason: "community-link-unresolved" } as const;
   return {
