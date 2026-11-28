@@ -326,6 +326,11 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     };
     if record.format_version != expected_format
         || crate::catalog::listings::has_verified_source_editions(&record.listing)
+        || record
+            .listing
+            .media
+            .iter()
+            .any(crate::CatalogMediaAsset::is_directory_only)
         || !record.listing.mod_portals.is_empty()
         || record.listing.official_setup_id.is_some()
         || crate::catalog::listings::has_observed_project_cover(&record.listing)
