@@ -55,7 +55,17 @@
       "evidence_urls": [
         "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2t/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-street-fighter-ii-turbo-cps2-ssf2xjr1",
+          "title": "Super Street Fighter II Turbo (CPS-2, Japan 940223, ssf2xjr1)",
+          "system": "capcom-cps-2",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L32",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2t/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

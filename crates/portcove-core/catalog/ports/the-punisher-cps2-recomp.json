@@ -55,7 +55,17 @@
       "evidence_urls": [
         "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/punisher/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-punisher-1993-cps1-punisheru",
+          "title": "The Punisher (CPS-1, USA 930422, punisheru)",
+          "system": "capcom-cps-1",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L58",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/punisher/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

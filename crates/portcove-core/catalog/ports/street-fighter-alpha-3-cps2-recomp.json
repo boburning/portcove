@@ -57,7 +57,17 @@
         "https://github.com/TechnicallyComputers/Street-Fighter-Alpha-3-Recomp",
         "https://github.com/irnutsmurt/Street-Alpha-3-Dreamcast-Recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "street-fighter-alpha-3-cps2-sfa3u",
+          "title": "Street Fighter Alpha 3 (CPS-2, USA 980904, sfa3u)",
+          "system": "capcom-cps-2",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L37",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa3/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

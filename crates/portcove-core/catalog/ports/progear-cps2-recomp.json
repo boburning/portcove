@@ -55,7 +55,17 @@
       "evidence_urls": [
         "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/progear/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "progear-cps2-progearu",
+          "title": "Progear (CPS-2, USA 010117, progearu)",
+          "system": "capcom-cps-2",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L61",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/progear/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

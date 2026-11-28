@@ -55,7 +55,17 @@
       "evidence_urls": [
         "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmcota/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "x-men-children-of-the-atom-cps2-xmcota",
+          "title": "X-Men: Children of the Atom (CPS-2, Euro 950331, xmcota)",
+          "system": "capcom-cps-2",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L39",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmcota/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

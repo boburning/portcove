@@ -55,7 +55,17 @@
       "evidence_urls": [
         "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dimahoo/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dimahoo-cps2-dimahoou",
+          "title": "Dimahoo (CPS-2, USA 000121, dimahoou)",
+          "system": "capcom-cps-2",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L62",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dimahoo/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

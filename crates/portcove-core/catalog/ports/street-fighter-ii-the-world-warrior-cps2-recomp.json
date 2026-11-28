@@ -55,7 +55,17 @@
       "evidence_urls": [
         "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "street-fighter-ii-the-world-warrior-cps1-sf2",
+          "title": "Street Fighter II: The World Warrior (CPS-1, World 910522, sf2)",
+          "system": "capcom-cps-1",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L53",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

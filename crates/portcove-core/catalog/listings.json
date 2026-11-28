@@ -31763,7 +31763,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/avsp/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "alien-vs-predator-cps2-avspu",
+            "title": "Alien vs. Predator (CPS-2, USA 940520, avspu)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L52",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/avsp/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -31845,7 +31855,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/dino/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "cadillacs-and-dinosaurs-cps1-dino",
+            "title": "Cadillacs and Dinosaurs (CPS-1, World 930201, dino)",
+            "system": "capcom-cps-1",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L57",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dino/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -31927,7 +31947,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/msh/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "marvel-super-heroes-cps2-msh",
+            "title": "Marvel Super Heroes (CPS-2, Europe 951024, msh)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L40",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/msh/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -32009,7 +32039,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-alpha-warriors-dreams-cps2-sfa",
+            "title": "Street Fighter Alpha (CPS-2, Europe 950727, sfa)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L34",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -32182,7 +32222,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/pocket_fighter/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-gem-fighter-mini-mix-cps2-sgemf",
+            "title": "Super Gem Fighter Mini Mix (CPS-2, USA 970904, sgemf)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L38",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/pocket_fighter/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -32264,7 +32314,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/puzzle_fighter/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-puzzle-fighter-ii-turbo-cps2-spf2t",
+            "title": "Super Puzzle Fighter II Turbo (CPS-2, Europe 960529, spf2t)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L44",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/puzzle_fighter/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -32346,7 +32406,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vhunt2/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "vampire-hunter-2-cps2-vhunt2",
+            "title": "Vampire Hunter 2 (CPS-2, Japan 970929, vhunt2)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L50",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vhunt2/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -32428,7 +32498,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vampire_savior/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "vampire-savior-the-lord-of-vampire-cps2-vsavj",
+            "title": "Vampire Savior (CPS-2, Japan 970519, vsavj)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L48",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vampire_savior/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -32510,7 +32590,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "vampire-savior-2-cps2-vsav2",
+            "title": "Vampire Savior 2 (CPS-2, Japan 970913, vsav2)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L49",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vsav2/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -32665,7 +32755,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/xmvsf/README.md",
           "https://github.com/tmcleroy/cps2recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "x-men-vs-street-fighter-cps2-xmvsf",
+            "title": "X-Men vs. Street Fighter (CPS-2, Europe 961004, xmvsf)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L41",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmvsf/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -34345,7 +34445,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/cybots/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "cyberbots-fullmetal-madness-cps2-cybots",
+            "title": "Cyberbots: Fullmetal Madness (CPS-2, Europe 950424, cybots)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L47",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/cybots/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -35090,7 +35200,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dstlk/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "darkstalkers-the-night-warriors-cps2-dstlk",
+            "title": "Darkstalkers: The Night Warriors (CPS-2, Europe 940705, dstlk)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L45",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dstlk/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -39325,7 +39445,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dimahoo/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dimahoo-cps2-dimahoou",
+            "title": "Dimahoo (CPS-2, USA 000121, dimahoou)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L62",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dimahoo/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -48973,7 +49103,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ffight/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "final-fight-cps1-ffight",
+            "title": "Final Fight (CPS-1, World, set 1, ffight)",
+            "system": "capcom-cps-1",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L59",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ffight/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -51774,7 +51914,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ghouls/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "ghouls-n-ghosts-cps1-ghouls",
+            "title": "Ghouls'n Ghosts (CPS-1, World, ghouls)",
+            "system": "capcom-cps-1",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L56",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ghouls/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -51890,7 +52040,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/gigawing/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "giga-wing-cps2-gigawing",
+            "title": "Giga Wing (CPS-2, USA 990222, gigawing)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L60",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/gigawing/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -58401,7 +58561,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/hsf2/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "hyper-street-fighter-ii-the-anniversary-edition-cps2-hsf2",
+            "title": "Hyper Street Fighter II (CPS-2, USA 040202, hsf2)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L33",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/hsf2/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -69432,7 +69602,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mshvsf/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "marvel-super-heroes-vs-street-fighter-cps2-mshvsf",
+            "title": "Marvel Super Heroes vs. Street Fighter (CPS-2, Europe 970625, mshvsf)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L42",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mshvsf/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -69631,7 +69811,17 @@
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mvsc/README.md",
           "https://github.com/TechnicallyComputers/Marvel-vs.-Capcom-Clash-of-Super-Heroes-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "marvel-vs-capcom-clash-of-super-heroes-cps2-mvsc",
+            "title": "Marvel vs. Capcom (CPS-2, Europe 980123, mvsc)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L43",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mvsc/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -79434,7 +79624,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/nwarr/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "night-warriors-darkstalkers-revenge-cps2-nwarr",
+            "title": "Night Warriors: Darkstalkers' Revenge (CPS-2, Europe 950316, nwarr)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L46",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/nwarr/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -90166,7 +90366,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/progear/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "progear-cps2-progearu",
+            "title": "Progear (CPS-2, USA 010117, progearu)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L61",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/progear/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -109149,7 +109359,17 @@
           "https://github.com/TechnicallyComputers/Street-Fighter-Alpha-3-Recomp",
           "https://github.com/irnutsmurt/Street-Alpha-3-Dreamcast-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-alpha-3-cps2-sfa3u",
+            "title": "Street Fighter Alpha 3 (CPS-2, USA 980904, sfa3u)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L37",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa3/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -109381,7 +109601,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2ce/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-ii-champion-edition-cps1-sf2ce",
+            "title": "Street Fighter II: Champion Edition (CPS-1, World 920513, sf2ce)",
+            "system": "capcom-cps-1",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L54",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2ce/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -109452,7 +109682,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2hf/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-ii-hyper-fighting-cps1-sf2hf",
+            "title": "Street Fighter II: Hyper Fighting (CPS-1, World 921209, sf2hf)",
+            "system": "capcom-cps-1",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L55",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2hf/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -109523,7 +109763,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-ii-the-world-warrior-cps1-sf2",
+            "title": "Street Fighter II: The World Warrior (CPS-1, World 910522, sf2)",
+            "system": "capcom-cps-1",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L53",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -112227,7 +112477,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-street-fighter-ii-cps2-ssf2",
+            "title": "Super Street Fighter II (CPS-2, World 931005, ssf2)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L31",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -112317,7 +112577,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2t/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-street-fighter-ii-turbo-cps2-ssf2xjr1",
+            "title": "Super Street Fighter II Turbo (CPS-2, Japan 940223, ssf2xjr1)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L32",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2t/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -118088,7 +118358,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/punisher/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-punisher-1993-cps1-punisheru",
+            "title": "The Punisher (CPS-1, USA 930422, punisheru)",
+            "system": "capcom-cps-1",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L58",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/punisher/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -132450,7 +132730,17 @@
         "evidence_urls": [
           "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmcota/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "x-men-children-of-the-atom-cps2-xmcota",
+            "title": "X-Men: Children of the Atom (CPS-2, Euro 950331, xmcota)",
+            "system": "capcom-cps-2",
+            "evidence_urls": [
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L39",
+              "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmcota/README.md"
+            ]
+          }
+        ]
       }
     },
     {

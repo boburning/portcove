@@ -66,7 +66,17 @@
         "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md",
         "https://github.com/tmcleroy/cps2recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "vampire-savior-2-cps2-vsav2",
+          "title": "Vampire Savior 2 (CPS-2, Japan 970913, vsav2)",
+          "system": "capcom-cps-2",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L49",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vsav2/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

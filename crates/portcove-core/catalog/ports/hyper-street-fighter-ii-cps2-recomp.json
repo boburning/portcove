@@ -55,7 +55,17 @@
       "evidence_urls": [
         "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/hsf2/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "hyper-street-fighter-ii-the-anniversary-edition-cps2-hsf2",
+          "title": "Hyper Street Fighter II (CPS-2, USA 040202, hsf2)",
+          "system": "capcom-cps-2",
+          "evidence_urls": [
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/README.md#L33",
+            "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/hsf2/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
