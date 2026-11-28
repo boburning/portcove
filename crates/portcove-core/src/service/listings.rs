@@ -235,7 +235,10 @@ impl PortcoveService {
         };
         let busy: bool = connection.query_row(
             "SELECT EXISTS(SELECT 1 FROM launch_sessions WHERE port_id IN (?1, ?2) AND outcome IS NULL)
-                OR EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id IN (?1, ?2))",
+                OR EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id IN (?1, ?2))
+                OR EXISTS(SELECT 1 FROM activity_history
+                    WHERE target_id IN (?1, ?2) AND target_kind='port' AND status='running'
+                        AND operation IN ('register_external', 'relink_external', 'remove_external'))",
             [&canonical.id, &retained.id],
             |row| row.get(0),
         )?;

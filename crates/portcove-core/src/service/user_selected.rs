@@ -1108,6 +1108,37 @@ mod tests {
                     .is_empty()
             );
         }
+        let relink = service
+            .library
+            .begin_activity(
+                crate::ActivityOperation::RelinkExternal,
+                crate::ActivityTargetKind::Port,
+                Some(LOCAL),
+            )
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+        service
+            .library
+            .finish_activity(&relink.id, crate::ActivityStatus::Succeeded, None)
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+
+        connection
+            .execute(
+                "INSERT INTO lifecycle_operations(id, kind, port_id, phase, created_at, updated_at)
+                 VALUES ('deferred-alias', 'update', ?1, 'prepared', 1, 1)",
+                [CANONICAL],
+            )
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+        connection
+            .execute(
+                "DELETE FROM lifecycle_operations WHERE id='deferred-alias'",
+                [],
+            )
+            .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+
         let request = [crate::LibraryMembershipRequest {
             port_id: CANONICAL.into(),
             origin: crate::LibraryMembershipOrigin::Manual,
