@@ -233,19 +233,145 @@ impl PortcoveService {
         let Some(canonical) = catalog.canonical_for_private_github_listing(retained) else {
             return Ok(None);
         };
-        let busy: bool = connection.query_row(
+        let deferred = Self::has_deferred_personal_aliases(connection)?
+            && connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM deferred_personal_catalog_aliases
+                    WHERE personal_id=?1 AND canonical_id=?2)",
+                [&retained.id, &canonical.id],
+                |row| row.get::<_, bool>(0),
+            )?;
+        Ok(
+            (!deferred && !Self::canonical_target_occupied(connection, &canonical.id)?)
+                .then_some(canonical),
+        )
+    }
+
+    fn personal_alias_is_busy(
+        connection: &rusqlite::Connection,
+        personal_id: &str,
+        canonical_id: &str,
+    ) -> Result<bool> {
+        Ok(connection.query_row(
             "SELECT EXISTS(SELECT 1 FROM launch_sessions WHERE port_id IN (?1, ?2) AND outcome IS NULL)
                 OR EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id IN (?1, ?2))
                 OR EXISTS(SELECT 1 FROM activity_history
                     WHERE target_id IN (?1, ?2) AND target_kind='port' AND status='running'
                         AND operation IN ('register_external', 'relink_external', 'remove_external'))",
-            [&canonical.id, &retained.id],
+            [personal_id, canonical_id],
             |row| row.get(0),
+        )?)
+    }
+
+    fn has_deferred_personal_aliases(connection: &rusqlite::Connection) -> Result<bool> {
+        Ok(connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table'
+                AND name='deferred_personal_catalog_aliases')",
+            [],
+            |row| row.get(0),
+        )?)
+    }
+
+    /// The lock on a first association is local, derived progress. Resolution
+    /// always rechecks the signed match and canonical occupancy independently.
+    pub(crate) fn defer_new_personal_aliases(
+        connection: &rusqlite::Connection,
+        prior: Option<&Catalog>,
+        selected: &Catalog,
+    ) -> Result<()> {
+        Self::settle_deferred_personal_aliases(connection, None)?;
+        if !Library::has_personal_registration_candidates_from(connection)? {
+            return Ok(());
+        }
+        let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
+        for id in Library::external_runtime_port_ids_from(connection)? {
+            if portcove_listing_carrier::admitted_github_repository_id(&id).is_none() {
+                continue;
+            }
+            let Some((record, retained)) =
+                Library::external_runtime_with_port_bounded_from(connection, &id, &mut budget)?
+            else {
+                continue;
+            };
+            if record.user_selected.is_none() {
+                continue;
+            }
+            let listing = retained.listing(&id)?;
+            let Some(canonical) = selected.canonical_for_private_github_listing(listing) else {
+                continue;
+            };
+            let already_matched = prior
+                .and_then(|catalog| catalog.canonical_for_private_github_listing(listing))
+                .is_some_and(|entry| entry.id == canonical.id);
+            if already_matched
+                || (!Self::canonical_target_occupied(connection, &canonical.id)?
+                    && !Self::personal_alias_is_busy(connection, &id, &canonical.id)?)
+            {
+                continue;
+            }
+            connection.execute_batch(
+                "CREATE TABLE IF NOT EXISTS deferred_personal_catalog_aliases (
+                    personal_id TEXT NOT NULL PRIMARY KEY REFERENCES external_runtime_registrations(port_id) ON DELETE CASCADE,
+                    canonical_id TEXT NOT NULL
+                 ) WITHOUT ROWID;",
+            )?;
+            connection.execute(
+                "INSERT INTO deferred_personal_catalog_aliases(personal_id, canonical_id) VALUES(?1, ?2)
+                 ON CONFLICT(personal_id) DO UPDATE SET canonical_id=excluded.canonical_id",
+                [&id, &canonical.id],
+            )?;
+        }
+        Ok(())
+    }
+
+    fn settle_deferred_personal_aliases(
+        connection: &rusqlite::Connection,
+        port_id: Option<&str>,
+    ) -> Result<()> {
+        if !Self::has_deferred_personal_aliases(connection)? {
+            return Ok(());
+        }
+        let mut statement = connection.prepare(
+            "SELECT personal_id, canonical_id FROM deferred_personal_catalog_aliases
+             WHERE ?1 IS NULL OR personal_id=?1 OR canonical_id=?1",
         )?;
-        Ok(
-            (!busy && !Self::canonical_target_occupied(connection, &canonical.id)?)
-                .then_some(canonical),
-        )
+        let pairs = statement
+            .query_map([port_id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        for (personal_id, canonical_id) in pairs {
+            if !Self::canonical_target_occupied(connection, &canonical_id)?
+                && !Self::personal_alias_is_busy(connection, &personal_id, &canonical_id)?
+            {
+                connection.execute(
+                    "DELETE FROM deferred_personal_catalog_aliases WHERE personal_id=?1 AND canonical_id=?2",
+                    [&personal_id, &canonical_id],
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn retry_personal_aliases(&self, port_id: Option<&str>) -> Result<()> {
+        let mut connection = self.library.connection()?;
+        if !Self::has_deferred_personal_aliases(&connection)? {
+            return Ok(());
+        }
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        Self::settle_deferred_personal_aliases(&transaction, port_id)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub(super) fn retry_personal_aliases_after_operation(&self, port_id: Option<&str>) {
+        if let Err(error) = self.retry_personal_aliases(port_id) {
+            tracing::warn!(
+                component = "catalog",
+                error_code = crate::runtime_diagnostics::code_label(error.code),
+                "Retry of a deferred personal catalog association failed",
+            );
+        }
     }
 
     fn canonical_target_occupied(connection: &rusqlite::Connection, port_id: &str) -> Result<bool> {
@@ -483,7 +609,11 @@ impl PortcoveService {
     }
 
     pub fn remove_library_membership(&self, port_id: &str) -> Result<bool> {
-        self.library.remove_library_membership(port_id)
+        let removed = self.library.remove_library_membership(port_id)?;
+        if removed {
+            self.retry_personal_aliases_after_operation(Some(port_id));
+        }
+        Ok(removed)
     }
 }
 

@@ -585,6 +585,7 @@ impl PortcoveService {
         self.recover_catalog_downloads()?;
         self.recover_cancellations()?;
         self.recover_lifecycle_operations()?;
+        self.retry_personal_aliases_after_operation(None);
         Ok(())
     }
 
@@ -1157,6 +1158,12 @@ impl PortcoveService {
         let recorded =
             self.library
                 .finish_activity_report(&activity.id, status, message, failure.as_ref());
+        if recorded.is_ok()
+            && activity.target_kind == ActivityTargetKind::Port
+            && let Some(port_id) = activity.target_id.as_deref()
+        {
+            self.retry_personal_aliases_after_operation(Some(port_id));
+        }
         crate::runtime_diagnostics::observe_activity(
             &activity,
             status,

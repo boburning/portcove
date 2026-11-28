@@ -1076,6 +1076,19 @@ mod tests {
                     finished_at: None,
                 })
                 .unwrap();
+            PortcoveService::defer_new_personal_aliases(
+                &connection,
+                Some(service.catalog()),
+                service.catalog(),
+            )
+            .unwrap();
+            assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
+            PortcoveService::defer_new_personal_aliases(
+                &connection,
+                Some(&base),
+                service.catalog(),
+            )
+            .unwrap();
             assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
             assert!(
                 service
@@ -1092,6 +1105,7 @@ mod tests {
                     None,
                 )
                 .unwrap();
+            service.finish_activity(launch_activity, Ok(())).unwrap();
             assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
             assert_eq!(
                 service
@@ -1116,11 +1130,10 @@ mod tests {
                 Some(LOCAL),
             )
             .unwrap();
-        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
-        service
-            .library
-            .finish_activity(&relink.id, crate::ActivityStatus::Succeeded, None)
+        PortcoveService::defer_new_personal_aliases(&connection, Some(&base), service.catalog())
             .unwrap();
+        assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
+        service.finish_activity(relink, Ok(())).unwrap();
         assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
 
         connection
@@ -1130,6 +1143,8 @@ mod tests {
                 [CANONICAL],
             )
             .unwrap();
+        PortcoveService::defer_new_personal_aliases(&connection, Some(&base), service.catalog())
+            .unwrap();
         assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
         connection
             .execute(
@@ -1137,6 +1152,7 @@ mod tests {
                 [],
             )
             .unwrap();
+        service.retry_personal_aliases(None).unwrap();
         assert!(service.artwork_port(LOCAL).unwrap().artwork.is_some());
 
         let request = [crate::LibraryMembershipRequest {
@@ -1178,12 +1194,9 @@ mod tests {
         );
         assert_eq!(service.library_memberships().unwrap(), retained_membership);
         assert!(service.artwork_port(LOCAL).unwrap().artwork.is_none());
-        assert!(
-            service
-                .library
-                .remove_library_membership(CANONICAL)
-                .unwrap()
-        );
+        PortcoveService::defer_new_personal_aliases(&connection, Some(&base), service.catalog())
+            .unwrap();
+        assert!(service.remove_library_membership(CANONICAL).unwrap());
         assert_eq!(
             service
                 .artwork_port(LOCAL)

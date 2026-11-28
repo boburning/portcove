@@ -1166,6 +1166,13 @@ impl Library {
             transaction.execute_batch("ROLLBACK TO retain_mod_website_choices")?;
         }
         transaction.execute_batch("RELEASE retain_mod_website_choices")?;
+        transaction.execute_batch("SAVEPOINT defer_personal_aliases")?;
+        if PortcoveService::defer_new_personal_aliases(&transaction, prior.as_ref(), &selected)
+            .is_err()
+        {
+            transaction.execute_batch("ROLLBACK TO defer_personal_aliases")?;
+        }
+        transaction.execute_batch("RELEASE defer_personal_aliases")?;
         let insert = if matches!(candidate.proof, ListingAdmissionProof::Compact(_)) {
             // This optional, descriptive store introduces no library schema
             // dependency. An older reader can still open and renew its separately
