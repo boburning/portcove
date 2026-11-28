@@ -42537,11 +42537,12 @@
         ],
         "source_editions": [
           {
-            "id": "doom-pc-retail",
-            "title": "Doom (PC retail)",
+            "id": "doom-pc-registered",
+            "title": "Doom (PC registered edition)",
             "system": "pc",
             "evidence_urls": [
-              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c",
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/doom/d_main.c"
             ]
           },
           {
@@ -42550,7 +42551,8 @@
             "system": "pc",
             "evidence_urls": [
               "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
-              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c"
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/d_iwad.c",
+              "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/src/doom/d_main.c"
             ]
           }
         ]
