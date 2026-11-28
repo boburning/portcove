@@ -274,6 +274,7 @@ interface BatchReport {
     complete: number;
     deferred: number;
     requests: number;
+    graphql?: { requests: number; points: number; unknown_points: number };
   };
   pending_source_keys: string[];
   attempted_source_keys: string[];
@@ -372,13 +373,25 @@ export async function continueCatalogBatches<
         observed: (reciprocalProgress?.observed ?? 0) + reciprocal.observed,
         requests: (reciprocalProgress?.requests ?? 0) + reciprocal.requests,
       };
-    if (launcher)
+    if (launcher) {
+      const previous = launcherProgress?.graphql;
+      const current = launcher.graphql;
       launcherProgress = {
         ...launcher,
         attempted: (launcherProgress?.attempted ?? 0) + launcher.attempted,
         complete: (launcherProgress?.complete ?? 0) + launcher.complete,
         requests: (launcherProgress?.requests ?? 0) + launcher.requests,
+        ...(previous || current
+          ? {
+              graphql: {
+                requests: (previous?.requests ?? 0) + (current?.requests ?? 0),
+                points: (previous?.points ?? 0) + (current?.points ?? 0),
+                unknown_points: (previous?.unknown_points ?? 0) + (current?.unknown_points ?? 0),
+              },
+            }
+          : {}),
       };
+    }
     result.report.attempted_source_keys.forEach((key) => attempted.add(key));
     result.report.completed_source_keys.forEach((key) => completed.add(key));
     for (const failure of result.report.failures) {

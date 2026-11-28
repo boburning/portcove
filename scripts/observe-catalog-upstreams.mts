@@ -14,10 +14,10 @@ import { randomUUID, createHash } from "node:crypto";
 import { mkdir, lstat, rm, appendFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { GitHubMetadataResponse } from "./github-operation.mts";
+import type { GitHubMetadataResponse, GitHubRateLimit } from "./github-operation.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
-import type { GitHubRequestPolicy } from "./github-client.mts";
+import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
 import type { ObserveOptions } from "./upstream-observer.mts";
 import type { CatalogObserverCheckpoint } from "./catalog-upstream-observer.mts";
 import { GitHubApiError } from "./github-operation.mts";
@@ -38,6 +38,7 @@ import {
   observationHash,
   readObserverMetadata,
   observerGitHubRateLimit,
+  boundedProviderRetryTime,
   ObservationFailure,
   validateObserverConfig,
 } from "./upstream-observer.mts";
@@ -55,8 +56,18 @@ import {
   observeLauncherModPortals,
   observeReciprocalThunderstoreDocument,
 } from "./port-upstream-facts.mts";
+import {
+  launcherRootBatchSize,
+  launcherRootQuery,
+  verifiedLauncherRootReads,
+} from "./launcher-mod-root-batch.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
+
+interface LauncherRootAvailability {
+  rate?: GitHubRateLimit;
+  unavailable?: true;
+}
 
 export function omitOversizedBindingInputs<T extends { scope_binding_inputs: unknown }>(
   summary: T,
@@ -240,6 +251,7 @@ export async function runCatalogUpstreams(
     providerFetch?: typeof fetch;
     modProviderRegistryFetch?: typeof fetch;
     observeFirstPartyModLinks?: boolean;
+    launcherRootAvailability?: LauncherRootAvailability;
     launcherModRequestLimit?: number;
     reciprocalModRequestLimit?: number;
     inspectCatalog?: typeof inspectCatalogDefinitions;
@@ -311,14 +323,20 @@ export async function runCatalogUpstreams(
     observationToken,
     runtime.observer?.signal,
   );
+  let launcherRoots = new Map<string, unknown>();
+  const launcherRootAvailability = runtime.launcherRootAvailability ?? {};
+  const launcherRootToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
   const readBoundModMetadata =
     (
       slug: string,
       account: Required<
         Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
       >,
+      useLauncherRoots = false,
     ) =>
     async (endpoint: string) => {
+      if (useLauncherRoots && launcherRoots.has(endpoint))
+        return { status: "observed", body: launcherRoots.get(endpoint) } as const;
       account.admitRequest();
       try {
         const response = await launcherModMetadata(slug, endpoint);
@@ -557,8 +575,108 @@ export async function runCatalogUpstreams(
       },
       ...(runtime.observeFirstPartyModLinks
         ? {
+            ...(observationToken && launcherRootToken === observationToken
+              ? {
+                  prepareLauncherModReads: async (
+                    repositories: Parameters<typeof launcherRootQuery>[0],
+                    account: Pick<
+                      Required<ObserveOptions>,
+                      "admitRequest" | "consumeResponseBytes"
+                    > & { settleRequest: (points: number | null) => void; availableBytes: number },
+                  ) => {
+                    const quota = launcherRootAvailability.rate;
+                    if (
+                      launcherRootAvailability.unavailable ||
+                      account.availableBytes < 4096 ||
+                      (githubScope.deferral.primary.get("graphql") ?? 0) > Date.now() ||
+                      (quota?.limit != null &&
+                        quota.remaining != null &&
+                        quota.remaining <= Math.max(1, Math.ceil(quota.limit * 0.05)) &&
+                        Date.parse(quota.resetAt ?? "") > now())
+                    )
+                      return;
+                    const sample = repositories.slice(0, launcherRootBatchSize);
+                    const launcherRootClient = createGitHubClient({
+                      credential: { kind: "explicit", token: observationToken },
+                      deadline: githubScope.deadline,
+                      maxBytes: Math.min(
+                        256 * 1024,
+                        config.budget.response_bytes,
+                        account.availableBytes,
+                      ),
+                      deferral: githubScope.deferral,
+                      ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
+                      allowRequest: (method, url) =>
+                        method === "POST" && url.href === "https://api.github.com/graphql",
+                    });
+                    let accountingFailure: ObservationFailure | undefined;
+                    try {
+                      const response = await (
+                        await launcherRootClient
+                      ).request({
+                        method: "POST",
+                        url: "https://api.github.com/graphql",
+                        data: { query: launcherRootQuery(sample) },
+                        request: {
+                          portcove: {
+                            replay: "pure-query",
+                            attempts: 0,
+                            maxAttempts: 1,
+                            reserve: () => {
+                              account.admitRequest();
+                              return {
+                                consumeBytes: (bytes: number) => {
+                                  try {
+                                    account.consumeResponseBytes(bytes);
+                                  } catch (error) {
+                                    if (error instanceof ObservationFailure)
+                                      accountingFailure = error;
+                                    throw error;
+                                  }
+                                },
+                                settle: ({ dispatched, rate }: GitHubAttemptObservation) => {
+                                  if (dispatched) account.settleRequest(rate?.cost ?? null);
+                                  if (rate?.resource === "graphql")
+                                    launcherRootAvailability.rate = rate;
+                                },
+                              };
+                            },
+                          },
+                        },
+                      });
+                      const envelope: unknown = response.data;
+                      if (response.status === 200 && isRecord(envelope) && !envelope.errors)
+                        launcherRoots = verifiedLauncherRootReads(sample, envelope.data);
+                    } catch (error) {
+                      // GraphQL and REST have separate primary limits. The
+                      // shared client still applies any secondary deferral.
+                      if (accountingFailure) throw accountingFailure;
+                      if (!(error instanceof GitHubApiError)) throw error;
+                      if (
+                        error.code === "rate_limited" &&
+                        githubScope.deferral.secondary > Date.now()
+                      ) {
+                        const retryAt = boundedProviderRetryTime(
+                          Date.now(),
+                          githubScope.deferral.secondary,
+                        );
+                        throw new ObservationFailure(
+                          "rate-limit",
+                          "GitHub secondary quota defers the shared observer",
+                          retryAt === null ? undefined : new Date(retryAt).toISOString(),
+                        );
+                      }
+                      if (error.status === 401 || error.status === 403)
+                        launcherRootAvailability.unavailable = true;
+                    }
+                  },
+                }
+              : {}),
             observeLauncherMods: (repository, account) =>
-              observeLauncherModPortals(repository, readBoundModMetadata(repository.slug, account)),
+              observeLauncherModPortals(
+                repository,
+                readBoundModMetadata(repository.slug, account, true),
+              ),
             observeReciprocalMods: (subject, account) =>
               observeReciprocalThunderstoreDocument(
                 { id: subject.repository_id, slug: subject.slug },
@@ -910,11 +1028,13 @@ export async function runCatalogOpportunity(
       runtime.requestCeiling ?? hostedRequestCeiling(process.env.GITHUB_EVENT_NAME);
     let launcherRequestsRemaining = hostedLauncherModRequestLimit(maxRequests);
     let reciprocalRequestsRemaining = Math.min(maxRequests, 12);
+    const launcherRootAvailability: LauncherRootAvailability = {};
     const result = await continueCatalogBatches(
       async (excluded, requestLimit) => {
         await assertInputs();
         const batch = await runCatalogUpstreams(fixedArgs, {
           ...batchRuntime,
+          launcherRootAvailability,
           // One registry request per hosted opportunity, including partial responses.
           ...(prioritizeConfigured && modProviderRegistryFetch ? { modProviderRegistryFetch } : {}),
           launcherModRequestLimit: Math.min(

@@ -638,6 +638,13 @@ export interface CatalogObservationOptions extends Pick<
   scheduledPrioritySources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
   modProviderRegistryFetch?: typeof fetch;
+  prepareLauncherModReads?: (
+    repositories: readonly LauncherModRepository[],
+    account: Required<Pick<ObserveOptions, "admitRequest" | "consumeResponseBytes">> & {
+      settleRequest: (points: number | null) => void;
+      availableBytes: number;
+    },
+  ) => Promise<void>;
   observeLauncherMods?: (
     repository: LauncherModRepository,
     account: Required<
@@ -876,9 +883,12 @@ export async function advanceCatalogObservations(
         "Source operation response byte envelope exhausted; retain accepted pages",
       );
   };
-  const observeResponse = (response: Response) => {
+  const sampleRequestLatency = () => {
     sampledCostMs += Math.max(1, now() - requestStartedAt);
     sampledRequests++;
+  };
+  const observeResponse = (response: Response) => {
+    sampleRequestLatency();
     const integer = (name: string) => {
       const raw = response.headers.get(name);
       return raw !== null && /^\d+$/u.test(raw) && Number.isSafeInteger(Number(raw))
@@ -983,10 +993,11 @@ export async function advanceCatalogObservations(
             ),
           ),
         );
-  const admitRequest = () => {
+  const admitRequest = (resource: "core" | "graphql" = "core") => {
     if (options.signal?.aborted)
       throw new ObservationFailure("cancelled", "Observation cancelled before provider admission");
     const providerDepleted =
+      resource === "core" &&
       remaining !== null &&
       remaining <= Math.max(1, Math.ceil((providerLimit ?? remaining) * 0.05));
     const retryAt = providerDepleted
@@ -1000,7 +1011,7 @@ export async function advanceCatalogObservations(
       );
     requestStartedAt = now();
     requests++;
-    if (remaining !== null) remaining--;
+    if (resource === "core" && remaining !== null) remaining--;
   };
 
   let launcherModSummary:
@@ -1011,6 +1022,7 @@ export async function advanceCatalogObservations(
         complete: number;
         deferred: number;
         requests: number;
+        graphql?: { requests: number; points: number; unknown_points: number };
       }
     | undefined;
   const observeLauncherMods = options.observeLauncherMods;
@@ -1048,11 +1060,11 @@ export async function advanceCatalogObservations(
     // Reserve a bounded share of the existing opportunity for descriptive
     // coverage. A complete proof needs at most four admitted GitHub reads.
     const requestsBeforeLauncher = requests;
-    const launcherAttempts = Math.min(
-      24,
-      Math.floor((options.launcherModRequestLimit ?? Math.floor(capacity() / 20)) / 4),
-      Math.floor(capacity() / 4),
+    const launcherBudget = Math.min(
+      options.launcherModRequestLimit ?? Math.floor(capacity() / 20),
+      capacity(),
     );
+    const launcherAttempts = Math.min(24, Math.floor(launcherBudget / 4));
     let lastReviewed = "",
       lastUnresolved = "";
     for (const [port, row] of Object.entries(progress)) {
@@ -1062,15 +1074,54 @@ export async function advanceCatalogObservations(
     }
     const reviewed = due.filter(({ port_id }) => gameScopes.has(port_id));
     const unresolved = due.filter(({ port_id }) => !gameScopes.has(port_id));
-    for (const subject of selectLauncherModAssessmentWork(
+    const work = selectLauncherModAssessmentWork(
       reviewed,
       unresolved,
       progress,
       launcherAttempts,
       lastReviewed,
       lastUnresolved,
-    )) {
-      if (options.signal?.aborted || capacity() < 4) break;
+    );
+    // An optional query must leave every selected subject's original REST
+    // allowance available even if no GraphQL root can be used.
+    if (options.prepareLauncherModReads && work.length > 1 && launcherBudget > work.length * 4) {
+      const launcherReport = launcherModSummary;
+      try {
+        await options.prepareLauncherModReads(
+          work.map(({ repository_id, slug }) => ({ id: repository_id, slug })),
+          {
+            admitRequest: () => admitRequest("graphql"),
+            consumeResponseBytes,
+            settleRequest: (points) => {
+              sampleRequestLatency();
+              const summary = (launcherReport.graphql ??= {
+                requests: 0,
+                points: 0,
+                unknown_points: 0,
+              });
+              summary.requests++;
+              if (points === null) summary.unknown_points++;
+              else summary.points += points;
+            },
+            availableBytes: template.budget.total_bytes - operationBytes,
+          },
+        );
+      } catch (cause) {
+        if (
+          !(cause instanceof ObservationFailure) ||
+          (cause.rule !== "rate-limit" && !partialProgressRules.includes(cause.rule))
+        )
+          throw cause;
+        if (cause.retryAt) extendProviderDeferral(cause.retryAt);
+      }
+    }
+    for (const subject of work) {
+      if (
+        options.signal?.aborted ||
+        operationBytes >= template.budget.total_bytes ||
+        capacity() < 4
+      )
+        break;
       let result: LauncherModObservation;
       try {
         const retained = progress[subject.port_id]?.last_complete?.result;

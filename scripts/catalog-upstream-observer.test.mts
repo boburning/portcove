@@ -1,6 +1,10 @@
 import { upstreamFacts } from "./maintenance-upstream.mts";
 import { createHash } from "node:crypto";
-import { observeReciprocalThunderstoreDocument } from "./port-upstream-facts.mts";
+import {
+  observeLauncherModPortals,
+  observeReciprocalThunderstoreDocument,
+} from "./port-upstream-facts.mts";
+import { launcherRootQuery, verifiedLauncherRootReads } from "./launcher-mod-root-batch.mts";
 import {
   observeModProviderRegistry,
   validateModProviderRegistryProgress,
@@ -3821,6 +3825,17 @@ void test("hosted opportunity drains accepted progress without retrying failed s
           failures: turns === 1 ? [failure] : [],
           requests: 12,
           response_bytes_charged: 120,
+          launcher_mod_sources: {
+            enrolled: 7,
+            due: 8 - turns,
+            attempted: 1,
+            complete: 1,
+            deferred: 7 - turns,
+            requests: 1,
+            ...(turns <= 2
+              ? { graphql: { requests: 1, points: turns === 1 ? 1 : 0, unknown_points: turns - 1 } }
+              : {}),
+          },
         },
         made_progress: true,
         handoff_exhausted: false,
@@ -3833,6 +3848,11 @@ void test("hosted opportunity drains accepted progress without retrying failed s
   assert.equal(result.notify_exception, true);
   assert.equal(result.report.requests, 84);
   assert.equal(result.report.response_bytes_charged, 840);
+  assert.deepEqual(result.report.launcher_mod_sources?.graphql, {
+    requests: 2,
+    points: 1,
+    unknown_points: 1,
+  });
   assert.deepEqual(result.report.failures, [failure]);
   assert.deepEqual(result.report.pending_source_keys, ["broken"]);
   assert.deepEqual(result.report.completed_source_keys, ["large"]);
@@ -6763,4 +6783,120 @@ void test("first-party observation retains a missing game scope and reassesses w
   assert.notEqual(resolved?.binding, held?.binding);
   assert.equal(resolved?.outcome, "observed");
   assert.deepEqual(resolved?.last_complete?.result, proof);
+});
+
+void test("verified GraphQL roots keep manifest absence and ambiguity on the existing policy path", async () => {
+  const candidates = [
+    { id: 1001, slug: "owner/first" },
+    { id: 1002, slug: "owner/second" },
+  ];
+  const blob = "b".repeat(40);
+  const commit = "a".repeat(40);
+  const project = ({ id, slug }: (typeof candidates)[number], paths: string[]) => {
+    const bytes = Buffer.concat(
+      paths
+        .toSorted()
+        .map((name) => Buffer.concat([Buffer.from(`100644 ${name}\0`), Buffer.from(blob, "hex")])),
+    );
+    const oid = createHash("sha1").update(`tree ${bytes.length}\0`).update(bytes).digest("hex");
+    return {
+      databaseId: id,
+      nameWithOwner: slug,
+      isPrivate: false,
+      defaultBranchRef: {
+        target: {
+          oid: commit,
+          tree: {
+            oid,
+            entries: paths.map((name) => ({
+              nameRaw: Buffer.from(name).toString("base64"),
+              mode: 0o100644,
+              oid: blob,
+            })),
+          },
+        },
+      },
+    };
+  };
+  const data = {
+    project0: project(candidates[0]!, ["readme.md"]),
+    project1: project(candidates[1]!, ["recomplauncher.json", ".recomp.json"]),
+  };
+  const query = launcherRootQuery(candidates);
+  assert.match(query, /query PortcoveLauncherRoots/u);
+  assert.match(query, /project1: repository\(owner: "owner", name: "second"\)/u);
+  assert.throws(() => launcherRootQuery([{ id: 1, slug: 'malicious"/name' }, candidates[1]!]));
+  const reads = verifiedLauncherRootReads(candidates, data);
+  assert.equal(reads.size, 6);
+  const read = async (endpoint: string) => {
+    assert.ok(reads.has(endpoint), endpoint);
+    return { status: "observed" as const, body: reads.get(endpoint) };
+  };
+  const absence = await observeLauncherModPortals(candidates[0]!, read);
+  assert.equal(absence.state, "absent");
+  assert.deepEqual(await observeLauncherModPortals(candidates[1]!, read), {
+    state: "held",
+    reason: "multiple-manifest-subjects",
+  });
+
+  data.project1.defaultBranchRef.target.tree.entries.pop();
+  const incomplete = verifiedLauncherRootReads(candidates, data);
+  assert.equal(incomplete.size, 3);
+  assert.equal(incomplete.has("repositories/1002"), false);
+  data.project0.databaseId = candidates[1]!.id;
+  assert.equal(verifiedLauncherRootReads(candidates, data).size, 0);
+});
+
+void test("launcher root prefetch reserves the complete fallback and stops at a spent byte envelope", async () => {
+  for (const budget of [8, 9, 10]) {
+    const h = harness();
+    const input = {
+      ports: h.input.ports.filter(({ id }) => id !== "rolling-port"),
+      listings: [
+        { id: "stable-port", project_url: "https://github.com/owner/shared" },
+        { id: "other-port", project_url: "https://github.com/owner/other" },
+      ],
+    };
+    const baseline = await advanceCatalogObservations(input, null, h.options);
+    h.advanceClock(8 * 3600000);
+    const attemptsBefore = h.network.length;
+    const deferredUntil = new Date(h.options.now!() + 120000).toISOString();
+    let queried = 0;
+    let fallback = 0;
+    h.options.launcherModRequestLimit = budget;
+    h.options.prepareLauncherModReads = async (repos, account) => {
+      assert.equal(repos.length, 2);
+      account.admitRequest();
+      account.settleRequest(1);
+      queried++;
+      if (budget === 10)
+        throw new ObservationFailure("rate-limit", "fixture shared cooldown", deferredUntil);
+      account.consumeResponseBytes(account.availableBytes + 1);
+    };
+    h.options.observeLauncherMods = async (repo, account) => {
+      for (let read = 0; read < 4; read++) account.admitRequest();
+      fallback++;
+      return {
+        state: "absent",
+        repository_id: repo.id,
+        commit: "a".repeat(40),
+        tree: "b".repeat(40),
+      };
+    };
+    const result = await advanceCatalogObservations(input, baseline.checkpoint, h.options);
+    assert.equal(result.report.launcher_mod_sources?.enrolled, 2);
+    assert.equal(queried, budget === 8 ? 0 : 1);
+    assert.equal(fallback, budget === 8 ? 2 : 0);
+    assert.equal(result.report.launcher_mod_sources?.deferred, budget === 8 ? 0 : 2);
+    assert.deepEqual(
+      result.report.launcher_mod_sources?.graphql,
+      budget === 8 ? undefined : { requests: 1, points: 1, unknown_points: 0 },
+    );
+    if (budget === 10) {
+      assert.equal(result.checkpoint.provider_retry_at, deferredUntil);
+      assert.equal(h.network.length, attemptsBefore);
+    } else {
+      assert.ok(h.network.length > attemptsBefore, "keeps independent release watches moving");
+    }
+  }
 });
