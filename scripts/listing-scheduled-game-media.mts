@@ -389,7 +389,7 @@ export function scheduledGameMediaDefaults(
           ? undefined
           : directMatch !== undefined
             ? directMatch
-            : coverMatch?.scope === key
+            : coverMatch?.scope === key && (retained || coverMatch.confirmedBySignedCover)
               ? coverMatch.claim
               : undefined;
     if (!mapping || mapping.game_id !== image.game_id || mapping.slug !== image.game_slug) return;

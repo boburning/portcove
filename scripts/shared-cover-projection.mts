@@ -50,7 +50,11 @@ export function indexSharedCoverRows(rows: readonly unknown[]) {
 }
 
 type CoverMediaClaim = { game_id: number; slug: string };
-export type CoverMediaMatch = { scope: string; claim: CoverMediaClaim | null };
+export type CoverMediaMatch = {
+  scope: string;
+  claim: CoverMediaClaim | null;
+  confirmedBySignedCover: boolean;
+};
 
 /** A maintained single edition can reuse an accepted cover's provider identity.
  * The publisher supplies authenticated predecessor rows. Preparation can only
@@ -81,23 +85,30 @@ export function coverBackedMediaMatches(
       claims.set(scope.key, null);
     const signed = live?.get(listing.id);
     if (
-      !live ||
-      (signed &&
-        signed.project_url === listing.project_url &&
-        matchesSharedCoverScope(signed.original_game, scope) &&
-        validArtworkMapping(signed.artwork) &&
-        signed.artwork.match_kind === "underlying-game" &&
-        signed.artwork.game_slug === artwork.game_slug &&
-        coverIdentity(signed.artwork) === coverIdentity(artwork))
+      signed &&
+      signed.project_url === listing.project_url &&
+      matchesSharedCoverScope(signed.original_game, scope) &&
+      validArtworkMapping(signed.artwork) &&
+      signed.artwork.match_kind === "underlying-game" &&
+      signed.artwork.game_slug === artwork.game_slug &&
+      coverIdentity(signed.artwork) === coverIdentity(artwork)
     )
       confirmed.add(scope.key);
   }
   return new Map<string, CoverMediaMatch>(
     subjects.flatMap(({ listing, scope }) => {
       const claim = claims.get(scope.key);
-      return (claim === null || (claim && confirmed.has(scope.key))) &&
-        reviewed.get(scope.key)?.decision !== "exclude"
-        ? [[listing.id, { scope: scope.key, claim }]]
+      return claim !== undefined && reviewed.get(scope.key)?.decision !== "exclude"
+        ? [
+            [
+              listing.id,
+              {
+                scope: scope.key,
+                claim,
+                confirmedBySignedCover: claim !== null && confirmed.has(scope.key),
+              },
+            ],
+          ]
         : [];
     }),
   );

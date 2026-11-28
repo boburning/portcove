@@ -2173,16 +2173,22 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
     new Map(),
     indexSharedCoverRows([coverDonor, peer]),
   );
-  assert.deepEqual(matches, tentative);
+  assert.deepEqual(
+    [...matches].map(([id, value]) => [id, { ...value, confirmedBySignedCover: false }]),
+    [...tentative],
+  );
+  assert.ok([...matches.values()].every(({ confirmedBySignedCover }) => confirmedBySignedCover));
   assert.deepEqual([...matches.keys()], [donor.id, peer.id]);
   const replaced = {
     ...coverDonor,
     artwork: { ...coverDonor.artwork, image_sha256: "f".repeat(64) },
   };
-  assert.equal(
-    coverBackedMediaMatches(authoredCovers, new Map(), indexSharedCoverRows([replaced])).size,
-    0,
+  const withoutSignedCover = coverBackedMediaMatches(
+    authoredCovers,
+    new Map(),
+    indexSharedCoverRows([replaced]),
   );
+  assert.equal(withoutSignedCover.get(peer.id)?.confirmedBySignedCover, false);
   const conflictingDonor = { ...peer, artwork: { ...coverDonor.artwork, game_id: 81 } };
   const conflictingMatches = coverBackedMediaMatches(
     [authoredCovers[0]!, { format_version: 1, listing: conflictingDonor }],
@@ -2206,6 +2212,25 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
   );
   assert.deepEqual(coverBacked(distinct), []);
   assert.deepEqual(coverBacked({ ...peer, id: "other-consumer" }), []);
+  const afterCoverChange = scheduledGameMediaDefaults(
+    [coverDonor, peer],
+    [{ ...peer, media: coverBacked(peer) }],
+    new Map(),
+    new Set(),
+    { proposal: readScheduledGameMediaProposal(withLandscape), producerListings },
+    { coverMediaMatches: withoutSignedCover },
+  );
+  assert.deepEqual(afterCoverChange(peer), coverBacked(peer));
+  const newAssetsWithoutSignedCover = scheduledGameMediaDefaults(
+    [coverDonor, peer],
+    [],
+    new Map(),
+    new Set(),
+    { proposal: readScheduledGameMediaProposal(withLandscape), producerListings },
+    { coverMediaMatches: withoutSignedCover },
+  );
+  assert.deepEqual(newAssetsWithoutSignedCover(peer), []);
+
   const deniedByConflict = scheduledGameMediaDefaults(
     [coverDonor, conflictingDonor],
     [],

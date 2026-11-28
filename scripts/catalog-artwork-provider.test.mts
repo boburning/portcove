@@ -892,6 +892,7 @@ void test("reviewed media discovers missing roles by exact game, edition and sys
   const coverMatch = {
     scope: JSON.stringify([subject.game_id, subject.source_edition_id, "playstation-2"]),
     claim: { game_id: 7, slug: "reviewed-game" },
+    confirmedBySignedCover: false,
   };
   const bootstrapped = await prepareCatalogGameMedia(
     { ports: [recipient, sibling, otherEdition, otherSystem, excluded] },
