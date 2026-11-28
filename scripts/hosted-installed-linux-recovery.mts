@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { chmod, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { credentialFree, requireCatalogReleaseAttestation } from "./catalog-released-reader.mts";
-import { fileIdentity } from "./development-evidence.mts";
+import { fileIdentity, readBoundedEvidenceFile } from "./development-evidence.mts";
 import {
   recoveryPreviewVersion,
   verifyPublishedRecoveryObservation,
@@ -193,8 +193,7 @@ if (process.argv[2] === "prepare") {
       "runtime-receipt.json",
     ]) {
       if (!leaves.has(leaf)) continue;
-      const evidence = await fileIdentity(path.join(base, leaf), { maxBytes: 1024 * 1024 });
-      const bytes = await readFile(evidence.path);
+      const { bytes } = await readBoundedEvidenceFile(path.join(base, leaf), 1024 * 1024);
       await writeFile(path.join(output, "private-x11-" + leaf), bytes, { flag: "wx" });
     }
   }

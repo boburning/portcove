@@ -31,7 +31,7 @@ import { lstat, stat, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
-import { fileIdentity } from "../../../scripts/development-evidence.mts";
+import { fileIdentity, readBoundedEvidenceFile } from "../../../scripts/development-evidence.mts";
 
 async function retainPickerObservation(
   result: SpawnSyncReturns<string>,
@@ -299,8 +299,8 @@ function ownedLinuxFolderPicker(
     const mountedReceipt = process.env.PORTCOVE_QUALIFICATION_APPIMAGE_RUNTIME_RECEIPT;
     const mountedArgs: string[] = [];
     if (mountedReceipt && purpose === "restored-library") {
-      const receiptFile = await fileIdentity(mountedReceipt, { maxBytes: 256 * 1024 });
-      const receipt: unknown = JSON.parse(await readFile(receiptFile.path, "utf8"));
+      const { bytes } = await readBoundedEvidenceFile(mountedReceipt, 256 * 1024);
+      const receipt: unknown = JSON.parse(bytes.toString("utf8"));
       assert.ok(
         isRecord(receipt) &&
           receipt.outcome === "passed" &&

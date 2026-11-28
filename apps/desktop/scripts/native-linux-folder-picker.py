@@ -4,7 +4,6 @@ import argparse
 import hashlib
 import json
 import os
-import re
 import select
 import time
 from pathlib import Path, PurePosixPath
@@ -20,7 +19,10 @@ def mounted_runtime_identity(live_path, runtime_device, mountinfo, package_basen
     if not live.is_absolute() or live.name != "portcove-desktop" or len(live.parents) < 3:
         return None
     mount = live.parents[2]
-    if str(live) != live_path or mount.parent != PurePosixPath("/tmp") or not re.fullmatch(r"\.mount_[A-Za-z0-9]+", mount.name):
+    name = mount.name
+    suffix = name.removeprefix(".mount_")
+    if (str(live) != live_path or mount.parent != PurePosixPath("/tmp") or suffix == name
+        or not suffix.isascii() or not suffix.isalnum()):
         return None
     if live != mount / "usr/bin/portcove-desktop":
         return None
@@ -170,7 +172,8 @@ def main():
         title = "Choose Portcove library"
     if args.appimage_runtime_sha256 is not None:
         if (args.purpose != "restored-library" or Path(args.application).name != "Portcove.AppImage"
-            or not re.fullmatch(r"[0-9a-f]{64}", args.appimage_runtime_sha256)):
+            or len(args.appimage_runtime_sha256) != 64
+            or any(digit not in "0123456789abcdef" for digit in args.appimage_runtime_sha256)):
             raise RuntimeError("Mounted executable identity is restricted to owned AppImage recovery")
     launch = OwnedLaunch(args.launch_pid, args.launch_started, args.launch_nonce, args.application,
                          args.application_sha256, args.appimage_runtime_sha256)
