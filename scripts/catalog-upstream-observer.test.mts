@@ -6262,7 +6262,19 @@ void test("reciprocal mod work continues from a bounded checkpoint without a gam
   const snapshot = unavailable.checkpoint.mod_provider_registry!.last_complete!;
   snapshot.communities[0]!.listed = false;
   snapshot.communities_sha256 = observationHash(snapshot.communities);
-  const withdrawn = await advanceCatalogObservations(input, unavailable.checkpoint, h.options);
+  const offline = await advanceCatalogObservations(input, unavailable.checkpoint, {
+    ...h.options,
+    offlinePolicyOnly: true,
+    requestLimit: 0,
+  });
+  assert.equal(offline.report.requests, 0);
+  assert.equal(offline.report.reciprocal_mod_sources, undefined);
+  assert.deepEqual(
+    offline.checkpoint.reciprocal_mod_sources,
+    unavailable.checkpoint.reciprocal_mod_sources,
+  );
+  assert.equal(calls, 2);
+  const withdrawn = await advanceCatalogObservations(input, offline.checkpoint, h.options);
   assert.equal(withdrawn.report.reciprocal_mod_sources?.enrolled, 0);
   assert.deepEqual(withdrawn.checkpoint.reciprocal_mod_sources, {});
   assert.equal(calls, 2);

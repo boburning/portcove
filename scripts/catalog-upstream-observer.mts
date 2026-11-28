@@ -1202,7 +1202,7 @@ export async function advanceCatalogObservations(
         requests: number;
       }
     | undefined;
-  if (options.observeReciprocalMods) {
+  if (options.observeReciprocalMods && !offlinePolicyOnly) {
     const registry = registryProgress ?? state.mod_provider_registry;
     const { subjects, ambiguous } = reciprocalModSubjects(sources, state.sources, registry);
     const old = state.reciprocal_mod_sources ?? {};

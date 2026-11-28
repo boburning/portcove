@@ -921,7 +921,7 @@ export async function runCatalogOpportunity(
             launcherRequestsRemaining,
             hostedLauncherModRequestLimit(config.budget.requests),
           ),
-          reciprocalModRequestLimit: reciprocalRequestsRemaining,
+          reciprocalModRequestLimit: Math.min(reciprocalRequestsRemaining, requestLimit),
           observer: {
             ...runtime.observer,
             githubScope,
