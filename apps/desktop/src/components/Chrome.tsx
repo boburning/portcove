@@ -28,6 +28,7 @@ import {
   useState,
   type Dispatch,
   type ReactNode,
+  type RefObject,
   type SetStateAction,
 } from "react";
 import {
@@ -363,6 +364,9 @@ export function PageHeader({
   view,
   portCount,
   libraryCount,
+  headingRef,
+  collectionHeading,
+  collectionAction,
   onOpenCommands,
   onAddGames,
 }: {
@@ -371,6 +375,9 @@ export function PageHeader({
   setQuery: Dispatch<SetStateAction<string>>;
   portCount?: number;
   libraryCount?: number | undefined;
+  headingRef?: RefObject<HTMLHeadingElement | null>;
+  collectionHeading?: string | undefined;
+  collectionAction?: ReactNode;
   onOpenCommands?: () => void;
   onAddGames?: (() => void) | undefined;
 }) {
@@ -385,7 +392,13 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 flex-1">
-        <h1 tabIndex={-1}>{copy.title}</h1>
+        <h1 ref={headingRef} tabIndex={-1}>
+          {collectionHeading ? (
+            <bdi className="wrap-anywhere">{collectionHeading}</bdi>
+          ) : (
+            copy.title
+          )}
+        </h1>
         {view === "library" && libraryCount !== undefined && (
           <p className="mt-2 mb-0 text-sm text-[var(--color-text-secondary)]">
             {libraryCount} {libraryCount === 1 ? "port" : "ports"} in your library
@@ -401,6 +414,7 @@ export function PageHeader({
         className="header-tools flex max-w-full min-w-0 flex-wrap items-center justify-end gap-2 max-[75rem]:ms-auto"
         data-focus-group
       >
+        {collectionAction}
         {onAddGames && (
           <Button
             data-focusable

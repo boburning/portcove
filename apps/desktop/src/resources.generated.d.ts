@@ -2279,10 +2279,16 @@ export default interface Resources {
       "on": "Update notices on"
     },
     "edit": {
+      "cancel": "Cancel",
+      "collection": "Edit collection",
+      "collectionChanged": "Your library choices changed. Close and reopen the editor before saving a new name.",
+      "collectionMissing": "This collection is no longer available. Close the editor to return to the Library.",
       "create": "Create collection",
+      "nameInvalid": "Use a shorter name without control characters.",
       "nameLabel": "Collection name",
       "note": "Collections organize entries. Removing a collection keeps every game and file.",
       "remove": "Remove collection",
+      "saveName": "Save name",
       "summary": "Edit collections"
     },
     "failure": {

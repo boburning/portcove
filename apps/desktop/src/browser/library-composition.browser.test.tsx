@@ -1689,6 +1689,97 @@ it("shares Discover membership quick views with filters while preserving search"
   await expect.poll(() => document.querySelectorAll(".discover-game").length).toBe(2);
 });
 
+it("names the selected collection and edits its existing identity without dropping membership", async () => {
+  await page.viewport(1440, 900);
+  await mount("light", "collection", 12, async () => {
+    const current = await desktopApi.organizationPreferences(1);
+    const named = await desktopApi.changeOrganization(
+      current.revision,
+      {
+        kind: "upsert_collection",
+        collection_id: "weekend",
+        name: "Weekend games",
+      },
+      1,
+    );
+    await desktopApi.changeOrganization(
+      named.revision,
+      {
+        kind: "set_collection_port",
+        collection_id: "weekend",
+        port_id: "collection-0",
+        included: true,
+      },
+      1,
+    );
+  });
+  const change = vi.spyOn(desktopApi, "changeOrganization");
+  await page.getByRole("button", { name: "Collection: Weekend games", exact: true }).click();
+  await expect
+    .element(page.getByRole("heading", { level: 1, name: "Weekend games" }))
+    .toBeVisible();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(1);
+  await page.viewport(390, 844);
+  const edit = page.getByRole("button", { name: "Edit collection", exact: true });
+  await edit.click();
+  const dialog = page.getByRole("dialog", { name: "Edit collection" });
+  const name = dialog.getByRole("textbox", { name: "Collection name" });
+  const save = dialog.getByRole("button", { name: "Save name" });
+  await expect.element(name).toHaveFocus();
+  await expect.element(name).toHaveValue("Weekend games");
+  await expect.element(save).toBeDisabled();
+  await name.fill("é".repeat(61));
+  await expect.element(name).toHaveAttribute("aria-invalid", "true");
+  await expect.element(save).toBeDisabled();
+  await name.fill("é".repeat(60));
+  await expect.element(save).toBeEnabled();
+  await name.fill("  Weekend sessions  ");
+  change.mockRejectedValueOnce(new Error("Fixture organization write refused"));
+  await save.click();
+  await expect.element(dialog.getByRole("status")).toHaveTextContent("couldn’t confirm");
+  await expect.element(name).toHaveValue("  Weekend sessions  ");
+  await expect
+    .poll(() => document.querySelector("[data-library-header] h1")?.textContent)
+    .toBe("Weekend games");
+  await save.click();
+  expect(change).toHaveBeenLastCalledWith(
+    2,
+    {
+      kind: "upsert_collection",
+      collection_id: "weekend",
+      name: "Weekend sessions",
+    },
+    1,
+  );
+  await expect.element(dialog).not.toBeInTheDocument();
+  await expect.element(edit).toHaveFocus();
+  await expect
+    .element(page.getByRole("heading", { level: 1, name: "Weekend sessions" }))
+    .toBeVisible();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(1);
+  await expect.element(page.getByRole("button", { name: "Add games", exact: true })).toBeVisible();
+  await captureParityState("selected-collection-heading-and-actions");
+
+  await edit.click();
+  await name.fill("Unconfirmed name");
+  change.mockRejectedValueOnce(new Error("Fixture organization write refused"));
+  await save.click();
+  const confirmed = await desktopApi.organizationPreferences(1);
+  vi.spyOn(desktopApi, "organizationPreferences").mockResolvedValueOnce({
+    ...confirmed,
+    revision: confirmed.revision + 1,
+    collections: {},
+  });
+  await dialog.getByRole("button", { name: "Reload choices" }).click();
+  await expect.element(dialog.getByRole("status")).toHaveTextContent("no longer available");
+  await expect.element(name).toHaveValue("Unconfirmed name");
+  await expect.element(save).toBeDisabled();
+  expect(change).toHaveBeenCalledTimes(3);
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect.element(page.getByRole("heading", { level: 1, name: "Your library" })).toHaveFocus();
+  await expect.element(edit).not.toBeInTheDocument();
+});
+
 it("creates and removes a collection through its editor while retaining a failed draft and restoring All games focus", async () => {
   await page.viewport(1440, 900);
   await mount();

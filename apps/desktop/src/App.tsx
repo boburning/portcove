@@ -4,6 +4,7 @@ import {
   LibraryRecoveryBundleProvider,
 } from "./components/LibraryRecoveryBundle";
 import {
+  EditCollectionButton,
   FavoriteGameButton,
   FavoritePreferenceFailure,
 } from "./features/organization/OrganizationControls";
@@ -824,6 +825,14 @@ function useWorkspace(props: WorkspaceProps) {
   }>();
   const [addGamesStarted, setAddGamesStarted] = useState(false);
   const [organizationViews, setOrganizationViews] = useState({ library: "all", catalog: "all" });
+  const pageHeading = useRef<HTMLHeadingElement>(null);
+  const collectionId = organizationViews.library.startsWith("collection:")
+    ? organizationViews.library.slice("collection:".length)
+    : "";
+  const collection =
+    ui.view === "library" && collectionId
+      ? organization.snapshot?.collections[collectionId]
+      : undefined;
   const organizationKey = ui.view === "catalog" ? "catalog" : "library";
   const setOrganizationView = (value: string) =>
     setOrganizationViews((current) => ({ ...current, [organizationKey]: value }));
@@ -1073,6 +1082,19 @@ function useWorkspace(props: WorkspaceProps) {
         setQuery={ui.setQuery}
         portCount={model.entries.length}
         libraryCount={data.catalog ? model.libraryCount : undefined}
+        headingRef={pageHeading}
+        collectionHeading={collection?.name}
+        collectionAction={
+          ui.view === "library" &&
+          collectionId && (
+            <EditCollectionButton
+              key={collectionId}
+              collectionId={collectionId}
+              organization={organization}
+              fallbackFocus={pageHeading}
+            />
+          )
+        }
         onAddGames={ui.view === "library" && model.libraryCount > 0 ? openAddGames : undefined}
       />
     ));
