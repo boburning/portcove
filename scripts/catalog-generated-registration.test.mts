@@ -498,6 +498,141 @@ async function derive(
     now: options.now ?? "2026-11-21T00:00:00.000Z",
   });
 }
+void test("a worker shares only successful inspection of an exact release asset", async () => {
+  const ids = ["zz-game-one", "zz-game-two", "zz-game-three", "zz-game-four"];
+  const repository = "fixture-owner/shared-release";
+  const projectUrl = `https://github.com/${repository}`;
+  const records = ids.map((id) => listing(id, { project_url: projectUrl }));
+  const report = observerReport(
+    Object.fromEntries(
+      ids.map((id, index) => [
+        id,
+        {
+          repository,
+          repository_id: index === 3 ? 4243 : 4242,
+          releases: [
+            {
+              ...defaultRelease(id),
+              assets: [{ id: 21, name: windowsZip, sha256: sha(index === 2 ? "other" : "shared") }],
+            },
+          ],
+        },
+      ]),
+    ),
+  );
+  for (const row of report.listings)
+    row.listing_update.upstream_observation.releases[0]!.assets[0]!.url = `${projectUrl}/releases/download/v1.0/${windowsZip}`;
+
+  const calls: string[] = [];
+  const reader = inspector({}, calls);
+  const result = await derive(records, report, undefined, { inspect: reader });
+  assert.equal(calls.length, 3);
+  assert.equal(result.bytes, 300);
+  assert.equal(result.report.filter((row) => row.reused === 1).length, 1);
+  assert.equal(result.table.entries.filter((entry) => entry.artifacts.length === 1).length, 4);
+
+  let attempts = 0;
+  const retry = await derive(
+    records.slice(0, 2),
+    { listings: report.listings.slice(0, 2) },
+    undefined,
+    {
+      async inspect() {
+        if (++attempts === 1)
+          throw new InspectionError("temporary", false, "core-network", "network");
+        return [player("Game/Game.exe")];
+      },
+    },
+  );
+  assert.equal(attempts, 2);
+  assert.equal(retry.table.entries.filter((entry) => entry.artifacts.length === 1).length, 1);
+});
+
+void test("shared inspections retain the time needed by independent reproduction", async (context) => {
+  const ids = ["zz-one-release-item", "zz-two-release-item", "zz-z-both-items"];
+  const repository = "fixture-owner/shared-release";
+  const projectUrl = `https://github.com/${repository}`;
+  const records = ids.map((id) => listing(id, { project_url: projectUrl }));
+  const first = { id: 24, name: windowsZip, sha256: sha("first-item") };
+  const second = {
+    id: 25,
+    name: linuxTar,
+    sha256: sha("second-item"),
+  };
+  const report = observerReport(
+    Object.fromEntries(
+      [[first], [second], [first, second]].map((assets, index) => [
+        ids[index]!,
+        { repository, releases: [{ ...defaultRelease(ids[index]!), assets }] },
+      ]),
+    ),
+  );
+  for (const row of report.listings)
+    for (const asset of row.listing_update.upstream_observation.releases[0]!.assets)
+      asset.url = `${projectUrl}/releases/download/v1.0/${asset.name}`;
+  let clock = Date.now();
+  context.mock.method(Date, "now", () => clock);
+  const attempts: number[] = [];
+  const result = await deriveListingFacts({
+    records,
+    observerReport: report,
+    table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
+    classify: coreClassifier,
+    now: "2026-11-21T00:00:00.000Z",
+    identityBudgetMs: 100,
+    async inspect(asset, _, deadline) {
+      attempts.push(asset.id);
+      if (clock + 60 >= deadline!) throw new OverBudgetError("no time left to reproduce");
+      clock += 60;
+      return {
+        players: [asset.id === 25 ? player("Game/Game", "elf64-x86-64") : player("Game/Game.exe")],
+        names: [],
+        leaves: [],
+      };
+    },
+  });
+  assert.deepEqual(attempts, [24, 25, 25]);
+  assert.equal(result.table.entries.filter((entry) => entry.artifacts.length === 1).length, 2);
+  assert.equal(result.state.retry.find((entry) => entry.port_id === ids[2])?.cause, "runner-time");
+});
+
+void test("a malformed repeated provider asset ID cannot mislabel shared inspection facts", async () => {
+  const malformed = "zz-malformed-id-before-sibling";
+  const sibling = "zz-sibling-with-clean-release";
+  const repository = "fixture-owner/shared-release";
+  const projectUrl = `https://github.com/${repository}`;
+  const records = [malformed, sibling].map((id) => listing(id, { project_url: projectUrl }));
+  const digest = sha("same-archive-digest");
+  const windows = { id: 24, name: windowsZip, sha256: digest };
+  const linux = { id: 24, name: linuxTar, sha256: digest };
+  const report = observerReport({
+    [malformed]: {
+      repository,
+      releases: [{ ...defaultRelease(malformed), assets: [windows, linux] }],
+    },
+    [sibling]: { repository, releases: [{ ...defaultRelease(sibling), assets: [linux] }] },
+  });
+  for (const row of report.listings)
+    for (const asset of row.listing_update.upstream_observation.releases[0]!.assets)
+      asset.url = `${projectUrl}/releases/download/v1.0/${asset.name}`;
+  const calls: string[] = [];
+  let linuxReads = 0;
+  const result = await derive(records, report, undefined, {
+    async inspect(asset) {
+      calls.push(asset.name);
+      if (asset.name === windowsZip) return [player("Game/Game.exe")];
+      if (++linuxReads === 1)
+        throw new InspectionError("temporary", false, "core-network", "network");
+      return [player("Game/Game", "elf64-x86-64")];
+    },
+  });
+  assert.deepEqual(calls, [windowsZip, linuxTar, linuxTar]);
+  assert.equal(
+    result.table.entries.find((entry) => entry.port_id === sibling)?.artifacts[0]?.name,
+    linuxTar,
+  );
+});
+
 const enrolledIds = (records: AuthoredPort[], facts: ListingFactsTable) =>
   generateRegistrations(records, facts).enrollments.map((row) => row.port_id);
 const outcome = (result: DeriveResult, id: string) =>

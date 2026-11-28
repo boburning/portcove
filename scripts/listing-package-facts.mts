@@ -744,6 +744,12 @@ export interface ReportRow {
   inspected: number;
   reused: number;
 }
+export interface InspectionNeed {
+  port_id: string;
+  bytes: number;
+  archive_keys: string[];
+}
+
 export interface DeriveResult {
   table: ListingFactsTable;
   state: WorkerState;
@@ -760,7 +766,7 @@ export interface DeriveResult {
    */
   backlog: Backlog;
   /** Identities that need bytes, with their unread archive bytes, in port_id order. */
-  needs: { port_id: string; bytes: number }[];
+  needs: InspectionNeed[];
   /** Candidate identities the observer report did not cover, in port_id order. */
   unobserved: string[];
   /** Identities this run settled into the table: complete, or newly ineligible. */
@@ -1350,6 +1356,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     archives: (ObservedAsset & { sha256: string })[];
     reusable: Map<string, ArtifactFactV2>;
     reusableRefusals: Map<string, RefusalClass>;
+    unread: Map<ObservedAsset, string>;
     cost: number;
   };
   const needs: Need[] = [];
@@ -1555,13 +1562,25 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         .flatMap((entry) => entry?.refused_archives ?? [])
         .map((archive) => [`${archive.asset_id}/${archive.sha256}`, archive.refusal] as const),
     );
-    const cost = digestBound
-      .filter(
-        (asset) =>
-          !reusable.has(`${asset.id}/${asset.sha256}`) &&
-          !reusableRefusals.has(`${asset.id}/${asset.sha256}`),
-      )
-      .reduce((sum, asset) => sum + asset.size, 0);
+    const unread = new Map<ObservedAsset, string>();
+    let cost = 0;
+    for (const asset of digestBound) {
+      const assetKey = `${asset.id}/${asset.sha256}` as const;
+      if (reusable.has(assetKey) || reusableRefusals.has(assetKey)) continue;
+      unread.set(
+        asset,
+        digestOf([
+          repositoryId,
+          release.id,
+          asset.id,
+          asset.name,
+          asset.size,
+          asset.sha256,
+          asset.url,
+        ]),
+      );
+      cost += asset.size;
+    }
     // The generated registration fit already requires the chosen release's
     // text. Acquire that upstream evidence before reading novel archive bytes.
     // Read-only package discovery and previously inspected bytes are independent.
@@ -1579,6 +1598,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       archives: digestBound,
       reusable,
       reusableRefusals,
+      unread,
       cost,
     });
   };
@@ -1600,17 +1620,26 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     inputs.identityBudgetMs ??
     identityBudgetMinutes(Math.min(candidates.size, reproductionBatchEntries)) * 60_000;
   const cut = new Set<string>();
+  type InspectionFacts = {
+    players: PlayerFact[];
+    toolchain: readonly string[];
+    counts: ArtifactFactV2["listing_counts"];
+  };
+  const intendedReads = new Map<string, number>();
+  if (inputs.inspectBytes !== false)
+    for (const need of needs)
+      for (const key of need.unread.values())
+        intendedReads.set(key, (intendedReads.get(key) ?? 0) + 1);
+  // Keep only successful derived facts for exact repeated assets in this worker.
+  // This cache never retains archive bytes, partial results or failed attempts.
+  const sharedInspections = new Map<string, { facts: InspectionFacts; elapsedMs: number }>();
+  const maximumSharedInspections = 64;
   const inspectOne = async (need: Need) => {
-    const found: {
-      asset: ObservedAsset & { sha256: string };
-      players: PlayerFact[];
-      toolchain: readonly string[];
-      counts: ArtifactFactV2["listing_counts"];
-    }[] = [];
+    const found: (InspectionFacts & { asset: ObservedAsset & { sha256: string } })[] = [];
     const refused: { asset: ObservedAsset & { sha256: string }; refusal: RefusalClass }[] = [];
     let inspected = 0;
     let reused = 0;
-    const identityDeadline = Date.now() + identityBudgetMs;
+    let identityDeadline = Date.now() + identityBudgetMs;
     // One identity that does not fit the per-identity budget CI can
     // reproduce in: retried once, then settled with the runner-time cause.
     const runnerTime = () => {
@@ -1636,7 +1665,8 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       notComplete(need.id, "failed");
     };
     for (const asset of need.archives) {
-      const known = need.reusable.get(`${asset.id}/${asset.sha256}`);
+      const assetKey = `${asset.id}/${asset.sha256}`;
+      const known = need.reusable.get(assetKey);
       if (known) {
         // The recorded helper entries stand for the listing already read.
         found.push({
@@ -1648,9 +1678,23 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         reused++;
         continue;
       }
-      const knownRefusal = need.reusableRefusals.get(`${asset.id}/${asset.sha256}`);
+      const knownRefusal = need.reusableRefusals.get(assetKey);
       if (knownRefusal) {
         refused.push({ asset, refusal: knownRefusal });
+        reused++;
+        continue;
+      }
+      const key = need.unread.get(asset)!;
+      const left = (intendedReads.get(key) ?? 1) - 1;
+      if (left) intendedReads.set(key, left);
+      else intendedReads.delete(key);
+      const shared = sharedInspections.get(key);
+      if (!left) sharedInspections.delete(key);
+      // Charge a hit for the original inspection time. If it might not fit,
+      // attempt a fresh read within the remaining budget, as reproduction will.
+      if (shared && !pastDeadline() && Date.now() + shared.elapsedMs < identityDeadline) {
+        identityDeadline -= shared.elapsedMs;
+        found.push({ asset, ...shared.facts });
         reused++;
         continue;
       }
@@ -1661,17 +1705,20 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       try {
         inspected++;
         bytes += asset.size;
+        const started = Date.now();
         const inspection = await inputs.inspect(
           asset,
           readerPlatform(asset.name),
           identityDeadline,
         );
-        found.push({
-          asset,
+        const facts = {
           players: inspection.players,
           toolchain: toolchainNames(inspection.names, inspection.leaves),
           counts: listingCounts(inspection.leaves),
-        });
+        };
+        found.push({ asset, ...facts });
+        if (left && sharedInspections.size < maximumSharedInspections)
+          sharedInspections.set(key, { facts, elapsedMs: Math.max(0, Date.now() - started) });
       } catch (error) {
         // The shard deadline cut this identity: it is pending, not failed.
         if (error instanceof OverBudgetError && pastDeadline()) {
@@ -1813,7 +1860,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     bytes,
     backlog,
     needs: needs
-      .map((need) => ({ port_id: need.id, bytes: need.cost }))
+      .map((need) => ({
+        port_id: need.id,
+        bytes: need.cost,
+        archive_keys: [...need.unread.values()].toSorted(compareCodePoints),
+      }))
       .toSorted((left, right) => compareCodePoints(left.port_id, right.port_id)),
     unobserved: [...candidates.keys()]
       .filter((id) => (only === undefined || only.has(id)) && !observed.has(id))

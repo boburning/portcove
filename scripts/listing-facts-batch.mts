@@ -109,6 +109,7 @@ import {
   gateBaselineRevision,
   readGateBaseline,
   identityShards,
+  matrixJobLimit,
   releaseLine,
   reproductionDeadlineMinutes,
   githubTokenHourlyRequests,
@@ -151,6 +152,7 @@ import {
   safeText,
   unreadableReleases,
   type ByteInspector,
+  type InspectionNeed,
   type NameClassifier,
   type ObservedAsset,
   type CarriedItem,
@@ -655,6 +657,44 @@ export function reproductionParallelism(entries: number, shards: number) {
     1,
     Math.min(shards, Math.floor(reproductionHourlyRequests / Math.max(1, perShard))),
   );
+}
+
+/** Assign related inspection work together. Reproduction keeps its independent identity shards. */
+export function inspectionShards(needs: readonly InspectionNeed[]): string[][] {
+  type Group = { ids: string[]; bytes: number };
+  const byArchive = new Map<string, Group>();
+  const groups: Group[] = [];
+  // A large group can still use several runners. Keep each group near the
+  // ordinary matrix load so later consumers also have time to run.
+  const groupLimit = Math.max(3, Math.ceil(needs.length / matrixJobLimit));
+  for (const need of needs.toSorted((a, b) => compareCodePoints(a.port_id, b.port_id))) {
+    let group = need.archive_keys
+      .map((key) => byArchive.get(key))
+      .find((candidate) => candidate && candidate.ids.length < groupLimit);
+    if (!group) {
+      group = { ids: [], bytes: 0 };
+      groups.push(group);
+    }
+    group.ids.push(need.port_id);
+    group.bytes += need.bytes;
+    for (const key of need.archive_keys) byArchive.set(key, group);
+  }
+  groups.sort((a, b) => b.bytes - a.bytes || compareCodePoints(a.ids[0]!, b.ids[0]!));
+  const shards = Array.from({ length: Math.min(matrixJobLimit, groups.length) }, () => ({
+    ids: [] as string[],
+    bytes: 0,
+  }));
+  for (const group of groups) {
+    const shard = shards.reduce((least, current) =>
+      current.bytes < least.bytes ||
+      (current.bytes === least.bytes && current.ids.length < least.ids.length)
+        ? current
+        : least,
+    );
+    shard.ids.push(...group.ids);
+    shard.bytes += group.bytes;
+  }
+  return shards.map(({ ids }) => ids.toSorted(compareCodePoints));
 }
 
 export { githubTokenHourlyRequests, reproductionHourlyRequests };
@@ -3582,12 +3622,12 @@ async function main(argv: string[]): Promise<string> {
       return `Listing facts change verified: ${entries.length} eligible entries reproduced.\n`;
     }
     case "worker-shards": {
-      // The facts worker's shards: one per identity that needs bytes, at
-      // most `matrixJobLimit`, each written as `only-<index>.json`.
+      // Keep consumers of exact unread assets together so verified facts can be reused.
+      // Each shard is written as `only-<index>.json`.
       if (!option.needs || !option.directory)
         throw new Error("worker-shards needs --needs and --directory.");
-      const needs = JSON.parse(readFileSync(option.needs, "utf8")) as { port_id: string }[];
-      const shards = identityShards(needs.map((need) => need.port_id));
+      const needs = JSON.parse(readFileSync(option.needs, "utf8")) as InspectionNeed[];
+      const shards = inspectionShards(needs);
       mkdirSync(option.directory, { recursive: true });
       for (const [index, only] of shards.entries())
         writeFileSync(

@@ -11130,8 +11130,8 @@ export function identityBudgetMinutes(entries: number) {
 /**
  * Deterministic shards of identities: `count` shards (one per identity, at
  * most `matrixJobLimit`), identity i in port_id order in shard i mod count.
- * Reproduction and the facts worker shard the same way, so every shard
- * holds the fewest identities the matrix allows and none is left out.
+ * Independent reproduction uses this to keep the fewest identities per
+ * shard while including all of them.
  */
 export function identityShards(ids: readonly string[]): string[][] {
   const sorted = [...new Set(ids)].toSorted(compareCodePoints);
