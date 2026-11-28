@@ -21,6 +21,7 @@ const MAX_CHANGES_PER_REVIEW = 16;
 type FileView = GameSettingsView["files"][number];
 type DraftValue = { action: "set"; input: string } | { action: "reset" };
 type FieldError = "tooLarge" | "whole" | "number" | "choose" | "range";
+type InvalidField = { id: string; kind: FieldError };
 type Draft = { identity: string; values: Map<string, DraftValue> };
 
 export type SettingsDraftSummary = {
@@ -130,7 +131,8 @@ function SettingsFileDraft({
   const { t } = useAppTranslation("gameSettings");
   const [draft, setDraft] = useState<Draft>();
   const [selected, setSelected] = useState<{ identity: string; edits: GameSettingsEdit[] }>();
-  const [error, setError] = useState<{ id: string; kind: FieldError }>();
+  const [error, setError] = useState<InvalidField>();
+  const form = useRef<HTMLFormElement>(null);
   const [savedAtRead, setSavedAtRead] = useState<number>();
   // A refusal Core reports as not started keeps its own explanation; an
   // unconfirmed save keeps the generic readback guidance.
@@ -146,6 +148,12 @@ function SettingsFileDraft({
   const formId = useId();
   const canReview =
     !disabled && !needsRead && !held && available && count > 0 && count <= MAX_CHANGES_PER_REVIEW;
+  useLayoutEffect(() => {
+    if (!error) return;
+    // The focused field must already expose its rendered error to assistive technology.
+    const element = form.current?.elements.namedItem(error.id);
+    if (element instanceof HTMLElement) element.focus();
+  }, [error]);
   useEffect(() => {
     if (!count || !reportDraft) return;
     reportDraft(formId, { formId, path: file.path, count, canReview });
@@ -161,26 +169,23 @@ function SettingsFileDraft({
       return next.size ? { identity, values: next } : undefined;
     });
   };
-  const submit = (form: HTMLFormElement) => {
+  const discard = () => {
+    setDraft(undefined);
+    setError(undefined);
+  };
+  const submit = () => {
     if (!canReview) return;
-    const edits: GameSettingsEdit[] = [];
-    for (const setting of file.settings) {
-      const value = values?.get(setting.id);
-      if (!value) continue;
-      const result = parseChange(setting, value);
-      if (typeof result === "string") {
-        setError({ id: setting.id, kind: result });
-        const element = form.elements.namedItem(setting.id);
-        if (element instanceof HTMLElement) element.focus();
-        return;
-      }
-      edits.push({ setting_id: setting.id, change: result });
+    const result = parseSettingsEdits(file.settings, values);
+    if ("error" in result) {
+      setError(result.error);
+      return;
     }
     setError(undefined);
-    setSelected({ identity, edits });
+    setSelected({ identity, edits: result.edits });
   };
   return (
     <form
+      ref={form}
       id={formId}
       aria-labelledby={`${formId}-heading`}
       tabIndex={-1}
@@ -188,7 +193,7 @@ function SettingsFileDraft({
       className="grid gap-3"
       onSubmit={(event) => {
         event.preventDefault();
-        submit(event.currentTarget);
+        submit();
       }}
     >
       <h4 id={`${formId}-heading`} className="m-0 text-sm font-medium wrap-anywhere">
@@ -198,14 +203,7 @@ function SettingsFileDraft({
       {held && (
         <div>
           <p role="status">{t(available ? "panel.held" : "panel.heldUnavailable")}</p>
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => {
-              setDraft(undefined);
-              setError(undefined);
-            }}
-          >
+          <Button variant="outline" type="button" onClick={discard}>
             {t("panel.discard")}
           </Button>
         </div>
@@ -242,14 +240,7 @@ function SettingsFileDraft({
               {t("editor.review")}
             </Button>
             {count > 0 && !held && (
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => {
-                  setDraft(undefined);
-                  setError(undefined);
-                }}
-              >
+              <Button variant="outline" type="button" onClick={discard}>
                 {t("panel.discard")}
               </Button>
             )}
@@ -287,6 +278,21 @@ function SettingsFileDraft({
       )}
     </form>
   );
+}
+
+function parseSettingsEdits(
+  settings: readonly GameSettingView[],
+  values?: ReadonlyMap<string, DraftValue>,
+): { edits: GameSettingsEdit[] } | { error: InvalidField } {
+  const edits: GameSettingsEdit[] = [];
+  for (const setting of settings) {
+    const value = values?.get(setting.id);
+    if (!value) continue;
+    const change = parseChange(setting, value);
+    if (typeof change === "string") return { error: { id: setting.id, kind: change } };
+    edits.push({ setting_id: setting.id, change });
+  }
+  return { edits };
 }
 
 function currentInput(setting: GameSettingView, reset = false): string {
