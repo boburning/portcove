@@ -2009,7 +2009,9 @@ void test("Linux continuity publishes an outside-checkout store and lossless bou
   );
   assert.match(recoveryEngineGuard, /pkg-config --atleast-version=2\.52\.6 webkit2gtk-4\.1/u);
   assert.match(recoveryEngineGuard, /\n  exit 1\nfi$/u);
-  assert.ok(prerequisiteRun.indexOf(recoveryEngineGuard) < prerequisiteRun.indexOf("cargo install"));
+  assert.ok(
+    prerequisiteRun.indexOf(recoveryEngineGuard) < prerequisiteRun.indexOf("cargo install"),
+  );
   const prerequisitePlan = prerequisiteOperations(
     String.raw`
 plan_desktop_prerequisites ubuntu 22.04 "$@"
