@@ -152,6 +152,22 @@ export function ApplicationUpdateSettings({
   );
 }
 
+const applicationUpdateRefusalCopy = {
+  "library-busy": (t) => t("failure.libraryBusy"),
+  "library-in-use": (t) => t("failure.libraryInUse"),
+  "library-relocated": (t) => t("failure.libraryRelocated"),
+  "library-needs-recovery": (t) => t("failure.libraryNeedsRecovery"),
+  "package-managed": (t) => t("failure.packageManaged"),
+  "in-progress": (t) => t("failure.inProgress"),
+  "check-failed": (t) => t("failure.checkFailed"),
+  "release-not-found": (t) => t("failure.releaseNotFound"),
+  "download-failed": (t) => t("failure.downloadFailed"),
+  "install-failed": (t) => t("failure.installFailed"),
+  stale: (t) => t("failure.stale"),
+  "save-failed": (t) => t("failure.saveFailed"),
+  unavailable: (t) => t("failure.unavailable"),
+} satisfies Record<string, (t: TFunction<"applicationUpdate">) => string>;
+
 // The host names known refusals in a failure detail so this copy stays localized;
 // any other failure keeps its shared presentation.
 function failureCopy(t: TFunction<"applicationUpdate">, failure: unknown) {
@@ -161,36 +177,9 @@ function failureCopy(t: TFunction<"applicationUpdate">, failure: unknown) {
     typeof details === "object" && details && "application_update_refusal" in details
       ? details.application_update_refusal
       : undefined;
-  switch (reason) {
-    case "library-busy":
-      return t("failure.libraryBusy");
-    case "library-in-use":
-      return t("failure.libraryInUse");
-    case "library-relocated":
-      return t("failure.libraryRelocated");
-    case "library-needs-recovery":
-      return t("failure.libraryNeedsRecovery");
-    case "package-managed":
-      return t("failure.packageManaged");
-    case "in-progress":
-      return t("failure.inProgress");
-    case "check-failed":
-      return t("failure.checkFailed");
-    case "release-not-found":
-      return t("failure.releaseNotFound");
-    case "download-failed":
-      return t("failure.downloadFailed");
-    case "install-failed":
-      return t("failure.installFailed");
-    case "stale":
-      return t("failure.stale");
-    case "save-failed":
-      return t("failure.saveFailed");
-    case "unavailable":
-      return t("failure.unavailable");
-    default:
-      return errorText(failure);
-  }
+  if (typeof reason !== "string" || !Object.hasOwn(applicationUpdateRefusalCopy, reason))
+    return errorText(failure);
+  return applicationUpdateRefusalCopy[reason as keyof typeof applicationUpdateRefusalCopy](t);
 }
 
 function statusCopy(
