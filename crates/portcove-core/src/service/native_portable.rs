@@ -743,6 +743,16 @@ mod tests {
             program_name: &str,
         ) -> ResolvedRelease {
             let files: &[(&str, &[u8])] = match program_name {
+                "MegaManX2SNESRecomp.exe" => &[
+                    ("assets/fixture.dat", b"fixture"),
+                    ("docs/fixture.txt", b"fixture"),
+                    ("tools/fixture.txt", b"fixture"),
+                    ("logging.ini", b"# fixture"),
+                    (
+                        "mods/preloaded/packages/megaman-x2.enhancement.widescreen/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                ],
                 "SonicTheHedgehogRecomp.exe" => &[
                     ("assets/fixture.dat", b"fixture"),
                     ("docs/fixture.txt", b"fixture"),
@@ -5196,8 +5206,11 @@ mod tests {
                     old_port.persistent_paths.as_slice()
                 );
                 assert_eq!(current.persistent_paths[prior_count], "logs");
-                *provider.0.lock().unwrap() =
-                    server.release_in_folder(new_version, 2, "", executable);
+                *provider.0.lock().unwrap() = if sonic {
+                    server.release_in_folder(new_version, 2, "", executable)
+                } else {
+                    server.release_with_reviewed_layout(new_version, 2, executable)
+                };
                 let update = service.update(id, None, None, true, |_| {}).await;
                 if let Some(path) = protected {
                     assert_eq!(
@@ -5276,7 +5289,7 @@ mod tests {
             service.catalog.port(ID).unwrap().persistent_paths
         );
         *provider.0.lock().unwrap() =
-            server.release_in_folder("v0.2.2", 2, "", "MegaManX2SNESRecomp.exe");
+            server.release_with_reviewed_layout("v0.2.2", 2, "MegaManX2SNESRecomp.exe");
         let next = service.update(ID, None, None, true, |_| {}).await.unwrap();
         service.prepare_launch(ID, None).unwrap();
         assert_ne!(old.artifact.sha256, next.artifact.sha256);
@@ -5372,10 +5385,9 @@ mod tests {
                 let source = temporary.path().join("fixture.sfc");
                 fs::write(&source, original).unwrap();
                 let server = Server::new();
-                let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+                let provider = Arc::new(Provider(Mutex::new(server.release_with_reviewed_layout(
                     "v0.2.2",
                     2,
-                    "",
                     "MegaManX2SNESRecomp.exe",
                 ))));
                 let mut service = build_service(library.clone(), provider.clone());
