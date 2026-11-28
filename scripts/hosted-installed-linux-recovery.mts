@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { credentialFree, requireCatalogReleaseAttestation } from "./catalog-released-reader.mts";
 import { fileIdentity } from "./development-evidence.mts";
@@ -169,13 +169,34 @@ if (process.argv[2] === "prepare") {
     "preparation-tool": await fileIdentity(probe),
   };
   assert.deepEqual(after, before.product);
-  const recovery = await verifyPublishedRecoveryObservation(native, revision, after);
+  const recovery = await verifyPublishedRecoveryObservation(native, revision, after, "linux");
   await keep("installed-recovery-result.json", {
     product: after,
     recovery,
     outcome: "passed",
     mode: "ordinary AppImage",
   });
+} else if (process.argv[2] === "collect-session") {
+  const directories = (await readdir(output, { withFileTypes: true })).filter((directory) =>
+    /^private-x11-[a-zA-Z0-9]+$/u.test(directory.name),
+  );
+  assert.ok(directories.length <= 1);
+  for (const directory of directories) {
+    assert.ok(directory.isDirectory());
+    const base = path.join(output, directory.name);
+    const leaves = new Set(await readdir(base));
+    for (const leaf of [
+      "outer-join.json",
+      "preflight.json",
+      "recovery-keyring-readiness.json",
+      "runtime-receipt.json",
+    ]) {
+      if (!leaves.has(leaf)) continue;
+      const evidence = await fileIdentity(path.join(base, leaf), { maxBytes: 1024 * 1024 });
+      const bytes = await readFile(evidence.path);
+      await writeFile(path.join(output, "private-x11-" + leaf), bytes, { flag: "wx" });
+    }
+  }
 } else {
-  throw new Error("Select prepare or verify");
+  throw new Error("Select prepare, verify or collect-session");
 }

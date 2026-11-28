@@ -24,10 +24,43 @@ export function recoveryPreviewVersion(tag: string) {
   return matched[1]!;
 }
 
+export function assertRecoveryRestartReceipt(restart: unknown, platform: "linux" | "win32") {
+  assert.ok(isRecord(restart));
+  if (platform === "win32") {
+    assert.ok(isRecord(restart.exited));
+    assert.ok(typeof restart.exited.exited_at === "string");
+    assert.ok(
+      typeof restart.exited.observed_processes === "number" &&
+        restart.exited.observed_processes > 1,
+    );
+    return;
+  }
+
+  assert.equal(restart.method, "private-pid-namespace-init-normal-unshare-join");
+  assert.equal(restart.quiesced, true);
+  assert.equal(restart.protocol_error, undefined);
+  assert.ok(isRecord(restart.ready) && isRecord(restart.exit));
+  assert.equal(restart.ready.kind, "namespace-ready");
+  assert.equal(restart.ready.pid, 1);
+  assert.ok(typeof restart.nonce === "string" && restart.nonce === restart.ready.nonce);
+  assert.equal(restart.exit.code, 0);
+  assert.equal(restart.exit.signal, null);
+  assert.ok(typeof restart.exit.observed_at === "string");
+  assert.ok(Array.isArray(restart.events));
+  const events: readonly unknown[] = restart.events;
+  assert.ok(
+    events.some(
+      (event) =>
+        isRecord(event) && event.nonce === restart.nonce && event.kind === "driver-started",
+    ),
+  );
+}
+
 export async function verifyPublishedRecoveryObservation(
   native: string,
   revision: string,
   inputs: Record<"app" | "preparation-cli" | "preparation-tool", FileIdentity>,
+  platform: "linux" | "win32" = "win32",
 ) {
   const json = async (leaf: string): Promise<unknown> =>
     JSON.parse(await readFile(path.join(native, leaf), "utf8"));
@@ -72,12 +105,7 @@ export async function verifyPublishedRecoveryObservation(
       typeof result.afterRestore.generation === "number" &&
       result.opened.generation > result.afterRestore.generation,
   );
-  const restart = await json(restartLeaf);
-  assert.ok(isRecord(restart) && isRecord(restart.exited));
-  assert.ok(typeof restart.exited.exited_at === "string");
-  assert.ok(
-    typeof restart.exited.observed_processes === "number" && restart.exited.observed_processes > 1,
-  );
+  assertRecoveryRestartReceipt(await json(restartLeaf), platform);
 
   const resultIdentity = await fileIdentity(path.join(native, resultLeaf));
   const restartIdentity = await fileIdentity(path.join(native, restartLeaf));

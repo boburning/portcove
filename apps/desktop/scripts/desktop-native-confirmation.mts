@@ -31,6 +31,7 @@ import { lstat, stat, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
+import { fileIdentity } from "../../../scripts/development-evidence.mts";
 
 async function retainPickerObservation(
   result: SpawnSyncReturns<string>,
@@ -294,9 +295,30 @@ function ownedLinuxFolderPicker(
       .trim()
       .split(/\s+/u)[19];
     assert(started, "Launch process start identity is required");
-    const sha256 = createHash("sha256")
-      .update(await readFile(application))
-      .digest("hex");
+    const applicationFile = await fileIdentity(application);
+    const mountedReceipt = process.env.PORTCOVE_QUALIFICATION_APPIMAGE_RUNTIME_RECEIPT;
+    const mountedArgs: string[] = [];
+    if (mountedReceipt && purpose === "restored-library") {
+      const receiptFile = await fileIdentity(mountedReceipt, { maxBytes: 256 * 1024 });
+      const receipt: unknown = JSON.parse(await readFile(receiptFile.path, "utf8"));
+      assert.ok(
+        isRecord(receipt) &&
+          receipt.outcome === "passed" &&
+          receipt.owned_mount_retired === true &&
+          isRecord(receipt.mount) &&
+          receipt.mount.fs === "fuse.Portcove.AppImage" &&
+          receipt.mount.source === "Portcove.AppImage" &&
+          Array.isArray(receipt.desktops),
+        "A verified mounted executable from the exact signed AppImage is required",
+      );
+      assert.deepEqual(receipt.package, applicationFile);
+      const entries: readonly unknown[] = receipt.desktops;
+      const [executable] = entries;
+      assert.ok(entries.length === 1 && isRecord(executable));
+      assert.equal(executable.relative, "usr/bin/portcove-desktop");
+      assert.ok(typeof executable.sha256 === "string" && /^[0-9a-f]{64}$/u.test(executable.sha256));
+      mountedArgs.push("--appimage-runtime-sha256", executable.sha256);
+    }
     const interpreter = await readFile("/usr/bin/python3");
     const interpreterIdentity = {
       path: "/usr/bin/python3",
@@ -316,7 +338,8 @@ function ownedLinuxFolderPicker(
         "--application",
         application,
         "--application-sha256",
-        sha256,
+        applicationFile.sha256,
+        ...mountedArgs,
         "--output",
         output,
         "--purpose",

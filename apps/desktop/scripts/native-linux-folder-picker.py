@@ -4,9 +4,10 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import select
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 def proc(pid):
@@ -14,12 +15,33 @@ def proc(pid):
     return {"parent": int(fields[1]), "started": fields[19]}
 
 
+def mounted_runtime_identity(live_path, runtime_device, mountinfo, package_basename):
+    live = PurePosixPath(live_path)
+    if not live.is_absolute() or live.name != "portcove-desktop" or len(live.parents) < 3:
+        return None
+    mount = live.parents[2]
+    if str(live) != live_path or mount.parent != PurePosixPath("/tmp") or not re.fullmatch(r"\.mount_[A-Za-z0-9]+", mount.name):
+        return None
+    if live != mount / "usr/bin/portcove-desktop":
+        return None
+    matches = []
+    for row in mountinfo.splitlines():
+        before, after = row.split(" - ", 1)
+        fields = before.split()
+        filesystem, source, _ = after.split(" ", 2)
+        if (fields[4] == str(mount) and fields[3] == "/" and fields[2] == runtime_device
+            and filesystem == f"fuse.{package_basename}" and source == package_basename):
+            matches.append((fields[0], fields[2], str(mount), filesystem, source))
+    return matches[0] if len(matches) == 1 else None
+
+
 class OwnedLaunch:
-    def __init__(self, pid, started, nonce, executable, digest):
+    def __init__(self, pid, started, nonce, executable, digest, appimage_runtime_digest=None):
         self.pid = pid
         self.started = started
         self.executable = str(Path(executable).resolve(strict=True))
         self.digest = digest
+        self.appimage_runtime_digest = appimage_runtime_digest
         self.fd = os.pidfd_open(pid)
         self.application = None
         try:
@@ -37,6 +59,31 @@ class OwnedLaunch:
         if select.select([self.fd], [], [], 0)[0] or proc(self.pid)["started"] != self.started or Path(f"/proc/{self.pid}/cmdline").read_bytes() != self.command:
             raise RuntimeError("Owned native launch changed or exited")
 
+    def executable_identity(self, pid):
+        proc_executable = f"/proc/{pid}/exe"
+        metadata = os.stat(proc_executable)
+        immutable = (metadata.st_dev, metadata.st_ino, metadata.st_size, metadata.st_mtime_ns)
+        if self.appimage_runtime_digest is None:
+            return (*immutable, None) if str(Path(proc_executable).resolve(strict=True)) == self.executable else None
+        device = f"{os.major(metadata.st_dev)}:{os.minor(metadata.st_dev)}"
+        associated = mounted_runtime_identity(
+            os.readlink(proc_executable), device, Path(f"/proc/{pid}/mountinfo").read_text(),
+            Path(self.executable).name,
+        )
+        if associated is None:
+            return None
+        # Read only this owned process and retain neither its environment nor values.
+        with open(f"/proc/{pid}/environ", "rb") as environment:
+            values = environment.read(256 * 1024 + 1)
+        if len(values) > 256 * 1024:
+            return None
+        variables = values.split(b"\0")
+        if variables.count(b"APPIMAGE=" + os.fsencode(self.executable)) != 1:
+            return None
+        if variables.count(b"APPDIR=" + os.fsencode(associated[2])) != 1:
+            return None
+        return (*immutable, associated)
+
     def bind(self, pid):
         self.check()
         fd = os.pidfd_open(pid)
@@ -51,19 +98,21 @@ class OwnedLaunch:
                     return False
             else:
                 return False
-            if str(Path(f"/proc/{pid}/exe").resolve(strict=True)) != self.executable:
+            executable = self.executable_identity(pid)
+            if executable is None:
                 return False
             with open(f"/proc/{pid}/exe", "rb") as binary:
                 hasher = hashlib.sha256()
                 for block in iter(lambda: binary.read(1024 * 1024), b""):
                     hasher.update(block)
                 digest = hasher.hexdigest()
-            if digest != self.digest or select.select([fd], [], [], 0)[0] or proc(pid)["started"] != started:
+            expected_digest = self.appimage_runtime_digest or self.digest
+            if (digest != expected_digest or select.select([fd], [], [], 0)[0] or proc(pid)["started"] != started
+                or self.executable_identity(pid) != executable):
                 return False
             if self.application:
                 os.close(self.application[2])
-            metadata = os.stat(f"/proc/{pid}/exe")
-            self.application = (pid, started, fd, (metadata.st_dev, metadata.st_ino, metadata.st_size, metadata.st_mtime_ns))
+            self.application = (pid, started, fd, executable)
             fd = None
             return True
         finally:
@@ -75,8 +124,7 @@ class OwnedLaunch:
         pid, started, fd, original = self.application
         if select.select([fd], [], [], 0)[0] or proc(pid)["started"] != started:
             raise RuntimeError("Owned GTK application exited or changed")
-        metadata = os.stat(f"/proc/{pid}/exe")
-        if str(Path(f"/proc/{pid}/exe").resolve(strict=True)) != self.executable or (metadata.st_dev, metadata.st_ino, metadata.st_size, metadata.st_mtime_ns) != original:
+        if self.executable_identity(pid) != original:
             raise RuntimeError("Owned GTK executable changed")
         current = connection.call_sync(
             "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
@@ -99,6 +147,7 @@ def main():
     parser.add_argument("--launch-nonce", required=True)
     parser.add_argument("--application", required=True)
     parser.add_argument("--application-sha256", required=True)
+    parser.add_argument("--appimage-runtime-sha256")
     parser.add_argument("--output", required=True)
     parser.add_argument("--purpose", choices=("game-files", "restored-library"), default="game-files")
     parser.add_argument("--directory")
@@ -119,7 +168,12 @@ def main():
         if directory is None or directory != output / "restored-library":
             raise RuntimeError("Library picker requires the owned restored library")
         title = "Choose Portcove library"
-    launch = OwnedLaunch(args.launch_pid, args.launch_started, args.launch_nonce, args.application, args.application_sha256)
+    if args.appimage_runtime_sha256 is not None:
+        if (args.purpose != "restored-library" or Path(args.application).name != "Portcove.AppImage"
+            or not re.fullmatch(r"[0-9a-f]{64}", args.appimage_runtime_sha256)):
+            raise RuntimeError("Mounted executable identity is restricted to owned AppImage recovery")
+    launch = OwnedLaunch(args.launch_pid, args.launch_started, args.launch_nonce, args.application,
+                         args.application_sha256, args.appimage_runtime_sha256)
     try:
         import gi
         gi.require_version("Atspi", "2.0")
@@ -329,10 +383,14 @@ def main():
         else:
             invoke(button({"Cancel"}))
         import sys
-        print(json.dumps({"method": "owned GTK accessibility folder chooser", "python_version": sys.version, "launch_pid": args.launch_pid,
-                          "application_pid": launch.application[0], "application_sha256": args.application_sha256,
-                          "title": title, "selected": directory is not None, "cancelled": directory is None,
-                          "selected_directory": str(directory) if directory else None}))
+        receipt = {"method": "owned GTK accessibility folder chooser", "python_version": sys.version, "launch_pid": args.launch_pid,
+                   "application_pid": launch.application[0], "application_sha256": args.application_sha256,
+                   "title": title, "selected": directory is not None, "cancelled": directory is None,
+                   "selected_directory": str(directory) if directory else None}
+        if args.appimage_runtime_sha256 is not None:
+            receipt["appimage_runtime_sha256"] = args.appimage_runtime_sha256
+            receipt["appimage_mount"] = launch.application[3][-1]
+        print(json.dumps(receipt))
     finally:
         launch.close()
 

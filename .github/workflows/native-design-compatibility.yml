@@ -1517,9 +1517,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PORTCOVE_INSTALLED_RECOVERY_TAG: ${{ inputs.recovery_preview_tag }}
         run: node scripts/hosted-installed-linux-recovery.mts prepare
+      - name: Read the exact enclosed executable and retire the owned package mount
+        timeout-minutes: 2
+        run: python3 scripts/observe-installed-linux-appimage-mount.py
       - name: Observe mounted AppImage recovery with the private Secret Service
         timeout-minutes: 15
         run: |
+          export PORTCOVE_QUALIFICATION_APPIMAGE_RUNTIME_RECEIPT="$PWD/work/linux-installed-recovery/ordinary-package-mount.json"
           node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-installed-recovery/harness-config.json"
           node scripts/hosted-installed-linux-recovery.mts verify
       - name: Withdraw only the quiescent qualification profile
@@ -1527,4 +1531,6 @@ jobs:
         run: '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup'
       - name: Retain lossless bounded native reports
         if: always()
-        run: node scripts/native-backup-evidence.mts emit "$PWD/work/linux-installed-recovery"
+        run: |
+          node scripts/hosted-installed-linux-recovery.mts collect-session
+          node scripts/native-backup-evidence.mts emit "$PWD/work/linux-installed-recovery"
