@@ -6253,6 +6253,41 @@ void test("first-party short runs resume from persisted turns and service both c
   }
 });
 
+void test("first-party renewal passes absence only for the current subject binding", async () => {
+  const h = harness();
+  const listing = {
+    id: "other-port",
+    project_url: "https://github.com/owner/other",
+    original_game: { id: "first-game", source_editions: [] },
+  };
+  const input = { ...h.input, listings: [listing] };
+  const first = await advanceCatalogObservations(input, null, h.options);
+  const absence = {
+    state: "absent" as const,
+    repository_id: 8,
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+  };
+  const supplied: unknown[] = [];
+  h.options.launcherModRequestLimit = 4;
+  h.options.observeLauncherMods = async (repo, account) => {
+    if (repo.id !== absence.repository_id) return { state: "held", reason: "other-project" };
+    account.admitRequest();
+    supplied.push(repo.priorAbsence);
+    return absence;
+  };
+  const observed = await advanceCatalogObservations(input, first.checkpoint, h.options);
+  assert.equal(observed.checkpoint.launcher_mod_sources?.["other-port"]?.outcome, "absent");
+  h.advanceClock(7 * 24 * 3600000);
+  const renewed = await advanceCatalogObservations(input, observed.checkpoint, h.options);
+  const corrected = {
+    ...input,
+    listings: [{ ...listing, original_game: { ...listing.original_game, id: "corrected-game" } }],
+  };
+  await advanceCatalogObservations(corrected, renewed.checkpoint, h.options);
+  assert.deepEqual(supplied, [undefined, absence, undefined]);
+});
+
 void test("first-party observation retains a missing game scope and reassesses when exact evidence arrives", async () => {
   const h = harness();
   const listings = [

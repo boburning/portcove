@@ -4365,13 +4365,39 @@ void test("first-party mod refresh binds descriptive facts to the accepted publi
 
   calls.length = 0;
   responses.set(treeEndpoint, { sha: tree, truncated: false, tree: [] });
-  assert.deepEqual(await observeLauncherModPortals(repository, read), {
+  const absence = await observeLauncherModPortals(repository, read);
+  assert.deepEqual(absence, {
     state: "absent",
     repository_id: repository.id,
     commit,
     tree,
   });
-  assert.deepEqual(calls, [root, commitEndpoint, treeEndpoint]);
+  assert.deepEqual(calls.splice(0), [root, commitEndpoint, treeEndpoint]);
+  assert(absence.state === "absent");
+
+  const newCommit = "e".repeat(40);
+  responses.set(commitEndpoint, [{ sha: newCommit, commit: { tree: { sha: tree } } }]);
+  const withAbsence = { ...repository, priorAbsence: absence };
+  assert.deepEqual(await observeLauncherModPortals(withAbsence, read), {
+    ...absence,
+    commit: newCommit,
+  });
+  assert.deepEqual(calls, [root, commitEndpoint]);
+
+  const newTree = "f".repeat(40);
+  const newTreeEndpoint = root + "/git/trees/" + newTree;
+  const newContentEndpoint = root + "/contents/" + path + "?ref=" + newCommit;
+  responses.set(commitEndpoint, [{ sha: newCommit, commit: { tree: { sha: newTree } } }]);
+  responses.set(newTreeEndpoint, { sha: newTree, truncated: false, tree: [file] });
+  responses.set(newContentEndpoint, content);
+  calls.length = 0;
+  assert.deepEqual(await observeLauncherModPortals(withAbsence, read), {
+    ...result,
+    commit: newCommit,
+    tree: newTree,
+  });
+  assert.deepEqual(calls, [root, commitEndpoint, newTreeEndpoint, newContentEndpoint]);
+  responses.set(commitEndpoint, [{ sha: commit, commit: { tree: { sha: tree } } }]);
 
   calls.length = 0;
   responses.set(treeEndpoint, {
@@ -4387,7 +4413,7 @@ void test("first-party mod refresh binds descriptive facts to the accepted publi
 
   calls.length = 0;
   responses.set(root, { id: repository.id + 1, full_name: repository.slug, private: false });
-  assert.deepEqual(await observeLauncherModPortals(repository, read), {
+  assert.deepEqual(await observeLauncherModPortals(withAbsence, read), {
     state: "held",
     reason: "repository-binding-unresolved",
   });
