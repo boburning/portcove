@@ -731,6 +731,14 @@ fn valid_listed_at(value: &str) -> bool {
     time::Date::from_calendar_date(year as i32, month, day as u8).is_ok()
 }
 
+pub(crate) fn valid_listing_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 128
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+}
+
 fn valid_text(value: &str, limit: usize) -> bool {
     !value.is_empty()
         && value.len() <= limit
@@ -1116,12 +1124,7 @@ impl PortListing {
             self.original_game.as_ref(),
             &self.media,
         )?;
-        if self.id.is_empty()
-            || self.id.len() > 128
-            || !self
-                .id
-                .bytes()
-                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        if !valid_listing_id(&self.id)
             || !valid_text(&self.name, 512)
             || !valid_text(&self.summary, 4096)
             || !valid_url(&self.project_url)

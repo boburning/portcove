@@ -1448,6 +1448,89 @@ fn import_carries_saved_library_entries_under_schema_seven_and_rejects_forgery()
 }
 
 #[test]
+fn listing_only_artwork_and_mod_choices_restore_without_an_embedded_definition() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let destination = temp.path().join("destination");
+    let artwork_path = temp.path().join("cover.png");
+    let port_id = "future-listing-artwork-fixture";
+    let mut service = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
+    assert!(service.catalog().listing(port_id).is_err());
+    let mut listings = service.catalog().listing_document().clone();
+    listings.listings.push(
+        serde_json::from_value(serde_json::json!({
+            "id": port_id,
+            "name": "Future catalog listing",
+            "summary": "An artwork portability fixture",
+            "project_url": "https://github.com/fixture/listing-artwork"
+        }))
+        .unwrap(),
+    );
+    let catalog = service
+        .catalog()
+        .clone()
+        .with_listing_document(listings)
+        .unwrap();
+    service.replace_catalog_for_test(catalog.clone());
+    image::RgbImage::from_pixel(2, 2, image::Rgb([12, 34, 56]))
+        .save(&artwork_path)
+        .unwrap();
+    service
+        .import_artwork(port_id, ArtworkSlot::Cover, &artwork_path, 0)
+        .unwrap();
+    let artwork = service.artwork(port_id, ArtworkSlot::Cover).unwrap();
+    let mod_choices = crate::ModPortalChoices {
+        local_page: Some(crate::LocalModPage {
+            name: "Local source fixture".into(),
+            url: "https://example.org/listing-mods".into(),
+        }),
+        ..Default::default()
+    };
+    service
+        .set_mod_portal_preferences(port_id, 0, mod_choices.clone())
+        .unwrap();
+    service
+        .add_games_to_library(&[crate::LibraryMembershipRequest {
+            port_id: port_id.into(),
+            origin: crate::LibraryMembershipOrigin::Manual,
+            sources: Vec::new(),
+        }])
+        .unwrap();
+    service.write_library_metadata(&export).unwrap();
+    let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+    assert_eq!(plan.metadata.schema_version, 17);
+    let invalid = temp.path().join("invalid-export.json");
+    let mut invalid_metadata = plan.metadata.clone();
+    for invalid_id in ["../wrong-id".to_owned(), "a".repeat(129)] {
+        invalid_metadata.artwork.as_mut().unwrap().choices[0].port_id = invalid_id;
+        std::fs::write(&invalid, serde_json::to_vec(&invalid_metadata).unwrap()).unwrap();
+        assert!(PortcoveService::plan_library_import(&invalid, &source, &destination).is_err());
+    }
+    PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256).unwrap();
+
+    let mut restored = PortcoveService::new(Library::open(&destination).unwrap()).unwrap();
+    assert!(restored.artwork(port_id, ArtworkSlot::Cover).is_err());
+    assert!(restored.catalog().port(port_id).is_err());
+    assert_eq!(
+        restored.library_memberships().unwrap(),
+        service.library_memberships().unwrap()
+    );
+    restored.replace_catalog_for_test(catalog);
+    assert_eq!(
+        restored
+            .artwork(port_id, ArtworkSlot::Cover)
+            .unwrap()
+            .choice,
+        artwork.choice
+    );
+    assert_eq!(
+        restored.mod_portal_preferences(port_id).unwrap().choices,
+        mod_choices
+    );
+}
+
+#[test]
 fn mod_portal_choices_round_trip_through_export_and_interrupted_import() {
     let temp = tempfile::tempdir().unwrap();
     let source = temp.path().join("source");

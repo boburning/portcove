@@ -504,7 +504,14 @@ pub(crate) fn validate_metadata(
                 ));
             }
             crate::artwork_store::validate_metadata_with(artwork, |port_id| {
-                catalogs.require_port(port_id)
+                // A local choice can wait for its listing to become available.
+                // Retain the existing gate for reviewed runtime identities outside
+                // the listing ID grammar.
+                if crate::catalog::listings::valid_listing_id(port_id) {
+                    Ok(())
+                } else {
+                    catalogs.require_port(port_id)
+                }
             })?
         }
         (None, 1 | 2) => {}
