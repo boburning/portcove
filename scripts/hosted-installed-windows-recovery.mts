@@ -14,7 +14,11 @@ import { cachedDesktopDrivers } from "./tool-cache.mts";
 const repository = "boburning/portcove";
 const recoveryScenario = "native-library-recovery-bundle";
 const organizationScenario = "native-library-organization-restart";
-type InstalledScenario = typeof recoveryScenario | typeof organizationScenario;
+const gameChoiceScenario = "native-game-first-choice-and-restart";
+type InstalledScenario =
+  | typeof recoveryScenario
+  | typeof organizationScenario
+  | typeof gameChoiceScenario;
 type ProductInputs = Record<"app" | "preparation-cli" | "preparation-tool", FileIdentity>;
 const root = fileURLToPath(new URL("../", import.meta.url));
 const packageLimit = 128 * 1024 * 1024;
@@ -30,6 +34,7 @@ export function recoveryPreviewVersion(tag: string) {
 export function publishedWindowsScenario(operation: string) {
   if (operation === "windows-installed-library-recovery") return recoveryScenario;
   if (operation === "windows-installed-library-organization") return organizationScenario;
+  if (operation === "windows-installed-game-choice") return gameChoiceScenario;
   throw new Error("Supply one fixed Windows installed observation operation");
 }
 
@@ -158,16 +163,60 @@ export async function verifyPublishedOrganizationObservation(
   };
 }
 
+export async function verifyPublishedGameChoiceObservation(
+  native: string,
+  revision: string,
+  inputs: ProductInputs,
+) {
+  const { json, boundFile, boundRestart } = await installedObservation(
+    native,
+    revision,
+    inputs,
+    gameChoiceScenario,
+  );
+  const leaf = "game-first-choice-result.json";
+  const result = await json(leaf);
+  assert.ok(isRecord(result) && isRecord(result.identity) && Array.isArray(result.readbacks));
+  assert.equal(result.scenario, gameChoiceScenario);
+  assert.equal(result.outcome, "interactions-complete");
+  assert.equal(result.failure, null);
+  const game = "the-legend-of-zelda-majoras-mask";
+  const ports = ["2ship2harkinian", "zelda64-recomp"];
+  assert.equal(result.identity.game_id, game);
+  assert.deepEqual(result.identity.port_ids, ports);
+
+  const readbacks: readonly unknown[] = result.readbacks;
+  const organizationAt = (phase: string) => {
+    const matches = readbacks.filter((row) => isRecord(row) && row.phase === phase);
+    const [match] = matches;
+    assert.ok(matches.length === 1 && isRecord(match) && isRecord(match.organization));
+    return match.organization;
+  };
+  const chosen = organizationAt("chosen");
+  const restarted = organizationAt("restarted");
+  assert.ok(isRecord(chosen.preferred_port_by_game));
+  const selected = chosen.preferred_port_by_game[game];
+  assert.ok(typeof selected === "string" && ports.includes(selected));
+  assert.deepEqual(restarted, chosen);
+  return {
+    result: await boundFile(leaf),
+    restart: await boundRestart(`${gameChoiceScenario}-restart.json`),
+    game,
+    selected,
+  };
+}
+
 function command(
   program: string,
   args: readonly string[],
   environment: NodeJS.ProcessEnv,
   timeout = 60_000,
+  cwd = root,
 ) {
   const result = spawnSync(program, args, {
     encoding: "utf8",
     env: environment,
-    cwd: root,
+    cwd,
     timeout,
     maxBuffer: 4 * 1024 * 1024,
     windowsHide: true,
@@ -241,8 +290,12 @@ async function run(tag: string, version: string, temporary: string, scenario: In
   await mkdir(temporary);
   const retain = (name: string, value: unknown) =>
     writeFile(path.join(output, name), JSON.stringify(value, null, 2) + "\n", { flag: "wx" });
+  const gameChoice = scenario === gameChoiceScenario;
+  const harnessRoot = gameChoice ? path.join(temporary, "release-source") : root;
+  const harnessRevision = gameChoice ? source : currentRevision;
   await retain("host.json", {
     source: currentRevision,
+    harness_source: harnessRevision,
     release_source: source,
     release_tag_object: tagObject,
     tag,
@@ -296,6 +349,37 @@ async function run(tag: string, version: string, temporary: string, scenario: In
     );
   }
   await retain("release-custody.json", { identity, release_id: releaseId, verification: verified });
+  if (gameChoice) {
+    // This scenario asserts the complete embedded catalog against the release's
+    // source files and independently reviewed relationships. Use the tagged harness.
+    command(
+      "git.exe",
+      ["worktree", "add", "--detach", "--quiet", harnessRoot, source],
+      childEnvironment,
+    );
+    command(
+      "pwsh.exe",
+      ["-NoProfile", "-Command", "pnpm install --frozen-lockfile; exit $LASTEXITCODE"],
+      childEnvironment,
+      5 * 60_000,
+      harnessRoot,
+    );
+    assert.equal(
+      command("git.exe", ["rev-parse", "HEAD"], childEnvironment, undefined, harnessRoot),
+      source,
+    );
+    assert.equal(
+      command(
+        "git.exe",
+        ["status", "--porcelain", "--untracked-files=no"],
+        childEnvironment,
+        undefined,
+        harnessRoot,
+      ),
+      "",
+      "Tagged Desktop harness source changed",
+    );
+  }
 
   const cliDirectory = path.join(temporary, "cli");
   command(
@@ -331,7 +415,7 @@ async function run(tag: string, version: string, temporary: string, scenario: In
     "Verified cached Desktop drivers are required before installation",
   );
 
-  const lock = await acquireNativeSessionLock({ workspace: root, scenarios: [scenario] });
+  const lock = await acquireNativeSessionLock({ workspace: harnessRoot, scenarios: [scenario] });
   try {
     assert.deepEqual(registry(childEnvironment), [], "Refusing an existing Portcove registration");
     const installer = path.join(temporary, assets.installer);
@@ -365,7 +449,7 @@ async function run(tag: string, version: string, temporary: string, scenario: In
         probe,
       ],
       {
-        cwd: root,
+        cwd: harnessRoot,
         env: { ...childEnvironment, PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: lock.owner.token },
         stdio: "inherit",
         windowsHide: true,
@@ -378,22 +462,36 @@ async function run(tag: string, version: string, temporary: string, scenario: In
       "preparation-cli": cliIdentity,
       "preparation-tool": await fileIdentity(probe),
     };
-    const evidence =
-      scenario === recoveryScenario
-        ? {
-            recovery_evidence: await verifyPublishedRecoveryObservation(
-              native,
-              currentRevision,
-              inputs,
-            ),
-          }
-        : {
-            organization_evidence: await verifyPublishedOrganizationObservation(
-              native,
-              currentRevision,
-              inputs,
-            ),
-          };
+    let evidence;
+    switch (scenario) {
+      case recoveryScenario:
+        evidence = {
+          recovery_evidence: await verifyPublishedRecoveryObservation(
+            native,
+            harnessRevision,
+            inputs,
+          ),
+        };
+        break;
+      case organizationScenario:
+        evidence = {
+          organization_evidence: await verifyPublishedOrganizationObservation(
+            native,
+            harnessRevision,
+            inputs,
+          ),
+        };
+        break;
+      case gameChoiceScenario:
+        evidence = {
+          game_choice_evidence: await verifyPublishedGameChoiceObservation(
+            native,
+            harnessRevision,
+            inputs,
+          ),
+        };
+        break;
+    }
     assert.deepEqual(await fileIdentity(application), executable);
     assert.deepEqual(registry(childEnvironment), registration);
     await retain("installed-after.json", {

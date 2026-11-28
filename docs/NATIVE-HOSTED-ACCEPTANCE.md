@@ -486,6 +486,18 @@ port's gallery. It requires live image access on a cold cache and does not use a
 provider key. A bundled directory result leaves signed delivery and released
 client acceptance open.
 
+## Registered Windows game and implementation choice
+
+Dispatch `native-design-compatibility.yml` with `windows-installed-game-choice`,
+`windows-2022` and one exact published Preview tag. The disposable runner
+verifies the release attestation, installs the normal per-user package and runs
+`native-game-first-choice-and-restart` from the tagged source. That checkout
+supplies the embedded catalog and the independently reviewed relationship
+fixture for the installed release. The receipt binds the installed executable,
+the selected Majora's Mask implementation and the confirmed restart. It covers
+Discover and the retained decision. Cached catalog refresh, installed game
+launch and gameplay have separate observations.
+
 ## Hosted installed application update
 
 The manual `hosted-installed-update.yml` workflow (#52) proves one real

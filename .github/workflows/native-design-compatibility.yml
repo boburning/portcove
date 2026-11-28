@@ -24,6 +24,7 @@ on:
             slice3-windows-recovery,
             windows-installed-library-recovery,
             windows-installed-library-organization,
+            windows-installed-game-choice,
           ]
       recovery_preview_tag:
         description: Exact immutable Preview tag for Windows installed observations.
@@ -1399,7 +1400,7 @@ jobs:
         run: node controller/scripts/native-backup-evidence.mts emit-hosted hosted-evidence
 
   windows_installed_library_recovery:
-    if: ${{ (inputs.operation == 'windows-installed-library-recovery' || inputs.operation == 'windows-installed-library-organization') && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    if: ${{ (inputs.operation == 'windows-installed-library-recovery' || inputs.operation == 'windows-installed-library-organization' || inputs.operation == 'windows-installed-game-choice') && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
     runs-on: windows-2022
     timeout-minutes: 60
     env:
