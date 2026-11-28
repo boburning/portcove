@@ -266,52 +266,60 @@ export function GroupedDiscover({
         >
           {comparison && (
             <>
-              <DialogTitle ref={heading} tabIndex={-1}>
+              <DialogTitle id={`${descriptionPrefix}:comparison-title`} ref={heading} tabIndex={-1}>
                 {gameGroupTitle(comparison)}
               </DialogTitle>
-              <DialogDescription>
-                {comparison.ports.length === 1
-                  ? t("discover.compare.single")
-                  : t("discover.compare.several", { total: comparison.ports.length })}
-              </DialogDescription>
-              <FavoriteGameButton
-                port={gameGroupPresentationPort(comparison)}
-                groupPorts={comparison.ports}
-                favorites={favorites}
-                organization={organization}
-              />
-              <FavoritePreferenceFailure favorites={favorites} organization={organization} />
-              {dropComparison && <p className="my-3 text-sm">{t("discover.drop.choose")}</p>}
-              <GameComparisonControls comparison={evidence} />
-              <p className="mb-4 text-xs text-pc-muted-foreground">
-                {t("discover.compare.optionsIntro")}
-              </p>
-              <div className="port-comparison-grid">
-                {comparison.ports.map((port) => (
-                  <ComparisonProject
-                    key={port.id}
-                    port={port}
-                    status={statuses.get(port.id)}
-                    single={comparison.ports.length === 1}
-                    matchesFilters={matching.some((candidate) => candidate.id === port.id)}
-                    platform={
-                      evidence.context.platform || devicePlatform || evidence.report?.platform
-                    }
-                    explicitOtherPlatform={Boolean(
-                      evidence.context.platform && evidence.context.platform !== devicePlatform,
-                    )}
-                    evidence={evidence}
-                    organization={organization}
-                    descriptionPrefix={descriptionPrefix}
-                    nativeSourceDrag={nativeSourceDrag}
-                    droppedFiles={
-                      dropComparison && onGameDropSelect ? pendingGameDrop?.paths : undefined
-                    }
-                    reviewDroppedFiles={reviewDroppedFiles}
-                    open={() => open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`)}
-                    choiceKeepsFocus={choiceKeepsFocus}
-                  />
-                ))}
+              <div
+                className="port-comparison-body"
+                role="region"
+                aria-labelledby={`${descriptionPrefix}:comparison-title`}
+                // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard input scrolls this named comparison pane.
+                tabIndex={0}
+              >
+                <DialogDescription>
+                  {comparison.ports.length === 1
+                    ? t("discover.compare.single")
+                    : t("discover.compare.several", { total: comparison.ports.length })}
+                </DialogDescription>
+                <FavoriteGameButton
+                  port={gameGroupPresentationPort(comparison)}
+                  groupPorts={comparison.ports}
+                  favorites={favorites}
+                  organization={organization}
+                />
+                <FavoritePreferenceFailure favorites={favorites} organization={organization} />
+                {dropComparison && <p className="my-3 text-sm">{t("discover.drop.choose")}</p>}
+                <GameComparisonControls comparison={evidence} />
+                <p className="mb-4 text-xs text-pc-muted-foreground">
+                  {t("discover.compare.optionsIntro")}
+                </p>
+                <div className="port-comparison-grid">
+                  {comparison.ports.map((port) => (
+                    <ComparisonProject
+                      key={port.id}
+                      port={port}
+                      status={statuses.get(port.id)}
+                      single={comparison.ports.length === 1}
+                      matchesFilters={matching.some((candidate) => candidate.id === port.id)}
+                      platform={
+                        evidence.context.platform || devicePlatform || evidence.report?.platform
+                      }
+                      explicitOtherPlatform={Boolean(
+                        evidence.context.platform && evidence.context.platform !== devicePlatform,
+                      )}
+                      evidence={evidence}
+                      organization={organization}
+                      descriptionPrefix={descriptionPrefix}
+                      nativeSourceDrag={nativeSourceDrag}
+                      droppedFiles={
+                        dropComparison && onGameDropSelect ? pendingGameDrop?.paths : undefined
+                      }
+                      reviewDroppedFiles={reviewDroppedFiles}
+                      open={() => open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`)}
+                      choiceKeepsFocus={choiceKeepsFocus}
+                    />
+                  ))}
+                </div>
               </div>
             </>
           )}

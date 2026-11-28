@@ -122,9 +122,41 @@ it.each(
     await page.screenshot({
       path: `../../../../../outputs/ui-refinement/comparison-${layout}-${theme}-740-text-130.png`,
     });
+    const title = dialog.getByRole("heading", { level: 2 }).element();
+    const close = dialog.getByRole("button", { name: "Close", exact: true }).element();
+    const review = dialog.getByRole("region", { name: title.textContent! });
+    await expect.element(review).toBeInTheDocument();
+    const pane = review.element() as HTMLElement;
+    const titleTop = title.getBoundingClientRect().top;
+    const closeTop = close.getBoundingClientRect().top;
+    expect(pane.scrollHeight).toBeGreaterThan(pane.clientHeight);
+    pane.focus();
+    await expect.element(review).toHaveFocus();
+    await userEvent.keyboard("{PageDown}");
+    await expect.poll(() => pane.scrollTop).toBeGreaterThan(0);
+    const choice = dialog.getByRole("button", { name: "Choose Harbor Alternative", exact: true });
+    (choice.element() as HTMLButtonElement).focus();
+    await expect.element(choice).toHaveFocus();
+    const paneBounds = pane.getBoundingClientRect();
+    const choiceBounds = choice.element().getBoundingClientRect();
+    expect(title.getBoundingClientRect().top).toBe(titleTop);
+    expect(close.getBoundingClientRect().top).toBe(closeTop);
+    expect(choiceBounds.top).toBeGreaterThanOrEqual(paneBounds.top);
+    expect(choiceBounds.bottom).toBeLessThanOrEqual(paneBounds.bottom);
+    expect(pane.scrollWidth).toBeLessThanOrEqual(pane.clientWidth + 1);
+    await page.screenshot({
+      path: `../../../../../outputs/ui-refinement/comparison-${layout}-${theme}-scrolled.png`,
+    });
+
+    await page.viewport(360, 300);
+    await expect.poll(() => getComputedStyle(pane).overflowY).toBe("visible");
+    expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
+    choice.element().scrollIntoView({ block: "center" });
+    expect(choice.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(300);
     await userEvent.keyboard("{Escape}");
     await expect.element(dialog).not.toBeInTheDocument();
     await expect.poll(() => document.activeElement).toBe(compare.element());
+    await page.viewport(740, 900);
     const games = page
       .getByRole("region", { name: "Discover games" })
       .element()
