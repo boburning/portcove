@@ -130,28 +130,28 @@ function SettingsFileDraft({
   reportDraft: ReportSettingsDraft | undefined;
 }) {
   const [selected, setSelected] = useState<{ identity: string; edits: GameSettingsEdit[] }>();
-  const [savedAtRead, setSavedAtRead] = useState<number>();
-  // A refusal Core reports as not started keeps its own explanation; an
-  // unconfirmed save keeps the generic readback guidance.
-  const [failed, setFailed] = useState<FileWriteFailure>();
-  const activeFailure = failed?.read === readRevision ? failed : undefined;
-  const needsRead = activeFailure !== undefined;
   const reviewButton = useRef<HTMLButtonElement>(null);
   const { form, held, values, error, edit, discard, validate } = useSettingsFileDraft(identity);
+  const { failure, saved, clearSaved, applied, applyFailed } = useSettingsFileWriteOutcome(
+    readRevision,
+    discard,
+    changed,
+  );
+  const needsRead = failure !== undefined;
   const available = file.available && Boolean(file.configuration_sha256);
   const activeReview = selected?.identity === identity && available ? selected : undefined;
   if (selected && selected.identity !== identity) setSelected(undefined);
   const count = values?.size ?? 0;
   const formId = useId();
-  const fieldsDisabled = disabled || held || needsRead;
-  const canReview = available && !fieldsDisabled && count > 0 && count <= MAX_CHANGES_PER_REVIEW;
+  const controls = settingsFileControls({ available, disabled, held, needsRead, count });
+  const { canReview } = controls;
   useEffect(() => {
     if (!count || !reportDraft) return;
     reportDraft(formId, { formId, path: file.path, count, canReview });
     return () => reportDraft(formId);
   }, [canReview, count, file.path, formId, reportDraft]);
   const update = (id: string, value?: DraftValue) => {
-    setSavedAtRead(undefined);
+    clearSaved();
     edit(id, value);
   };
   const submit = () => {
@@ -179,18 +179,18 @@ function SettingsFileDraft({
         available={available}
         unavailableReason={file.reason}
         held={held}
-        failure={activeReview ? undefined : activeFailure}
-        saved={savedAtRead === readRevision}
+        failure={activeReview ? undefined : failure}
+        saved={saved}
         discard={discard}
       />
-      {(available || held) && (
+      {controls.showFields && (
         <SettingsFileFields
           file={file}
           values={values}
           error={error}
-          disabled={fieldsDisabled}
+          disabled={controls.fieldsDisabled}
           canReview={canReview}
-          canDiscard={!held && count > 0}
+          canDiscard={controls.canDiscard}
           reviewButton={reviewButton}
           update={update}
           discard={discard}
@@ -204,22 +204,9 @@ function SettingsFileDraft({
           identity={identity}
           edits={activeReview.edits}
           actions={actions}
-          changed={(next) => {
-            discard();
-            setSavedAtRead(readRevision);
-            changed(next);
-          }}
-          failed={(failure) => {
-            const state = failurePresentation(failure)?.mutation_state;
-            const committed = state === "committed";
-            setFailed({
-              read: readRevision,
-              committed,
-              ...(state === "not_started" ? { refusal: errorText(failure) } : {}),
-            });
-            if (committed) discard();
-          }}
-          disabled={disabled || needsRead}
+          changed={applied}
+          failed={applyFailed}
+          disabled={controls.reviewDisabled}
           close={() => setSelected(undefined)}
           returnFocus={reviewButton}
           heading={heading}
@@ -227,6 +214,68 @@ function SettingsFileDraft({
       )}
     </form>
   );
+}
+
+function settingsFileControls({
+  available,
+  disabled,
+  held,
+  needsRead,
+  count,
+}: {
+  available: boolean;
+  disabled: boolean;
+  held: boolean;
+  needsRead: boolean;
+  count: number;
+}) {
+  const reviewDisabled = disabled || needsRead;
+  const fieldsDisabled = reviewDisabled || held;
+  return {
+    reviewDisabled,
+    fieldsDisabled,
+    showFields: available || held,
+    canReview: available && !fieldsDisabled && count > 0 && count <= MAX_CHANGES_PER_REVIEW,
+    canDiscard: !held && count > 0,
+  };
+}
+
+/** Keep each write outcome tied to the file read it followed. */
+function useSettingsFileWriteOutcome(
+  readRevision: number,
+  discard: () => void,
+  changed: (view: GameSettingsView) => void,
+) {
+  const [savedAtRead, setSavedAtRead] = useState<number>();
+  const [failed, setFailed] = useState<FileWriteFailure>();
+  const failure = failed?.read === readRevision ? failed : undefined;
+
+  function applied(view: GameSettingsView) {
+    discard();
+    setSavedAtRead(readRevision);
+    changed(view);
+  }
+
+  function applyFailed(error: unknown) {
+    const state = failurePresentation(error)?.mutation_state;
+    const committed = state === "committed";
+    // Core's confirmed refusal retains its explanation. A save with an unknown
+    // outcome needs a read before another review.
+    setFailed({
+      read: readRevision,
+      committed,
+      ...(state === "not_started" ? { refusal: errorText(error) } : {}),
+    });
+    if (committed) discard();
+  }
+
+  return {
+    failure,
+    saved: savedAtRead === readRevision,
+    clearSaved: () => setSavedAtRead(undefined),
+    applied,
+    applyFailed,
+  };
 }
 
 /** Own the editable values and local validation for one exact file. */
