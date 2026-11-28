@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { GitHubApiError } from "./github-operation.mts";
 import { orderedJsonSha256 } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -12,6 +13,7 @@ import {
 } from "./upstream-n64-build-job.mts";
 import {
   checkN64GameEntries,
+  n64AlternateGameTablePath,
   n64GameTablePath,
   parseN64GameTable,
 } from "./upstream-n64-game-entry.mts";
@@ -110,8 +112,19 @@ export function parseSupportedOriginalHashes(contents: unknown) {
   return { ...source, variants };
 }
 
-function parseN64ReleaseSource(contents: unknown) {
-  const { text, ...source } = readReleaseSourceFile(contents, n64GameTablePath);
+async function readN64ReleaseDeclaration(read: ReadGitHub) {
+  let path: string = n64GameTablePath;
+  let contents: unknown;
+  try {
+    contents = await read(path);
+  } catch (error) {
+    // Only a missing conventional source file permits the alternate layout.
+    // A failed provider read or invalid declaration retains the original result.
+    if (!(error instanceof GitHubApiError) || error.status !== 404) throw error;
+    path = n64AlternateGameTablePath;
+    contents = await read(path);
+  }
+  const { text, ...source } = readReleaseSourceFile(contents, path);
   return { ...source, games: parseN64GameTable(text) };
 }
 
@@ -148,7 +161,7 @@ type LibultrashipEvidence = SourceIdentity &
   };
 
 type N64Evidence = SourceIdentity &
-  ReturnType<typeof parseN64ReleaseSource> & {
+  Awaited<ReturnType<typeof readN64ReleaseDeclaration>> & {
     parser: "n64-recomp-game-entry-v1";
     coverage: "source-declaration";
     runtime_source?: N64RuntimeSourceObservation;
@@ -236,19 +249,18 @@ export async function observeOriginalSource(
   const repository = `/repos/${target.repository}`;
   const tag = await readRecognitionTag(target, read);
   const commit = await resolveRecognitionCommit(repository, tag, read);
-  const path = family === "libultraship" ? tablePath : n64GameTablePath;
-  const contents = await read(`${repository}/contents/${path}?ref=${commit}`);
+  const readSource = (path: string) => read(`${repository}/contents/${path}?ref=${commit}`);
   const declaration =
     family === "libultraship"
       ? ({
           parser: "libultraship-supported-hashes-v1",
           coverage: "recognition-only",
-          ...parseSupportedOriginalHashes(contents),
+          ...parseSupportedOriginalHashes(await readSource(tablePath)),
         } as const)
       : ({
           parser: "n64-recomp-game-entry-v1",
           coverage: "source-declaration",
-          ...parseN64ReleaseSource(contents),
+          ...(await readN64ReleaseDeclaration(readSource)),
         } as const);
   const confirmed = await readRecognitionTag(target, read);
   if (confirmed.sha !== tag.sha || confirmed.type !== tag.type)
@@ -535,7 +547,7 @@ export function readOriginalSourceProgress(
     if (
       fact.parser !== "n64-recomp-game-entry-v1" ||
       fact.coverage !== "source-declaration" ||
-      fact.source_path !== n64GameTablePath ||
+      (fact.source_path !== n64GameTablePath && fact.source_path !== n64AlternateGameTablePath) ||
       !games
     )
       return;
@@ -551,7 +563,7 @@ export function readOriginalSourceProgress(
       ...source,
       parser: fact.parser,
       coverage: fact.coverage,
-      source_path: n64GameTablePath,
+      source_path: fact.source_path,
       games,
       ...(runtime ? { runtime_source: runtime } : {}),
       ...(builds ? { build_outputs: builds } : {}),

@@ -2816,6 +2816,95 @@ function n64RuntimeFixtureBlob(path: string, text: string) {
   };
 }
 
+void test("N64 release source checks the alternate layout only after an exact 404", async () => {
+  const target = {
+    repository: "fixture/new-game",
+    repository_id: 72,
+    release_id: 418,
+    release_tag: "release-1",
+    artifacts: [{ platform: "windows-x86-64", sha256: "d".repeat(64) }],
+  };
+  const sha = "a".repeat(40);
+  const contents = "/repos/fixture/new-game/contents/";
+  const preferred = `${contents}src/main/main.cpp?ref=${sha}`;
+  const alternate = `${contents}src/main.cpp?ref=${sha}`;
+  const paths: string[] = [];
+  const game = `std::vector<recomp::GameEntry> supported_games = {
+    { .game_id = u8"fixture.original", .rom_hash = 0x1234567812345678ULL,
+      .mod_game_id = "fixture-native" }
+  };`;
+  let preferredResult: unknown = new GitHubApiError("request_failed", "file absent", {
+    status: 404,
+  });
+  let alternation = n64RuntimeFixtureBlob("src/main.cpp", game);
+  const read = async (endpoint: string) => {
+    if (endpoint.startsWith(contents)) {
+      paths.push(endpoint);
+      if (endpoint === preferred) {
+        if (preferredResult instanceof Error) throw preferredResult;
+        return preferredResult;
+      }
+      assert.equal(endpoint, alternate);
+      return alternation;
+    }
+    if (endpoint === "/repos/fixture/new-game")
+      return { id: target.repository_id, full_name: target.repository };
+    assert.equal(endpoint, "/repos/fixture/new-game/git/ref/tags/release-1");
+    return { ref: "refs/tags/release-1", object: { type: "commit", sha } };
+  };
+  const observed = await observeOriginalSource(target, read, "n64-recomp");
+  assert.deepEqual(paths, [preferred, alternate]);
+  assert.equal(observed.source_path, "src/main.cpp");
+  assert.equal(observed.source_blob_sha1, alternation.sha);
+  assert.ok("games" in observed);
+  assert.equal(observed.games[0]?.mod_game_id, "fixture-native");
+  const progress = {
+    state: "observed",
+    last_complete: {
+      binding: observationHash(target),
+      observed_at: "2026-11-20T00:00:00Z",
+      fact: observed,
+    },
+  };
+  assert.deepEqual(readOriginalSourceProgress(progress, target, "n64-recomp"), progress);
+  assert.equal(
+    readOriginalSourceProgress(
+      {
+        ...progress,
+        last_complete: {
+          ...progress.last_complete,
+          fact: { ...observed, source_path: "elsewhere/main.cpp" },
+        },
+      },
+      target,
+      "n64-recomp",
+    ),
+    undefined,
+  );
+
+  alternation = { ...alternation, path: "unexpected/main.cpp" };
+  await assert.rejects(
+    observeOriginalSource(target, read, "n64-recomp"),
+    /metadata is incomplete/u,
+  );
+  for (const failure of [
+    new GitHubApiError("request_failed", "access denied", { status: 403 }),
+    n64RuntimeFixtureBlob("src/main/main.cpp", "int main() { return 0; }"),
+  ]) {
+    paths.length = 0;
+    preferredResult = failure;
+    await assert.rejects(observeOriginalSource(target, read, "n64-recomp"));
+    assert.deepEqual(paths, [preferred]);
+  }
+  preferredResult = n64RuntimeFixtureBlob("src/main/main.cpp", game);
+  paths.length = 0;
+  assert.equal(
+    (await observeOriginalSource(target, read, "n64-recomp")).source_path,
+    "src/main/main.cpp",
+  );
+  assert.deepEqual(paths, [preferred]);
+});
+
 void test("N64 runtime reads bind the pinned canonical gitlink and checked blob", async () => {
   const target = {
     repository: "fixture/one",

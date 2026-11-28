@@ -438,6 +438,12 @@ turn, a matched job can retain the ordered CMake/Ninja runtime compile, static
 library, and executable link evidence from a successful step between checkout
 and upload. An unavailable compile log keeps the previously checked steps.
 
+The GitHub source reader checks `src/main/main.cpp` at the selected release
+commit. When GitHub returns 404 for that file, it checks the supported
+`src/main.cpp` layout at the same commit. Both layouts verify the exact Git
+blob and use the same bounded literal GameEntry parser. A provider outage or
+an invalid primary file does not trigger the alternate read.
+
 Maintenance projects a provisional original-file binding for the exact port
 definition, source contracts, and package selection evaluated by the observer.
 It uses the native game ID from the configured runtime filename, the reviewed
