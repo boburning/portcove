@@ -1,3 +1,4 @@
+import type { CoverMediaMatch } from "./shared-cover-projection.mts";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import type { CatalogMediaAsset } from "../apps/desktop/src/transport-types.generated.d.ts";
@@ -310,7 +311,11 @@ export function scheduledGameMediaDefaults(
   reviewed: ReadonlyMap<string, ReviewedOriginalMediaDecision>,
   excluded: ReadonlySet<string>,
   incoming?: { proposal: Proposal; producerListings: readonly Listing[] },
-  options: { strict?: ReadonlyMap<unknown, Listing>; withdrawn?: ReadonlySet<string> } = {},
+  options: {
+    strict?: ReadonlyMap<unknown, Listing>;
+    withdrawn?: ReadonlySet<string>;
+    coverMediaMatches?: ReadonlyMap<string, CoverMediaMatch>;
+  } = {},
 ) {
   const byId = new Map(canonical.map((row) => [row.id, row]));
   const accepted = acceptedHeroMediaMatches(
@@ -326,7 +331,7 @@ export function scheduledGameMediaDefaults(
   );
   const choices = new Map<
     string,
-    Map<string, { asset: CatalogMediaAsset; retained: boolean } | null>
+    Map<string, { asset: CatalogMediaAsset; retained: boolean; coverBacked: boolean } | null>
   >();
   const verifiedOriginalScreenshots = new Set(
     canonical
@@ -374,15 +379,26 @@ export function scheduledGameMediaDefaults(
       validArtworkMapping(row.artwork) && row.artwork.match_kind === "port"
         ? row.artwork
         : undefined;
+    const directMatch = decision ?? accepted.get(key);
+    const coverMatch = options.coverMediaMatches?.get(id);
+    const coverBacked = asset.subject.kind === "original" && directMatch === undefined;
     const mapping =
       asset.subject.kind === "port"
         ? portCover && { game_id: portCover.game_id, slug: portCover.game_slug }
         : decision?.decision === "exclude"
           ? undefined
-          : (decision ?? accepted.get(key));
+          : directMatch !== undefined
+            ? directMatch
+            : coverMatch?.scope === key
+              ? coverMatch.claim
+              : undefined;
     if (!mapping || mapping.game_id !== image.game_id || mapping.slug !== image.game_slug) return;
     const roles =
-      choices.get(key) ?? new Map<string, { asset: CatalogMediaAsset; retained: boolean } | null>();
+      choices.get(key) ??
+      new Map<
+        string,
+        { asset: CatalogMediaAsset; retained: boolean; coverBacked: boolean } | null
+      >();
     const stored = roles.get(asset.role);
     const fingerprint = [
       key,
@@ -399,7 +415,7 @@ export function scheduledGameMediaDefaults(
     if (retained && asset.id !== normalized.id) return;
     // An automatic observation never widens a maintained edition scope.
     delete normalized.edition_neutral;
-    if (stored === undefined) roles.set(asset.role, { asset: normalized, retained });
+    if (stored === undefined) roles.set(asset.role, { asset: normalized, retained, coverBacked });
     else if (stored && stored.retained === retained && stored.asset.id !== normalized.id)
       roles.set(asset.role, null);
     choices.set(key, roles);
@@ -458,6 +474,7 @@ export function scheduledGameMediaDefaults(
         const current = [...existing, ...additions];
         if (
           scope(row, asset.subject) !== key ||
+          (entry.coverBacked && options.coverMediaMatches?.get(row.id)?.scope !== key) ||
           (Array.isArray(strictMedia) && !directoryOnlyMedia(asset)) ||
           (asset.role !== "landscape_cover" &&
             current.filter((value) => !landscapeCoverMedia(value)).length >= 14) ||

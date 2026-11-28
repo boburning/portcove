@@ -1,3 +1,4 @@
+import { coverBackedMediaMatches } from "./shared-cover-projection.mts";
 import {
   requireOriginalGameDecision,
   checkOriginalGameConsistency,
@@ -793,6 +794,9 @@ async function prepareArtworkProposalRun(
         }))
       : [],
   };
+  const coverMediaMatches = heroMedia
+    ? coverBackedMediaMatches(authored.authored, authored.reviewedOriginalMedia)
+    : undefined;
   let mediaPlan:
     | ReturnType<(typeof import("./artwork-preparation-progress.mts"))["planDueGameMedia"]>
     | undefined;
@@ -827,6 +831,7 @@ async function prepareArtworkProposalRun(
             id: listing.id,
             input_sha256: digest({
               version: "game-media-due/4",
+              cover_media_match: coverMediaMatches?.get(listing.id),
               validator,
               id: listing.id,
               name: listing.name,
@@ -963,6 +968,7 @@ async function prepareArtworkProposalRun(
               reviewedOriginalMedia: authored.reviewedOriginalMedia,
               excludedPortIds: excludedMedia,
               explicitClearPortIds: cleared,
+              ...(coverMediaMatches ? { coverMediaMatches } : {}),
               knownGoneMediaTargets: gone,
               knownHeldMediaTargets: held,
               refreshPortIds: ids

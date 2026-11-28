@@ -886,6 +886,25 @@ void test("reviewed media discovers missing roles by exact game, edition and sys
     assert.equal(asset.edition_neutral, undefined);
   }
   assert.deepEqual(result.catalog.ports.slice(2), [otherEdition, otherSystem, excluded]);
+
+  seedReads.length = 0;
+  mediaReads.length = 0;
+  const coverMatch = {
+    scope: JSON.stringify([subject.game_id, subject.source_edition_id, "playstation-2"]),
+    claim: { game_id: 7, slug: "reviewed-game" },
+  };
+  const bootstrapped = await prepareCatalogGameMedia(
+    { ports: [recipient, sibling, otherEdition, otherSystem, excluded] },
+    {
+      coverMediaMatches: new Map(
+        [recipient, sibling, otherEdition, otherSystem, excluded].map(({ id }) => [id, coverMatch]),
+      ),
+      inspector,
+    },
+  );
+  assert.deepEqual(bootstrapped.catalog, result.catalog);
+  assert.deepEqual(seedReads, [7]);
+  assert.deepEqual(mediaReads, ["sharedlogo"]);
   const secondEdition = { id: "game-2003", system: "playstation-2" };
   const multiEdition = port("both-releases");
   multiEdition.presentation.original_game.source_editions.push(secondEdition);

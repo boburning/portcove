@@ -56,6 +56,7 @@ import {
 } from "./listing-scheduled-cover.mts";
 import type { IgdbArtwork } from "../apps/desktop/src/transport-types.generated.d.ts";
 import {
+  coverBackedMediaMatches,
   indexSharedCoverRows,
   projectExactSharedCovers,
   retainSharedCoverDefaults,
@@ -1760,6 +1761,11 @@ export async function prepareObservationBundle(options: {
       if (!isRecord(current) || !Array.isArray(current.ports) || !current.ports.every(isRecord))
         throw new Error("Scheduled game media requires the maintained operational catalog");
       const strict = new Map(current.ports.map((row) => [row.id, row]));
+      const coverMediaMatches = coverBackedMediaMatches(
+        source.authored,
+        source.reviewedOriginalMedia,
+        indexSharedCoverRows(prior),
+      );
       const coverInputs = {
         authored: source.authored,
         reviewed: source.reviewedOriginalMedia,
@@ -1792,7 +1798,7 @@ export async function prepareObservationBundle(options: {
         source.reviewedOriginalMedia,
         excluded,
         undefined,
-        { strict },
+        { strict, coverMediaMatches },
       );
       if (options.observe !== false && !options.deferMediaObserver) {
         const receipt = await (
@@ -1816,7 +1822,7 @@ export async function prepareObservationBundle(options: {
                 source.reviewedOriginalMedia,
                 excluded,
                 receipt,
-                { strict },
+                { strict, coverMediaMatches },
               )
             : undefined;
           const nextAssets =
@@ -1907,7 +1913,7 @@ export async function prepareObservationBundle(options: {
             source.reviewedOriginalMedia,
             excluded,
             undefined,
-            { strict, withdrawn: observation.withdrawn },
+            { strict, withdrawn: observation.withdrawn, coverMediaMatches },
           );
           if (receipt && observation.proposal?.additions.length) {
             proposedMedia = scheduledGameMediaDefaults(
@@ -1916,7 +1922,7 @@ export async function prepareObservationBundle(options: {
               source.reviewedOriginalMedia,
               excluded,
               { ...receipt, proposal: observation.proposal },
-              { strict, withdrawn: observation.withdrawn },
+              { strict, withdrawn: observation.withdrawn, coverMediaMatches },
             );
             mediaReceipt = receipt.artifact;
           }

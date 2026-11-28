@@ -2147,6 +2147,74 @@ void test("scheduled media projects the exact edition, retains signed defaults, 
   };
   assert.deepEqual(projectedRoles(20), ["logo"]);
   assert.deepEqual(projectedRoles(21), ["landscape_cover", "logo"]);
+
+  const { coverBackedMediaMatches, indexSharedCoverRows } =
+    await import("./shared-cover-projection.mts");
+  const coverDonor = {
+    ...donor,
+    artwork: {
+      match_kind: "underlying-game" as const,
+      game_id: 80,
+      game_slug: "sample-game",
+      cover_id: 55,
+      image_id: "samplecover",
+      image_sha256: "e".repeat(64),
+    },
+  };
+  const authoredCovers = [
+    { format_version: 1 as const, listing: coverDonor },
+    { format_version: 1 as const, listing: peer },
+    { format_version: 1 as const, listing: distinct },
+    { format_version: 1 as const, listing: hidden, igdb_no_shared_cover: true },
+  ];
+  const tentative = coverBackedMediaMatches(authoredCovers, new Map());
+  const matches = coverBackedMediaMatches(
+    authoredCovers,
+    new Map(),
+    indexSharedCoverRows([coverDonor, peer]),
+  );
+  assert.deepEqual(matches, tentative);
+  assert.deepEqual([...matches.keys()], [donor.id, peer.id]);
+  const replaced = {
+    ...coverDonor,
+    artwork: { ...coverDonor.artwork, image_sha256: "f".repeat(64) },
+  };
+  assert.equal(
+    coverBackedMediaMatches(authoredCovers, new Map(), indexSharedCoverRows([replaced])).size,
+    0,
+  );
+  const conflictingDonor = { ...peer, artwork: { ...coverDonor.artwork, game_id: 81 } };
+  const conflictingMatches = coverBackedMediaMatches(
+    [authoredCovers[0]!, { format_version: 1, listing: conflictingDonor }],
+    new Map(),
+    indexSharedCoverRows([coverDonor, peer]),
+  );
+  assert.equal(conflictingMatches.get(peer.id)?.claim, null);
+  const coverBacked = scheduledGameMediaDefaults(
+    [coverDonor, peer, distinct, hidden],
+    [],
+    new Map(),
+    new Set(),
+    { proposal: readScheduledGameMediaProposal(withLandscape), producerListings },
+    { coverMediaMatches: matches },
+  );
+  assert.deepEqual(
+    coverBacked(peer)
+      .map(({ role }) => role)
+      .sort(),
+    ["landscape_cover", "logo"],
+  );
+  assert.deepEqual(coverBacked(distinct), []);
+  assert.deepEqual(coverBacked({ ...peer, id: "other-consumer" }), []);
+  const deniedByConflict = scheduledGameMediaDefaults(
+    [coverDonor, conflictingDonor],
+    [],
+    new Map(),
+    new Set(),
+    { proposal: readScheduledGameMediaProposal(withLandscape), producerListings },
+    { coverMediaMatches: conflictingMatches },
+  );
+  assert.deepEqual(deniedByConflict(peer), []);
   const competing = {
     ...incoming,
     proposal: {

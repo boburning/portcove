@@ -1,3 +1,4 @@
+import type { CoverMediaMatch } from "./shared-cover-projection.mts";
 import { readIgdbCredentials, resolveIgdbCredentialsFile } from "./maintainer-config.mts";
 import type { ReadableStreamReadResult } from "node:stream/web";
 import { isRecord, errorCode } from "./runtime-values.mts";
@@ -1830,6 +1831,7 @@ function declaredHeroMediaIdentities(
   accepted: ReturnType<typeof acceptedHeroMediaMatches>,
   reviewed: ReadonlyMap<string, ReviewedOriginalMediaDecision> | undefined,
   cleared: boolean,
+  coverMatch?: CoverMediaMatch,
 ): HeroIdentity[] {
   const value = isRecord(input) ? input[port.id] : undefined;
   const supplied: Record<string, unknown> = isRecord(value) ? value : {};
@@ -1879,7 +1881,13 @@ function declaredHeroMediaIdentities(
         });
       continue;
     }
-    const match = accepted.get(key);
+    const acceptedMatch = accepted.get(key);
+    const match =
+      acceptedMatch !== undefined
+        ? acceptedMatch
+        : coverMatch?.scope === key
+          ? coverMatch.claim
+          : undefined;
     if (!cleared && match !== undefined)
       identities.push({
         subject,
@@ -2405,6 +2413,7 @@ export async function prepareCatalogGameMedia(
     reviewedOriginalMedia?: ReadonlyMap<string, ReviewedOriginalMediaDecision>;
     excludedPortIds?: ReadonlySet<string>;
     explicitClearPortIds?: ReadonlySet<string>;
+    coverMediaMatches?: ReadonlyMap<string, CoverMediaMatch>;
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     knownGoneMediaTargets?: readonly string[];
@@ -2485,6 +2494,7 @@ export async function prepareCatalogGameMedia(
       accepted,
       options.reviewedOriginalMedia,
       cleared,
+      options.coverMediaMatches?.get(port.id),
     ))
       await prepareHeroIdentity(port.id, identity, media, directoryMedia, records, context);
     if (media.length || Array.isArray(current)) port.presentation = { ...port.presentation, media };
