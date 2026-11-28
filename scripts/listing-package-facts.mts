@@ -1356,7 +1356,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     archives: (ObservedAsset & { sha256: string })[];
     reusable: Map<string, ArtifactFactV2>;
     reusableRefusals: Map<string, RefusalClass>;
-    unread: Map<string, string>;
+    unread: Map<ObservedAsset, string>;
     cost: number;
   };
   const needs: Need[] = [];
@@ -1562,13 +1562,13 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         .flatMap((entry) => entry?.refused_archives ?? [])
         .map((archive) => [`${archive.asset_id}/${archive.sha256}`, archive.refusal] as const),
     );
-    const unread = new Map<string, string>();
+    const unread = new Map<ObservedAsset, string>();
     let cost = 0;
     for (const asset of digestBound) {
       const assetKey = `${asset.id}/${asset.sha256}`;
       if (reusable.has(assetKey) || reusableRefusals.has(assetKey)) continue;
       unread.set(
-        assetKey,
+        asset,
         digestOf([
           repositoryId,
           release.id,
@@ -1684,7 +1684,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         reused++;
         continue;
       }
-      const key = need.unread.get(assetKey)!;
+      const key = need.unread.get(asset)!;
       const left = (intendedReads.get(key) ?? 1) - 1;
       if (left) intendedReads.set(key, left);
       else intendedReads.delete(key);

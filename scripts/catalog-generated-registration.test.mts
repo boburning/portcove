@@ -596,6 +596,43 @@ void test("shared inspections retain the time needed by independent reproduction
   assert.equal(result.state.retry.find((entry) => entry.port_id === ids[2])?.cause, "runner-time");
 });
 
+void test("a malformed repeated provider asset ID cannot mislabel shared inspection facts", async () => {
+  const malformed = "zz-malformed-id-before-sibling";
+  const sibling = "zz-sibling-with-clean-release";
+  const repository = "fixture-owner/shared-release";
+  const projectUrl = `https://github.com/${repository}`;
+  const records = [malformed, sibling].map((id) => listing(id, { project_url: projectUrl }));
+  const digest = sha("same-archive-digest");
+  const windows = { id: 24, name: windowsZip, sha256: digest };
+  const linux = { id: 24, name: linuxTar, sha256: digest };
+  const report = observerReport({
+    [malformed]: {
+      repository,
+      releases: [{ ...defaultRelease(malformed), assets: [windows, linux] }],
+    },
+    [sibling]: { repository, releases: [{ ...defaultRelease(sibling), assets: [linux] }] },
+  });
+  for (const row of report.listings)
+    for (const asset of row.listing_update.upstream_observation.releases[0]!.assets)
+      asset.url = `${projectUrl}/releases/download/v1.0/${asset.name}`;
+  const calls: string[] = [];
+  let linuxReads = 0;
+  const result = await derive(records, report, undefined, {
+    async inspect(asset) {
+      calls.push(asset.name);
+      if (asset.name === windowsZip) return [player("Game/Game.exe")];
+      if (++linuxReads === 1)
+        throw new InspectionError("temporary", false, "core-network", "network");
+      return [player("Game/Game", "elf64-x86-64")];
+    },
+  });
+  assert.deepEqual(calls, [windowsZip, linuxTar, linuxTar]);
+  assert.equal(
+    result.table.entries.find((entry) => entry.port_id === sibling)?.artifacts[0]?.name,
+    linuxTar,
+  );
+});
+
 const enrolledIds = (records: AuthoredPort[], facts: ListingFactsTable) =>
   generateRegistrations(records, facts).enrollments.map((row) => row.port_id);
 const outcome = (result: DeriveResult, id: string) =>
