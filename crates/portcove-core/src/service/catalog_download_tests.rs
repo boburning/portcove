@@ -204,10 +204,10 @@ fn pending_catalog_record_formats_preserve_legacy_and_refuse_missing_or_foreign_
 }
 
 #[tokio::test]
-async fn a_pending_download_never_serializes_directory_observed_covers() {
+async fn pending_downloads_strip_and_reject_directory_only_artwork() {
     let (_temporary, mut service, request) = fixture();
     let mut directory = service.catalog.listing_document().clone();
-    directory.format_version = crate::catalog::listings::OBSERVED_PROJECT_COVER_LISTING_FORMAT;
+    directory.format_version = crate::catalog_media::LANDSCAPE_COVER_LISTING_FORMAT;
     let artwork = serde_json::from_value(json!({
         "game_id":17, "cover_id":31, "image_id":"projectcover",
         "image_sha256":"a".repeat(64), "game_slug":"project", "match_kind":"port",
@@ -215,11 +215,31 @@ async fn a_pending_download_never_serializes_directory_observed_covers() {
     }))
     .unwrap();
     directory.listings[0].artwork = Some(artwork);
+    let landscape: crate::CatalogMediaAsset = serde_json::from_value(json!({
+        "id": "project-landscape",
+        "role": "landscape_cover",
+        "subject": {"kind": "port", "port_id": request.port_id},
+        "caption": "Project landscape cover",
+        "url": "https://raw.githubusercontent.com/owner/game/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/wide.png",
+        "sha256": "b".repeat(64),
+        "width": 960,
+        "height": 540,
+        "attribution": "Example project",
+        "source_url": "https://github.com/owner/game",
+        "license": "CC-BY-4.0",
+        "rights_url": "https://creativecommons.org/licenses/by/4.0/",
+    }))
+    .unwrap();
+    directory.listings[0].media.push(landscape.clone());
     service.catalog = service
         .catalog
         .clone()
         .with_listing_document(directory)
         .unwrap();
+    assert_eq!(
+        service.catalog.listing(&request.port_id).unwrap().media,
+        [landscape.clone()]
+    );
     let github = GithubFixture::new(archive(), None, None);
     let preview = service
         .catalog_download_preview_with_provider(&request, &github.provider)
@@ -249,8 +269,17 @@ async fn a_pending_download_never_serializes_directory_observed_covers() {
     assert_eq!(decoded.id, pending.id);
     assert_eq!(decoded.format_version, 1);
     assert!(decoded.listing.artwork.is_none());
+    assert!(decoded.listing.media.is_empty());
     assert!(!encoded.contains("observed_github_repository_id"));
     validate_record(&decoded).unwrap();
+
+    decoded.listing.media.push(landscape);
+    decoded.listing.validate().unwrap();
+    assert_eq!(
+        validate_record(&decoded).unwrap_err().code,
+        crate::ErrorCode::Unsupported
+    );
+    decoded.listing.media.clear();
 
     decoded.listing.artwork = service
         .catalog
