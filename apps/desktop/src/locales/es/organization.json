@@ -33,10 +33,16 @@
     "on": "Avisos de actualización activos"
   },
   "edit": {
+    "cancel": "Cancelar",
+    "collection": "Editar colección",
+    "collectionChanged": "Las preferencias de la biblioteca cambiaron. Cierra y vuelve a abrir el editor antes de guardar otro nombre.",
+    "collectionMissing": "Esta colección ya no está disponible. Cierra el editor para volver a la biblioteca.",
     "create": "Crear colección",
+    "nameInvalid": "Usa un nombre más corto y sin caracteres de control.",
     "nameLabel": "Nombre de la colección",
     "note": "Las colecciones organizan las entradas. Quitar una colección conserva todos los juegos y archivos.",
     "remove": "Quitar colección",
+    "saveName": "Guardar nombre",
     "summary": "Editar colecciones"
   },
   "failure": {

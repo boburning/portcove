@@ -1,10 +1,18 @@
-import { Fragment, useId, useState, useRef, type ReactNode } from "react";
+import { Fragment, useId, useState, useRef, type ReactNode, type RefObject } from "react";
 import { Popover } from "@base-ui/react/popover";
 import { Menu } from "@base-ui/react/menu";
 import { Heart, EyeOff, Eye, Check, Folder, Plus } from "lucide-react";
 import { Trans } from "react-i18next";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogTitle,
+  DialogTrigger,
+} from "../../components/ui/dialog";
 import { controlFocus } from "../../components/ui/control-style";
 import type { CatalogEntry } from "../browsing/catalog-entry";
 import { originalGame, gameGroupId } from "../browsing/original-game";
@@ -284,6 +292,117 @@ export function OrganizationControls({
         </Popover.Positioner>
       </Popover.Portal>
     </Popover.Root>
+  );
+}
+
+export function EditCollectionButton({
+  collectionId,
+  organization,
+  fallbackFocus,
+}: {
+  collectionId: string;
+  organization: Organization;
+  fallbackFocus: RefObject<HTMLHeadingElement | null>;
+}) {
+  const { t } = useAppTranslation("organization");
+  const input = useRef<HTMLInputElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const inputId = useId();
+  const [draft, setDraft] = useState<{ name: string; revision: number }>();
+  const [failed, setFailed] = useState(false);
+  const snapshot = organization.snapshot;
+  const collection = snapshot?.collections[collectionId];
+  const name = draft?.name.trim() ?? "";
+  const invalid = new TextEncoder().encode(name).length > 120 || /\p{Cc}/u.test(name);
+  const stale = draft !== undefined && draft.revision !== snapshot?.revision;
+  const canSave = Boolean(
+    collection && name && name !== collection.name && !invalid && !stale && !organization.busy,
+  );
+
+  return (
+    <Dialog
+      open={draft !== undefined}
+      onOpenChange={(open) => {
+        if (open && collection && snapshot) {
+          setFailed(false);
+          setDraft({ name: collection.name, revision: snapshot.revision });
+        } else if (!open && !organization.busy) {
+          setDraft(undefined);
+        }
+      }}
+    >
+      {collection && (
+        <DialogTrigger
+          render={<Button ref={trigger} data-focusable type="button" variant="outline" />}
+        >
+          {t("edit.collection")}
+        </DialogTrigger>
+      )}
+      <DialogContent
+        initialFocus={input}
+        finalFocus={() => trigger.current ?? fallbackFocus.current}
+        showCloseButton={false}
+      >
+        <DialogTitle>{t("edit.collection")}</DialogTitle>
+        <form
+          className="grid gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!canSave) return;
+            void organization
+              .commit({ kind: "upsert_collection", collection_id: collectionId, name })
+              .then((saved) => {
+                if (saved) setDraft(undefined);
+                else setFailed(true);
+              });
+          }}
+        >
+          <label htmlFor={inputId}>{t("edit.nameLabel")}</label>
+          <Input
+            id={inputId}
+            ref={input}
+            value={draft?.name ?? ""}
+            readOnly={organization.busy}
+            aria-invalid={invalid || undefined}
+            aria-describedby={invalid ? `${inputId}-invalid` : undefined}
+            onChange={(event) => {
+              const name = event.target.value;
+              setDraft((current) => current && { ...current, name });
+            }}
+          />
+          {invalid && <p id={`${inputId}-invalid`}>{t("edit.nameInvalid")}</p>}
+          {!collection ? (
+            <p role="status">{t("edit.collectionMissing")}</p>
+          ) : stale ? (
+            <p role="status">{t("edit.collectionChanged")}</p>
+          ) : (
+            failed && (
+              <div>
+                <p role="status">{t("failure.write")}</p>
+                <Button
+                  variant="link"
+                  type="button"
+                  disabled={organization.busy}
+                  onClick={() => void organization.refresh()}
+                >
+                  {t("failure.reload")}
+                </Button>
+              </div>
+            )
+          )}
+          <DialogFooter>
+            <DialogClose
+              render={<Button variant="outline" type="button" disabled={organization.busy} />}
+            >
+              {t("edit.cancel")}
+            </DialogClose>
+            <Button type="submit" variant="primary" disabled={!canSave}>
+              {t("edit.saveName")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
